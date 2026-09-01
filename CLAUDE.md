@@ -234,6 +234,14 @@ upserts it. `POST /api/ingest` runs one pass.
 - **Meta fields are addressed by their emoji prefix, never by position.** Four spans sit in
   one row and 9.2 % of offers state no company — read by position, every following field of
   those offers is shifted by one.
+- **`text()` joins every node with a space, so an advert arrives as one line.** Nothing a
+  filter reads is lost, but the detail page shows a wall and the one thing a person does
+  with an ad is skim it. `PlainText` keeps the block boundaries and the `<br>`s, and it is
+  deliberately not used where a regex runs: a pattern is written against a single line and
+  `.` does not match a newline, so the same pattern that matched across a joined boundary
+  would silently stop matching. **A pattern reads a line, a field reads a document.** The
+  rule holds in both extractors, and it changes nothing for a title or a location because
+  those sit in one inline element.
 - **`ProxyLink.unwrap` is a privacy boundary, not a convenience.** Every link in the corpus
   carries the subscriber's address as a query parameter. An unrecognised wrapper therefore
   loses its whole query rather than keeping it. `SampleCorpusAcceptanceTest` fails on an
@@ -493,9 +501,34 @@ be rude to the portals and slow for nothing.
 - **A judge that fails returns nothing rather than throwing.** One unreachable endpoint
   must not end the run; the offer keeps its deterministic reasons and scores lower, which
   is visible and reviewable.
-- **`provider` is a kind, never a default.** The only wire format implemented is the
-  OpenAI-compatible chat API, which Ollama and most hosted services speak; the base URL
-  decides who answers. No committed file names a vendor and neither does the code.
+- **`provider` is a kind, never a default.** It names a wire format and nothing else. Two
+  are implemented — the OpenAI-compatible chat API (`openai-compatible`, `ollama`) and the
+  Messages API (`anthropic`) — and the base URL still decides who answers. A provider the
+  code does not know is refused loudly rather than approximated, because a request in the
+  wrong shape does not fail cleanly: it comes back a 400, or gets parsed out of a field
+  that is not there into an offer that looks judged and is not.
+- **The Messages API takes no `temperature`, and a judge's token ceiling is not the size of
+  its answer.** The current models removed the sampling parameters and answer a request
+  carrying one with a 400, and reasoning is counted against `max_tokens` before the text
+  begins, so a cap sized to the few lines of JSON truncates the response before the answer
+  starts. Both failures land as "the judge returned nothing", which is by design not an
+  exception — every offer would simply score lower, with nothing saying why.
+- **`base_url` is required even for a hosted provider whose address never changes.** A URL
+  in the code is a vendor in the code, and no committed file in this repository names one.
+  It lives in `.env` beside the key.
+- **The two judges share everything but four things.** `HttpJudge` owns the question, the
+  bounds, the description of an offer and the reading of the answer; a subclass owns the
+  path, the auth header, the request body and where the text sits in the response. The
+  bounds especially: they are what stop a model outvoting the weight table, and a second
+  copy would mean the same offer scores differently depending on who was asked.
+- **Ollama is the one provider that needs no key**, and requiring one made it unusable —
+  there was nothing to write in `.env`, so the judge was silently never built. The rule is
+  about the value, which is why the provider is listed separately from
+  `openai-compatible` even though it gets the same judge.
+- **Only `llm.models.scoring` is read.** `extraction` has no LLM fallback implemented, the
+  cover letter is a Freemarker template, and `embedding` belongs to the two deduplication
+  strategies that are logged and skipped. Three keys that look configured and are not is
+  the same class of lie as an unimplemented auth mode, so the shipped file says so.
 - **The judge is built per run**, not once at startup, because the configuration is
   hot-reloadable: a key added to `.env` should start producing scores without a restart.
 - **The digest is a file, and the last thing a run does.** No transport, no recipient, no
@@ -648,6 +681,11 @@ screen reads one of these, and none of them writes.
   controller or service. The configuration model is the exception: those records mirror the
   nesting of a YAML file, and flattening them would lose exactly the structure they exist to
   describe.
+- **`@Valid` goes on the type argument, never on the container.** `List<@Valid Skill>`
+  validates the elements; `@Valid List<Skill>` is deprecated in Hibernate Validator 9 and
+  logs a `HV000271` per component at every start. The configuration model is almost
+  entirely lists of validated records, so getting it wrong once fills the startup log.
+
 - **JDBC, not JPA.** The pipeline writes offers in batches and upserts them with
   `ON CONFLICT`, which is one statement of plain SQL against a schema Flyway owns. An ORM
   would add a mapping layer over Postgres arrays for no gain. Flyway is therefore the only
@@ -671,11 +709,65 @@ screen reads one of these, and none of them writes.
   `password authentication failed for user "leadgen"` — a message naming the user and
   neither the host nor the database it actually reached. `DatasourceBanner` prints the
   effective JDBC URL at startup for the same reason the frontend prints its proxy target.
-- **`.env` is read by `PlaceholderResolver`, not by the build.** It used to be a
-  `bootRun` hook, so launching the very same configuration from an IDE silently saw none of
-  it: the value was in the file and the service said it was missing. The file is searched
-  upwards from the working directory and real environment variables win, so every start path
-  behaves identically. Compose reads the same file.
+- **`.env` is read by the application, not by the build.** It used to be a `bootRun` hook, so
+  launching the very same configuration from an IDE silently saw none of it: the value was in
+  the file and the service said it was missing. The file is searched upwards from the working
+  directory and real environment variables win, so every start path behaves identically.
+  Compose reads the same file.
+- **`.env` reaches Spring too, and it has to.** `DotEnvEnvironmentPostProcessor` registers it
+  as a property source directly below `systemEnvironment`, so a real exported variable still
+  wins and `application.yaml` now loses to the file. Without it the file meant two different
+  things depending on which of the two readers a variable happened to be used by:
+  `LEADGEN_CONFIG_DIR`, `POSTGRES_PASSWORD` and `SERVER_PORT` could be written there, be
+  visibly present, and have no effect whatsoever — while Compose, which passes those same
+  names as real environment variables, behaved exactly as written. It is a
+  `SystemEnvironmentPropertySource`, so `SPRING_DATASOURCE_URL` maps the way an exported
+  variable would, and it is registered in `META-INF/spring.factories` rather than as a bean
+  because it has to run before the environment is bound.
+- **`leadgen.packages-dir` and `leadgen.inbox-dir` are gone, and were read by nothing.** The
+  packages directory is `packaging.output_dir` in `pipeline.yaml`, the inbox is a source's
+  `path` in `sources.yaml`, and both are read by the tool itself. Their only effect was to make
+  `PACKAGES_DIR` and `INBOX_DIR` look as though they meant something on the Spring side as
+  well, which is how a value ends up written in the one place that is not read.
+
+## The startup banner
+
+`ConfigurationBanner`, beside `DatasourceBanner`. One box, one log entry, on
+`ApplicationReadyEvent`.
+
+- **Cumulative, not per file.** `application.yaml` and `.env` are two files with two readers,
+  but nobody debugging a run thinks in files — they think "which database, which mailbox,
+  which model". Both are merged into one view, grouped by subject, and every row says where
+  its value came from instead of which list it was in.
+- **Effective, not declared.** A `${POSTGRES_PORT:55432}` shows the port in use, and a `.env`
+  key a real environment variable overrides shows the value that wins. Otherwise the banner
+  disagrees with the resolver exactly where it matters.
+- **App-relevant is measured, not listed.** A `.env` key is shown when a `${...}` in
+  `application.yaml` or in one of the four `leadgen/*.yaml` files names it — read from the raw
+  text, in both layers. `WEB_PORT` and `API_PROXY_TARGET` belong to the dev server and to
+  Compose, and showing them invites the reader to change one and wait for an effect that
+  cannot come. The count of what was left out is printed, so "left out" never means "lost".
+- **A variable both files name is one row, not two.** It appears under the property that
+  consumes it, carrying the value that won.
+- **Every row names the layer that decided it**, `env` before `.env` before `yaml`, which is
+  the precedence `DotEnvEnvironmentPostProcessor` registers.
+- **`Secrets` decides by key name, because a password is not recognisable by looking at it.**
+  The only safe direction to be wrong in is masking something harmless. The mask is a fixed
+  width — stars matching the length would publish the length — and masked, empty and unset are
+  three different renderings: whether a secret is configured at all is the one thing about it
+  worth logging. Credentials inside a value are masked too: `scheme://user:password@host`.
+- **The icons are emoji from the block with no text-presentation past, and no `U+FE0F`
+  anywhere.** A legacy symbol like `⚠` is one column in some terminals and two in others, and
+  either way the border is torn off exactly the rows that carry an icon. Padding is computed in
+  display columns, not in `String.length`.
+- **A banner must not be able to end a startup.** An unresolvable placeholder is printed as
+  such, an unreadable file contributes nothing, and neither throws at the last moment before
+  the process is ready.
+- **A `@DynamicPropertySource` supplier is called once per resolution, not once per context.**
+  Reading `leadgen.config-dir` for the banner made `PackagingServiceTest` build a second temp
+  configuration and reassign the static it asserts against — it then deleted a CV the
+  application was never going to open. Anything with a side effect in such a supplier has to
+  be memoized.
 
 ## What already exists
 
@@ -787,6 +879,12 @@ code has to reproduce — the numbers in `docs/SAMPLE-ANALYSIS.md` are the targe
   through `TitleNormalizer`, so two of them cannot disagree.
 - The location sits behind a `📍` prefix in one of four `span`s in `div.job-meta` —
   address it by the prefix, never by position.
+- **A test that proves the keyless path must not read the developer's `.env`.** Placeholder
+  resolution reads the process environment and then `.env`, whichever test is running, so
+  `ScoringWithoutAModelTest` started scoring against a real endpoint the moment a key was
+  filled in — and the test that exists to prove the tool works *without* a model failed for
+  the one person who had finished configuring it. It empties the `${LLM_*}` placeholders in
+  the materialised copy: what is under test is the code path, not whose machine it runs on.
 - **Renaming the root component's selector means editing `src/index.html` too.** The
   Angular CLI generates `<app-root>`; the repo prefix is `lg-`. Every unit test still
   passes with the mismatch, because `TestBed` creates the component itself — the only
