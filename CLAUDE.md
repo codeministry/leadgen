@@ -446,6 +446,35 @@ end of a run.
   portal in the duplicate cluster, so one project advertised three times is one package
   that says so.
 
+## Manual status capture
+
+`backend/…/application/`. The half of the loop the system cannot observe, and the first
+write endpoint in the application.
+
+- **The operator is the authority, so no transition is refused.** A project can be lost
+  before it was ever answered, and a mistyped status has to be correctable without an
+  argument. The eleven states describe the usual path; they are not a rule the tool
+  enforces against the person who was actually there. A board that argues is a board
+  nobody updates, and it is the only place this state exists.
+- **What *is* checked is that the values make sense together.** Moving to a sent state
+  with no date gets today rather than a rejection — the operator is recording something
+  that already happened, and refusing would cost the status as well.
+- **`clearFollowUp` is a `Boolean`, not a `boolean`.** Jackson refuses to map an absent
+  value into a primitive, so every request omitting the flag came back 400 — which is
+  every request, since the point of a PATCH is that it names one thing. The tri-state is
+  also what the field means: leave it, set it, remove it.
+- **A closing status drops the follow-up.** A lost project with a standing reminder is how
+  a follow-up list stops being read.
+- **Every change is an event row.** A single mutable row cannot answer "when did I send
+  this" after the second correction. A date-only edit records no event; a status change
+  does.
+- **The application opens when the package is built**, because that is the first moment
+  there is anything for a person to act on, and opening is idempotent so a second run
+  never resets a status someone has already moved on.
+- **`timestamptz` does not convert straight to an `Instant`.** The Postgres driver throws
+  a `DataIntegrityViolationException` naming the whole query rather than the column. Read
+  it with `getTimestamp(...).toInstant()`.
+
 ## Backend conventions
 
 - **Lombok for the boilerplate, records for the data.** `@Slf4j` instead of a hand-written
@@ -559,7 +588,9 @@ code has to reproduce — the numbers in `docs/SAMPLE-ANALYSIS.md` are the targe
     `// FIXTURE — replace with the real endpoint`. Each feature reads through an `Api`
     seam (`core/api/shortlist.api.ts` is the model), so swapping in HTTP is one file per
     feature. Steps 5 to 9 are what unblocks that.
-11. **Manual status capture** — the tool never sends. It finds, filters, scores and
+11. 🟡 **Manual status capture** — backend done: the `application` table, its event log,
+    `GET/PATCH /api/applications`. The board and the offer detail still read fixtures.
+    The tool never sends. It finds, filters, scores and
     packages; Marcello sends the mail himself and therefore records the outcome himself.
     The pipeline board is the only place that state exists, so it needs
     `PATCH /api/applications/{id}` plus an `application` table, a status control on the

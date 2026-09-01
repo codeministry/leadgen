@@ -1,6 +1,8 @@
 package de.codeministry.leadgen.packaging;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import de.codeministry.leadgen.application.ApplicationService;
+import de.codeministry.leadgen.application.ApplicationStatus;
 import de.codeministry.leadgen.config.ConfigProperties;
 import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.config.ConfigSnapshot;
@@ -73,13 +75,19 @@ public class PackagingService {
 
     private final ConfigRegistry config;
     private final ConfigProperties properties;
+    private final ApplicationService applications;
     private final JdbcClient jdbc;
     private final ObjectMapper json;
     private final Configuration freemarker;
 
-    PackagingService(ConfigRegistry config, ConfigProperties properties, DataSource dataSource) {
+    PackagingService(
+            ConfigRegistry config,
+            ConfigProperties properties,
+            ApplicationService applications,
+            DataSource dataSource) {
         this.config = config;
         this.properties = properties;
+        this.applications = applications;
         this.jdbc = JdbcClient.create(dataSource);
         this.json = new ObjectMapper().findAndRegisterModules();
         this.freemarker = new Configuration(Configuration.VERSION_2_3_34);
@@ -152,6 +160,11 @@ public class PackagingService {
         jdbc.sql("UPDATE offer SET package_dir = ?, packaged_at = now(), language = ? WHERE id = ?")
                 .params(folder.toString(), language, row.get("id"))
                 .update();
+
+        // The first moment there is something for a person to act on, so this is where
+        // the application opens. Idempotent: a second packaging run must not reset a
+        // status the operator has already moved on.
+        applications.open(((Number) row.get("id")).longValue(), ApplicationStatus.PACKAGED);
         log.info("Offer {} packaged into {} ({})", row.get("id"), folder, String.join(", ", written));
         return folder;
     }

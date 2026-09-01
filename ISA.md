@@ -1,10 +1,10 @@
 ---
 phase: climbing
-progress: 65/70
+progress: 69/74
 task: "Acquisition tool: collect, filter, enrich and package project offers"
 slug: lead-generation
 started: 2026-09-01T11:30:00Z
-updated: 2026-09-01T22:30:00Z
+updated: 2026-09-01T22:55:00Z
 ---
 
 # lead-generation — Ideal State Artifact
@@ -133,6 +133,10 @@ A single operator drops mailbox credentials and a profile into `config/`, and ev
 | ISC-68 | bun-test | render the rail over the measured corpus | 1,289 in, 213 out, 16.5 % | Vitest | `shared/funnel-rail/funnel-rail.spec.ts` |
 | ISC-69 | bash | count files under `core/fixtures/` against the removal marker | equal | rg | `frontend/src/app/core/fixtures/` |
 | ISC-70 | bun-test | render the shortlist with no query parameters at all | renders, cards present | Vitest | `features/shortlist/shortlist-page.spec.ts` |
+| ISC-71 | bun-test | open an application twice around a status change | one row, status kept | JUnit | `ApplicationServiceTest` |
+| ISC-72 | bun-test | move backwards through the states, then read the history | accepted, every change kept | JUnit | `ApplicationServiceTest` |
+| ISC-73 | bun-test | a follow-up on its day, on closing, and cancelled | due, dropped, removed | JUnit | `ApplicationServiceTest` |
+| ISC-74 | bun-test | PATCH an unknown status and an unknown id | 400 and 404 | MockMvc | `ApplicationControllerTest` |
 
 ## Features
 
@@ -261,6 +265,15 @@ A single operator drops mailbox credentials and a profile into `config/`, and ev
 - [x] ISC-69: Every fixture file carries the same removal marker, so the temporary data is one grep away from being found rather than quietly becoming permanent.
 - [x] ISC-70: The shortlist renders with no query parameters present at all.
 
+### F11 · Manual status capture
+
+**Why:** The tool never sends, so it cannot observe what happened to a mail: whether it went out, whether anyone replied, whether the project was lost to a cheaper bid. The board is the only place that state exists, which makes keeping it comfortable to update worth more than keeping it strict.
+
+- [x] ISC-71: An application opens once when its package is built and a later packaging run never resets a status the operator has already moved on.
+- [x] ISC-72: Any transition the operator reports is accepted, and every status change is kept as an event — a single mutable row cannot answer "when did I send this" after the second correction.
+- [x] ISC-73: A follow-up is due on its day, is dropped when the application closes, and can be cancelled explicitly rather than only overwritten.
+- [x] ISC-74: The endpoint refuses a status outside the eleven and answers 404 for an id that names nothing, so a typo fails at the door instead of reaching the database as a string nothing can read back.
+
 ## Decisions
 
 - **2026-09-01 — Portal and source names anonymized in the documentation.** The analysis docs named the aggregator, its sender and host, the mail provider and six portals in clear text. The repository is going public; they are now `<newsletter-sender>`, `<aggregator-host>` and `portal-a`…`portal-f`, with the real names in the gitignored `config/local/sources.yaml`. Every measured figure is unchanged.
@@ -274,6 +287,7 @@ A single operator drops mailbox credentials and a profile into `config/`, and ev
 - **2026-09-01 — The cursor is committed after the write, not after the read.** `SourceConnector.commit` exists for that alone.
 - **2026-09-01 — One credentials file, and it is called `.env` because it cannot be called anything else for free.** Marcello's call to collapse `.env.local` plus a `.env` symlink. The name is forced by Compose: it substitutes the `${...}` in `docker-compose.yml` from `.env` and from nothing else — not from `env_file:`, which only injects into a container, and not from `COMPOSE_ENV_FILES` set inside a file. Both measured. Any other name costs a flag on every call or a symlink, and forgetting either silently applies the compose defaults.
 - **2026-09-01 — The database host port defaults to 55432 and the container side is fixed at 5432.** A developer machine usually already holds 5432, and the resulting failure names the user and neither the host nor the database. Making the container side variable too publishes a host port forwarding to a port nobody listens on, which from a client looks exactly like no port at all.
+- **2026-09-01 — The status transitions are documented, not enforced.** Marcello's loop, not the tool's: every value is entered by hand about events the system never saw. A project can be lost before it was answered and a mistyped status has to be correctable without an argument, so the eleven states describe the usual path rather than police it. What is validated is coherence — a sent application gets a date, a closed one loses its follow-up.
 - **2026-09-01 — The language of an ad decides the documents, and English is a real answer.** German when the text contains German, English when there is text and no German, and the profile's `locale_primary` only when there is nothing to go on. Falling back to the profile for an ad that simply has no German in it would send a German letter to an English posting, which is the failure this whole heuristic exists to prevent. Measured: 0 of 1289 descriptions lack a German function word.
 - **2026-09-01 — Without a model, offers keep their reasons but not a total.** The obvious alternatives are both worse: no reasons at all throws away everything the profile and the offer's own fields already decided, and a total computed from five of the nine weights is not comparable to one from all nine — the same offer would score differently depending on whether a key happened to be configured that morning. So the reasons are written and the number is withheld, which is also what the frontend's unscored band was already built for.
 - **2026-09-01 — `digest.schedule` is deleted; the digest is written at the end of an ingest run.** A cron in the configuration would need a scheduler that re-registers on every hot reload, and without one it is a key nothing reads — the third such key removed today. Whatever schedules the run schedules the digest.
@@ -296,6 +310,11 @@ A single operator drops mailbox credentials and a profile into `config/`, and ev
 - **2026-09-01 — The configuration vocabulary keeps the implemented names and adopts four ideas from the hand-drafted `config/local/sources.yaml`.** Resolves the fog entry. Kept: `unwrap_query_param`, `ancestor`, `list`, and the field names `agency`/`published`/`tags`. Adopted: `expect_count_from_subject` (the announced count becomes a runtime check rather than only a test assertion), `prefer_part` (the part preference was hardcoded), per-field `format` (the source-level `date_format` stays as the fallback), and `inherit` (a second source names another's extraction instead of copying it — the example was already carrying two copies of one selector table). Not adopted: the named `transforms:` indirection, which buys a level of indirection for a single transform. The operator's file was migrated to match and reproduces the reference numbers.
 
 ## Learning
+
+- **conjectured:** an optional flag on a PATCH body is naturally a `boolean` with a false default.
+  **refuted by:** every request that omitted it coming back 400. Jackson will not map an absent value into a primitive, and the point of a PATCH is that it names one thing.
+  **learned:** a primitive in a request record makes its field mandatory, silently and in a way the type does not say. And the tri-state was the honest model anyway: leave the follow-up alone, set it, remove it — three answers a `boolean` cannot hold.
+  **criterion now:** ISC-73 asserts cancelling as its own case, not just overwriting.
 
 - **conjectured:** a template rendering the row straight from the database will read the fields it names.
   **refuted by:** the archived ad coming out with "Rate: not stated" and "Published: unknown" for an offer that had both. The row's keys are snake_case; the template asked for `offer.fullText`, `offer.rateEur`, `offer.publishedOn`.
@@ -391,6 +410,7 @@ A single operator drops mailbox credentials and a profile into `config/`, and ev
 - ISC-29 … ISC-34 — `ImapSourceConnectorTest` (8), GreenMail
 - ISC-53, ISC-54 — `POST /api/ingest` against the operator's own migrated rules: 14 documents, 1289 offers, announced equals extracted in all 14
 - ISC-59, ISC-60, ISC-61 — `46e0d9c`; `java -jar` from the repository root logs `Reading …/.env` and `Database: jdbc:postgresql://localhost:55432/leadgen as leadgen`; port counter-check 15432 ↔ 55432
+- ISC-71 … ISC-74 — `ApplicationServiceTest` (12) against Postgres 17 and `ApplicationControllerTest` (5) against MockMvc: opening twice around a status change, a backwards transition accepted, the event log after three moves, a follow-up due on its day and dropped on closing and cancelled on request, and the endpoint answering 400 for an unknown status and 404 for an unknown id
 - ISC-51 — `PackagingServiceTest`, 8 tests against Postgres 17: a folder with cover letter, archived ad, `meta.json` and the CV; German and English letters chosen by the ad; the enriched full text in the archive; score and reasons in `meta.json`; every portal of a duplicate cluster named once; only offers above the threshold packaged; no package built twice; a missing CV recorded rather than fatal
 - ISC-52 — `NothingIsSentTest`, 3 tests reading the repository for send paths and transport keys across backend, shipped configuration and frontend
 - ISC-48, ISC-50 — `ScoringWithAModelTest` (5) and `ScoringWithoutAModelTest` (5) against WireMock and Postgres 17: a reason per factor with the total equal to their sum, an invented factor dropped, a model awarding itself 900 clamped to 15, an unreachable endpoint and a non-JSON answer both leaving the offer scored on rules alone, and the no-key path producing a null score with its deterministic reasons intact
@@ -406,7 +426,9 @@ A single operator drops mailbox credentials and a profile into `config/`, and ev
 
 ## Remaining Work
 
-- [ ] **Next: the write side.** Every pipeline stage is closed — the whole chain from a mailbox to a folder on disk runs. What is left is everything the operator does *back*: recording an application's status after sending the mail by hand, uploading a Markdown file as a manual source and reviewing it before it enters, and editing weights. All three need the first write endpoint in the application, and `security.auth` is still `none`.
+- [ ] **Next: the board reads what the endpoint writes.** F11's backend is closed; the pipeline screen and the offer detail still render fixtures. The status control belongs in both, because the decision to apply is made on the detail and the state is tracked on the board.
+- [ ] Manual entry: uploading a Markdown file as a source, reviewed in `inbox/pending/` before it enters the pipeline. The second write endpoint, and the first that puts a file on disk.
+- [ ] `security.auth` is still `none`, and there is now a write endpoint behind it. Either the service binds to localhost and lives behind something that authenticates, or it grows basic auth or OIDC — the block already exists in `pipeline.yaml`.
 - [ ] An eval for the judge. ISC-48 proves the weights bound the model; it says nothing about whether the model judges *well*. That is a held-out set and a rubric, and it belongs after a real model has scored a real morning.
 - [ ] Run `bun ~/.claude/LIFEOS/TOOLS/IsaFrontier.ts frontier ISA.md` to see the takeable set before picking anything else up.
 
