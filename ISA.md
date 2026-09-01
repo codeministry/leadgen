@@ -1,10 +1,10 @@
 ---
 phase: climbing
-progress: 78/83
+progress: 83/83
 task: "Acquisition tool: collect, filter, enrich and package project offers"
 slug: lead-generation
 started: 2026-09-01T11:30:00Z
-updated: 2026-09-02T00:25:00Z
+updated: 2026-09-02T01:10:00Z
 ---
 
 # lead-generation — Ideal State Artifact
@@ -146,8 +146,8 @@ A single operator drops mailbox credentials and a profile into `config/`, and ev
 | ISC-81 | bun-test | read a file that is nothing but a pasted ad | no offer at all | JUnit | `MarkdownExtractionTest` |
 | ISC-82 | bun-test | an offer with no url, read twice | same external id | JUnit | `MarkdownExtractionTest` |
 | ISC-83 | bash | run the suite and look for stray directories | none outside the config dir | git status | whole repository |
-| ISC-84 | interceptor | upload a document and review it before it enters | fields correctable, duplicate named | manual | not yet authored |
-| ISC-85 | bun-test | upload a wrong extension, an oversized file, a traversing name | all three refused | JUnit | not yet authored |
+| ISC-84 | interceptor | upload a document and review it before it enters | fields correctable, duplicate named | live browser | `ReviewCard`, `ManualUploadServiceTest` |
+| ISC-85 | bun-test | upload a wrong extension, an oversized file, a traversing name | all three refused | JUnit | `ManualUploadServiceTest` |
 
 ## Features
 
@@ -298,8 +298,8 @@ A single operator drops mailbox credentials and a profile into `config/`, and ev
 - [x] ISC-81: A file that is nothing but a pasted ad produces no offer at all rather than one with no title, because `fallback: llm` does not exist yet and a silent half-offer is worse than none.
 - [x] ISC-82: Re-reading the same document is free even when it states no URL, so uploading the same ad twice does not leave deduplication to clean up after it.
 - [x] ISC-83: Anti: nothing the tool does creates a directory outside the configuration directory. A relative path read from the working directory is a directory that exists in one start path and not in another, and the tool's own test run demonstrated it.
-- [ ] ISC-84: An upload is reviewed before it becomes an offer: the extracted fields beside the source text, an answer to "is this already in the pipeline", and a correction that is written back into the file.
-- [ ] ISC-85: Anti: the upload endpoint cannot be made to write outside the inbox — extension allowlist, size limit, no path traversal — and `security.auth` is answered rather than left at `none`.
+- [x] ISC-84: An upload is reviewed before it becomes an offer: the extracted fields beside the source text, an answer to "is this already in the pipeline", and a correction that is written back into the file.
+- [x] ISC-85: Anti: the upload endpoint cannot be made to write outside the inbox — extension allowlist, size limit, no path traversal — and `security.auth` is answered rather than left at `none`.
 
 ## Decisions
 
@@ -314,6 +314,8 @@ A single operator drops mailbox credentials and a profile into `config/`, and ev
 - **2026-09-01 — The cursor is committed after the write, not after the read.** `SourceConnector.commit` exists for that alone.
 - **2026-09-01 — One credentials file, and it is called `.env` because it cannot be called anything else for free.** Marcello's call to collapse `.env.local` plus a `.env` symlink. The name is forced by Compose: it substitutes the `${...}` in `docker-compose.yml` from `.env` and from nothing else — not from `env_file:`, which only injects into a container, and not from `COMPOSE_ENV_FILES` set inside a file. Both measured. Any other name costs a flag on every call or a symlink, and forgetting either silently applies the compose defaults.
 - **2026-09-01 — The database host port defaults to 55432 and the container side is fixed at 5432.** A developer machine usually already holds 5432, and the resulting failure names the user and neither the host nor the database. Making the container side variable too publishes a host port forwarding to a port nobody listens on, which from a client looks exactly like no port at all.
+- **2026-09-01 — Only `none` is an accepted `security.auth`, and it is fatal to write anything else.** Three modes were named in the configuration and none was implemented, which meant someone could write `basic`, believe the write endpoints were protected, and be wrong with no symptom at all. The mode is now rejected at load, and what actually stands in front of the endpoints is `server.address`, defaulting to `127.0.0.1`. Publishing that port anywhere else is the decision that would need an auth mode first, and it is now a decision somebody has to make on purpose.
+- **2026-09-01 — The uploaded file is the state, and there is no staging table.** It is inspectable with `cat`, confirming is a move, a rejection is a delete, and the correction is written back into the document — so re-reading the same file later produces the same offer. A table would put half the pipeline's truth somewhere the source knows nothing about.
 - **2026-09-01 — A relative source path names a place inside the configuration directory.** Resolved against the working directory instead, one configuration points at `backend/…` under `bootRun`, at the repository root in an IDE and at neither from a jar. It is the rule the four YAML files already follow, and the symptom of not following it was concrete: the test suite created `backend/config/inbox/pending` in the working tree, outside the gitignore that was written for `config/`.
 - **2026-09-01 — Clearing the follow-up is a button, not an empty field.** The backend grew `clearFollowUp` so a reminder can be cancelled rather than only overwritten, and the form exposed it by emptying the date input. In Chrome that means deleting each segment of a native date widget in turn, which the operator will not do — the affordance existed in the API and was unreachable in the UI. Found by trying it in the browser, not by reading the code.
 - **2026-09-01 — The status transitions are documented, not enforced.** Marcello's loop, not the tool's: every value is entered by hand about events the system never saw. A project can be lost before it was answered and a mistyped status has to be correctable without an argument, so the eleven states describe the usual path rather than police it. What is validated is coherence — a sent application gets a date, a closed one loses its follow-up.
@@ -444,6 +446,7 @@ A single operator drops mailbox credentials and a profile into `config/`, and ev
 - ISC-29 … ISC-34 — `ImapSourceConnectorTest` (8), GreenMail
 - ISC-53, ISC-54 — `POST /api/ingest` against the operator's own migrated rules: 14 documents, 1289 offers, announced equals extracted in all 14
 - ISC-59, ISC-60, ISC-61 — `46e0d9c`; `java -jar` from the repository root logs `Reading …/.env` and `Database: jdbc:postgresql://localhost:55432/leadgen as leadgen`; port counter-check 15432 ↔ 55432
+- ISC-84, ISC-85 — `ManualUploadServiceTest` (8) against Postgres 17 and `ManualSourceControllerTest` (5) against MockMvc: the upload lands where no source globs it, the extraction is shown before anything enters, the duplicate is named before the confirm, the correction is written into the file and the file is moved, a rejection leaves nothing behind, and a wrong extension, an oversized file and three traversing names are all refused. `ReviewCard` covers the correction path in the browser. Verified live end to end: a file uploaded through the drop zone, `portal` corrected to a value the document never carried, confirmed, and the next run wrote the offer to Postgres with that value
 - ISC-79 … ISC-82 — `MarkdownExtractionTest`, 6 tests through the shipped `manual-inbox` block and the real file connector: every frontmatter field plus the body, a proxy link unwrapped, tags as a list and as a typed line, a content-hash id stable across two reads, no offer from a file without frontmatter, and a `---` in the body read as a thematic break. `IngestServiceTest` adds the wired pass against Postgres: a file dropped in the inbox by hand, with no upload involved, reaches the offer table
 - ISC-83 — `git status` after a full suite run: no directory created outside the configuration directory
 - ISC-75 … ISC-77 — `applications.store.spec.ts` (4) and `status-picker.spec.ts` (3) against `HttpTestingController`: lanes from the server, the row replaced by the answer, the failed PATCH leaving the board untouched, and the picker showing a state that is not the first option
@@ -464,8 +467,8 @@ A single operator drops mailbox credentials and a profile into `config/`, and ev
 
 ## Remaining Work
 
-- [ ] **Next: the upload and its review (ISC-84, ISC-85).** Reading a Markdown offer works; putting one there through the browser does not. `POST /api/sources/manual/documents` is the first endpoint that writes a file, so it needs an extension allowlist, a size limit, a sanitised name and an answer about `security.auth`. The review screen is what stands between a wrong extraction and the shortlist, which is the one list that gets trusted instead of the mailbox.
-- [ ] The remaining fixture screens are shortlist, offer detail, sources and rules. All four wait on a read endpoint over the offers, which is a smaller job than any pipeline stage was and the last thing keeping invented data on screen.
+- [ ] **Next: the last four fixture screens.** Shortlist, offer detail, sources and rules all wait on a read endpoint over the offers, which is a smaller job than any pipeline stage was and the last thing keeping invented data on screen. `rg 'FIXTURE — replace'` finds every one.
+- [ ] CI. The tooling baseline is in place and no pipeline runs it, so every check in this artifact is one somebody remembered to run.
 - [ ] Manual entry: uploading a Markdown file as a source, reviewed in `inbox/pending/` before it enters the pipeline. The second write endpoint, and the first that puts a file on disk.
 - [ ] `security.auth` is still `none`, and there is now a write endpoint behind it. Either the service binds to localhost and lives behind something that authenticates, or it grows basic auth or OIDC — the block already exists in `pipeline.yaml`.
 - [ ] An eval for the judge. ISC-48 proves the weights bound the model; it says nothing about whether the model judges *well*. That is a held-out set and a rubric, and it belongs after a real model has scored a real morning.

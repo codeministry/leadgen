@@ -1,0 +1,56 @@
+<lg-page-header
+  title="Review"
+  subtitle="An upload becomes an offer only once somebody has seen what was read from it."
+/>
+
+<!--
+  A label wrapping a file input rather than a div with a click handler: the keyboard and
+  the screen reader get the control for free, and the drop zone is the same element.
+-->
+<label
+  class="drop"
+  [class.dragging]="dragging()"
+  (dragover)="over($event)"
+  (dragleave)="leave()"
+  (drop)="drop($event)"
+>
+  <input class="sr-only" type="file" accept=".md" multiple (change)="pick($event)" />
+  <lg-icon name="file-text" [size]="20" />
+  <span class="type-small">
+    {{ store.uploading() ? 'Uploading…' : 'Drop a Markdown file here, or choose one' }}
+  </span>
+  <span class="type-caption text-muted">
+    YAML frontmatter carries the fields, the body is the description. A file without it
+    still works; you fill the fields in here.
+  </span>
+</label>
+
+@if (store.error(); as error) {
+  <p class="type-small queue-error" role="alert">
+    <lg-icon name="triangle-alert" [size]="16" />
+    {{ error }}
+  </p>
+}
+
+@if (store.documents().length > 0) {
+  <p class="type-small text-muted count">{{ summary() }}</p>
+
+  <div class="queue">
+    @for (document of store.documents(); track document.name) {
+      <lg-review-card
+        [document]="document"
+        [busy]="store.busy() === document.name"
+        (confirmed)="confirm(document.name, $event)"
+        (rejected)="reject(document.name)"
+      />
+    }
+  </div>
+} @else if (store.loading()) {
+  <p class="type-small text-muted">Loading…</p>
+} @else {
+  <lg-empty-state
+    icon="inbox"
+    title="Nothing waiting"
+    description="Drop a Markdown file above. It lands in the inbox unread, and enters the pipeline on the next run once you confirm it."
+  />
+}

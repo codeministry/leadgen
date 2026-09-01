@@ -243,6 +243,16 @@ public class ConfigLoader {
                     "deduplication.merge_policy is '%s'; only 'keep_first_seen_as_primary' is implemented — any other value would be read, ignored, and silently do the first-seen thing anyway"
                             .formatted(mergePolicy));
         }
+        // The worst possible failure here is the quiet one: someone writes `basic`,
+        // believes the write endpoints are protected, and they are not. Only `none` is
+        // implemented, so only `none` is accepted — and `none` is safe because the service
+        // binds to 127.0.0.1 unless SERVER_ADDRESS says otherwise.
+        String auth = pipeline.security().auth();
+        if (!"none".equals(auth)) {
+            problems.add(
+                    "security.auth is '%s'; only 'none' is implemented — any other value would be read, ignored, and leave the write endpoints open while looking protected"
+                            .formatted(auth));
+        }
         if (pipeline.enrichment().enabled() && !"hard_filter".equals(pipeline.enrichment().after())) {
             problems.add("enrichment.after is '%s'; only 'hard_filter' is allowed"
                     .formatted(pipeline.enrichment().after()));

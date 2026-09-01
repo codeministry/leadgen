@@ -23,6 +23,11 @@ export const routes: Routes = [
     loadComponent: () => import('@features/pipeline/pipeline').then((m) => m.Pipeline),
   },
   {
+    path: 'review',
+    title: 'Review · Lead Generation',
+    loadComponent: () => import('@features/review/review').then((m) => m.Review),
+  },
+  {
     path: 'sources',
     title: 'Sources · Lead Generation',
     loadComponent: () => import('@features/sources/sources').then((m) => m.Sources),

@@ -275,8 +275,9 @@ upserts it. `POST /api/ingest` runs one pass.
 
 ## Manual entry
 
-`backend/…/manual/` plus the `markdown-frontmatter` strategy in `ingest/extract/`. The
-reading half is done: a `.md` file dropped in the inbox becomes an offer on the next run.
+`backend/…/manual/` plus the `markdown-frontmatter` strategy in `ingest/extract/`, and
+`features/review/` in front of it. A `.md` file dropped in the inbox becomes an offer on
+the next run; a file uploaded through the browser waits for review first.
 
 - **It is a `file` source, not a new mechanism.** `manual-inbox` in the shipped
   `sources.yaml` points at a directory and reads `*.md`. An upload only has to put the
@@ -318,6 +319,50 @@ reading half is done: a `.md` file dropped in the inbox becomes an offer on the 
 - **A file with no frontmatter yields no offer.** That is the `fallback: llm` case and it
   is not implemented; the file stays where it is rather than entering as an offer with no
   title.
+
+## The upload and its review
+
+`backend/…/manual/ManualUploadService` and `web/ManualSourceController`, with
+`features/review/` on the other end. The first endpoint that puts a file on disk.
+
+- **An upload lands in `pending/` and becomes an offer only when somebody confirms it.**
+  A pasted ad can be extracted wrongly and a frontmatter key spelled differently is read
+  and then ignored, in silence. Without the step in between, a bad reading enters the
+  shortlist, which is the one list that gets trusted instead of the mailbox.
+- **No staging table: the file is the state.** It can be read with `cat`, confirming is a
+  move, and a rejected upload is a file that was deleted rather than a row nobody looks at
+  again. The correction is written back into the document, so re-reading the same file
+  later produces the same offer.
+- **`ManualDocumentName` is the whole attack surface, and it is one file.** `sanitize`
+  decides what a name may contain, `resolve` decides where the result may land, and both
+  run on every path. The second check is not redundant: a rule enforced only by
+  construction stops being enforced the first time construction changes.
+- **A directory part in an uploaded name is dropped, not cleaned.** A name is a name, and
+  the only reason an upload carries a path is that someone wants it somewhere else.
+  `../../etc/passwd.md` becomes `passwd.md`.
+- **The extension list is an allowlist, and it is the source's glob.** Anything but `.md`
+  is a file nothing would ever read again, so accepting it would only be a place to store
+  things.
+- **The size limit is checked twice on purpose.** `spring.servlet.multipart.max-file-size`
+  belongs to the container and answers with a framework error; the explicit check belongs
+  to the endpoint and answers with a sentence naming the limit.
+- **Deduplication answers before the confirm, not after.** The same fingerprint the dedupe
+  pass uses is looked up while there is still a decision to make, so adding something
+  already in the pipeline costs nothing and says so.
+- **The 400 carries its reason as plain text.** "only .md documents are accepted" is
+  actionable; a bare 400 is a support request. The store shows the server's sentence rather
+  than one of its own.
+- **`security.auth` is answered rather than left open.** Only `none` is implemented, so any
+  other value is now **fatal at load** — someone writing `basic` and believing the write
+  endpoints are protected is the worst failure available here. What stands in front of them
+  instead is `server.address`, which defaults to `127.0.0.1`; the container overrides it
+  because a process bound to loopback inside one is reachable through nothing at all.
+- **Uploading is not ingesting.** The file goes in the queue and *Run ingest* does the
+  rest, so there is exactly one thing in this application that reads sources.
+- **Punctuation does not belong around `@if`.** A count assembled as
+  `{{ n }} waiting@if (…) { , … }.` renders with the template's own whitespace inside the
+  sentence — "1 waiting for review , 1 already in the pipeline ." on the page. Build the
+  sentence in TypeScript.
 
 ## Deduplication
 
@@ -674,7 +719,7 @@ code has to reproduce — the numbers in `docs/SAMPLE-ANALYSIS.md` are the targe
     the note and the history. The dashboard's follow-up tile counts what the server
     called due. The tool never sends — it finds, filters, scores and packages; Marcello
     sends the mail himself and therefore records the outcome himself.
-12. 🟡 **Manual entry** — an offer found by hand must be able to enter the pipeline, or the
+12. ✅ **Manual entry** — an offer found by hand must be able to enter the pipeline, or the
     shortlist quietly stops being the whole picture. A Markdown file uploaded on the
     Sources screen lands in `<config-dir>/inbox/` and is read by a `manual-inbox` **file**
     source on the next run, so no new connector is needed. One document is one offer here,

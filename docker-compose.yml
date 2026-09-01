@@ -48,6 +48,9 @@ services:
       LEADGEN_CONFIG_DIR: /config
       PACKAGES_DIR: /packages
       INBOX_DIR: /inbox
+      # A container is reachable only through its published port, and a process bound to
+      # 127.0.0.1 inside it is reachable through nothing at all.
+      SERVER_ADDRESS: 0.0.0.0
     env_file:
       - path: .env
         required: false

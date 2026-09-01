@@ -1,0 +1,137 @@
+<header class="head">
+  <h3 class="type-h4 name">{{ document().name }}</h3>
+  <span class="type-mono-data text-muted">{{ document().size }} bytes</span>
+</header>
+
+@if (!document().offer) {
+  <p class="type-small note" role="status">
+    No frontmatter in this file, so nothing could be read from it deterministically. Fill
+    the fields in below; the text is on the right.
+  </p>
+}
+
+@if (document().duplicateOfTitle; as existing) {
+  <p class="type-small note duplicate" role="status">
+    Already in the pipeline as &ldquo;{{ existing }}&rdquo;. Confirming adds a second
+    listing, which deduplication collapses into one entry naming both sources.
+  </p>
+}
+
+<div class="split">
+  <div class="fields">
+    <div class="field">
+      <label class="type-caption text-muted" [for]="'title-' + document().name">Title</label>
+      <input
+        class="input input-sm"
+        [id]="'title-' + document().name"
+        [value]="title()"
+        [disabled]="busy()"
+        (input)="set(title, $event)"
+      />
+    </div>
+
+    <div class="field">
+      <label class="type-caption text-muted" [for]="'url-' + document().name">URL</label>
+      <input
+        class="input input-sm type-mono-data"
+        [id]="'url-' + document().name"
+        [value]="url()"
+        [disabled]="busy()"
+        (input)="set(url, $event)"
+      />
+    </div>
+
+    <div class="pair">
+      <div class="field">
+        <label class="type-caption text-muted" [for]="'location-' + document().name">Location</label>
+        <input
+          class="input input-sm"
+          [id]="'location-' + document().name"
+          [value]="location()"
+          [disabled]="busy()"
+          (input)="set(location, $event)"
+        />
+      </div>
+      <div class="field">
+        <label class="type-caption text-muted" [for]="'portal-' + document().name">Portal</label>
+        <input
+          class="input input-sm"
+          [id]="'portal-' + document().name"
+          [value]="portal()"
+          [disabled]="busy()"
+          (input)="set(portal, $event)"
+        />
+      </div>
+    </div>
+
+    <div class="pair">
+      <div class="field">
+        <label class="type-caption text-muted" [for]="'agency-' + document().name">Agency</label>
+        <input
+          class="input input-sm"
+          [id]="'agency-' + document().name"
+          [value]="agency()"
+          [disabled]="busy()"
+          (input)="set(agency, $event)"
+        />
+      </div>
+      <div class="field">
+        <label class="type-caption text-muted" [for]="'published-' + document().name">Published</label>
+        <input
+          class="input input-sm type-mono-data"
+          [id]="'published-' + document().name"
+          type="date"
+          [value]="published()"
+          [disabled]="busy()"
+          (input)="set(published, $event)"
+        />
+      </div>
+    </div>
+
+    <div class="field">
+      <label class="type-caption text-muted" [for]="'tags-' + document().name">Tags</label>
+      <input
+        class="input input-sm"
+        [id]="'tags-' + document().name"
+        [value]="tags()"
+        [disabled]="busy()"
+        (input)="set(tags, $event)"
+      />
+      <span class="type-caption text-muted">Separated by commas.</span>
+    </div>
+
+    <div class="field">
+      <label class="type-caption text-muted" [for]="'description-' + document().name">Description</label>
+      <textarea
+        class="textarea textarea-sm type-small"
+        [id]="'description-' + document().name"
+        rows="4"
+        [value]="description()"
+        [disabled]="busy()"
+        (input)="set(description, $event)"
+      ></textarea>
+    </div>
+  </div>
+
+  <div class="source">
+    <h4 class="type-caption text-muted">The file</h4>
+    <pre class="type-small text">{{ document().text }}</pre>
+  </div>
+</div>
+
+<footer class="actions">
+  <button
+    type="button"
+    class="btn btn-sm btn-primary"
+    [disabled]="!ready() || busy()"
+    (click)="confirm()"
+  >
+    {{ busy() ? 'Working…' : 'Confirm' }}
+  </button>
+  <button type="button" class="btn btn-sm btn-ghost" [disabled]="busy()" (click)="rejected.emit()">
+    Discard
+  </button>
+  <span class="type-caption text-muted">
+    Confirming writes these fields back into the file and moves it where the source reads.
+  </span>
+</footer>

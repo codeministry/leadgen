@@ -4,6 +4,12 @@
 spring:
   application:
     name: lead-generation
+  servlet:
+    multipart:
+      # An advert is a few kilobytes. The service checks the size again itself, because
+      # this limit belongs to the container and the rule belongs to the endpoint.
+      max-file-size: 512KB
+      max-request-size: 1MB
   datasource:
     url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:55432}/${POSTGRES_DB:leadgen}
     username: ${POSTGRES_USER:leadgen}
@@ -36,6 +42,12 @@ management:
 
 server:
   port: ${SERVER_PORT:8080}
+  # `security.auth` is `none` and only `none` is implemented, so this is what stands in
+  # front of the write endpoints: the service is reachable from this machine and nowhere
+  # else. A container has to bind every interface to be reachable through its published
+  # port, which is why docker-compose.yml overrides it — and publishing that port to
+  # anything but 127.0.0.1 is the decision that would need an auth mode first.
+  address: ${SERVER_ADDRESS:127.0.0.1}
 
 logging:
   level:

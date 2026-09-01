@@ -11,9 +11,10 @@ interface NavItem {
 }
 
 /**
- * Five destinations, in the order the work runs: what came in, what survived,
- * what is out with a client, where it came from, and why the filter decided that
- * way. Offer detail is reached from the shortlist and is deliberately not here.
+ * Six destinations, in the order the work runs: what came in, what survived, what
+ * is out with a client, what is waiting to be let in by hand, where it all came
+ * from, and why the filter decided that way. Offer detail is reached from the
+ * shortlist and is deliberately not here.
  */
 @Component({
   selector: 'lg-app-nav',
@@ -29,6 +30,7 @@ export class AppNav {
     { path: '/dashboard', label: 'Dashboard', icon: 'layout-dashboard' },
     { path: '/shortlist', label: 'Shortlist', icon: 'list-checks' },
     { path: '/pipeline', label: 'Pipeline', icon: 'columns-3' },
+    { path: '/review', label: 'Review', icon: 'file-text' },
     { path: '/sources', label: 'Sources', icon: 'database' },
     { path: '/rules', label: 'Rules', icon: 'sliders-horizontal' },
   ];
