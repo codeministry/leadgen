@@ -125,3 +125,39 @@ sources:
       # A mail is a mail, whether it arrives over IMAP or lies in a folder. Two copies
       # of a selector table drift, and the copy nobody looks at drifts unnoticed.
       inherit: sample-newsletter
+  # E) Offers found by hand — a recruiter's mail, a Slack message, a portal with no feed.
+  #    Those have to be able to enter the pipeline, or the shortlist quietly stops being
+  #    the whole picture and nobody notices.
+  #
+  #    This is a `file` source and not a new mechanism: the upload only has to put the
+  #    document where this source is already looking, so dropping a `.md` file into the
+  #    directory by hand works with no UI at all.
+  #
+  #    Enabled by default, because it is the one source that is tied to nobody's account.
+  #    The path names a directory inside the configuration directory, the same rule the
+  #    four YAML files follow. An absolute MANUAL_INBOX_DIR points somewhere else.
+  - id: manual-inbox
+    enabled: true
+    type: file
+    path: ${MANUAL_INBOX_DIR:inbox}
+    glob: "*.md"
+    extraction:
+      # One document is one offer here, unlike the newsletter where one document holds a
+      # hundred. So there is no block selector and no count to check against — what makes
+      # this a strategy of its own is that it stays deterministic: an offer typed by hand
+      # needs no language model to be read.
+      strategy: markdown-frontmatter
+      # The frontmatter carries the same eight field names as every other source. A key
+      # spelled differently is read and then ignored, which is why an upload is reviewed
+      # before it becomes an offer.
+      date_format: "yyyy-MM-dd"
+      fields:
+        # A file pasted out of the newsletter carries the subscriber's address in every
+        # link. The privacy boundary does not care that the document arrived by hand.
+        url: { unwrap_query_param: target }
+      # A file that is nothing but a pasted ad has no frontmatter to read. Not implemented
+      # yet: such a file is left where it is rather than entering with no title.
+      fallback: llm
+    defaults:
+      language: de
+      channel: manual

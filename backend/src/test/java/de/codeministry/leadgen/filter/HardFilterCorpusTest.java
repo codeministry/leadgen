@@ -3,6 +3,7 @@ package de.codeministry.leadgen.filter;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import de.codeministry.leadgen.config.ConfigFixtures;
+import de.codeministry.leadgen.config.ConfigProperties;
 import de.codeministry.leadgen.config.ConfigSource;
 import de.codeministry.leadgen.ingest.ExtractedOffer;
 import de.codeministry.leadgen.ingest.RawDocument;
@@ -97,7 +98,7 @@ class HardFilterCorpusTest {
         var extractor = new HtmlBlockExtractor();
         var mapper = new OfferMapper();
         offers = new ArrayList<>();
-        for (RawDocument document : new FileSourceConnector().read(source, 0L)) {
+        for (RawDocument document : new FileSourceConnector(new ConfigProperties(configDir.toString(), null, null)).read(source, 0L)) {
             extractor.extract(document.html(), source.extraction()).stream()
                     .map(block -> mapper.map(block, source.extraction()))
                     .forEach(offers::add);

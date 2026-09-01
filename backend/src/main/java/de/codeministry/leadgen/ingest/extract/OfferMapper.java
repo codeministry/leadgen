@@ -35,11 +35,12 @@ public class OfferMapper {
     public ExtractedOffer map(Map<String, Object> block, Extraction extraction) {
         String title = string(block, TITLE);
         String url = string(block, URL);
+        String description = string(block, DESCRIPTION);
 
         return new ExtractedOffer(
-                url == null || url.isBlank() ? null : url,
+                externalId(url, title, description),
                 title,
-                string(block, DESCRIPTION),
+                description,
                 url,
                 string(block, LOCATION),
                 string(block, PORTAL),
@@ -47,6 +48,33 @@ public class OfferMapper {
                 date(string(block, PUBLISHED), patternFor(extraction)),
                 strings(block, TAGS),
                 TitleNormalizer.normalize(title));
+    }
+
+    /**
+     * What identifies this listing at its source. The unwrapped URL when there is one,
+     * and a hash of what was written when there is not.
+     *
+     * <p>The upsert is on {@code (source_id, external_id)}, so without the fallback every
+     * source that does not state a URL — an offer typed into a Markdown file, say — would
+     * make a new row every time the same document is read again. A hash of the title and
+     * the text is not a strong identity, but it is the one the document itself carries,
+     * and re-reading has to stay free.
+     */
+    private static String externalId(String url, String title, String description) {
+        if (url != null && !url.isBlank()) {
+            return url;
+        }
+        String content = (title == null ? "" : title) + '\n' + (description == null ? "" : description);
+        if (content.isBlank()) {
+            return null;
+        }
+        try {
+            byte[] digest = java.security.MessageDigest.getInstance("SHA-256")
+                    .digest(content.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            return "sha256:" + java.util.HexFormat.of().formatHex(digest).substring(0, 32);
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 is required by every JVM", e);
+        }
     }
 
     private static String string(Map<String, Object> block, String key) {

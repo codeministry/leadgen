@@ -3,6 +3,7 @@ package de.codeministry.leadgen.ingest;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import de.codeministry.leadgen.config.ConfigFixtures;
+import de.codeministry.leadgen.config.ConfigProperties;
 import de.codeministry.leadgen.config.model.SourcesConfig;
 import de.codeministry.leadgen.ingest.connector.FileSourceConnector;
 import de.codeministry.leadgen.ingest.extract.HtmlBlockExtractor;
@@ -55,7 +56,7 @@ class ExtractionTest {
                 .findFirst()
                 .orElseThrow();
 
-        var documents = new FileSourceConnector().read(source, 0L);
+        var documents = new FileSourceConnector(new ConfigProperties(configDir.toString(), null, null)).read(source, 0L);
         assertThat(documents).hasSize(1);
 
         var extractor = new HtmlBlockExtractor();

@@ -27,6 +27,19 @@ class IngestServiceTest {
     @ServiceConnection
     static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:17-alpine");
 
+    private static final String MANUAL_OFFER =
+            """
+            ---
+            title: Senior Java Entwickler, gefunden auf LinkedIn
+            url: https://portal.example/p/98765
+            location: Köln
+            agency: Beispiel GmbH
+            published: 2026-09-01
+            tags: [Java, Spring Boot]
+            ---
+            Ablösung eines Monolithen.
+            """;
+
     @Autowired
     private IngestService ingest;
 
@@ -42,13 +55,37 @@ class IngestServiceTest {
     void extractsAndStoresEveryOfferOfTheFixture() {
         var report = ingest.run();
 
-        assertThat(report.sources()).singleElement().satisfies(source -> {
-            assertThat(source.sourceId()).isEqualTo("local-eml");
-            assertThat(source.documents()).isEqualTo(1);
-            assertThat(source.extracted()).isEqualTo(3);
-            assertThat(source.written()).isEqualTo(3);
-        });
+        // Filtered by id rather than asserted as the only result: `manual-inbox` is
+        // enabled in the shipped defaults, and it reports an empty directory here.
+        assertThat(report.sources())
+                .filteredOn(source -> source.sourceId().equals("local-eml"))
+                .singleElement()
+                .satisfies(source -> {
+                    assertThat(source.documents()).isEqualTo(1);
+                    assertThat(source.extracted()).isEqualTo(3);
+                    assertThat(source.written()).isEqualTo(3);
+                });
         assertThat(rows()).isEqualTo(3);
+    }
+
+    @Test
+    void readsAnOfferSomebodyDroppedInTheInboxByHand() {
+        // The whole point of the manual source: no new connector, no second code path, and
+        // it needs no upload at all — a file in the directory is enough.
+        var report = ingest.run();
+
+        assertThat(report.sources())
+                .filteredOn(source -> source.sourceId().equals("manual-inbox"))
+                .singleElement()
+                .satisfies(source -> {
+                    assertThat(source.documents()).isEqualTo(1);
+                    assertThat(source.extracted()).isEqualTo(1);
+                    assertThat(source.written()).isEqualTo(1);
+                });
+        assertThat(jdbc.queryForObject(
+                        "SELECT title FROM offer o JOIN source s ON s.id = o.source_id WHERE s.name = 'manual-inbox'",
+                        String.class))
+                .isEqualTo("Senior Java Entwickler, gefunden auf LinkedIn");
     }
 
     @Test
@@ -72,8 +109,11 @@ class IngestServiceTest {
         assertThat(tags).containsExactly("Kubernetes");
     }
 
+    /** Scoped to one source: `manual-inbox` ships enabled and contributes a row of its own. */
     private int rows() {
-        return jdbc.queryForObject("SELECT count(*) FROM offer", Integer.class);
+        return jdbc.queryForObject(
+                "SELECT count(*) FROM offer o JOIN source s ON s.id = o.source_id WHERE s.name = 'local-eml'",
+                Integer.class);
     }
 
     /** The shipped example with `local-eml` enabled and pointed at the test fixture. */
@@ -90,6 +130,11 @@ class IngestServiceTest {
                     Files.readString(sources)
                             .replace("id: local-eml\n    enabled: false", "id: local-eml\n    enabled: true")
                             .replace("path: ${INBOX_DIR:./data/inbox}", "path: " + fixture));
+
+            // No path to set: `manual-inbox` ships enabled and its path names a directory
+            // inside the configuration directory, which is this one.
+            Path inbox = Files.createDirectories(dir.resolve("inbox"));
+            Files.writeString(inbox.resolve("found-by-hand.md"), MANUAL_OFFER);
             return dir;
         } catch (IOException e) {
             throw new UncheckedIOException(e);

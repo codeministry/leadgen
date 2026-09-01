@@ -1,10 +1,10 @@
 ---
 phase: climbing
-progress: 73/78
+progress: 78/83
 task: "Acquisition tool: collect, filter, enrich and package project offers"
 slug: lead-generation
 started: 2026-09-01T11:30:00Z
-updated: 2026-09-01T23:40:00Z
+updated: 2026-09-02T00:25:00Z
 ---
 
 # lead-generation — Ideal State Artifact
@@ -141,6 +141,13 @@ A single operator drops mailbox credentials and a profile into `config/`, and ev
 | ISC-76 | bun-test | change a status and read the row back | server's answer, not the request | Vitest | `applications.store.spec.ts` |
 | ISC-77 | bun-test | render the picker on a card that is not in the first state | shows the state it is in | Vitest | `status-picker.spec.ts` |
 | ISC-78 | interceptor | pick a state on the board, clear a follow-up on the detail | both rows written | psql | live browser |
+| ISC-79 | bun-test | read a markdown file with frontmatter through the file source | eight fields, body as description | JUnit | `MarkdownExtractionTest` |
+| ISC-80 | bun-test | a proxy link inside an uploaded file | unwrapped, no address | JUnit | `MarkdownExtractionTest` |
+| ISC-81 | bun-test | read a file that is nothing but a pasted ad | no offer at all | JUnit | `MarkdownExtractionTest` |
+| ISC-82 | bun-test | an offer with no url, read twice | same external id | JUnit | `MarkdownExtractionTest` |
+| ISC-83 | bash | run the suite and look for stray directories | none outside the config dir | git status | whole repository |
+| ISC-84 | interceptor | upload a document and review it before it enters | fields correctable, duplicate named | manual | not yet authored |
+| ISC-85 | bun-test | upload a wrong extension, an oversized file, a traversing name | all three refused | JUnit | not yet authored |
 
 ## Features
 
@@ -282,6 +289,18 @@ A single operator drops mailbox credentials and a profile into `config/`, and ev
 - [x] ISC-77: The picker shows the state the application is actually in, because a card reading "New" beside a badge reading SENT is wrong in the one place the operator looks to decide.
 - [x] ISC-78: The whole path works in a real browser: picking a state on the board and clearing a follow-up on the detail both reach Postgres.
 
+### F12 · Manual entry
+
+**Why:** Offers arrive by routes the configured sources cannot see — a recruiter's mail, a Slack message, a portal without a feed. Those have to be able to enter the pipeline, or the shortlist quietly stops being the whole picture and nobody notices.
+
+- [x] ISC-79: A Markdown file with YAML frontmatter becomes an offer on the next run, read deterministically and with no language model, through the file source that already exists.
+- [x] ISC-80: A file pasted out of the newsletter loses the subscriber's address exactly as a newsletter mail does; the privacy boundary does not care how the document arrived.
+- [x] ISC-81: A file that is nothing but a pasted ad produces no offer at all rather than one with no title, because `fallback: llm` does not exist yet and a silent half-offer is worse than none.
+- [x] ISC-82: Re-reading the same document is free even when it states no URL, so uploading the same ad twice does not leave deduplication to clean up after it.
+- [x] ISC-83: Anti: nothing the tool does creates a directory outside the configuration directory. A relative path read from the working directory is a directory that exists in one start path and not in another, and the tool's own test run demonstrated it.
+- [ ] ISC-84: An upload is reviewed before it becomes an offer: the extracted fields beside the source text, an answer to "is this already in the pipeline", and a correction that is written back into the file.
+- [ ] ISC-85: Anti: the upload endpoint cannot be made to write outside the inbox — extension allowlist, size limit, no path traversal — and `security.auth` is answered rather than left at `none`.
+
 ## Decisions
 
 - **2026-09-01 — Portal and source names anonymized in the documentation.** The analysis docs named the aggregator, its sender and host, the mail provider and six portals in clear text. The repository is going public; they are now `<newsletter-sender>`, `<aggregator-host>` and `portal-a`…`portal-f`, with the real names in the gitignored `config/local/sources.yaml`. Every measured figure is unchanged.
@@ -295,6 +314,7 @@ A single operator drops mailbox credentials and a profile into `config/`, and ev
 - **2026-09-01 — The cursor is committed after the write, not after the read.** `SourceConnector.commit` exists for that alone.
 - **2026-09-01 — One credentials file, and it is called `.env` because it cannot be called anything else for free.** Marcello's call to collapse `.env.local` plus a `.env` symlink. The name is forced by Compose: it substitutes the `${...}` in `docker-compose.yml` from `.env` and from nothing else — not from `env_file:`, which only injects into a container, and not from `COMPOSE_ENV_FILES` set inside a file. Both measured. Any other name costs a flag on every call or a symlink, and forgetting either silently applies the compose defaults.
 - **2026-09-01 — The database host port defaults to 55432 and the container side is fixed at 5432.** A developer machine usually already holds 5432, and the resulting failure names the user and neither the host nor the database. Making the container side variable too publishes a host port forwarding to a port nobody listens on, which from a client looks exactly like no port at all.
+- **2026-09-01 — A relative source path names a place inside the configuration directory.** Resolved against the working directory instead, one configuration points at `backend/…` under `bootRun`, at the repository root in an IDE and at neither from a jar. It is the rule the four YAML files already follow, and the symptom of not following it was concrete: the test suite created `backend/config/inbox/pending` in the working tree, outside the gitignore that was written for `config/`.
 - **2026-09-01 — Clearing the follow-up is a button, not an empty field.** The backend grew `clearFollowUp` so a reminder can be cancelled rather than only overwritten, and the form exposed it by emptying the date input. In Chrome that means deleting each segment of a native date widget in turn, which the operator will not do — the affordance existed in the API and was unreachable in the UI. Found by trying it in the browser, not by reading the code.
 - **2026-09-01 — The status transitions are documented, not enforced.** Marcello's loop, not the tool's: every value is entered by hand about events the system never saw. A project can be lost before it was answered and a mistyped status has to be correctable without an argument, so the eleven states describe the usual path rather than police it. What is validated is coherence — a sent application gets a date, a closed one loses its follow-up.
 - **2026-09-01 — The language of an ad decides the documents, and English is a real answer.** German when the text contains German, English when there is text and no German, and the profile's `locale_primary` only when there is nothing to go on. Falling back to the profile for an ad that simply has no German in it would send a German letter to an English posting, which is the failure this whole heuristic exists to prevent. Measured: 0 of 1289 descriptions lack a German function word.
@@ -424,6 +444,8 @@ A single operator drops mailbox credentials and a profile into `config/`, and ev
 - ISC-29 … ISC-34 — `ImapSourceConnectorTest` (8), GreenMail
 - ISC-53, ISC-54 — `POST /api/ingest` against the operator's own migrated rules: 14 documents, 1289 offers, announced equals extracted in all 14
 - ISC-59, ISC-60, ISC-61 — `46e0d9c`; `java -jar` from the repository root logs `Reading …/.env` and `Database: jdbc:postgresql://localhost:55432/leadgen as leadgen`; port counter-check 15432 ↔ 55432
+- ISC-79 … ISC-82 — `MarkdownExtractionTest`, 6 tests through the shipped `manual-inbox` block and the real file connector: every frontmatter field plus the body, a proxy link unwrapped, tags as a list and as a typed line, a content-hash id stable across two reads, no offer from a file without frontmatter, and a `---` in the body read as a thematic break. `IngestServiceTest` adds the wired pass against Postgres: a file dropped in the inbox by hand, with no upload involved, reaches the offer table
+- ISC-83 — `git status` after a full suite run: no directory created outside the configuration directory
 - ISC-75 … ISC-77 — `applications.store.spec.ts` (4) and `status-picker.spec.ts` (3) against `HttpTestingController`: lanes from the server, the row replaced by the answer, the failed PATCH leaving the board untouched, and the picker showing a state that is not the first option
 - ISC-78 — live browser against a running API: picking SENT on a board card moved it from Prepared to Out with the server's date, and clearing the follow-up on the detail wrote `follow_up_on = NULL`, both confirmed in Postgres
 - ISC-71 … ISC-74 — `ApplicationServiceTest` (12) against Postgres 17 and `ApplicationControllerTest` (5) against MockMvc: opening twice around a status change, a backwards transition accepted, the event log after three moves, a follow-up due on its day and dropped on closing and cancelled on request, and the endpoint answering 400 for an unknown status and 404 for an unknown id
@@ -442,7 +464,8 @@ A single operator drops mailbox credentials and a profile into `config/`, and ev
 
 ## Remaining Work
 
-- [ ] **Next: manual entry.** F11 is closed end to end. The remaining fixture screens are shortlist, offer detail, sources and rules — all four wait on a read endpoint over the offers, which is a smaller job than any pipeline stage was and the last thing keeping invented data on screen.
+- [ ] **Next: the upload and its review (ISC-84, ISC-85).** Reading a Markdown offer works; putting one there through the browser does not. `POST /api/sources/manual/documents` is the first endpoint that writes a file, so it needs an extension allowlist, a size limit, a sanitised name and an answer about `security.auth`. The review screen is what stands between a wrong extraction and the shortlist, which is the one list that gets trusted instead of the mailbox.
+- [ ] The remaining fixture screens are shortlist, offer detail, sources and rules. All four wait on a read endpoint over the offers, which is a smaller job than any pipeline stage was and the last thing keeping invented data on screen.
 - [ ] Manual entry: uploading a Markdown file as a source, reviewed in `inbox/pending/` before it enters the pipeline. The second write endpoint, and the first that puts a file on disk.
 - [ ] `security.auth` is still `none`, and there is now a write endpoint behind it. Either the service binds to localhost and lives behind something that authenticates, or it grows basic auth or OIDC — the block already exists in `pipeline.yaml`.
 - [ ] An eval for the judge. ISC-48 proves the weights bound the model; it says nothing about whether the model judges *well*. That is a held-out set and a rubric, and it belongs after a real model has scored a real morning.

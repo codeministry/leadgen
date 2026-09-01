@@ -106,7 +106,8 @@ class ConfigLoaderTest {
 
         assertThat(ConfigFixtures.loaderFor(configDir, VALIDATOR, env).load().sources().sources())
                 .filteredOn("enabled", true)
-                .hasSize(1);
+                .extracting("id")
+                .contains("sample-newsletter");
     }
 
     @Test

@@ -10,6 +10,7 @@ import de.codeministry.leadgen.packaging.PackagingService;
 import de.codeministry.leadgen.score.ScoringService;
 import de.codeministry.leadgen.ingest.connector.SourceConnector;
 import de.codeministry.leadgen.ingest.extract.HtmlBlockExtractor;
+import de.codeministry.leadgen.ingest.extract.MarkdownExtractor;
 import de.codeministry.leadgen.ingest.extract.OfferMapper;
 import de.codeministry.leadgen.ingest.store.OfferStore;
 import java.util.ArrayList;
@@ -34,10 +35,13 @@ import org.springframework.stereotype.Service;
 public class IngestService {
 
     private static final String HTML_BLOCKS = "html-blocks";
+    /** One document is one offer, and the frontmatter carries the eight fields. */
+    private static final String MARKDOWN_FRONTMATTER = "markdown-frontmatter";
 
     private final ConfigRegistry config;
     private final Map<String, SourceConnector> connectors;
     private final HtmlBlockExtractor extractor;
+    private final MarkdownExtractor markdown;
     private final OfferMapper mapper;
     private final OfferStore store;
     private final DeduplicationService dedupe;
@@ -51,6 +55,7 @@ public class IngestService {
             ConfigRegistry config,
             List<SourceConnector> connectors,
             HtmlBlockExtractor extractor,
+            MarkdownExtractor markdown,
             OfferMapper mapper,
             OfferStore store,
             DeduplicationService dedupe,
@@ -62,6 +67,7 @@ public class IngestService {
         this.config = config;
         this.connectors = connectors.stream().collect(Collectors.toMap(SourceConnector::type, Function.identity()));
         this.extractor = extractor;
+        this.markdown = markdown;
         this.mapper = mapper;
         this.store = store;
         this.dedupe = dedupe;
@@ -137,12 +143,29 @@ public class IngestService {
         return new DocumentIngestResult(document.id(), extracted, announced);
     }
 
+    /**
+     * Which extractor reads a document is the source's decision, not this method's. Both
+     * hand back the same shape — a block per offer, keyed by the eight field names — so
+     * everything after this point is identical whether the offer came out of a newsletter
+     * or out of a file somebody dropped in by hand.
+     */
+    private List<ExtractedOffer> read(Source source, RawDocument document) {
+        List<Map<String, Object>> blocks = switch (source.extraction().strategy()) {
+            case HTML_BLOCKS -> extractor.extract(document.html(), source.extraction());
+            case MARKDOWN_FRONTMATTER -> markdown.extract(document.html(), source.extraction());
+            default -> List.of();
+        };
+        return blocks.stream()
+                .map(block -> mapper.map(block, source.extraction()))
+                .filter(offer -> offer.title() != null && !offer.title().isBlank())
+                .toList();
+    }
+
     private SourceIngestResult ingest(Source source, SourceConnector connector) {
-        if (!HTML_BLOCKS.equals(source.extraction().strategy())) {
-            log.warn(
-                    "Source '{}' asks for extraction strategy '{}', which is not implemented yet",
-                    source.id(),
-                    source.extraction().strategy());
+        String strategy = source.extraction().strategy();
+        if (!HTML_BLOCKS.equals(strategy) && !MARKDOWN_FRONTMATTER.equals(strategy)) {
+            log.warn("Source '{}' asks for extraction strategy '{}', which is not implemented yet",
+                    source.id(), strategy);
             return new SourceIngestResult(source.id(), 0, 0, 0, List.of());
         }
 
@@ -153,10 +176,7 @@ public class IngestService {
         int written = 0;
 
         for (RawDocument document : documents) {
-            List<ExtractedOffer> offers = extractor.extract(document.html(), source.extraction()).stream()
-                    .map(block -> mapper.map(block, source.extraction()))
-                    .filter(offer -> offer.title() != null && !offer.title().isBlank())
-                    .toList();
+            List<ExtractedOffer> offers = read(source, document);
 
             details.add(check(source, document, offers.size()));
             extracted += offers.size();

@@ -1,5 +1,7 @@
 package de.codeministry.leadgen.ingest.connector;
 
+import de.codeministry.leadgen.config.ConfigProperties;
+import de.codeministry.leadgen.config.Directories;
 import de.codeministry.leadgen.config.model.SourcesConfig.Source;
 import de.codeministry.leadgen.ingest.RawDocument;
 import jakarta.mail.MessagingException;
@@ -31,6 +33,12 @@ public class FileSourceConnector implements SourceConnector {
 
     private static final Session SESSION = Session.getInstance(new Properties());
 
+    private final Path configDirectory;
+
+    public FileSourceConnector(ConfigProperties properties) {
+        this.configDirectory = properties.configDirectory();
+    }
+
     @Override
     public String type() {
         return "file";
@@ -39,9 +47,8 @@ public class FileSourceConnector implements SourceConnector {
     @Override
     public List<RawDocument> read(Source source, long sourceId) {
         String preferred = source.extraction().preferPartOrHtml();
-        Path directory = Path.of(source.path());
-        if (!Files.isDirectory(directory)) {
-            log.warn("Source '{}' points at {}, which is not a directory", source.id(), directory.toAbsolutePath());
+        Path directory = directoryFor(source);
+        if (directory == null) {
             return List.of();
         }
 
@@ -59,6 +66,38 @@ public class FileSourceConnector implements SourceConnector {
             throw new UncheckedIOException("cannot list " + directory, e);
         }
         return documents;
+    }
+
+    /**
+     * Where this source reads from.
+     *
+     * <p>A relative path names a place inside the configuration directory, exactly as a
+     * template path does. Resolved against the working directory it would point at
+     * `backend/…` under `bootRun` and at the repository root in an IDE, and an empty
+     * directory looks exactly like a quiet day on the market.
+     *
+     * <p>An existing configuration that already named a working-directory path still
+     * works, because breaking one over a style is not worth it — <b>and the fallback logs
+     * a warning naming both paths</b>, since it can resolve outside the directory the
+     * process was pointed at and looks entirely normal doing it.
+     *
+     * @return null when neither reading is a directory, which is not fatal: one source
+     *     with nothing behind it must not stop the sources after it.
+     */
+    private Path directoryFor(Source source) {
+        Path preferred = Directories.under(configDirectory, source.path());
+        if (Files.isDirectory(preferred)) {
+            return preferred;
+        }
+        Path fallback = Directories.resolve(source.path());
+        if (Files.isDirectory(fallback)) {
+            log.warn("Source '{}' reads from {}, not from {} — the path is relative to the working directory"
+                            + " rather than to the configuration directory",
+                    source.id(), fallback, preferred);
+            return fallback;
+        }
+        log.warn("Source '{}' points at {}, which is not a directory", source.id(), preferred);
+        return null;
     }
 
     private static List<String> suffixes(String glob) {

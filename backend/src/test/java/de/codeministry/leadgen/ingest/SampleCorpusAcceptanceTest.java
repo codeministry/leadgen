@@ -3,6 +3,7 @@ package de.codeministry.leadgen.ingest;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import de.codeministry.leadgen.config.ConfigFixtures;
+import de.codeministry.leadgen.config.ConfigProperties;
 import de.codeministry.leadgen.ingest.connector.FileSourceConnector;
 import de.codeministry.leadgen.ingest.extract.HtmlBlockExtractor;
 import de.codeministry.leadgen.ingest.extract.OfferMapper;
@@ -65,7 +66,7 @@ class SampleCorpusAcceptanceTest {
 
         var extractor = new HtmlBlockExtractor();
         var mapper = new OfferMapper();
-        documents = new FileSourceConnector().read(source, 0L);
+        documents = new FileSourceConnector(new ConfigProperties(configDir.toString(), null, null)).read(source, 0L);
         offers = new ArrayList<>();
         perDocument = new ArrayList<>();
 

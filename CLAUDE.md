@@ -273,6 +273,52 @@ upserts it. `POST /api/ingest` runs one pass.
   14 mails. jsoup's `text()` strips it regardless, and `ExtractionTest` guards it, but treat
   it as an expectation rather than a measurement.
 
+## Manual entry
+
+`backend/…/manual/` plus the `markdown-frontmatter` strategy in `ingest/extract/`. The
+reading half is done: a `.md` file dropped in the inbox becomes an offer on the next run.
+
+- **It is a `file` source, not a new mechanism.** `manual-inbox` in the shipped
+  `sources.yaml` points at a directory and reads `*.md`. An upload only has to put the
+  file where that source is already looking, so copying one in by hand works with no UI at
+  all — and there is no second code path to keep in step.
+- **One document is one offer here**, unlike the newsletter where one document holds a
+  hundred. So there is no block selector and no `expect_count_from_subject`; what earns
+  this a strategy of its own is that it stays deterministic. An offer typed by hand needs
+  no language model to be read, which keeps *rules before model* true on the one path a
+  person walks by hand.
+- **The frontmatter is the eight-field contract, and the body is the description.** The
+  body wins over a `description:` key: someone who writes both means the prose they typed
+  under the fence. A key spelled differently is read and then ignored, in silence, which is
+  exactly why an upload has to be reviewed before it becomes an offer.
+- **YAML resolves scalars, so everything is stringified before `OfferMapper` sees it.** A
+  bare `2026-09-01` parses to a date, and `String.valueOf` on it yields a form no
+  `date_format` describes.
+- **`external_id` falls back to a hash of the title and the text.** The upsert is on
+  `(source_id, external_id)`, so without it the same ad uploaded twice is two offers and
+  deduplication has to clean up after. It is a weak identity, but it is the one the
+  document itself carries, and re-reading has to stay free.
+- **`ProxyLink.unwrap` still runs.** A file pasted out of the newsletter carries the
+  subscriber's address in every link, and it does not matter that the document arrived by
+  hand.
+- **A relative source `path` resolves against the configuration directory**, not the
+  working directory — `Directories.under`. The same rule the four YAML files follow.
+  Against the working directory the very same configuration points at `backend/…` under
+  `bootRun`, at the repository root in an IDE and at neither from a jar: three empty
+  directories that all look like a source with nothing in it. Measured: a test run created
+  `backend/config/inbox/pending` before the rule was applied, outside the gitignore that
+  was written for `config/`. A path that only resolves from the working directory is still
+  read, **and the fallback logs a warning naming both paths** — exactly as the config
+  loader's does, and for the same reason: breaking an existing configuration over a style
+  is not worth it, but a directory outside the one the process was pointed at must not be
+  silent.
+- **`pending/` is a subdirectory of the inbox and is inert by construction.** The file
+  connector lists regular files only, so what waits for review cannot be ingested by
+  accident.
+- **A file with no frontmatter yields no offer.** That is the `fallback: llm` case and it
+  is not implemented; the file stays where it is rather than entering as an offer with no
+  title.
+
 ## Deduplication
 
 `backend/…/dedupe/`. One pass after every ingest run, over every offer inside
@@ -628,7 +674,7 @@ code has to reproduce — the numbers in `docs/SAMPLE-ANALYSIS.md` are the targe
     the note and the history. The dashboard's follow-up tile counts what the server
     called due. The tool never sends — it finds, filters, scores and packages; Marcello
     sends the mail himself and therefore records the outcome himself.
-12. **Manual entry** — an offer found by hand must be able to enter the pipeline, or the
+12. 🟡 **Manual entry** — an offer found by hand must be able to enter the pipeline, or the
     shortlist quietly stops being the whole picture. A Markdown file uploaded on the
     Sources screen lands in `<config-dir>/inbox/` and is read by a `manual-inbox` **file**
     source on the next run, so no new connector is needed. One document is one offer here,
