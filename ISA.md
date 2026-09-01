@@ -1,6 +1,6 @@
 ---
 phase: climbing
-progress: 89/89
+progress: 91/92
 task: "Acquisition tool: collect, filter, enrich and package project offers"
 slug: lead-generation
 started: 2026-09-01T11:30:00Z
@@ -153,6 +153,8 @@ A single operator drops mailbox credentials and a profile into `config/`, and ev
 | ISC-88 | bun-test | open an offer the filter rejected, by id | served, hardPass false | JUnit | `OfferQueryServiceTest` |
 | ISC-89 | bun-test | render the shortlist over an offer with no description | no throw, page whole | Vitest | `shortlist-page.spec.ts` |
 | ISC-90 | bash | look for a fixture behind any screen | none left | rg | `frontend/src` |
+| ISC-91 | bun-test | answer the same question in both wire formats | same reasons, same bounds | WireMock | `JudgeWireFormatTest` |
+| ISC-92 | bun-test | configure ollama with no key, and a provider nobody implemented | built, refused | JUnit | `JudgesTest` |
 
 ## Features
 
@@ -316,6 +318,14 @@ A single operator drops mailbox credentials and a profile into `config/`, and ev
 - [x] ISC-89: The screens survive the nulls the corpus actually contains — 9.2 % state no company, and a description can be missing outright.
 - [x] ISC-90: Anti: no screen reads a fixture. `core/fixtures/` is gone; what is left is the dashboard's own measured baseline, which now comes from the database too.
 
+### F14 · A second wire format
+
+**Why:** The scoring stage was written against one wire format, and the operator's own provider speaks a different one. A judge that cannot be reached is a pipeline that runs unscored forever.
+
+- [x] ISC-91: Both providers answer the same question under the same bounds, so an offer does not score differently depending on who was asked.
+- [x] ISC-92: A provider whose format is not implemented is refused rather than approximated, and the one provider that needs no key can be configured without inventing one.
+- [ ] ISC-93: The judge has actually run against a real endpoint and a real morning's offers, and the scored shortlist was compared against the unscored one.
+
 ## Decisions
 
 - **2026-09-01 — Portal and source names anonymized in the documentation.** The analysis docs named the aggregator, its sender and host, the mail provider and six portals in clear text. The repository is going public; they are now `<newsletter-sender>`, `<aggregator-host>` and `portal-a`…`portal-f`, with the real names in the gitignored `config/local/sources.yaml`. Every measured figure is unchanged.
@@ -329,6 +339,7 @@ A single operator drops mailbox credentials and a profile into `config/`, and ev
 - **2026-09-01 — The cursor is committed after the write, not after the read.** `SourceConnector.commit` exists for that alone.
 - **2026-09-01 — One credentials file, and it is called `.env` because it cannot be called anything else for free.** Marcello's call to collapse `.env.local` plus a `.env` symlink. The name is forced by Compose: it substitutes the `${...}` in `docker-compose.yml` from `.env` and from nothing else — not from `env_file:`, which only injects into a container, and not from `COMPOSE_ENV_FILES` set inside a file. Both measured. Any other name costs a flag on every call or a symlink, and forgetting either silently applies the compose defaults.
 - **2026-09-01 — The database host port defaults to 55432 and the container side is fixed at 5432.** A developer machine usually already holds 5432, and the resulting failure names the user and neither the host nor the database. Making the container side variable too publishes a host port forwarding to a port nobody listens on, which from a client looks exactly like no port at all.
+- **2026-09-01 — `provider` names a wire format, and an unknown one is refused rather than approximated.** Two are implemented now. The failure mode of guessing is not a clean error: a bearer token the server ignores, a system message it rejects, an answer read out of a field that is not there and parses to no reasons at all — an offer that looks judged and is not.
 - **2026-09-01 — Everything that counts offers counts primaries.** The shortlist, the funnel and the sources screen's survivor column all exclude duplicates, because they are all about the same list. Mixing the two sets is not a rounding difference: it made the funnel claim -45 survivors and the sources screen say 104 where the shortlist showed 96.
 - **2026-09-01 — Only `none` is an accepted `security.auth`, and it is fatal to write anything else.** Three modes were named in the configuration and none was implemented, which meant someone could write `basic`, believe the write endpoints were protected, and be wrong with no symptom at all. The mode is now rejected at load, and what actually stands in front of the endpoints is `server.address`, defaulting to `127.0.0.1`. Publishing that port anywhere else is the decision that would need an auth mode first, and it is now a decision somebody has to make on purpose.
 - **2026-09-01 — The uploaded file is the state, and there is no staging table.** It is inspectable with `cat`, confirming is a move, a rejection is a delete, and the correction is written back into the document — so re-reading the same file later produces the same offer. A table would put half the pipeline's truth somewhere the source knows nothing about.
@@ -467,6 +478,7 @@ A single operator drops mailbox credentials and a profile into `config/`, and ev
 - ISC-29 … ISC-34 — `ImapSourceConnectorTest` (8), GreenMail
 - ISC-53, ISC-54 — `POST /api/ingest` against the operator's own migrated rules: 14 documents, 1289 offers, announced equals extracted in all 14
 - ISC-59, ISC-60, ISC-61 — `46e0d9c`; `java -jar` from the repository root logs `Reading …/.env` and `Database: jdbc:postgresql://localhost:55432/leadgen as leadgen`; port counter-check 15432 ↔ 55432
+- ISC-91, ISC-92 — `JudgeWireFormatTest` (4) against WireMock: each format's own path, headers and body, the answer read from `choices[0].message.content` and from the first `text` block past a thinking block, both bounded by the same weight table, and a 400 leaving the offer with its deterministic reasons. `JudgesTest` (6) covers the routing, the keyless provider and the three refusals
 - ISC-86 … ISC-88 — `OfferQueryServiceTest`, 8 tests against Postgres 17: ranking, the duplicate cluster naming all three portals, reasons in scoring order, reasons kept without a total, an incomplete offer flagged rather than dropped, the funnel summing to its total, the stages in the order they run, and a rejected offer served by id
 - ISC-89 — `shortlist-page.spec.ts` against `HttpTestingController`: the page renders with no query parameters, filters by band, searches an offer whose description is null, and offers only the portals that are there
 - Live against the sample corpus: 14 documents, 1,289 extracted, 1,138 primaries, 1,042 removed by the seven stages, 96 on the shortlist, and the sources screen reporting `matches` for every document's announced count
@@ -491,17 +503,12 @@ A single operator drops mailbox credentials and a profile into `config/`, and ev
 
 ## Remaining Work
 
-- [ ] **Next: CI (ISC-90 depends on nothing else).** Every check in this artifact is one somebody remembered to run. The tooling baseline is in place — `./gradlew check` brackets both modules — and no pipeline runs it.
+- [ ] **The judge has still never run against a real endpoint (ISC-93).** Both wire formats are implemented and tested against WireMock, which proves the bytes are right and nothing about whether the scores are useful. It needs a key, a `base_url` and one morning's offers.
+- [ ] An eval for the judge. ISC-48 proves the weights bound the model; it says nothing about whether the model judges *well*. A held-out set and a rubric, and it belongs after a real model has scored a real morning.
+- [ ] Three of the four `llm.models` slots are still read by nothing. The shipped file now says so per key, which is the honest half of the fix; the other half is implementing the stages or dropping the keys.
+- [ ] CI. The tooling baseline is in place — `./gradlew check` brackets both modules — and no pipeline runs it, so every check in this artifact is one somebody remembered to run.
 - [ ] Two layout questions the capture path cannot answer: the review screen's drop zone and the shortlist card's reason row both look as if wrapped text overlaps the row below. The DOM-render screenshot mis-measures exactly that, and the dev server's CSP blocks measuring it any other way, so this needs eyes in a real browser.
-- [ ] CI. The tooling baseline is in place and no pipeline runs it, so every check in this artifact is one somebody remembered to run.
-- [ ] Manual entry: uploading a Markdown file as a source, reviewed in `inbox/pending/` before it enters the pipeline. The second write endpoint, and the first that puts a file on disk.
-- [ ] `security.auth` is still `none`, and there is now a write endpoint behind it. Either the service binds to localhost and lives behind something that authenticates, or it grows basic auth or OIDC — the block already exists in `pipeline.yaml`.
-- [ ] An eval for the judge. ISC-48 proves the weights bound the model; it says nothing about whether the model judges *well*. That is a held-out set and a rubric, and it belongs after a real model has scored a real morning.
-- [ ] Run `bun ~/.claude/LIFEOS/TOOLS/IsaFrontier.ts frontier ISA.md` to see the takeable set before picking anything else up.
-
-- [ ] The five fixture-driven screens stay fixtures until steps 5 to 9 land. `rg 'FIXTURE — replace'` finds every one; each feature already reads through an `Api` seam, so each is one file.
-- [ ] The frontend's write side, none of which exists: recording an application's status after the mail was sent by hand, editing weights and thresholds, and uploading a Markdown file as a manual source. The first of them is the first write endpoint in the application and lands with `security.auth` still `none`.
-- [ ] Decide the Java package name; `de.codeministry.leadgen` was chosen before the repository name and organisation were.
-- [ ] `docs/CONCEPT.md` still names the operator's home town in the hard-filter section. Not a source, so it was left in place, but it is a personal datum in a repository that is going public.
+- [ ] `docs/CONCEPT.md` still names the operator's home town in the hard-filter section. Not a source file, so it was left in place, but it is a personal datum in a repository that is going public.
+- [ ] Decide the Java package name; `de.codeministry.leadgen` was chosen before the repository name and organisation were. Same for the licence and the GitHub organisation.
 - [ ] The Helm chart in `charts/` is named in the concept as phase two and does not exist yet.
-- [ ] `docs/CONCEPT.md` carries its own order-of-work list, which now duplicates this ISA and `CLAUDE.md`. Reconcile to one.
+- [ ] Editing rules from the browser. Lowest value of anything left: the file is hot-reloaded and editing it in place already works.
