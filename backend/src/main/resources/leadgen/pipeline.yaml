@@ -10,10 +10,15 @@ llm:
   base_url: ${LLM_BASE_URL:}
   api_key: ${LLM_API_KEY}
   models:
-    extraction: ${LLM_MODEL_EXTRACTION}  # small, cheap model
-    scoring:    ${LLM_MODEL_SCORING}     # stronger model
-    writing:    ${LLM_MODEL_WRITING}     # cover letters
-    embedding:  ${LLM_MODEL_EMBEDDING}   # duplicate detection
+    # Only `scoring` is read today. The other three name stages that are deterministic or
+    # not implemented: extraction has no LLM fallback, the cover letter is a Freemarker
+    # template, and the two embedding-based deduplication strategies are logged and
+    # skipped. They stay here because the stages exist in the concept, but a value in any
+    # of them changes nothing.
+    extraction: ${LLM_MODEL_EXTRACTION}  # not read yet
+    scoring:    ${LLM_MODEL_SCORING}     # the judge
+    writing:    ${LLM_MODEL_WRITING}     # not read yet
+    embedding:  ${LLM_MODEL_EMBEDDING}   # not read yet
   budget:
     max_calls_per_day: 300
     cache_by_message_id: true
