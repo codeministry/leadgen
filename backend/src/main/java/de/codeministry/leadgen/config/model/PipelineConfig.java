@@ -35,11 +35,6 @@ public record PipelineConfig(
      */
     public record Llm(String provider, String baseUrl, String apiKey, @NotNull Models models, @Valid Budget budget) {
 
-        /** Whether scoring and writing can run at all. */
-        public boolean configured() {
-            return provider != null && !provider.isBlank() && apiKey != null && !apiKey.isBlank();
-        }
-
         /**
          * Every model is optional. Without a language model the tool still runs —
          * hard filter, dedupe and enrichment are deterministic — it only loses

@@ -1,11 +1,6 @@
 package de.codeministry.leadgen.config;
 
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.function.UnaryOperator;
 import java.util.regex.Matcher;
@@ -39,65 +34,27 @@ final class PlaceholderResolver {
     private static final Pattern PLACEHOLDER =
             Pattern.compile("\\$\\{([A-Za-z_][A-Za-z0-9_]*)(?::([^}]*))?}");
 
-    /** The credentials file, and how far up it is looked for. */
-    static final String DOTENV = ".env";
-
-    private static final int SEARCH_DEPTH = 4;
-
     private final UnaryOperator<String> environment;
 
     PlaceholderResolver(UnaryOperator<String> environment) {
         this.environment = environment;
     }
 
-    /** The process environment, with `.env.local` behind it. A real variable always wins. */
+    /** The process environment, with `.env` behind it. A real variable always wins. */
     static PlaceholderResolver fromSystemEnvironment() {
-        Map<String, String> file = dotenv();
+        DotEnv dotenv = DotEnv.load();
+        dotenv.file().ifPresentOrElse(
+                file -> log.info("Reading {} for configuration values", file),
+                () -> log.info(
+                        "No {} found above {} — only real environment variables apply",
+                        DotEnv.FILE_NAME,
+                        Path.of("").toAbsolutePath()));
+
+        Map<String, String> file = dotenv.values();
         return new PlaceholderResolver(name -> {
             String fromProcess = System.getenv(name);
             return fromProcess != null && !fromProcess.isBlank() ? fromProcess : file.get(name);
         });
-    }
-
-    private static Map<String, String> dotenv() {
-        Path base = Path.of("").toAbsolutePath();
-        for (int i = 0; i <= SEARCH_DEPTH && base != null; i++) {
-            Path candidate = base.resolve(DOTENV);
-            if (Files.isRegularFile(candidate)) {
-                log.info("Reading {} for configuration values", candidate);
-                return parse(candidate);
-            }
-            base = base.getParent();
-        }
-        log.info("No {} found above {} — only real environment variables apply", DOTENV, Path.of("").toAbsolutePath());
-        return Map.of();
-    }
-
-    static Map<String, String> parse(Path file) {
-        Map<String, String> values = new HashMap<>();
-        try {
-            for (String line : Files.readAllLines(file, StandardCharsets.UTF_8)) {
-                String trimmed = line.trim();
-                if (trimmed.isEmpty() || trimmed.startsWith("#") || !trimmed.contains("=")) {
-                    continue;
-                }
-                String key = trimmed.substring(0, trimmed.indexOf('=')).trim();
-                // A trailing comment is not part of the value, and a quoted value keeps its
-                // spaces. Neither is exotic: the shipped template uses both.
-                String raw = trimmed.substring(trimmed.indexOf('=') + 1).trim();
-                if (raw.startsWith("\"") && raw.endsWith("\"") && raw.length() > 1) {
-                    raw = raw.substring(1, raw.length() - 1);
-                } else if (raw.contains("#")) {
-                    raw = raw.substring(0, raw.indexOf('#')).trim();
-                }
-                if (!raw.isEmpty()) {
-                    values.put(key, raw);
-                }
-            }
-        } catch (IOException e) {
-            throw new UncheckedIOException("cannot read " + file, e);
-        }
-        return values;
     }
 
     String resolve(String raw) {
