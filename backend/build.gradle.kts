@@ -71,33 +71,9 @@ tasks.withType<Test>().configureEach {
 }
 
 /**
- * The local run reads the untracked `.env.local` from the repository root — the same
- * file Docker Compose reads. One credential has one place for the whole stack, and none
- * of them ends up in a committed file: the configuration under
- * `src/main/resources/leadgen/` names its values as `${'$'}{PLACEHOLDERS}` and nothing else.
- *
- * Deliberately here and not via `spring.config.import`: an import in
- * `application.yaml` would also apply to every test context, and a green test
- * run would then hang on a file nobody sees in the repo. That `bootRun` is
- * exempt is structural, not measured — `test` is a different task and never
- * sees these `environment` calls.
- *
- * A real environment variable beats the file: only unset keys are filled, so a
- * one-off run with an exported value needs no edit here. An empty value counts
- * as "not specified", not as "specified as empty".
+ * No `.env` handling here on purpose. It used to live in a `bootRun` hook, which
+ * meant launching the very same configuration from an IDE silently saw none of it — the
+ * symptom was "the value is in the file, the service says it is missing", with an error
+ * naming the right setting and no reason. `PlaceholderResolver` reads the file itself now,
+ * so every start path behaves identically.
  */
-tasks.named<org.springframework.boot.gradle.tasks.run.BootRun>("bootRun") {
-    val dotEnv = rootProject.file(".env.local")
-    if (dotEnv.exists()) {
-        dotEnv.readLines()
-            .map { it.trim() }
-            .filter { it.isNotEmpty() && !it.startsWith("#") && it.contains("=") }
-            .forEach { line ->
-                val key = line.substringBefore("=").trim()
-                val value = line.substringAfter("=").substringBefore("#").trim()
-                if (value.isNotEmpty() && System.getenv(key) == null) {
-                    environment(key, value)
-                }
-            }
-    }
-}

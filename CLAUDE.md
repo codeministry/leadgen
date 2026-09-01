@@ -28,11 +28,11 @@ Violating one of these is expensive, and most of them fail silently.
 - **Nothing is wired in.** This repo is going public. No newsletter name, no portal, no
   mail provider, no model name and no personal datum belongs in a committed file. The
   configuration that ships names every value as a `${PLACEHOLDER}`; the values live in
-  `.env.local`, and anything individual beyond them in `config/local/`. Both gitignored.
+  `.env`, and anything individual beyond them in `config/`. Both gitignored.
   A new source is a YAML block, not a deploy.
 - **Rules before model.** The hard filter runs deterministically and for free before any
   LLM call. Without a language model the tool must still run, only weaker.
-- **No CV tailoring.** Fixed PDFs in `config/local/documents/`, selected by the language
+- **No CV tailoring.** Fixed PDFs in `config/documents/`, selected by the language
   of the ad and nothing else.
 - **Nothing is ever sent.** Both outputs are rendered files: the digest as text or HTML,
   the application package as a folder. There is no transport, no recipient and no channel
@@ -68,7 +68,7 @@ Gradle.
 ```bash
 ./gradlew check                # both modules
 ./gradlew :backend:test        # Spring tests — needs a running Docker for Testcontainers
-./gradlew :backend:bootRun     # API on :8080, reads the untracked .env.local from the repo root
+./gradlew :backend:bootRun     # API on :8080, reads the untracked .env from the repo root
 docker compose up --build      # postgres + api + web
 
 cd frontend
@@ -241,10 +241,26 @@ upserts it. `POST /api/ingest` runs one pass.
   `spring-boot-flyway` the migrations sit on the classpath and never run, and the only
   symptom is Hibernate complaining about missing tables. `@WebMvcTest` likewise moved
   from `…test.autoconfigure.web.servlet` into `spring-boot-webmvc-test`.
-- **`.env.local` is read by `bootRun`, never through `spring.config.import`** in Spring's
-  `application.yaml` — an import there would apply to every test context too, and a green
-  test run would then depend on a file nobody sees in the repo. Compose reads the same
-  file, so one credential has one place for the whole stack.
+- **The credentials file is `.env` and cannot be called anything else without a cost.**
+  Compose substitutes the `${...}` in `docker-compose.yml` from `.env` and nothing else:
+  not from `env_file:`, which only injects into a container, and not from
+  `COMPOSE_ENV_FILES` set inside a file (measured — real environment variable or
+  `--env-file` only). Another name needs a flag on every call or a symlink, and forgetting
+  either silently applies the compose defaults, so the stack listens where the application
+  is not looking.
+- **A published port's container side is fixed at 5432.** Postgres binds that port inside
+  the container whatever the host side is; making both sides variable publishes a host port
+  forwarding to a port nobody listens on, which looks exactly like no port at all.
+- **The database host port defaults to 55432, not 5432.** A developer machine usually
+  already has a Postgres on 5432, and connecting to the wrong one fails as
+  `password authentication failed for user "leadgen"` — a message naming the user and
+  neither the host nor the database it actually reached. `DatasourceBanner` prints the
+  effective JDBC URL at startup for the same reason the frontend prints its proxy target.
+- **`.env` is read by `PlaceholderResolver`, not by the build.** It used to be a
+  `bootRun` hook, so launching the very same configuration from an IDE silently saw none of
+  it: the value was in the file and the service said it was missing. The file is searched
+  upwards from the working directory and real environment variables win, so every start path
+  behaves identically. Compose reads the same file.
 
 ## What already exists
 
@@ -254,8 +270,8 @@ backend/src/main/resources/leadgen/    the committed defaults — neutral, all v
   matching-rules.yaml                  no second copy to drift.
   sources.yaml
   skill-profile.yaml
-config/local/*.yaml               the same four names, overriding file by file (gitignored)
-.env.local.example
+config/*.yaml                     the same four names, overriding file by file (gitignored)
+.env.example
 docs/samples/emails/*.eml         14 real newsletter mails (gitignored)
 docs/samples/analyze_samples.py   extraction, field coverage, duplicates
 docs/samples/simulate_filter.py   simulation of the hard filters
@@ -277,7 +293,7 @@ code has to reproduce — the numbers in `docs/SAMPLE-ANALYSIS.md` are the targe
 ## Order of work
 
 1. ✅ **Monorepo skeleton** — root build, `backend/` skeleton, `frontend/` skeleton,
-   `docker-compose.yml` (postgres, api, web), `.env.local` loading, Flyway. `GET /api/status`
+   `docker-compose.yml` (postgres, api, web), `.env` loading, Flyway. `GET /api/status`
    plus the `StatusStore` exist only to prove the full path (component → proxy → Spring
    → Postgres) end to end; they are not a feature.
 2. ✅ **Configuration layer** — load, validate and hot-reload `sources.yaml`,

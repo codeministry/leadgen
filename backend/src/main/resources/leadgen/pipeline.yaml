@@ -2,7 +2,7 @@
 # configurable — none of it lives in the code.
 version: 1
 
-# Every value here is empty until .env.local fills it, and that is the working state:
+# Every value here is empty until .env fills it, and that is the working state:
 # without a model the tool still runs — hard filter, dedupe and enrichment are
 # deterministic — it only loses scoring and the cover letter.
 llm:

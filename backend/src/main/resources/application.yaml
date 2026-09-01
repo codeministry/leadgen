@@ -5,7 +5,7 @@ spring:
   application:
     name: lead-generation
   datasource:
-    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:leadgen}
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:55432}/${POSTGRES_DB:leadgen}
     username: ${POSTGRES_USER:leadgen}
     password: ${POSTGRES_PASSWORD:leadgen}
   flyway:
@@ -17,7 +17,7 @@ spring:
 # sources, credentials, the profile, the documents. It is gitignored, and it does
 # not have to exist — without it the defaults apply.
 leadgen:
-  config-dir: ${LEADGEN_CONFIG_DIR:config/local}
+  config-dir: ${LEADGEN_CONFIG_DIR:config}
   # How often the three files are checked for changes. Two polls are needed before a
   # change is applied, so the worst case is twice this value.
   config-poll-interval: ${CONFIG_POLL_INTERVAL:PT2S}

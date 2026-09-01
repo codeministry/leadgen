@@ -20,8 +20,8 @@ automatable. The decision is not.
 - **No automatic sending.** Both outputs are files — the daily digest as text or HTML,
   the application package as a folder. A human reads them and sends.
 - **Personal data stays out.** The configuration that ships names every value as a
-  `${PLACEHOLDER}`. The values live in `.env.local`, anything individual beyond them in
-  `config/local/`, and neither is committed.
+  `${PLACEHOLDER}`. The values live in `.env`, anything individual beyond them in
+  `config/`, and neither is committed.
 
 ## Stack
 
@@ -35,7 +35,7 @@ backend/    Spring Boot, Gradle module :backend
                                 sources, profile — neutral, values as ${PLACEHOLDERS}
 frontend/   Angular, Gradle module :frontend (bun does the work)
 charts/     Helm chart
-config/local/                   overrides the four files above, one by one (gitignored)
+config/                         overrides the four files above, one by one (gitignored)
 docs/       concept and decisions
 ```
 
@@ -46,12 +46,12 @@ fresh clone with nothing configured; the startup log says which layer each file 
 ## Getting started
 
 ```bash
-cp .env.local.example .env.local                     # fill in credentials
+cp .env.example .env                                 # fill in credentials
 docker compose up --build
 ```
 
 That is the whole setup. To change a rule, copy the file you want to change out of
-`backend/src/main/resources/leadgen/` into `config/local/` and edit it there — only the
+`backend/src/main/resources/leadgen/` into `config/` and edit it there — only the
 files you put there override, and none of them are committed.
 
 The web UI is then on `http://localhost:4200`, the API on `http://localhost:8080`.
@@ -61,7 +61,7 @@ The web UI is then on `http://localhost:4200`, the API on `http://localhost:8080
 ```bash
 ./gradlew check                # both modules: backend tests, frontend lint + tests
 ./gradlew :backend:test        # Spring tests (needs Docker for Testcontainers)
-./gradlew :backend:bootRun     # API on :8080, reads the untracked .env.local
+./gradlew :backend:bootRun     # API on :8080, reads the untracked .env
 docker compose up postgres     # the database the local run expects
 
 cd frontend

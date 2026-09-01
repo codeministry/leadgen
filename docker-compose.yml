@@ -1,7 +1,13 @@
 # Phase 1 of the operating plan: postgres, api, web on one machine. Every value comes
-# from the untracked `.env.local` (see .env.local.example); nothing individual is written
-# here. The file is optional — without it the defaults below bring the stack up, only
-# without mailbox and LLM credentials.
+# from the untracked `.env` (see .env.example); nothing individual is written
+# here.
+#
+# One credentials file, `.env`, and it is that name because Compose substitutes the
+# `${...}` below from `.env` and from nothing else — not from `env_file:`, which only
+# injects INTO a container, and not from `COMPOSE_ENV_FILES` set inside a file (measured:
+# that works only as a real environment variable or as `--env-file`). Any other name needs
+# a flag on every call or a symlink, and a setup step that can be forgotten silently
+# applies the defaults below instead.
 services:
   postgres:
     image: postgres:17-alpine
@@ -10,12 +16,12 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-leadgen}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-leadgen}
     env_file:
-      - path: .env.local
-        required: false
+      - path: .env
+        required: true
     volumes:
       - postgres-data:/var/lib/postgresql/data
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "${POSTGRES_PORT:-55432}:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-leadgen} -d ${POSTGRES_DB:-leadgen}"]
       interval: 5s
@@ -39,13 +45,13 @@ services:
       PACKAGES_DIR: /packages
       INBOX_DIR: /inbox
     env_file:
-      - path: .env.local
+      - path: .env
         required: false
     volumes:
       # The image ships working defaults on its classpath. This mount overrides them
       # file by file with the real sources, rules, profile and CV PDFs — nothing
       # individual is ever baked in.
-      - ./config/local:/config:ro
+      - ./config:/config:ro
       - ./packages:/packages
       - ./data/inbox:/inbox
     ports:

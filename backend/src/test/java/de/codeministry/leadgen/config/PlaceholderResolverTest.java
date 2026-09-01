@@ -2,8 +2,12 @@ package de.codeministry.leadgen.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 class PlaceholderResolverTest {
 
@@ -43,5 +47,30 @@ class PlaceholderResolverTest {
     @Test
     void leavesRegexBackreferencesAlone() {
         assertThat(resolver.resolve("set: \"$1\"")).isEqualTo("set: \"$1\"");
+    }
+
+    @TempDir
+    Path directory;
+
+    @Test
+    void readsValuesFromTheDotenvFile() throws IOException {
+        Path file = directory.resolve(PlaceholderResolver.DOTENV);
+        Files.writeString(
+                file,
+                """
+                # a comment
+                IMAP_HOST=imap.example.org
+                IMAP_PORT=993   # a trailing comment is not part of the value
+                DIGEST_DIR="./with spaces"
+                EMPTY=
+                """);
+
+        Map<String, String> values = PlaceholderResolver.parse(file);
+
+        assertThat(values).containsEntry("IMAP_HOST", "imap.example.org");
+        assertThat(values).containsEntry("IMAP_PORT", "993");
+        assertThat(values).containsEntry("DIGEST_DIR", "./with spaces");
+        // An empty assignment is a non-statement, so the default in the YAML still applies.
+        assertThat(values).doesNotContainKey("EMPTY");
     }
 }

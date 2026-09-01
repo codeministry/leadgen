@@ -1,9 +1,9 @@
 # Personal data and credentials. The committed configuration under
 # backend/src/main/resources/leadgen/ names its values as ${PLACEHOLDERS}; the
 # values themselves live here and are never committed.
-.env.local
-!.env.local.example
-config/local/
+.env
+!.env.example
+config/
 packages/
 data/
 *.log

@@ -198,7 +198,7 @@ the simulation in `docs/samples/simulate_filter.py` is the reference.
 
 ## 12. Settled configuration
 
-- **Mail access:** IMAP mailbox (`imap.example.com:993`, SSL), credentials via `.env.local`.
+- **Mail access:** IMAP mailbox (`imap.example.com:993`, SSL), credentials via `.env`.
 - **Two mailbox modes**, both implemented, switchable by a flag:
   - *filter mode* (active): the newsletter sits in a mixed folder, selected by sender and
     optionally subject.
@@ -208,7 +208,7 @@ the simulation in `docs/samples/simulate_filter.py` is the reference.
     untouched and a second client does not interfere.
 - **Hard filters:** at least 80 % remote, within 120 km of Bedburg, no exceptions outside
   that radius, country allowlist DE only, no temporary-employment or permanent contracts.
-- **LLM:** provider and key via `.env.local`, never in a committed file. A small model for extraction, a larger one for
+- **LLM:** provider and key via `.env`, never in a committed file. A small model for extraction, a larger one for
   scoring and writing.
 - **Documents:** fixed PDFs, language selection only. No per-offer tailoring, no
   integration with `cvfy`. The files live in `config/local/documents/`.
