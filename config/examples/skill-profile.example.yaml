@@ -1,0 +1,53 @@
+# Example profile. Copy to config/local/skill-profile.yaml and replace the contents.
+# The structure is binding, the content is yours.
+version: 1
+locale_primary: de
+
+identity:
+  name: Jane Doe
+  brand: example
+  base: Your City
+  freelance_since: 2020-01
+  roles: [Fullstack developer, Backend / API developer, System architect]
+  seniority: senior
+
+# Weights 1-10. The aliases matter most: job ads spell the same skill a dozen ways.
+core:
+  - skill: Java
+    weight: 10
+    since: 2010
+    aliases: [Java 21, JDK, Jakarta EE, J2EE]
+  - skill: Spring Boot
+    weight: 10
+    aliases: [Spring, Springboot, Spring Framework, Spring Data]
+
+strong:
+  - { skill: PostgreSQL, weight: 7, aliases: [Postgres, SQL] }
+  - { skill: Docker,     weight: 7, aliases: [Container, Podman] }
+
+peripheral:
+  - { skill: Groovy, weight: 2 }
+
+industries:
+  - { name: Example industry, weight: 6, note: "one line of justification" }
+
+# Raw material for cover letters: the language model picks the projects that match
+# the skills an offer asks for.
+reference_projects:
+  - id: example-project
+    title: Example project
+    period: "2023 - 2024"
+    role: Fullstack developer
+    stack: [Java, Spring Boot]
+    # The pitch fields are content, not repo language: they go verbatim into the
+    # cover letter, in the language of the job ad.
+    pitch_de: "Ein Satz, der das Projekt für einen Vermittler greifbar macht."
+    pitch_en: "One sentence a recruiter can understand."
+
+languages:
+  - { name: German, level: native }
+
+# Which document is attached for which language of the ad.
+cv_variants:
+  de: { file: "config/local/documents/cv-de.pdf", default: true }
+  en: { file: "config/local/documents/cv-en.pdf" }

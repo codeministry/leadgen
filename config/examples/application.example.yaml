@@ -1,0 +1,68 @@
+# Application configuration. Models, thresholds, paths and templates are all
+# configurable — none of it lives in the code.
+version: 1
+
+llm:
+  provider: ${LLM_PROVIDER:anthropic}   # anthropic | ollama | openai-compatible
+  base_url: ${LLM_BASE_URL:}
+  api_key: ${LLM_API_KEY}
+  models:
+    extraction: ${LLM_MODEL_EXTRACTION}  # small, cheap model
+    scoring:    ${LLM_MODEL_SCORING}     # stronger model
+    writing:    ${LLM_MODEL_WRITING}     # cover letters
+    embedding:  ${LLM_MODEL_EMBEDDING}   # duplicate detection
+  budget:
+    max_calls_per_day: 300
+    cache_by_message_id: true
+
+profile:
+  path: ${PROFILE_PATH:config/local/skill-profile.yaml}
+rules:
+  path: ${RULES_PATH:config/local/matching-rules.yaml}
+  hot_reload: true
+
+# Only for offers that survived the hard filter: fetch the original ad from the
+# source portal. Many aggregators provide only a summary, without rate or full text.
+enrichment:
+  enabled: true
+  after: hard_filter
+  fetch:
+    timeout: PT10S
+    rate_limit_per_minute: 20
+    user_agent: "lead-generation/0.1"
+    cache_ttl: P7D
+    respect_robots_txt: true
+  extract:
+    strategy: readability
+    fields: [rate, duration, start_date, remote_percent, workload, contact, full_text]
+
+packaging:
+  output_dir: ${PACKAGES_DIR:./packages}
+  naming: "{date}_{company}_{slug}"
+  documents:
+    - id: cv
+      source: profile.cv_variants
+      by: offer.language
+    - id: cover_letter
+      template: "templates/cover-letter.{lang}.ftl"
+      generated: true
+    - id: offer
+      template: "templates/offer-archive.ftl"
+    - id: meta
+      format: json
+
+digest:
+  enabled: true
+  schedule: "0 0 7 * * *"
+  channel: ${DIGEST_CHANNEL:email}      # email | none | webhook
+  transport:
+    type: straightmail
+    url: ${STRAIGHTMAIL_URL:}
+  recipients: ["${DIGEST_TO}"]
+  include: [shortlisted, review, follow_ups_due]
+
+security:
+  auth: ${AUTH_MODE:none}               # none | basic | oidc
+  oidc:
+    issuer: ${OIDC_ISSUER:}
+    client_id: ${OIDC_CLIENT_ID:}

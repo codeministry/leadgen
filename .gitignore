@@ -1,0 +1,26 @@
+# Personal data and credentials
+config/local/
+packages/
+data/
+.env
+*.log
+
+# Real newsletter mails and anything derived from them: they carry the
+# subscriber's mail address in headers and unsubscribe links.
+docs/samples/emails/
+docs/samples/extracted.json
+# The analysis scripts are the reference implementation and stay in the repo:
+!docs/samples/analyze_samples.py
+!docs/samples/simulate_filter.py
+
+# Build
+target/
+build/
+node_modules/
+dist/
+.gradle/
+
+# OS & IDE
+.DS_Store
+.idea/
+*.iml

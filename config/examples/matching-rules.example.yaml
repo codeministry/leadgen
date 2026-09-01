@@ -1,0 +1,99 @@
+# Example matching rules: hard knockout criteria + weighted scoring.
+# Goal: cut LLM cost by discarding the bulk deterministically.
+# Copy to config/local/matching-rules.yaml and adjust.
+version: 1
+
+# --- Stage 1: hard knockout criteria (no LLM call) ------------------------
+hard_filters:
+  remote:
+    min_remote_percent: 80
+    accept_unknown: true            # missing figure -> keep, flag as "unknown"
+    reject_keywords_de: ["100% vor Ort", "vollständig vor Ort", "kein Remote", "Präsenzpflicht", "5 Tage vor Ort"]
+    # Many sources state the remote share rarely; derive it from location and title.
+    derive_from:
+      - { field: location, contains_any: [remote, homeoffice, ortsunabhängig, deutschlandweit], set: 100 }
+      - { field: title,    regex: "(\\d{1,3})\\s*%\\s*remote", set: "$1" }
+      - { field: title,    contains_any: [remote], set: 100, confidence: low }
+
+  location:
+    country_allowlist: [DE]         # no assignments abroad
+    reject_keywords: ["Schweiz", "Österreich", "Zürich", "Wien", "Basel", "relocation", "onsite abroad", "EU-wide onsite"]
+    onsite_home_base: "Your City"
+    onsite_max_km: 120
+    onsite_exceptions: []           # e.g. [{ city: "Somewhere", reason: "lodging available" }]
+
+  rate:
+    min_hourly_eur: 60
+    currency: EUR
+    # If your source rarely carries a rate, keep accept_unknown true and let the
+    # enrichment stage supply it — otherwise this rule filters out everything.
+    accept_unknown: true
+    apply_after: enrichment
+    reject_below_as: HARD_FAIL
+
+  contract:
+    allowed: [freiberuflich, Freelance, Dienstvertrag, Werkvertrag]
+    rejected: [Festanstellung, Arbeitnehmerüberlassung, ANÜ, Personalvermittlung, Praktikum, Werkstudent]
+
+  language:
+    preferred: de                   # the target market is German
+    accepted: [de, en]
+    english_only_penalty: 15        # not a knockout, but a downgrade
+
+  freshness:
+    max_age_days: 21                # older ads are usually filled
+
+# --- Stage 2: scoring (0-100), only for offers past stage 1 ---------------
+scoring:
+  weights:
+    core_skill_overlap: 45          # overlap with skill-profile.core/strong
+    role_fit: 15                    # fullstack / backend / architect
+    industry_fit: 10                # skill-profile.industries
+    seniority_fit: 10               # senior/lead wanted
+    project_setup: 10               # duration, workload, start date
+    rate_fit: 10
+  penalties:
+    stack_mismatch_dominant: -30    # e.g. .NET, PHP, Python data, SAP ABAP, React-only, native mobile
+    role_mismatch: -25              # pure QA, PO, scrum master or support roles
+    vague_description: -10
+  thresholds:
+    auto_shortlist: 70              # -> application package gets built
+    review: 50                      # -> digest only, decision by the user
+    discard: 0
+
+# --- Negative list: dominant foreign stack -> score penalty ---------------
+anti_skills:
+  - .NET
+  - C#
+  - PHP
+  - Symfony
+  - Laravel
+  - SAP
+  - ABAP
+  - Salesforce CRM
+  - ServiceNow
+  - React Native
+  - Flutter
+  - iOS
+  - Swift
+  - Android native
+  - Data Science
+  - Machine Learning Engineering
+  - Embedded C
+
+# --- Deduplication --------------------------------------------------------
+deduplication:
+  # The same project often runs through several agencies at once.
+  fingerprint_fields: [normalized_title, city, start_date, duration_months, top_skills]
+  strategies:
+    - { type: exact_fingerprint, action: merge }
+    - { type: embedding_cosine, threshold: 0.92, action: merge }
+    - { type: embedding_cosine, threshold: 0.85, action: flag_possible_duplicate }
+  merge_policy: keep_first_seen_as_primary   # further sources attach as OfferSource
+  ttl_days: 60
+
+# --- Follow-up ------------------------------------------------------------
+follow_up:
+  after_days: 7
+  max_reminders: 1
+  auto_expire_days: 30

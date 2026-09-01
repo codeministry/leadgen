@@ -1,0 +1,88 @@
+# Sources are fully declarative. No provider, no newsletter and no portal is wired
+# into the code — a new source is a YAML block, not a deploy.
+# Copy to config/local/sources.yaml and adjust.
+version: 1
+
+# --- Connections: credentials exclusively through environment variables ----
+connections:
+  - id: mailbox-primary
+    type: imap
+    host: ${IMAP_HOST}
+    port: ${IMAP_PORT:993}
+    ssl: true
+    username: ${IMAP_USER}
+    password: ${IMAP_PASSWORD}
+    mode: poll              # poll | idle
+    poll_interval: PT15M
+
+# --- Sources ---------------------------------------------------------------
+sources:
+
+  # A) A newsletter mail bundling several offers in one message
+  - id: sample-newsletter
+    enabled: false
+    type: imap
+    connection: mailbox-primary
+    selector:
+      folder: INBOX
+      from: ["newsletter@example.com"]
+      subject_matches: ".*new projects.*"
+      since_days: 3
+      mark_seen: false
+      state: uid            # track progress via UIDVALIDITY/UID, never via seen/unseen
+    extraction:
+      strategy: html-blocks          # single | html-blocks | regex-split | llm
+      block_selector: "table.offer, div.job-item"
+      fields:                        # deterministic pre-extraction saves LLM cost
+        title:    { css: "h3 a" }
+        url:      { css: "h3 a", attr: href }
+        company:  { css: ".company" }
+        location: { css: ".location" }
+        rate:     { regex: "(\\d{2,3})\\s*(?:€|EUR)\\s*(?:/|per)\\s*(?:h|hour)" }
+        start:    { regex: "(?:Start|Beginn)[:\\s]+([0-9]{2}\\.[0-9]{2}\\.[0-9]{4}|asap)" }
+      fallback: llm                  # the language model fills whatever is left
+    defaults:
+      language: de
+      channel: newsletter
+
+  # B) A portal feed from a saved search
+  - id: sample-portal-feed
+    enabled: false
+    type: rss                        # rss | atom
+    url: "${SAMPLE_FEED_URL}"
+    schedule: PT30M
+    extraction:
+      strategy: single               # one item = one offer
+      fields:
+        title:       { path: title }
+        url:         { path: link }
+        description: { path: description, html: strip }
+        published:   { path: pubDate }
+      fallback: llm
+    defaults:
+      language: de
+      channel: portal
+
+  # C) A single enquiry arriving directly in the mailbox
+  - id: sample-direct-enquiry
+    enabled: false
+    type: imap
+    connection: mailbox-primary
+    selector:
+      folder: INBOX
+      subject_matches: "(?i).*(enquiry|availability|opportunity).*"
+      exclude_from: ["newsletter@example.com"]
+      state: uid
+    extraction:
+      strategy: llm                  # free-form prose, no structure to expect
+    defaults:
+      channel: direct
+
+  # D) Local files — for tests and replays without network access
+  - id: sample-file-drop
+    enabled: false
+    type: file
+    path: ${INBOX_DIR:./data/inbox}
+    glob: "*.eml,*.html,*.txt"
+    extraction:
+      strategy: llm
