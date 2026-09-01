@@ -1,6 +1,6 @@
 <lg-page-header
-  title="Review"
-  subtitle="An upload becomes an offer only once somebody has seen what was read from it."
+  [title]="'review.title' | transloco"
+  [subtitle]="'review.subtitle' | transloco"
 />
 
 <!--
@@ -17,18 +17,17 @@
   <input class="sr-only" type="file" accept=".md" multiple (change)="pick($event)" />
   <lg-icon name="file-text" [size]="20" />
   <span class="type-small">
-    {{ store.uploading() ? 'Uploading…' : 'Drop a Markdown file here, or choose one' }}
+    {{ (store.uploading() ? 'review.uploading' : 'review.drop') | transloco }}
   </span>
   <span class="type-caption text-muted">
-    YAML frontmatter carries the fields, the body is the description. A file without it
-    still works; you fill the fields in here.
+    {{ 'review.dropHint' | transloco }}
   </span>
 </label>
 
 @if (store.error(); as error) {
   <p class="type-small queue-error" role="alert">
     <lg-icon name="triangle-alert" [size]="16" />
-    {{ error }}
+    {{ error | transloco }}
   </p>
 }
 
@@ -46,11 +45,11 @@
     }
   </div>
 } @else if (store.loading()) {
-  <p class="type-small text-muted">Loading…</p>
+  <p class="type-small text-muted">{{ 'common.loading' | transloco }}</p>
 } @else {
   <lg-empty-state
     icon="inbox"
-    title="Nothing waiting"
-    description="Drop a Markdown file above. It lands in the inbox unread, and enters the pipeline on the next run once you confirm it."
+    [title]="'review.emptyTitle' | transloco"
+    [description]="'review.emptyHint' | transloco"
   />
 }

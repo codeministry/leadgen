@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input } from '@angular/core';
 import { Router } from '@angular/router';
 import { injectDispatch } from '@ngrx/signals/events';
+import { TranslocoPipe } from '@jsverse/transloco';
 import { shortlistEvents } from '@core/store/shortlist.events';
 import { ShortlistStore } from '@core/store/shortlist.store';
 import { EmptyState } from '@shared/empty-state/empty-state';
@@ -12,7 +13,7 @@ type BandFilter = 'all' | 'shortlist' | 'review';
 
 @Component({
   selector: 'lg-shortlist-page',
-  imports: [EmptyState, Icon, OfferCard, PageHeader],
+  imports: [EmptyState, Icon, OfferCard, PageHeader, TranslocoPipe],
   templateUrl: './shortlist-page.html',
   styleUrl: './shortlist-page.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -39,10 +40,16 @@ export class ShortlistPage implements OnInit {
   });
   readonly portal = input('', { transform: (value: string | undefined) => value ?? '' });
 
-  protected readonly bandOptions: readonly { id: BandFilter; label: string }[] = [
-    { id: 'all', label: 'All' },
-    { id: 'shortlist', label: 'Above 70' },
-    { id: 'review', label: '50 to 69' },
+  /** Catalog keys with their own parameters: the two thresholds are the same numbers the
+      bands are drawn from, and a language puts them in a different place in the sentence. */
+  protected readonly bandOptions: readonly {
+    id: BandFilter;
+    label: string;
+    params: Record<string, number>;
+  }[] = [
+    { id: 'all', label: 'shortlist.bandAll', params: {} },
+    { id: 'shortlist', label: 'shortlist.bandAbove', params: { score: 70 } },
+    { id: 'review', label: 'shortlist.bandBetween', params: { from: 50, to: 69 } },
   ];
 
   protected readonly shortlistAt = 70;

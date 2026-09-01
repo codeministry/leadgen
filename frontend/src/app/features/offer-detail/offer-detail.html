@@ -3,14 +3,14 @@
     @if (entry.offer.url; as url) {
       <a class="btn btn-sm btn-ghost" [href]="url" target="_blank" rel="noreferrer">
         <lg-icon name="external-link" [size]="16" />
-        Original ad
+        {{ 'detail.originalAd' | transloco }}
       </a>
     }
   </lg-page-header>
 
   <div class="grid">
-    <section class="panel">
-      <h2 class="type-h2">The ad</h2>
+    <section class="panel panel-wide">
+      <h2 class="type-h2">{{ 'detail.theAd' | transloco }}</h2>
       <!--
         The enriched full text when enrichment reached the portal, the newsletter's own
         summary when it did not. Which one is on screen is the difference between reading
@@ -18,9 +18,7 @@
       -->
       <p class="type-body text-wrap">{{ entry.offer.fullText ?? entry.offer.description }}</p>
       @if (!entry.offer.fullText) {
-        <p class="type-caption text-muted">
-          From the source document. The original ad was not fetched.
-        </p>
+        <p class="type-caption text-muted">{{ 'detail.fromSource' | transloco }}</p>
       }
 
       <div class="tags">
@@ -31,17 +29,23 @@
     </section>
 
     <section class="panel">
-      <h2 class="type-h2">Why it scored what it scored</h2>
+      <h2 class="type-h2">{{ 'detail.whyScored' | transloco }}</h2>
       <div class="score-row">
         <lg-score [value]="entry.score.value" [size]="72" />
         <p class="type-small text-muted">
           @if (entry.score.value === null) {
-            Not scored. Without a language model the pipeline still produces this
-            shortlist, only unranked.
+            {{ 'detail.notScored' | transloco }}
           } @else {
-            Ruleset {{ entry.score.rulesetVersion ?? 'unknown' }} ·
-            model {{ entry.score.model ?? 'none' }} ·
-            {{ entry.score.hardPass ? 'cleared the hard filter' : 'rejected by the hard filter' }}
+            {{
+              'detail.scoreMeta'
+                | transloco
+                  : {
+                      ruleset: entry.score.rulesetVersion ?? ('common.unknown' | transloco),
+                      model: entry.score.model ?? ('common.none' | transloco),
+                    }
+            }}
+            ·
+            {{ (entry.score.hardPass ? 'detail.hardPassed' : 'detail.hardRejected') | transloco }}
           }
         </p>
       </div>
@@ -56,22 +60,22 @@
             <span class="type-mono-data text-muted factor">{{ reason.factor }}</span>
           </li>
         } @empty {
-          <li class="type-small text-muted">No factors recorded.</li>
+          <li class="type-small text-muted">{{ 'detail.noFactors' | transloco }}</li>
         }
       </ul>
     </section>
 
     <section class="panel">
-      <h2 class="type-h2">Extracted fields</h2>
+      <h2 class="type-h2">{{ 'detail.extractedFields' | transloco }}</h2>
       <dl class="fields">
         @for (field of fields(); track field.label) {
           <div class="field">
-            <dt class="type-caption text-muted">{{ field.label }}</dt>
+            <dt class="type-caption text-muted">{{ field.label | transloco }}</dt>
             <dd class="type-mono-data">
               @if (field.value) {
                 {{ field.value }}
               } @else {
-                <span class="text-muted missing">not known</span>
+                <span class="text-muted missing">{{ 'common.notKnown' | transloco }}</span>
               }
             </dd>
           </div>
@@ -79,35 +83,32 @@
       </dl>
 
       @if (entry.sources.length > 1) {
-        <h3 class="type-h4 sources-head">Advertised by</h3>
+        <h3 class="type-h4 sources-head">{{ 'detail.advertisedBy' | transloco }}</h3>
         <ul class="type-small sources">
           @for (source of entry.sources; track source.url) {
-            <li>{{ source.agency ?? 'no agency stated' }} · {{ source.portal }}</li>
+            <li>{{ source.agency ?? ('offer.noAgency' | transloco) }} · {{ source.portal }}</li>
           }
         </ul>
       }
     </section>
 
     <section class="panel">
-      <h2 class="type-h2">Application package</h2>
+      <h2 class="type-h2">{{ 'detail.package' | transloco }}</h2>
       <p class="type-small text-muted panel-note">
-        The package is a folder on disk: cover letter, the fixed CV for the ad's
-        language, and the matching reference projects. Nothing is sent from here.
+        {{ 'detail.packageNote' | transloco }}
       </p>
       @if (application()?.packageDir ?? entry.offer.packageDir; as folder) {
         <p class="type-mono-data package-dir">{{ folder }}</p>
         <p class="type-caption text-muted disabled-note">
-          The folder is on the machine that ran the pipeline. There is no download, and
-          no way to send it from here.
+          {{ 'detail.packageOnDisk' | transloco }}
         </p>
       } @else {
         <button type="button" class="btn btn-sm btn-outline" disabled>
           <lg-icon name="download" [size]="16" />
-          Download package
+          {{ 'detail.downloadPackage' | transloco }}
         </button>
         <p class="type-caption text-muted disabled-note">
-          A package is built for everything above the shortlist threshold. This offer has
-          none yet.
+          {{ 'detail.noPackageYet' | transloco }}
         </p>
       }
     </section>
@@ -124,18 +125,18 @@
         @if (applications.error(); as error) {
           <p class="type-small record-error" role="alert">
             <lg-icon name="triangle-alert" [size]="16" />
-            {{ error }}
+            {{ error | transloco }}
           </p>
         }
       </section>
     }
   </div>
 } @else if (store.loading()) {
-  <p class="type-small text-muted">Loading…</p>
+  <p class="type-small text-muted">{{ 'common.loading' | transloco }}</p>
 } @else {
   <lg-empty-state
     icon="circle-alert"
-    title="No offer with that id"
-    description="It may have been superseded by a newer run. Go back to the shortlist and pick it there."
+    [title]="'detail.notFoundTitle' | transloco"
+    [description]="'detail.notFoundHint' | transloco"
   />
 }

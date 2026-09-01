@@ -11,6 +11,7 @@ import {
   statusLabel,
 } from '@core/model/application';
 import { applicationEvents } from './applications.events';
+import { ingestEvents } from './ingest.events';
 
 export interface BoardColumn {
   readonly lane: PipelineLane;
@@ -102,6 +103,9 @@ export const ApplicationsStore = signalStore(
       ),
       // Serialised rather than merged: two changes to the same card in quick succession
       // must land in the order they were made, and the second answer is the one that wins.
+      // The last thing a run does is build a package, and an application opens with it.
+      // The board would otherwise not show the work the run just created until a reload.
+      events.on(ingestEvents.finished).pipe(map(() => applicationEvents.opened())),
       events.on(applicationEvents.changed).pipe(
         concatMap(({ payload }) =>
           api.update(payload.id, payload.update).pipe(

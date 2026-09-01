@@ -10,12 +10,12 @@
       @if (entry().offer.rateEur; as rate) {
         <span>{{ rate }} &euro;/h</span>
       } @else {
-        <span class="unknown">rate unknown</span>
+        <span class="unknown">{{ 'offer.rateUnknown' | transloco }}</span>
       }
       <span aria-hidden="true">·</span>
-      <span>{{ entry().offer.location ?? 'location unknown' }}</span>
+      <span>{{ entry().offer.location ?? ('offer.locationUnknown' | transloco) }}</span>
       <span aria-hidden="true">·</span>
-      <span>{{ entry().offer.duration ?? 'duration unknown' }}</span>
+      <span>{{ entry().offer.duration ?? ('offer.durationUnknown' | transloco) }}</span>
       <span aria-hidden="true">·</span>
       <span>{{ entry().offer.publishedOn }}</span>
     </p>
@@ -32,8 +32,7 @@
         </li>
       } @empty {
         <li class="type-small text-muted reason">
-          Not scored. The pipeline ran without a language model, so this is the hard
-          filter's answer only.
+          {{ 'offer.notScored' | transloco }}
         </li>
       }
     </ul>
@@ -42,22 +41,24 @@
       @if (otherSources().length > 0) {
         <lg-badge tone="primary" [outline]="true">
           <lg-icon name="copy" [size]="12" />
-          also on {{ otherSources().length }} more
+          {{ 'offer.alsoOn' | transloco: { count: otherSources().length } }}
         </lg-badge>
       }
       @if (entry().flags.incomplete) {
-        <lg-badge tone="warning" [outline]="true">incomplete</lg-badge>
+        <lg-badge tone="warning" [outline]="true">{{ 'offer.incomplete' | transloco }}</lg-badge>
       }
       @if (entry().flags.remoteUnknown) {
-        <lg-badge tone="ghost" [outline]="true">remote share unknown</lg-badge>
+        <lg-badge tone="ghost" [outline]="true">{{ 'offer.remoteUnknown' | transloco }}</lg-badge>
       } @else {
-        <lg-badge tone="ghost" [outline]="true">{{ entry().offer.remotePercent }} % remote</lg-badge>
+        <lg-badge tone="ghost" [outline]="true">
+          {{ 'offer.remoteShare' | transloco: { percent: entry().offer.remotePercent } }}
+        </lg-badge>
       }
       <lg-badge tone="ghost" [outline]="true">{{ entry().offer.portal }}</lg-badge>
       @if (entry().offer.agency; as agency) {
         <lg-badge tone="ghost" [outline]="true">{{ agency }}</lg-badge>
       } @else {
-        <lg-badge tone="ghost" [outline]="true">no agency stated</lg-badge>
+        <lg-badge tone="ghost" [outline]="true">{{ 'offer.noAgency' | transloco }}</lg-badge>
       }
     </div>
 
@@ -66,7 +67,7 @@
          names made it wider than a phone. -->
     @if (otherSources().length > 0) {
       <p class="type-small text-muted also">
-        Also advertised by
+        {{ 'offer.alsoAdvertisedBy' | transloco }}
         @for (source of otherSources(); track source.url; let last = $last) {
           {{ source.agency ?? source.portal }}{{ last ? '' : ', ' }}
         }

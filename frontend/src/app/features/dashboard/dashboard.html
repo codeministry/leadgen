@@ -1,58 +1,53 @@
 <lg-page-header
-  title="Dashboard"
-  subtitle="What came in this morning, and how much of it survived."
+  [title]="'dashboard.title' | transloco"
+  [subtitle]="'dashboard.subtitle' | transloco"
 />
 
 <div class="tiles">
   <lg-stat-tile
-    label="Extracted"
+    [label]="'dashboard.extracted' | transloco"
     [value]="ingest.report()?.extracted ?? total()"
-    unit="offers"
-    [hint]="ingest.report() ? 'From the last run' : 'Measured baseline, 14 mails'"
+    [unit]="'dashboard.unitOffers' | transloco"
+    [hint]="(ingest.report() ? 'dashboard.fromLastRun' : 'dashboard.measuredBaseline') | transloco"
   />
   <lg-stat-tile
-    label="Written"
+    [label]="'dashboard.written' | transloco"
     [value]="ingest.report()?.written ?? '—'"
-    unit="rows"
+    [unit]="'dashboard.unitRows' | transloco"
     [hint]="
       ingest.report()
         ? (repeats() > 0
-            ? repeats() + ' listings appeared in two documents'
-            : 'Every extracted offer was a new row')
-        : 'No run yet'
+            ? ('dashboard.repeats' | transloco: { count: repeats() })
+            : ('dashboard.noRepeats' | transloco))
+        : ('dashboard.noRunYet' | transloco)
     "
   />
   <lg-stat-tile
-    label="Survived the filter"
+    [label]="'dashboard.survived' | transloco"
     [value]="survived()"
-    unit="offers"
+    [unit]="'dashboard.unitOffers' | transloco"
     [emphasis]="true"
-    [hint]="share()"
+    [hint]="share().key | transloco: share().params"
   />
   <lg-stat-tile
-    label="Follow-ups due"
+    [label]="'dashboard.followUps' | transloco"
     [value]="followUpsDue()"
-    hint="Recorded by hand, on the pipeline board"
+    [hint]="'dashboard.followUpsHint' | transloco"
   />
 </div>
 
 <section class="panel">
-  <h2 class="type-h2">The hard filter</h2>
-  <p class="type-small text-muted panel-note">
-    Seven stages, in the order they run. Each one states what it removed; the rail narrows
-    to what is left.
-  </p>
+  <h2 class="type-h2">{{ 'dashboard.hardFilter' | transloco }}</h2>
+  <p class="type-small text-muted panel-note">{{ 'dashboard.hardFilterNote' | transloco }}</p>
   @if (total() > 0) {
     <lg-funnel-rail [stages]="stages()" [total]="total()" />
   } @else {
-    <p class="type-small text-muted">
-      Nothing has been filtered yet. Run ingest, and this counts the archive.
-    </p>
+    <p class="type-small text-muted">{{ 'dashboard.nothingFiltered' | transloco }}</p>
   }
 </section>
 
 <section class="panel">
-  <h2 class="type-h2">Last ingest run</h2>
+  <h2 class="type-h2">{{ 'dashboard.lastRun' | transloco }}</h2>
 
   @if (ingest.error(); as error) {
     <p class="type-small run-error" role="alert">
@@ -65,8 +60,7 @@
     @if (ingest.mismatches().length > 0) {
       <p class="type-small run-error" role="alert">
         <lg-icon name="triangle-alert" [size]="16" />
-        {{ ingest.mismatches().length }} document(s) extracted fewer offers than they
-        announced. A selector that stopped matching looks exactly like a quiet market.
+        {{ 'dashboard.mismatch' | transloco: { count: ingest.mismatches().length } }}
       </p>
     }
 
@@ -74,11 +68,11 @@
       <table class="table table-sm">
         <thead>
           <tr>
-            <th scope="col">Source</th>
-            <th scope="col" class="num">Documents</th>
-            <th scope="col" class="num">Extracted</th>
-            <th scope="col" class="num">Written</th>
-            <th scope="col">Announced</th>
+            <th scope="col">{{ 'dashboard.colSource' | transloco }}</th>
+            <th scope="col" class="num">{{ 'dashboard.colDocuments' | transloco }}</th>
+            <th scope="col" class="num">{{ 'dashboard.colExtracted' | transloco }}</th>
+            <th scope="col" class="num">{{ 'dashboard.colWritten' | transloco }}</th>
+            <th scope="col">{{ 'dashboard.colAnnounced' | transloco }}</th>
           </tr>
         </thead>
         <tbody>
@@ -92,8 +86,11 @@
                 @for (document of source.details; track document.documentId) {
                   @if (document.announced !== null && !document.complete) {
                     <lg-badge tone="warning">
-                      {{ document.documentId }}: {{ document.extracted }} of
-                      {{ document.announced }}
+                      {{ document.documentId }}:
+                      {{
+                        'dashboard.ofAnnounced'
+                          | transloco: { extracted: document.extracted, announced: document.announced }
+                      }}
                     </lg-badge>
                   }
                 } @empty {
@@ -108,8 +105,8 @@
   } @else {
     <lg-empty-state
       icon="funnel"
-      title="No run yet"
-      description="Run ingest from the header. It reads every enabled source once and reports what each document gave up."
+      [title]="'dashboard.noRunYet' | transloco"
+      [description]="'dashboard.noRunYetHint' | transloco"
     />
   }
 </section>

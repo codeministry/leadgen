@@ -8,11 +8,13 @@ import { IngestStore } from '@core/store/ingest.store';
 import { StatusStore } from '@core/store/status.store';
 import { BrandMark } from '@shared/brand-mark/brand-mark';
 import { Icon } from '@shared/icon/icon';
+import { TranslocoPipe } from '@jsverse/transloco';
+import { LanguageToggle } from '../language-toggle/language-toggle';
 import { ThemeToggle } from '../theme-toggle/theme-toggle';
 
 @Component({
   selector: 'lg-app-header',
-  imports: [BrandMark, Icon, RouterLink, ThemeToggle],
+  imports: [BrandMark, Icon, RouterLink, ThemeToggle, LanguageToggle, TranslocoPipe],
   templateUrl: './app-header.html',
   styleUrl: './app-header.css',
   changeDetection: ChangeDetectionStrategy.OnPush,

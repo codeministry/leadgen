@@ -8,6 +8,7 @@ import {
   input,
 } from '@angular/core';
 import { injectDispatch } from '@ngrx/signals/events';
+import { TranslocoPipe } from '@jsverse/transloco';
 import { ApplicationUpdate } from '@core/model/application';
 import { applicationEvents } from '@core/store/applications.events';
 import { ApplicationsStore } from '@core/store/applications.store';
@@ -21,13 +22,14 @@ import { PageHeader } from '@shared/page-header/page-header';
 import { Score } from '@shared/score/score';
 
 interface Field {
+  /** A catalog key, not a sentence. */
   readonly label: string;
   readonly value: string | null;
 }
 
 @Component({
   selector: 'lg-offer-detail',
-  imports: [ApplicationPanel, Badge, EmptyState, Icon, PageHeader, Score],
+  imports: [ApplicationPanel, Badge, EmptyState, Icon, PageHeader, Score, TranslocoPipe],
   templateUrl: './offer-detail.html',
   styleUrl: './offer-detail.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -98,17 +100,17 @@ export class OfferDetail implements OnInit {
       return [];
     }
     return [
-      { label: 'Portal', value: offer.portal },
-      { label: 'Agency', value: offer.agency },
-      { label: 'Location', value: offer.location },
-      { label: 'Remote share', value: offer.remotePercent === null ? null : `${offer.remotePercent} %` },
-      { label: 'Rate', value: offer.rateEur === null ? null : `${offer.rateEur} €/h` },
-      { label: 'Start', value: offer.startsOn },
-      { label: 'Duration', value: offer.duration },
-      { label: 'Workload', value: offer.workload },
-      { label: 'Published', value: offer.publishedOn },
-      { label: 'Language', value: offer.language },
-      { label: 'External id', value: offer.externalId },
+      { label: 'field.portal', value: offer.portal },
+      { label: 'field.agency', value: offer.agency },
+      { label: 'field.location', value: offer.location },
+      { label: 'field.remoteShare', value: offer.remotePercent === null ? null : `${offer.remotePercent} %` },
+      { label: 'field.rate', value: offer.rateEur === null ? null : `${offer.rateEur} €/h` },
+      { label: 'field.start', value: offer.startsOn },
+      { label: 'field.duration', value: offer.duration },
+      { label: 'field.workload', value: offer.workload },
+      { label: 'field.published', value: offer.publishedOn },
+      { label: 'field.language', value: offer.language },
+      { label: 'field.externalId', value: offer.externalId },
     ];
   });
 

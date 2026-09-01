@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { TranslocoPipe } from '@jsverse/transloco';
 import { ShortlistEntry } from '@core/model/shortlist-entry';
 import { Badge } from '@shared/badge/badge';
 import { Icon } from '@shared/icon/icon';
@@ -7,7 +8,7 @@ import { Score } from '@shared/score/score';
 
 @Component({
   selector: 'lg-offer-card',
-  imports: [Badge, Icon, RouterLink, Score],
+  imports: [Badge, Icon, RouterLink, Score, TranslocoPipe],
   templateUrl: './offer-card.html',
   styleUrl: './offer-card.css',
   changeDetection: ChangeDetectionStrategy.OnPush,

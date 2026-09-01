@@ -1,17 +1,17 @@
-<!-- A radiogroup rather than three loose buttons: the states are mutually
-     exclusive, and arrow keys should move between them. -->
-<div class="join" role="radiogroup" [attr.aria-label]="'theme.legend' | transloco">
+<!-- A radiogroup rather than three loose buttons, exactly as the theme toggle: the
+     states are mutually exclusive and arrow keys should move between them. -->
+<div class="join" role="radiogroup" [attr.aria-label]="'language.legend' | transloco">
   @for (option of options; track option.preference) {
     <button
       type="button"
       role="radio"
-      class="btn btn-ghost btn-sm join-item"
+      class="btn btn-ghost btn-sm join-item type-mono-data"
       [class.btn-active]="store.preference() === option.preference"
       [attr.aria-checked]="store.preference() === option.preference"
       [attr.title]="option.label | transloco"
       (click)="choose(option.preference)"
     >
-      <lg-icon [name]="option.icon" [size]="16" />
+      <span aria-hidden="true">{{ option.code }}</span>
       <span class="sr-only">{{ option.label | transloco }}</span>
     </button>
   }

@@ -3,6 +3,7 @@ import { signalStore, withComputed, withState } from '@ngrx/signals';
 import { Events, on, withEventHandlers, withReducer } from '@ngrx/signals/events';
 import { catchError, exhaustMap, map, of, switchMap } from 'rxjs';
 import { ShortlistApi } from '@core/api/shortlist.api';
+import { ingestEvents } from './ingest.events';
 import { FunnelView } from '@core/model/funnel';
 import { ShortlistEntry } from '@core/model/shortlist-entry';
 import { shortlistEvents } from './shortlist.events';
@@ -72,6 +73,12 @@ export const ShortlistStore = signalStore(
           ),
         ),
       ),
+      // A run rewrites everything this store shows, and the screens load once on init:
+      // without this the shortlist a person is looking at while the run finishes is the
+      // one from before it. The reload is expressed as this store's own load event, so
+      // there is one path that fetches and `ingest` knows nothing about who listens.
+      events.on(ingestEvents.finished).pipe(map(() => shortlistEvents.opened())),
+      events.on(ingestEvents.finished).pipe(map(() => shortlistEvents.funnelOpened())),
       // Switched, not exhausted: clicking through two offers quickly must end on the
       // second one, and the first answer is then worth nothing.
       events.on(shortlistEvents.offerRequested).pipe(
