@@ -9,8 +9,12 @@
 # Already-tracked files stayed tracked, so nothing looked wrong — only new ones
 # vanished from `git status`.
 /config/
-/packages/
-/data/
+# These two stay unanchored on purpose: they are output directories, and the
+# working directory differs by how the service was started — `bootRun` runs in
+# backend/, a jar wherever it sits. An anchored pattern would miss
+# backend/packages/ the first time someone runs the digest from Gradle.
+packages/
+data/
 *.log
 
 # Real newsletter mails and anything derived from them: they carry the
