@@ -1,0 +1,10 @@
+.picker {
+  /* DaisyUI draws the chevron itself; without this the native one shows beside it. */
+  appearance: none;
+  width: 100%;
+  min-height: 1.75rem;
+  height: auto;
+  padding-block: 0.125rem;
+  border-color: var(--color-base-300);
+  background-color: var(--color-base-100);
+}

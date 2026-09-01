@@ -1,47 +1,75 @@
 <lg-page-header
   title="Pipeline"
-  subtitle="Eleven states are too many columns, so they group into five lanes. The exact state stays on the card."
+  subtitle="The half of the loop the tool cannot see. Nothing is sent from here, so everything here is recorded by hand."
 />
 
-<div class="board">
-  @for (column of columns(); track column.lane.id) {
-    <section class="lane">
-      <h2 class="type-caption lane-head">
-        {{ column.lane.label }}
-        <span class="type-mono-data text-muted">{{ column.applications.length }}</span>
-      </h2>
+@if (store.error(); as error) {
+  <p class="type-small board-error" role="alert">
+    <lg-icon name="triangle-alert" [size]="16" />
+    {{ error }}
+  </p>
+}
 
-      <ul class="cards">
-        @for (application of column.applications; track application.id) {
-          <li class="card">
-            <div class="card-top">
-              <lg-score [value]="application.scoreValue" [size]="40" />
-              <h3 class="type-small card-title">{{ application.title }}</h3>
-            </div>
-            <p class="type-mono-data text-muted card-meta">
-              @if (application.rateEur; as rate) {
-                <span>{{ rate }} &euro;/h</span>
-              }
-              @if (application.sentOn; as sent) {
-                <span>sent {{ sent }}</span>
-              }
-              @if (application.followUpOn; as due) {
-                <span class="due">follow up {{ due }}</span>
-              }
-            </p>
-            <div class="card-foot">
-              <lg-badge [tone]="toneFor(application.status)" [outline]="true">
-                {{ application.status }}
-              </lg-badge>
-              <span class="type-caption text-muted">
-                {{ application.agency ?? 'no agency stated' }}
-              </span>
-            </div>
-          </li>
-        } @empty {
-          <li class="type-small text-muted empty">Nothing here</li>
-        }
-      </ul>
-    </section>
-  }
-</div>
+@if (store.columns().length > 0) {
+  <div class="board">
+    @for (column of store.columns(); track column.lane.id) {
+      <section class="lane">
+        <h2 class="type-caption lane-head">
+          {{ column.lane.label }}
+          <span class="type-mono-data text-muted">{{ column.applications.length }}</span>
+        </h2>
+
+        <ul class="cards">
+          @for (application of column.applications; track application.id) {
+            <li class="card" [class.saving]="store.saving() === application.id">
+              <div class="card-top">
+                <lg-score [value]="application.scoreValue" [size]="40" />
+                <h3 class="type-small card-title">{{ application.title }}</h3>
+              </div>
+
+              <p class="type-mono-data text-muted card-meta">
+                @if (application.rateEur !== null) {
+                  <span>{{ application.rateEur }} &euro;/h</span>
+                }
+                @if (application.sentOn; as sent) {
+                  <span>sent {{ sent }}</span>
+                }
+                @if (application.followUpOn; as due) {
+                  <span [class.due]="application.followUpDue">follow up {{ due }}</span>
+                }
+              </p>
+
+              <lg-status-picker
+                class="card-status"
+                [value]="application.status"
+                [options]="store.statusChoices()"
+                [disabled]="store.saving() === application.id"
+                [label]="'Status of ' + application.title"
+                (picked)="move(application, $event)"
+              />
+
+              <div class="card-foot">
+                <lg-badge [tone]="toneFor(application.status)" [outline]="true">
+                  {{ application.status }}
+                </lg-badge>
+                <span class="type-caption text-muted">
+                  {{ application.agency ?? 'no agency stated' }}
+                </span>
+              </div>
+            </li>
+          } @empty {
+            <li class="type-small text-muted empty">Nothing here</li>
+          }
+        </ul>
+      </section>
+    }
+  </div>
+} @else if (store.loading()) {
+  <p class="type-small text-muted">Loading…</p>
+} @else {
+  <lg-empty-state
+    icon="funnel"
+    title="No applications yet"
+    description="An application opens when its package is built. Run ingest, and everything above the shortlist threshold arrives in Prepared."
+  />
+}

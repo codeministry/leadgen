@@ -1,10 +1,10 @@
 ---
 phase: climbing
-progress: 69/74
+progress: 73/78
 task: "Acquisition tool: collect, filter, enrich and package project offers"
 slug: lead-generation
 started: 2026-09-01T11:30:00Z
-updated: 2026-09-01T22:55:00Z
+updated: 2026-09-01T23:40:00Z
 ---
 
 # lead-generation — Ideal State Artifact
@@ -137,6 +137,10 @@ A single operator drops mailbox credentials and a profile into `config/`, and ev
 | ISC-72 | bun-test | move backwards through the states, then read the history | accepted, every change kept | JUnit | `ApplicationServiceTest` |
 | ISC-73 | bun-test | a follow-up on its day, on closing, and cancelled | due, dropped, removed | JUnit | `ApplicationServiceTest` |
 | ISC-74 | bun-test | PATCH an unknown status and an unknown id | 400 and 404 | MockMvc | `ApplicationControllerTest` |
+| ISC-75 | bun-test | load the board and read the lanes it grouped by | server's lanes, not a constant | Vitest | `applications.store.spec.ts` |
+| ISC-76 | bun-test | change a status and read the row back | server's answer, not the request | Vitest | `applications.store.spec.ts` |
+| ISC-77 | bun-test | render the picker on a card that is not in the first state | shows the state it is in | Vitest | `status-picker.spec.ts` |
+| ISC-78 | interceptor | pick a state on the board, clear a follow-up on the detail | both rows written | psql | live browser |
 
 ## Features
 
@@ -273,6 +277,10 @@ A single operator drops mailbox credentials and a profile into `config/`, and ev
 - [x] ISC-72: Any transition the operator reports is accepted, and every status change is kept as an event — a single mutable row cannot answer "when did I send this" after the second correction.
 - [x] ISC-73: A follow-up is due on its day, is dropped when the application closes, and can be cancelled explicitly rather than only overwritten.
 - [x] ISC-74: The endpoint refuses a status outside the eleven and answers 404 for an id that names nothing, so a typo fails at the door instead of reaching the database as a string nothing can read back.
+- [x] ISC-75: The board groups by the lanes the endpoint states rather than by a copy of the enum, so adding a state never leaves the browser disagreeing with the server about where it belongs.
+- [x] ISC-76: A change replaces the row with the server's answer, not with what was asked for — the service dates a send itself, and a locally patched row would disagree with the database until the next reload.
+- [x] ISC-77: The picker shows the state the application is actually in, because a card reading "New" beside a badge reading SENT is wrong in the one place the operator looks to decide.
+- [x] ISC-78: The whole path works in a real browser: picking a state on the board and clearing a follow-up on the detail both reach Postgres.
 
 ## Decisions
 
@@ -287,6 +295,7 @@ A single operator drops mailbox credentials and a profile into `config/`, and ev
 - **2026-09-01 — The cursor is committed after the write, not after the read.** `SourceConnector.commit` exists for that alone.
 - **2026-09-01 — One credentials file, and it is called `.env` because it cannot be called anything else for free.** Marcello's call to collapse `.env.local` plus a `.env` symlink. The name is forced by Compose: it substitutes the `${...}` in `docker-compose.yml` from `.env` and from nothing else — not from `env_file:`, which only injects into a container, and not from `COMPOSE_ENV_FILES` set inside a file. Both measured. Any other name costs a flag on every call or a symlink, and forgetting either silently applies the compose defaults.
 - **2026-09-01 — The database host port defaults to 55432 and the container side is fixed at 5432.** A developer machine usually already holds 5432, and the resulting failure names the user and neither the host nor the database. Making the container side variable too publishes a host port forwarding to a port nobody listens on, which from a client looks exactly like no port at all.
+- **2026-09-01 — Clearing the follow-up is a button, not an empty field.** The backend grew `clearFollowUp` so a reminder can be cancelled rather than only overwritten, and the form exposed it by emptying the date input. In Chrome that means deleting each segment of a native date widget in turn, which the operator will not do — the affordance existed in the API and was unreachable in the UI. Found by trying it in the browser, not by reading the code.
 - **2026-09-01 — The status transitions are documented, not enforced.** Marcello's loop, not the tool's: every value is entered by hand about events the system never saw. A project can be lost before it was answered and a mistyped status has to be correctable without an argument, so the eleven states describe the usual path rather than police it. What is validated is coherence — a sent application gets a date, a closed one loses its follow-up.
 - **2026-09-01 — The language of an ad decides the documents, and English is a real answer.** German when the text contains German, English when there is text and no German, and the profile's `locale_primary` only when there is nothing to go on. Falling back to the profile for an ad that simply has no German in it would send a German letter to an English posting, which is the failure this whole heuristic exists to prevent. Measured: 0 of 1289 descriptions lack a German function word.
 - **2026-09-01 — Without a model, offers keep their reasons but not a total.** The obvious alternatives are both worse: no reasons at all throws away everything the profile and the offer's own fields already decided, and a total computed from five of the nine weights is not comparable to one from all nine — the same offer would score differently depending on whether a key happened to be configured that morning. So the reasons are written and the number is withheld, which is also what the frontend's unscored band was already built for.
@@ -310,6 +319,11 @@ A single operator drops mailbox credentials and a profile into `config/`, and ev
 - **2026-09-01 — The configuration vocabulary keeps the implemented names and adopts four ideas from the hand-drafted `config/local/sources.yaml`.** Resolves the fog entry. Kept: `unwrap_query_param`, `ancestor`, `list`, and the field names `agency`/`published`/`tags`. Adopted: `expect_count_from_subject` (the announced count becomes a runtime check rather than only a test assertion), `prefer_part` (the part preference was hardcoded), per-field `format` (the source-level `date_format` stays as the fallback), and `inherit` (a second source names another's extraction instead of copying it — the example was already carrying two copies of one selector table). Not adopted: the named `transforms:` indirection, which buys a level of indirection for a single transform. The operator's file was migrated to match and reproduces the reference numbers.
 
 ## Learning
+
+- **conjectured:** a screenshot shows what the browser shows, so a capture is enough to verify a widget.
+  **refuted by:** every status select on the board reading "New" in the capture while the accessibility tree reported `combobox … value="SENT"` — and the score ring rendering as an opaque black disc on screens that had already been reviewed and approved.
+  **learned:** the DOM-render capture serialises and re-renders, which drops state that lives only as a DOM property (a select's selection) and some component CSS on SVG children. It is evidence about layout and colour, not about widget state. Read the accessibility tree for state, and give an SVG its `fill` as an attribute so it cannot depend on a stylesheet arriving.
+  **criterion now:** ISC-77 asserts the selection in a unit test, and ISC-78 asserts the write reached Postgres rather than that the screen looked right.
 
 - **conjectured:** an optional flag on a PATCH body is naturally a `boolean` with a false default.
   **refuted by:** every request that omitted it coming back 400. Jackson will not map an absent value into a primitive, and the point of a PATCH is that it names one thing.
@@ -410,6 +424,8 @@ A single operator drops mailbox credentials and a profile into `config/`, and ev
 - ISC-29 … ISC-34 — `ImapSourceConnectorTest` (8), GreenMail
 - ISC-53, ISC-54 — `POST /api/ingest` against the operator's own migrated rules: 14 documents, 1289 offers, announced equals extracted in all 14
 - ISC-59, ISC-60, ISC-61 — `46e0d9c`; `java -jar` from the repository root logs `Reading …/.env` and `Database: jdbc:postgresql://localhost:55432/leadgen as leadgen`; port counter-check 15432 ↔ 55432
+- ISC-75 … ISC-77 — `applications.store.spec.ts` (4) and `status-picker.spec.ts` (3) against `HttpTestingController`: lanes from the server, the row replaced by the answer, the failed PATCH leaving the board untouched, and the picker showing a state that is not the first option
+- ISC-78 — live browser against a running API: picking SENT on a board card moved it from Prepared to Out with the server's date, and clearing the follow-up on the detail wrote `follow_up_on = NULL`, both confirmed in Postgres
 - ISC-71 … ISC-74 — `ApplicationServiceTest` (12) against Postgres 17 and `ApplicationControllerTest` (5) against MockMvc: opening twice around a status change, a backwards transition accepted, the event log after three moves, a follow-up due on its day and dropped on closing and cancelled on request, and the endpoint answering 400 for an unknown status and 404 for an unknown id
 - ISC-51 — `PackagingServiceTest`, 8 tests against Postgres 17: a folder with cover letter, archived ad, `meta.json` and the CV; German and English letters chosen by the ad; the enriched full text in the archive; score and reasons in `meta.json`; every portal of a duplicate cluster named once; only offers above the threshold packaged; no package built twice; a missing CV recorded rather than fatal
 - ISC-52 — `NothingIsSentTest`, 3 tests reading the repository for send paths and transport keys across backend, shipped configuration and frontend
@@ -426,7 +442,7 @@ A single operator drops mailbox credentials and a profile into `config/`, and ev
 
 ## Remaining Work
 
-- [ ] **Next: the board reads what the endpoint writes.** F11's backend is closed; the pipeline screen and the offer detail still render fixtures. The status control belongs in both, because the decision to apply is made on the detail and the state is tracked on the board.
+- [ ] **Next: manual entry.** F11 is closed end to end. The remaining fixture screens are shortlist, offer detail, sources and rules — all four wait on a read endpoint over the offers, which is a smaller job than any pipeline stage was and the last thing keeping invented data on screen.
 - [ ] Manual entry: uploading a Markdown file as a source, reviewed in `inbox/pending/` before it enters the pipeline. The second write endpoint, and the first that puts a file on disk.
 - [ ] `security.auth` is still `none`, and there is now a write endpoint behind it. Either the service binds to localhost and lives behind something that authenticates, or it grows basic auth or OIDC — the block already exists in `pipeline.yaml`.
 - [ ] An eval for the judge. ISC-48 proves the weights bound the model; it says nothing about whether the model judges *well*. That is a held-out set and a rubric, and it belongs after a real model has scored a real morning.

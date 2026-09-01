@@ -1,9 +1,12 @@
+<!-- `fill="none"` as an attribute, not a rule: a circle with no fill is what this
+     element *is*, and the default without it is opaque black over the figure. -->
 <div class="score" [attr.data-band]="band()" [style.width.px]="size()" [style.height.px]="size()">
   <svg viewBox="0 0 48 48" role="img" [attr.aria-label]="label()">
-    <circle class="track" cx="24" cy="24" [attr.r]="radius" />
+    <circle class="track" fill="none" cx="24" cy="24" [attr.r]="radius" />
     @if (value() !== null) {
       <circle
         class="fill"
+        fill="none"
         cx="24"
         cy="24"
         [attr.r]="radius"

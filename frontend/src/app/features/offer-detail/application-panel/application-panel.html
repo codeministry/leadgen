@@ -1,0 +1,98 @@
+<h2 class="type-h2">Where this stands</h2>
+<p class="type-small text-muted panel-note">
+  The mail goes out from your own client, so nothing here is observed — every value is
+  what you say happened. No transition is refused, and a wrong one can be corrected.
+</p>
+
+<div class="form">
+  <div class="field">
+    <lg-status-picker
+      [value]="status()"
+      [options]="statusChoices()"
+      [disabled]="saving()"
+      label="Application status"
+      (picked)="status.set($event)"
+    />
+  </div>
+
+  <div class="field">
+    <label class="type-caption text-muted" for="lg-sent-on">Sent on</label>
+    <input
+      id="lg-sent-on"
+      class="input input-sm type-mono-data"
+      type="date"
+      [value]="sentOn()"
+      [disabled]="saving()"
+      (change)="setSentOn($event)"
+    />
+  </div>
+
+  <div class="field">
+    <label class="type-caption text-muted" for="lg-follow-up">Follow up on</label>
+    <div class="follow-up">
+      <input
+        id="lg-follow-up"
+        class="input input-sm type-mono-data"
+        type="date"
+        [value]="followUpOn()"
+        [disabled]="saving()"
+        (change)="setFollowUpOn($event)"
+      />
+      <!--
+        A button rather than "empty the field": clearing a native date input means
+        deleting each segment in turn, and a reminder that can be set but not cancelled
+        is how a follow-up list fills with dead dates.
+      -->
+      <button
+        type="button"
+        class="btn btn-xs btn-ghost"
+        [disabled]="followUpOn() === '' || saving()"
+        (click)="followUpOn.set('')"
+      >
+        Clear
+      </button>
+    </div>
+  </div>
+
+  <div class="field field-wide">
+    <label class="type-caption text-muted" for="lg-note">Note</label>
+    <textarea
+      id="lg-note"
+      class="textarea textarea-sm type-small"
+      rows="2"
+      [value]="note()"
+      [disabled]="saving()"
+      (change)="setNote($event)"
+    ></textarea>
+  </div>
+</div>
+
+<button
+  type="button"
+  class="btn btn-sm btn-primary save"
+  [disabled]="!dirty() || saving()"
+  (click)="save()"
+>
+  {{ saving() ? 'Saving…' : 'Record' }}
+</button>
+
+@if (history().length > 0) {
+  <h3 class="type-h4 history-head">History</h3>
+  <ol class="history">
+    @for (event of history(); track event.recordedAt) {
+      <li class="type-small history-row">
+        <span class="type-mono-data text-muted">{{ day(event.recordedAt) }}</span>
+        <span>
+          @if (event.fromStatus) {
+            {{ event.fromStatus }} &rarr; {{ event.toStatus }}
+          } @else {
+            opened as {{ event.toStatus }}
+          }
+        </span>
+        @if (event.note) {
+          <span class="text-muted">{{ event.note }}</span>
+        }
+      </li>
+    }
+  </ol>
+}

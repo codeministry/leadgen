@@ -82,14 +82,42 @@
         language, and the matching reference projects. Nothing is sent from here.
       </p>
       <pre class="letter type-small">{{ coverLetter() }}</pre>
-      <button type="button" class="btn btn-sm btn-outline" disabled>
-        <lg-icon name="download" [size]="16" />
-        Download package
-      </button>
-      <p class="type-caption text-muted disabled-note">
-        Packaging is step 9 of the order of work; there is nothing to download yet.
-      </p>
+
+      @if (application()?.packageDir; as folder) {
+        <p class="type-mono-data package-dir">{{ folder }}</p>
+        <p class="type-caption text-muted disabled-note">
+          The folder is on the machine that ran the pipeline. There is no download, and
+          no way to send it from here.
+        </p>
+      } @else {
+        <button type="button" class="btn btn-sm btn-outline" disabled>
+          <lg-icon name="download" [size]="16" />
+          Download package
+        </button>
+        <p class="type-caption text-muted disabled-note">
+          A package is built for everything above the shortlist threshold. This offer has
+          none yet.
+        </p>
+      }
     </section>
+
+    @if (application(); as application) {
+      <section class="panel">
+        <lg-application-panel
+          [application]="application"
+          [statusChoices]="applications.statusChoices()"
+          [history]="history()"
+          [saving]="applications.saving() === application.id"
+          (changed)="record($event)"
+        />
+        @if (applications.error(); as error) {
+          <p class="type-small record-error" role="alert">
+            <lg-icon name="triangle-alert" [size]="16" />
+            {{ error }}
+          </p>
+        }
+      </section>
+    }
   </div>
 } @else if (store.loading()) {
   <p class="type-small text-muted">Loading…</p>

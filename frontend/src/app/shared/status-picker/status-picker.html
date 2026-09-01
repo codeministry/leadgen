@@ -1,0 +1,20 @@
+<label class="sr-only" [for]="id">{{ label() }}</label>
+<!--
+  The selection is bound per option rather than with `[value]` on the select, because
+  `[value]` depends on the options existing when it is written. When it loses that race
+  the browser falls back to the first one, and a card then reads "New" while the badge
+  beside it says SENT — no error, and picking the state it is already in looks like
+  nothing happening.
+-->
+<select
+  class="select select-xs type-caption picker"
+  [id]="id"
+  [disabled]="disabled()"
+  (change)="onChange($event)"
+>
+  @for (option of options(); track option.value) {
+    <option [value]="option.value" [selected]="option.value === value()">
+      {{ option.label }}
+    </option>
+  }
+</select>

@@ -475,6 +475,40 @@ write endpoint in the application.
   a `DataIntegrityViolationException` naming the whole query rather than the column. Read
   it with `getTimestamp(...).toInstant()`.
 
+## The board and the write path
+
+`frontend/…/core/store/applications.store.ts` plus `features/pipeline/` and the panel in
+`features/offer-detail/`. The first screen in this app that writes.
+
+- **The lanes come from `/api/applications/lanes`, not from a constant.** Eleven states
+  across five lanes is a decision the enum already makes; a second copy in the browser
+  disagrees with it the first time a state is added — visibly on the board, invisibly in
+  the code.
+- **`shared/` does not know what an application is**, so the picker takes plain
+  `{ value, label }` options and emits a string. The layering rule is the reason, and the
+  cast back to `ApplicationStatus` is safe for the same reason: the options came from the
+  feature that owns the type.
+- **Bind the selection on the option, not with `[value]` on the select.** `[value]`
+  depends on the options existing when it is written; losing that race leaves the first
+  option showing, so a card reads "New" while the badge beside it says SENT. No error,
+  and picking the state it is already in looks like nothing happening.
+- **The row is replaced with the server's answer, never with what was asked for.** The
+  service dates a send itself and drops a follow-up on closing, so a locally patched row
+  would disagree with the database until the next reload.
+- **Clearing the follow-up is a button, not an empty field.** Emptying a native date input
+  means deleting each segment in turn, and `clearFollowUp` is unreachable in practice
+  without it — measured in the browser, not reasoned about.
+- **The follow-up tile shows an em dash when the board did not load.** A zero and an
+  unreachable API look identical on a tile, and that tile is the reason the dates get
+  entered at all.
+- **`saving` names the application in flight, not a boolean.** One card greys out; the
+  rest stay usable.
+- **A DOM-render screenshot is not proof of what the browser paints.** It serialises and
+  re-renders, which drops DOM properties that have no attribute (a `<select>`'s
+  selection) and some component CSS on SVG children (the score ring). Read the
+  accessibility tree for state — `interceptor read` shows `combobox … value="SENT"` —
+  and treat a capture as evidence about layout, not about widget state.
+
 ## Backend conventions
 
 - **Lombok for the boilerplate, records for the data.** `@Slf4j` instead of a hand-written
@@ -588,15 +622,12 @@ code has to reproduce — the numbers in `docs/SAMPLE-ANALYSIS.md` are the targe
     `// FIXTURE — replace with the real endpoint`. Each feature reads through an `Api`
     seam (`core/api/shortlist.api.ts` is the model), so swapping in HTTP is one file per
     feature. Steps 5 to 9 are what unblocks that.
-11. 🟡 **Manual status capture** — backend done: the `application` table, its event log,
-    `GET/PATCH /api/applications`. The board and the offer detail still read fixtures.
-    The tool never sends. It finds, filters, scores and
-    packages; Marcello sends the mail himself and therefore records the outcome himself.
-    The pipeline board is the only place that state exists, so it needs
-    `PATCH /api/applications/{id}` plus an `application` table, a status control on the
-    board and on the offer detail, and the `sent_on` / `follow_up_on` dates the
-    dashboard's follow-up tile counts. Nothing in the system can observe the result of a
-    mail it did not send.
+11. ✅ **Manual status capture** — the `application` table and its event log,
+    `GET/PATCH /api/applications`, and both screens on it: the board groups by the lanes
+    the endpoint states, and the offer detail carries the same control plus the dates,
+    the note and the history. The dashboard's follow-up tile counts what the server
+    called due. The tool never sends — it finds, filters, scores and packages; Marcello
+    sends the mail himself and therefore records the outcome himself.
 12. **Manual entry** — an offer found by hand must be able to enter the pipeline, or the
     shortlist quietly stops being the whole picture. A Markdown file uploaded on the
     Sources screen lands in `<config-dir>/inbox/` and is read by a `manual-inbox` **file**
