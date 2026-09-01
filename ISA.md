@@ -1,10 +1,10 @@
 ---
 phase: climbing
-progress: 40/61
+progress: 49/70
 task: "Acquisition tool: collect, filter, enrich and package project offers"
 slug: lead-generation
 started: 2026-09-01T11:30:00Z
-updated: 2026-09-01T16:50:00Z
+updated: 2026-09-01T19:30:00Z
 ---
 
 # lead-generation — Ideal State Artifact
@@ -57,7 +57,7 @@ A single operator drops mailbox credentials and a profile into `config/`, and ev
 ## Not yet specified
 
 - fog: how a merged duplicate cluster is named and addressed once it is no longer a single offer — F5 and F8 both need the distinction, and the Language section already records that the word `offer` is carrying two meanings.
-- fog: the frontend's shape beyond the shortlist. Pipeline kanban, sources and profile editing are named in the concept but nothing about them is precise enough to falsify yet.
+- fog: how the frontend writes. The shell, the shortlist and the other four screens now exist and read, but every write is unspecified — moving a card between pipeline lanes, recording that a mail went out, editing a weight, uploading a Markdown file as a source. The first of those is also the first write endpoint in the application, and `security.auth` is `none`.
 
 ## Test Strategy
 
@@ -124,6 +124,15 @@ A single operator drops mailbox credentials and a profile into `config/`, and ev
 | ISC-50 | bun-test | run the pipeline with no LLM key | completes, offers unscored | JUnit | not yet authored |
 | ISC-51 | bun-test | package an offer above the threshold | 4 files, ad's language | JUnit | not yet authored |
 | ISC-52 | bash | grep the tree for a send path and for transport/recipient config keys | 0 hits | rg | whole repository |
+| ISC-62 | bash | add a hex literal under `src/app`, run `bun run lint:css` | exit 1 naming the rule | Stylelint | `.stylelintrc.json` |
+| ISC-63 | bash | grep the built stylesheet for theme selectors | both `lg-*`, 0 stock | rg | `frontend/src/styles.css` |
+| ISC-64 | screenshot | six routes x 320/768/1440, page-level scroll width | 0 overflow each | Interceptor | `layout/app-shell` |
+| ISC-65 | screenshot | enumerate tabbable elements and their accessible names | 0 unnamed | Interceptor | `layout/`, `shared/` |
+| ISC-66 | bash | index of the inline script vs the stylesheet links in the built `index.html` | script first | rg | `frontend/src/index.html` |
+| ISC-67 | bun-test | render a score of `null` | banded unscored, no zero | Vitest | `shared/score/score.spec.ts` |
+| ISC-68 | bun-test | render the rail over the measured corpus | 1,289 in, 213 out, 16.5 % | Vitest | `shared/funnel-rail/funnel-rail.spec.ts` |
+| ISC-69 | bash | count files under `core/fixtures/` against the removal marker | equal | rg | `frontend/src/app/core/fixtures/` |
+| ISC-70 | bun-test | render the shortlist with no query parameters at all | renders, cards present | Vitest | `features/shortlist/shortlist-page.spec.ts` |
 
 ## Features
 
@@ -238,6 +247,20 @@ A single operator drops mailbox credentials and a profile into `config/`, and ev
 - [ ] ISC-51: An offer above the shortlist threshold produces a folder with a cover letter in the language of the ad, the matching fixed CV, the archived original and a `meta.json`.
 - [ ] ISC-52: Anti: nothing is sent; the tool has no send path at all, and the configuration models no transport, recipient or channel either.
 
+### F10 · Frontend
+
+**Why:** The pipeline's whole value is a reduction — over a thousand offers to roughly fifteen — and until something shows that reduction with the reason behind each number the operator is trusting a list they cannot check. Every failure in this feature is silent: a colour that fails contrast, a class that never reaches the stylesheet, a theme that flashes, a page that scrolls sideways on a phone.
+
+- [x] ISC-62: Every colour literal lives in `src/styles.css`, the one file `color-no-hex` exempts; a hex anywhere under `src/app` fails the lint.
+- [x] ISC-63: The two themes `lg-light` and `lg-dark` are the only ones in the built stylesheet; daisyUI's stock light and dark do not ship.
+- [x] ISC-64: No screen scrolls the page sideways at 320, 768 or 1440 px. A container with its own `overflow-x` — the kanban board, the wide tables — still may.
+- [x] ISC-65: Every focusable control has an accessible name, and a name never depends on an element nested inside the control.
+- [x] ISC-66: The stored theme is applied before the stylesheet resolves, so the page never paints in the wrong theme and then corrects itself.
+- [x] ISC-67: An unscored offer renders as unscored rather than as zero, because the pipeline still produces a shortlist with no language model.
+- [x] ISC-68: The funnel rail reproduces the measured baseline exactly: 1,289 extracted, five stages, 213 left, 16.5 %.
+- [x] ISC-69: Every fixture file carries the same removal marker, so the temporary data is one grep away from being found rather than quietly becoming permanent.
+- [x] ISC-70: The shortlist renders with no query parameters present at all.
+
 ## Decisions
 
 - **2026-09-01 — Portal and source names anonymized in the documentation.** The analysis docs named the aggregator, its sender and host, the mail provider and six portals in clear text. The repository is going public; they are now `<newsletter-sender>`, `<aggregator-host>` and `portal-a`…`portal-f`, with the real names in the gitignored `config/local/sources.yaml`. Every measured figure is unchanged.
@@ -251,6 +274,11 @@ A single operator drops mailbox credentials and a profile into `config/`, and ev
 - **2026-09-01 — The cursor is committed after the write, not after the read.** `SourceConnector.commit` exists for that alone.
 - **2026-09-01 — One credentials file, and it is called `.env` because it cannot be called anything else for free.** Marcello's call to collapse `.env.local` plus a `.env` symlink. The name is forced by Compose: it substitutes the `${...}` in `docker-compose.yml` from `.env` and from nothing else — not from `env_file:`, which only injects into a container, and not from `COMPOSE_ENV_FILES` set inside a file. Both measured. Any other name costs a flag on every call or a symlink, and forgetting either silently applies the compose defaults.
 - **2026-09-01 — The database host port defaults to 55432 and the container side is fixed at 5432.** A developer machine usually already holds 5432, and the resulting failure names the user and neither the host nor the database. Making the container side variable too publishes a host port forwarding to a port nobody listens on, which from a client looks exactly like no port at all.
+- **2026-09-01 — Ochre means exactly one thing: this survived the filter.** The palette is two colours and a mute. Petrol carries structure and interaction, everything discarded is muted, and the accent is spent on the one fact the morning is about. It cost a rule when the dark primary became the logo's cyan at L 83 %: the review band moved from primary to secondary, because the middle band must never outshine "cleared the threshold".
+- **2026-09-01 — The header carries `data-theme="lg-dark"` in both themes.** Marcello's call to place the real logo in the header. Its cyan is 1.6:1 on white and cannot be a light-theme colour at any size, so the lockup keeps a navy ground everywhere and looks identical in both modes. daisyUI's themes are attribute-scoped, so nesting the attribute re-declares every token for that subtree and the buttons, the muted version string and the two-tone wordmark follow with no override.
+- **2026-09-01 — A component class name is checked against daisyUI's before it is used.** `status` is a 0.5 rem dot there and `label` is a form component; ours of the same names were laid out as those, silently. A utility framework's component classes share the global namespace, so the namespace is not ours to assume.
+- **2026-09-01 — Five of six screens run on fixtures, and say so in every file.** The alternative was to build only the dashboard, which is the only screen with an endpoint, and learn nothing about the shape of the other five. The fixtures reproduce the measured coverage from `docs/SAMPLE-ANALYSIS.md` rather than convenient data, each feature reads through an `Api` seam so the real endpoint is one file, and ISC-69 keeps the marker on every fixture file.
+- **2026-09-01 — Icons render from `lucide`'s node arrays behind one component, not from `lucide-angular`.** That package pins `@angular/core` to `13.x - 21.x` and excludes this repository's 22. The wrapper means the decision is reversible in two files and no template.
 - **2026-09-01 — The override directory is `config/`, without the `local/` nesting.** Once the shipped defaults moved onto the classpath, `config/` held nothing but `local/`, and a directory whose only child is its own purpose is a directory too many.
 - **2026-09-01 — The digest has no transport at all.** Marcello's call: both outputs are templates rendered to a file, text or HTML, and the application never sends. The `channel`/`transport`/`recipients` block is gone rather than made vendor-neutral — the honest fix for a schema modelling something the tool must not do is to delete the schema, not to generalize it. `format` and `output_dir` replace it.
 - **2026-09-01 — No committed file picks a vendor, not even as a default.** The digest transport and the LLM provider both did. a named mail service as the digest transport, and a named model vendor as the LLM provider default, came out of the very first commit (`ca3eb76`, the concept and its example configs, written before any code existed) and were carried forward unexamined. A *kind* the code dispatches on is legitimate (`smtp | webhook`, `anthropic | ollama | openai-compatible`); a *default naming one of them* is the wiring-in the invariant exists to prevent, and it survives precisely because it looks like a helpful convenience. Model names likewise left `.env.example` as active values and stayed as comments. The digest keys went the same way in the entry above: deleted rather than generalized.
@@ -258,6 +286,21 @@ A single operator drops mailbox credentials and a profile into `config/`, and ev
 - **2026-09-01 — The configuration vocabulary keeps the implemented names and adopts four ideas from the hand-drafted `config/local/sources.yaml`.** Resolves the fog entry. Kept: `unwrap_query_param`, `ancestor`, `list`, and the field names `agency`/`published`/`tags`. Adopted: `expect_count_from_subject` (the announced count becomes a runtime check rather than only a test assertion), `prefer_part` (the part preference was hardcoded), per-field `format` (the source-level `date_format` stays as the fallback), and `inherit` (a second source names another's extraction instead of copying it — the example was already carrying two copies of one selector table). Not adopted: the named `transforms:` indirection, which buys a level of indirection for a single transform. The operator's file was migrated to match and reproduces the reference numbers.
 
 ## Learning
+
+- **conjectured:** a class name assembled at runtime reaches the stylesheet the same way a literal one does.
+  **refuted by:** grepping the built stylesheet for the badge tones — seven of eight were absent, and the badges had simply rendered with no colour while nothing reported a problem.
+  **learned:** Tailwind scans source *text*. `'badge-' + tone()` exists only in the DOM at runtime and never in the source, so the class is never generated. Any variant a component can select must be spelled out somewhere a scanner can read it.
+  **criterion now:** the tones live in a literal lookup map; ISC-63 checks the built stylesheet rather than the source.
+
+- **conjectured:** declaring a transition on a property makes the element animate into view.
+  **refuted by:** the funnel rail's reveal, which was in the stylesheet and did not happen.
+  **learned:** a transition fires on a *change*. A width rendered correctly the first time never changes, so an entry animation needs two states and a painted frame between them — `afterNextRender` plus one `requestAnimationFrame`, not a longer duration.
+  **criterion now:** the spec asserts the start state (every bar at 100 %) rather than the end state, because the end state is what a broken implementation also produces.
+
+- **conjectured:** a routed input keeps its declared default when the query parameter is absent.
+  **refuted by:** the shortlist rendering half a page — title empty, most controls gone, console silent — the first time it was opened without a filter.
+  **learned:** `withComponentInputBinding()` writes `undefined` over the default, and the resulting `undefined.trim()` throws *inside* the template, which stops the update pass partway and leaves whatever had already rendered. Every routed input needs a transform.
+  **criterion now:** ISC-70, which opens the page with no parameters at all — the case that had never been tested because it is the default one.
 
 - **conjectured:** reading `.env` in a `bootRun` hook covers the local run, because the local run is `bootRun`.
   **refuted by:** starting the very same configuration from an IDE — the values were in the file and the service reported them missing, with an error naming the right setting and no reason.
@@ -313,6 +356,8 @@ A single operator drops mailbox credentials and a profile into `config/`, and ev
 - ISC-29 … ISC-34 — `ImapSourceConnectorTest` (8), GreenMail
 - ISC-53, ISC-54 — `POST /api/ingest` against the operator's own migrated rules: 14 documents, 1289 offers, announced equals extracted in all 14
 - ISC-59, ISC-60, ISC-61 — `46e0d9c`; `java -jar` from the repository root logs `Reading …/.env` and `Database: jdbc:postgresql://localhost:55432/leadgen as leadgen`; port counter-check 15432 ↔ 55432
+- ISC-62 … ISC-70 — `2086523`; `./gradlew check` green with 23 frontend specs; six routes probed at 320/768/1440 through a lifecycle-live browser, page scroll width equal to the viewport in all eighteen; 34 tabbable elements, 0 without an accessible name; the inline theme script at head position 6 against both stylesheet links at 7 and 8
+- font axes — Bricolage Grotesque measured in the browser: wght 200 vs 800 renders 460 vs 497 px, opsz 12 vs 96 renders 505 vs 452 px, so `opsz.css` carries both axes and `standard.css` is not needed
 - ISC-55, ISC-56, ISC-57 — boot with `LEADGEN_CONFIG_DIR=/nonexistent` (four files from `classpath:/leadgen/`) and with `config/local` (four files overridden), both logged per file
 
 ## Remaining Work
@@ -320,6 +365,8 @@ A single operator drops mailbox credentials and a profile into `config/`, and ev
 - [ ] **Next: F5, deduplication (ISC-37 … ISC-40).** It is the head of the only ordering chain in this ISA — `ISC-41` (hard filter) waits on it, `ISC-45` (enrichment) on that, `ISC-48` (scoring) on that. Target number is measured, not chosen: 159 of 1289 offers collapse by normalized title alone. `TitleNormalizer` already produces the fingerprint and `SampleCorpusAcceptanceTest.findsTheMeasuredNumberOfDuplicateTitles` already asserts the count, so F5 is about merging and attaching sources, not about detecting.
 - [ ] Run `bun ~/.claude/LIFEOS/TOOLS/IsaFrontier.ts frontier ISA.md` to see the takeable set before picking anything else up.
 
+- [ ] The five fixture-driven screens stay fixtures until steps 5 to 9 land. `rg 'FIXTURE — replace'` finds every one; each feature already reads through an `Api` seam, so each is one file.
+- [ ] The frontend's write side, none of which exists: recording an application's status after the mail was sent by hand, editing weights and thresholds, and uploading a Markdown file as a manual source. The first of them is the first write endpoint in the application and lands with `security.auth` still `none`.
 - [ ] Decide the Java package name; `de.codeministry.leadgen` was chosen before the repository name and organisation were.
 - [ ] `docs/CONCEPT.md` still names the operator's home town in the hard-filter section. Not a source, so it was left in place, but it is a personal datum in a repository that is going public.
 - [ ] The Helm chart in `charts/` is named in the concept as phase two and does not exist yet.
