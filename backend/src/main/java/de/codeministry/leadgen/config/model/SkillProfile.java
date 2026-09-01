@@ -27,12 +27,12 @@ public record SkillProfile(
         @NotNull Integer version,
         String localePrimary,
         @Valid Identity identity,
-        @Valid List<Skill> core,
-        @Valid List<Skill> strong,
-        @Valid List<Skill> peripheral,
-        @Valid List<Industry> industries,
-        @Valid List<ReferenceProject> referenceProjects,
-        @Valid List<Language> languages,
+        List<@Valid Skill> core,
+        List<@Valid Skill> strong,
+        List<@Valid Skill> peripheral,
+        List<@Valid Industry> industries,
+        List<@Valid ReferenceProject> referenceProjects,
+        List<@Valid Language> languages,
         Map<String, @Valid CvVariant> cvVariants) {
 
     public record Identity(

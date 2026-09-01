@@ -21,6 +21,19 @@ export class Rules implements OnInit {
     this.dispatch.rulesOpened();
   }
 
+  /**
+   * A rule stating a single number reads as a line; a rule stating thirty cities does not.
+   * The split is on what the rule carries, never on its key — a new list rule joins the
+   * lists without a change here.
+   */
+  protected readonly scalarKnockouts = computed(() =>
+    (this.store.rules()?.knockouts ?? []).filter((rule) => rule.values.length === 0),
+  );
+
+  protected readonly listKnockouts = computed(() =>
+    (this.store.rules()?.knockouts ?? []).filter((rule) => rule.values.length > 0),
+  );
+
   /** Weights are an open map in matching-rules.yaml, so the bar is relative to the largest. */
   protected readonly maxWeight = computed(() =>
     Math.max(...(this.store.rules()?.weights ?? []).map((weight) => weight.points), 1),
