@@ -228,8 +228,21 @@ class PackagingServiceTest {
         }
     }
 
-    /** The shipped defaults, with a CV that exists and a packages directory of our own. */
-    private static Path configWithARealCv() {
+    /**
+     * The shipped defaults, with a CV that exists and a packages directory of our own.
+     *
+     * <p><b>Built once and remembered.</b> A {@code @DynamicPropertySource} supplier is called
+     * every time the property is resolved, not once per context, so anything with a side
+     * effect in it happens again the moment something else reads `leadgen.config-dir` — a
+     * second temp directory, and `cvFile` pointing at a file the application never opens.
+     * The test then deletes a CV nobody was going to read and the package has one anyway.
+     */
+    private static Path configDirectory;
+
+    private static synchronized Path configWithARealCv() {
+        if (configDirectory != null) {
+            return configDirectory;
+        }
         try {
             Path dir = Files.createTempDirectory("leadgen-packaging");
             dir.toFile().deleteOnExit();
@@ -255,6 +268,7 @@ class PackagingServiceTest {
                     + "  de: { file: \"" + cvFile + "\", default: true }\n"
                     + "  en: { file: \"" + cvFile + "\" }\n";
             Files.writeString(profile, text, StandardCharsets.UTF_8);
+            configDirectory = dir;
             return dir;
         } catch (IOException e) {
             throw new UncheckedIOException(e);
