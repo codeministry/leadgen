@@ -2,6 +2,7 @@ package de.codeministry.leadgen.ingest;
 
 import de.codeministry.leadgen.enrich.EnrichmentReport;
 import de.codeministry.leadgen.filter.FilterReport;
+import de.codeministry.leadgen.packaging.PackageReport;
 import de.codeministry.leadgen.score.ScoringReport;
 import java.nio.file.Path;
 import java.util.List;
@@ -20,6 +21,8 @@ import java.util.List;
  *     language model was configured; the offers are there, only unranked.
  * @param digest the file the run wrote, or null when the digest is switched off. A file,
  *     never a message: the tool has no send path at all.
+ * @param packaged the folders built for everything above the shortlist threshold. Folders
+ *     on disk, for the same reason.
  */
 public record IngestReport(
         List<SourceIngestResult> sources,
@@ -27,7 +30,8 @@ public record IngestReport(
         FilterReport filtered,
         EnrichmentReport enriched,
         ScoringReport scored,
-        Path digest) {
+        Path digest,
+        PackageReport packaged) {
 
     public int extracted() {
         return sources.stream().mapToInt(SourceIngestResult::extracted).sum();

@@ -6,6 +6,7 @@ import de.codeministry.leadgen.dedupe.DeduplicationService;
 import de.codeministry.leadgen.enrich.EnrichmentService;
 import de.codeministry.leadgen.filter.FilterService;
 import de.codeministry.leadgen.digest.DigestService;
+import de.codeministry.leadgen.packaging.PackagingService;
 import de.codeministry.leadgen.score.ScoringService;
 import de.codeministry.leadgen.ingest.connector.SourceConnector;
 import de.codeministry.leadgen.ingest.extract.HtmlBlockExtractor;
@@ -43,6 +44,7 @@ public class IngestService {
     private final FilterService filter;
     private final EnrichmentService enrich;
     private final ScoringService scoring;
+    private final PackagingService packaging;
     private final DigestService digest;
 
     IngestService(
@@ -55,6 +57,7 @@ public class IngestService {
             FilterService filter,
             EnrichmentService enrich,
             ScoringService scoring,
+            PackagingService packaging,
             DigestService digest) {
         this.config = config;
         this.connectors = connectors.stream().collect(Collectors.toMap(SourceConnector::type, Function.identity()));
@@ -65,6 +68,7 @@ public class IngestService {
         this.filter = filter;
         this.enrich = enrich;
         this.scoring = scoring;
+        this.packaging = packaging;
         this.digest = digest;
     }
 
@@ -100,10 +104,11 @@ public class IngestService {
         var filtered = filter.run();
         var enriched = enrich.run();
         var scored = scoring.run();
-        // The digest is the last thing the run does, and it is a file. There is no
-        // schedule of its own: whatever schedules this run schedules the digest.
+        // Packaging before the digest, so the digest can say which offers already have a
+        // folder. Both write files and neither sends anything.
+        var packages = packaging.run();
         var written = digest.render(java.time.LocalDate.now()).orElse(null);
-        return new IngestReport(results, deduplicated, filtered, enriched, scored, written);
+        return new IngestReport(results, deduplicated, filtered, enriched, scored, written, packages);
     }
 
     /**

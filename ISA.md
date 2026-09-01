@@ -1,10 +1,10 @@
 ---
 phase: climbing
-progress: 63/70
+progress: 65/70
 task: "Acquisition tool: collect, filter, enrich and package project offers"
 slug: lead-generation
 started: 2026-09-01T11:30:00Z
-updated: 2026-09-01T21:50:00Z
+updated: 2026-09-01T22:30:00Z
 ---
 
 # lead-generation — Ideal State Artifact
@@ -122,8 +122,8 @@ A single operator drops mailbox credentials and a profile into `config/`, and ev
 | ISC-48 | bun-test | score with a stubbed judge, read the reasons back | one per factor, weights respected | WireMock | `ScoringWithAModelTest` |
 | ISC-49 | bun-test | render the digest from a seeded database | file written, both bands present | JUnit | `DigestServiceTest` |
 | ISC-50 | bun-test | run the pipeline with no LLM key | completes, unscored, reasons kept | JUnit | `ScoringWithoutAModelTest` |
-| ISC-51 | bun-test | package an offer above the threshold | 4 files, ad's language | JUnit | not yet authored |
-| ISC-52 | bash | grep the tree for a send path and for transport/recipient config keys | 0 hits | rg | whole repository |
+| ISC-51 | bun-test | package an offer above the threshold | 4 files, ad's language | JUnit | `PackagingServiceTest` |
+| ISC-52 | bun-test | read the tree for send paths and transport keys, back and front | 0 hits | JUnit | `NothingIsSentTest` |
 | ISC-62 | bash | add a hex literal under `src/app`, run `bun run lint:css` | exit 1 naming the rule | Stylelint | `.stylelintrc.json` |
 | ISC-63 | bash | grep the built stylesheet for theme selectors | both `lg-*`, 0 stock | rg | `frontend/src/styles.css` |
 | ISC-64 | screenshot | six routes x 320/768/1440, page-level scroll width | 0 overflow each | Interceptor | `layout/app-shell` |
@@ -244,8 +244,8 @@ A single operator drops mailbox credentials and a profile into `config/`, and ev
 
 **Why:** The hour saved on sorting is given back if assembling the documents still takes twenty minutes per application.
 
-- [ ] ISC-51: An offer above the shortlist threshold produces a folder with a cover letter in the language of the ad, the matching fixed CV, the archived original and a `meta.json`.
-- [ ] ISC-52: Anti: nothing is sent; the tool has no send path at all, and the configuration models no transport, recipient or channel either.
+- [x] ISC-51: An offer above the shortlist threshold produces a folder with a cover letter in the language of the ad, the matching fixed CV, the archived original and a `meta.json`.
+- [x] ISC-52: Anti: nothing is sent; the tool has no send path at all, and the configuration models no transport, recipient or channel either. Enforced by a test that reads the repository, because this is the kind of thing that arrives one convenient afternoon — and packaging, where the folder is finished and the contact is in `meta.json`, is exactly where it would arrive.
 
 ### F10 · Frontend
 
@@ -257,7 +257,7 @@ A single operator drops mailbox credentials and a profile into `config/`, and ev
 - [x] ISC-65: Every focusable control has an accessible name, and a name never depends on an element nested inside the control.
 - [x] ISC-66: The stored theme is applied before the stylesheet resolves, so the page never paints in the wrong theme and then corrects itself.
 - [x] ISC-67: An unscored offer renders as unscored rather than as zero, because the pipeline still produces a shortlist with no language model.
-- [x] ISC-68: The funnel rail reproduces the measured baseline exactly: 1,289 extracted, five stages, 213 left, 16.5 %.
+- [x] ISC-68: The funnel rail reproduces the measured baseline exactly: 1,289 extracted, seven stages, 239 left, 18.5 %.
 - [x] ISC-69: Every fixture file carries the same removal marker, so the temporary data is one grep away from being found rather than quietly becoming permanent.
 - [x] ISC-70: The shortlist renders with no query parameters present at all.
 
@@ -274,6 +274,7 @@ A single operator drops mailbox credentials and a profile into `config/`, and ev
 - **2026-09-01 — The cursor is committed after the write, not after the read.** `SourceConnector.commit` exists for that alone.
 - **2026-09-01 — One credentials file, and it is called `.env` because it cannot be called anything else for free.** Marcello's call to collapse `.env.local` plus a `.env` symlink. The name is forced by Compose: it substitutes the `${...}` in `docker-compose.yml` from `.env` and from nothing else — not from `env_file:`, which only injects into a container, and not from `COMPOSE_ENV_FILES` set inside a file. Both measured. Any other name costs a flag on every call or a symlink, and forgetting either silently applies the compose defaults.
 - **2026-09-01 — The database host port defaults to 55432 and the container side is fixed at 5432.** A developer machine usually already holds 5432, and the resulting failure names the user and neither the host nor the database. Making the container side variable too publishes a host port forwarding to a port nobody listens on, which from a client looks exactly like no port at all.
+- **2026-09-01 — The language of an ad decides the documents, and English is a real answer.** German when the text contains German, English when there is text and no German, and the profile's `locale_primary` only when there is nothing to go on. Falling back to the profile for an ad that simply has no German in it would send a German letter to an English posting, which is the failure this whole heuristic exists to prevent. Measured: 0 of 1289 descriptions lack a German function word.
 - **2026-09-01 — Without a model, offers keep their reasons but not a total.** The obvious alternatives are both worse: no reasons at all throws away everything the profile and the offer's own fields already decided, and a total computed from five of the nine weights is not comparable to one from all nine — the same offer would score differently depending on whether a key happened to be configured that morning. So the reasons are written and the number is withheld, which is also what the frontend's unscored band was already built for.
 - **2026-09-01 — `digest.schedule` is deleted; the digest is written at the end of an ingest run.** A cron in the configuration would need a scheduler that re-registers on every hot reload, and without one it is a key nothing reads — the third such key removed today. Whatever schedules the run schedules the digest.
 - **2026-09-01 — `enrichment.extract.strategy` is `patterns`, and `readability` is gone.** Marcello's call. Nothing implemented `readability`, and a portal-agnostic full-text extractor would still leave rate, duration and workload unstructured — so the fields would have needed patterns anyway, and the dependency would have bought one mechanism on top of another. The rules now live in YAML exactly as `sources.yaml` does, for the same reason: every portal renders an ad differently, so a new one has to be a block and not a release. Readability stays a reasonable thing to add the day a real portal shows the patterns are not enough.
@@ -295,6 +296,11 @@ A single operator drops mailbox credentials and a profile into `config/`, and ev
 - **2026-09-01 — The configuration vocabulary keeps the implemented names and adopts four ideas from the hand-drafted `config/local/sources.yaml`.** Resolves the fog entry. Kept: `unwrap_query_param`, `ancestor`, `list`, and the field names `agency`/`published`/`tags`. Adopted: `expect_count_from_subject` (the announced count becomes a runtime check rather than only a test assertion), `prefer_part` (the part preference was hardcoded), per-field `format` (the source-level `date_format` stays as the fallback), and `inherit` (a second source names another's extraction instead of copying it — the example was already carrying two copies of one selector table). Not adopted: the named `transforms:` indirection, which buys a level of indirection for a single transform. The operator's file was migrated to match and reproduces the reference numbers.
 
 ## Learning
+
+- **conjectured:** a template rendering the row straight from the database will read the fields it names.
+  **refuted by:** the archived ad coming out with "Rate: not stated" and "Published: unknown" for an offer that had both. The row's keys are snake_case; the template asked for `offer.fullText`, `offer.rateEur`, `offer.publishedOn`.
+  **learned:** Freemarker resolves a missing key to nothing rather than failing, so the document renders, looks finished, and is wrong — in a file that goes to a client. The same class as every other finding today: the failure produced no error. The model is converted to camelCase once before rendering and the exception handler is set to rethrow, so the next missing value is loud.
+  **criterion now:** ISC-51 asserts the archived ad contains the enriched full text, not merely that the file exists.
 
 - **conjectured:** a scoring stage without a language model has nothing to say, so the honest answer is an unscored shortlist and no more.
   **refuted by:** listing what the weights actually ask for. Five of the nine — core-skill overlap, rate fit, seniority, project setup, industry — are decidable from the profile and the offer's own fields, with no model and no network. Only role fit and the three penalties need judgement.
@@ -385,6 +391,8 @@ A single operator drops mailbox credentials and a profile into `config/`, and ev
 - ISC-29 … ISC-34 — `ImapSourceConnectorTest` (8), GreenMail
 - ISC-53, ISC-54 — `POST /api/ingest` against the operator's own migrated rules: 14 documents, 1289 offers, announced equals extracted in all 14
 - ISC-59, ISC-60, ISC-61 — `46e0d9c`; `java -jar` from the repository root logs `Reading …/.env` and `Database: jdbc:postgresql://localhost:55432/leadgen as leadgen`; port counter-check 15432 ↔ 55432
+- ISC-51 — `PackagingServiceTest`, 8 tests against Postgres 17: a folder with cover letter, archived ad, `meta.json` and the CV; German and English letters chosen by the ad; the enriched full text in the archive; score and reasons in `meta.json`; every portal of a duplicate cluster named once; only offers above the threshold packaged; no package built twice; a missing CV recorded rather than fatal
+- ISC-52 — `NothingIsSentTest`, 3 tests reading the repository for send paths and transport keys across backend, shipped configuration and frontend
 - ISC-48, ISC-50 — `ScoringWithAModelTest` (5) and `ScoringWithoutAModelTest` (5) against WireMock and Postgres 17: a reason per factor with the total equal to their sum, an invented factor dropped, a model awarding itself 900 clamped to 15, an unreachable endpoint and a non-JSON answer both leaving the offer scored on rules alone, and the no-key path producing a null score with its deterministic reasons intact
 - ISC-49 — `DigestServiceTest` (4): a file naming both bands with the reasons beside every number, an unscored heading of its own, and the artefact saying in words that nothing has been sent
 - ISC-45 … ISC-47 — `EnrichmentServiceTest`, 6 tests against WireMock and Postgres 17: seven fields off a stubbed ad, a 403 leaving the offer PASSED with a note, a second run inside the TTL issuing zero requests, a robots-disallowed path never fetched and remembered, and only filtered-through offers considered; `RobotsPolicyTest`, 6 tests on the parsing conventions
@@ -398,7 +406,7 @@ A single operator drops mailbox credentials and a profile into `config/`, and ev
 
 ## Remaining Work
 
-- [ ] **Next: F9, the application package (ISC-51, ISC-52).** The last stage, and the one that turns a shortlist into something sendable — by hand. An offer above the threshold produces a folder: a cover letter from a Freemarker template with the reference projects the offer's skills select, the fixed CV for the ad's language, the archived original and a `meta.json`. ISC-52 is the anti-criterion that outranks all of it: nothing is sent, there is no send path, and the configuration models no transport, recipient or channel either.
+- [ ] **Next: the write side.** Every pipeline stage is closed — the whole chain from a mailbox to a folder on disk runs. What is left is everything the operator does *back*: recording an application's status after sending the mail by hand, uploading a Markdown file as a manual source and reviewing it before it enters, and editing weights. All three need the first write endpoint in the application, and `security.auth` is still `none`.
 - [ ] An eval for the judge. ISC-48 proves the weights bound the model; it says nothing about whether the model judges *well*. That is a held-out set and a rubric, and it belongs after a real model has scored a real morning.
 - [ ] Run `bun ~/.claude/LIFEOS/TOOLS/IsaFrontier.ts frontier ISA.md` to see the takeable set before picking anything else up.
 

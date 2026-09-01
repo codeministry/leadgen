@@ -49,6 +49,15 @@ export interface ScoringReport {
   readonly review: number;
 }
 
+/** Mirrors `de.codeministry.leadgen.packaging.PackageReport`. */
+export interface PackageReport {
+  readonly due: number;
+  readonly built: number;
+  readonly failed: number;
+  /** Folders on disk. The tool has no send path at all. */
+  readonly folders: readonly string[];
+}
+
 export interface IngestReport {
   readonly sources: readonly SourceIngestResult[];
   readonly extracted: number;
@@ -74,6 +83,8 @@ export interface IngestReport {
   readonly scored: ScoringReport;
   /** The digest file the run wrote, or null when it is switched off. A file, never a message. */
   readonly digest: string | null;
+  /** The application packages built for everything above the shortlist threshold. */
+  readonly packaged: PackageReport;
 }
 
 @Injectable({ providedIn: 'root' })

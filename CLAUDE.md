@@ -412,6 +412,40 @@ be rude to the portals and slow for nothing.
   digest, and a cron nothing reads would be one more key that lies. An unscored offer gets
   its own heading rather than being sorted to the bottom of a ranking that does not exist.
 
+## The application package
+
+`backend/…/packaging/`. One folder per offer above the shortlist threshold, built at the
+end of a run.
+
+- **This is where a send button would arrive**, one convenient afternoon: the folder is
+  finished and the contact is right there in `meta.json`. `NothingIsSentTest` reads the
+  repository for `Transport.send`, `JavaMailSender`, `MimeMessageHelper`, `setRecipient(`
+  and `mailto:`, and for configuration keys naming a transport — in the backend and in the
+  frontend both. ISC-52 is enforced, not remembered.
+- **`new MimeMessage` is deliberately not on that list.** It is how an `.eml` file is
+  parsed, and the file connector does exactly that. Neither is `channel:` a forbidden key:
+  `sources.yaml` uses it for where an offer *came from*. A check that cannot tell inbound
+  from outbound is a check that gets switched off.
+- **Templates come from the two-layer lookup**, `templates/…` in the config directory
+  first and on the classpath second, exactly like the four YAML files. `{lang}` in a
+  template path is the language of the ad and nothing else.
+- **Templates see camelCase.** The row from the database is snake_case, and
+  `offer.full_text` resolves to nothing in Freemarker rather than failing — silently
+  producing a letter with a hole in it. The model is converted once before rendering, and
+  the Freemarker exception handler is set to rethrow for the same reason.
+- **Language: German if the text is German, English if there is text and no German, the
+  profile's `locale_primary` only when there is nothing to go on.** The order matters —
+  falling back to `locale_primary` for an ad that simply has no German in it sends a
+  German letter to an English posting. Measured: 0 of 1289 descriptions lack a German
+  function word, so English really is the exception and not the default.
+- **No CV is tailored.** The language picks a fixed PDF, and that is the whole rule. A
+  missing file is recorded as `cv-MISSING.txt` rather than failing the package: without
+  the CV it is still most of the work.
+- **`meta.json` carries the decision, not just the offer** — the score, every reason
+  behind it, the fields, the matched skills, the reference projects chosen, and every
+  portal in the duplicate cluster, so one project advertised three times is one package
+  that says so.
+
 ## Backend conventions
 
 - **Lombok for the boilerplate, records for the data.** `@Slf4j` instead of a hand-written
@@ -516,8 +550,9 @@ code has to reproduce — the numbers in `docs/SAMPLE-ANALYSIS.md` are the targe
    A failed fetch is not a knockout; the offer stays in as *incomplete*.
 8. ✅ **Scoring + digest** — deterministic factors plus a model for the four that need
    judgement, and a digest written to a file at the end of every run.
-9. **Packaging** — cover letter from a Freemarker template plus reference projects from
-   the profile, copy in the PDF matching the ad's language.
+9. ✅ **Packaging** — cover letter from a Freemarker template plus the reference projects
+   the offer's own skills selected, the fixed PDF for the ad's language, the archived
+   original and a `meta.json`. A folder on disk; nothing is sent.
 10. 🟡 **Frontend** — design system, shell and all six screens exist. The dashboard runs
     on the real `GET /api/status` and `POST /api/ingest`; shortlist, offer detail,
     pipeline, sources and rules run on `core/fixtures/`, every file marked
