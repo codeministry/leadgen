@@ -145,9 +145,7 @@ public class ImapSourceConnector implements SourceConnector {
                     connection.username(),
                     connection.password());
 
-            Folder folder = store.getFolder(source.selector().folder());
-            // READ_ONLY, so nothing is ever flagged \Seen. The owner reads this mailbox too.
-            folder.open(Folder.READ_ONLY);
+            Folder folder = open(store, source);
             try {
                 return action.apply(folder);
             } finally {
@@ -155,6 +153,57 @@ public class ImapSourceConnector implements SourceConnector {
             }
         } catch (MessagingException | IOException e) {
             throw new IngestException("source '%s' cannot read its mailbox".formatted(source.id()), e);
+        }
+    }
+
+    /**
+     * Opens the configured folder, and says something useful when it is not there.
+     *
+     * <p>The folder is a server-side path, and its separator is the server's to choose:
+     * "/" on Dovecot, "." on Courier and older Cyrus. A leading separator is never part of
+     * the name, so `/Jobs` — which is how a mail client displays it — is normalised to
+     * `Jobs` rather than failing. A subfolder of the inbox is usually `INBOX/Jobs`, which
+     * is why the failure lists what the mailbox actually holds instead of only saying no:
+     * "folder not found" without the alternatives is a message that ends the working day.
+     */
+    private static Folder open(Store store, Source source) throws MessagingException {
+        String configured = source.selector().folder();
+        if (configured == null || configured.isBlank()) {
+            throw new IngestException(
+                    "source '%s' names no selector.folder; an IMAP source has to say which folder to read"
+                            .formatted(source.id()));
+        }
+
+        char separator = store.getDefaultFolder().getSeparator();
+        String name = configured;
+        while (!name.isEmpty() && (name.charAt(0) == separator || name.charAt(0) == '/')) {
+            name = name.substring(1);
+        }
+        name = name.replace('/', separator);
+        if (!name.equals(configured)) {
+            log.info("Source '{}': folder '{}' read as '{}' (this server separates with '{}')",
+                    source.id(), configured, name, separator);
+        }
+
+        Folder folder = store.getFolder(name);
+        if (!folder.exists()) {
+            throw new IngestException("source '%s': the mailbox has no folder '%s'. It has: %s"
+                    .formatted(source.id(), configured, available(store, separator)));
+        }
+        // READ_ONLY, so nothing is ever flagged \Seen. The owner reads this mailbox too.
+        folder.open(Folder.READ_ONLY);
+        return folder;
+    }
+
+    /** Every folder the account can subscribe to, so a typo answers itself. */
+    private static String available(Store store, char separator) {
+        try {
+            return java.util.Arrays.stream(store.getDefaultFolder().list("*"))
+                    .map(Folder::getFullName)
+                    .sorted()
+                    .collect(java.util.stream.Collectors.joining(", "));
+        } catch (MessagingException e) {
+            return "<the folder list could not be read: " + e.getMessage() + ">";
         }
     }
 

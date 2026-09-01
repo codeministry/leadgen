@@ -24,6 +24,11 @@ sources:
     type: imap
     connection: mailbox-primary
     selector:
+      # The folder is a server-side path and the separator is the server's to
+      # choose: "/" on Dovecot, "." on Courier. A leading separator is not part of
+      # the name, so "/Jobs" as a mail client shows it is read as "Jobs". A folder
+      # inside the inbox is usually "INBOX/Jobs". A name that does not exist fails
+      # the source with the list of folders the mailbox actually has.
       folder: INBOX
       from: ["newsletter@example.com"]
       subject_matches: ".*new projects.*"
