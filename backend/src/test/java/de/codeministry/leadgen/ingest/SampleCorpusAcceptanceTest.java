@@ -66,7 +66,7 @@ class SampleCorpusAcceptanceTest {
 
         var extractor = new HtmlBlockExtractor();
         var mapper = new OfferMapper();
-        documents = new FileSourceConnector(new ConfigProperties(configDir.toString(), null, null)).read(source, 0L);
+        documents = new FileSourceConnector(new ConfigProperties(configDir.toString())).read(source, 0L);
         offers = new ArrayList<>();
         perDocument = new ArrayList<>();
 

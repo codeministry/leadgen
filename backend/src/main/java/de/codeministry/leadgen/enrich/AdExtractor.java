@@ -1,6 +1,7 @@
 package de.codeministry.leadgen.enrich;
 
 import de.codeministry.leadgen.config.model.PipelineConfig.Enrichment.Extract;
+import de.codeministry.leadgen.ingest.extract.PlainText;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -63,6 +64,10 @@ public class AdExtractor {
                 null);
     }
 
+    private static String text(Element element, Extract.Field rule) {
+        return rule.regex() == null ? PlainText.of(element) : element.text();
+    }
+
     /**
      * A field's {@code css} narrows the search before its {@code regex} runs, and stands
      * on its own when there is no regex. That is what lets `full_text` be a selector and
@@ -80,7 +85,10 @@ public class AdExtractor {
             if (element == null) {
                 return null;
             }
-            scope = rule.attr() == null ? element.text() : element.attr(rule.attr());
+            // The same split as in the ingest extractor: a pattern reads a line, a field
+            // reads a document. `full_text` is the whole reason the detail page has
+            // paragraphs at all.
+            scope = rule.attr() == null ? text(element, rule) : element.attr(rule.attr());
         }
 
         Pattern pattern = compiled.get(field);
