@@ -39,6 +39,16 @@ export interface EnrichmentReport {
   readonly requests: number;
 }
 
+/** Mirrors `de.codeministry.leadgen.score.ScoringReport`. */
+export interface ScoringReport {
+  readonly considered: number;
+  readonly scored: number;
+  /** Above zero means no language model was configured; the offers are there, unranked. */
+  readonly unscored: number;
+  readonly shortlisted: number;
+  readonly review: number;
+}
+
 export interface IngestReport {
   readonly sources: readonly SourceIngestResult[];
   readonly extracted: number;
@@ -60,6 +70,10 @@ export interface IngestReport {
    * the only one that can fail for reasons unrelated to the offer.
    */
   readonly enriched: EnrichmentReport;
+  /** What the shortlist looks like afterwards. */
+  readonly scored: ScoringReport;
+  /** The digest file the run wrote, or null when it is switched off. A file, never a message. */
+  readonly digest: string | null;
 }
 
 @Injectable({ providedIn: 'root' })

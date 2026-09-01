@@ -383,6 +383,35 @@ be rude to the portals and slow for nothing.
   a scratch directory, and a cache that does not survive a restart turns a rate limit into
   a promise nobody keeps.
 
+## Scoring and the digest
+
+`backend/…/score/` and `…/digest/`. Two halves and one file.
+
+- **Rules before model, again.** `RuleScorer` decides everything the profile and the
+  offer's own fields can decide — core-skill overlap with aliases, rate against the floor,
+  seniority, how much of the engagement's shape is stated, industry — for free. A `Judge`
+  is asked only about role fit and the three penalties.
+- **Unscored is not zero, and not nothing.** With no key the deterministic reasons are
+  still written, so the operator sees "+45 core skill overlap, +10 rate fit". What is
+  withheld is the *total*: computed from five of the nine weights it would not be
+  comparable to one from all nine, and the same offer would score differently depending on
+  whether a key happened to be configured that morning.
+- **The weight table decides, not the answer.** A factor the model invents is dropped, and
+  a model awarding itself 900 points for role fit gets 15. Every judged factor is bounded
+  by its weight before it is kept.
+- **A judge that fails returns nothing rather than throwing.** One unreachable endpoint
+  must not end the run; the offer keeps its deterministic reasons and scores lower, which
+  is visible and reviewable.
+- **`provider` is a kind, never a default.** The only wire format implemented is the
+  OpenAI-compatible chat API, which Ollama and most hosted services speak; the base URL
+  decides who answers. No committed file names a vendor and neither does the code.
+- **The judge is built per run**, not once at startup, because the configuration is
+  hot-reloadable: a key added to `.env` should start producing scores without a restart.
+- **The digest is a file, and the last thing a run does.** No transport, no recipient, no
+  channel — and no schedule of its own either: whatever schedules the run schedules the
+  digest, and a cron nothing reads would be one more key that lies. An unscored offer gets
+  its own heading rather than being sorted to the bottom of a ranking that does not exist.
+
 ## Backend conventions
 
 - **Lombok for the boilerplate, records for the data.** `@Slf4j` instead of a hand-written
@@ -485,7 +514,8 @@ code has to reproduce — the numbers in `docs/SAMPLE-ANALYSIS.md` are the targe
    1289, 18.5 %, and the per-stage counts.
 7. ✅ **Enrichment** — HTTP fetch of the original ad, rate limit, cache, `robots.txt`.
    A failed fetch is not a knockout; the offer stays in as *incomplete*.
-8. **Scoring + digest** — first daily overview, still without a frontend.
+8. ✅ **Scoring + digest** — deterministic factors plus a model for the four that need
+   judgement, and a digest written to a file at the end of every run.
 9. **Packaging** — cover letter from a Freemarker template plus reference projects from
    the profile, copy in the PDF matching the ad's language.
 10. 🟡 **Frontend** — design system, shell and all six screens exist. The dashboard runs

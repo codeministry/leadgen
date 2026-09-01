@@ -116,8 +116,7 @@ public record PipelineConfig(
      * no recipient and no channel: the application has no send path, and a configuration
      * that modelled one would be an invitation to add it.
      */
-    public record Digest(
-            boolean enabled, String schedule, String format, String outputDir, List<String> include) {}
+    public record Digest(boolean enabled, String format, String outputDir, List<String> include) {}
 
     public record Security(@NotBlank String auth, Map<String, String> oidc) {}
 }

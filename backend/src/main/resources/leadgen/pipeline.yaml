@@ -82,7 +82,9 @@ packaging:
 # and decides. Same rule as the application packages.
 digest:
   enabled: true
-  schedule: "0 0 7 * * *"
+  # No schedule here on purpose: the digest is written at the end of an
+  # ingest run, so whatever schedules the run schedules the digest. A cron
+  # nothing reads is the decoration this file has been losing all day.
   format: ${DIGEST_FORMAT:html}         # text | html
   output_dir: ${DIGEST_DIR:./packages/digest}
   include: [shortlisted, review, follow_ups_due]

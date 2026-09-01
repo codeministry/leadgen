@@ -5,6 +5,8 @@ import de.codeministry.leadgen.config.model.SourcesConfig.Source;
 import de.codeministry.leadgen.dedupe.DeduplicationService;
 import de.codeministry.leadgen.enrich.EnrichmentService;
 import de.codeministry.leadgen.filter.FilterService;
+import de.codeministry.leadgen.digest.DigestService;
+import de.codeministry.leadgen.score.ScoringService;
 import de.codeministry.leadgen.ingest.connector.SourceConnector;
 import de.codeministry.leadgen.ingest.extract.HtmlBlockExtractor;
 import de.codeministry.leadgen.ingest.extract.OfferMapper;
@@ -40,6 +42,8 @@ public class IngestService {
     private final DeduplicationService dedupe;
     private final FilterService filter;
     private final EnrichmentService enrich;
+    private final ScoringService scoring;
+    private final DigestService digest;
 
     IngestService(
             ConfigRegistry config,
@@ -49,7 +53,9 @@ public class IngestService {
             OfferStore store,
             DeduplicationService dedupe,
             FilterService filter,
-            EnrichmentService enrich) {
+            EnrichmentService enrich,
+            ScoringService scoring,
+            DigestService digest) {
         this.config = config;
         this.connectors = connectors.stream().collect(Collectors.toMap(SourceConnector::type, Function.identity()));
         this.extractor = extractor;
@@ -58,6 +64,8 @@ public class IngestService {
         this.dedupe = dedupe;
         this.filter = filter;
         this.enrich = enrich;
+        this.scoring = scoring;
+        this.digest = digest;
     }
 
     public IngestReport run() {
@@ -88,7 +96,14 @@ public class IngestService {
         // cluster judged once. Enrichment comes last and only touches what survived:
         // fetching a thousand ads to then discard eight hundred would be rude to the
         // portals and slow for nothing.
-        return new IngestReport(results, dedupe.run(), filter.run(), enrich.run());
+        var deduplicated = dedupe.run();
+        var filtered = filter.run();
+        var enriched = enrich.run();
+        var scored = scoring.run();
+        // The digest is the last thing the run does, and it is a file. There is no
+        // schedule of its own: whatever schedules this run schedules the digest.
+        var written = digest.render(java.time.LocalDate.now()).orElse(null);
+        return new IngestReport(results, deduplicated, filtered, enriched, scored, written);
     }
 
     /**
