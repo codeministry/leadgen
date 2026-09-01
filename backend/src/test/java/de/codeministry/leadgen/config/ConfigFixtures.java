@@ -65,7 +65,7 @@ public final class ConfigFixtures {
     public static ConfigLoader loaderFor(
             Path directory, jakarta.validation.Validator validator, Map<String, String> env) {
         return new ConfigLoader(
-                new ConfigProperties(directory.toString(), "./packages", "./data/inbox"),
+                new ConfigProperties(directory.toString()),
                 validator,
                 new PlaceholderResolver(env::get));
     }

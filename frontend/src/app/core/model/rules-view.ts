@@ -7,10 +7,16 @@ export interface RuleWeight {
   readonly points: number;
 }
 
+/**
+ * Exactly one of the two carries the rule: a scalar states `value` and leaves `values`
+ * empty, a list states `values` and leaves `value` null. An empty list is a scalar again,
+ * because the sentence it gets instead ("nothing", "everywhere") is what is shown.
+ */
 export interface KnockoutRule {
   readonly key: string;
   readonly label: string;
-  readonly value: string;
+  readonly value: string | null;
+  readonly values: readonly string[];
 }
 
 export interface RulesView {

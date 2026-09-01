@@ -7,20 +7,37 @@
   </lg-page-header>
 
   <div class="grid">
-    <section class="panel">
+    <section class="panel panel-wide">
       <h2 class="type-h2">Knockout criteria</h2>
       <p class="type-small text-muted panel-note">
         These run deterministically and for free, before any model call. Without a
         language model the tool still works, only weaker.
       </p>
-      <dl class="knockouts">
-        @for (rule of rules.knockouts; track rule.key) {
+      <dl class="scalars">
+        @for (rule of scalarKnockouts(); track rule.key) {
           <div class="knockout">
             <dt>
               <span class="type-small">{{ rule.label }}</span>
               <span class="type-mono-data text-muted key">{{ rule.key }}</span>
             </dt>
             <dd class="type-mono-data">{{ rule.value }}</dd>
+          </div>
+        }
+      </dl>
+
+      <dl class="lists">
+        @for (rule of listKnockouts(); track rule.key) {
+          <div class="knockout">
+            <dt>
+              <span class="type-small">{{ rule.label }}</span>
+              <span class="type-mono-data text-muted key">{{ rule.key }}</span>
+              <span class="type-mono-data text-muted count">{{ rule.values.length }}</span>
+            </dt>
+            <dd class="chips">
+              @for (entry of rule.values; track entry) {
+                <lg-badge tone="ghost" [outline]="true">{{ entry }}</lg-badge>
+              }
+            </dd>
           </div>
         }
       </dl>
