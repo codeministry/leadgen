@@ -1,10 +1,10 @@
 ---
 phase: climbing
-progress: 49/70
+progress: 53/70
 task: "Acquisition tool: collect, filter, enrich and package project offers"
 slug: lead-generation
 started: 2026-09-01T11:30:00Z
-updated: 2026-09-01T19:30:00Z
+updated: 2026-09-01T19:50:00Z
 ---
 
 # lead-generation — Ideal State Artifact
@@ -108,10 +108,10 @@ A single operator drops mailbox credentials and a profile into `config/`, and ev
 | ISC-34 | bun-test | one unreachable source beside a file source | file source still runs | JUnit | `IngestService` |
 | ISC-35 | bun-test | advance a fixed clock past the interval | one run triggered | JUnit | not yet authored |
 | ISC-36 | bun-test | `match_all: true` with no sender filter | every mail read | GreenMail | not yet authored |
-| ISC-37 | bun-test | two listings of one project from different portals | one entry, two sources | JUnit | not yet authored |
-| ISC-38 | bun-test | deduplicate the corpus | 159 collapsed | JUnit | `docs/SAMPLE-ANALYSIS.md` |
-| ISC-39 | bun-test | merge order and attached sources | first-seen primary | JUnit | not yet authored |
-| ISC-40 | bun-test | two distinct projects with near-identical titles | not merged | JUnit | not yet authored |
+| ISC-37 | bun-test | two listings of one project from different portals | one entry, two sources | JUnit | `DeduplicationServiceTest` |
+| ISC-38 | bun-test | fingerprint collisions over the corpus, and n offers over k fingerprints | 159; n-k attached | JUnit | `SampleCorpusAcceptanceTest`, `DeduplicationServiceTest` |
+| ISC-39 | bun-test | insert newest first, then add a late arrival, then run twice | first-seen primary, stable | JUnit | `DeduplicationServiceTest` |
+| ISC-40 | bun-test | titles differing by more than case, punctuation and the gender suffix | not merged | JUnit | `DeduplicationServiceTest` |
 | ISC-41 | bun-test | run the filter over the corpus | 16.5 % ± 0 | JUnit | `docs/samples/simulate_filter.py` |
 | ISC-42 | bun-test | per-stage removal counts sum to the total | exact | JUnit | not yet authored |
 | ISC-43 | bun-test | offer with no stated remote share | survives, flagged | JUnit | not yet authored |
@@ -210,10 +210,10 @@ A single operator drops mailbox credentials and a profile into `config/`, and ev
 
 **Why:** The same project arrives up to eight times across three portals; without collapsing them the shortlist is mostly the same offer, and the operator learns to distrust it.
 
-- [ ] ISC-37: Exact-fingerprint duplicates are merged, and the merged entry names every source it came from.
-- [ ] ISC-38: Deduplicating the sample corpus collapses 159 offers, matching the reference measurement.
-- [ ] ISC-39: The merge keeps the first-seen offer as primary and attaches the others, so no source is lost.
-- [ ] ISC-40: Anti: two genuinely different projects with similar titles are not merged.
+- [x] ISC-37: Exact-fingerprint duplicates are merged, and the merged entry names every source it came from.
+- [x] ISC-38: Deduplicating the sample corpus collapses 159 offers, matching the reference measurement. Two halves: the corpus assertion counts fingerprint collisions without a database, and the clustering test fixes the identity that turns that count into rows — n offers over k fingerprints leave exactly n − k attached.
+- [x] ISC-39: The merge keeps the first-seen offer as primary and attaches the others, so no source is lost. It holds whatever the insertion order, for a listing that arrives on a later run, and across repeated runs.
+- [x] ISC-40: Anti: only an exact match of the normalized title merges. Normalisation removes casing, punctuation and the gender suffix and nothing else, so a title that merely resembles another stays its own offer. **The honest limit is the opposite case:** two genuinely different projects that happen to share a title do merge, and nothing available before enrichment separates them — see the Decisions entry, where the obvious fix was measured and is worse.
 
 ### F6 · Hard filter
 
@@ -274,6 +274,8 @@ A single operator drops mailbox credentials and a profile into `config/`, and ev
 - **2026-09-01 — The cursor is committed after the write, not after the read.** `SourceConnector.commit` exists for that alone.
 - **2026-09-01 — One credentials file, and it is called `.env` because it cannot be called anything else for free.** Marcello's call to collapse `.env.local` plus a `.env` symlink. The name is forced by Compose: it substitutes the `${...}` in `docker-compose.yml` from `.env` and from nothing else — not from `env_file:`, which only injects into a container, and not from `COMPOSE_ENV_FILES` set inside a file. Both measured. Any other name costs a flag on every call or a symlink, and forgetting either silently applies the compose defaults.
 - **2026-09-01 — The database host port defaults to 55432 and the container side is fixed at 5432.** A developer machine usually already holds 5432, and the resulting failure names the user and neither the host nor the database. Making the container side variable too publishes a host port forwarding to a port nobody listens on, which from a client looks exactly like no port at all.
+- **2026-09-01 — The deduplication fingerprint is the normalized title and nothing else, and the obvious improvement was measured and rejected.** The configured field list names `city`, `start_date`, `duration_months` and `top_skills`; all four arrive from enrichment, which runs *after* this stage, so at F5 only the title exists. The one field that does exist is the stated location, and adding it collapses 111 offers instead of 159 — the 48 it gives up are overwhelmingly correct merges lost to the same ad writing "Nürnberg" in one portal and "Remote und Nürnberg" in the next, in 46 of 109 clusters. A location has to be parsed before it can be compared, and parsing it is enrichment's job. The cost is accepted and recorded in ISC-40 rather than hidden: two different projects sharing a title do merge.
+- **2026-09-01 — Only `exact_fingerprint` is implemented; the two embedding strategies are logged and skipped.** They need a model, and the tool has to work without one. Failing at load instead would break the shipped defaults, which list them; running silently would leave the operator believing a similarity pass happened. A `merge_policy` other than `keep_first_seen_as_primary` is fatal at load, because that one *would* be read, ignored, and do the first-seen thing anyway.
 - **2026-09-01 — Ochre means exactly one thing: this survived the filter.** The palette is two colours and a mute. Petrol carries structure and interaction, everything discarded is muted, and the accent is spent on the one fact the morning is about. It cost a rule when the dark primary became the logo's cyan at L 83 %: the review band moved from primary to secondary, because the middle band must never outshine "cleared the threshold".
 - **2026-09-01 — The header carries `data-theme="lg-dark"` in both themes.** Marcello's call to place the real logo in the header. Its cyan is 1.6:1 on white and cannot be a light-theme colour at any size, so the lockup keeps a navy ground everywhere and looks identical in both modes. daisyUI's themes are attribute-scoped, so nesting the attribute re-declares every token for that subtree and the buttons, the muted version string and the two-tone wordmark follow with no override.
 - **2026-09-01 — A component class name is checked against daisyUI's before it is used.** `status` is a 0.5 rem dot there and `label` is a form component; ours of the same names were laid out as those, silently. A utility framework's component classes share the global namespace, so the namespace is not ours to assume.
@@ -286,6 +288,11 @@ A single operator drops mailbox credentials and a profile into `config/`, and ev
 - **2026-09-01 — The configuration vocabulary keeps the implemented names and adopts four ideas from the hand-drafted `config/local/sources.yaml`.** Resolves the fog entry. Kept: `unwrap_query_param`, `ancestor`, `list`, and the field names `agency`/`published`/`tags`. Adopted: `expect_count_from_subject` (the announced count becomes a runtime check rather than only a test assertion), `prefer_part` (the part preference was hardcoded), per-field `format` (the source-level `date_format` stays as the fallback), and `inherit` (a second source names another's extraction instead of copying it — the example was already carrying two copies of one selector table). Not adopted: the named `transforms:` indirection, which buys a level of indirection for a single transform. The operator's file was migrated to match and reproduces the reference numbers.
 
 ## Learning
+
+- **conjectured:** a title-only fingerprint is the weak version, and adding the stated location makes deduplication stricter and therefore better.
+  **refuted by:** measuring both over the corpus before writing the code — title alone collapses 159, title plus location 111, and reading the 48 lost merges showed almost all of them were right.
+  **learned:** a field that is *present* is not the same as a field that is *comparable*. The same ad writes its location as "Nürnberg", "Remote und Nürnberg" and "Remote & Nürnberg" across portals, so adding it does not tighten the key, it fragments it. Both numbers had to exist before the decision could be made, and the cheap probe that produced them took less time than the wrong implementation would have.
+  **criterion now:** ISC-40 states what actually holds — exact normalized-title matching — instead of the stricter thing the fingerprint cannot deliver yet.
 
 - **conjectured:** a class name assembled at runtime reaches the stylesheet the same way a literal one does.
   **refuted by:** grepping the built stylesheet for the badge tones — seven of eight were absent, and the badges had simply rendered with no colour while nothing reported a problem.
@@ -356,13 +363,15 @@ A single operator drops mailbox credentials and a profile into `config/`, and ev
 - ISC-29 … ISC-34 — `ImapSourceConnectorTest` (8), GreenMail
 - ISC-53, ISC-54 — `POST /api/ingest` against the operator's own migrated rules: 14 documents, 1289 offers, announced equals extracted in all 14
 - ISC-59, ISC-60, ISC-61 — `46e0d9c`; `java -jar` from the repository root logs `Reading …/.env` and `Database: jdbc:postgresql://localhost:55432/leadgen as leadgen`; port counter-check 15432 ↔ 55432
+- ISC-37 … ISC-40 — `DeduplicationServiceTest`, 6 tests against Postgres 17 in Testcontainers; the corpus half of ISC-38 in `SampleCorpusAcceptanceTest.findsTheMeasuredNumberOfDuplicateTitles`, run against all 14 mails, 159 of 1289
+- fingerprint composition — measured over the corpus before implementing: title 159 collapsed (12.3 %), title+location 111 (8.6 %), title+location+agency 75 (5.8 %); 46 of 109 title clusters span several location spellings of the same place
 - ISC-62 … ISC-70 — `2086523`; `./gradlew check` green with 23 frontend specs; six routes probed at 320/768/1440 through a lifecycle-live browser, page scroll width equal to the viewport in all eighteen; 34 tabbable elements, 0 without an accessible name; the inline theme script at head position 6 against both stylesheet links at 7 and 8
 - font axes — Bricolage Grotesque measured in the browser: wght 200 vs 800 renders 460 vs 497 px, opsz 12 vs 96 renders 505 vs 452 px, so `opsz.css` carries both axes and `standard.css` is not needed
 - ISC-55, ISC-56, ISC-57 — boot with `LEADGEN_CONFIG_DIR=/nonexistent` (four files from `classpath:/leadgen/`) and with `config/local` (four files overridden), both logged per file
 
 ## Remaining Work
 
-- [ ] **Next: F5, deduplication (ISC-37 … ISC-40).** It is the head of the only ordering chain in this ISA — `ISC-41` (hard filter) waits on it, `ISC-45` (enrichment) on that, `ISC-48` (scoring) on that. Target number is measured, not chosen: 159 of 1289 offers collapse by normalized title alone. `TitleNormalizer` already produces the fingerprint and `SampleCorpusAcceptanceTest.findsTheMeasuredNumberOfDuplicateTitles` already asserts the count, so F5 is about merging and attaching sources, not about detecting.
+- [ ] **Next: F6, the hard filter (ISC-41 … ISC-44).** F5 is closed, so the chain has moved on: `ISC-45` (enrichment) waits on F6, `ISC-48` (scoring) on that. The target is measured, not chosen: 16.5 % of the 1289 sample offers survive, and `docs/samples/simulate_filter.py` is the reference the Java has to reproduce. A deviation is a bug, not a matter of taste.
 - [ ] Run `bun ~/.claude/LIFEOS/TOOLS/IsaFrontier.ts frontier ISA.md` to see the takeable set before picking anything else up.
 
 - [ ] The five fixture-driven screens stay fixtures until steps 5 to 9 land. `rg 'FIXTURE — replace'` finds every one; each feature already reads through an `Api` seam, so each is one file.

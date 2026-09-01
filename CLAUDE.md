@@ -269,6 +269,39 @@ upserts it. `POST /api/ingest` runs one pass.
   14 mails. jsoup's `text()` strips it regardless, and `ExtractionTest` guards it, but treat
   it as an expectation rather than a measurement.
 
+## Deduplication
+
+`backend/…/dedupe/`. One pass after every ingest run, over every offer inside
+`deduplication.ttl_days`.
+
+- **This is not the upsert in `OfferStore`.** That one collapses a *listing* seen twice,
+  which is what re-reading a newsletter produces. This one collapses a *project* several
+  portals advertise at once, which is 12.3 % of the measured corpus.
+- **The fingerprint is the normalized title and nothing else, and that is measured.** The
+  configured field list names `city`, `start_date`, `duration_months` and `top_skills`;
+  all four come from enrichment, which runs *after* this stage. Adding the one field that
+  does exist — the stated location — collapses 111 instead of 159, and the 48 it gives up
+  are overwhelmingly correct merges lost to the same ad writing "Nürnberg" in one portal
+  and "Remote und Nürnberg" in the next. A location must be parsed before it can be
+  compared. **A field that is present is not the same as a field that is comparable.**
+- **The consequence is accepted, not hidden:** two genuinely different projects that share
+  a title do merge. ISC-40 states the limit rather than claiming the opposite.
+- **It runs after every source, never per source.** A pass scoped to one source would
+  never see the pair it exists to collapse.
+- **Idempotent by construction.** The primary of a group is recomputed from the group
+  every run — `first_value(id) OVER (PARTITION BY fingerprint ORDER BY ingested_at, id)` —
+  so a second run assigns exactly what the first did and a listing arriving later attaches
+  to the primary already there instead of starting a rival cluster. The update is
+  restricted to rows whose assignment actually changes, which is what makes the "moved"
+  count mean moved rather than seen.
+- **`IngestReport.merged` is the standing total, not the rows this run moved.** A second
+  run moves nothing, and a zero there would read as "deduplication stopped working".
+- **Only `exact_fingerprint` is implemented.** The two embedding strategies need a model
+  and are logged and skipped; failing at load would break the shipped defaults, and
+  running silently would suggest a similarity pass happened. A `merge_policy` other than
+  `keep_first_seen_as_primary` *is* fatal at load, because that one would be read,
+  ignored, and quietly do the first-seen thing anyway.
+
 ## Backend conventions
 
 - **Lombok for the boilerplate, records for the data.** `@Slf4j` instead of a hand-written
@@ -362,7 +395,9 @@ code has to reproduce — the numbers in `docs/SAMPLE-ANALYSIS.md` are the targe
    Acceptance test: 1289 offers from `docs/samples/emails/`, field coverage as in the analysis.
 4. ✅ **IMAP connector** — same extraction, different source. Progress tracked via
    `UIDVALIDITY`/`UID`, **never** via seen/unseen: the user reads the same mails on a phone.
-5. **Dedupe** — do not postpone, it pays off within a single mail.
+5. ✅ **Dedupe** — `DeduplicationService` clusters after every ingest run, globally rather
+   than per source, because the whole point is one project reaching the pipeline through
+   several portals. One SQL statement, idempotent by construction.
 6. **Hard filter** — must hit the 16.5 % from the simulation. A deviation is a bug.
 7. **Enrichment** — HTTP fetch of the original ad, rate limit, cache, `robots.txt`.
    A failed fetch is not a knockout; the offer stays in as *incomplete*.
@@ -393,6 +428,19 @@ code has to reproduce — the numbers in `docs/SAMPLE-ANALYSIS.md` are the targe
     gitignored. `POST /api/sources/manual/documents` is the first write endpoint in this
     app and writes to disk, so it needs an extension allowlist, a size limit, a sanitised
     filename and a decision about `security.auth`, which is `none` today.
+
+    **An upload is reviewed before it becomes an offer, and the file stays the record.**
+    A pasted ad has no guaranteed frontmatter and the LLM fallback can read it wrong, so
+    a bad extraction would otherwise enter the shortlist silently — the one place this
+    tool cannot afford to be quietly wrong, because the shortlist is what gets trusted
+    instead of the mailbox. The upload therefore lands in `inbox/pending/`, which no
+    source globs; a review screen shows the extracted eight fields beside the source
+    text, says whether the offer is already in the pipeline (deduplication answers that
+    before the confirm, not after), and lets the fields be corrected. Confirming writes
+    the corrected frontmatter back into the file and moves it to `inbox/`, where the
+    `manual-inbox` source picks it up on the next run. No staging table: the file is the
+    state, it is inspectable with `cat`, and a rejected upload is a file that was
+    deleted rather than a row nobody will ever look at.
 
 ## Traps that have already cost money
 

@@ -24,6 +24,12 @@ export interface IngestReport {
   readonly extracted: number;
   /** Rows touched, insert or update alike. Lower than `extracted` when a listing repeats. */
   readonly written: number;
+  /**
+   * Offers attached to a primary after the run. Not the same collapse as
+   * `extracted - written`: that one is a listing seen twice, this one is a project
+   * several portals advertise at once.
+   */
+  readonly merged: number;
 }
 
 @Injectable({ providedIn: 'root' })

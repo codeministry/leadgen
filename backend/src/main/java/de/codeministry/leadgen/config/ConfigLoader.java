@@ -226,6 +226,12 @@ public class ConfigLoader {
                     "hard_filters.rate.apply_after is '%s'; only 'enrichment' is allowed — the sources state a rate in 0.0 %% of offers, so applied earlier this rule filters either everything or nothing"
                             .formatted(rules.hardFilters().rate().applyAfter()));
         }
+        String mergePolicy = rules.deduplication().mergePolicy();
+        if (mergePolicy != null && !"keep_first_seen_as_primary".equals(mergePolicy)) {
+            problems.add(
+                    "deduplication.merge_policy is '%s'; only 'keep_first_seen_as_primary' is implemented — any other value would be read, ignored, and silently do the first-seen thing anyway"
+                            .formatted(mergePolicy));
+        }
         if (pipeline.enrichment().enabled() && !"hard_filter".equals(pipeline.enrichment().after())) {
             problems.add("enrichment.after is '%s'; only 'hard_filter' is allowed"
                     .formatted(pipeline.enrichment().after()));

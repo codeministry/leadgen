@@ -38,3 +38,7 @@ frontend/dist/
 # Claude & AI
 Plans
 MEMORY
+
+# Python bytecode from running the reference scripts in docs/samples/.
+__pycache__/
+*.pyc

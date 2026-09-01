@@ -2,6 +2,7 @@ package de.codeministry.leadgen.ingest;
 
 import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.config.model.SourcesConfig.Source;
+import de.codeministry.leadgen.dedupe.DeduplicationService;
 import de.codeministry.leadgen.ingest.connector.SourceConnector;
 import de.codeministry.leadgen.ingest.extract.HtmlBlockExtractor;
 import de.codeministry.leadgen.ingest.extract.OfferMapper;
@@ -34,18 +35,21 @@ public class IngestService {
     private final HtmlBlockExtractor extractor;
     private final OfferMapper mapper;
     private final OfferStore store;
+    private final DeduplicationService dedupe;
 
     IngestService(
             ConfigRegistry config,
             List<SourceConnector> connectors,
             HtmlBlockExtractor extractor,
             OfferMapper mapper,
-            OfferStore store) {
+            OfferStore store,
+            DeduplicationService dedupe) {
         this.config = config;
         this.connectors = connectors.stream().collect(Collectors.toMap(SourceConnector::type, Function.identity()));
         this.extractor = extractor;
         this.mapper = mapper;
         this.store = store;
+        this.dedupe = dedupe;
     }
 
     public IngestReport run() {
@@ -69,7 +73,10 @@ public class IngestService {
                 results.add(new SourceIngestResult(source.id(), 0, 0, 0, List.of()));
             }
         }
-        return new IngestReport(results);
+        // After every source, never per source: the whole point is that one project
+        // reaches the pipeline through several portals, so a pass scoped to one source
+        // would never see the pair it exists to collapse.
+        return new IngestReport(results, dedupe.run());
     }
 
     /**
