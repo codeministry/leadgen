@@ -57,8 +57,40 @@ public record SourcesConfig(
      * field, so no language model is involved in extraction at all.
      */
     public record Extraction(
-            @NotBlank String strategy, String blockSelector, Map<String, Field> fields, String fallback) {
+            @NotBlank String strategy,
+            String blockSelector,
+            Map<String, Field> fields,
+            String dateFormat,
+            String fallback) {
 
-        public record Field(String css, String attr, String regex, String path, String html) {}
+        /**
+         * One field of one offer, addressed declaratively. The kinds are combinable and
+         * each exists because the measured newsletter needs it:
+         *
+         * <ul>
+         *   <li>{@code css} — the element inside the block, text by default.
+         *   <li>{@code attr} — take an attribute instead of the text.
+         *   <li>{@code prefix} — pick the one sibling that starts with it. Four spans in
+         *       one row carry company, location, date and portal, distinguished only by
+         *       an emoji. Addressing them by position breaks the day a source omits one.
+         *   <li>{@code ancestor} — look outside the block. The search tags belong to the
+         *       group the block sits in, not to the block.
+         *   <li>{@code list} plus {@code split} — several values from one element.
+         *   <li>{@code unwrapQueryParam} — the link is a tracking proxy; the real target
+         *       is a parameter, and the rest of the query carries the subscriber's mail
+         *       address, which must not reach the archive.
+         * </ul>
+         */
+        public record Field(
+                String css,
+                String attr,
+                String regex,
+                String path,
+                String html,
+                String prefix,
+                String ancestor,
+                boolean list,
+                String split,
+                String unwrapQueryParam) {}
     }
 }

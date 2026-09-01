@@ -125,10 +125,49 @@ reads a YAML file itself.
   wires the process; the one in the config directory is the tool's own configuration. A
   stack trace naming it can mean either.
 
+## Ingest and extraction
+
+`backend/…/ingest/`. A connector fetches documents, `HtmlBlockExtractor` splits them into
+blocks and reads fields, `OfferMapper` turns a block into an `ExtractedOffer`, `OfferStore`
+upserts it. `POST /api/ingest` runs one pass.
+
+- **No selector is written in Java.** Block selector, every field, the date format and the
+  proxy parameter all come from the source's `extraction` section. That is what makes a
+  new source a YAML block. The worked example is `local-eml` in
+  `config/examples/sources.example.yaml`.
+- **The eight field names are the contract** between `sources.yaml` and `OfferMapper`:
+  `title`, `url`, `description`, `location`, `portal`, `agency`, `published`, `tags`. A
+  field spelled differently is extracted and then ignored, in silence.
+- **Meta fields are addressed by their emoji prefix, never by position.** Four spans sit in
+  one row and 9.2 % of offers state no company — read by position, every following field of
+  those offers is shifted by one.
+- **`ProxyLink.unwrap` is a privacy boundary, not a convenience.** Every link in the corpus
+  carries the subscriber's address as a query parameter. An unrecognised wrapper therefore
+  loses its whole query rather than keeping it. `SampleCorpusAcceptanceTest` fails on an
+  `@`, an `email=` or a `%40` in any of the 1289 URLs.
+- **Extraction needs no language model** for this source: `fallback: none`, and the count
+  the subject announces matches in all 14 mails.
+- **`published_on` keeps the date and drops the time.** The source states a time without a
+  zone, which cannot become an instant without guessing; the freshness rule counts days.
+- **The upsert on `(source_id, external_id)` is what makes re-reading free.** A newsletter
+  repeats what is still open, so re-reading is the normal case. `written` in the report
+  counts rows touched, insert or update alike — 1289 offers extracted become 1280 rows,
+  because nine listings appear in two mails. **That difference is not deduplication**:
+  dedupe collapses one *project* advertised by several portals, this collapses one
+  *listing* seen twice.
+- **The acceptance test is skipped without the corpus.** `docs/samples/emails/` is
+  gitignored, so it is absent on a fresh clone and in CI. `ExtractionTest` covers the same
+  mechanics against a fixture that ships, and that one must stay in step.
+- **The `<mark>` trap is not reproducible in the current corpus** — zero occurrences in all
+  14 mails. jsoup's `text()` strips it regardless, and `ExtractionTest` guards it, but treat
+  it as an expectation rather than a measurement.
+
 ## Backend conventions
 
-- **Flyway owns the schema, Hibernate validates it.** `ddl-auto: validate`; a drift
-  between entity and migration has to fail at startup, not heal itself.
+- **JDBC, not JPA.** The pipeline writes offers in batches and upserts them with
+  `ON CONFLICT`, which is one statement of plain SQL against a schema Flyway owns. An ORM
+  would add a mapping layer over Postgres arrays for no gain. Flyway is therefore the only
+  thing that touches the schema at all.
 - **Boot 4 split the integrations into their own modules.** Without
   `spring-boot-flyway` the migrations sit on the classpath and never run, and the only
   symptom is Hibernate complaining about missing tables. `@WebMvcTest` likewise moved
@@ -173,7 +212,7 @@ code has to reproduce — the numbers in `docs/SAMPLE-ANALYSIS.md` are the targe
 2. ✅ **Configuration layer** — load, validate and hot-reload `sources.yaml`,
    `matching-rules.yaml`, `application.yaml`. First, because everything else stands on it.
    `ConfigRegistry.snapshot()` is how the rest of the code reads configuration.
-3. **Ingest + extract** against the `local-eml` source (files, no mailbox needed).
+3. ✅ **Ingest + extract** against the `local-eml` source (files, no mailbox needed).
    Acceptance test: 1289 offers from `docs/samples/emails/`, field coverage as in the analysis.
 4. **IMAP connector** — same extraction, different source. Progress tracked via
    `UIDVALIDITY`/`UID`, **never** via seen/unseen: the user reads the same mails on a phone.
@@ -188,9 +227,11 @@ code has to reproduce — the numbers in `docs/SAMPLE-ANALYSIS.md` are the targe
 
 ## Traps that have already cost money
 
-- Search terms are wrapped in `<mark>` inside the title. Strip before any title
-  comparison, or deduplication trips over `<mark>DevOps</mark>`.
-- Strip `(m/w/d)`, `(w/m/d)`, `(m/f/d)` before normalizing.
+- Search terms are wrapped in `<mark>` inside the title on some sources. Strip before any
+  title comparison, or deduplication trips over `<mark>DevOps</mark>`. Not present in the
+  current sample corpus; jsoup's `text()` handles it either way.
+- Strip `(m/w/d)`, `(w/m/d)`, `(m/f/d)` before normalizing. Every title comparison goes
+  through `TitleNormalizer`, so two of them cannot disagree.
 - The location sits behind a `📍` prefix in one of four `span`s in `div.job-meta` —
   address it by the prefix, never by position.
 - **Renaming the root component's selector means editing `src/index.html` too.** The

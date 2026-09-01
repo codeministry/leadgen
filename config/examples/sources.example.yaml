@@ -78,11 +78,34 @@ sources:
     defaults:
       channel: direct
 
-  # D) Local files — for tests and replays without network access
-  - id: sample-file-drop
+  # D) Local files — for tests and replays without network access. Also the worked
+  #    example of a fully deterministic extraction: every field below comes out of
+  #    the markup, so `fallback: none` and no language model is involved at all.
+  #
+  #    The eight field names are the contract with the pipeline. A field spelled
+  #    differently is extracted and then ignored, silently.
+  - id: local-eml
     enabled: false
     type: file
     path: ${INBOX_DIR:./data/inbox}
-    glob: "*.eml,*.html,*.txt"
+    glob: "*.eml,*.html"
     extraction:
-      strategy: llm
+      strategy: html-blocks
+      block_selector: "div.job-card"
+      date_format: "dd.MM.yyyy"
+      fields:
+        title:       { css: "h3.job-title" }
+        description: { css: "div.job-description" }
+        # The link is a tracking proxy. `target` is the real address; everything else
+        # in the query is discarded, because the rest of it carries the subscriber's
+        # mail address and that must not reach the archive.
+        url:         { css: "a.job-link", attr: href, unwrap_query_param: target }
+        # Four spans in one row, told apart only by their prefix. Never by position:
+        # an offer without a company shifts every following field by one.
+        agency:      { css: "div.job-meta span", prefix: "🏢 " }
+        location:    { css: "div.job-meta span", prefix: "📍 " }
+        published:   { css: "div.job-meta span", prefix: "📅 " }
+        portal:      { css: "div.job-meta span", prefix: "🔗 " }
+        # The search tags belong to the group the block sits in, not to the block.
+        tags:        { ancestor: "div.tag-group", css: "h2.tag-header", list: true, split: "+" }
+      fallback: none

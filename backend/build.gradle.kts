@@ -26,7 +26,13 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
-    implementation("org.springframework.boot:spring-boot-starter-data-jpa")
+    // JDBC and not JPA: the pipeline writes offers in batches and upserts them by
+    // `ON CONFLICT`, which is one statement of plain SQL against a schema Flyway owns.
+    // An ORM would add a mapping layer over Postgres arrays for no gain here.
+    implementation("org.springframework.boot:spring-boot-starter-jdbc")
+    // Reading .eml files now, the IMAP connector in the next step — same library.
+    implementation("org.springframework.boot:spring-boot-starter-mail")
+    implementation(libs.jsoup)
     // The three config files in config/local are read by this application, not by
     // Spring: they are data with their own schema, not Spring properties.
     implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml")

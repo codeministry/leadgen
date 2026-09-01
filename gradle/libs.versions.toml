@@ -2,9 +2,12 @@
 springBoot = "4.1.1"
 springDependencyManagement = "1.1.7"
 testcontainers = "1.21.3"
+# Pinned here rather than taken from the Boot BOM: Boot 4 no longer manages jsoup.
+jsoup = "1.21.2"
 
 [libraries]
 testcontainers-bom = { module = "org.testcontainers:testcontainers-bom", version.ref = "testcontainers" }
+jsoup = { module = "org.jsoup:jsoup", version.ref = "jsoup" }
 
 [plugins]
 spring-boot = { id = "org.springframework.boot", version.ref = "springBoot" }

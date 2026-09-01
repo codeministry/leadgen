@@ -8,12 +8,6 @@ spring:
     url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:leadgen}
     username: ${POSTGRES_USER:leadgen}
     password: ${POSTGRES_PASSWORD:leadgen}
-  jpa:
-    # Flyway owns the schema. Hibernate only validates that the entities match
-    # what the migrations built; `update` would let the two drift apart silently.
-    hibernate:
-      ddl-auto: validate
-    open-in-view: false
   flyway:
     enabled: true
     locations: classpath:db/migration

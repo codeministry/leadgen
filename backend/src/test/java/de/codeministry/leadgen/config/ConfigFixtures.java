@@ -12,13 +12,16 @@ import java.util.Map;
  *
  * <p>The tests run against `config/examples/`, not against a fixture of their own, so
  * a broken example fails the build instead of the first user's first start.
+ *
+ * <p>It lives in this package rather than a shared test package because it builds a
+ * {@link ConfigLoader} through the constructor tests use, which is package-private.
  */
-final class ConfigFixtures {
+public final class ConfigFixtures {
 
     private ConfigFixtures() {}
 
     /** The repository root, found by walking up rather than from a relative path. */
-    static Path repositoryRoot() {
+    public static Path repositoryRoot() {
         Path candidate = Path.of("").toAbsolutePath();
         while (candidate != null && !Files.isDirectory(candidate.resolve("config/examples"))) {
             candidate = candidate.getParent();
@@ -30,7 +33,7 @@ final class ConfigFixtures {
     }
 
     /** Copies every `*.example.yaml` into {@code target} under its real name. */
-    static Path materialize(Path target) {
+    public static Path materialize(Path target) {
         Path examples = repositoryRoot().resolve("config/examples");
         try (var files = Files.list(examples)) {
             files.filter(f -> f.getFileName().toString().endsWith(".example.yaml")).forEach(f -> {
@@ -47,11 +50,11 @@ final class ConfigFixtures {
         return target;
     }
 
-    static ConfigLoader loaderFor(Path directory, jakarta.validation.Validator validator) {
+    public static ConfigLoader loaderFor(Path directory, jakarta.validation.Validator validator) {
         return loaderFor(directory, validator, Map.of());
     }
 
-    static ConfigLoader loaderFor(Path directory, jakarta.validation.Validator validator, Map<String, String> env) {
+    public static ConfigLoader loaderFor(Path directory, jakarta.validation.Validator validator, Map<String, String> env) {
         return new ConfigLoader(
                 new ConfigProperties(directory.toString(), "./packages", "./data/inbox"),
                 validator,

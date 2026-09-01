@@ -1,0 +1,58 @@
+From: newsletter@example.com
+To: someone@example.com
+Subject: 3 neue Projekte sind da!
+Date: Mon, 25 Aug 2026 07:00:00 +0200
+MIME-Version: 1.0
+Content-Type: multipart/alternative; boundary="b1"
+
+--b1
+Content-Type: text/plain; charset="utf-8"
+
+The plain-text alternative. It has none of the structure the rules address, and a
+connector that takes the first part instead of the HTML one silently extracts zero
+offers from a mail that is perfectly fine.
+
+--b1
+Content-Type: text/html; charset="utf-8"
+
+<html><body>
+<div class="tag-group">
+  <h2 class="tag-header">Java &#43; Spring Boot</h2>
+  <div class="job-card">
+    <h3 class="job-title">Senior <mark>Java</mark> Developer (m/w/d)</h3>
+    <div class="job-meta">
+      <span>&#127970; Example Agency GmbH</span>
+      <span>&#128205; Köln</span>
+      <span>&#128197; 25.08.2026 &#8211; 07:00 Uhr</span>
+      <span>&#128279; portal-a</span>
+    </div>
+    <div class="job-description">Ein Satz zur Beschreibung.</div>
+    <a href="https://tracker.example.com/proxy?target=https%3a%2f%2fportal-a.example.com%2fproject%2fsenior-java&amp;email=someone%2540example.com" class="job-link">Zum Projekt</a>
+  </div>
+  <div class="job-card">
+    <h3 class="job-title">Senior Java Developer (w/m/d)</h3>
+    <div class="job-meta">
+      <span>&#128205; Köln</span>
+      <span>&#128197; 25.08.2026 &#8211; 07:05 Uhr</span>
+      <span>&#128279; portal-b</span>
+    </div>
+    <div class="job-description">Dasselbe Projekt über ein anderes Portal.</div>
+    <a href="https://tracker.example.com/proxy?target=https%3a%2f%2fportal-b.example.com%2fproject%2fsenior-java&amp;email=someone%2540example.com" class="job-link">Zum Projekt</a>
+  </div>
+</div>
+<div class="tag-group">
+  <h2 class="tag-header">Kubernetes</h2>
+  <div class="job-card">
+    <h3 class="job-title">Platform Engineer</h3>
+    <div class="job-meta">
+      <span>&#127970; Another Agency AG</span>
+      <span>&#128197; 24.08.2026 &#8211; 18:30 Uhr</span>
+      <span>&#128279; portal-a</span>
+    </div>
+    <div class="job-description">Kein Ort angegeben.</div>
+    <a href="https://portal-a.example.com/project/platform-engineer" class="job-link">Zum Projekt</a>
+  </div>
+</div>
+</body></html>
+
+--b1--
