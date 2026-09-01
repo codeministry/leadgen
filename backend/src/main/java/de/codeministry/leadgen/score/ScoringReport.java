@@ -1,12 +1,20 @@
 package de.codeministry.leadgen.score;
 
 /**
- * What one scoring pass did.
+ * What the shortlist looks like, and what this pass had to do to get there.
  *
- * @param scored offers that got a number, which requires a judge.
- * @param unscored offers left without a number because no judge was configured. They
- *     still carry their deterministic reasons; see {@link Score#value()} for why the
- *     total is withheld rather than computed from half the weights.
+ * <p><b>Only `scored` counts this run.</b> The rest are standing totals over everything
+ * that has passed the filter, for the same reason {@code IngestReport.merged} is one: a
+ * run judges only what is stale, so a second run legitimately judges nothing, and
+ * per-run counts would then report an empty shortlist rather than an idle pass.
+ *
+ * @param considered offers on the shortlist's own terms: passed the filter, not a duplicate.
+ * @param scored offers this pass sent to a judge. Zero is the normal case for a run that
+ *     found nothing new, and also what a run with no judge configured reports.
+ * @param unscored offers standing without a number, because no judge was configured when
+ *     they were written. They still carry their deterministic reasons; see
+ *     {@link Score#value()} for why the total is withheld rather than computed from half
+ *     the weights.
  * @param shortlisted at or above `scoring.thresholds.auto_shortlist`.
  * @param review between `review` and `auto_shortlist`.
  */

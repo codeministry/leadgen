@@ -531,6 +531,24 @@ be rude to the portals and slow for nothing.
   the same class of lie as an unimplemented auth mode, so the shipped file says so.
 - **The judge is built per run**, not once at startup, because the configuration is
   hot-reloadable: a key added to `.env` should start producing scores without a restart.
+- **A run judges what is stale, not everything that ever passed.** Every stage before this
+  one already worked that way; scoring queried `status = 'PASSED'` alone, so each run paid
+  a language-model call for the whole standing backlog and the bill grew with the accumulated
+  list rather than with the day's inflow — silently, because a re-judged offer produces the
+  same number as before. Three things make a score stale and they are the three it is only
+  comparable within: never written, different `ruleset_version`, different `score_model`. The
+  last is not caution about a worse model. Two judges are two scales, and the shortlist
+  threshold is one number read against both.
+- **Only `ScoringReport.scored` counts this run; the rest are standing totals.** The same
+  reason `IngestReport.merged` is one. Once a run judges only what changed, a second run
+  legitimately judges nothing, and per-run counts would report an empty shortlist rather
+  than an idle pass.
+- **The judge is a bounded classifier, so it does not need the largest model.** Four factors
+  clamped to +15 / -30 / -25 / -10 by the weight table before anything is kept, and the
+  answer is a few lines of JSON. `LLM_MODEL_SCORING` is a `.env` line, so which model
+  answers is measured against `offer_score_reason` rather than argued about — and on models
+  where thinking is on by default, the reasoning tokens are billed at the output rate for a
+  classification that fits in three lines.
 - **The digest is a file, and the last thing a run does.** No transport, no recipient, no
   channel — and no schedule of its own either: whatever schedules the run schedules the
   digest, and a cron nothing reads would be one more key that lies. An unscored offer gets
