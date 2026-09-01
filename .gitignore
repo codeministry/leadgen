@@ -3,9 +3,14 @@
 # values themselves live here and are never committed.
 .env
 !.env.example
-config/
-packages/
-data/
+# Anchored with a leading slash, and that matters: an unanchored `config/`
+# matches a directory of that name at ANY depth, which silently swallowed every
+# new file under backend/src/main/java/.../config/ and .../test/.../config/.
+# Already-tracked files stayed tracked, so nothing looked wrong — only new ones
+# vanished from `git status`.
+/config/
+/packages/
+/data/
 *.log
 
 # Real newsletter mails and anything derived from them: they carry the
