@@ -5,9 +5,12 @@
 # `<lg-brand-mark>` geometry. The two are the same mark, but the bitmap has the
 # proportions the logo was drawn with, and that is what the tab icon shows.
 #
-# What the script adds is the second colour: the funnel is repainted in the dark
-# theme's petrol and the spout in ochre, so the icon carries the same two-colour
-# split as the header wordmark. The spout is addressed by its pixel box in
+# What the script adds is the second colour: the funnel keeps the logo's own
+# cyan and the spout is repainted in ochre, so the icon carries the same
+# two-colour split as the header wordmark. The plate is a dark petrol rather
+# than the theme's near-black base-200: the mark is one hue, and a plate tinted
+# towards it reads as the brand at 16px where the geometry no longer does.
+# The spout is addressed by its pixel box in
 # `logo.png`, so this script is the only thing that knows where it sits —
 # regenerate the icons here, never hand-edit them.
 #
@@ -18,7 +21,7 @@ set -euo pipefail
 src=public/logo.png
 petrol='#33E3DA'   # lg-dark --color-primary, the logo's own cyan
 ochre='#E3A62B'    # lg-dark --color-accent
-plate='#0F1618'    # lg-dark --color-base-200
+plate='#0E2C2D'    # lg-dark --color-base-200 pulled towards the petrol primary
 
 # The spout's box inside logo.png, measured once: the ink collapses to a
 # constant x 130..227 below y 537 and runs to the bottom edge of the canvas.
@@ -49,15 +52,19 @@ magick "$work/petrol.png" "$work/spout.png" -geometry "+${spout_box#*+}" \
 
 # The mark is off-centre by design (funnel low left, noise upper right), so it is
 # trimmed and re-centred rather than padded.
+# The plate is a circle, so the mark has to fit the inscribed square (181px),
+# not the full 256 — at the 220 a rounded rectangle allowed, the outer dots and
+# the funnel's rim would be cut off by the curve.
 magick -size 256x256 xc:none -fill "$plate" \
-  -draw 'roundrectangle 0,0 255,255 56,56' "$work/plate.png"
-magick "$work/two-tone.png" -trim +repage -resize 220x220 \
+  -draw 'circle 127.5,127.5 127.5,-0.5' "$work/plate.png"
+magick "$work/two-tone.png" -trim +repage -resize 176x176 \
   -background none -gravity center -extent 256x256 "$work/fitted.png"
 magick "$work/plate.png" "$work/fitted.png" -compose over -composite "$work/icon-256.png"
 
-# The touch icon keeps the same rounded plate as the .ico rather than shipping
-# square. iOS masks a home-screen icon itself, so on a phone the radius is
-# applied twice; everywhere the file is used as a plain 256px icon it matches.
+# The touch icon keeps the same circular plate as the .ico rather than shipping
+# square. iOS masks a home-screen icon itself, so on a phone the corners outside
+# the circle are cut twice over; everywhere the file is used as a plain 256px
+# icon it matches the tab.
 cp "$work/icon-256.png" public/favicon-256.png
 
 for size in 16 32 48; do

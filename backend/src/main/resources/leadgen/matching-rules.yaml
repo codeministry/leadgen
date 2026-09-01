@@ -17,9 +17,15 @@ hard_filters:
 
   location:
     country_allowlist: [DE]         # no assignments abroad
-    reject_keywords: ["Schweiz", "Österreich", "Zürich", "Wien", "Basel", "relocation", "onsite abroad", "EU-wide onsite"]
+    reject_keywords: ["Schweiz", "Österreich", "Zürich", "Wien", "Basel", "Bern", "Genf", "Graz", "Linz",
+                       "Salzburg", "Luxemburg", "Niederlande", "Amsterdam", "London", "UK", "USA",
+                       "Spanien", "Polen", "Warschau", "Madrid", "relocation", "onsite abroad",
+                       "EU-wide onsite"]
     onsite_home_base: "Your City"
-    onsite_max_km: 120
+    # The places reachable for on-site days. A list, not a radius: nothing here
+    # geocodes, and a kilometre figure no code reads is decoration. Draw it once
+    # from a map — roughly what you would travel to — and keep it here.
+    onsite_cities: []
     onsite_exceptions: []           # e.g. [{ city: "Somewhere", reason: "lodging available" }]
 
   rate:
@@ -30,6 +36,41 @@ hard_filters:
     accept_unknown: true
     apply_after: enrichment
     reject_below_as: HARD_FAIL
+
+  # Roles and stacks that end the assessment on the title alone. Separate from
+  # `anti_skills` below on purpose: that one is a scoring penalty, and a list
+  # doing both jobs means tuning the score quietly changes what reaches the
+  # shortlist at all.
+  role:
+    rejected_title_keywords:
+      - SAP
+      - ABAP
+      - Salesforce
+      - .NET
+      - "C#"
+      - PHP
+      - ServiceNow
+      - Sharepoint
+      - Data Scientist
+      - Machine Learning Engineer
+      - Power BI
+      - Scrum Master
+      - Product Owner
+      - Projektleiter
+      - Projektmanager
+      - Tester
+      - Oracle APEX
+      - Mainframe
+      - COBOL
+      - Embedded
+      - SPS
+      - iOS
+      - Android
+      - Flutter
+      - React Native
+      - Netzwerk
+      - First Level
+      - Support
 
   contract:
     allowed: [freiberuflich, Freelance, Dienstvertrag, Werkvertrag]

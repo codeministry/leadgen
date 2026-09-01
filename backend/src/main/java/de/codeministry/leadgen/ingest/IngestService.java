@@ -3,6 +3,7 @@ package de.codeministry.leadgen.ingest;
 import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.config.model.SourcesConfig.Source;
 import de.codeministry.leadgen.dedupe.DeduplicationService;
+import de.codeministry.leadgen.filter.FilterService;
 import de.codeministry.leadgen.ingest.connector.SourceConnector;
 import de.codeministry.leadgen.ingest.extract.HtmlBlockExtractor;
 import de.codeministry.leadgen.ingest.extract.OfferMapper;
@@ -36,6 +37,7 @@ public class IngestService {
     private final OfferMapper mapper;
     private final OfferStore store;
     private final DeduplicationService dedupe;
+    private final FilterService filter;
 
     IngestService(
             ConfigRegistry config,
@@ -43,13 +45,15 @@ public class IngestService {
             HtmlBlockExtractor extractor,
             OfferMapper mapper,
             OfferStore store,
-            DeduplicationService dedupe) {
+            DeduplicationService dedupe,
+            FilterService filter) {
         this.config = config;
         this.connectors = connectors.stream().collect(Collectors.toMap(SourceConnector::type, Function.identity()));
         this.extractor = extractor;
         this.mapper = mapper;
         this.store = store;
         this.dedupe = dedupe;
+        this.filter = filter;
     }
 
     public IngestReport run() {
@@ -75,8 +79,10 @@ public class IngestService {
         }
         // After every source, never per source: the whole point is that one project
         // reaches the pipeline through several portals, so a pass scoped to one source
-        // would never see the pair it exists to collapse.
-        return new IngestReport(results, dedupe.run());
+        // would never see the pair it exists to collapse. The hard filter follows, in
+        // that order, because a cluster judged twice under two verdicts is worse than a
+        // cluster judged once.
+        return new IngestReport(results, dedupe.run(), filter.run());
     }
 
     /**

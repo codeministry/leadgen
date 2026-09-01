@@ -19,6 +19,14 @@ export interface SourceIngestResult {
   readonly details: readonly DocumentIngestResult[];
 }
 
+/** Mirrors `de.codeministry.leadgen.filter.FilterReport`. */
+export interface FilterReport {
+  /** Offers rejected per stage, keyed by the stage name. Only stages that rejected appear. */
+  readonly removed: Readonly<Record<string, number>>;
+  readonly passed: number;
+  readonly considered: number;
+}
+
 export interface IngestReport {
   readonly sources: readonly SourceIngestResult[];
   readonly extracted: number;
@@ -30,6 +38,11 @@ export interface IngestReport {
    * several portals advertise at once.
    */
   readonly merged: number;
+  /**
+   * What the hard filter did. The share that survives is the daily language-model
+   * budget, so this is the number the whole economics rests on.
+   */
+  readonly filtered: FilterReport;
 }
 
 @Injectable({ providedIn: 'root' })

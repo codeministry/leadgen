@@ -1,10 +1,10 @@
 ---
 phase: climbing
-progress: 53/70
+progress: 57/70
 task: "Acquisition tool: collect, filter, enrich and package project offers"
 slug: lead-generation
 started: 2026-09-01T11:30:00Z
-updated: 2026-09-01T19:50:00Z
+updated: 2026-09-01T20:20:00Z
 ---
 
 # lead-generation — Ideal State Artifact
@@ -112,10 +112,10 @@ A single operator drops mailbox credentials and a profile into `config/`, and ev
 | ISC-38 | bun-test | fingerprint collisions over the corpus, and n offers over k fingerprints | 159; n-k attached | JUnit | `SampleCorpusAcceptanceTest`, `DeduplicationServiceTest` |
 | ISC-39 | bun-test | insert newest first, then add a late arrival, then run twice | first-seen primary, stable | JUnit | `DeduplicationServiceTest` |
 | ISC-40 | bun-test | titles differing by more than case, punctuation and the gender suffix | not merged | JUnit | `DeduplicationServiceTest` |
-| ISC-41 | bun-test | run the filter over the corpus | 16.5 % ± 0 | JUnit | `docs/samples/simulate_filter.py` |
-| ISC-42 | bun-test | per-stage removal counts sum to the total | exact | JUnit | not yet authored |
-| ISC-43 | bun-test | offer with no stated remote share | survives, flagged | JUnit | not yet authored |
-| ISC-44 | bun-test | offer below the rate floor before enrichment | survives | JUnit | not yet authored |
+| ISC-41 | bun-test | run the filter over the corpus | 239 of 1289, 18.5 % | JUnit | `HardFilterCorpusTest`, `docs/samples/simulate_filter.py` |
+| ISC-42 | bun-test | per-stage removal counts sum to the total | exact, all seven | JUnit | `HardFilterCorpusTest` |
+| ISC-43 | bun-test | offer with no stated remote share | survives, flagged | JUnit | `HardFilterTest` |
+| ISC-44 | bun-test | offer far below the rate floor | survives, rate never read | JUnit | `HardFilterTest` |
 | ISC-45 | bun-test | fetch a stubbed ad page | 4 fields extracted | WireMock | not yet authored |
 | ISC-46 | bun-test | fetch returning 403 | offer kept, marked incomplete | WireMock | not yet authored |
 | ISC-47 | bun-test | disallowed path, rate limit, warm cache | 0 requests | WireMock | not yet authored |
@@ -219,10 +219,10 @@ A single operator drops mailbox credentials and a profile into `config/`, and ev
 
 **Why:** This is the stage that turns a hundred offers into fifteen, and it is the one whose failure is indistinguishable from a quiet market — which is why it has a measured target rather than a plausible one.
 
-- [ ] ISC-41: The hard filter passes 16.5 % of the 1289 sample offers, matching `docs/samples/simulate_filter.py`; a deviation is a bug and not a matter of taste. (after: ISC-37)
-- [ ] ISC-42: Each of the five filter stages reports how many it removed, so a change in the total is attributable.
-- [ ] ISC-43: An offer whose remote share is unknown survives and is flagged, rather than being discarded.
-- [ ] ISC-44: Anti: `min_hourly_eur` has no effect at this stage.
+- [x] ISC-41: The hard filter passes **239 of the 1289 sample offers, 18.5 %**, matching `docs/samples/simulate_filter.py` exactly; a deviation is a bug and not a matter of taste. The target used to read 16.5 % and moved because the reference was wrong, not because the implementation missed it — see the Learning entry. (after: ISC-37)
+- [x] ISC-42: Each of the five filter stages reports how many it removed, so a change in the total is attributable.
+- [x] ISC-43: An offer whose remote share is unknown survives and is flagged, rather than being discarded.
+- [x] ISC-44: Anti: `min_hourly_eur` has no effect at this stage.
 
 ### F7 · Enrichment
 
@@ -274,6 +274,9 @@ A single operator drops mailbox credentials and a profile into `config/`, and ev
 - **2026-09-01 — The cursor is committed after the write, not after the read.** `SourceConnector.commit` exists for that alone.
 - **2026-09-01 — One credentials file, and it is called `.env` because it cannot be called anything else for free.** Marcello's call to collapse `.env.local` plus a `.env` symlink. The name is forced by Compose: it substitutes the `${...}` in `docker-compose.yml` from `.env` and from nothing else — not from `env_file:`, which only injects into a container, and not from `COMPOSE_ENV_FILES` set inside a file. Both measured. Any other name costs a flag on every call or a symlink, and forgetting either silently applies the compose defaults.
 - **2026-09-01 — The database host port defaults to 55432 and the container side is fixed at 5432.** A developer machine usually already holds 5432, and the resulting failure names the user and neither the host nor the database. Making the container side variable too publishes a host port forwarding to a port nobody listens on, which from a client looks exactly like no port at all.
+- **2026-09-01 — `onsite_cities` replaces `onsite_max_km`.** Marcello's call. Nothing computed the kilometres: an offer states its location as free text — "Remote und Nürnberg", "DE 7XXXX" — so a radius needs a dataset, a parser and a network call this stage must not need. The reference had always approximated the radius with a city list, and that list is what produced every measured number. A key nothing reads is decoration that outlives the intent it was written for, so it is gone and the intent survives as a comment. An empty list is logged at load, because a filter passing only remote offers looks exactly like a quiet market.
+- **2026-09-01 — `role.rejected_title_keywords` is a new key rather than a second use of `anti_skills`.** That list is documented as a scoring penalty worth -30. Reading it as a knockout as well would mean anyone tuning the score silently changes what reaches the shortlist at all, and the two lists differ anyway: the knockout rejects roles — Scrum Master, Product Owner, Projektleiter, Tester, Support — not only stacks.
+- **2026-09-01 — The whole `skill-profile.yaml` is bound, not just checked for existence.** The filter has to answer "does this offer name a skill I actually have", which the rules cannot say: they describe the criteria, not the person. Binding the file rather than the two fields the filter reads means scoring and the cover letter find it already there, and a typo in the profile fails at startup like every other configuration error.
 - **2026-09-01 — The deduplication fingerprint is the normalized title and nothing else, and the obvious improvement was measured and rejected.** The configured field list names `city`, `start_date`, `duration_months` and `top_skills`; all four arrive from enrichment, which runs *after* this stage, so at F5 only the title exists. The one field that does exist is the stated location, and adding it collapses 111 offers instead of 159 — the 48 it gives up are overwhelmingly correct merges lost to the same ad writing "Nürnberg" in one portal and "Remote und Nürnberg" in the next, in 46 of 109 clusters. A location has to be parsed before it can be compared, and parsing it is enrichment's job. The cost is accepted and recorded in ISC-40 rather than hidden: two different projects sharing a title do merge.
 - **2026-09-01 — Only `exact_fingerprint` is implemented; the two embedding strategies are logged and skipped.** They need a model, and the tool has to work without one. Failing at load instead would break the shipped defaults, which list them; running silently would leave the operator believing a similarity pass happened. A `merge_policy` other than `keep_first_seen_as_primary` is fatal at load, because that one *would* be read, ignored, and do the first-seen thing anyway.
 - **2026-09-01 — Ochre means exactly one thing: this survived the filter.** The palette is two colours and a mute. Petrol carries structure and interaction, everything discarded is muted, and the accent is spent on the one fact the morning is about. It cost a rule when the dark primary became the logo's cyan at L 83 %: the review band moved from primary to secondary, because the middle band must never outshine "cleared the threshold".
@@ -288,6 +291,11 @@ A single operator drops mailbox credentials and a profile into `config/`, and ev
 - **2026-09-01 — The configuration vocabulary keeps the implemented names and adopts four ideas from the hand-drafted `config/local/sources.yaml`.** Resolves the fog entry. Kept: `unwrap_query_param`, `ancestor`, `list`, and the field names `agency`/`published`/`tags`. Adopted: `expect_count_from_subject` (the announced count becomes a runtime check rather than only a test assertion), `prefer_part` (the part preference was hardcoded), per-field `format` (the source-level `date_format` stays as the fallback), and `inherit` (a second source names another's extraction instead of copying it — the example was already carrying two copies of one selector table). Not adopted: the named `transforms:` indirection, which buys a level of indirection for a single transform. The operator's file was migrated to match and reproduces the reference numbers.
 
 ## Learning
+
+- **conjectured:** the reference implementation is the measurement, so reproducing it exactly is the whole job — ISC-41 said 16.5 % ± 0 and called any deviation a bug.
+  **refuted by:** reading it closely enough to reimplement it. Three defects, all silent, all in how text was compared. Its normaliser decomposed "Köln" and deleted the combining diaeresis in place, leaving `ko ln`, which matched no city in any list — **35 offers in Köln and 19 in Düsseldorf, the two cities nearest the home base, were discarded as out of reach.** Keywords were substrings, so `ch` for Switzerland rejected 127 German offers by matching Aachen and Bochum, `essen` accepted six offers from Hessen 200 km away, and `ANÜ` matched Planung and Manufacturing. And patterns were compared unfolded against folded text, so `.net` and `c#` matched nothing at all.
+  **learned:** a reference implementation is a measurement of *something*, and reproducing it faithfully can mean reproducing a bug. The way to tell the difference is to reimplement it from the intent and then explain every disagreement — which is exactly the work that surfaced all three. Also: text comparison has three independent places to be wrong, and folding, boundaries and pattern normalisation each fail without an error.
+  **criterion now:** ISC-41 targets 239 and 18.5 %, and `docs/samples/simulate_filter.py` was repaired in the same commit so that "matching the reference" stays a real constraint rather than a frozen number.
 
 - **conjectured:** a title-only fingerprint is the weak version, and adding the stated location makes deduplication stricter and therefore better.
   **refuted by:** measuring both over the corpus before writing the code — title alone collapses 159, title plus location 111, and reading the 48 lost merges showed almost all of them were right.
@@ -363,6 +371,8 @@ A single operator drops mailbox credentials and a profile into `config/`, and ev
 - ISC-29 … ISC-34 — `ImapSourceConnectorTest` (8), GreenMail
 - ISC-53, ISC-54 — `POST /api/ingest` against the operator's own migrated rules: 14 documents, 1289 offers, announced equals extracted in all 14
 - ISC-59, ISC-60, ISC-61 — `46e0d9c`; `java -jar` from the repository root logs `Reading …/.env` and `Database: jdbc:postgresql://localhost:55432/leadgen as leadgen`; port counter-check 15432 ↔ 55432
+- ISC-41 … ISC-44 — `HardFilterCorpusTest` over all 14 mails: 1289 offers, 239 passed (18.5 %), seven stage counts equal to the reference (717 / 171 / 115 / 25 / 12 / 8 / 2), removals plus survivors equal to the total; `HardFilterTest`, 14 tests against a fictional rule set, covering the fold, word boundaries, pattern folding, the unstated remote share and the rate never being read
+- filter defects — measured before and after: umlaut fold worth 54 offers (35 Köln, 19 Düsseldorf); `ch` as a substring worth 127 false abroad rejections; `essen` accepting 6 Hessen offers; `ANÜ` as a substring worth 23 false contract rejections; core-skill aliases worth 12 offers
 - ISC-37 … ISC-40 — `DeduplicationServiceTest`, 6 tests against Postgres 17 in Testcontainers; the corpus half of ISC-38 in `SampleCorpusAcceptanceTest.findsTheMeasuredNumberOfDuplicateTitles`, run against all 14 mails, 159 of 1289
 - fingerprint composition — measured over the corpus before implementing: title 159 collapsed (12.3 %), title+location 111 (8.6 %), title+location+agency 75 (5.8 %); 46 of 109 title clusters span several location spellings of the same place
 - ISC-62 … ISC-70 — `2086523`; `./gradlew check` green with 23 frontend specs; six routes probed at 320/768/1440 through a lifecycle-live browser, page scroll width equal to the viewport in all eighteen; 34 tabbable elements, 0 without an accessible name; the inline theme script at head position 6 against both stylesheet links at 7 and 8
@@ -371,7 +381,7 @@ A single operator drops mailbox credentials and a profile into `config/`, and ev
 
 ## Remaining Work
 
-- [ ] **Next: F6, the hard filter (ISC-41 … ISC-44).** F5 is closed, so the chain has moved on: `ISC-45` (enrichment) waits on F6, `ISC-48` (scoring) on that. The target is measured, not chosen: 16.5 % of the 1289 sample offers survive, and `docs/samples/simulate_filter.py` is the reference the Java has to reproduce. A deviation is a bug, not a matter of taste.
+- [ ] **Next: F7, enrichment (ISC-45 … ISC-47).** F6 is closed and the chain has moved on again; `ISC-48` (scoring) waits on this one. It is the first stage that leaves the machine: an HTTP fetch of the original ad, with a rate limit, a cache and `robots.txt`. A failed fetch is not a knockout — the offer stays in, marked incomplete — and it is also what finally makes `min_hourly_eur` applicable, since the sources state a rate in 0.0 % of offers.
 - [ ] Run `bun ~/.claude/LIFEOS/TOOLS/IsaFrontier.ts frontier ISA.md` to see the takeable set before picking anything else up.
 
 - [ ] The five fixture-driven screens stay fixtures until steps 5 to 9 land. `rg 'FIXTURE — replace'` finds every one; each feature already reads through an `Api` seam, so each is one file.

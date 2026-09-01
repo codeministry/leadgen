@@ -93,16 +93,38 @@ Simulated against all 1289 offers, using the criteria from `matching-rules.yaml`
 
 | Stage | Filtered out | Share |
 |---|---|---|
-| Location beyond 120 km and not remote | 666 | 51.7 % |
-| Abroad (CH, AT, …) | 152 | 11.8 % |
-| No core skill | 150 | 11.6 % |
-| Foreign stack or wrong role | 97 | 7.5 % |
-| Remote share below 80 % | 11 | 0.9 % |
-| **remaining** | **213** | **16.5 %** |
+| Beyond reach and not remote | 717 | 55.6 % |
+| No core skill | 171 | 13.3 % |
+| Foreign stack or wrong role | 115 | 8.9 % |
+| Abroad (CH, AT, …) | 25 | 1.9 % |
+| Remote share below 80 % | 12 | 0.9 % |
+| Contract form rejected | 8 | 0.6 % |
+| Older than 21 days | 2 | 0.2 % |
+| **remaining** | **239** | **18.5 %** |
 
-After deduplication 195 unique offers remain, so **about 15 per mail**.
+After deduplication 207 unique offers remain, so **about 16 per mail**.
 
-That is the number that matters: 15 LLM assessments per day instead of 100. The
+> **These numbers changed on 2026-09-01.** The first run of this table read 213 and
+> 16.5 %, and three defects in the simulation were behind the difference — all three
+> silent, all three in how text was compared:
+>
+> 1. **Umlauts were broken, not folded.** NFKD decomposed "Köln" and the character
+>    filter then deleted the combining diaeresis *in place*, leaving `ko ln`, which
+>    matches neither `köln` nor `koln`. **35 offers in Köln and 19 in Düsseldorf** — the
+>    two cities nearest the home base — were being discarded as out of reach.
+> 2. **Keywords were substrings, not words.** `ch` for Switzerland also matched Aachen
+>    and Bochum and rejected 127 German offers as abroad; `essen` also matched Hessen and
+>    accepted six offers from 200 km away; `ANÜ` also matched Planung, Manufacturing and
+>    manuellen.
+> 3. **Patterns were compared unfolded against folded text.** `.net` and `c#` matched
+>    nothing at all, because the text no longer contained `.` or `#`.
+>
+> The core-skill list also grew from a hand-picked six to the profile's core skills and
+> their aliases, which is what the Java reads; that is worth twelve offers naming Spring
+> Cloud, OpenAPI or k8s. Every list now lives in `config/matching-rules.yaml` and
+> `config/skill-profile.yaml`, and the simulation mirrors them.
+
+That is the number that matters: 16 LLM assessments per day instead of 100. The
 enrichment fetches are in the same order of magnitude. Both cost cents per day.
 
 ## 6. What the hard filter still lets through

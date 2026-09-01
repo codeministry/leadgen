@@ -7,6 +7,7 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import de.codeministry.leadgen.config.model.MatchingRules;
 import de.codeministry.leadgen.config.model.PipelineConfig;
+import de.codeministry.leadgen.config.model.SkillProfile;
 import de.codeministry.leadgen.config.model.SourcesConfig;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
@@ -78,9 +79,11 @@ public class ConfigLoader {
         MatchingRules rules = read(source(dir, fileName(pipeline.rules().path(), RULES_FILE)), MatchingRules.class);
         SourcesConfig sources = resolveInheritance(
                 read(source(dir, fileName(sourcesPath(pipeline), SOURCES_FILE)), SourcesConfig.class));
+        SkillProfile profile =
+                read(source(dir, fileName(pipeline.profile().path(), PROFILE_FILE)), SkillProfile.class);
 
         checkConsistency(dir, pipeline, rules, sources);
-        return new ConfigSnapshot(pipeline, rules, sources, Instant.now());
+        return new ConfigSnapshot(pipeline, rules, sources, profile, Instant.now());
     }
 
     /**
@@ -226,6 +229,14 @@ public class ConfigLoader {
                     "hard_filters.rate.apply_after is '%s'; only 'enrichment' is allowed — the sources state a rate in 0.0 %% of offers, so applied earlier this rule filters either everything or nothing"
                             .formatted(rules.hardFilters().rate().applyAfter()));
         }
+        // Not a problem: a fresh clone ships an empty list on purpose, because the
+        // places you can reach are the one thing no default can guess. But a filter that
+        // silently passes only remote offers looks exactly like a quiet market.
+        var onsite = rules.hardFilters().location().onsiteCities();
+        if (onsite == null || onsite.isEmpty()) {
+            log.warn("hard_filters.location.onsite_cities is empty; only remote offers can pass the filter");
+        }
+
         String mergePolicy = rules.deduplication().mergePolicy();
         if (mergePolicy != null && !"keep_first_seen_as_primary".equals(mergePolicy)) {
             problems.add(
@@ -237,10 +248,6 @@ public class ConfigLoader {
                     .formatted(pipeline.enrichment().after()));
         }
 
-        String profile = fileName(pipeline.profile().path(), PROFILE_FILE);
-        if (ConfigSource.resolve(dir, profile).isEmpty()) {
-            problems.add("profile.path names '%s', which is neither in %s nor on the classpath".formatted(profile, dir));
-        }
 
         Set<String> connectionIds = new HashSet<>();
         sources.connections().forEach(c -> {

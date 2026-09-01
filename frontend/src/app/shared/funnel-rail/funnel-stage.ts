@@ -4,7 +4,9 @@ export type FunnelStageId =
   | 'remote-share'
   | 'distance'
   | 'stack-role'
-  | 'core-skill';
+  | 'core-skill'
+  | 'contract'
+  | 'stale';
 
 export interface FunnelStage {
   readonly id: FunnelStageId;

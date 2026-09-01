@@ -1,0 +1,23 @@
+# Fictional, and small on purpose: the aliases are what the test is about.
+version: 1
+locale_primary: de
+
+identity:
+  name: Test Operator
+  roles: [Backend Developer]
+  seniority: senior
+
+core:
+  - skill: Kaffeekochen
+    weight: 10
+    aliases: [Barista, "Espresso-Zubereitung"]
+  - skill: Drachenzähmen
+    weight: 8
+
+strong: []
+peripheral: []
+industries: []
+reference_projects: []
+languages: [{ name: German, level: native }]
+cv_variants:
+  de: { file: "documents/cv-de.pdf", default: true }

@@ -1,0 +1,57 @@
+# A deliberately tiny, entirely fictional rule set: the mechanics are what these
+# tests are about, and a real city list would put the operator's home region into
+# a tracked file.
+version: 1
+
+hard_filters:
+  remote:
+    min_remote_percent: 80
+    accept_unknown: true
+    reject_keywords_de: []
+    derive_from:
+      - { field: location, contains_any: [remote, homeoffice], set: 100 }
+
+  location:
+    country_allowlist: [DE]
+    reject_keywords: [Auslandistan, Fernweh]
+    onsite_home_base: "Musterstadt"
+    onsite_cities: [Musterstadt, Beispielheim, "Alt Musterstadt"]
+    onsite_exceptions: []
+
+  rate:
+    min_hourly_eur: 60
+    currency: EUR
+    accept_unknown: true
+    apply_after: enrichment
+    reject_below_as: HARD_FAIL
+
+  role:
+    rejected_title_keywords: [Kobolderei, ".net", "c#"]
+
+  contract:
+    allowed: [freiberuflich]
+    rejected: [Festanstellung, ANÜ]
+
+  language:
+    preferred: de
+    accepted: [de, en]
+    english_only_penalty: 15
+
+  freshness:
+    max_age_days: 21
+
+scoring:
+  weights: { core_skill_overlap: 45 }
+  penalties: { vague_description: -10 }
+  thresholds: { auto_shortlist: 70, review: 50, discard: 0 }
+
+anti_skills: []
+
+deduplication:
+  fingerprint_fields: [normalized_title]
+  strategies:
+    - { type: exact_fingerprint, action: merge }
+  merge_policy: keep_first_seen_as_primary
+  ttl_days: 60
+
+follow_up: { after_days: 7, max_reminders: 2, auto_expire_days: 45 }

@@ -20,6 +20,7 @@ public record MatchingRules(
             @Valid @NotNull Remote remote,
             @Valid @NotNull Location location,
             @Valid @NotNull Rate rate,
+            @Valid Role role,
             @Valid Contract contract,
             @Valid Language language,
             @Valid Freshness freshness) {
@@ -43,16 +44,34 @@ public record MatchingRules(
                     String confidence) {}
         }
 
+        /**
+         * @param onsiteCities the places reachable for on-site days, as a list rather
+         *     than a radius. Nothing here geocodes: an offer states its location as free
+         *     text — "Remote und Nürnberg", "DE 7XXXX" — so a kilometre figure would need
+         *     a dataset, a parser and a network call the filter must not need. The list
+         *     is drawn once from a map, and it is what actually runs. A `onsite_max_km`
+         *     key used to sit here; nothing read it, and a number nothing reads is the
+         *     kind of decoration that outlives the intent it was written for.
+         */
         public record Location(
                 List<String> countryAllowlist,
                 List<String> rejectKeywords,
                 String onsiteHomeBase,
-                @Min(0) int onsiteMaxKm,
+                List<String> onsiteCities,
                 List<@Valid OnsiteWaiver> onsiteExceptions) {
 
-            /** A city outside the radius that is acceptable anyway, with the reason. */
+            /** A city outside the usual range that is acceptable anyway, with the reason. */
             public record OnsiteWaiver(@NotBlank String city, String reason) {}
         }
+
+        /**
+         * @param rejectedTitleKeywords roles and stacks that end the assessment on the
+         *     title alone. Deliberately not {@code anti_skills}: that list is documented
+         *     as a scoring penalty worth -30, and reading it as a knockout as well would
+         *     mean anyone tuning the score silently changes what reaches the shortlist.
+         *     The lists also differ — this one rejects roles, not only stacks.
+         */
+        public record Role(List<String> rejectedTitleKeywords) {}
 
         /**
          * {@code applyAfter} exists because the newsletter carries a rate in 0.0 % of

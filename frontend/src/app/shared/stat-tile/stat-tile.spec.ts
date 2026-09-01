@@ -5,7 +5,7 @@ describe('StatTile', () => {
   it('marks only the emphasised figure with the signal colour', () => {
     const fixture = TestBed.createComponent(StatTile);
     fixture.componentRef.setInput('label', 'Survived');
-    fixture.componentRef.setInput('value', 213);
+    fixture.componentRef.setInput('value', 239);
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('.text-signal')).toBeNull();
 

@@ -144,8 +144,12 @@ Carried over from `codeministry/customer/ship360`, which is the house style:
 - **The brand mark is the real asset.** `shared/brand-mark/` renders
   `public/logo-mark.png` beside the two-tone LEADgen wordmark. `logo-mark.png` is
   `logo-1.png` cut out, trimmed and resized to 128 px tall — four times the 26 px the
-  header shows. `favicon.ico` and `favicon-256.png` come from the same source on the navy
-  plate, so the tab icon and the header show one funnel. `logo-1.png` and `logo-2.png`
+  header shows. `favicon.ico` and `favicon-256.png` come from the same source on a round
+  plate, so the tab icon and the header show one funnel; there the spout takes the accent
+  and the plate is `#0E2C2D`, `base-200` pulled towards the petrol primary rather than the
+  theme's near-black, because at 16 px the plate's hue is what carries the brand.
+  `frontend/tools/build-favicon.sh` is the only thing that knows the spout's pixel box, so
+  the icons are regenerated, never hand-edited. `logo-1.png` and `logo-2.png`
   stay as the untouched sources. The asset carries its own cyan and does not follow the
   theme; it sits on `base-100` in both, where it stays legible.
 
@@ -302,6 +306,42 @@ upserts it. `POST /api/ingest` runs one pass.
   `keep_first_seen_as_primary` *is* fatal at load, because that one would be read,
   ignored, and quietly do the first-seen thing anyway.
 
+## The hard filter
+
+`backend/…/filter/`. Seven stages in a fixed order, applied after deduplication, with no
+model and no network. It removes four offers in five for free, and only what survives
+costs a language-model call.
+
+- **Not one keyword is written in Java.** The lists come from `matching-rules.yaml` and
+  the core skills from `skill-profile.yaml` — the same reason no CSS selector is written
+  in Java. `docs/samples/simulate_filter.py` mirrors them and ISC-41 proves the two still
+  agree over the corpus.
+- **The order is the meaning.** abroad → remote share → out of reach → role or stack → no
+  core skill → contract form → stale. An offer stops at the first rejection, which is the
+  only reason the per-stage counts sum to the total (ISC-42).
+- **The rate rule is deliberately absent.** It is configured `apply_after: enrichment` and
+  the loader refuses any other value, because the sources state a rate in 0.0 % of offers.
+- **Fold, then match on word boundaries.** `TextFold` is the one place text and patterns
+  are normalised, and it exists because the reference got this wrong three separate ways:
+  an umlaut fold that leaves `ko ln` and loses every Köln and Düsseldorf offer; substring
+  matching where `ch` rejects Aachen and `ANÜ` hits Planung; and unfolded patterns
+  compared against folded text, where `.net` and `c#` match nothing at all. All three were
+  silent and all three moved the survivor count by hundreds.
+- **`onsite_cities` is a list, not a radius.** An offer states its location as free text —
+  "Remote und Nürnberg", "DE 7XXXX" — so a kilometre figure would need a dataset, a parser
+  and a network call this stage must not need. A `onsite_max_km` key used to sit in the
+  schema and nothing read it. An empty list is logged at load: it means only remote offers
+  can pass, which otherwise looks exactly like a quiet market.
+- **`role.rejected_title_keywords` is not `anti_skills`.** The latter is documented as a
+  scoring penalty worth -30; reading it as a knockout as well would mean tuning the score
+  silently changes what reaches the shortlist. The lists differ too — this one rejects
+  roles, not only stacks.
+- **Core skills are read with their aliases.** An ad asking for "Springboot", "Spring
+  Data" or "k8s" names a core skill, and eight bare names would answer no. Worth twelve
+  offers over the corpus.
+- **The verdict is written on the offer**, stage and reason both. A rejection without its
+  reason is a number nobody trusts a week later.
+
 ## Backend conventions
 
 - **Lombok for the boilerplate, records for the data.** `@Slf4j` instead of a hand-written
@@ -366,7 +406,7 @@ frontend/src/app/shared/          icon, brand mark, score, funnel rail, badge, s
                                   empty state, page header
 frontend/src/app/features/        dashboard, shortlist (+ offer card), offer detail,
                                   pipeline, sources, rules
-frontend/public/favicon.svg       the brand mark on its plate; favicon.ico derives from it
+frontend/tools/build-favicon.sh   renders favicon.ico, favicon-256.png and logo-mark.png
 ```
 
 The two Python scripts are the **reference implementation**. Whatever they do, the Java
@@ -378,8 +418,9 @@ code has to reproduce — the numbers in `docs/SAMPLE-ANALYSIS.md` are the targe
   in the subject matches exactly in all 14. `fallback: none` for this source.
 - **0.0 % contain an hourly rate.** Rate, duration, workload and start date only arrive
   from the enrichment stage (fetching the original ad from the portal).
-- The hard filter lets **16.5 %** through, **~15 per mail** after deduplication. That is
-  the daily LLM budget.
+- The hard filter lets **18.5 %** through — 239 of 1289 — and **~16 per mail** after
+  deduplication. That is the daily LLM budget. The stages and the three defects that
+  moved this number are in `docs/SAMPLE-ANALYSIS.md` § 5.
 - **12.3 % duplicates** by exact title alone, within a single mail.
 
 ## Order of work
@@ -398,7 +439,9 @@ code has to reproduce — the numbers in `docs/SAMPLE-ANALYSIS.md` are the targe
 5. ✅ **Dedupe** — `DeduplicationService` clusters after every ingest run, globally rather
    than per source, because the whole point is one project reaching the pipeline through
    several portals. One SQL statement, idempotent by construction.
-6. **Hard filter** — must hit the 16.5 % from the simulation. A deviation is a bug.
+6. ✅ **Hard filter** — seven stages, every list from configuration or the profile, no
+   model and no network. Reproduces `docs/samples/simulate_filter.py` exactly: 239 of
+   1289, 18.5 %, and the per-stage counts.
 7. **Enrichment** — HTTP fetch of the original ad, rate limit, cache, `robots.txt`.
    A failed fetch is not a knockout; the offer stays in as *incomplete*.
 8. **Scoring + digest** — first daily overview, still without a frontend.

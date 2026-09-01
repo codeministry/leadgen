@@ -3,15 +3,17 @@ import { FunnelRail } from './funnel-rail';
 import { FunnelStage } from './funnel-stage';
 
 const STAGES: readonly FunnelStage[] = [
-  { id: 'abroad', label: 'Abroad', removed: 152 },
-  { id: 'remote-share', label: 'Remote share below 80 %', removed: 11 },
-  { id: 'distance', label: 'Beyond 120 km, not remote', removed: 666 },
-  { id: 'stack-role', label: 'Foreign stack or wrong role', removed: 97 },
-  { id: 'core-skill', label: 'No core skill', removed: 150 },
+  { id: 'abroad', label: 'Abroad', removed: 25 },
+  { id: 'remote-share', label: 'Remote share below 80 %', removed: 12 },
+  { id: 'distance', label: 'Beyond reach, not remote', removed: 717 },
+  { id: 'stack-role', label: 'Foreign stack or wrong role', removed: 115 },
+  { id: 'core-skill', label: 'No core skill', removed: 171 },
+  { id: 'contract', label: 'Contract form rejected', removed: 8 },
+  { id: 'stale', label: 'Older than 21 days', removed: 2 },
 ];
 
 describe('FunnelRail', () => {
-  it('reproduces the measured baseline: 1289 in, 213 out', () => {
+  it('reproduces the measured baseline: 1289 in, 239 out', () => {
     const fixture = TestBed.createComponent(FunnelRail);
     fixture.componentRef.setInput('stages', STAGES);
     fixture.componentRef.setInput('total', 1289);
@@ -19,8 +21,8 @@ describe('FunnelRail', () => {
 
     const text = fixture.nativeElement.textContent;
     expect(text).toContain('1,289');
-    expect(text).toContain('213');
-    expect(text).toContain('16.5 %');
+    expect(text).toContain('239');
+    expect(text).toContain('18.5 %');
   });
 
   it('starts every bar at full width so the reveal has something to transition from', () => {
