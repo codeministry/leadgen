@@ -1,7 +1,6 @@
-<h2 class="type-h2">Where this stands</h2>
+<h2 class="type-h2">{{ 'application.title' | transloco }}</h2>
 <p class="type-small text-muted panel-note">
-  The mail goes out from your own client, so nothing here is observed — every value is
-  what you say happened. No transition is refused, and a wrong one can be corrected.
+  {{ 'application.note' | transloco }}
 </p>
 
 <div class="form">
@@ -10,13 +9,13 @@
       [value]="status()"
       [options]="statusChoices()"
       [disabled]="saving()"
-      label="Application status"
+      [label]="'application.status' | transloco"
       (picked)="status.set($event)"
     />
   </div>
 
   <div class="field">
-    <label class="type-caption text-muted" for="lg-sent-on">Sent on</label>
+    <label class="type-caption text-muted" for="lg-sent-on">{{ 'application.sentOn' | transloco }}</label>
     <input
       id="lg-sent-on"
       class="input input-sm type-mono-data"
@@ -28,7 +27,7 @@
   </div>
 
   <div class="field">
-    <label class="type-caption text-muted" for="lg-follow-up">Follow up on</label>
+    <label class="type-caption text-muted" for="lg-follow-up">{{ 'application.followUpOn' | transloco }}</label>
     <div class="follow-up">
       <input
         id="lg-follow-up"
@@ -49,13 +48,13 @@
         [disabled]="followUpOn() === '' || saving()"
         (click)="followUpOn.set('')"
       >
-        Clear
+        {{ 'common.clear' | transloco }}
       </button>
     </div>
   </div>
 
   <div class="field field-wide">
-    <label class="type-caption text-muted" for="lg-note">Note</label>
+    <label class="type-caption text-muted" for="lg-note">{{ 'application.noteLabel' | transloco }}</label>
     <textarea
       id="lg-note"
       class="textarea textarea-sm type-small"
@@ -73,11 +72,11 @@
   [disabled]="!dirty() || saving()"
   (click)="save()"
 >
-  {{ saving() ? 'Saving…' : 'Record' }}
+  {{ (saving() ? 'common.saving' : 'application.record') | transloco }}
 </button>
 
 @if (history().length > 0) {
-  <h3 class="type-h4 history-head">History</h3>
+  <h3 class="type-h4 history-head">{{ 'application.history' | transloco }}</h3>
   <ol class="history">
     @for (event of history(); track event.recordedAt) {
       <li class="type-small history-row">
@@ -86,7 +85,7 @@
           @if (event.fromStatus) {
             {{ event.fromStatus }} &rarr; {{ event.toStatus }}
           } @else {
-            opened as {{ event.toStatus }}
+            {{ 'application.openedAs' | transloco: { status: event.toStatus } }}
           }
         </span>
         @if (event.note) {

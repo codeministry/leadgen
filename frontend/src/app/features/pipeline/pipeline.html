@@ -1,12 +1,12 @@
 <lg-page-header
-  title="Pipeline"
-  subtitle="The half of the loop the tool cannot see. Nothing is sent from here, so everything here is recorded by hand."
+  [title]="'pipeline.title' | transloco"
+  [subtitle]="'pipeline.subtitle' | transloco"
 />
 
 @if (store.error(); as error) {
   <p class="type-small board-error" role="alert">
     <lg-icon name="triangle-alert" [size]="16" />
-    {{ error }}
+    {{ error | transloco }}
   </p>
 }
 
@@ -32,10 +32,12 @@
                   <span>{{ application.rateEur }} &euro;/h</span>
                 }
                 @if (application.sentOn; as sent) {
-                  <span>sent {{ sent }}</span>
+                  <span>{{ 'pipeline.sent' | transloco: { date: sent } }}</span>
                 }
                 @if (application.followUpOn; as due) {
-                  <span [class.due]="application.followUpDue">follow up {{ due }}</span>
+                  <span [class.due]="application.followUpDue">
+                    {{ 'pipeline.followUp' | transloco: { date: due } }}
+                  </span>
                 }
               </p>
 
@@ -44,7 +46,7 @@
                 [value]="application.status"
                 [options]="store.statusChoices()"
                 [disabled]="store.saving() === application.id"
-                [label]="'Status of ' + application.title"
+                [label]="'pipeline.statusOf' | transloco: { title: application.title }"
                 (picked)="move(application, $event)"
               />
 
@@ -53,23 +55,23 @@
                   {{ application.status }}
                 </lg-badge>
                 <span class="type-caption text-muted">
-                  {{ application.agency ?? 'no agency stated' }}
+                  {{ application.agency ?? ('offer.noAgency' | transloco) }}
                 </span>
               </div>
             </li>
           } @empty {
-            <li class="type-small text-muted empty">Nothing here</li>
+            <li class="type-small text-muted empty">{{ 'pipeline.laneEmpty' | transloco }}</li>
           }
         </ul>
       </section>
     }
   </div>
 } @else if (store.loading()) {
-  <p class="type-small text-muted">Loading…</p>
+  <p class="type-small text-muted">{{ 'common.loading' | transloco }}</p>
 } @else {
   <lg-empty-state
     icon="funnel"
-    title="No applications yet"
-    description="An application opens when its package is built. Run ingest, and everything above the shortlist threshold arrives in Prepared."
+    [title]="'pipeline.emptyTitle' | transloco"
+    [description]="'pipeline.emptyHint' | transloco"
   />
 }

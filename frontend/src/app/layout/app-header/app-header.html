@@ -11,7 +11,7 @@
   <button
     type="button"
     class="btn btn-ghost btn-sm btn-square rail-button"
-    aria-label="Toggle the navigation labels"
+    [attr.aria-label]="'shell.toggleNavigation' | transloco"
     [attr.aria-expanded]="shell.railOpen()"
     aria-controls="app-nav"
     (click)="toggleRail()"
@@ -29,7 +29,7 @@
     @if (status.status(); as status) {
       {{ status.application }} {{ status.version }}
     } @else if (status.loading()) {
-      connecting…
+      {{ 'shell.connecting' | transloco }}
     } @else {
       {{ status.error() }}
     }
@@ -43,9 +43,10 @@
   >
     <lg-icon name="refresh" [size]="16" />
     <span class="ingest-label">
-      {{ ingest.running() ? 'Reading sources…' : 'Run ingest' }}
+      {{ (ingest.running() ? 'shell.ingestRunning' : 'shell.ingest') | transloco }}
     </span>
   </button>
 
+  <lg-language-toggle />
   <lg-theme-toggle />
 </header>

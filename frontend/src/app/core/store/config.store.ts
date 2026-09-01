@@ -6,6 +6,7 @@ import { ConfigApi } from '@core/api/config.api';
 import { RulesView } from '@core/model/rules-view';
 import { SourceSummary } from '@core/model/source-summary';
 import { configEvents } from './config.events';
+import { ingestEvents } from './ingest.events';
 
 interface ConfigState {
   sources: readonly SourceSummary[];
@@ -38,6 +39,10 @@ export const ConfigStore = signalStore(
           ),
         ),
       ),
+      // The sources screen counts documents, offers and survivors per run, so a finished
+      // run changes every number on it. The rules come from a YAML file and a run does not
+      // touch them.
+      events.on(ingestEvents.finished).pipe(map(() => configEvents.sourcesOpened())),
       events.on(configEvents.rulesOpened).pipe(
         exhaustMap(() =>
           api.rules().pipe(

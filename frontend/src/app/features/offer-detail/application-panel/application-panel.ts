@@ -5,6 +5,7 @@ import {
   ApplicationUpdate,
   ApplicationView,
 } from '@core/model/application';
+import { TranslocoPipe } from '@jsverse/transloco';
 import { PickerOption, StatusPicker } from '@shared/status-picker/status-picker';
 
 /**
@@ -17,7 +18,7 @@ import { PickerOption, StatusPicker } from '@shared/status-picker/status-picker'
  */
 @Component({
   selector: 'lg-application-panel',
-  imports: [StatusPicker],
+  imports: [StatusPicker, TranslocoPipe],
   templateUrl: './application-panel.html',
   styleUrl: './application-panel.css',
   changeDetection: ChangeDetectionStrategy.OnPush,

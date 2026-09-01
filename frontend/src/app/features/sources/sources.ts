@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject } from '@angular/core';
 import { injectDispatch } from '@ngrx/signals/events';
+import { TranslocoPipe } from '@jsverse/transloco';
 import { SourceSummary } from '@core/model/source-summary';
 import { configEvents } from '@core/store/config.events';
 import { ConfigStore } from '@core/store/config.store';
@@ -11,7 +12,7 @@ import { PageHeader } from '@shared/page-header/page-header';
 
 @Component({
   selector: 'lg-sources',
-  imports: [Badge, EmptyState, Icon, PageHeader],
+  imports: [Badge, EmptyState, Icon, PageHeader, TranslocoPipe],
   templateUrl: './sources.html',
   styleUrl: './sources.css',
   changeDetection: ChangeDetectionStrategy.OnPush,

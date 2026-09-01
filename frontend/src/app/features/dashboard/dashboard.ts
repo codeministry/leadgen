@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject } from '@angular/core';
 import { injectDispatch } from '@ngrx/signals/events';
+import { TranslocoPipe } from '@jsverse/transloco';
 import { applicationEvents } from '@core/store/applications.events';
 import { shortlistEvents } from '@core/store/shortlist.events';
 import { ShortlistStore } from '@core/store/shortlist.store';
@@ -14,7 +15,7 @@ import { StatTile } from '@shared/stat-tile/stat-tile';
 
 @Component({
   selector: 'lg-dashboard',
-  imports: [Badge, EmptyState, FunnelRail, Icon, PageHeader, StatTile],
+  imports: [Badge, EmptyState, FunnelRail, Icon, PageHeader, StatTile, TranslocoPipe],
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -48,10 +49,19 @@ export class Dashboard implements OnInit {
     this.shortlistDispatch.funnelOpened();
   }
 
-  /** The share of what came in that survived, or nothing to say when nothing came in. */
+  /**
+   * The share of what came in that survived, or nothing to say when nothing came in.
+   * A key and its parameters rather than a sentence: no prose is written in TypeScript,
+   * and the percentage sits inside the sentence differently in every language.
+   */
   protected readonly share = computed(() => {
     const total = this.total();
-    return total === 0 ? 'No run yet' : `${((this.survived() / total) * 100).toFixed(1)} % of what came in`;
+    return total === 0
+      ? { key: 'dashboard.noRunYet', params: {} }
+      : {
+          key: 'dashboard.shareOfIntake',
+          params: { percent: ((this.survived() / total) * 100).toFixed(1) },
+        };
   });
 
   /** Extracted minus written: the same listing seen in two documents. Not deduplication. */

@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { injectDispatch } from '@ngrx/signals/events';
+import { TranslocoPipe } from '@jsverse/transloco';
 import { ManualOfferFields } from '@core/model/manual-document';
 import { manualEvents } from '@core/store/manual.events';
 import { ManualStore } from '@core/store/manual.store';
@@ -17,7 +18,7 @@ import { ReviewCard } from './review-card/review-card';
  */
 @Component({
   selector: 'lg-review',
-  imports: [EmptyState, Icon, PageHeader, ReviewCard],
+  imports: [EmptyState, Icon, PageHeader, ReviewCard, TranslocoPipe],
   templateUrl: './review.html',
   styleUrl: './review.css',
   changeDetection: ChangeDetectionStrategy.OnPush,

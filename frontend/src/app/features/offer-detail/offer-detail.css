@@ -1,11 +1,25 @@
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(24rem, 100%), 1fr));
+  grid-template-columns: 1fr 1fr;
   gap: 1rem;
   align-items: start;
 }
 
+@media (width < 64rem) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* The ad is prose, and prose in a half-width column beside a score panel is a
+   ragged strip. It reads across the page and the panels that summarise it sit
+   below. */
+.panel-wide {
+  grid-column: 1 / -1;
+}
+
 .panel {
+  min-width: 0;
   padding: 1.25rem;
   border: 1px solid var(--color-base-300);
   border-radius: var(--radius-box);

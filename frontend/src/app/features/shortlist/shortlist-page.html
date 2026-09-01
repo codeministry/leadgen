@@ -1,21 +1,21 @@
 <lg-page-header
-  title="Shortlist"
-  subtitle="What cleared the hard filter, with the reason it scored what it scored."
+  [title]="'shortlist.title' | transloco"
+  [subtitle]="'shortlist.subtitle' | transloco"
 />
 
 <div class="filters">
   <label class="control">
-    <span class="sr-only">Search titles, descriptions and tags</span>
+    <span class="sr-only">{{ 'shortlist.searchLabel' | transloco }}</span>
     <input
       type="search"
       class="input input-sm"
-      placeholder="Search titles, descriptions, tags"
+      [placeholder]="'shortlist.searchPlaceholder' | transloco"
       [value]="q()"
       (input)="onInput($event)"
     />
   </label>
 
-  <div class="join" role="group" aria-label="Score band">
+  <div class="join" role="group" [attr.aria-label]="'shortlist.scoreBand' | transloco">
     @for (option of bandOptions; track option.id) {
       <button
         type="button"
@@ -24,15 +24,15 @@
         [attr.aria-pressed]="band() === option.id"
         (click)="setFilter('band', option.id)"
       >
-        {{ option.label }}
+        {{ option.label | transloco: option.params }}
       </button>
     }
   </div>
 
   <label class="control">
-    <span class="sr-only">Portal</span>
+    <span class="sr-only">{{ 'shortlist.portal' | transloco }}</span>
     <select class="select select-sm" [value]="portal()" (change)="onPortal($event)">
-      <option value="">Every portal</option>
+      <option value="">{{ 'shortlist.everyPortal' | transloco }}</option>
       @for (name of store.portals(); track name) {
         <option [value]="name">{{ name }}</option>
       }
@@ -40,22 +40,22 @@
   </label>
 
   <p class="type-small text-muted count">
-    {{ visible().length }} of {{ store.entries().length }}
+    {{ 'shortlist.count' | transloco: { visible: visible().length, total: store.entries().length } }}
     @if (store.unscored() > 0) {
-      · {{ store.unscored() }} unscored
+      · {{ 'shortlist.unscored' | transloco: { count: store.unscored() } }}
     }
   </p>
 
   @if (filtered()) {
     <button type="button" class="btn btn-ghost btn-sm" (click)="clear()">
       <lg-icon name="x" [size]="14" />
-      Clear filters
+      {{ 'shortlist.clearFilters' | transloco }}
     </button>
   }
 </div>
 
 @if (store.error(); as error) {
-  <p class="type-small error" role="alert">{{ error }}</p>
+  <p class="type-small error" role="alert">{{ error | transloco }}</p>
 } @else if (visible().length > 0) {
   <div class="list">
     @for (entry of visible(); track entry.offer.id) {
@@ -65,13 +65,13 @@
 } @else if (filtered()) {
   <lg-empty-state
     icon="search"
-    title="Nothing matches these filters"
-    description="Clear them to see the whole shortlist again."
+    [title]="'shortlist.noMatchTitle' | transloco"
+    [description]="'shortlist.noMatchHint' | transloco"
   />
 } @else {
   <lg-empty-state
     icon="inbox"
-    title="No offers yet"
-    description="Ingest reads the sources and the hard filter thins them out. Run it from the header to fill this list."
+    [title]="'shortlist.emptyTitle' | transloco"
+    [description]="'shortlist.emptyHint' | transloco"
   />
 }

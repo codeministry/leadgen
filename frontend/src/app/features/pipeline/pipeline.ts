@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject } from '@angular/core';
 import { injectDispatch } from '@ngrx/signals/events';
+import { TranslocoPipe } from '@jsverse/transloco';
 import { ApplicationStatus, ApplicationView } from '@core/model/application';
 import { applicationEvents } from '@core/store/applications.events';
 import { ApplicationsStore } from '@core/store/applications.store';
@@ -12,7 +13,7 @@ import { StatusPicker } from '@shared/status-picker/status-picker';
 
 @Component({
   selector: 'lg-pipeline',
-  imports: [Badge, EmptyState, Icon, PageHeader, Score, StatusPicker],
+  imports: [Badge, EmptyState, Icon, PageHeader, Score, StatusPicker, TranslocoPipe],
   templateUrl: './pipeline.html',
   styleUrl: './pipeline.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
