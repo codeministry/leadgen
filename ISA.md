@@ -1,10 +1,10 @@
 ---
 phase: climbing
-progress: 37/58
+progress: 40/61
 task: "Acquisition tool: collect, filter, enrich and package project offers"
 slug: lead-generation
 started: 2026-09-01T11:30:00Z
-updated: 2026-09-01T14:10:00Z
+updated: 2026-09-01T16:50:00Z
 ---
 
 # lead-generation — Ideal State Artifact
@@ -77,6 +77,9 @@ A single operator drops mailbox credentials and a profile into `config/`, and ev
 | ISC-11 | bun-test | test context boots without a `.env` | green | JUnit | `backend/build.gradle.kts` |
 | ISC-12 | bun-test | resolve from repository root and from `backend/` | same directory | JUnit | `ConfigProperties` |
 | ISC-13 | bash | `bun run lint` with a deliberate cross-layer import | exit 1 | ESLint | `frontend/eslint.config.mjs` |
+| ISC-59 | bash | start via `bootRun` and via `java -jar` from the repository root, nothing exported | same values, both log the file | Bash | `PlaceholderResolver` |
+| ISC-60 | bash | read the startup log for the JDBC URL | host, port and database named | Bash | `DatasourceBanner` |
+| ISC-61 | bash | change `POSTGRES_PORT`, run `docker compose config` | published follows, target stays 5432 | Compose | `docker-compose.yml` |
 | ISC-14 | bun-test | load the shipped examples and assert bound values | green | JUnit | `ConfigLoaderTest` |
 | ISC-15 | bun-test | rename a key, expect the load to fail naming it | message contains key | JUnit | `ConfigLoaderTest` |
 | ISC-16 | bun-test | write an invalid file, assert the snapshot is unchanged | same instance | JUnit | `ConfigWatcherTest` |
@@ -136,6 +139,7 @@ A single operator drops mailbox credentials and a profile into `config/`, and ev
 - [x] ISC-5: `./gradlew check` runs both modules — backend tests and frontend lint plus tests — in one invocation and is green.
 - [ ] ISC-6: A licence is chosen, added as `LICENSE`, and referenced from `README.md`.
 - [ ] ISC-7: CI runs `./gradlew check` on every push and blocks a merge on red.
+- [x] ISC-59: One credentials file, `.env`, and every value in it reaches the application identically whether the process was started by Gradle, by an IDE run configuration or as a jar.
 
 ### F1 · Monorepo and operation
 
@@ -147,6 +151,8 @@ A single operator drops mailbox credentials and a profile into `config/`, and ev
 - [x] ISC-11: The backend reads the untracked `.env` on `bootRun` and never through `spring.config.import`, so no test context depends on a file absent from the repository.
 - [x] ISC-12: `leadgen.config-dir` resolves correctly whether the process is started by Gradle (working directory `backend/`), by an IDE (repository root) or from a jar.
 - [x] ISC-13: The layering `shared → core → layout → features` is enforced by lint and fails the build on a cross-layer import.
+- [x] ISC-60: The effective JDBC URL and user are logged at startup, so a connection to the wrong database is identifiable from the log alone.
+- [x] ISC-61: `POSTGRES_PORT` in `.env` drives the published port, and the container side of the mapping stays 5432 whatever the host side is.
 
 ### F2 · Configuration layer
 
@@ -239,10 +245,12 @@ A single operator drops mailbox credentials and a profile into `config/`, and ev
 - **2026-09-01 — JDBC replaces JPA.** The pipeline writes in batches and upserts with `ON CONFLICT`, which is one plain SQL statement against a schema Flyway owns. An ORM would have added a mapping layer over Postgres arrays for no gain. Flyway is now the only thing that touches the schema.
 - **2026-09-01 — `rules.hot_reload` switches all three configuration files, not only the rules.** They are read and swapped as one snapshot; reloading one without the others would hand the pipeline a picture that never existed on disk.
 - **2026-09-01 — Change detection polls timestamps instead of using `WatchService`.** For three files the efficiency argument is worth nothing, the watch service is native only on Linux, and on macOS the JDK falls back to polling with a ten-second default latency — the same mechanism with platform-dependent timing nobody can reason about.
-- **2026-09-01 — Paths in `application.yaml` are file names resolved against the configuration directory.** They carried `config/local/` themselves, which breaks the moment the directory moves; inside the container it is `/config`. A path with the directory baked in is still accepted, resolved upwards from the working directory, because breaking an existing configuration over a style is not worth it.
+- **2026-09-01 — (superseded the same day, see the Learning entry) Paths in `application.yaml` are file names resolved against the configuration directory.** They carried `config/local/` themselves, which breaks the moment the directory moves; inside the container it is `/config`. A path with the directory baked in is still accepted, resolved upwards from the working directory, because breaking an existing configuration over a style is not worth it.
 - **2026-09-01 — Skills (`span.skill-pill`) are not modelled.** Dead end: the reference implementation extracts them, and the element does not occur in the corpus at all. Coverage 0 %.
 - **2026-09-01 — Lombok for boilerplate, records for data.** `@Slf4j` and `@RequiredArgsConstructor` where the constructor is nothing but assignments; not where it does work, and not where parameters carry `@Value`. API types stay records, each in its own file. The configuration model keeps its nesting, which mirrors the YAML it describes.
 - **2026-09-01 — The cursor is committed after the write, not after the read.** `SourceConnector.commit` exists for that alone.
+- **2026-09-01 — One credentials file, and it is called `.env` because it cannot be called anything else for free.** Marcello's call to collapse `.env.local` plus a `.env` symlink. The name is forced by Compose: it substitutes the `${...}` in `docker-compose.yml` from `.env` and from nothing else — not from `env_file:`, which only injects into a container, and not from `COMPOSE_ENV_FILES` set inside a file. Both measured. Any other name costs a flag on every call or a symlink, and forgetting either silently applies the compose defaults.
+- **2026-09-01 — The database host port defaults to 55432 and the container side is fixed at 5432.** A developer machine usually already holds 5432, and the resulting failure names the user and neither the host nor the database. Making the container side variable too publishes a host port forwarding to a port nobody listens on, which from a client looks exactly like no port at all.
 - **2026-09-01 — The override directory is `config/`, without the `local/` nesting.** Once the shipped defaults moved onto the classpath, `config/` held nothing but `local/`, and a directory whose only child is its own purpose is a directory too many.
 - **2026-09-01 — The digest has no transport at all.** Marcello's call: both outputs are templates rendered to a file, text or HTML, and the application never sends. The `channel`/`transport`/`recipients` block is gone rather than made vendor-neutral — the honest fix for a schema modelling something the tool must not do is to delete the schema, not to generalize it. `format` and `output_dir` replace it.
 - **2026-09-01 — No committed file picks a vendor, not even as a default.** The digest transport and the LLM provider both did. a named mail service as the digest transport, and a named model vendor as the LLM provider default, came out of the very first commit (`ca3eb76`, the concept and its example configs, written before any code existed) and were carried forward unexamined. A *kind* the code dispatches on is legitimate (`smtp | webhook`, `anthropic | ollama | openai-compatible`); a *default naming one of them* is the wiring-in the invariant exists to prevent, and it survives precisely because it looks like a helpful convenience. Model names likewise left `.env.example` as active values and stayed as comments. The digest keys went the same way in the entry above: deleted rather than generalized.
@@ -250,6 +258,21 @@ A single operator drops mailbox credentials and a profile into `config/`, and ev
 - **2026-09-01 — The configuration vocabulary keeps the implemented names and adopts four ideas from the hand-drafted `config/local/sources.yaml`.** Resolves the fog entry. Kept: `unwrap_query_param`, `ancestor`, `list`, and the field names `agency`/`published`/`tags`. Adopted: `expect_count_from_subject` (the announced count becomes a runtime check rather than only a test assertion), `prefer_part` (the part preference was hardcoded), per-field `format` (the source-level `date_format` stays as the fallback), and `inherit` (a second source names another's extraction instead of copying it — the example was already carrying two copies of one selector table). Not adopted: the named `transforms:` indirection, which buys a level of indirection for a single transform. The operator's file was migrated to match and reproduces the reference numbers.
 
 ## Learning
+
+- **conjectured:** reading `.env` in a `bootRun` hook covers the local run, because the local run is `bootRun`.
+  **refuted by:** starting the very same configuration from an IDE — the values were in the file and the service reported them missing, with an error naming the right setting and no reason.
+  **learned:** a mechanism that lives in the build privileges one start path and silently excludes every other. The application has at least three (Gradle, IDE, jar) and they must not differ.
+  **criterion now:** ISC-59. `PlaceholderResolver` reads the file itself; the build hook is deleted rather than duplicated.
+
+- **conjectured:** `env_file:` in `docker-compose.yml` is how Compose learns the values in `.env`.
+  **refuted by:** a counter-check — changing `POSTGRES_PORT` in the file left the published port untouched. `COMPOSE_ENV_FILES` written inside `.env` did not help either.
+  **learned:** two unrelated mechanisms share one word. `env_file:` injects variables INTO a container; the `${...}` in the compose file are substituted from `.env` alone, and redirecting that needs a real environment variable or `--env-file`. The failure is silent: the defaults apply and the stack listens where the application is not looking.
+  **criterion now:** ISC-61 is verified by changing the value and reading `docker compose config` back, never by reading the file and assuming.
+
+- **conjectured:** `password authentication failed for user "leadgen"` is a credentials problem.
+  **refuted by:** looking at what actually held the port — another project's Postgres on 5432, while ours was not running at all.
+  **learned:** the message names the user and omits host, port and database, which are the only three facts that would have identified it. A process that reaches something configurable has to say what it reached.
+  **criterion now:** ISC-60, and the host port default moved off 5432.
 
 - **conjectured:** opening an IMAP folder read-only is enough to leave the owner's mail unflagged.
   **refuted by:** `ImapSourceConnectorTest.neverFlagsAMessageAsSeen` against a real IMAP server — the flag was set anyway.
@@ -289,9 +312,13 @@ A single operator drops mailbox credentials and a profile into `config/`, and ev
 - ISC-26 — `IngestServiceTest.readingTheSameMailAgainAddsNothing`
 - ISC-29 … ISC-34 — `ImapSourceConnectorTest` (8), GreenMail
 - ISC-53, ISC-54 — `POST /api/ingest` against the operator's own migrated rules: 14 documents, 1289 offers, announced equals extracted in all 14
+- ISC-59, ISC-60, ISC-61 — `46e0d9c`; `java -jar` from the repository root logs `Reading …/.env` and `Database: jdbc:postgresql://localhost:55432/leadgen as leadgen`; port counter-check 15432 ↔ 55432
 - ISC-55, ISC-56, ISC-57 — boot with `LEADGEN_CONFIG_DIR=/nonexistent` (four files from `classpath:/leadgen/`) and with `config/local` (four files overridden), both logged per file
 
 ## Remaining Work
+
+- [ ] **Next: F5, deduplication (ISC-37 … ISC-40).** It is the head of the only ordering chain in this ISA — `ISC-41` (hard filter) waits on it, `ISC-45` (enrichment) on that, `ISC-48` (scoring) on that. Target number is measured, not chosen: 159 of 1289 offers collapse by normalized title alone. `TitleNormalizer` already produces the fingerprint and `SampleCorpusAcceptanceTest.findsTheMeasuredNumberOfDuplicateTitles` already asserts the count, so F5 is about merging and attaching sources, not about detecting.
+- [ ] Run `bun ~/.claude/LIFEOS/TOOLS/IsaFrontier.ts frontier ISA.md` to see the takeable set before picking anything else up.
 
 - [ ] Decide the Java package name; `de.codeministry.leadgen` was chosen before the repository name and organisation were.
 - [ ] `docs/CONCEPT.md` still names the operator's home town in the hard-filter section. Not a source, so it was left in place, but it is a personal datum in a repository that is going public.

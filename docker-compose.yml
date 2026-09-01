@@ -21,6 +21,10 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data
     ports:
+      # The container side is fixed at 5432: Postgres binds that port inside the
+      # container whatever the host side is. Making both sides variable publishes a
+      # host port forwarding to a port nobody listens on, which looks exactly like
+      # no port at all — the JDBC driver reports only "connection attempt failed".
       - "${POSTGRES_PORT:-55432}:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-leadgen} -d ${POSTGRES_DB:-leadgen}"]
