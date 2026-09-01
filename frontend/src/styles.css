@@ -1,0 +1,10 @@
+@import "tailwindcss";
+@plugin "daisyui" {
+  themes: light --default, dark --prefersdark;
+}
+@import "./styles/tokens.css";
+
+html,
+body {
+  height: 100%;
+}

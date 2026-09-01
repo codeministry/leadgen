@@ -1,0 +1,14 @@
+# Never ship the host's build output or dependencies into an image: the frontend
+# stage installs its own, and a macOS node_modules copied over a linux install is
+# how a container ends up with binaries it cannot run.
+**/node_modules
+**/dist
+**/build
+.gradle
+.angular
+.env
+config/local
+packages
+data
+docs/samples/emails
+.git

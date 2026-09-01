@@ -1,7 +1,13 @@
 # Analysis of the sample mails
 
-Basis: 14 newsletter mails from `hello@jobscout.dev`, subject `"N neue Projekte sind da!"`,
+Basis: 14 newsletter mails from `<newsletter-sender>`, subject `"N neue Projekte sind da!"`,
 in `docs/samples/emails/`. Reproducible with the two scripts in the same folder.
+
+Source names are anonymized throughout this document: the newsletter aggregator, its
+sender address and host, and the portals behind it appear as `<newsletter-sender>`,
+`<aggregator-host>` and `portal-a` … `portal-f`. The real names live in
+`config/local/sources.yaml`, which is gitignored. Every figure below is the measured
+one.
 
 ```bash
 python3 docs/samples/analyze_samples.py    # extraction, field coverage, duplicates
@@ -29,7 +35,7 @@ selectors, and the count announced in the subject matches exactly in all 14 mail
 
 Two details the code has to account for:
 
-- The links go through `jobs.jobscout.dev/proxy?target=…&email=…`. The own mail address
+- The links go through `<aggregator-host>/proxy?target=…&email=…`. The own mail address
   does not belong in the archive; the `target` parameter gets unwrapped, `email` discarded.
 - Search terms are wrapped in `<mark>` inside the title. Strip them before any comparison,
   or deduplication trips over `<mark>DevOps</mark>`.
@@ -55,15 +61,15 @@ nothing.
 
 | Portal | Offers |
 |---|---|
-| freelancermap | 1083 |
-| gulp | 152 |
-| itprojekte | 19 |
-| etengo | 12 |
-| ferchau | 11 |
-| hays | 7 |
+| portal-a | 1083 |
+| portal-b | 152 |
+| portal-c | 19 |
+| portal-d | 12 |
+| portal-e | 11 |
+| portal-f | 7 |
 | external | 5 |
 
-The newsletter already covers freelancermap. Adding a freelancermap feed as a second
+The newsletter already covers portal-a. Adding a direct portal-a feed as a second
 source mainly buys speed, not additional coverage — and the premium advertising inside
 the newsletter confirms that free users are informed hours later than paying ones.
 
@@ -73,9 +79,9 @@ By exact normalized title alone: **159 of 1289 offers are duplicates (12.3 %)**.
 project appears up to eight times, often across three portals.
 
 ```
-8x  Fullstack Entwickler (m/w/d)                    [external, freelancermap, gulp]
-6x  Azure Integration Architect                     [freelancermap, gulp]
-6x  Linux-Systemadministration                      [freelancermap, gulp]
+8x  Fullstack Entwickler (m/w/d)                    [external, portal-a, portal-b]
+6x  Azure Integration Architect                     [portal-a, portal-b]
+6x  Linux-Systemadministration                      [portal-a, portal-b]
 ```
 
 Fuzzy matching would push the figure higher. Deduplication is therefore not a "later"
@@ -118,7 +124,7 @@ One possible tightening, should 15 per day turn out to be too many: check the co
 only against `Java`, `Spring` and `Angular` instead of also `TypeScript` and `Kubernetes`
 — those are the terms most false positives come in through.
 
-## 7. Search tags of the JobScout profile
+## 7. Search tags of the aggregator profile
 
 The tags come from the search profile configured there and are already a pre-filter:
 
@@ -129,5 +135,5 @@ Machine Learning 50 · Data Science 46 · Elasticsearch 18 · MongoDB 11 · Redi
 ```
 
 `AI`, `Machine Learning` and `Data Science` together produce close to 400 hits and almost
-nothing suitable. Deselecting them in the JobScout profile removes noise at the source.
+nothing suitable. Deselecting them in the aggregator profile removes noise at the source.
 `Cloud`, with 656 hits, is so broad that it barely narrows anything.

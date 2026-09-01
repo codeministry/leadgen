@@ -19,6 +19,10 @@ build/
 node_modules/
 dist/
 .gradle/
+.angular/
+frontend/.angular/
+frontend/dist/
+!gradle/wrapper/gradle-wrapper.jar
 
 # OS & IDE
 .DS_Store

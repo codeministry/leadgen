@@ -70,7 +70,7 @@ And in `config/local/matching-rules.yaml`:
 
 ## Further changes from the same analysis
 
-1. **Extraction without a language model.** The JobScout source is set to
+1. **Extraction without a language model.** The aggregator source is set to
    `fallback: none`. The CSS selectors cover every field. The "Normalize: free text →
    structured Offer via LLM schema" stage now only applies to sources without usable
    structure, such as direct enquiries.
@@ -84,6 +84,6 @@ And in `config/local/matching-rules.yaml`:
    `(w/m/d)`, `(m/f/d)` suffixes have to go before any comparison.
 
 4. **Defuse the links.** Newsletter links go through
-   `jobs.jobscout.dev/proxy?target=…&email=…`. The `target` parameter is unwrapped and the
+   `<aggregator-host>/proxy?target=…&email=…`. The `target` parameter is unwrapped and the
    `email` parameter discarded — the own address does not belong in the archive, and
    certainly not in a public repository.

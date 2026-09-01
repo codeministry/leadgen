@@ -198,11 +198,11 @@ the simulation in `docs/samples/simulate_filter.py` is the reference.
 
 ## 12. Settled configuration
 
-- **Mail access:** Strato IMAP (`imap.strato.de:993`, SSL), credentials via `.env`.
+- **Mail access:** IMAP mailbox (`imap.example.com:993`, SSL), credentials via `.env`.
 - **Two mailbox modes**, both implemented, switchable by a flag:
   - *filter mode* (active): the newsletter sits in a mixed folder, selected by sender and
     optionally subject.
-  - *dedicated mode* (later): a separate mailbox that Strato delivers the newsletter into
+  - *dedicated mode* (later): a separate mailbox that the provider delivers the newsletter into
     by rule — then `match_all` applies and no filter is needed.
   - Progress is tracked via `UIDVALIDITY`/`UID`, not via seen/unseen. The mails stay
     untouched and a second client does not interfere.
@@ -218,4 +218,4 @@ the simulation in `docs/samples/simulate_filter.py` is the reference.
 - Adopt the code conventions from `codeministry/customer/ship360` — see `CLAUDE.md`
 - License for publication — Apache 2.0, like `straightmail`?
 - Repository name and GitHub organisation
-- Sender address and folder of the newsletter in the Strato mailbox
+- Sender address and folder of the newsletter in the IMAP mailbox

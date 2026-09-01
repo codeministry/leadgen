@@ -1,0 +1,11 @@
+[versions]
+springBoot = "4.1.1"
+springDependencyManagement = "1.1.7"
+testcontainers = "1.21.3"
+
+[libraries]
+testcontainers-bom = { module = "org.testcontainers:testcontainers-bom", version.ref = "testcontainers" }
+
+[plugins]
+spring-boot = { id = "org.springframework.boot", version.ref = "springBoot" }
+spring-dependency-management = { id = "io.spring.dependency-management", version.ref = "springDependencyManagement" }

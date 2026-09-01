@@ -43,14 +43,71 @@ Violating one of these is expensive, and most of them fail silently.
 
 ## Monorepo
 
-`backend/` (Spring Boot, Java 21, Gradle) · `frontend/` (Angular + NGRX + DaisyUI) ·
-`charts/` (Helm) · `config/` · `docs/`. The root Gradle build brackets both, the
-frontend through the Node Gradle plugin.
+`backend/` (Spring Boot 4.1, Java 21, Gradle) · `frontend/` (Angular 22 zoneless +
+`@ngrx/signals` + Tailwind 4/DaisyUI) · `charts/` (Helm) · `config/` · `docs/`.
+The root Gradle build brackets both: `./gradlew check` runs the Spring tests and the
+frontend's lint + tests in one call.
+
+**The frontend is bracketed with plain `Exec` tasks calling `bun`, not with the Node
+Gradle plugin** — the plugin does not speak bun, and bun is the package manager
+everywhere in this house. The consequence is that `package.json` stays the single list
+of frontend commands and `bun run <script>` behaves identically inside and outside
+Gradle.
+
+## Commands
+
+```bash
+./gradlew check                # both modules
+./gradlew :backend:test        # Spring tests — needs a running Docker for Testcontainers
+./gradlew :backend:bootRun     # API on :8080, reads the untracked .env from the repo root
+docker compose up --build      # postgres + api + web
+
+cd frontend
+bun run start                  # dev server :4200, proxies /api to API_PROXY_TARGET
+bun run check:static           # ESLint (--max-warnings 0), Stylelint, tsc — after every change
+bun run test                   # Vitest
+```
+
+**Never npm or npx.** bun installs, runs and locks the frontend (`bun.lock`).
+
+## Frontend conventions
+
+Carried over from `codeministry/customer/ship360`, which is the house style:
+
+- **Layering is strict**: `shared` → `core` → `layout` → `features`. Cross-layer imports
+  go through the tsconfig aliases (`@core/*`, `@shared/*`, `@features/*`, `@layout/*`),
+  because that is what the `no-restricted-imports` patterns in `eslint.config.mjs` match
+  on — a relative `../../core/...` slips past the rule. Relative imports only between
+  siblings. **No barrels** (`index.ts`).
+- **`shared/` imports nothing from the layers above it**, not even types.
+- **Standalone components, signals, `OnPush`, zoneless.** `input()`/`output()`/`model()`,
+  `signal`/`computed`, `inject()`, `@if`/`@for`. No `@Input/@Output`, no `*ngIf`, no
+  `| async`. RxJS only at the I/O boundary, bridged in with `toSignal`.
+- **`.css`, never `.scss`** — Tailwind 4 is CSS-first. No raw hex under `src/app`
+  (`color-no-hex`); literals live in `src/styles/tokens.css`.
+- **NgRx**: `@ngrx/signals` events dialect, stores as a `*.store.ts` + `*.events.ts`
+  pair with `withReducer` + `withEventHandlers`. Model: `core/store/status.store.ts`.
+- **Specs live beside their file.**
+- **Strict TypeScript** plus `strictTemplates`, `noPropertyAccessFromIndexSignature`,
+  `noImplicitReturns`, `noImplicitOverride`, `noUnusedLocals`. No `baseUrl` — TypeScript
+  6 deprecates it and the path mappings resolve relative to `tsconfig.json` anyway.
+
+## Backend conventions
+
+- **Flyway owns the schema, Hibernate validates it.** `ddl-auto: validate`; a drift
+  between entity and migration has to fail at startup, not heal itself.
+- **Boot 4 split the integrations into their own modules.** Without
+  `spring-boot-flyway` the migrations sit on the classpath and never run, and the only
+  symptom is Hibernate complaining about missing tables. `@WebMvcTest` likewise moved
+  from `…test.autoconfigure.web.servlet` into `spring-boot-webmvc-test`.
+- **The `.env` is read by `bootRun`, never through `spring.config.import`** in
+  `application.yaml` — an import there would apply to every test context too, and a
+  green test run would then depend on a file nobody sees in the repo.
 
 ## What already exists
 
 ```
-config/local/sources.yaml         Strato IMAP, verified JobScout selectors, 6 sources
+config/local/sources.yaml         IMAP mailbox, verified aggregator selectors, 6 sources
 config/local/matching-rules.yaml  hard filters + scoring weights
 config/local/application.yaml     LLM, enrichment, packaging, digest
 config/local/skill-profile.yaml   skills with weights and aliases, reference projects
@@ -76,8 +133,10 @@ code has to reproduce — the numbers in `docs/SAMPLE-ANALYSIS.md` are the targe
 
 ## Order of work
 
-1. **Monorepo skeleton** — root build, `backend/` skeleton, `frontend/` skeleton,
-   `docker-compose.yml` (postgres, api, web), `.env` loading, Flyway.
+1. ✅ **Monorepo skeleton** — root build, `backend/` skeleton, `frontend/` skeleton,
+   `docker-compose.yml` (postgres, api, web), `.env` loading, Flyway. `GET /api/status`
+   plus the `StatusStore` exist only to prove the full path (component → proxy → Spring
+   → Postgres) end to end; they are not a feature.
 2. **Configuration layer** — load, validate and hot-reload `sources.yaml`,
    `matching-rules.yaml`, `application.yaml`. First, because everything else stands on it.
 3. **Ingest + extract** against the `local-eml` source (files, no mailbox needed).
@@ -100,16 +159,18 @@ code has to reproduce — the numbers in `docs/SAMPLE-ANALYSIS.md` are the targe
 - Strip `(m/w/d)`, `(w/m/d)`, `(m/f/d)` before normalizing.
 - The location sits behind a `📍` prefix in one of four `span`s in `div.job-meta` —
   address it by the prefix, never by position.
+- **Renaming the root component's selector means editing `src/index.html` too.** The
+  Angular CLI generates `<app-root>`; the repo prefix is `lg-`. Every unit test still
+  passes with the mismatch, because `TestBed` creates the component itself — the only
+  symptom is a blank page in the browser, with no console error. Found exactly that way
+  in step 1, so: verify a UI change in a real browser, not only in the suite.
 
 ## Open
 
-- **Adopt the code conventions from `codeministry/customer/ship360`.** Not done yet.
-  Read its `CLAUDE.md` and `AGENTS.md` first, then carry over what applies to this repo:
-  strict layering with tsconfig aliases and no barrels, standalone components with
-  signals and `OnPush`, the `@ngrx/signals` events dialect, `.css` with Tailwind and no
-  raw hex, strict TypeScript settings, specs beside their file, and the tooling baseline
-  (`.editorconfig`, ESLint, Prettier, Stylelint, CI). Deviate only where a Spring Boot
-  backend genuinely differs, and note why.
+- **CI.** The tooling baseline is in place (`.editorconfig`, ESLint, Prettier,
+  Stylelint), but no pipeline runs it yet.
+- **The Java package is `de.codeministry.leadgen`** — decided before the repository name
+  and organisation were, so it may need a rename.
 - License for publication (Apache 2.0, like `straightmail`?)
 - Repository name and GitHub organisation
-- Which folder in the Strato mailbox the newsletter lands in
+- Which folder in the IMAP mailbox the newsletter lands in

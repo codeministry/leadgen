@@ -1,0 +1,9 @@
+/* Every color literal in the app lives here. `color-no-hex` in .stylelintrc.json
+   fails a raw hex anywhere under src/app, so a component reads a token and the
+   theme stays swappable in one place. DaisyUI's own theme variables are the
+   base; this file only adds what the app needs on top. */
+:root {
+  --score-strong: var(--color-success);
+  --score-weak: var(--color-warning);
+  --score-out: var(--color-error);
+}

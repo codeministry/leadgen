@@ -28,8 +28,8 @@ Spring Boot (Java 21) · Angular + NGRX + DaisyUI · PostgreSQL · Docker Compos
 ## Layout
 
 ```
-backend/    Spring Boot
-frontend/   Angular
+backend/    Spring Boot, Gradle module :backend
+frontend/   Angular, Gradle module :frontend (bun does the work)
 charts/     Helm chart
 config/
   examples/ example configuration
@@ -40,13 +40,32 @@ docs/       concept and decisions
 ## Getting started
 
 ```bash
-cp config/examples/application.example.yaml config/local/application.yaml
-cp config/examples/matching-rules.example.yaml config/local/matching-rules.yaml
-cp config/examples/skill-profile.example.yaml config/local/skill-profile.yaml
-cp config/examples/sources.example.yaml config/local/sources.yaml
+mkdir -p config/local
+for f in application matching-rules skill-profile sources; do
+  cp "config/examples/$f.example.yaml" "config/local/$f.yaml"
+done
 cp .env.example .env                                 # fill in credentials
-docker compose up
+docker compose up --build
 ```
+
+The web UI is then on `http://localhost:4200`, the API on `http://localhost:8080`.
+
+## Development
+
+```bash
+./gradlew check                # both modules: backend tests, frontend lint + tests
+./gradlew :backend:test        # Spring tests (needs Docker for Testcontainers)
+./gradlew :backend:bootRun     # API on :8080, reads the untracked .env
+docker compose up postgres     # the database the local run expects
+
+cd frontend
+bun run start                  # dev server on :4200, proxies /api (API_PROXY_TARGET)
+bun run check:static           # ESLint, Stylelint, tsc — after every change
+bun run test                   # Vitest
+```
+
+The dev server prints its effective proxy target (`[proxy] /api → …`) on startup — the
+first place to look for unexplained 401s or empty lists.
 
 ## Documentation
 
