@@ -1,0 +1,33 @@
+.shell {
+  display: flex;
+  flex-direction: column;
+
+  /* Not `100%`: the percentage chain breaks at <lg-root>, which has no height,
+     so the rail stopped at the last nav item instead of running the full page. */
+  min-height: 100dvh;
+  background-color: var(--color-base-200);
+}
+
+.body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.content {
+  flex: 1;
+  min-width: 0;
+  padding: 1.5rem;
+}
+
+.measure {
+  max-width: 84rem;
+  margin-inline: auto;
+}
+
+/* Room for the bottom bar the rail turns into below md. */
+@media (width < 48rem) {
+  .content {
+    padding: 1rem 1rem 5rem;
+  }
+}

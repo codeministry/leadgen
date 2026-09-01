@@ -1,0 +1,51 @@
+<!-- The header carries the dark theme in both modes. The logo asset has its own
+     bright cyan, which is 1.6:1 on white and cannot be a light-theme colour at
+     all; on the navy ground it is 10.5:1 and the lockup looks identical either
+     way. `data-theme` is attribute-scoped in daisyUI, so putting it here
+     re-declares every token for this subtree and the buttons, the muted version
+     string and the wordmark all follow without a single override. -->
+<header class="header" data-theme="lg-dark">
+  <!-- The name belongs on the button, not on the icon inside it: a control whose
+       accessible name comes from a nested role="img" is one refactor away from
+       having none at all. -->
+  <button
+    type="button"
+    class="btn btn-ghost btn-sm btn-square rail-button"
+    aria-label="Toggle the navigation labels"
+    [attr.aria-expanded]="shell.railOpen()"
+    aria-controls="app-nav"
+    (click)="toggleRail()"
+  >
+    <lg-icon name="panel-left" [size]="18" />
+  </button>
+
+  <a routerLink="/dashboard" class="brand-link">
+    <lg-brand-mark [size]="26" />
+  </a>
+
+  <!-- The version is the honest health check: it is what the API answered with,
+       so a stale or silent backend shows up here rather than nowhere. -->
+  <span class="type-mono-data text-muted api-version">
+    @if (status.status(); as status) {
+      {{ status.application }} {{ status.version }}
+    } @else if (status.loading()) {
+      connecting…
+    } @else {
+      {{ status.error() }}
+    }
+  </span>
+
+  <button
+    type="button"
+    class="btn btn-primary btn-sm ingest-button"
+    [disabled]="ingest.running()"
+    (click)="runIngest()"
+  >
+    <lg-icon name="refresh" [size]="16" />
+    <span class="ingest-label">
+      {{ ingest.running() ? 'Reading sources…' : 'Run ingest' }}
+    </span>
+  </button>
+
+  <lg-theme-toggle />
+</header>

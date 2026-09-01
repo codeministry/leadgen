@@ -1,0 +1,64 @@
+/* Class names here must not collide with a daisyUI component class. `.status`
+   did: daisyUI 5 ships a `status` dot at 0.5rem square, so the version span was
+   laid out as an 8px dot with its text overflowing under the theme toggle. */
+.header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  height: var(--lg-header-h);
+  padding-inline: 0.75rem;
+  border-bottom: 1px solid var(--color-base-300);
+  background-color: var(--color-base-100);
+}
+
+.brand-link {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.375rem;
+  border-radius: var(--radius-field);
+}
+
+.brand-link:hover {
+  background-color: var(--color-base-200);
+}
+
+:host {
+  display: block;
+}
+
+.api-version {
+  flex: none;
+  margin-inline-start: auto;
+  white-space: nowrap;
+}
+
+.ingest-button {
+  flex: none;
+  white-space: nowrap;
+}
+
+/* On a phone the rail is a bottom bar, so there is nothing to collapse, and the
+   version string would push the theme toggle off the edge. */
+@media (width < 48rem) {
+  .rail-button,
+  .api-version {
+    display: none;
+  }
+
+  .ingest-button {
+    margin-inline-start: auto;
+  }
+}
+
+/* Same reasoning as the wordmark: the label goes to a screen reader only, so the
+   button keeps its name while giving the row back about seventy pixels. */
+@media (width < 30rem) {
+  .ingest-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}

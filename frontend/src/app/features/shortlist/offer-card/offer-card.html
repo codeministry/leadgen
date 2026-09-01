@@ -1,0 +1,76 @@
+<article class="card">
+  <lg-score [value]="entry().score.value" />
+
+  <div class="main">
+    <h3 class="type-h4 title">
+      <a [routerLink]="['/offers', entry().offer.id]">{{ entry().offer.title }}</a>
+    </h3>
+
+    <p class="type-mono-data text-muted meta">
+      @if (entry().offer.rateEur; as rate) {
+        <span>{{ rate }} &euro;/h</span>
+      } @else {
+        <span class="unknown">rate unknown</span>
+      }
+      <span aria-hidden="true">·</span>
+      <span>{{ entry().offer.location ?? 'location unknown' }}</span>
+      <span aria-hidden="true">·</span>
+      <span>{{ entry().offer.duration ?? 'duration unknown' }}</span>
+      <span aria-hidden="true">·</span>
+      <span>{{ entry().offer.publishedOn }}</span>
+    </p>
+
+    <p class="type-small text-muted description">{{ entry().offer.description }}</p>
+
+    <ul class="reasons">
+      @for (reason of shownReasons(); track reason.factor) {
+        <li class="type-small reason" [class.penalty]="reason.points < 0">
+          <span class="type-mono-data points">
+            {{ reason.points > 0 ? '+' : '' }}{{ reason.points }}
+          </span>
+          {{ reason.label }}
+        </li>
+      } @empty {
+        <li class="type-small text-muted reason">
+          Not scored. The pipeline ran without a language model, so this is the hard
+          filter's answer only.
+        </li>
+      }
+    </ul>
+
+    <div class="badges">
+      @if (otherSources().length > 0) {
+        <lg-badge tone="primary" [outline]="true">
+          <lg-icon name="copy" [size]="12" />
+          also on {{ otherSources().length }} more
+        </lg-badge>
+      }
+      @if (entry().flags.incomplete) {
+        <lg-badge tone="warning" [outline]="true">incomplete</lg-badge>
+      }
+      @if (entry().flags.remoteUnknown) {
+        <lg-badge tone="ghost" [outline]="true">remote share unknown</lg-badge>
+      } @else {
+        <lg-badge tone="ghost" [outline]="true">{{ entry().offer.remotePercent }} % remote</lg-badge>
+      }
+      <lg-badge tone="ghost" [outline]="true">{{ entry().offer.portal }}</lg-badge>
+      @if (entry().offer.agency; as agency) {
+        <lg-badge tone="ghost" [outline]="true">{{ agency }}</lg-badge>
+      } @else {
+        <lg-badge tone="ghost" [outline]="true">no agency stated</lg-badge>
+      }
+    </div>
+
+    <!-- One project, several portals. The names sit on their own wrapping line
+         rather than inside the badge: a badge does not wrap, and three agency
+         names made it wider than a phone. -->
+    @if (otherSources().length > 0) {
+      <p class="type-small text-muted also">
+        Also advertised by
+        @for (source of otherSources(); track source.url; let last = $last) {
+          {{ source.agency ?? source.portal }}{{ last ? '' : ', ' }}
+        }
+      </p>
+    }
+  </div>
+</article>

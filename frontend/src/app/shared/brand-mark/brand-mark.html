@@ -1,0 +1,23 @@
+<span class="brand">
+  <!-- The real logo rather than a redraw: public/logo-1.png cut out, trimmed and
+       resized to 128px tall as logo-mark.png. The source PNG stays untouched. -->
+  <img
+    class="mark"
+    src="logo-mark.png"
+    [style.height.px]="size()"
+    [alt]="wordmark() ? '' : label()"
+    [attr.aria-hidden]="wordmark() ? 'true' : null"
+    width="116"
+    height="128"
+  />
+
+  <!-- Two halves, two CI colours: petrol carries the structure, ochre is what
+       came through the funnel. Read as one word by sight, as the product name by
+       a screen reader — hence the role/aria-label on the wrapper. -->
+  @if (wordmark()) {
+    <span class="wordmark" role="img" [attr.aria-label]="label()">
+      <span class="wordmark-lead" aria-hidden="true">LEAD</span
+      ><span class="wordmark-gen" aria-hidden="true">gen</span>
+    </span>
+  }
+</span>

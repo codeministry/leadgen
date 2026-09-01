@@ -1,0 +1,16 @@
+<div class="score" [attr.data-band]="band()" [style.width.px]="size()" [style.height.px]="size()">
+  <svg viewBox="0 0 48 48" role="img" [attr.aria-label]="label()">
+    <circle class="track" cx="24" cy="24" [attr.r]="radius" />
+    @if (value() !== null) {
+      <circle
+        class="fill"
+        cx="24"
+        cy="24"
+        [attr.r]="radius"
+        [attr.stroke-dasharray]="circumference"
+        [attr.stroke-dashoffset]="dashOffset()"
+      />
+    }
+  </svg>
+  <span class="figure" aria-hidden="true">{{ value() ?? '—' }}</span>
+</div>

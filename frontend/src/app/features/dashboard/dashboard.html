@@ -1,0 +1,100 @@
+<lg-page-header
+  title="Dashboard"
+  subtitle="What came in this morning, and how much of it survived."
+/>
+
+<div class="tiles">
+  <lg-stat-tile
+    label="Extracted"
+    [value]="ingest.report()?.extracted ?? total"
+    unit="offers"
+    [hint]="ingest.report() ? 'From the last run' : 'Measured baseline, 14 mails'"
+  />
+  <lg-stat-tile
+    label="Written"
+    [value]="ingest.report()?.written ?? '—'"
+    unit="rows"
+    [hint]="
+      ingest.report()
+        ? (repeats() > 0
+            ? repeats() + ' listings appeared in two documents'
+            : 'Every extracted offer was a new row')
+        : 'No run yet'
+    "
+  />
+  <lg-stat-tile label="Survived the filter" [value]="survived()" unit="offers" [emphasis]="true"
+    hint="16.5 % of what came in" />
+  <lg-stat-tile label="Follow-ups due" [value]="followUpsDue()" hint="Across the pipeline" />
+</div>
+
+<section class="panel">
+  <h2 class="type-h2">The hard filter</h2>
+  <p class="type-small text-muted panel-note">
+    Five stages, in the order they run. Each one states what it removed; the rail narrows
+    to what is left.
+  </p>
+  <lg-funnel-rail [stages]="stages" [total]="total" />
+</section>
+
+<section class="panel">
+  <h2 class="type-h2">Last ingest run</h2>
+
+  @if (ingest.error(); as error) {
+    <p class="type-small run-error" role="alert">
+      <lg-icon name="triangle-alert" [size]="16" />
+      {{ error }}
+    </p>
+  }
+
+  @if (ingest.report(); as report) {
+    @if (ingest.mismatches().length > 0) {
+      <p class="type-small run-error" role="alert">
+        <lg-icon name="triangle-alert" [size]="16" />
+        {{ ingest.mismatches().length }} document(s) extracted fewer offers than they
+        announced. A selector that stopped matching looks exactly like a quiet market.
+      </p>
+    }
+
+    <div class="table-scroll">
+      <table class="table table-sm">
+        <thead>
+          <tr>
+            <th scope="col">Source</th>
+            <th scope="col" class="num">Documents</th>
+            <th scope="col" class="num">Extracted</th>
+            <th scope="col" class="num">Written</th>
+            <th scope="col">Announced</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (source of report.sources; track source.sourceId) {
+            <tr>
+              <th scope="row" class="type-small">{{ source.sourceId }}</th>
+              <td class="type-mono-data num">{{ source.documents }}</td>
+              <td class="type-mono-data num">{{ source.extracted }}</td>
+              <td class="type-mono-data num">{{ source.written }}</td>
+              <td>
+                @for (document of source.details; track document.documentId) {
+                  @if (document.announced !== null && !document.complete) {
+                    <lg-badge tone="warning">
+                      {{ document.documentId }}: {{ document.extracted }} of
+                      {{ document.announced }}
+                    </lg-badge>
+                  }
+                } @empty {
+                  <span class="type-small text-muted">—</span>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  } @else {
+    <lg-empty-state
+      icon="funnel"
+      title="No run yet"
+      description="Run ingest from the header. It reads every enabled source once and reports what each document gave up."
+    />
+  }
+</section>

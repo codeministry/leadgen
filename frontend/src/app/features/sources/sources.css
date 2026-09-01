@@ -1,0 +1,36 @@
+.table-scroll {
+  overflow-x: auto;
+  border: 1px solid var(--color-base-300);
+  border-radius: var(--radius-box);
+  background-color: var(--color-base-100);
+}
+
+.id {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.num {
+  text-align: right;
+}
+
+.off {
+  color: var(--lg-muted);
+}
+
+.ok {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  color: var(--color-success);
+}
+
+.note {
+  margin-top: 1rem;
+}
+
+code {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+}

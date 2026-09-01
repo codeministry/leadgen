@@ -1,0 +1,57 @@
+.score {
+  position: relative;
+  display: grid;
+  flex: none;
+  place-items: center;
+  color: var(--score-out);
+}
+
+.score[data-band="strong"] {
+  color: var(--score-strong);
+}
+
+.score[data-band="weak"] {
+  color: var(--score-weak);
+}
+
+.score[data-band="unscored"] {
+  color: var(--lg-muted);
+}
+
+svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+
+  /* Start the arc at twelve o'clock instead of three. */
+  transform: rotate(-90deg);
+}
+
+.track {
+  fill: none;
+  stroke: var(--color-base-300);
+  stroke-width: 4;
+}
+
+.fill {
+  fill: none;
+  stroke: currentcolor;
+  stroke-width: 4;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 420ms ease-out;
+}
+
+.figure {
+  font-family: var(--font-mono);
+  font-size: 0.9375rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  line-height: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fill {
+    transition: none;
+  }
+}

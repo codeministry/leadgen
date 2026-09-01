@@ -1,0 +1,54 @@
+:host {
+  display: inline-flex;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* The asset carries its own cyan, so it does not follow the theme. It sits on
+   base-100 in both, where it stays legible; nothing else in the header depends
+   on it taking a palette colour. */
+.mark {
+  flex: none;
+  width: auto;
+}
+
+.wordmark {
+  font-family: var(--font-display);
+  font-size: 1.0625rem;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+/* The casing is written out rather than transformed: the two halves differ in
+   case as well as in colour, so a `text-transform` on the wrapper cannot express
+   it. */
+.wordmark-lead {
+  font-variation-settings: "opsz" 18, "wght" 700;
+  color: var(--color-primary);
+}
+
+/* `--color-accent` is a fill, not a text colour, and fails AA at this size.
+   `--lg-accent-text` is the text variant of the same ochre. */
+.wordmark-gen {
+  font-variation-settings: "opsz" 18, "wght" 500;
+  color: var(--lg-accent-text);
+}
+
+/* Below 30rem the header cannot hold logo, wordmark, action and theme toggle at
+   once. The wordmark is hidden visually rather than removed, so it keeps naming
+   the brand link for a screen reader. */
+@media (width < 30rem) {
+  .wordmark {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}

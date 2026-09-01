@@ -1,0 +1,68 @@
+<!-- A @switch over the seven tags lucide actually uses (path, circle, rect, line,
+     ellipse, polyline, polygon — counted across the whole set) rather than
+     [innerHTML] with a sanitizer bypass: this is static, AOT-checks, and needs no
+     escape hatch. Bracket access is required by noPropertyAccessFromIndexSignature. -->
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+  [attr.width]="size()"
+  [attr.height]="size()"
+  [attr.stroke-width]="strokeWidth()"
+  [attr.role]="label() ? 'img' : null"
+  [attr.aria-label]="label()"
+  [attr.aria-hidden]="label() ? null : 'true'"
+>
+  @for (part of node(); track $index) {
+    @switch (part[0]) {
+      @case ('path') {
+        <svg:path [attr.d]="part[1]['d']" [attr.fill]="part[1]['fill']" />
+      }
+      @case ('circle') {
+        <svg:circle
+          [attr.cx]="part[1]['cx']"
+          [attr.cy]="part[1]['cy']"
+          [attr.r]="part[1]['r']"
+          [attr.fill]="part[1]['fill']"
+        />
+      }
+      @case ('rect') {
+        <svg:rect
+          [attr.x]="part[1]['x']"
+          [attr.y]="part[1]['y']"
+          [attr.width]="part[1]['width']"
+          [attr.height]="part[1]['height']"
+          [attr.rx]="part[1]['rx']"
+          [attr.ry]="part[1]['ry']"
+          [attr.fill]="part[1]['fill']"
+        />
+      }
+      @case ('line') {
+        <svg:line
+          [attr.x1]="part[1]['x1']"
+          [attr.y1]="part[1]['y1']"
+          [attr.x2]="part[1]['x2']"
+          [attr.y2]="part[1]['y2']"
+        />
+      }
+      @case ('ellipse') {
+        <svg:ellipse
+          [attr.cx]="part[1]['cx']"
+          [attr.cy]="part[1]['cy']"
+          [attr.rx]="part[1]['rx']"
+          [attr.ry]="part[1]['ry']"
+          [attr.fill]="part[1]['fill']"
+        />
+      }
+      @case ('polyline') {
+        <svg:polyline [attr.points]="part[1]['points']" />
+      }
+      @case ('polygon') {
+        <svg:polygon [attr.points]="part[1]['points']" [attr.fill]="part[1]['fill']" />
+      }
+    }
+  }
+</svg>

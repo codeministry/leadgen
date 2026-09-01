@@ -42,3 +42,10 @@ __screenshots__/
 # System files
 .DS_Store
 Thumbs.db
+
+# Brand originals. The derived assets (logo-mark.png, favicon.ico,
+# favicon-256.png) are committed, so a clone builds without these; regenerate
+# them with tools/build-favicon.sh when the source changes.
+/public/logo.png
+/public/logo-1.png
+/public/logo-2.png

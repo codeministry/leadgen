@@ -1,20 +1,15 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject } from '@angular/core';
-import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { injectDispatch } from '@ngrx/signals/events';
-import { statusEvents } from '@core/store/status.events';
-import { StatusStore } from '@core/store/status.store';
+import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { AppShell } from '@layout/app-shell/app-shell';
 
+/**
+ * The root exists to mount the shell and nothing else. Renaming its selector
+ * means editing `src/index.html` too — every test still passes with a mismatch,
+ * and the only symptom is a blank page with no console error.
+ */
 @Component({
   selector: 'lg-root',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive],
+  imports: [AppShell],
   templateUrl: './app.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class App implements OnInit {
-  protected readonly store = inject(StatusStore);
-  private readonly dispatch = injectDispatch(statusEvents);
-
-  ngOnInit(): void {
-    this.dispatch.opened();
-  }
-}
+export class App {}

@@ -1,0 +1,140 @@
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(21rem, 100%), 1fr));
+  gap: 1rem;
+  align-items: start;
+}
+
+.panel {
+  padding: 1.25rem;
+  border: 1px solid var(--color-base-300);
+  border-radius: var(--radius-box);
+  background-color: var(--color-base-100);
+}
+
+.panel h2 {
+  margin-bottom: 0.75rem;
+}
+
+.panel-note {
+  margin-bottom: 1rem;
+}
+
+.sub {
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.knockouts {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}
+
+.knockout {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.knockout dt {
+  display: flex;
+  flex-direction: column;
+}
+
+.key {
+  font-size: 0.75rem;
+  opacity: 0.8;
+}
+
+.thresholds {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.thresholds li {
+  display: grid;
+  grid-template-columns: 0.75rem 4.5rem 1fr;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+.swatch {
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 0.25rem;
+}
+
+.swatch.strong {
+  background-color: var(--score-strong);
+}
+
+.swatch.weak {
+  background-color: var(--score-weak);
+}
+
+.swatch.out {
+  background-color: var(--score-out);
+}
+
+.anti {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+
+.bars {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.bar-row {
+  display: grid;
+  grid-template-columns: minmax(0, 13rem) 1fr 3rem;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+.name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.track {
+  display: block;
+  height: 0.5rem;
+  overflow: hidden;
+  border-radius: 0.25rem;
+  background-color: var(--color-base-300);
+}
+
+.fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background-color: var(--color-primary);
+}
+
+.fill.penalty {
+  background-color: var(--lg-warning-text);
+}
+
+.value {
+  text-align: right;
+}
+
+.note {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+code {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+}

@@ -1,0 +1,85 @@
+.card {
+  display: flex;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--color-base-300);
+  border-radius: var(--radius-box);
+  background-color: var(--color-base-100);
+  transition: border-color 140ms ease;
+}
+
+.card:hover {
+  border-color: color-mix(in oklab, var(--color-primary) 45%, var(--color-base-300));
+}
+
+.main {
+  min-width: 0;
+  flex: 1;
+}
+
+.title a {
+  text-decoration-color: transparent;
+  transition: text-decoration-color 140ms ease;
+}
+
+.title a:hover {
+  text-decoration: underline;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  margin-top: 0.25rem;
+}
+
+.unknown {
+  font-style: italic;
+}
+
+.description {
+  display: -webkit-box;
+  overflow: hidden;
+  margin-top: 0.5rem;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.reasons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  margin-top: 0.75rem;
+}
+
+.reason {
+  display: flex;
+  align-items: baseline;
+  gap: 0.375rem;
+}
+
+.points {
+  color: var(--color-success);
+}
+
+.penalty .points {
+  color: var(--lg-warning-text);
+}
+
+.also {
+  margin-top: 0.5rem;
+}
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  margin-top: 0.75rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card,
+  .title a {
+    transition: none;
+  }
+}

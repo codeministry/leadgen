@@ -1,0 +1,9 @@
+/* Not `type-caption`: that uppercases, and a badge usually carries a proper noun
+   — portal and agency names — which uppercasing turns into shouting. */
+.lg-badge-text {
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}

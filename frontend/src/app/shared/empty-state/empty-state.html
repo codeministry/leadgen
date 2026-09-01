@@ -1,0 +1,8 @@
+<div
+  class="border-base-300 flex flex-col items-center gap-3 rounded-box border border-dashed px-6 py-12 text-center"
+>
+  <span class="text-muted"><lg-icon [name]="icon()" [size]="28" /></span>
+  <h2 class="type-h3">{{ title() }}</h2>
+  <p class="type-small text-muted max-w-prose">{{ description() }}</p>
+  <ng-content />
+</div>

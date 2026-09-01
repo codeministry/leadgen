@@ -1,0 +1,18 @@
+<nav class="rail" [class.rail-open]="shell.railOpen()" aria-label="Sections">
+  <ul>
+    @for (item of items; track item.path) {
+      <li>
+        <a
+          [routerLink]="item.path"
+          routerLinkActive="is-active"
+          [attr.title]="shell.railOpen() ? null : item.label"
+        >
+          <lg-icon [name]="item.icon" [size]="20" />
+          <!-- The label stays in the DOM when the rail is collapsed and is hidden
+               visually, so the link keeps its accessible name either way. -->
+          <span class="type-small nav-label">{{ item.label }}</span>
+        </a>
+      </li>
+    }
+  </ul>
+</nav>

@@ -1,0 +1,38 @@
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.control {
+  display: inline-flex;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.control input[type="search"] {
+  width: 20rem;
+  max-width: 100%;
+}
+
+.count {
+  margin-inline-start: auto;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}
+
+.error {
+  color: var(--color-error);
+}
+
+@media (width < 48rem) {
+  .count {
+    margin-inline-start: 0;
+  }
+}

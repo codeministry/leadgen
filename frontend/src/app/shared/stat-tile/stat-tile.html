@@ -1,0 +1,17 @@
+<div class="bg-base-100 border-base-300 rounded-box border p-4">
+  <p class="type-caption text-muted">{{ label() }}</p>
+  <p class="mt-1 flex items-baseline gap-1">
+    <span
+      class="type-display-m"
+      [class.text-signal]="emphasis()"
+      [class.text-muted]="value() === '—'"
+      >{{ value() }}</span
+    >
+    @if (unit(); as unit) {
+      <span class="type-small text-muted">{{ unit }}</span>
+    }
+  </p>
+  @if (hint(); as hint) {
+    <p class="type-small text-muted mt-1">{{ hint }}</p>
+  }
+</div>

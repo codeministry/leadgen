@@ -5,7 +5,32 @@
   <title>Lead Generation</title>
   <base href="/">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <meta name="color-scheme" content="light dark">
+  <!-- Both icons, and the header's logo-mark.png, come from the gitignored
+       `public/logo.png` via `frontend/tools/build-favicon.sh`, which is the only
+       thing that knows where the ochre spout sits in that bitmap. Regenerate,
+       never hand-edit. -->
+  <link rel="icon" type="image/x-icon" href="favicon.ico" sizes="16x16 32x32 48x48">
+  <link rel="apple-touch-icon" href="favicon-256.png">
+  <script>
+    // Runs before the stylesheet resolves, so the page never paints in the wrong
+    // theme and then corrects itself. "System" is the *absence* of the attribute:
+    // daisyUI emits lg-dark under `:root:not([data-theme])` inside a
+    // prefers-color-scheme query, so removing it is what "follow the OS" means.
+    // Keep the key in step with THEME_STORAGE_KEY in core/theme/theme.model.ts.
+    (function () {
+      try {
+        var preference = localStorage.getItem('lg-theme');
+        if (preference === 'light' || preference === 'dark') {
+          document.documentElement.setAttribute('data-theme', 'lg-' + preference);
+        } else {
+          document.documentElement.removeAttribute('data-theme');
+        }
+      } catch (error) {
+        // Private mode or storage disabled. Fall through to the media query.
+      }
+    })();
+  </script>
 </head>
 <body>
   <lg-root></lg-root>

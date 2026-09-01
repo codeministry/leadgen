@@ -1,0 +1,18 @@
+<!-- A radiogroup rather than three loose buttons: the states are mutually
+     exclusive, and arrow keys should move between them. -->
+<div class="join" role="radiogroup" aria-label="Colour theme">
+  @for (option of options; track option.preference) {
+    <button
+      type="button"
+      role="radio"
+      class="btn btn-ghost btn-sm join-item"
+      [class.btn-active]="store.preference() === option.preference"
+      [attr.aria-checked]="store.preference() === option.preference"
+      [attr.title]="option.label"
+      (click)="choose(option.preference)"
+    >
+      <lg-icon [name]="option.icon" [size]="16" />
+      <span class="sr-only">{{ option.label }}</span>
+    </button>
+  }
+</div>

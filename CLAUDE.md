@@ -92,14 +92,62 @@ Carried over from `codeministry/customer/ship360`, which is the house style:
 - **Standalone components, signals, `OnPush`, zoneless.** `input()`/`output()`/`model()`,
   `signal`/`computed`, `inject()`, `@if`/`@for`. No `@Input/@Output`, no `*ngIf`, no
   `| async`. RxJS only at the I/O boundary, bridged in with `toSignal`.
-- **`.css`, never `.scss`** — Tailwind 4 is CSS-first. No raw hex under `src/app`
-  (`color-no-hex`); literals live in `src/styles/tokens.css`.
+- **`.css`, never `.scss`** — Tailwind 4 is CSS-first. `color-no-hex` is on globally and
+  `src/styles.css` is the **only** exempt file, so every colour literal lives there beside
+  the two DaisyUI themes; `src/styles/tokens.css` holds semantic aliases (`--score-*`),
+  layout constants and the type scale, and references `var()` only.
 - **NgRx**: `@ngrx/signals` events dialect, stores as a `*.store.ts` + `*.events.ts`
   pair with `withReducer` + `withEventHandlers`. Model: `core/store/status.store.ts`.
+  Where the I/O is the DOM rather than HTTP, `withHooks` + an `effect` replaces
+  `withEventHandlers` — see `core/theme/theme.store.ts`.
 - **Specs live beside their file.**
 - **Strict TypeScript** plus `strictTemplates`, `noPropertyAccessFromIndexSignature`,
   `noImplicitReturns`, `noImplicitOverride`, `noUnusedLocals`. No `baseUrl` — TypeScript
   6 deprecates it and the path mappings resolve relative to `tsconfig.json` anyway.
+
+## The design system
+
+- **Two themes, `lg-light` and `lg-dark`,** declared as `@plugin "daisyui/theme"` blocks in
+  `src/styles.css` with DaisyUI's own built-ins switched off (`themes: false`) so they do
+  not ship dead. Palette **Petrol & Ocker**, all values OKLCH. Light primary is petrol
+  `#0E6E6B`; dark primary is the logo's own cyan `#33E3DA`
+  (`oklch(83.04% 0.1348 189.53)`, 10.5:1 on `base-100`), which is also what the "LEAD"
+  half of the wordmark takes.
+- **Ochre means one thing: this survived the filter.** Petrol carries structure and
+  interaction, everything discarded is muted. Nothing else may take the accent. The score
+  bands follow it — `--score-strong` ochre, `--score-weak` **secondary**, `--score-out`
+  muted. Review takes secondary rather than primary because the dark primary is the
+  logo's bright cyan and would outshine the ochre; the middle band must never be the
+  loudest thing on the screen.
+- **`--color-accent` is a fill and a large-number colour, never body text.** It is 3.05:1
+  on the sand page and fails AA below 24 px. `--lg-accent-text` is the text variant at
+  4.68:1, and `--lg-muted` / `--lg-warning-text` exist for the same reason.
+- **The header carries `data-theme="lg-dark"` in both themes.** The logo asset has its own
+  bright cyan, which is 1.6:1 on white and cannot be a light-theme colour at any size, so
+  the lockup keeps a navy ground everywhere and stays identical in both modes. DaisyUI's
+  themes are attribute-scoped, so nesting `data-theme` on an element re-declares every
+  token for that subtree — the buttons, the muted version string and the two-tone wordmark
+  inside the header all follow with no override anywhere. The `--lg-*` corrective tokens
+  are declared on the same selectors and re-scope with it.
+- **`system` is the absence of `data-theme`.** DaisyUI emits `lg-dark` under
+  `:root:not([data-theme])` inside a `prefers-color-scheme` query, so removing the
+  attribute *is* "follow the operating system". An inline script in `src/index.html`
+  applies the stored preference before first paint and shares the `lg-theme` key with
+  `core/theme/theme.model.ts`.
+- **Fonts are self-hosted through `@fontsource-variable`,** never a CDN: Bricolage
+  Grotesque (display, `opsz.css` for the wght + opsz axes), Manrope (body), JetBrains Mono
+  (anything compared down a column). The rule is: a number you compare is mono, a number
+  you admire is display. The twelve `type-*` utilities in `tokens.css` are the scale.
+- **Icons go through `<lg-icon>`,** which renders `lucide`'s icon node arrays directly.
+  `lucide-angular` pins `@angular/core: 13.x - 21.x` and cannot be used on Angular 22.
+  Each icon is a named import in `shared/icon/lucide-icons.ts` so esbuild can tree-shake.
+- **The brand mark is the real asset.** `shared/brand-mark/` renders
+  `public/logo-mark.png` beside the two-tone LEADgen wordmark. `logo-mark.png` is
+  `logo-1.png` cut out, trimmed and resized to 128 px tall — four times the 26 px the
+  header shows. `favicon.ico` and `favicon-256.png` come from the same source on the navy
+  plate, so the tab icon and the header show one funnel. `logo-1.png` and `logo-2.png`
+  stay as the untouched sources. The asset carries its own cyan and does not follow the
+  theme; it sits on `base-100` in both, where it stays legible.
 
 ## The configuration layer
 
@@ -275,6 +323,17 @@ config/*.yaml                     the same four names, overriding file by file (
 docs/samples/emails/*.eml         14 real newsletter mails (gitignored)
 docs/samples/analyze_samples.py   extraction, field coverage, duplicates
 docs/samples/simulate_filter.py   simulation of the hard filters
+
+frontend/src/styles.css           both DaisyUI themes, the fonts, the @theme block —
+                                  the only file allowed to hold a colour literal
+frontend/src/styles/tokens.css    semantic aliases, layout constants, the type scale
+frontend/src/app/core/            api seams, stores, models, fixtures, theme, shell
+frontend/src/app/layout/          shell, header, nav rail, theme toggle
+frontend/src/app/shared/          icon, brand mark, score, funnel rail, badge, stat tile,
+                                  empty state, page header
+frontend/src/app/features/        dashboard, shortlist (+ offer card), offer detail,
+                                  pipeline, sources, rules
+frontend/public/favicon.svg       the brand mark on its plate; favicon.ico derives from it
 ```
 
 The two Python scripts are the **reference implementation**. Whatever they do, the Java
@@ -310,7 +369,30 @@ code has to reproduce — the numbers in `docs/SAMPLE-ANALYSIS.md` are the targe
 8. **Scoring + digest** — first daily overview, still without a frontend.
 9. **Packaging** — cover letter from a Freemarker template plus reference projects from
    the profile, copy in the PDF matching the ad's language.
-10. **Frontend** — shortlist, detail, pipeline, sources, profile & rules.
+10. 🟡 **Frontend** — design system, shell and all six screens exist. The dashboard runs
+    on the real `GET /api/status` and `POST /api/ingest`; shortlist, offer detail,
+    pipeline, sources and rules run on `core/fixtures/`, every file marked
+    `// FIXTURE — replace with the real endpoint`. Each feature reads through an `Api`
+    seam (`core/api/shortlist.api.ts` is the model), so swapping in HTTP is one file per
+    feature. Steps 5 to 9 are what unblocks that.
+11. **Manual status capture** — the tool never sends. It finds, filters, scores and
+    packages; Marcello sends the mail himself and therefore records the outcome himself.
+    The pipeline board is the only place that state exists, so it needs
+    `PATCH /api/applications/{id}` plus an `application` table, a status control on the
+    board and on the offer detail, and the `sent_on` / `follow_up_on` dates the
+    dashboard's follow-up tile counts. Nothing in the system can observe the result of a
+    mail it did not send.
+12. **Manual entry** — an offer found by hand must be able to enter the pipeline, or the
+    shortlist quietly stops being the whole picture. A Markdown file uploaded on the
+    Sources screen lands in `<config-dir>/inbox/` and is read by a `manual-inbox` **file**
+    source on the next run, so no new connector is needed. One document is one offer here,
+    so it needs a `markdown-frontmatter` extraction strategy: YAML frontmatter carries the
+    eight-field contract, the body is the description, `fallback: llm` covers a raw pasted
+    ad. `external_id` is the unwrapped URL or a content hash, otherwise re-uploading the
+    same ad makes a second offer. `ProxyLink.unwrap` still applies, and the inbox is
+    gitignored. `POST /api/sources/manual/documents` is the first write endpoint in this
+    app and writes to disk, so it needs an extension allowlist, a size limit, a sanitised
+    filename and a decision about `security.auth`, which is `none` today.
 
 ## Traps that have already cost money
 
@@ -326,6 +408,53 @@ code has to reproduce — the numbers in `docs/SAMPLE-ANALYSIS.md` are the targe
   passes with the mismatch, because `TestBed` creates the component itself — the only
   symptom is a blank page in the browser, with no console error. Found exactly that way
   in step 1, so: verify a UI change in a real browser, not only in the suite.
+- **A component class name must not collide with a DaisyUI component class.** DaisyUI 5
+  ships `status` (a 0.5 rem dot) and `label`, among others. A header span classed
+  `.status` was laid out as an 8 px box with its text overflowing under the next control,
+  and nothing reported a problem. Check a new class name against DaisyUI's component list,
+  or prefix it.
+- **Tailwind 4 scans source *text* for class names, so a class assembled at runtime is
+  never emitted.** `'badge-' + tone()` left seven of eight badge tones with no colour at
+  all; measured against the built stylesheet, only `badge-accent` and `badge-outline`
+  existed. Spell every variant out in a literal lookup map, or the class exists only in
+  the DOM and never in the CSS.
+- **Router input binding writes `undefined` for an absent query parameter**, overriding
+  the input's declared default. The first `q().trim()` on it throws inside the template
+  and leaves the page half-rendered — the page title empty, half the controls gone, and
+  nothing in the console pointing anywhere near the cause. Every routed input needs
+  `transform: (value) => value ?? <default>`.
+- **`min-height: 100%` breaks at `<lg-root>`,** which has no height of its own, so the
+  percentage chain has nothing to resolve against and the nav rail ended at its last menu
+  item. `100dvh` has no such dependency.
+- **The flex item is the component host, not the element inside it.** Styling `.rail`
+  without `:host { display: flex }` leaves the host at its inline default, and the child
+  never stretches.
+- **A bare boolean attribute binds as the empty string** (`outline`, not
+  `[outline]="true"`), which `strictTemplates` rejects — but only at build time.
+  `tsc -p tsconfig.app.json` in `check:static` does not run the Angular template compiler,
+  so `bun run test` or `bun run build` is the gate that catches template type errors.
+  Passing `check:static` says nothing about the templates.
+- **A backgrounded tab suspends CSS transitions,** and `getComputedStyle` then returns the
+  transition's *start* value rather than its target. An active nav link read as muted grey
+  while being correct in a real browser. Anything transitioned, animated, or driven by
+  `ResizeObserver`/`IntersectionObserver` must be measured through the Interceptor skill's
+  `Tools/VerifyViewport.ts`, never through a background tab.
+- **A CSS transition never fires on first paint.** A width rendered correctly the first
+  time never changes, so nothing animates and the reveal silently does not exist. It needs
+  two states: render the start value, let the browser paint it, then set the target —
+  `afterNextRender` plus one `requestAnimationFrame`. See `shared/funnel-rail/`.
+- **`repeat(auto-fit, minmax(21rem, 1fr))` cannot shrink below its minimum**, so a panel
+  grid pushed the page sideways at 320 px while looking fine everywhere else. Write
+  `minmax(min(21rem, 100%), 1fr)`. In the same family: a flex item will not go below its
+  content width without `min-width: 0`, which is what let a 20 rem search input overflow a
+  320 px screen.
+- **Test horizontal overflow at the page, not at the element.** Comparing every element's
+  right edge against the viewport flags the kanban board and the wide tables, which scroll
+  inside their own `overflow-x: auto` on purpose. The real check is
+  `document.scrollWidth > document.clientWidth`.
+- **ImageMagick renders SVG with its own parser and drops paths containing arcs** unless
+  `rsvg-convert` is on PATH as its delegate. The first favicon looked broken for that
+  reason alone, with the geometry perfectly correct.
 
 ## Open
 

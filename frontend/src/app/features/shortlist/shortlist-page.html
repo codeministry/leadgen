@@ -1,6 +1,77 @@
-<div class="card bg-base-100 shadow-sm">
-  <div class="card-body">
-    <h1 class="card-title">Shortlist</h1>
-    <p class="opacity-70">No offers yet — ingest is step 3 of the order of work.</p>
+<lg-page-header
+  title="Shortlist"
+  subtitle="What cleared the hard filter, with the reason it scored what it scored."
+/>
+
+<div class="filters">
+  <label class="control">
+    <span class="sr-only">Search titles, descriptions and tags</span>
+    <input
+      type="search"
+      class="input input-sm"
+      placeholder="Search titles, descriptions, tags"
+      [value]="q()"
+      (input)="onInput($event)"
+    />
+  </label>
+
+  <div class="join" role="group" aria-label="Score band">
+    @for (option of bandOptions; track option.id) {
+      <button
+        type="button"
+        class="btn btn-sm join-item"
+        [class.btn-active]="band() === option.id"
+        [attr.aria-pressed]="band() === option.id"
+        (click)="setFilter('band', option.id)"
+      >
+        {{ option.label }}
+      </button>
+    }
   </div>
+
+  <label class="control">
+    <span class="sr-only">Portal</span>
+    <select class="select select-sm" [value]="portal()" (change)="onPortal($event)">
+      <option value="">Every portal</option>
+      @for (name of store.portals(); track name) {
+        <option [value]="name">{{ name }}</option>
+      }
+    </select>
+  </label>
+
+  <p class="type-small text-muted count">
+    {{ visible().length }} of {{ store.entries().length }}
+    @if (store.unscored() > 0) {
+      · {{ store.unscored() }} unscored
+    }
+  </p>
+
+  @if (filtered()) {
+    <button type="button" class="btn btn-ghost btn-sm" (click)="clear()">
+      <lg-icon name="x" [size]="14" />
+      Clear filters
+    </button>
+  }
 </div>
+
+@if (store.error(); as error) {
+  <p class="type-small error" role="alert">{{ error }}</p>
+} @else if (visible().length > 0) {
+  <div class="list">
+    @for (entry of visible(); track entry.offer.id) {
+      <lg-offer-card [entry]="entry" />
+    }
+  </div>
+} @else if (filtered()) {
+  <lg-empty-state
+    icon="search"
+    title="Nothing matches these filters"
+    description="Clear them to see the whole shortlist again."
+  />
+} @else {
+  <lg-empty-state
+    icon="inbox"
+    title="No offers yet"
+    description="Ingest reads the sources and the hard filter thins them out. Run it from the header to fill this list."
+  />
+}

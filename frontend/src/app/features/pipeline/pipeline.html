@@ -1,0 +1,47 @@
+<lg-page-header
+  title="Pipeline"
+  subtitle="Eleven states are too many columns, so they group into five lanes. The exact state stays on the card."
+/>
+
+<div class="board">
+  @for (column of columns(); track column.lane.id) {
+    <section class="lane">
+      <h2 class="type-caption lane-head">
+        {{ column.lane.label }}
+        <span class="type-mono-data text-muted">{{ column.applications.length }}</span>
+      </h2>
+
+      <ul class="cards">
+        @for (application of column.applications; track application.id) {
+          <li class="card">
+            <div class="card-top">
+              <lg-score [value]="application.scoreValue" [size]="40" />
+              <h3 class="type-small card-title">{{ application.title }}</h3>
+            </div>
+            <p class="type-mono-data text-muted card-meta">
+              @if (application.rateEur; as rate) {
+                <span>{{ rate }} &euro;/h</span>
+              }
+              @if (application.sentOn; as sent) {
+                <span>sent {{ sent }}</span>
+              }
+              @if (application.followUpOn; as due) {
+                <span class="due">follow up {{ due }}</span>
+              }
+            </p>
+            <div class="card-foot">
+              <lg-badge [tone]="toneFor(application.status)" [outline]="true">
+                {{ application.status }}
+              </lg-badge>
+              <span class="type-caption text-muted">
+                {{ application.agency ?? 'no agency stated' }}
+              </span>
+            </div>
+          </li>
+        } @empty {
+          <li class="type-small text-muted empty">Nothing here</li>
+        }
+      </ul>
+    </section>
+  }
+</div>

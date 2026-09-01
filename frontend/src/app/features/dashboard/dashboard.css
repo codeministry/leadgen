@@ -1,0 +1,44 @@
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(13rem, 100%), 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.panel {
+  padding: 1.25rem;
+  border: 1px solid var(--color-base-300);
+  border-radius: var(--radius-box);
+  background-color: var(--color-base-100);
+}
+
+.panel + .panel {
+  margin-top: 1.5rem;
+}
+
+.panel-note {
+  margin: 0.25rem 0 1.25rem;
+}
+
+.run-error {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+  color: var(--lg-warning-text);
+}
+
+.table-scroll {
+  margin-top: 1rem;
+  overflow-x: auto;
+}
+
+lg-empty-state {
+  display: block;
+  margin-top: 1rem;
+}
+
+.num {
+  text-align: right;
+}
