@@ -92,6 +92,39 @@ Carried over from `codeministry/customer/ship360`, which is the house style:
   `noImplicitReturns`, `noImplicitOverride`, `noUnusedLocals`. No `baseUrl` — TypeScript
   6 deprecates it and the path mappings resolve relative to `tsconfig.json` anyway.
 
+## The configuration layer
+
+`backend/…/config/`. Everything else reads `ConfigRegistry.snapshot()` and nothing
+reads a YAML file itself.
+
+- **The three files are one snapshot**, read together and swapped atomically. Reloading
+  one without the others would hand the pipeline a picture that never existed on disk,
+  which is why `rules.hot_reload` is one switch for all three.
+- **Binding is strict** (`FAIL_ON_UNKNOWN_PROPERTIES`). A misspelled `min_remote_percent`
+  would otherwise disable a hard filter in silence, and the only visible effect is a
+  longer shortlist — which looks exactly like a good day on the market.
+- **The failure policies differ by design.** Invalid at startup is fatal: running with a
+  filter nobody wrote is worse than not running. Invalid at reload is not: the last good
+  snapshot stays and the problem is logged, because a half-saved file must not take the
+  running tool down.
+- **`min_hourly_eur` before enrichment is rejected at load time** — the invariant is
+  enforced, not just written down.
+- **Placeholder resolution is deliberately dumb.** `${VAR}` without a value becomes the
+  empty string, and an empty YAML scalar is **null**, not `""` — every consumer treats
+  both alike. Whether empty is acceptable is a question about the field, so validation
+  answers it: an unset LLM key is fine, an unset IMAP host on an *enabled* source is not.
+- **Paths in `application.yaml` are file names**, resolved against the config directory.
+  A path with the directory baked in breaks the moment it moves — in the container it is
+  `/config`, not `./config/local`.
+- **Change detection polls timestamps, it does not use `WatchService`.** For three files
+  the efficiency argument is worth nothing, and the watch service is native only on
+  Linux; on macOS the JDK falls back to polling with a ten-second default latency. A
+  change is applied one cycle after it is first seen, so a save in progress finishes
+  first.
+- **The name `application.yaml` means two different files.** The one on the classpath
+  wires the process; the one in the config directory is the tool's own configuration. A
+  stack trace naming it can mean either.
+
 ## Backend conventions
 
 - **Flyway owns the schema, Hibernate validates it.** `ddl-auto: validate`; a drift
@@ -137,8 +170,9 @@ code has to reproduce — the numbers in `docs/SAMPLE-ANALYSIS.md` are the targe
    `docker-compose.yml` (postgres, api, web), `.env` loading, Flyway. `GET /api/status`
    plus the `StatusStore` exist only to prove the full path (component → proxy → Spring
    → Postgres) end to end; they are not a feature.
-2. **Configuration layer** — load, validate and hot-reload `sources.yaml`,
+2. ✅ **Configuration layer** — load, validate and hot-reload `sources.yaml`,
    `matching-rules.yaml`, `application.yaml`. First, because everything else stands on it.
+   `ConfigRegistry.snapshot()` is how the rest of the code reads configuration.
 3. **Ingest + extract** against the `local-eml` source (files, no mailbox needed).
    Acceptance test: 1289 offers from `docs/samples/emails/`, field coverage as in the analysis.
 4. **IMAP connector** — same extraction, different source. Progress tracked via

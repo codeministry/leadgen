@@ -15,10 +15,16 @@ llm:
     max_calls_per_day: 300
     cache_by_message_id: true
 
+# File names, resolved against the configuration directory — never a path with the
+# directory baked in: inside the container that directory is /config, not
+# ./config/local. An absolute path is taken as given.
 profile:
-  path: ${PROFILE_PATH:config/local/skill-profile.yaml}
+  path: ${PROFILE_PATH:skill-profile.yaml}
 rules:
-  path: ${RULES_PATH:config/local/matching-rules.yaml}
+  path: ${RULES_PATH:matching-rules.yaml}
+  # One switch for all three files: they are read and swapped as one snapshot, so
+  # reloading one without the others would give the pipeline a picture that never
+  # existed on disk.
   hot_reload: true
 
 # Only for offers that survived the hard filter: fetch the original ad from the

@@ -27,6 +27,10 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
+    // The three config files in config/local are read by this application, not by
+    // Spring: they are data with their own schema, not Spring properties.
+    implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml")
+    implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
 
     // Boot 4 split the integrations into their own modules. Without
     // `spring-boot-flyway` the migrations sit on the classpath and never run,

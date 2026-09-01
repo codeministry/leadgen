@@ -23,6 +23,9 @@ spring:
 # documents.
 leadgen:
   config-dir: ${LEADGEN_CONFIG_DIR:../config/local}
+  # How often the three files are checked for changes. Two polls are needed before a
+  # change is applied, so the worst case is twice this value.
+  config-poll-interval: ${CONFIG_POLL_INTERVAL:PT2S}
   packages-dir: ${PACKAGES_DIR:../packages}
   inbox-dir: ${INBOX_DIR:../data/inbox}
 

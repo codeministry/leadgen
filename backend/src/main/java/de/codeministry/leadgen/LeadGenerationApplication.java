@@ -2,6 +2,7 @@ package de.codeministry.leadgen;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
@@ -9,6 +10,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  * process (concept § 10, phase 1) — there is no separate worker container.
  */
 @SpringBootApplication
+@ConfigurationPropertiesScan
 @EnableScheduling
 public class LeadGenerationApplication {
 
