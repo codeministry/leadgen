@@ -1,10 +1,10 @@
 ---
 phase: climbing
-progress: 83/83
+progress: 89/89
 task: "Acquisition tool: collect, filter, enrich and package project offers"
 slug: lead-generation
 started: 2026-09-01T11:30:00Z
-updated: 2026-09-02T01:10:00Z
+updated: 2026-09-02T02:05:00Z
 ---
 
 # lead-generation — Ideal State Artifact
@@ -148,6 +148,11 @@ A single operator drops mailbox credentials and a profile into `config/`, and ev
 | ISC-83 | bash | run the suite and look for stray directories | none outside the config dir | git status | whole repository |
 | ISC-84 | interceptor | upload a document and review it before it enters | fields correctable, duplicate named | live browser | `ReviewCard`, `ManualUploadServiceTest` |
 | ISC-85 | bun-test | upload a wrong extension, an oversized file, a traversing name | all three refused | JUnit | `ManualUploadServiceTest` |
+| ISC-86 | bun-test | read the shortlist with a duplicate cluster and a rejection | primaries only, portals named | JUnit | `OfferQueryServiceTest` |
+| ISC-87 | bun-test | sum the funnel's stages against its total | equal, never negative | JUnit | `OfferQueryServiceTest` |
+| ISC-88 | bun-test | open an offer the filter rejected, by id | served, hardPass false | JUnit | `OfferQueryServiceTest` |
+| ISC-89 | bun-test | render the shortlist over an offer with no description | no throw, page whole | Vitest | `shortlist-page.spec.ts` |
+| ISC-90 | bash | look for a fixture behind any screen | none left | rg | `frontend/src` |
 
 ## Features
 
@@ -301,6 +306,16 @@ A single operator drops mailbox credentials and a profile into `config/`, and ev
 - [x] ISC-84: An upload is reviewed before it becomes an offer: the extracted fields beside the source text, an answer to "is this already in the pipeline", and a correction that is written back into the file.
 - [x] ISC-85: Anti: the upload endpoint cannot be made to write outside the inbox — extension allowlist, size limit, no path traversal — and `security.auth` is answered rather than left at `none`.
 
+### F13 · The screens read the pipeline
+
+**Why:** Six screens ran on invented data while the pipeline behind them was finished. A shortlist nobody can check against the database is a demo, not a tool.
+
+- [x] ISC-86: The shortlist is one entry per project, not per listing, and it names every portal advertising it — the same collapse deduplication makes, visible where it matters.
+- [x] ISC-87: The funnel counts against the same set on both sides, so its stages and its survivors sum to its total.
+- [x] ISC-88: An offer the filter rejected can still be opened, because that is how somebody asks whether the rule was right.
+- [x] ISC-89: The screens survive the nulls the corpus actually contains — 9.2 % state no company, and a description can be missing outright.
+- [x] ISC-90: Anti: no screen reads a fixture. `core/fixtures/` is gone; what is left is the dashboard's own measured baseline, which now comes from the database too.
+
 ## Decisions
 
 - **2026-09-01 — Portal and source names anonymized in the documentation.** The analysis docs named the aggregator, its sender and host, the mail provider and six portals in clear text. The repository is going public; they are now `<newsletter-sender>`, `<aggregator-host>` and `portal-a`…`portal-f`, with the real names in the gitignored `config/local/sources.yaml`. Every measured figure is unchanged.
@@ -314,6 +329,7 @@ A single operator drops mailbox credentials and a profile into `config/`, and ev
 - **2026-09-01 — The cursor is committed after the write, not after the read.** `SourceConnector.commit` exists for that alone.
 - **2026-09-01 — One credentials file, and it is called `.env` because it cannot be called anything else for free.** Marcello's call to collapse `.env.local` plus a `.env` symlink. The name is forced by Compose: it substitutes the `${...}` in `docker-compose.yml` from `.env` and from nothing else — not from `env_file:`, which only injects into a container, and not from `COMPOSE_ENV_FILES` set inside a file. Both measured. Any other name costs a flag on every call or a symlink, and forgetting either silently applies the compose defaults.
 - **2026-09-01 — The database host port defaults to 55432 and the container side is fixed at 5432.** A developer machine usually already holds 5432, and the resulting failure names the user and neither the host nor the database. Making the container side variable too publishes a host port forwarding to a port nobody listens on, which from a client looks exactly like no port at all.
+- **2026-09-01 — Everything that counts offers counts primaries.** The shortlist, the funnel and the sources screen's survivor column all exclude duplicates, because they are all about the same list. Mixing the two sets is not a rounding difference: it made the funnel claim -45 survivors and the sources screen say 104 where the shortlist showed 96.
 - **2026-09-01 — Only `none` is an accepted `security.auth`, and it is fatal to write anything else.** Three modes were named in the configuration and none was implemented, which meant someone could write `basic`, believe the write endpoints were protected, and be wrong with no symptom at all. The mode is now rejected at load, and what actually stands in front of the endpoints is `server.address`, defaulting to `127.0.0.1`. Publishing that port anywhere else is the decision that would need an auth mode first, and it is now a decision somebody has to make on purpose.
 - **2026-09-01 — The uploaded file is the state, and there is no staging table.** It is inspectable with `cat`, confirming is a move, a rejection is a delete, and the correction is written back into the document — so re-reading the same file later produces the same offer. A table would put half the pipeline's truth somewhere the source knows nothing about.
 - **2026-09-01 — A relative source path names a place inside the configuration directory.** Resolved against the working directory instead, one configuration points at `backend/…` under `bootRun`, at the repository root in an IDE and at neither from a jar. It is the rule the four YAML files already follow, and the symptom of not following it was concrete: the test suite created `backend/config/inbox/pending` in the working tree, outside the gitignore that was written for `config/`.
@@ -341,6 +357,11 @@ A single operator drops mailbox credentials and a profile into `config/`, and ev
 - **2026-09-01 — The configuration vocabulary keeps the implemented names and adopts four ideas from the hand-drafted `config/local/sources.yaml`.** Resolves the fog entry. Kept: `unwrap_query_param`, `ancestor`, `list`, and the field names `agency`/`published`/`tags`. Adopted: `expect_count_from_subject` (the announced count becomes a runtime check rather than only a test assertion), `prefer_part` (the part preference was hardcoded), per-field `format` (the source-level `date_format` stays as the fallback), and `inherit` (a second source names another's extraction instead of copying it — the example was already carrying two copies of one selector table). Not adopted: the named `transforms:` indirection, which buys a level of indirection for a single transform. The operator's file was migrated to match and reproduces the reference numbers.
 
 ## Learning
+
+- **conjectured:** a count is a count, so the funnel could total the offers and subtract what each stage removed.
+  **refuted by:** the endpoint answering `survived: -45`.
+  **learned:** deduplication runs before the filter and a rejection is written on duplicates too, so the rejections were counted over a larger set than the total they were subtracted from. The number was negative and therefore obvious; the same mistake one stage earlier would have been a plausible-looking figure nobody could check.
+  **criterion now:** ISC-87 asserts that the stages and the survivors sum to the total, rather than asserting any particular count.
 
 - **conjectured:** a screenshot shows what the browser shows, so a capture is enough to verify a widget.
   **refuted by:** every status select on the board reading "New" in the capture while the accessibility tree reported `combobox … value="SENT"` — and the score ring rendering as an opaque black disc on screens that had already been reviewed and approved.
@@ -446,6 +467,9 @@ A single operator drops mailbox credentials and a profile into `config/`, and ev
 - ISC-29 … ISC-34 — `ImapSourceConnectorTest` (8), GreenMail
 - ISC-53, ISC-54 — `POST /api/ingest` against the operator's own migrated rules: 14 documents, 1289 offers, announced equals extracted in all 14
 - ISC-59, ISC-60, ISC-61 — `46e0d9c`; `java -jar` from the repository root logs `Reading …/.env` and `Database: jdbc:postgresql://localhost:55432/leadgen as leadgen`; port counter-check 15432 ↔ 55432
+- ISC-86 … ISC-88 — `OfferQueryServiceTest`, 8 tests against Postgres 17: ranking, the duplicate cluster naming all three portals, reasons in scoring order, reasons kept without a total, an incomplete offer flagged rather than dropped, the funnel summing to its total, the stages in the order they run, and a rejected offer served by id
+- ISC-89 — `shortlist-page.spec.ts` against `HttpTestingController`: the page renders with no query parameters, filters by band, searches an offer whose description is null, and offers only the portals that are there
+- Live against the sample corpus: 14 documents, 1,289 extracted, 1,138 primaries, 1,042 removed by the seven stages, 96 on the shortlist, and the sources screen reporting `matches` for every document's announced count
 - ISC-84, ISC-85 — `ManualUploadServiceTest` (8) against Postgres 17 and `ManualSourceControllerTest` (5) against MockMvc: the upload lands where no source globs it, the extraction is shown before anything enters, the duplicate is named before the confirm, the correction is written into the file and the file is moved, a rejection leaves nothing behind, and a wrong extension, an oversized file and three traversing names are all refused. `ReviewCard` covers the correction path in the browser. Verified live end to end: a file uploaded through the drop zone, `portal` corrected to a value the document never carried, confirmed, and the next run wrote the offer to Postgres with that value
 - ISC-79 … ISC-82 — `MarkdownExtractionTest`, 6 tests through the shipped `manual-inbox` block and the real file connector: every frontmatter field plus the body, a proxy link unwrapped, tags as a list and as a typed line, a content-hash id stable across two reads, no offer from a file without frontmatter, and a `---` in the body read as a thematic break. `IngestServiceTest` adds the wired pass against Postgres: a file dropped in the inbox by hand, with no upload involved, reaches the offer table
 - ISC-83 — `git status` after a full suite run: no directory created outside the configuration directory
@@ -467,7 +491,8 @@ A single operator drops mailbox credentials and a profile into `config/`, and ev
 
 ## Remaining Work
 
-- [ ] **Next: the last four fixture screens.** Shortlist, offer detail, sources and rules all wait on a read endpoint over the offers, which is a smaller job than any pipeline stage was and the last thing keeping invented data on screen. `rg 'FIXTURE — replace'` finds every one.
+- [ ] **Next: CI (ISC-90 depends on nothing else).** Every check in this artifact is one somebody remembered to run. The tooling baseline is in place — `./gradlew check` brackets both modules — and no pipeline runs it.
+- [ ] Two layout questions the capture path cannot answer: the review screen's drop zone and the shortlist card's reason row both look as if wrapped text overlaps the row below. The DOM-render screenshot mis-measures exactly that, and the dev server's CSP blocks measuring it any other way, so this needs eyes in a real browser.
 - [ ] CI. The tooling baseline is in place and no pipeline runs it, so every check in this artifact is one somebody remembered to run.
 - [ ] Manual entry: uploading a Markdown file as a source, reviewed in `inbox/pending/` before it enters the pipeline. The second write endpoint, and the first that puts a file on disk.
 - [ ] `security.auth` is still `none`, and there is now a write endpoint behind it. Either the service binds to localhost and lives behind something that authenticates, or it grows basic auth or OIDC — the block already exists in `pipeline.yaml`.

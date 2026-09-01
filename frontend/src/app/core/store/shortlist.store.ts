@@ -1,18 +1,28 @@
 import { computed, inject } from '@angular/core';
 import { signalStore, withComputed, withState } from '@ngrx/signals';
 import { Events, on, withEventHandlers, withReducer } from '@ngrx/signals/events';
-import { catchError, exhaustMap, map, of } from 'rxjs';
+import { catchError, exhaustMap, map, of, switchMap } from 'rxjs';
 import { ShortlistApi } from '@core/api/shortlist.api';
+import { FunnelView } from '@core/model/funnel';
 import { ShortlistEntry } from '@core/model/shortlist-entry';
 import { shortlistEvents } from './shortlist.events';
 
 interface ShortlistState {
   entries: readonly ShortlistEntry[];
+  /** The offer the detail is showing, fetched by id rather than found in the list. */
+  selected: ShortlistEntry | null;
+  funnel: FunnelView | null;
   error: string | null;
   loading: boolean;
 }
 
-const initialState: ShortlistState = { entries: [], error: null, loading: false };
+const initialState: ShortlistState = {
+  entries: [],
+  selected: null,
+  funnel: null,
+  error: null,
+  loading: false,
+};
 
 export const ShortlistStore = signalStore(
   { providedIn: 'root' },
@@ -20,7 +30,13 @@ export const ShortlistStore = signalStore(
   withComputed(({ entries }) => ({
     /** Every portal that appears, so the filter offers only what is actually there. */
     portals: computed(() =>
-      [...new Set(entries().flatMap((entry) => entry.sources.map((s) => s.portal)))].sort(),
+      [
+        ...new Set(
+          entries()
+            .flatMap((entry) => entry.sources.map((source) => source.portal))
+            .filter((portal): portal is string => portal !== null),
+        ),
+      ].sort(),
     ),
     unscored: computed(() => entries().filter((entry) => entry.score.value === null).length),
   })),
@@ -28,6 +44,12 @@ export const ShortlistStore = signalStore(
     on(shortlistEvents.opened, () => ({ loading: true, error: null })),
     on(shortlistEvents.loaded, ({ payload }) => ({ entries: payload, loading: false })),
     on(shortlistEvents.failed, ({ payload }) => ({ error: payload, loading: false })),
+    // Cleared on request, not on arrival: leaving the previous offer on screen while the
+    // next one loads shows the wrong ad under the right title.
+    on(shortlistEvents.offerRequested, () => ({ selected: null, loading: true, error: null })),
+    on(shortlistEvents.offerLoaded, ({ payload }) => ({ selected: payload, loading: false })),
+    on(shortlistEvents.offerFailed, ({ payload }) => ({ error: payload, loading: false })),
+    on(shortlistEvents.funnelLoaded, ({ payload }) => ({ funnel: payload })),
   ),
   withEventHandlers(() => {
     const events = inject(Events);
@@ -39,6 +61,24 @@ export const ShortlistStore = signalStore(
           api.load().pipe(
             map((entries) => shortlistEvents.loaded(entries)),
             catchError(() => of(shortlistEvents.failed('The shortlist did not load.'))),
+          ),
+        ),
+      ),
+      events.on(shortlistEvents.funnelOpened).pipe(
+        exhaustMap(() =>
+          api.funnel().pipe(
+            map((funnel) => shortlistEvents.funnelLoaded(funnel)),
+            catchError(() => of(shortlistEvents.failed('The filter counts did not load.'))),
+          ),
+        ),
+      ),
+      // Switched, not exhausted: clicking through two offers quickly must end on the
+      // second one, and the first answer is then worth nothing.
+      events.on(shortlistEvents.offerRequested).pipe(
+        switchMap(({ payload }) =>
+          api.one(payload).pipe(
+            map((entry) => shortlistEvents.offerLoaded(entry)),
+            catchError(() => of(shortlistEvents.offerFailed('That offer did not load.'))),
           ),
         ),
       ),

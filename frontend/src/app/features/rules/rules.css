@@ -138,3 +138,7 @@ code {
   font-family: var(--font-mono);
   font-size: 0.8125rem;
 }
+
+.rules-error {
+  color: var(--color-error);
+}

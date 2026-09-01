@@ -600,6 +600,42 @@ write endpoint in the application.
   accessibility tree for state — `interceptor read` shows `combobox … value="SENT"` —
   and treat a capture as evidence about layout, not about widget state.
 
+## The read side
+
+`backend/…/offer/OfferQueryService` plus `config/SourceQueryService` and `RulesView`. Every
+screen reads one of these, and none of them writes.
+
+- **Read-only and separate from the stages that write.** Each pipeline stage owns a narrow
+  slice of the `offer` row; this owns the whole row as a person reads it.
+- **The shortlist is primaries only, and so is everything that counts against it.** A row
+  with `duplicate_of_id` set is the same project through a second portal, and it belongs
+  inside the entry rather than beside it. The funnel and the sources screen's *survived*
+  column count the same set — measured: counting every rejection against a primaries-only
+  total made the rail report **-45 survivors**, and counting duplicates as survivors made
+  the sources screen say 104 where the shortlist showed 96.
+- **The detail is not restricted to survivors.** It is also how somebody opens an offer the
+  filter rejected and asks whether the rule was right, so `/api/offers/{id}` serves any id
+  and `hardPass` says which it is.
+- **Reasons and duplicate clusters are two queries for the whole list, not two per entry.**
+- **No filtering parameters on the endpoint.** The browser holds the list and filters it in
+  the query string, which is what makes a filtered shortlist survive a reload and be
+  shareable as a link. A server-side filter would be a second implementation of the same
+  rules, disagreeing the first time one of them changes.
+- **`source_run` exists because nothing else can answer the announced-versus-extracted
+  question.** The number of documents and the count a document announces about itself leave
+  no trace in the `offer` table, and that comparison is the one check nothing else can make.
+  One row per source per run, because the interesting question is when the number changed.
+- **The sources screen lists the configuration, not the database.** A source that has never
+  run still appears, because a misconfigured source being invisible is exactly the failure
+  somebody is looking for when they open that screen.
+- **Nothing in the browser names a weight, a stage or a source type.** `scoring.weights` is
+  an open map, the stages are the `FilterStage` enum, a source's `type` is whatever the YAML
+  declares. A union type in TypeScript for any of them disagrees with the server the first
+  time one is added — and the symptom is a compile error in a component that has no
+  business knowing the filter at all.
+- **The enum writes its stage descriptions as sentence fragments**, because that is how they
+  read in a log line. The read side capitalises them; a chart label is not a log line.
+
 ## Backend conventions
 
 - **Lombok for the boilerplate, records for the data.** `@Slf4j` instead of a hand-written
@@ -658,12 +694,12 @@ docs/samples/simulate_filter.py   simulation of the hard filters
 frontend/src/styles.css           both DaisyUI themes, the fonts, the @theme block —
                                   the only file allowed to hold a colour literal
 frontend/src/styles/tokens.css    semantic aliases, layout constants, the type scale
-frontend/src/app/core/            api seams, stores, models, fixtures, theme, shell
+frontend/src/app/core/            api seams, stores, models, theme, shell
 frontend/src/app/layout/          shell, header, nav rail, theme toggle
 frontend/src/app/shared/          icon, brand mark, score, funnel rail, badge, stat tile,
                                   empty state, page header
 frontend/src/app/features/        dashboard, shortlist (+ offer card), offer detail,
-                                  pipeline, sources, rules
+                                  pipeline, review, sources, rules
 frontend/tools/build-favicon.sh   renders favicon.ico, favicon-256.png and logo-mark.png
 ```
 
@@ -707,12 +743,10 @@ code has to reproduce — the numbers in `docs/SAMPLE-ANALYSIS.md` are the targe
 9. ✅ **Packaging** — cover letter from a Freemarker template plus the reference projects
    the offer's own skills selected, the fixed PDF for the ad's language, the archived
    original and a `meta.json`. A folder on disk; nothing is sent.
-10. 🟡 **Frontend** — design system, shell and all six screens exist. The dashboard runs
-    on the real `GET /api/status` and `POST /api/ingest`; shortlist, offer detail,
-    pipeline, sources and rules run on `core/fixtures/`, every file marked
-    `// FIXTURE — replace with the real endpoint`. Each feature reads through an `Api`
-    seam (`core/api/shortlist.api.ts` is the model), so swapping in HTTP is one file per
-    feature. Steps 5 to 9 are what unblocks that.
+10. ✅ **Frontend** — design system, shell and all six screens, every one of them on a
+    real endpoint. `GET /api/offers` and `/api/offers/{id}` carry the shortlist and the
+    detail, `/api/offers/funnel` the filter counts, `/api/sources` and `/api/rules` the
+    configuration as the screens read it. `core/fixtures/` is gone.
 11. ✅ **Manual status capture** — the `application` table and its event log,
     `GET/PATCH /api/applications`, and both screens on it: the board groups by the lanes
     the endpoint states, and the offer detail carries the same control plus the dates,
@@ -802,6 +836,14 @@ code has to reproduce — the numbers in `docs/SAMPLE-ANALYSIS.md` are the targe
   right edge against the viewport flags the kanban board and the wide tables, which scroll
   inside their own `overflow-x: auto` on purpose. The real check is
   `document.scrollWidth > document.clientWidth`.
+- **The DOM-render screenshot is evidence about layout and colour, not about state or
+  reflow.** It serialises and re-renders, which drops DOM properties that have no attribute
+  (a `<select>`'s selection), some component CSS on SVG children (`fill` on the score ring),
+  and it mis-measures text that wraps inside a flex item — three separate false alarms in
+  one session. Read the accessibility tree for widget state (`interceptor read` prints
+  `combobox … value="SENT"`), and confirm a suspected overlap in a real browser before
+  changing CSS. The Angular dev server sets a CSP that blocks `interceptor eval`, so the
+  geometry cannot be measured through it either.
 - **ImageMagick renders SVG with its own parser and drops paths containing arcs** unless
   `rsvg-convert` is on PATH as its delegate. The first favicon looked broken for that
   reason alone, with the geometry perfectly correct.

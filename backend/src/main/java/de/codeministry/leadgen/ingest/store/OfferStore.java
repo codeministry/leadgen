@@ -29,6 +29,24 @@ public class OfferStore {
         this.template = new JdbcTemplate(dataSource);
     }
 
+    /**
+     * Records what one source did on one run.
+     *
+     * <p>Not derivable from the offer table: the number of documents and the count a
+     * document announces about itself leave no trace there, and comparing the two is the
+     * one check nothing else can make.
+     */
+    @Transactional
+    public void recordRun(long sourceId, int documents, int extracted, int written, Integer announced) {
+        jdbc.sql(
+                        """
+                        INSERT INTO source_run (source_id, documents, extracted, written, announced)
+                        VALUES (?, ?, ?, ?, ?)
+                        """)
+                .params(sourceId, documents, extracted, written, announced)
+                .update();
+    }
+
     /** Creates the source row on first sight and returns its id. */
     @Transactional
     public long sourceId(String name, String kind) {

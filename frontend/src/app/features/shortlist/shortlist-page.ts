@@ -67,9 +67,12 @@ export class ShortlistPage implements OnInit {
       if (needle === '') {
         return true;
       }
+      // Null-safe on purpose: 9.2 % of the corpus states no company and a description
+      // can be missing outright. `undefined.toLowerCase()` inside a computed leaves the
+      // page half-rendered with nothing in the console pointing at the cause.
       return (
         entry.offer.title.toLowerCase().includes(needle) ||
-        entry.offer.description.toLowerCase().includes(needle) ||
+        (entry.offer.description ?? '').toLowerCase().includes(needle) ||
         entry.offer.tags.some((tag) => tag.toLowerCase().includes(needle))
       );
     });

@@ -1,18 +1,34 @@
-import { Injectable } from '@angular/core';
-import { Observable, of } from 'rxjs';
-import { SHORTLIST_FIXTURE } from '@core/fixtures/shortlist.fixture';
+import { HttpClient } from '@angular/common/http';
+import { Injectable, inject } from '@angular/core';
+import { Observable } from 'rxjs';
+import { FunnelView } from '@core/model/funnel';
 import { ShortlistEntry } from '@core/model/shortlist-entry';
 
 /**
- * FIXTURE — replace with the real endpoint (order of work, steps 5-9).
+ * `/api/offers` — what survived the filter, ranked, with the reasons behind each score.
  *
- * The seam a real `GET /api/shortlist` will occupy. Everything above it already
- * treats the answer as asynchronous and failable, so swapping in `HttpClient`
- * touches this file and nothing else.
+ * The whole list comes down in one request and the browser filters it in the query
+ * string. That is what makes a filtered shortlist survive a reload and be shareable as a
+ * link; a server-side filter would be a second implementation of the same rules.
  */
 @Injectable({ providedIn: 'root' })
 export class ShortlistApi {
+  private readonly http = inject(HttpClient);
+
   load(): Observable<readonly ShortlistEntry[]> {
-    return of(SHORTLIST_FIXTURE);
+    return this.http.get<readonly ShortlistEntry[]>('/api/offers');
+  }
+
+  /** What the filter did to the whole archive, stage by stage. */
+  funnel(): Observable<FunnelView> {
+    return this.http.get<FunnelView>('/api/offers/funnel');
+  }
+
+  /**
+   * One offer, by id. Not taken from the list: the detail has to work on a reload and on
+   * an offer the filter rejected, and neither is in the shortlist.
+   */
+  one(id: number): Observable<ShortlistEntry> {
+    return this.http.get<ShortlistEntry>(`/api/offers/${id}`);
   }
 }

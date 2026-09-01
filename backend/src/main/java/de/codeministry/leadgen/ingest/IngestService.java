@@ -161,6 +161,16 @@ public class IngestService {
                 .toList();
     }
 
+    /**
+     * What the documents of this run announced in total, or null when none of them says.
+     * Summed rather than kept per document: the screen asks whether anything was lost,
+     * and the per-document detail is in the report the run returns.
+     */
+    private static Integer announced(List<DocumentIngestResult> details) {
+        var stated = details.stream().map(DocumentIngestResult::announced).filter(java.util.Objects::nonNull).toList();
+        return stated.isEmpty() ? null : stated.stream().mapToInt(Integer::intValue).sum();
+    }
+
     private SourceIngestResult ingest(Source source, SourceConnector connector) {
         String strategy = source.extraction().strategy();
         if (!HTML_BLOCKS.equals(strategy) && !MARKDOWN_FRONTMATTER.equals(strategy)) {
@@ -189,6 +199,8 @@ public class IngestService {
 
         log.info("Source '{}': {} documents, {} offers extracted, {} rows written",
                 source.id(), documents.size(), extracted, written);
+        // After the commit, so a run that failed halfway does not claim a clean pass.
+        store.recordRun(sourceId, documents.size(), extracted, written, announced(details));
         return new SourceIngestResult(source.id(), documents.size(), extracted, written, details);
     }
 }

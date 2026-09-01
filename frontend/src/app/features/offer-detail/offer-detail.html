@@ -1,15 +1,27 @@
 @if (entry(); as entry) {
   <lg-page-header [title]="entry.offer.title" [subtitle]="entry.offer.portal">
-    <a class="btn btn-sm btn-ghost" [href]="entry.offer.url" target="_blank" rel="noreferrer">
-      <lg-icon name="external-link" [size]="16" />
-      Original ad
-    </a>
+    @if (entry.offer.url; as url) {
+      <a class="btn btn-sm btn-ghost" [href]="url" target="_blank" rel="noreferrer">
+        <lg-icon name="external-link" [size]="16" />
+        Original ad
+      </a>
+    }
   </lg-page-header>
 
   <div class="grid">
     <section class="panel">
       <h2 class="type-h2">The ad</h2>
-      <p class="type-body text-wrap">{{ entry.offer.description }}</p>
+      <!--
+        The enriched full text when enrichment reached the portal, the newsletter's own
+        summary when it did not. Which one is on screen is the difference between reading
+        the advert and reading a paragraph about it, so the note below says so.
+      -->
+      <p class="type-body text-wrap">{{ entry.offer.fullText ?? entry.offer.description }}</p>
+      @if (!entry.offer.fullText) {
+        <p class="type-caption text-muted">
+          From the source document. The original ad was not fetched.
+        </p>
+      }
 
       <div class="tags">
         @for (tag of entry.offer.tags; track tag) {
@@ -27,8 +39,9 @@
             Not scored. Without a language model the pipeline still produces this
             shortlist, only unranked.
           } @else {
-            Ruleset {{ entry.score.rulesetVersion }} · model {{ entry.score.model }} ·
-            cleared the hard filter
+            Ruleset {{ entry.score.rulesetVersion ?? 'unknown' }} ·
+            model {{ entry.score.model ?? 'none' }} ·
+            {{ entry.score.hardPass ? 'cleared the hard filter' : 'rejected by the hard filter' }}
           }
         </p>
       </div>
@@ -81,9 +94,7 @@
         The package is a folder on disk: cover letter, the fixed CV for the ad's
         language, and the matching reference projects. Nothing is sent from here.
       </p>
-      <pre class="letter type-small">{{ coverLetter() }}</pre>
-
-      @if (application()?.packageDir; as folder) {
+      @if (application()?.packageDir ?? entry.offer.packageDir; as folder) {
         <p class="type-mono-data package-dir">{{ folder }}</p>
         <p class="type-caption text-muted disabled-note">
           The folder is on the machine that ran the pipeline. There is no download, and

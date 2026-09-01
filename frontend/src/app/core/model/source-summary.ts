@@ -1,4 +1,5 @@
-export type SourceKind = 'imap' | 'rss' | 'file';
+/** Whatever `type` a source declares. A new connector is a YAML block, not an enum. */
+export type SourceKind = string;
 
 /** Which of the two configuration layers this source's definition came from. */
 export type ConfigLayer = 'default' | 'config-dir';

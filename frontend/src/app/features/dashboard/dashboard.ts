@@ -1,7 +1,8 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject } from '@angular/core';
 import { injectDispatch } from '@ngrx/signals/events';
-import { FILTER_STAGES_FIXTURE, FILTER_TOTAL_FIXTURE } from '@core/fixtures/funnel.fixture';
 import { applicationEvents } from '@core/store/applications.events';
+import { shortlistEvents } from '@core/store/shortlist.events';
+import { ShortlistStore } from '@core/store/shortlist.store';
 import { ApplicationsStore } from '@core/store/applications.store';
 import { IngestStore } from '@core/store/ingest.store';
 import { Badge } from '@shared/badge/badge';
@@ -20,15 +21,19 @@ import { StatTile } from '@shared/stat-tile/stat-tile';
 })
 export class Dashboard implements OnInit {
   private readonly dispatch = injectDispatch(applicationEvents);
+  private readonly shortlistDispatch = injectDispatch(shortlistEvents);
   protected readonly ingest = inject(IngestStore);
   protected readonly applications = inject(ApplicationsStore);
+  protected readonly shortlist = inject(ShortlistStore);
 
-  protected readonly stages = FILTER_STAGES_FIXTURE;
-  protected readonly total = FILTER_TOTAL_FIXTURE;
-
-  protected readonly survived = computed(() =>
-    this.stages.reduce((left, stage) => left - stage.removed, this.total),
-  );
+  /**
+   * Counted from `filter_stage` on the offers themselves, which is why the rail can be
+   * empty: before the first run there is nothing to count, and a rail showing the
+   * measured baseline instead would be a claim about a run that never happened.
+   */
+  protected readonly stages = computed(() => this.shortlist.funnel()?.stages ?? []);
+  protected readonly total = computed(() => this.shortlist.funnel()?.total ?? 0);
+  protected readonly survived = computed(() => this.shortlist.funnel()?.survived ?? 0);
 
   /**
    * A zero and an unreachable board look identical on a tile, and this one is the reason
@@ -40,7 +45,14 @@ export class Dashboard implements OnInit {
 
   ngOnInit(): void {
     this.dispatch.opened();
+    this.shortlistDispatch.funnelOpened();
   }
+
+  /** The share of what came in that survived, or nothing to say when nothing came in. */
+  protected readonly share = computed(() => {
+    const total = this.total();
+    return total === 0 ? 'No run yet' : `${((this.survived() / total) * 100).toFixed(1)} % of what came in`;
+  });
 
   /** Extracted minus written: the same listing seen in two documents. Not deduplication. */
   protected readonly repeats = computed(() => {

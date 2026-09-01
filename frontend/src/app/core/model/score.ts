@@ -15,5 +15,5 @@ export interface Score {
   readonly hardPass: boolean;
   readonly reasons: readonly ScoreReason[];
   readonly model: string | null;
-  readonly rulesetVersion: string;
+  readonly rulesetVersion: string | null;
 }

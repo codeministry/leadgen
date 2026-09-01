@@ -41,18 +41,19 @@ export class OfferDetail implements OnInit {
   /** Bound from the route parameter by `withComponentInputBinding()`. */
   readonly id = input.required<string>();
 
-  protected readonly entry = computed(() =>
-    this.store.entries().find((candidate) => candidate.offer.id === this.id()),
-  );
+  /**
+   * Fetched by id rather than found in the shortlist. The detail has to work on a reload,
+   * and it has to open an offer the hard filter rejected — neither of which is in the
+   * list.
+   */
+  protected readonly entry = computed(() => this.store.selected() ?? undefined);
 
   /**
    * An application exists only once a package has been built for the offer, so most
    * offers have none. That absence is the honest state, not an error.
    */
   protected readonly application = computed(() =>
-    this.applications
-      .applications()
-      .find((candidate) => String(candidate.offerId) === this.id()),
+    this.applications.applications().find((candidate) => String(candidate.offerId) === this.id()),
   );
 
   protected readonly history = computed(() => {
@@ -61,6 +62,14 @@ export class OfferDetail implements OnInit {
   });
 
   constructor() {
+    // The id comes from the URL, so it changes without the component being recreated.
+    effect(() => {
+      const id = Number(this.id());
+      if (Number.isFinite(id)) {
+        this.dispatch.offerRequested(id);
+      }
+    });
+
     // The store replaces the row after every save, so this re-reads the log exactly when
     // there is something new in it — and never while the board is merely being scrolled.
     effect(() => {
@@ -96,34 +105,14 @@ export class OfferDetail implements OnInit {
       { label: 'Rate', value: offer.rateEur === null ? null : `${offer.rateEur} €/h` },
       { label: 'Start', value: offer.startsOn },
       { label: 'Duration', value: offer.duration },
+      { label: 'Workload', value: offer.workload },
       { label: 'Published', value: offer.publishedOn },
       { label: 'Language', value: offer.language },
       { label: 'External id', value: offer.externalId },
     ];
   });
 
-  /** FIXTURE — the packaging stage (order of work, step 9) will generate this. */
-  protected readonly coverLetter = computed(() => {
-    const entry = this.entry();
-    if (entry === undefined) {
-      return '';
-    }
-    return [
-      'Sehr geehrte Damen und Herren,',
-      '',
-      `Ihre Ausschreibung "${entry.offer.title}" passt genau auf das, woran ich seit über`,
-      'zwanzig Jahren arbeite: Java und Spring Boot im Backend, Angular auf der Frontseite,',
-      'und der Betrieb auf Kubernetes gleich mit dazu.',
-      '',
-      'Zwei Referenzen, die dem Vorhaben am nächsten kommen, liegen dem Paket bei.',
-      '',
-      'Mit freundlichen Grüßen',
-      'Marcello Muscara',
-    ].join('\n');
-  });
-
   ngOnInit(): void {
-    this.dispatch.opened();
     this.applicationDispatch.opened();
   }
 }

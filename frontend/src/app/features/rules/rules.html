@@ -1,94 +1,100 @@
-<lg-page-header
-  title="Rules"
-  subtitle="The hard filter, the scoring weights and the thresholds behind every number on the shortlist."
->
-  <lg-badge tone="ghost" [outline]="true">ruleset {{ rules.version }}</lg-badge>
-</lg-page-header>
+@if (store.rules(); as rules) {
+  <lg-page-header
+    title="Rules"
+    subtitle="The hard filter, the scoring weights and the thresholds behind every number on the shortlist."
+  >
+    <lg-badge tone="ghost" [outline]="true">ruleset {{ rules.version }}</lg-badge>
+  </lg-page-header>
 
-<div class="grid">
-  <section class="panel">
-    <h2 class="type-h2">Knockout criteria</h2>
-    <p class="type-small text-muted panel-note">
-      These run deterministically and for free, before any model call. Without a
-      language model the tool still works, only weaker.
-    </p>
-    <dl class="knockouts">
-      @for (rule of rules.knockouts; track rule.key) {
-        <div class="knockout">
-          <dt>
-            <span class="type-small">{{ rule.label }}</span>
-            <span class="type-mono-data text-muted key">{{ rule.key }}</span>
-          </dt>
-          <dd class="type-mono-data">{{ rule.value }}</dd>
-        </div>
-      }
-    </dl>
-  </section>
+  <div class="grid">
+    <section class="panel">
+      <h2 class="type-h2">Knockout criteria</h2>
+      <p class="type-small text-muted panel-note">
+        These run deterministically and for free, before any model call. Without a
+        language model the tool still works, only weaker.
+      </p>
+      <dl class="knockouts">
+        @for (rule of rules.knockouts; track rule.key) {
+          <div class="knockout">
+            <dt>
+              <span class="type-small">{{ rule.label }}</span>
+              <span class="type-mono-data text-muted key">{{ rule.key }}</span>
+            </dt>
+            <dd class="type-mono-data">{{ rule.value }}</dd>
+          </div>
+        }
+      </dl>
+    </section>
 
-  <section class="panel">
-    <h2 class="type-h2">Thresholds</h2>
-    <ul class="thresholds">
-      <li>
-        <span class="swatch strong"></span>
-        <span class="type-mono-data">&ge; {{ rules.thresholds.autoShortlist }}</span>
-        <span class="type-small">shortlisted, a package is built</span>
-      </li>
-      <li>
-        <span class="swatch weak"></span>
-        <span class="type-mono-data">
-          {{ rules.thresholds.review }}&ndash;{{ rules.thresholds.autoShortlist - 1 }}
-        </span>
-        <span class="type-small">review, the digest asks you</span>
-      </li>
-      <li>
-        <span class="swatch out"></span>
-        <span class="type-mono-data">&lt; {{ rules.thresholds.review }}</span>
-        <span class="type-small">discarded</span>
-      </li>
-    </ul>
-
-    <h3 class="type-h4 sub">Anti-skills</h3>
-    <div class="anti">
-      @for (skill of rules.antiSkills; track skill) {
-        <lg-badge tone="ghost" [outline]="true">{{ skill }}</lg-badge>
-      }
-    </div>
-  </section>
-
-  <section class="panel">
-    <h2 class="type-h2">Weights</h2>
-    <ul class="bars">
-      @for (weight of rules.weights; track weight.key) {
-        <li class="bar-row">
-          <span class="type-mono-data name" [attr.title]="weight.key">{{ weight.key }}</span>
-          <span class="track">
-            <span class="fill" [style.width.%]="(weight.points / maxWeight()) * 100"></span>
-          </span>
-          <span class="type-mono-data value">+{{ weight.points }}</span>
+    <section class="panel">
+      <h2 class="type-h2">Thresholds</h2>
+      <ul class="thresholds">
+        <li>
+          <span class="swatch strong"></span>
+          <span class="type-mono-data">&ge; {{ rules.thresholds.autoShortlist }}</span>
+          <span class="type-small">shortlisted, a package is built</span>
         </li>
-      }
-    </ul>
-
-    <h3 class="type-h4 sub">Penalties</h3>
-    <ul class="bars">
-      @for (penalty of rules.penalties; track penalty.key) {
-        <li class="bar-row">
-          <span class="type-mono-data name" [attr.title]="penalty.key">{{ penalty.key }}</span>
-          <span class="track">
-            <span
-              class="fill penalty"
-              [style.width.%]="(-penalty.points / maxPenalty()) * 100"
-            ></span>
+        <li>
+          <span class="swatch weak"></span>
+          <span class="type-mono-data">
+            {{ rules.thresholds.review }}&ndash;{{ rules.thresholds.autoShortlist - 1 }}
           </span>
-          <span class="type-mono-data value">{{ penalty.points }}</span>
+          <span class="type-small">review, the digest asks you</span>
         </li>
-      }
-    </ul>
-  </section>
-</div>
+        <li>
+          <span class="swatch out"></span>
+          <span class="type-mono-data">&lt; {{ rules.thresholds.review }}</span>
+          <span class="type-small">discarded</span>
+        </li>
+      </ul>
 
-<p class="type-small text-muted note">
-  <lg-icon name="ban" [size]="14" />
-  Read-only. The rules come from <code>matching-rules.yaml</code> and there is no write
-  endpoint yet, so editing here would only lie about what was saved.
-</p>
+      <h3 class="type-h4 sub">Anti-skills</h3>
+      <div class="anti">
+        @for (skill of rules.antiSkills; track skill) {
+          <lg-badge tone="ghost" [outline]="true">{{ skill }}</lg-badge>
+        }
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2 class="type-h2">Weights</h2>
+      <ul class="bars">
+        @for (weight of rules.weights; track weight.key) {
+          <li class="bar-row">
+            <span class="type-mono-data name" [attr.title]="weight.key">{{ weight.key }}</span>
+            <span class="track">
+              <span class="fill" [style.width.%]="(weight.points / maxWeight()) * 100"></span>
+            </span>
+            <span class="type-mono-data value">+{{ weight.points }}</span>
+          </li>
+        }
+      </ul>
+
+      <h3 class="type-h4 sub">Penalties</h3>
+      <ul class="bars">
+        @for (penalty of rules.penalties; track penalty.key) {
+          <li class="bar-row">
+            <span class="type-mono-data name" [attr.title]="penalty.key">{{ penalty.key }}</span>
+            <span class="track">
+              <span
+                class="fill penalty"
+                [style.width.%]="(-penalty.points / maxPenalty()) * 100"
+              ></span>
+            </span>
+            <span class="type-mono-data value">{{ penalty.points }}</span>
+          </li>
+        }
+      </ul>
+    </section>
+  </div>
+
+  <p class="type-small text-muted note">
+    <lg-icon name="ban" [size]="14" />
+    Read-only. The rules come from <code>matching-rules.yaml</code> and there is no write
+    endpoint yet, so editing here would only lie about what was saved.
+  </p>
+} @else if (store.error(); as error) {
+  <p class="type-small rules-error" role="alert">{{ error }}</p>
+} @else {
+  <p class="type-small text-muted">Loading…</p>
+}
