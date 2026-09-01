@@ -34,13 +34,46 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class ScoringService {
 
+    /**
+     * <b>What still needs judging, not everything that ever passed.</b> Enrichment already
+     * works this way and scoring did not, so every run paid a language-model call for every
+     * offer still open — a bill that grows with the standing backlog rather than with the
+     * day's inflow, and grows silently, because a re-judged offer produces the same number
+     * as before.
+     *
+     * <p>Three things make a score stale, and they are the three the score is only
+     * comparable within: it was never written, the weights that produced it have changed,
+     * or a different model answered. The last one is not caution about the model being
+     * worse. A total from one judge and a total from another are two scales, and the
+     * shortlist threshold is a single number read against both.
+     */
     private static final String DUE =
             """
             SELECT id, title, description, full_text, tags, rate_eur, duration, workload,
                    starts_on, enrichment_note
             FROM offer
-            WHERE status = 'PASSED' AND duplicate_of_id IS NULL
+            WHERE status = 'PASSED'
+              AND duplicate_of_id IS NULL
+              AND (scored_at IS NULL
+                   OR ruleset_version IS DISTINCT FROM CAST(? AS TEXT)
+                   OR score_model IS DISTINCT FROM CAST(? AS TEXT))
             ORDER BY id
+            """;
+
+    /**
+     * <b>The counts are standing totals, and only `scored` is this run's.</b> The same
+     * reason {@code IngestReport.merged} is: once a run judges only what changed, a second
+     * run legitimately judges nothing, and a report of "0 shortlisted" reads as scoring
+     * having stopped working rather than as there being nothing new to do.
+     */
+    private static final String STANDING =
+            """
+            SELECT count(*)                                            AS considered,
+                   count(*) FILTER (WHERE score_value IS NULL)         AS unscored,
+                   count(*) FILTER (WHERE score_band = 'SHORTLISTED')  AS shortlisted,
+                   count(*) FILTER (WHERE score_band = 'REVIEW')       AS review
+            FROM offer
+            WHERE status = 'PASSED' AND duplicate_of_id IS NULL
             """;
 
     private final ConfigRegistry config;
@@ -72,38 +105,43 @@ public class ScoringService {
         if (judge.isEmpty()) {
             log.warn("No language model is configured; offers keep their deterministic reasons and stay unscored");
         }
+        String model = judge.map(Judge::model).orElse(null);
 
-        List<ScoreCandidate> candidates = jdbc.sql(DUE).query(ScoringService::toCandidate).list();
-        int scored = 0;
-        int unscored = 0;
-        int shortlisted = 0;
-        int inReview = 0;
+        List<ScoreCandidate> due =
+                jdbc.sql(DUE).params(rulesetVersion, model).query(ScoringService::toCandidate).list();
+        int judged = 0;
 
-        for (ScoreCandidate candidate : candidates) {
+        for (ScoreCandidate candidate : due) {
             List<ScoreReason> reasons = new java.util.ArrayList<>(scorer.score(candidate));
             Score score;
 
             if (judge.isEmpty()) {
                 score = Score.unscored(reasons, rulesetVersion);
-                unscored++;
             } else {
                 reasons.addAll(judge.get().judge(candidate));
                 int total = clamp(reasons.stream().mapToInt(ScoreReason::points).sum());
-                score = new Score(total, true, reasons, judge.get().model(), rulesetVersion);
-                scored++;
-                if (total >= autoShortlist) {
-                    shortlisted++;
-                } else if (total >= review) {
-                    inReview++;
-                }
+                score = new Score(total, true, reasons, model, rulesetVersion);
+                judged++;
             }
             write(candidate.id(), score, autoShortlist, review);
         }
 
-        var report = new ScoringReport(candidates.size(), scored, unscored, shortlisted, inReview);
-        log.info("Scoring: {} considered, {} scored, {} unscored, {} shortlisted, {} for review",
-                report.considered(), report.scored(), report.unscored(), report.shortlisted(), report.review());
+        var report = standing(judged);
+        log.info("Scoring: {} due, {} judged; standing: {} considered, {} unscored, {} shortlisted, {} for review",
+                due.size(), judged, report.considered(), report.unscored(), report.shortlisted(), report.review());
         return report;
+    }
+
+    /** Everything but `scored` is counted from the table, so a quiet run still reports the list. */
+    private ScoringReport standing(int judged) {
+        return jdbc.sql(STANDING)
+                .query((rs, row) -> new ScoringReport(
+                        rs.getInt("considered"),
+                        judged,
+                        rs.getInt("unscored"),
+                        rs.getInt("shortlisted"),
+                        rs.getInt("review")))
+                .single();
     }
 
     /**

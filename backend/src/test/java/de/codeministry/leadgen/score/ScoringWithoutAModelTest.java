@@ -128,6 +128,64 @@ class ScoringWithoutAModelTest {
         assertThat(label).contains("no rate stated");
     }
 
+    /**
+     * The three tests below are about what a run <i>re-does</i>, not about the keyless path.
+     * They live here because the guard is model-independent and this class already owns a
+     * container and a configuration with no key: a judge would add nothing to what they
+     * assert, and a second Postgres would cost every build a container for three cases.
+     */
+    @Test
+    void writesNothingASecondTimeWhenNothingHasChanged() {
+        // The whole point of the guard. Every stage before this one already works this way;
+        // scoring did not, so each run re-judged the standing backlog and paid for it. The
+        // observable is the timestamp: an offer that is not due is not written at all.
+        long id = offer("Senior Java Entwickler (m/w/d)", "Spring Boot, Angular");
+        scoring.run();
+        var first = scoredAt(id);
+
+        var second = scoring.run();
+
+        assertThat(scoredAt(id)).isEqualTo(first);
+        // And the report still describes the shortlist rather than the idle pass, or a
+        // quiet run would read as scoring having stopped working.
+        assertThat(second.considered()).isEqualTo(1);
+        assertThat(second.unscored()).isEqualTo(1);
+    }
+
+    @Test
+    void scoresAgainWhenTheWeightsThatProducedTheScoreHaveChanged() {
+        long id = offer("Senior Java Entwickler (m/w/d)", "Spring Boot");
+        scoring.run();
+        var first = scoredAt(id);
+        jdbc.update("UPDATE offer SET ruleset_version = 'an older ruleset' WHERE id = ?", id);
+
+        scoring.run();
+
+        assertThat(scoredAt(id)).isAfter(first);
+    }
+
+    @Test
+    void scoresAgainWhenADifferentModelWroteTheLastScore() {
+        // Two judges are two scales, and the shortlist threshold is one number read
+        // against both. Switching the model has to re-score rather than leave a mixed list.
+        long id = offer("Senior Java Entwickler (m/w/d)", "Spring Boot");
+        scoring.run();
+        var first = scoredAt(id);
+        jdbc.update("UPDATE offer SET score_model = 'whoever answered yesterday' WHERE id = ?", id);
+
+        scoring.run();
+
+        assertThat(scoredAt(id)).isAfter(first);
+        assertThat(jdbc.queryForObject("SELECT score_model FROM offer WHERE id = ?", String.class, id))
+                .isNull();
+    }
+
+    /** `timestamptz` does not convert straight to an Instant; the driver throws on the whole query. */
+    private java.sql.Timestamp scoredAt(long offerId) {
+        return jdbc.queryForObject(
+                "SELECT scored_at FROM offer WHERE id = ?", java.sql.Timestamp.class, offerId);
+    }
+
     @Test
     void skipsAnOfferThatIsADuplicateOfAnother() {
         long primary = offer("Senior Java Entwickler (m/w/d)", "Spring Boot");
