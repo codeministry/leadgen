@@ -110,13 +110,35 @@ class ConfigLoaderTest {
     }
 
     @Test
-    void namesTheFileAndTheWayOutWhenOneIsMissing() throws IOException {
+    void fallsBackToTheClasspathDefaultWhenTheExternalFileIsAbsent() throws IOException {
+        // The two layers are the point: a working default ships in the jar, and the
+        // external directory overrides it file by file. Removing one file must fall back,
+        // not fail — otherwise every deployment needs a full set of files to say nothing.
         Files.delete(configDir.resolve("sources.yaml"));
 
-        assertThatThrownBy(() -> ConfigFixtures.loaderFor(configDir, VALIDATOR).load())
-                .isInstanceOf(ConfigValidationException.class)
-                .hasMessageContaining("sources.yaml")
-                .hasMessageContaining("config/examples");
+        assertThat(ConfigFixtures.loaderFor(configDir, VALIDATOR).load().sources().sources())
+                .isNotEmpty();
+    }
+
+    @Test
+    void theExternalFileWinsOverTheDefault() throws IOException {
+        rewrite("matching-rules.yaml", "min_remote_percent: 80", "min_remote_percent: 55");
+
+        assertThat(ConfigFixtures.loaderFor(configDir, VALIDATOR)
+                        .load()
+                        .rules()
+                        .hardFilters()
+                        .remote()
+                        .minRemotePercent())
+                .isEqualTo(55);
+    }
+
+    @Test
+    void runsOnTheDefaultsAloneWithNoExternalDirectoryAtAll() {
+        // What a fresh clone does: no config directory, and the tool still starts.
+        Path empty = configDir.resolve("nothing-here");
+
+        assertThat(ConfigFixtures.loaderFor(empty, VALIDATOR).load().rules()).isNotNull();
     }
 
     @Test

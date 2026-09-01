@@ -75,7 +75,7 @@ class ConfigWatcherTest {
 
     @Test
     void ignoresAChangeWhenHotReloadIsOff() throws IOException {
-        rewrite("application.yaml", "hot_reload: true", "hot_reload: false");
+        rewrite("pipeline.yaml", "hot_reload: true", "hot_reload: false");
         settle();
         var withHotReloadOff = registry.snapshot();
         assertThat(withHotReloadOff.application().rules().hotReload()).isFalse();

@@ -5,14 +5,12 @@ import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import de.codeministry.leadgen.config.model.ApplicationConfig;
 import de.codeministry.leadgen.config.model.MatchingRules;
+import de.codeministry.leadgen.config.model.PipelineConfig;
 import de.codeministry.leadgen.config.model.SourcesConfig;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
 import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
@@ -20,30 +18,42 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 /**
- * Reads, resolves, binds and validates the three configuration files.
+ * Reads, resolves, binds and validates the configuration.
  *
- * <p>Every file is bound strictly: an unknown key is an error, not a shrug. A
- * misspelled `min_remote_percent` would otherwise disable a hard filter and nothing
- * would ever say so — the only visible effect is a slightly longer shortlist, which
- * looks exactly like a good day on the market.
+ * <p><b>Two layers, the same as Spring's own.</b> Working defaults ship on the classpath
+ * under {@code /leadgen/} and are part of the jar; an external directory overrides them
+ * file by file. Running the tool needs no configuration at all, and anything individual —
+ * credentials, the profile, the real sources — lives outside the artifact.
+ *
+ * <p><b>These are not Spring properties.</b> They are the tool's own data with their own
+ * schema, read by Jackson, bound strictly and validated across files. Strictly, because an
+ * unknown key is an error and not a shrug: a misspelled `min_remote_percent` would
+ * otherwise disable a hard filter and nothing would say so — the only visible effect is a
+ * slightly longer shortlist, which looks exactly like a good day on the market. Spring's
+ * relaxed binding would ignore it silently, which is why this layer exists at all.
  */
+@Slf4j
 @Component
 public class ConfigLoader {
 
-    public static final String APPLICATION_FILE = "application.yaml";
+    public static final String PIPELINE_FILE = "pipeline.yaml";
     public static final String SOURCES_FILE = "sources.yaml";
+    public static final String RULES_FILE = "matching-rules.yaml";
+    public static final String PROFILE_FILE = "skill-profile.yaml";
 
     private final ConfigProperties properties;
     private final Validator validator;
     private final PlaceholderResolver placeholders;
     private final JsonMapper mapper;
 
-    // Two constructors, so the one Spring uses has to say so. The other exists for
-    // tests, which supply their own environment instead of the process's.
+    // Two constructors, so the one Spring uses has to say so. The other exists for tests,
+    // which supply their own environment instead of the process's.
     @org.springframework.beans.factory.annotation.Autowired
     ConfigLoader(ConfigProperties properties, Validator validator) {
         this(properties, validator, PlaceholderResolver.fromSystemEnvironment());
@@ -63,47 +73,77 @@ public class ConfigLoader {
 
     public ConfigSnapshot load() {
         Path dir = properties.configDirectory();
-        ApplicationConfig application = read(dir.resolve(APPLICATION_FILE), ApplicationConfig.class);
 
-        // The paths in application.yaml are file names, resolved against the config
-        // directory. They used to carry `config/local/` themselves, which broke the
-        // moment the directory moved — inside the container it is /config.
-        MatchingRules rules = read(resolveAgainst(dir, application.rules().path()), MatchingRules.class);
-        SourcesConfig sources = read(dir.resolve(SOURCES_FILE), SourcesConfig.class);
+        PipelineConfig pipeline = read(source(dir, PIPELINE_FILE), PipelineConfig.class);
+        MatchingRules rules = read(source(dir, fileName(pipeline.rules().path(), RULES_FILE)), MatchingRules.class);
+        SourcesConfig sources = resolveInheritance(
+                read(source(dir, fileName(sourcesPath(pipeline), SOURCES_FILE)), SourcesConfig.class));
 
-        checkConsistency(application, rules, sources);
-        return new ConfigSnapshot(application, rules, sources, Instant.now());
+        checkConsistency(dir, pipeline, rules, sources);
+        return new ConfigSnapshot(pipeline, rules, sources, Instant.now());
     }
 
-    /** The files a reload has to watch. */
+    /**
+     * The files a reload has to watch — the external ones only. A default lives inside the
+     * jar and cannot change while the process runs, so watching it would be watching
+     * nothing.
+     */
     public List<Path> watchedFiles() {
         Path dir = properties.configDirectory();
-        return List.of(dir.resolve(APPLICATION_FILE), dir.resolve(SOURCES_FILE), dir.resolve("matching-rules.yaml"));
-    }
-
-    private static Path resolveAgainst(Path dir, String path) {
-        Path given = Path.of(path);
-        return given.isAbsolute() ? given : dir.resolve(given);
-    }
-
-    private <T> T read(Path file, Class<T> type) {
-        if (!Files.isRegularFile(file)) {
-            throw new ConfigValidationException(
-                    file.toString(), List.of("file not found — copy the matching example from config/examples/"));
-        }
-
-        String raw;
+        List<String> names;
         try {
-            raw = Files.readString(file, StandardCharsets.UTF_8);
-        } catch (IOException e) {
-            throw new UncheckedIOException("cannot read " + file, e);
+            PipelineConfig pipeline = read(source(dir, PIPELINE_FILE), PipelineConfig.class);
+            names = List.of(
+                    PIPELINE_FILE,
+                    fileName(pipeline.rules().path(), RULES_FILE),
+                    fileName(sourcesPath(pipeline), SOURCES_FILE));
+        } catch (RuntimeException e) {
+            // A broken pipeline.yaml still has to be watched, or fixing it would need a
+            // restart — which is exactly the situation hot reload exists for.
+            names = List.of(PIPELINE_FILE, RULES_FILE, SOURCES_FILE);
         }
+        return names.stream().distinct().map(dir::resolve).toList();
+    }
 
+    private ConfigSource source(Path dir, String name) {
+        return ConfigSource.resolve(dir, name)
+                .orElseThrow(() -> new ConfigValidationException(
+                        name,
+                        List.of("not found in %s and not on the classpath — the jar ships a default, so this means the artifact is broken"
+                                .formatted(dir))));
+    }
+
+    /**
+     * A path in `pipeline.yaml` names a file, never a location. Only the file name is used,
+     * and the two-layer lookup decides where it comes from.
+     *
+     * <p>Anything more forgiving was measured and removed: resolving a path like
+     * `config/local/matching-rules.yaml` from the working directory upwards made a run read
+     * a file from outside the directory it was pointed at, and look entirely normal doing
+     * it. Two configurations became one, silently.
+     */
+    private static String fileName(String configured, String fallback) {
+        if (configured == null || configured.isBlank()) {
+            return fallback;
+        }
+        Path given = Path.of(configured);
+        String name = given.getFileName().toString();
+        if (given.getNameCount() > 1 || given.isAbsolute()) {
+            log.warn("'{}' names a location; only '{}' is used — a path here is a file name", configured, name);
+        }
+        return name;
+    }
+
+    private static String sourcesPath(PipelineConfig pipeline) {
+        return pipeline.sources() == null ? null : pipeline.sources().path();
+    }
+
+    private <T> T read(ConfigSource file, Class<T> type) {
         T bound;
         try {
-            bound = mapper.readValue(placeholders.resolve(raw), type);
+            bound = mapper.readValue(placeholders.resolve(file.content()), type);
         } catch (IOException e) {
-            throw new ConfigValidationException(file.toString(), List.of(rootCause(e)));
+            throw new ConfigValidationException(file.origin(), List.of(rootCause(e)));
         }
 
         Set<ConstraintViolation<T>> violations = validator.validate(bound);
@@ -112,18 +152,73 @@ public class ConfigLoader {
                     .map(v -> "%s: %s".formatted(v.getPropertyPath(), v.getMessage()))
                     .sorted()
                     .toList();
-            throw new ConfigValidationException(file.toString(), problems);
+            throw new ConfigValidationException(file.origin(), problems);
         }
+        log.info("{} read from {}", file.name(), file.origin());
         return bound;
     }
 
     /**
-     * The checks no single file can make on its own — plus the one repo-wide
-     * invariant that fails silently in both directions: the rate filter applied
-     * before enrichment discards either every offer or none, because the newsletter
-     * states a rate in 0.0 % of them.
+     * Replaces every `extraction.inherit: <id>` with the named source's extraction. One
+     * level only: an inherited block that inherits again is rejected rather than followed,
+     * because a chain is a cycle waiting to happen and nothing here needs one.
      */
-    private void checkConsistency(ApplicationConfig application, MatchingRules rules, SourcesConfig sources) {
+    private static SourcesConfig resolveInheritance(SourcesConfig sources) {
+        List<String> problems = new ArrayList<>();
+        List<SourcesConfig.Source> resolved = new ArrayList<>();
+
+        for (SourcesConfig.Source source : sources.sources()) {
+            String parentId = source.extraction().inherit();
+            if (parentId == null) {
+                resolved.add(source);
+                continue;
+            }
+            Optional<SourcesConfig.Source> parent = sources.sources().stream()
+                    .filter(candidate -> candidate.id().equals(parentId))
+                    .findFirst();
+            if (parent.isEmpty()) {
+                problems.add("source '%s' inherits extraction from '%s', which is not declared"
+                        .formatted(source.id(), parentId));
+                continue;
+            }
+            if (parent.get().extraction().inherit() != null) {
+                problems.add("source '%s' inherits from '%s', which inherits itself — one level only"
+                        .formatted(source.id(), parentId));
+                continue;
+            }
+            resolved.add(new SourcesConfig.Source(
+                    source.id(),
+                    source.enabled(),
+                    source.type(),
+                    source.connection(),
+                    source.url(),
+                    source.path(),
+                    source.glob(),
+                    source.schedule(),
+                    source.selector(),
+                    parent.get().extraction(),
+                    source.defaults()));
+        }
+
+        sources.sources().forEach(source -> {
+            String strategy = source.extraction().inherit() == null ? source.extraction().strategy() : "inherited";
+            if (strategy == null || strategy.isBlank()) {
+                problems.add("source '%s' states no extraction strategy and inherits none".formatted(source.id()));
+            }
+        });
+
+        if (!problems.isEmpty()) {
+            throw new ConfigValidationException(SOURCES_FILE, problems);
+        }
+        return new SourcesConfig(sources.version(), sources.connections(), resolved);
+    }
+
+    /**
+     * The checks no single file can make on its own — plus the one repo-wide invariant that
+     * fails silently in both directions: the rate filter applied before enrichment discards
+     * either every offer or none, because the sources state a rate in 0.0 % of them.
+     */
+    private void checkConsistency(Path dir, PipelineConfig pipeline, MatchingRules rules, SourcesConfig sources) {
         List<String> problems = new ArrayList<>();
 
         if (!"enrichment".equals(rules.hardFilters().rate().applyAfter())) {
@@ -131,14 +226,14 @@ public class ConfigLoader {
                     "hard_filters.rate.apply_after is '%s'; only 'enrichment' is allowed — the sources state a rate in 0.0 %% of offers, so applied earlier this rule filters either everything or nothing"
                             .formatted(rules.hardFilters().rate().applyAfter()));
         }
-        if (application.enrichment().enabled() && !"hard_filter".equals(application.enrichment().after())) {
+        if (pipeline.enrichment().enabled() && !"hard_filter".equals(pipeline.enrichment().after())) {
             problems.add("enrichment.after is '%s'; only 'hard_filter' is allowed"
-                    .formatted(application.enrichment().after()));
+                    .formatted(pipeline.enrichment().after()));
         }
 
-        Path profile = resolveAgainst(properties.configDirectory(), application.profile().path());
-        if (!Files.isRegularFile(profile)) {
-            problems.add("profile.path points at %s, which does not exist".formatted(profile));
+        String profile = fileName(pipeline.profile().path(), PROFILE_FILE);
+        if (ConfigSource.resolve(dir, profile).isEmpty()) {
+            problems.add("profile.path names '%s', which is neither in %s nor on the classpath".formatted(profile, dir));
         }
 
         Set<String> connectionIds = new HashSet<>();
@@ -154,11 +249,12 @@ public class ConfigLoader {
                 problems.add("duplicate source id '%s'".formatted(s.id()));
             }
             if (s.connection() != null && !connectionIds.contains(s.connection())) {
-                problems.add("source '%s' names connection '%s', which is not declared".formatted(s.id(), s.connection()));
+                problems.add(
+                        "source '%s' names connection '%s', which is not declared".formatted(s.id(), s.connection()));
             }
-            // Credentials come from the environment, so an enabled source is the only
-            // place where an empty value is worth failing over: a disabled block may
-            // legitimately reference variables nobody has set.
+            // Credentials come from the environment, so an enabled source is the only place
+            // where an empty value is worth failing over: a disabled block may legitimately
+            // reference variables nobody has set.
             if (s.enabled() && s.connection() != null) {
                 sources.connections().stream()
                         .filter(c -> c.id().equals(s.connection()))
@@ -173,7 +269,7 @@ public class ConfigLoader {
 
         if (!problems.isEmpty()) {
             problems.sort(Comparator.naturalOrder());
-            throw new ConfigValidationException(properties.configDirectory().toString(), problems);
+            throw new ConfigValidationException(dir.toString(), problems);
         }
     }
 
@@ -187,5 +283,13 @@ public class ConfigLoader {
             cause = cause.getCause();
         }
         return cause.getMessage() == null ? cause.toString() : cause.getMessage();
+    }
+
+    /** Only for the log line at startup: which of the files came from outside the jar. */
+    public List<String> overriddenFiles() {
+        Path dir = properties.configDirectory();
+        return List.of(PIPELINE_FILE, RULES_FILE, SOURCES_FILE, PROFILE_FILE).stream()
+                .filter(name -> Files.isRegularFile(dir.resolve(name)))
+                .toList();
     }
 }

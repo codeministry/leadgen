@@ -62,7 +62,7 @@ interface ExtractionStrategy {       // RawDocument -> 0..n RawOffer
 Implementations: `ImapConnector`, `RssConnector`, `HttpJsonConnector`, `FileDropConnector`,
 and `SingleStrategy`, `HtmlBlockStrategy`, `RegexSplitStrategy`, `LlmStrategy`.
 Which combination applies to which source lives exclusively in `config/local/sources.yaml`
-— see `config/examples/sources.example.yaml`.
+— see `backend/src/main/resources/leadgen/sources.yaml`.
 
 A new offer source is therefore a YAML block, not code and not a deploy. Deterministic
 field extraction (CSS selector, regex, JSON path) runs first; the language model only
@@ -198,7 +198,7 @@ the simulation in `docs/samples/simulate_filter.py` is the reference.
 
 ## 12. Settled configuration
 
-- **Mail access:** IMAP mailbox (`imap.example.com:993`, SSL), credentials via `.env`.
+- **Mail access:** IMAP mailbox (`imap.example.com:993`, SSL), credentials via `.env.local`.
 - **Two mailbox modes**, both implemented, switchable by a flag:
   - *filter mode* (active): the newsletter sits in a mixed folder, selected by sender and
     optionally subject.
@@ -208,7 +208,7 @@ the simulation in `docs/samples/simulate_filter.py` is the reference.
     untouched and a second client does not interfere.
 - **Hard filters:** at least 80 % remote, within 120 km of Bedburg, no exceptions outside
   that radius, country allowlist DE only, no temporary-employment or permanent contracts.
-- **LLM:** Anthropic API, key via `.env`. A small model for extraction, a larger one for
+- **LLM:** provider and key via `.env.local`, never in a committed file. A small model for extraction, a larger one for
   scoring and writing.
 - **Documents:** fixed PDFs, language selection only. No per-offer tailoring, no
   integration with `cvfy`. The files live in `config/local/documents/`.
@@ -216,6 +216,6 @@ the simulation in `docs/samples/simulate_filter.py` is the reference.
 ## 13. Open
 
 - Adopt the code conventions from `codeministry/customer/ship360` — see `CLAUDE.md`
-- License for publication — Apache 2.0, like `straightmail`?
+- License for publication — Apache 2.0?
 - Repository name and GitHub organisation
 - Sender address and folder of the newsletter in the IMAP mailbox

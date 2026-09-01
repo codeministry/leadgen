@@ -1,8 +1,11 @@
-# Personal data and credentials
+# Personal data and credentials. The committed configuration under
+# backend/src/main/resources/leadgen/ names its values as ${PLACEHOLDERS}; the
+# values themselves live here and are never committed.
+.env.local
+!.env.local.example
 config/local/
 packages/
 data/
-.env
 *.log
 
 # Real newsletter mails and anything derived from them: they carry the
@@ -24,7 +27,14 @@ frontend/.angular/
 frontend/dist/
 !gradle/wrapper/gradle-wrapper.jar
 
+# Agent scratch state — carries absolute paths from whoever's machine wrote it.
+.checkpoint-state.json
+
 # OS & IDE
 .DS_Store
 .idea/
 *.iml
+
+# Claude & AI
+Plans
+MEMORY

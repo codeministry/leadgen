@@ -2,8 +2,11 @@
 # configurable — none of it lives in the code.
 version: 1
 
+# Every value here is empty until .env.local fills it, and that is the working state:
+# without a model the tool still runs — hard filter, dedupe and enrichment are
+# deterministic — it only loses scoring and the cover letter.
 llm:
-  provider: ${LLM_PROVIDER:anthropic}   # anthropic | ollama | openai-compatible
+  provider: ${LLM_PROVIDER:}            # anthropic | ollama | openai-compatible
   base_url: ${LLM_BASE_URL:}
   api_key: ${LLM_API_KEY}
   models:
@@ -57,14 +60,14 @@ packaging:
     - id: meta
       format: json
 
+# The digest is a rendered file, not a message. There is no transport here because
+# the application has no send path at all: it writes text or HTML, a human reads it
+# and decides. Same rule as the application packages.
 digest:
   enabled: true
   schedule: "0 0 7 * * *"
-  channel: ${DIGEST_CHANNEL:email}      # email | none | webhook
-  transport:
-    type: straightmail
-    url: ${STRAIGHTMAIL_URL:}
-  recipients: ["${DIGEST_TO}"]
+  format: ${DIGEST_FORMAT:html}         # text | html
+  output_dir: ${DIGEST_DIR:./packages/digest}
   include: [shortlisted, review, follow_ups_due]
 
 security:

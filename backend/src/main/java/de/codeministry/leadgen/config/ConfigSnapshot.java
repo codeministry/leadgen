@@ -1,6 +1,6 @@
 package de.codeministry.leadgen.config;
 
-import de.codeministry.leadgen.config.model.ApplicationConfig;
+import de.codeministry.leadgen.config.model.PipelineConfig;
 import de.codeministry.leadgen.config.model.MatchingRules;
 import de.codeministry.leadgen.config.model.SourcesConfig;
 import java.time.Instant;
@@ -11,4 +11,4 @@ import java.time.Instant;
  * pipeline running against a picture that never existed on disk.
  */
 public record ConfigSnapshot(
-        ApplicationConfig application, MatchingRules rules, SourcesConfig sources, Instant loadedAt) {}
+        PipelineConfig application, MatchingRules rules, SourcesConfig sources, Instant loadedAt) {}

@@ -25,14 +25,23 @@ German comment "just this once".
 
 Violating one of these is expensive, and most of them fail silently.
 
-- **Nothing is wired in.** This repo is going public. No newsletter name, no portal,
-  no mail provider, no model name and no personal datum belongs in the code. Everything
-  individual lives in `config/local/` (gitignored) and in `.env`. A new source is a YAML
-  block, not a deploy.
+- **Nothing is wired in.** This repo is going public. No newsletter name, no portal, no
+  mail provider, no model name and no personal datum belongs in a committed file. The
+  configuration that ships names every value as a `${PLACEHOLDER}`; the values live in
+  `.env.local`, and anything individual beyond them in `config/local/`. Both gitignored.
+  A new source is a YAML block, not a deploy.
 - **Rules before model.** The hard filter runs deterministically and for free before any
   LLM call. Without a language model the tool must still run, only weaker.
 - **No CV tailoring.** Fixed PDFs in `config/local/documents/`, selected by the language
   of the ad and nothing else.
+- **Nothing is ever sent.** Both outputs are rendered files: the digest as text or HTML,
+  the application package as a folder. There is no transport, no recipient and no channel
+  in the configuration either — modelling one would be an invitation to add the code.
+- **Two configuration layers, the same as Spring's own.** Working defaults ship on the
+  classpath under `backend/src/main/resources/leadgen/` and are part of the jar; the
+  directory in `leadgen.config-dir` overrides them **file by file**. The tool therefore
+  runs on a fresh clone with no configuration at all, and nothing individual is ever baked
+  into the artifact. The startup log names, per file, which layer won.
 - **The mail address never leaves the machine.** Newsletter links are proxied as
   `…/proxy?target=…&email=…`. Unwrap `target`, discard `email`. Raw `.eml` files and
   anything derived from them are gitignored — they carry the address in headers and
@@ -59,7 +68,7 @@ Gradle.
 ```bash
 ./gradlew check                # both modules
 ./gradlew :backend:test        # Spring tests — needs a running Docker for Testcontainers
-./gradlew :backend:bootRun     # API on :8080, reads the untracked .env from the repo root
+./gradlew :backend:bootRun     # API on :8080, reads the untracked .env.local from the repo root
 docker compose up --build      # postgres + api + web
 
 cd frontend
@@ -115,15 +124,33 @@ reads a YAML file itself.
   answers it: an unset LLM key is fine, an unset IMAP host on an *enabled* source is not.
 - **Paths in `application.yaml` are file names**, resolved against the config directory.
   A path with the directory baked in breaks the moment it moves — in the container it is
-  `/config`, not `./config/local`.
+  `/config`, not `./config/local`. Such a path is still accepted, resolved from the working
+  directory upwards, because breaking an existing configuration over a style is not worth it,
+  **and the fallback logs a warning naming both paths**: it can resolve to a file outside the
+  directory the process was pointed at, which turns two configurations into one and looks
+  entirely normal doing it.
+- **The working directory is not one thing.** Gradle's `bootRun` runs in `backend/`, an IDE
+  run configuration in the repository root, a jar wherever it sits. A relative
+  `leadgen.config-dir` is therefore searched upwards from the working directory; a default
+  that is correct in one of them is wrong in the others, and the symptom is a missing file
+  at a path nobody recognises.
 - **Change detection polls timestamps, it does not use `WatchService`.** For three files
   the efficiency argument is worth nothing, and the watch service is native only on
   Linux; on macOS the JDK falls back to polling with a ten-second default latency. A
   change is applied one cycle after it is first seen, so a save in progress finishes
   first.
-- **The name `application.yaml` means two different files.** The one on the classpath
-  wires the process; the one in the config directory is the tool's own configuration. A
-  stack trace naming it can mean either.
+- **`application.yaml` is Spring's and only Spring's.** The tool's own configuration is
+  `pipeline.yaml`, and the class behind it is `PipelineConfig`. They used to share a name,
+  which meant a stack trace naming it could mean either file.
+- **The classpath directory is `/leadgen/` and deliberately not `/config/`.** Spring scans
+  `classpath:/config/` for its own configuration by default, so a file placed there would
+  be read twice — once by this loader and once by Spring, which would quietly bind whatever
+  happened to match.
+- **A path in `pipeline.yaml` names a file, never a location.** Only the file name is used,
+  and the two-layer lookup decides where it comes from. Anything more forgiving was
+  measured and removed: resolving `config/local/matching-rules.yaml` from the working
+  directory upwards made a run read a file from outside the directory it was pointed at,
+  and look entirely normal doing it.
 
 ## Ingest and extraction
 
@@ -134,10 +161,24 @@ upserts it. `POST /api/ingest` runs one pass.
 - **No selector is written in Java.** Block selector, every field, the date format and the
   proxy parameter all come from the source's `extraction` section. That is what makes a
   new source a YAML block. The worked example is `local-eml` in
-  `config/examples/sources.example.yaml`.
+  `backend/src/main/resources/leadgen/sources.yaml`.
 - **The eight field names are the contract** between `sources.yaml` and `OfferMapper`:
   `title`, `url`, `description`, `location`, `portal`, `agency`, `published`, `tags`. A
   field spelled differently is extracted and then ignored, in silence.
+- **`expect_count_from_subject` is the only check nothing else can make.** A selector that
+  stops matching loses offers, and fewer offers is indistinguishable from a quiet day on the
+  market. The document states its own count; a mismatch is logged loudly and never discards
+  what did come through.
+- **A second source inherits an extraction, it never copies one.** `extraction.inherit: <id>`
+  resolves at load, one level only. Two copies of a selector table drift, and the copy nobody
+  looks at drifts unnoticed.
+- **`prefer_part` picks the alternative, and the search runs backwards.**
+  `multipart/alternative` orders its parts least-preferred first, so the plain-text version
+  comes before the HTML one — taking part zero yields text with none of the structure the
+  rules address.
+- **A field's `format` describes the whole value, not a prefix of it.** The source-level
+  `date_format` is the fallback. Cutting the raw string to the pattern's length works only
+  while the two happen to line up, and stops at the first quoted literal.
 - **Meta fields are addressed by their emoji prefix, never by position.** Four spans sit in
   one row and 9.2 % of offers state no company — read by position, every following field of
   those offers is shifted by one.
@@ -158,12 +199,40 @@ upserts it. `POST /api/ingest` runs one pass.
 - **The acceptance test is skipped without the corpus.** `docs/samples/emails/` is
   gitignored, so it is absent on a fresh clone and in CI. `ExtractionTest` covers the same
   mechanics against a fixture that ships, and that one must stay in step.
+- **Not flagging `\Seen` takes two things, and the obvious one alone is not enough.**
+  The folder is opened read-only *and* `mail.imap.peek` is set. Fetching a body otherwise
+  issues `FETCH BODY[]`, and the server sets the flag no matter how the folder was opened.
+  Measured against a real IMAP server: without the flag every mail a run touches is marked
+  read in the owner's mailbox.
+- **`getMessagesByUID(start, LASTUID)` lies about its range.** It returns the message with
+  the highest UID even when that UID is below `start`, so a mailbox with nothing new hands
+  back its newest mail as if it were unread. Filter by UID afterwards, or every run
+  re-extracts the last mail forever — which the upsert would hide.
+- **A changed `UIDVALIDITY` voids every UID the server ever handed out.** The folder was
+  recreated; a cursor kept across it silently skips the whole folder.
+- **The cursor is advanced after the write, never after the read.** `SourceConnector.commit`
+  exists for exactly that: a cursor moved at read time plus a failure afterwards means those
+  mails are never looked at again, and nothing says so. And it advances only over messages
+  actually processed — a mail the selector skipped is not progress, because a filter that
+  turns out too narrow is fixed by widening it.
+- **One failing source must not end the run.** `IngestService` catches `IngestException` per
+  source, so an unreachable mailbox does not stop the file sources behind it.
 - **The `<mark>` trap is not reproducible in the current corpus** — zero occurrences in all
   14 mails. jsoup's `text()` strips it regardless, and `ExtractionTest` guards it, but treat
   it as an expectation rather than a measurement.
 
 ## Backend conventions
 
+- **Lombok for the boilerplate, records for the data.** `@Slf4j` instead of a hand-written
+  logger, `@RequiredArgsConstructor` where the constructor is nothing but assignments. Not
+  where it does work (`ConfigRegistry` loads, `IngestService` builds a map) and not where
+  the parameters carry annotations (`@Value` in `StatusController`) — Lombok would generate
+  a constructor without them.
+- **API types are records, each in its own file.** `AppStatus`, `IngestReport`,
+  `SourceIngestResult`, `DocumentIngestResult`. No response type nested inside its
+  controller or service. The configuration model is the exception: those records mirror the
+  nesting of a YAML file, and flattening them would lose exactly the structure they exist to
+  describe.
 - **JDBC, not JPA.** The pipeline writes offers in batches and upserts them with
   `ON CONFLICT`, which is one statement of plain SQL against a schema Flyway owns. An ORM
   would add a mapping layer over Postgres arrays for no gain. Flyway is therefore the only
@@ -172,19 +241,21 @@ upserts it. `POST /api/ingest` runs one pass.
   `spring-boot-flyway` the migrations sit on the classpath and never run, and the only
   symptom is Hibernate complaining about missing tables. `@WebMvcTest` likewise moved
   from `…test.autoconfigure.web.servlet` into `spring-boot-webmvc-test`.
-- **The `.env` is read by `bootRun`, never through `spring.config.import`** in
-  `application.yaml` — an import there would apply to every test context too, and a
-  green test run would then depend on a file nobody sees in the repo.
+- **`.env.local` is read by `bootRun`, never through `spring.config.import`** in Spring's
+  `application.yaml` — an import there would apply to every test context too, and a green
+  test run would then depend on a file nobody sees in the repo. Compose reads the same
+  file, so one credential has one place for the whole stack.
 
 ## What already exists
 
 ```
-config/local/sources.yaml         IMAP mailbox, verified aggregator selectors, 6 sources
-config/local/matching-rules.yaml  hard filters + scoring weights
-config/local/application.yaml     LLM, enrichment, packaging, digest
-config/local/skill-profile.yaml   skills with weights and aliases, reference projects
-config/examples/*.example.yaml    neutral versions for the public repo
-.env.example
+backend/src/main/resources/leadgen/    the committed defaults — neutral, all values as
+  pipeline.yaml                        ${PLACEHOLDERS}. These ARE the examples; there is
+  matching-rules.yaml                  no second copy to drift.
+  sources.yaml
+  skill-profile.yaml
+config/local/*.yaml               the same four names, overriding file by file (gitignored)
+.env.local.example
 docs/samples/emails/*.eml         14 real newsletter mails (gitignored)
 docs/samples/analyze_samples.py   extraction, field coverage, duplicates
 docs/samples/simulate_filter.py   simulation of the hard filters
@@ -206,7 +277,7 @@ code has to reproduce — the numbers in `docs/SAMPLE-ANALYSIS.md` are the targe
 ## Order of work
 
 1. ✅ **Monorepo skeleton** — root build, `backend/` skeleton, `frontend/` skeleton,
-   `docker-compose.yml` (postgres, api, web), `.env` loading, Flyway. `GET /api/status`
+   `docker-compose.yml` (postgres, api, web), `.env.local` loading, Flyway. `GET /api/status`
    plus the `StatusStore` exist only to prove the full path (component → proxy → Spring
    → Postgres) end to end; they are not a feature.
 2. ✅ **Configuration layer** — load, validate and hot-reload `sources.yaml`,
@@ -214,7 +285,7 @@ code has to reproduce — the numbers in `docs/SAMPLE-ANALYSIS.md` are the targe
    `ConfigRegistry.snapshot()` is how the rest of the code reads configuration.
 3. ✅ **Ingest + extract** against the `local-eml` source (files, no mailbox needed).
    Acceptance test: 1289 offers from `docs/samples/emails/`, field coverage as in the analysis.
-4. **IMAP connector** — same extraction, different source. Progress tracked via
+4. ✅ **IMAP connector** — same extraction, different source. Progress tracked via
    `UIDVALIDITY`/`UID`, **never** via seen/unseen: the user reads the same mails on a phone.
 5. **Dedupe** — do not postpone, it pays off within a single mail.
 6. **Hard filter** — must hit the 16.5 % from the simulation. A deviation is a bug.
@@ -246,6 +317,6 @@ code has to reproduce — the numbers in `docs/SAMPLE-ANALYSIS.md` are the targe
   Stylelint), but no pipeline runs it yet.
 - **The Java package is `de.codeministry.leadgen`** — decided before the repository name
   and organisation were, so it may need a rename.
-- License for publication (Apache 2.0, like `straightmail`?)
+- License for publication (Apache 2.0?)
 - Repository name and GitHub organisation
 - Which folder in the IMAP mailbox the newsletter lands in

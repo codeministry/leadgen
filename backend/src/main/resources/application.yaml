@@ -12,11 +12,12 @@ spring:
     enabled: true
     locations: classpath:db/migration
 
-# The configuration layer (order of work, step 2) reads these directories. They
-# are gitignored and hold everything individual: sources, rules, profile,
-# documents.
+# Working defaults for the pipeline ship on the classpath under /leadgen/. This
+# directory overrides them file by file and holds everything individual: real
+# sources, credentials, the profile, the documents. It is gitignored, and it does
+# not have to exist — without it the defaults apply.
 leadgen:
-  config-dir: ${LEADGEN_CONFIG_DIR:../config/local}
+  config-dir: ${LEADGEN_CONFIG_DIR:config/local}
   # How often the three files are checked for changes. Two polls are needed before a
   # change is applied, so the worst case is twice this value.
   config-poll-interval: ${CONFIG_POLL_INTERVAL:PT2S}

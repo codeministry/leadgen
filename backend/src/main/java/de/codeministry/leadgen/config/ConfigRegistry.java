@@ -1,8 +1,7 @@
 package de.codeministry.leadgen.config;
 
 import java.util.concurrent.atomic.AtomicReference;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 /**
@@ -14,10 +13,10 @@ import org.springframework.stereotype.Component;
  * is not — the last good snapshot stays in place and the problem is logged, because a
  * half-saved file from an editor must not take the running tool down.
  */
+@Slf4j
 @Component
 public class ConfigRegistry {
 
-    private static final Logger log = LoggerFactory.getLogger(ConfigRegistry.class);
 
     private final ConfigLoader loader;
     private final AtomicReference<ConfigSnapshot> current = new AtomicReference<>();
@@ -25,9 +24,11 @@ public class ConfigRegistry {
     ConfigRegistry(ConfigLoader loader) {
         this.loader = loader;
         this.current.set(loader.load());
-        log.info("Configuration loaded: {} sources, {} of them enabled",
+        var overridden = loader.overriddenFiles();
+        log.info("Configuration loaded: {} sources, {} of them enabled; {} overridden externally",
                 snapshot().sources().sources().size(),
-                snapshot().sources().sources().stream().filter(s -> s.enabled()).count());
+                snapshot().sources().sources().stream().filter(s -> s.enabled()).count(),
+                overridden.isEmpty() ? "nothing" : String.join(", ", overridden));
     }
 
     public ConfigSnapshot snapshot() {

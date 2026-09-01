@@ -11,8 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 /**
@@ -24,10 +23,10 @@ import org.springframework.stereotype.Service;
  * `fallback: llm` and get a different extractor — which is why the strategy is read from
  * the config rather than assumed.
  */
+@Slf4j
 @Service
 public class IngestService {
 
-    private static final Logger log = LoggerFactory.getLogger(IngestService.class);
     private static final String HTML_BLOCKS = "html-blocks";
 
     private final ConfigRegistry config;
@@ -50,7 +49,7 @@ public class IngestService {
     }
 
     public IngestReport run() {
-        List<IngestReport.SourceResult> results = new ArrayList<>();
+        List<SourceIngestResult> results = new ArrayList<>();
 
         for (Source source : config.snapshot().sources().sources()) {
             if (!source.enabled()) {
@@ -62,23 +61,55 @@ public class IngestService {
                 log.warn("Source '{}' has type '{}', for which no connector exists yet", source.id(), source.type());
                 continue;
             }
-            results.add(ingest(source, connector));
+            try {
+                results.add(ingest(source, connector));
+            } catch (IngestException e) {
+                // One unreachable mailbox must not stop the file sources behind it.
+                log.error("Source '{}' failed: {}", source.id(), e.getMessage(), e);
+                results.add(new SourceIngestResult(source.id(), 0, 0, 0, List.of()));
+            }
         }
         return new IngestReport(results);
     }
 
-    private IngestReport.SourceResult ingest(Source source, SourceConnector connector) {
+    /**
+     * Compares the extraction against the count the document announces about itself, when
+     * the source says how to read it. This is the one check nothing else can make: a
+     * selector that stops matching loses offers, and fewer offers is indistinguishable
+     * from a quiet day on the market. Loud, and not fatal — the offers that did come
+     * through are still worth having.
+     */
+    private DocumentIngestResult check(Source source, RawDocument document, int extracted) {
+        String pattern = source.extraction().expectCountFromSubject();
+        if (pattern == null || document.subject() == null) {
+            return new DocumentIngestResult(document.id(), extracted, null);
+        }
+        var matcher = java.util.regex.Pattern.compile(pattern).matcher(document.subject());
+        if (!matcher.find() || matcher.groupCount() < 1) {
+            log.warn("Source '{}': '{}' does not state a count, though the source expects one",
+                    source.id(), document.subject());
+            return new DocumentIngestResult(document.id(), extracted, null);
+        }
+        int announced = Integer.parseInt(matcher.group(1));
+        if (announced != extracted) {
+            log.warn("Source '{}': {} announces {} offers, {} were extracted — the selectors have drifted",
+                    source.id(), document.id(), announced, extracted);
+        }
+        return new DocumentIngestResult(document.id(), extracted, announced);
+    }
+
+    private SourceIngestResult ingest(Source source, SourceConnector connector) {
         if (!HTML_BLOCKS.equals(source.extraction().strategy())) {
             log.warn(
                     "Source '{}' asks for extraction strategy '{}', which is not implemented yet",
                     source.id(),
                     source.extraction().strategy());
-            return new IngestReport.SourceResult(source.id(), 0, 0, 0, List.of());
+            return new SourceIngestResult(source.id(), 0, 0, 0, List.of());
         }
 
         long sourceId = store.sourceId(source.id(), source.type());
-        List<RawDocument> documents = connector.read(source);
-        List<IngestReport.DocumentResult> details = new ArrayList<>();
+        List<RawDocument> documents = connector.read(source, sourceId);
+        List<DocumentIngestResult> details = new ArrayList<>();
         int extracted = 0;
         int written = 0;
 
@@ -88,13 +119,17 @@ public class IngestService {
                     .filter(offer -> offer.title() != null && !offer.title().isBlank())
                     .toList();
 
-            details.add(new IngestReport.DocumentResult(document.id(), offers.size()));
+            details.add(check(source, document, offers.size()));
             extracted += offers.size();
             written += store.store(sourceId, offers);
         }
 
+        // Only now, after everything is stored: a cursor advanced before the write would
+        // skip those mails forever if the write failed, and nothing would say so.
+        connector.commit(source, sourceId, documents);
+
         log.info("Source '{}': {} documents, {} offers extracted, {} rows written",
                 source.id(), documents.size(), extracted, written);
-        return new IngestReport.SourceResult(source.id(), documents.size(), extracted, written, details);
+        return new SourceIngestResult(source.id(), documents.size(), extracted, written, details);
     }
 }

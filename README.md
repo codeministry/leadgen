@@ -17,9 +17,11 @@ automatable. The decision is not.
   and models are configuration. A new offer source is a YAML block.
 - **Rules before model.** Hard criteria run deterministically and for free; the language
   model only scores what survives. Without an LLM the tool still works.
-- **No automatic sending.** The tool proposes and prepares; a human sends.
-- **Personal data stays out.** Profile and credentials live in `config/local/` and in
-  environment variables, never in the repository.
+- **No automatic sending.** Both outputs are files — the daily digest as text or HTML,
+  the application package as a folder. A human reads them and sends.
+- **Personal data stays out.** The configuration that ships names every value as a
+  `${PLACEHOLDER}`. The values live in `.env.local`, anything individual beyond them in
+  `config/local/`, and neither is committed.
 
 ## Stack
 
@@ -29,24 +31,28 @@ Spring Boot (Java 21) · Angular + NGRX + DaisyUI · PostgreSQL · Docker Compos
 
 ```
 backend/    Spring Boot, Gradle module :backend
+  src/main/resources/leadgen/   the configuration that ships: pipeline, rules,
+                                sources, profile — neutral, values as ${PLACEHOLDERS}
 frontend/   Angular, Gradle module :frontend (bun does the work)
 charts/     Helm chart
-config/
-  examples/ example configuration
-  local/    your own configuration (gitignored)
+config/local/                   overrides the four files above, one by one (gitignored)
 docs/       concept and decisions
 ```
+
+Configuration comes in two layers, the same way Spring's own does: working defaults are
+part of the jar, and an external directory overrides them file by file. The tool runs on a
+fresh clone with nothing configured; the startup log says which layer each file came from.
 
 ## Getting started
 
 ```bash
-mkdir -p config/local
-for f in application matching-rules skill-profile sources; do
-  cp "config/examples/$f.example.yaml" "config/local/$f.yaml"
-done
-cp .env.example .env                                 # fill in credentials
+cp .env.local.example .env.local                     # fill in credentials
 docker compose up --build
 ```
+
+That is the whole setup. To change a rule, copy the file you want to change out of
+`backend/src/main/resources/leadgen/` into `config/local/` and edit it there — only the
+files you put there override, and none of them are committed.
 
 The web UI is then on `http://localhost:4200`, the API on `http://localhost:8080`.
 
@@ -55,7 +61,7 @@ The web UI is then on `http://localhost:4200`, the API on `http://localhost:8080
 ```bash
 ./gradlew check                # both modules: backend tests, frontend lint + tests
 ./gradlew :backend:test        # Spring tests (needs Docker for Testcontainers)
-./gradlew :backend:bootRun     # API on :8080, reads the untracked .env
+./gradlew :backend:bootRun     # API on :8080, reads the untracked .env.local
 docker compose up postgres     # the database the local run expects
 
 cd frontend

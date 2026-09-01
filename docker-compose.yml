@@ -1,5 +1,7 @@
-# Phase 1 of the operating plan: postgres, api, web on one machine. Every value
-# comes from `.env` (see .env.example); nothing individual is written here.
+# Phase 1 of the operating plan: postgres, api, web on one machine. Every value comes
+# from the untracked `.env.local` (see .env.local.example); nothing individual is written
+# here. The file is optional — without it the defaults below bring the stack up, only
+# without mailbox and LLM credentials.
 services:
   postgres:
     image: postgres:17-alpine
@@ -7,6 +9,9 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-leadgen}
       POSTGRES_USER: ${POSTGRES_USER:-leadgen}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-leadgen}
+    env_file:
+      - path: .env.local
+        required: false
     volumes:
       - postgres-data:/var/lib/postgresql/data
     ports:
@@ -34,13 +39,12 @@ services:
       PACKAGES_DIR: /packages
       INBOX_DIR: /inbox
     env_file:
-      # Optional: without it the defaults above apply and the stack still starts,
-      # only without mailbox and LLM credentials.
-      - path: .env
+      - path: .env.local
         required: false
     volumes:
-      # Everything individual is mounted, never baked into the image: sources,
-      # rules, profile, the fixed CV PDFs, and the finished packages.
+      # The image ships working defaults on its classpath. This mount overrides them
+      # file by file with the real sources, rules, profile and CV PDFs — nothing
+      # individual is ever baked in.
       - ./config/local:/config:ro
       - ./packages:/packages
       - ./data/inbox:/inbox

@@ -17,8 +17,7 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Properties;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 /**
@@ -26,10 +25,10 @@ import org.springframework.stereotype.Component;
  * and no network — which is what makes the extraction reproducible and the acceptance
  * test possible at all.
  */
+@Slf4j
 @Component
 public class FileSourceConnector implements SourceConnector {
 
-    private static final Logger log = LoggerFactory.getLogger(FileSourceConnector.class);
     private static final Session SESSION = Session.getInstance(new Properties());
 
     @Override
@@ -38,7 +37,8 @@ public class FileSourceConnector implements SourceConnector {
     }
 
     @Override
-    public List<RawDocument> read(Source source) {
+    public List<RawDocument> read(Source source, long sourceId) {
+        String preferred = source.extraction().preferPartOrHtml();
         Path directory = Path.of(source.path());
         if (!Files.isDirectory(directory)) {
             log.warn("Source '{}' points at {}, which is not a directory", source.id(), directory.toAbsolutePath());
@@ -54,7 +54,7 @@ public class FileSourceConnector implements SourceConnector {
                     // Sorted so a run is reproducible: the acceptance test compares
                     // per-document counts, and directory order is not an ordering.
                     .sorted(Comparator.comparing(file -> file.getFileName().toString()))
-                    .forEach(file -> documents.add(readOne(file)));
+                    .forEach(file -> documents.add(readOne(file, preferred)));
         } catch (IOException e) {
             throw new UncheckedIOException("cannot list " + directory, e);
         }
@@ -77,7 +77,7 @@ public class FileSourceConnector implements SourceConnector {
         return suffixes.isEmpty() || suffixes.stream().anyMatch(name::endsWith);
     }
 
-    private RawDocument readOne(Path file) {
+    private RawDocument readOne(Path file, String preferred) {
         String name = file.getFileName().toString();
         if (!name.endsWith(".eml")) {
             try {
@@ -89,7 +89,7 @@ public class FileSourceConnector implements SourceConnector {
 
         try (InputStream in = Files.newInputStream(file)) {
             MimeMessage message = new MimeMessage(SESSION, in);
-            return new RawDocument(name, message.getSubject(), htmlPartOf(message), received(message, file));
+            return new RawDocument(name, message.getSubject(), partOf(message, preferred), received(message, file));
         } catch (IOException e) {
             throw new UncheckedIOException("cannot read " + file, e);
         } catch (MessagingException e) {
@@ -99,17 +99,20 @@ public class FileSourceConnector implements SourceConnector {
     }
 
     /**
-     * The HTML alternative, not the first part. A newsletter is `multipart/alternative`
-     * with the plain-text version first; taking part zero yields text that has none of
-     * the structure the extraction rules address.
+     * The wanted alternative, not the first part. A newsletter is `multipart/alternative`
+     * with the plain-text version first; taking part zero yields text that has none of the
+     * structure the extraction rules address. Which one is wanted is
+     * `extraction.prefer_part`, defaulting to html — searched from the back, because
+     * `multipart/alternative` orders its parts least-preferred first.
      */
-    private static String htmlPartOf(jakarta.mail.Part part) throws MessagingException, IOException {
-        if (part.isMimeType("text/html")) {
+    private static String partOf(jakarta.mail.Part part, String preferred)
+            throws MessagingException, IOException {
+        if (part.isMimeType("text/" + preferred)) {
             return (String) part.getContent();
         }
         if (part.getContent() instanceof jakarta.mail.Multipart multipart) {
             for (int i = multipart.getCount() - 1; i >= 0; i--) {
-                String html = htmlPartOf(multipart.getBodyPart(i));
+                String html = partOf(multipart.getBodyPart(i), preferred);
                 if (!html.isEmpty()) {
                     return html;
                 }

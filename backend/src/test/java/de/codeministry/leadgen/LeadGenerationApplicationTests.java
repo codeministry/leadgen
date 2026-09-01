@@ -7,7 +7,6 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -25,9 +24,9 @@ import org.testcontainers.junit.jupiter.Testcontainers;
  * a missing `spring-boot-flyway` module leaves the migrations on the classpath,
  * unexecuted, and an empty context test stays green through it.
  *
- * <p>The configuration directory is a copy of `config/examples`. A context that boots
- * against the user's own `config/local` would pass or fail depending on whose machine
- * it runs on.
+ * <p>The configuration directory is empty on purpose: the defaults on the classpath are
+ * what a context has to be able to boot on. Pointing it at the user's own `config/local`
+ * would make the result depend on whose machine it runs on.
  */
 @SpringBootTest
 @Testcontainers
@@ -61,26 +60,11 @@ class LeadGenerationApplicationTests {
         assertThat(config.snapshot().sources().sources()).isNotEmpty();
     }
 
+    /** Empty: nothing overrides, so every file comes from the classpath. */
     private static Path exampleConfigDirectory() {
         try {
-            Path root = Path.of("").toAbsolutePath();
-            while (root != null && !Files.isDirectory(root.resolve("config/examples"))) {
-                root = root.getParent();
-            }
             Path target = Files.createTempDirectory("leadgen-config");
             target.toFile().deleteOnExit();
-            try (var files = Files.list(root.resolve("config/examples"))) {
-                files.filter(f -> f.getFileName().toString().endsWith(".example.yaml")).forEach(f -> {
-                    try {
-                        Files.copy(
-                                f,
-                                target.resolve(f.getFileName().toString().replace(".example", "")),
-                                StandardCopyOption.REPLACE_EXISTING);
-                    } catch (IOException e) {
-                        throw new UncheckedIOException(e);
-                    }
-                });
-            }
             return target;
         } catch (IOException e) {
             throw new UncheckedIOException(e);

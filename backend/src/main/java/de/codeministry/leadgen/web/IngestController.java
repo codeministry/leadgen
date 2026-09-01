@@ -2,6 +2,7 @@ package de.codeministry.leadgen.web;
 
 import de.codeministry.leadgen.ingest.IngestReport;
 import de.codeministry.leadgen.ingest.IngestService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -13,13 +14,10 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping("/api")
+@RequiredArgsConstructor
 public class IngestController {
 
     private final IngestService ingest;
-
-    IngestController(IngestService ingest) {
-        this.ingest = ingest;
-    }
 
     @PostMapping("/ingest")
     IngestReport run() {

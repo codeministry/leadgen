@@ -23,7 +23,7 @@ import org.junit.jupiter.api.io.TempDir;
  * Extraction against a fixture that is part of the repository, so this runs on a fresh
  * clone. The real corpus is gitignored and gets its own test.
  *
- * <p>The rules come from the shipped `config/examples/sources.yaml` and not from a
+ * <p>The rules come from the shipped `resources/leadgen/sources.yaml` and not from a
  * fixture of its own: a broken example then fails the build rather than the first
  * user's first run.
  */
@@ -55,7 +55,7 @@ class ExtractionTest {
                 .findFirst()
                 .orElseThrow();
 
-        var documents = new FileSourceConnector().read(source);
+        var documents = new FileSourceConnector().read(source, 0L);
         assertThat(documents).hasSize(1);
 
         var extractor = new HtmlBlockExtractor();

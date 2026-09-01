@@ -17,22 +17,28 @@ import java.util.Map;
  * collision is the concept's, and renaming it is a bigger change than living with
  * it — but a stack trace mentioning "application.yaml" can mean either file.
  */
-public record ApplicationConfig(
+public record PipelineConfig(
         @Min(1) int version,
         @Valid @NotNull Llm llm,
         @Valid @NotNull Profile profile,
         @Valid @NotNull Rules rules,
+        @Valid Sources sources,
         @Valid @NotNull Enrichment enrichment,
         @Valid @NotNull Packaging packaging,
         @Valid Digest digest,
         @Valid Security security) {
 
-    public record Llm(
-            @NotBlank String provider,
-            String baseUrl,
-            String apiKey,
-            @NotNull Models models,
-            @Valid Budget budget) {
+    /**
+     * Every field is optional, and an empty block is the working state on a fresh clone.
+     * Without a model the tool still runs: the hard filter that removes 83.5 % of the
+     * offers is deterministic, and only scoring and the cover letter are lost.
+     */
+    public record Llm(String provider, String baseUrl, String apiKey, @NotNull Models models, @Valid Budget budget) {
+
+        /** Whether scoring and writing can run at all. */
+        public boolean configured() {
+            return provider != null && !provider.isBlank() && apiKey != null && !apiKey.isBlank();
+        }
 
         /**
          * Every model is optional. Without a language model the tool still runs —
@@ -47,6 +53,9 @@ public record ApplicationConfig(
     public record Profile(@NotBlank String path) {}
 
     public record Rules(@NotBlank String path, boolean hotReload) {}
+
+    /** Optional: without it `sources.yaml` in the configuration directory applies. */
+    public record Sources(String path) {}
 
     public record Enrichment(boolean enabled, @NotBlank String after, @Valid @NotNull Fetch fetch, @Valid Extract extract) {
 
@@ -74,19 +83,17 @@ public record ApplicationConfig(
                 String by,
                 String template,
                 boolean generated,
-                String format) {}
+                String format,
+                String mode) {}
     }
 
+    /**
+     * The digest is rendered to a file and never sent. There is deliberately no transport,
+     * no recipient and no channel: the application has no send path, and a configuration
+     * that modelled one would be an invitation to add it.
+     */
     public record Digest(
-            boolean enabled,
-            String schedule,
-            String channel,
-            @Valid Transport transport,
-            List<String> recipients,
-            List<String> include) {
-
-        public record Transport(String type, String url) {}
-    }
+            boolean enabled, String schedule, String format, String outputDir, List<String> include) {}
 
     public record Security(@NotBlank String auth, Map<String, String> oidc) {}
 }

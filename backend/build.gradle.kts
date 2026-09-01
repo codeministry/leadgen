@@ -23,6 +23,13 @@ repositories {
 }
 
 dependencies {
+    // All four configurations, not two: without the `test*` pair `main` compiles and the
+    // test sources fail with "cannot find symbol: getX()".
+    compileOnly(libs.lombok)
+    annotationProcessor(libs.lombok)
+    testCompileOnly(libs.lombok)
+    testAnnotationProcessor(libs.lombok)
+
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
@@ -54,6 +61,9 @@ dependencies {
     testImplementation("org.testcontainers:junit-jupiter")
     testImplementation("org.testcontainers:postgresql")
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
+    // A real IMAP server in-process. The UID semantics this connector depends on cannot
+    // be faked convincingly, and they are exactly where the mistakes are.
+    testImplementation(libs.greenmail.junit5)
 }
 
 tasks.withType<Test>().configureEach {
@@ -61,9 +71,10 @@ tasks.withType<Test>().configureEach {
 }
 
 /**
- * The local run reads the untracked `.env` from the repository root — the same
- * file Docker Compose reads. One credential has one place for the whole stack,
- * and none of them ends up in `application.yaml`, which is committed.
+ * The local run reads the untracked `.env.local` from the repository root — the same
+ * file Docker Compose reads. One credential has one place for the whole stack, and none
+ * of them ends up in a committed file: the configuration under
+ * `src/main/resources/leadgen/` names its values as `${'$'}{PLACEHOLDERS}` and nothing else.
  *
  * Deliberately here and not via `spring.config.import`: an import in
  * `application.yaml` would also apply to every test context, and a green test
@@ -76,7 +87,7 @@ tasks.withType<Test>().configureEach {
  * as "not specified", not as "specified as empty".
  */
 tasks.named<org.springframework.boot.gradle.tasks.run.BootRun>("bootRun") {
-    val dotEnv = rootProject.file(".env")
+    val dotEnv = rootProject.file(".env.local")
     if (dotEnv.exists()) {
         dotEnv.readLines()
             .map { it.trim() }

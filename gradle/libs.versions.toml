@@ -4,10 +4,17 @@ springDependencyManagement = "1.1.7"
 testcontainers = "1.21.3"
 # Pinned here rather than taken from the Boot BOM: Boot 4 no longer manages jsoup.
 jsoup = "1.21.2"
+# Pinned explicitly rather than taken from the Boot BOM: Lombok hooks into javac
+# internals, so a JDK bump is exactly where it breaks. A version the BOM moves under
+# us should show up as a diff here, not as a compile error.
+lombok = "1.18.46"
+greenmail = "2.1.9"
 
 [libraries]
 testcontainers-bom = { module = "org.testcontainers:testcontainers-bom", version.ref = "testcontainers" }
 jsoup = { module = "org.jsoup:jsoup", version.ref = "jsoup" }
+lombok = { module = "org.projectlombok:lombok", version.ref = "lombok" }
+greenmail-junit5 = { module = "com.icegreen:greenmail-junit5", version.ref = "greenmail" }
 
 [plugins]
 spring-boot = { id = "org.springframework.boot", version.ref = "springBoot" }
