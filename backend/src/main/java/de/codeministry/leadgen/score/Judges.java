@@ -14,17 +14,20 @@ import org.springframework.stereotype.Component;
  * key added to `.env` and a reload should start producing scores without a restart, and a
  * key removed should stop.
  *
- * <p><b>`provider` is a kind, never a default.</b> No committed file names a vendor, and
- * that includes this class: the only wire format implemented is the OpenAI-compatible chat
- * API, which is what Ollama, vLLM, LM Studio, OpenRouter and most hosted services speak.
- * A provider that speaks something else gets its own implementation the day it is
- * configured; until then it is refused loudly rather than approximated.
+ * <p><b>`provider` is a kind, never a default.</b> It names a wire format and nothing
+ * else: two are implemented, and the base URL still decides who answers. No committed file
+ * names a vendor's address, and neither does this class — a provider it does not know is
+ * refused loudly rather than approximated, because a request in the wrong shape does not
+ * fail cleanly. It is answered with a 400, or worse, parsed out of the wrong field into an
+ * offer that looks judged and is not.
  */
 @Slf4j
 @Component
 public class Judges {
 
     private static final String OPENAI_COMPATIBLE = "openai-compatible";
+    private static final String OLLAMA = "ollama";
+    private static final String ANTHROPIC = "anthropic";
 
     /**
      * Its own mapper, not the web one. This reads a model's answer, which is plain JSON
@@ -42,7 +45,13 @@ public class Judges {
 
     public Optional<Judge> current() {
         PipelineConfig.Llm llm = config.snapshot().application().llm();
-        if (llm == null || blank(llm.apiKey()) || blank(llm.provider())) {
+        if (llm == null || blank(llm.provider())) {
+            return Optional.empty();
+        }
+        // A key is what a hosted provider needs and a local one does not. Requiring it
+        // everywhere made `provider: ollama` unusable: a local server wants no key, so
+        // there was nothing to write in `.env`, and the judge was silently never built.
+        if (blank(llm.apiKey()) && !OLLAMA.equals(llm.provider())) {
             return Optional.empty();
         }
         String model = llm.models() == null ? null : llm.models().scoring();
@@ -50,15 +59,30 @@ public class Judges {
             log.warn("llm.models.scoring is not set; nothing can be scored");
             return Optional.empty();
         }
-        if (!OPENAI_COMPATIBLE.equals(llm.provider()) && !"ollama".equals(llm.provider())) {
-            log.warn("llm.provider is '{}'; only the OpenAI-compatible wire format is implemented", llm.provider());
-            return Optional.empty();
-        }
         if (blank(llm.baseUrl())) {
+            // Required even for a hosted provider whose address never changes: a URL in
+            // the code is a vendor in the code, and this repository has none.
             log.warn("llm.base_url is not set; there is nowhere to send a scoring request");
             return Optional.empty();
         }
-        return Optional.of(new LlmJudge(llm.baseUrl(), llm.apiKey(), model, json));
+        return switch (llm.provider()) {
+            // Ollama serves the same chat-completions shape under /v1, so it is the same
+            // judge with a different address. It is listed separately because it is the
+            // one provider that needs no key, and that is a rule about the value.
+            case OPENAI_COMPATIBLE, OLLAMA ->
+                Optional.of(new OpenAiCompatibleJudge(llm.baseUrl(), key(llm), model, json));
+            case ANTHROPIC -> Optional.of(new AnthropicJudge(llm.baseUrl(), key(llm), model, json));
+            default -> {
+                log.warn("llm.provider is '{}'; implemented are '{}', '{}' and '{}'",
+                        llm.provider(), OPENAI_COMPATIBLE, OLLAMA, ANTHROPIC);
+                yield Optional.empty();
+            }
+        };
+    }
+
+    /** Empty rather than null, so a local server gets a harmless header instead of "null". */
+    private static String key(PipelineConfig.Llm llm) {
+        return llm.apiKey() == null ? "" : llm.apiKey();
     }
 
     private static boolean blank(String value) {

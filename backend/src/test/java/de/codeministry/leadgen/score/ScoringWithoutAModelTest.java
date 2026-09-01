@@ -156,6 +156,17 @@ class ScoringWithoutAModelTest {
             Path dir = Files.createTempDirectory("leadgen-score-nomodel");
             dir.toFile().deleteOnExit();
             ConfigFixtures.materialize(dir);
+            // The shipped file names its LLM settings as ${LLM_*} placeholders, and the
+            // resolver reads the developer's own `.env` behind the process environment. So
+            // a key on the machine running the build turned "no model configured" into a
+            // real scoring run against a real endpoint, and the test that exists to prove
+            // the keyless path failed for the one person who had finished configuring it.
+            // The placeholders are emptied here: what is under test is the code path, not
+            // whose machine it runs on.
+            Path pipeline = dir.resolve("pipeline.yaml");
+            Files.writeString(
+                    pipeline,
+                    Files.readString(pipeline).replaceAll("\\$\\{LLM_[A-Z_]+(?::[^}]*)?}", "''"));
             return dir;
         } catch (IOException e) {
             throw new UncheckedIOException(e);
