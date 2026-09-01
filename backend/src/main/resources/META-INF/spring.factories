@@ -1,0 +1,3 @@
+# Runs before the environment is bound, which no bean can do. See DotEnvEnvironmentPostProcessor.
+org.springframework.boot.EnvironmentPostProcessor=\
+de.codeministry.leadgen.config.DotEnvEnvironmentPostProcessor

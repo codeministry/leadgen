@@ -12,7 +12,13 @@ import org.springframework.validation.annotation.Validated;
  */
 @Validated
 @ConfigurationProperties(prefix = "leadgen")
-public record ConfigProperties(@NotBlank String configDir, String packagesDir, String inboxDir) {
+public record ConfigProperties(@NotBlank String configDir) {
+
+    // `packages-dir` and `inbox-dir` used to sit here as well, read by nothing: the packages
+    // directory is `packaging.output_dir` in pipeline.yaml and the inbox is a source's `path`
+    // in sources.yaml, both of which the tool reads itself. Two Spring properties nobody
+    // consumed, whose only effect was to make `PACKAGES_DIR` and `INBOX_DIR` look like they
+    // meant something here too.
 
     /**
      * A relative path is searched for upwards from the working directory, because the
