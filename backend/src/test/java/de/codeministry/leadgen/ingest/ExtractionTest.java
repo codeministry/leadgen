@@ -56,7 +56,7 @@ class ExtractionTest {
                 .findFirst()
                 .orElseThrow();
 
-        var documents = new FileSourceConnector(new ConfigProperties(configDir.toString(), null, null)).read(source, 0L);
+        var documents = new FileSourceConnector(new ConfigProperties(configDir.toString())).read(source, 0L);
         assertThat(documents).hasSize(1);
 
         var extractor = new HtmlBlockExtractor();

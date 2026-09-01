@@ -98,7 +98,7 @@ class HardFilterCorpusTest {
         var extractor = new HtmlBlockExtractor();
         var mapper = new OfferMapper();
         offers = new ArrayList<>();
-        for (RawDocument document : new FileSourceConnector(new ConfigProperties(configDir.toString(), null, null)).read(source, 0L)) {
+        for (RawDocument document : new FileSourceConnector(new ConfigProperties(configDir.toString())).read(source, 0L)) {
             extractor.extract(document.html(), source.extraction()).stream()
                     .map(block -> mapper.map(block, source.extraction()))
                     .forEach(offers::add);

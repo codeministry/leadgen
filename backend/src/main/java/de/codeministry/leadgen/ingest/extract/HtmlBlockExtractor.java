@@ -63,7 +63,9 @@ public class HtmlBlockExtractor {
 
         if (field.prefix() != null) {
             return matches.stream()
-                    .map(HtmlBlockExtractor::text)
+                    // A meta span is one line by construction, and the prefix it is
+                    // addressed by sits at the very front of it.
+                    .map(element -> element.text().trim())
                     .filter(t -> t.startsWith(field.prefix()))
                     .map(t -> t.substring(field.prefix().length()).trim())
                     .filter(t -> !t.isEmpty())
@@ -88,7 +90,7 @@ public class HtmlBlockExtractor {
     }
 
     private static String valueOf(Element element, Field field) {
-        String value = field.attr() == null ? text(element) : element.attr(field.attr());
+        String value = field.attr() == null ? text(element, field) : element.attr(field.attr());
 
         if (field.unwrapQueryParam() != null) {
             value = ProxyLink.unwrap(value, field.unwrapQueryParam());
@@ -100,7 +102,12 @@ public class HtmlBlockExtractor {
         return value.trim();
     }
 
-    private static String text(Element element) {
-        return element.text().trim();
+    /**
+     * A field with a pattern reads the collapsed text and a field without one keeps the
+     * source's paragraphs — see {@link PlainText}. The description is the field this is
+     * for; a title or a location sits in one inline element and reads the same either way.
+     */
+    private static String text(Element element, Field field) {
+        return field.regex() == null ? PlainText.of(element) : element.text().trim();
     }
 }
