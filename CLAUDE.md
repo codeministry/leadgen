@@ -342,6 +342,47 @@ costs a language-model call.
 - **The verdict is written on the offer**, stage and reason both. A rejection without its
   reason is a number nobody trusts a week later.
 
+## Enrichment
+
+`backend/…/enrich/`. The only stage that leaves the machine, run after the hard filter
+and only on what survived — fetching a thousand ads to then discard eight hundred would
+be rude to the portals and slow for nothing.
+
+- **It never discards.** A fetch that is forbidden, rate-limited, unreachable or
+  unreadable leaves the offer in the pipeline with a note saying why. Scoring then judges
+  an incomplete offer as incomplete, which someone can review; an offer that quietly
+  stopped existing cannot be.
+- **Four gates, cheapest first:** cache, `robots.txt`, rate limit, network. A cached page
+  costs nothing and consumes no rate-limit token, which is what makes a daily run one
+  request per ad per week instead of one per ad per day.
+- **Failures are cached, timeouts are not.** A 403 or a disallowed path is a fact about
+  the page; a timeout is a fact about the moment, and remembering one bad minute for a
+  week is worse than asking again tomorrow.
+- **A cached failure reports itself as cached.** `FetchResult.cachedFailure` exists
+  because the interesting property of a cached result is not that it failed but that *no
+  request was made* — a cached 403 reporting itself as fresh makes the request count a lie.
+- **The rate limit is a sliding window.** Twenty a minute has to mean twenty in any sixty
+  seconds, not twenty at the top of each minute and forty across the boundary.
+- **An unreachable `robots.txt` means allowed.** That is the convention, and the
+  alternative is worse: a host whose robots.txt times out would silently stop being
+  enriched and its offers would look merely incomplete.
+- **No selector and no pattern is written in Java.** `enrichment.extract.fields` is a
+  field-to-rule map in YAML, exactly like `sources.yaml`, because every portal renders an
+  ad differently and a new one has to be a block and not a release. The seven field names
+  — `rate`, `duration`, `workload`, `remote_percent`, `start_date`, `contact`,
+  `full_text` — are the contract; a field spelled differently is read and then ignored, in
+  silence. `strategy: readability` used to sit in the schema with nothing implementing it.
+- **Regexes in YAML need single quotes.** A double-quoted scalar only allows a fixed set
+  of escapes, and `\-` is not among them; the file fails to parse with "while scanning a
+  double-quoted scalar" and nothing points at the regex. Single quotes pass backslashes
+  through untouched.
+- **Every enriched column is nullable and null means "not stated", never zero.** The whole
+  reason this stage exists is that the newsletter states a rate in 0.0 % of offers, so a
+  missing value has to stay distinguishable from a low one.
+- **The page cache lives in Postgres.** The TTL is a week, the container has no volume for
+  a scratch directory, and a cache that does not survive a restart turns a rate limit into
+  a promise nobody keeps.
+
 ## Backend conventions
 
 - **Lombok for the boilerplate, records for the data.** `@Slf4j` instead of a hand-written
@@ -442,7 +483,7 @@ code has to reproduce — the numbers in `docs/SAMPLE-ANALYSIS.md` are the targe
 6. ✅ **Hard filter** — seven stages, every list from configuration or the profile, no
    model and no network. Reproduces `docs/samples/simulate_filter.py` exactly: 239 of
    1289, 18.5 %, and the per-stage counts.
-7. **Enrichment** — HTTP fetch of the original ad, rate limit, cache, `robots.txt`.
+7. ✅ **Enrichment** — HTTP fetch of the original ad, rate limit, cache, `robots.txt`.
    A failed fetch is not a knockout; the offer stays in as *incomplete*.
 8. **Scoring + digest** — first daily overview, still without a frontend.
 9. **Packaging** — cover letter from a Freemarker template plus reference projects from

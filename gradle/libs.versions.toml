@@ -9,12 +9,16 @@ jsoup = "1.21.2"
 # us should show up as a diff here, not as a compile error.
 lombok = "1.18.46"
 greenmail = "2.1.9"
+# Standalone (shaded) rather than the plain artifact: it brings its own Jetty and
+# would otherwise fight the one Boot puts on the test classpath.
+wiremock = "3.13.1"
 
 [libraries]
 testcontainers-bom = { module = "org.testcontainers:testcontainers-bom", version.ref = "testcontainers" }
 jsoup = { module = "org.jsoup:jsoup", version.ref = "jsoup" }
 lombok = { module = "org.projectlombok:lombok", version.ref = "lombok" }
 greenmail-junit5 = { module = "com.icegreen:greenmail-junit5", version.ref = "greenmail" }
+wiremock-standalone = { module = "org.wiremock:wiremock-standalone", version.ref = "wiremock" }
 
 [plugins]
 spring-boot = { id = "org.springframework.boot", version.ref = "springBoot" }

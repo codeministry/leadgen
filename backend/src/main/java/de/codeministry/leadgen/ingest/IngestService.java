@@ -3,6 +3,7 @@ package de.codeministry.leadgen.ingest;
 import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.config.model.SourcesConfig.Source;
 import de.codeministry.leadgen.dedupe.DeduplicationService;
+import de.codeministry.leadgen.enrich.EnrichmentService;
 import de.codeministry.leadgen.filter.FilterService;
 import de.codeministry.leadgen.ingest.connector.SourceConnector;
 import de.codeministry.leadgen.ingest.extract.HtmlBlockExtractor;
@@ -38,6 +39,7 @@ public class IngestService {
     private final OfferStore store;
     private final DeduplicationService dedupe;
     private final FilterService filter;
+    private final EnrichmentService enrich;
 
     IngestService(
             ConfigRegistry config,
@@ -46,7 +48,8 @@ public class IngestService {
             OfferMapper mapper,
             OfferStore store,
             DeduplicationService dedupe,
-            FilterService filter) {
+            FilterService filter,
+            EnrichmentService enrich) {
         this.config = config;
         this.connectors = connectors.stream().collect(Collectors.toMap(SourceConnector::type, Function.identity()));
         this.extractor = extractor;
@@ -54,6 +57,7 @@ public class IngestService {
         this.store = store;
         this.dedupe = dedupe;
         this.filter = filter;
+        this.enrich = enrich;
     }
 
     public IngestReport run() {
@@ -81,8 +85,10 @@ public class IngestService {
         // reaches the pipeline through several portals, so a pass scoped to one source
         // would never see the pair it exists to collapse. The hard filter follows, in
         // that order, because a cluster judged twice under two verdicts is worse than a
-        // cluster judged once.
-        return new IngestReport(results, dedupe.run(), filter.run());
+        // cluster judged once. Enrichment comes last and only touches what survived:
+        // fetching a thousand ads to then discard eight hundred would be rude to the
+        // portals and slow for nothing.
+        return new IngestReport(results, dedupe.run(), filter.run(), enrich.run());
     }
 
     /**

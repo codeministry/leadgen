@@ -27,6 +27,18 @@ export interface FilterReport {
   readonly considered: number;
 }
 
+/** Mirrors `de.codeministry.leadgen.enrich.EnrichmentReport`. */
+export interface EnrichmentReport {
+  readonly considered: number;
+  readonly enriched: number;
+  /** Left in the pipeline with a note. An unreadable ad never discards an offer. */
+  readonly incomplete: number;
+  /** Answered without a request. Equals `considered` on a second run inside the TTL. */
+  readonly fromCache: number;
+  /** Actual HTTP requests for ads, robots.txt excluded. */
+  readonly requests: number;
+}
+
 export interface IngestReport {
   readonly sources: readonly SourceIngestResult[];
   readonly extracted: number;
@@ -43,6 +55,11 @@ export interface IngestReport {
    * budget, so this is the number the whole economics rests on.
    */
   readonly filtered: FilterReport;
+  /**
+   * What fetching the original ads did. The only stage that leaves the machine, and
+   * the only one that can fail for reasons unrelated to the offer.
+   */
+  readonly enriched: EnrichmentReport;
 }
 
 @Injectable({ providedIn: 'root' })

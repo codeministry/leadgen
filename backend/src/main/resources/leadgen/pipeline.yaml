@@ -42,8 +42,25 @@ enrichment:
     cache_ttl: P7D
     respect_robots_txt: true
   extract:
-    strategy: readability
-    fields: [rate, duration, start_date, remote_percent, workload, contact, full_text]
+    # A selector or a regular expression per field, never a rule in Java: every
+    # portal renders an ad differently, so a new one has to be a YAML block. The
+    # field names are the contract with the enrichment stage.
+    strategy: patterns
+    fields:
+      rate:
+        regex: '(\d{2,4})\s*(?:€|EUR)\s*/?\s*(?:h|Std|Stunde)'
+      duration:
+        regex: '(\d{1,2})\s*(?:Monate?|MM)'
+      workload:
+        regex: '(\d{1,2})\s*(?:PT|Tage?\s*/\s*Woche)'
+      remote_percent:
+        regex: '(\d{1,3})\s*%\s*(?:remote|Remote)'
+      start_date:
+        regex: '(?:ab|Start)\D{0,12}(\d{2}\.\d{2}\.\d{4})'
+      contact:
+        regex: '([A-Za-zÄÖÜäöüß.\- ]+)\s*(?:\||,)?\s*(?:Tel|Telefon)'
+      full_text:
+        css: 'article, main, .job-description, #content'
 
 packaging:
   output_dir: ${PACKAGES_DIR:./packages}

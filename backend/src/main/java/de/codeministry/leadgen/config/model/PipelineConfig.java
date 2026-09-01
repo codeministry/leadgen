@@ -66,7 +66,31 @@ public record PipelineConfig(
                 @NotNull Duration cacheTtl,
                 boolean respectRobotsTxt) {}
 
-        public record Extract(@NotBlank String strategy, List<String> fields) {}
+        /**
+         * @param strategy how the fields are read. Only {@code patterns} exists: a
+         *     selector or a regular expression per field, in YAML. A `readability` value
+         *     used to sit here and nothing implemented it.
+         * @param fields the field name to the rule that finds it. The names are the
+         *     contract with the enrichment stage, exactly as the eight names in
+         *     `sources.yaml` are the contract with `OfferMapper`: a field spelled
+         *     differently is extracted and then ignored, in silence.
+         */
+        public record Extract(@NotBlank String strategy, Map<String, @Valid Field> fields) {
+
+            /**
+             * @param css narrows the search to part of the page before the regex runs, or
+             *     takes the element's text when there is no regex.
+             * @param regex the value, or its first capturing group when {@code group} is set.
+             * @param group which capturing group holds the value. 1 by default, because a
+             *     pattern that matches "85 €/h" wants the 85 and not the whole phrase.
+             */
+            public record Field(String css, String regex, Integer group, String attr) {
+
+                public int groupOrFirst() {
+                    return group == null ? 1 : group;
+                }
+            }
+        }
     }
 
     public record Packaging(@NotBlank String outputDir, @NotBlank String naming, List<@Valid Document> documents) {

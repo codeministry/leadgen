@@ -64,6 +64,7 @@ dependencies {
     // A real IMAP server in-process. The UID semantics this connector depends on cannot
     // be faked convincingly, and they are exactly where the mistakes are.
     testImplementation(libs.greenmail.junit5)
+    testImplementation(libs.wiremock.standalone)
 }
 
 tasks.withType<Test>().configureEach {
