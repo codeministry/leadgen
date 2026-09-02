@@ -3,10 +3,7 @@ package de.codeministry.leadgen.score;
 import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.config.ConfigSnapshot;
 import de.codeministry.leadgen.config.model.MatchingRules;
-import java.math.BigDecimal;
-import java.sql.Array;
-import java.sql.SQLException;
-import java.time.LocalDate;
+import de.codeministry.leadgen.config.model.PipelineConfig;
 import java.util.List;
 import java.util.Optional;
 import javax.sql.DataSource;
@@ -46,14 +43,19 @@ public class ScoringService {
      * or a different model answered. The last one is not caution about the model being
      * worse. A total from one judge and a total from another are two scales, and the
      * shortlist threshold is a single number read against both.
+     *
+     * <p>An offer sitting in a submitted batch is not due either, and that is the whole
+     * job of `score_batch_id`: its answer is bought and on its way, so asking again would
+     * be paying twice for it.
      */
-    private static final String DUE =
-            """
-            SELECT id, title, description, full_text, tags, rate_eur, duration, workload,
-                   starts_on, enrichment_note
+    private static final String DUE = "SELECT " + ScoreCandidate.COLUMNS
+            + """
+
             FROM offer
             WHERE status = 'PASSED'
               AND duplicate_of_id IS NULL
+              AND archived_at IS NULL
+              AND score_batch_id IS NULL
               AND (scored_at IS NULL
                    OR ruleset_version IS DISTINCT FROM CAST(? AS TEXT)
                    OR score_model IS DISTINCT FROM CAST(? AS TEXT))
@@ -73,21 +75,70 @@ public class ScoringService {
                    count(*) FILTER (WHERE score_band = 'SHORTLISTED')  AS shortlisted,
                    count(*) FILTER (WHERE score_band = 'REVIEW')       AS review
             FROM offer
-            WHERE status = 'PASSED' AND duplicate_of_id IS NULL
+            WHERE status = 'PASSED' AND duplicate_of_id IS NULL AND archived_at IS NULL
+            """;
+
+    /**
+     * The same row as {@link #DUE}, for one offer and without the staleness guard. It keeps
+     * the shortlist's own two conditions: a rejected offer never entered scoring, and a
+     * duplicate is judged through its primary.
+     */
+    private static final String ONE = "SELECT " + ScoreCandidate.COLUMNS
+            + """
+
+            FROM offer
+            WHERE id = ? AND status = 'PASSED' AND duplicate_of_id IS NULL AND archived_at IS NULL
             """;
 
     private final ConfigRegistry config;
     private final Judges judges;
+    private final ScoreBatchService batches;
+    private final ScoreWriter writer;
     private final JdbcClient jdbc;
 
-    ScoringService(ConfigRegistry config, Judges judges, DataSource dataSource) {
+    ScoringService(
+            ConfigRegistry config,
+            Judges judges,
+            ScoreBatchService batches,
+            ScoreWriter writer,
+            DataSource dataSource) {
         this.config = config;
         this.judges = judges;
+        this.batches = batches;
+        this.writer = writer;
         this.jdbc = JdbcClient.create(dataSource);
     }
 
-    @Transactional
+    /**
+     * Refuses a model nobody configured, before a run does any work. Asked through this
+     * service rather than through {@code Judges} directly, so the pipeline keeps one door
+     * to the question of which judge answers.
+     *
+     * @throws Judges.UnknownModel when the model is not one of the configured ones.
+     */
+    public void checkModel(String requestedModel) {
+        judges.check(requestedModel);
+    }
+
+    /** The configured default model. Keeps every caller that has no reason to choose one. */
     public ScoringReport run() {
+        return run(null);
+    }
+
+    /**
+     * Judges everything stale with the model the configuration names.
+     *
+     * @param requestedModel the model to judge with, or null for the configured default.
+     *     <p><b>A parameter rather than a setting, and that is the whole comparison.</b>
+     *     {@code score_model} is one of the three staleness criteria, so naming a different
+     *     model here makes the entire standing shortlist due again and re-judges it on the
+     *     new scale. That is the point — two totals from two judges are not comparable, and
+     *     the shortlist threshold is a single number read against both — and it is also the
+     *     bill: one full pass at the chosen model's price, every time the choice changes.
+     * @throws Judges.UnknownModel when the model is not one of the configured ones.
+     */
+    @Transactional
+    public ScoringReport run(String requestedModel) {
         ConfigSnapshot snapshot = config.snapshot();
         MatchingRules rules = snapshot.rules();
         MatchingRules.Scoring scoring = rules.scoring();
@@ -101,14 +152,28 @@ public class ScoringService {
         int autoShortlist = scoring.thresholds().autoShortlist();
         int review = scoring.thresholds().review();
 
-        Optional<Judge> judge = judges.current();
+        Optional<Judge> judge = judges.current(requestedModel);
         if (judge.isEmpty()) {
             log.warn("No language model is configured; offers keep their deterministic reasons and stay unscored");
         }
         String model = judge.map(Judge::model).orElse(null);
 
-        List<ScoreCandidate> due =
-                jdbc.sql(DUE).params(rulesetVersion, model).query(ScoringService::toCandidate).list();
+        List<ScoreCandidate> due = jdbc.sql(DUE).params(rulesetVersion, model).query(ScoreCandidate::of).list();
+
+        // Batched, the run ends here: the requests are handed over at half the price and
+        // the answers arrive minutes later, so packaging and the digest move behind the
+        // collection instead of behind this method. A submission that does not happen
+        // leaves every offer due rather than quietly scoring at full price, because a flag
+        // that says "half" and bills "full" is worse than one that does nothing.
+        PipelineConfig.Llm llm = snapshot.application().llm();
+        if (!due.isEmpty() && llm != null && llm.batch() && judge.orElse(null) instanceof BatchJudge batchJudge) {
+            int submitted = batches.submit(batchJudge, due, scorer, rules);
+            var handedOver = standing(0, submitted);
+            log.info("Scoring: {} due, {} submitted as a batch; standing: {} considered, {} unscored",
+                    due.size(), submitted, handedOver.considered(), handedOver.unscored());
+            return handedOver;
+        }
+
         int judged = 0;
 
         for (ScoreCandidate candidate : due) {
@@ -119,80 +184,87 @@ public class ScoringService {
                 score = Score.unscored(reasons, rulesetVersion);
             } else {
                 reasons.addAll(judge.get().judge(candidate));
-                int total = clamp(reasons.stream().mapToInt(ScoreReason::points).sum());
-                score = new Score(total, true, reasons, model, rulesetVersion);
+                score = Score.of(reasons, model, rulesetVersion);
                 judged++;
             }
-            write(candidate.id(), score, autoShortlist, review);
+            writer.write(candidate.id(), score, autoShortlist, review);
         }
 
-        var report = standing(judged);
+        var report = standing(judged, 0);
         log.info("Scoring: {} due, {} judged; standing: {} considered, {} unscored, {} shortlisted, {} for review",
                 due.size(), judged, report.considered(), report.unscored(), report.shortlisted(), report.review());
         return report;
     }
 
+    /**
+     * One offer, judged again because somebody asked, and the only way past the staleness
+     * guard.
+     *
+     * <p>The guard exists so a run does not pay for the standing backlog every night, and
+     * the price of it is that a score outlives the reason it was wrong: a judge that
+     * answered badly, an ad whose original page only became reachable later, a rule that
+     * was tightened between two runs. Without a way to ask again, the only correction
+     * available is editing the database, which nobody does and everybody works around.
+     *
+     * <p><b>Always synchronous, even when the nightly pass is batched.</b> Somebody is
+     * looking at the page. Batching trades latency for half the price on a bulk of
+     * hundreds; on one offer it trades a visible answer for a cent.
+     *
+     * @return the new score, or empty when the offer is not on the shortlist at all —
+     *     rejected by the filter or attached to a primary, neither of which scoring ever saw.
+     * @throws NoJudge when nothing is configured to answer. The caller can say so; silently
+     *     rewriting the deterministic half would look like the button did nothing.
+     */
+    /** The configured default model, for a caller with no reason to choose one. */
+    public Optional<Score> rescore(long offerId) {
+        return rescore(offerId, null);
+    }
+
+    @Transactional
+    public Optional<Score> rescore(long offerId, String requestedModel) {
+        ConfigSnapshot snapshot = config.snapshot();
+        MatchingRules rules = snapshot.rules();
+        MatchingRules.Scoring scoring = rules.scoring();
+        if (scoring == null) {
+            throw new NoJudge("no scoring section is configured, so there are no weights to score against");
+        }
+        Judge judge = judges.current(requestedModel).orElseThrow(() -> new NoJudge(
+                "no language model is configured, so there is nothing to ask; the deterministic reasons are already written"));
+
+        List<ScoreCandidate> found = jdbc.sql(ONE).param(offerId).query(ScoreCandidate::of).list();
+        if (found.isEmpty()) {
+            return Optional.empty();
+        }
+        ScoreCandidate candidate = found.getFirst();
+
+        List<ScoreReason> reasons =
+                new java.util.ArrayList<>(new RuleScorer(rules, snapshot.profile()).score(candidate));
+        reasons.addAll(judge.judge(candidate));
+        Score score = Score.of(reasons, judge.model(), String.valueOf(rules.version()));
+
+        writer.write(candidate.id(), score, scoring.thresholds().autoShortlist(), scoring.thresholds().review());
+        log.info("Offer {} judged again on request: {} by {}", offerId, score.value(), judge.model());
+        return Optional.of(score);
+    }
+
+    /** Nothing can answer. A reason rather than a stack trace, because it reaches a button. */
+    public static class NoJudge extends RuntimeException {
+        NoJudge(String message) {
+            super(message);
+        }
+    }
+
     /** Everything but `scored` is counted from the table, so a quiet run still reports the list. */
-    private ScoringReport standing(int judged) {
+    private ScoringReport standing(int judged, int submitted) {
         return jdbc.sql(STANDING)
                 .query((rs, row) -> new ScoringReport(
                         rs.getInt("considered"),
                         judged,
                         rs.getInt("unscored"),
                         rs.getInt("shortlisted"),
-                        rs.getInt("review")))
+                        rs.getInt("review"),
+                        submitted))
                 .single();
     }
 
-    /**
-     * The weights sum to 100 and the penalties are negative, so a heavily penalised offer
-     * can go below zero and a generous weight table above 100. Both are clamped: the
-     * thresholds are stated on a 0-100 scale and a score outside it cannot be read
-     * against them.
-     */
-    private static int clamp(int total) {
-        return Math.max(0, Math.min(100, total));
-    }
-
-    private void write(long offerId, Score score, int autoShortlist, int review) {
-        jdbc.sql(
-                        """
-                        UPDATE offer
-                        SET score_value = ?, score_band = ?, score_model = ?, ruleset_version = ?, scored_at = now()
-                        WHERE id = ?
-                        """)
-                .params(score.value(), score.band(autoShortlist, review), score.model(), score.rulesetVersion(), offerId)
-                .update();
-
-        jdbc.sql("DELETE FROM offer_score_reason WHERE offer_id = ?").param(offerId).update();
-        List<ScoreReason> reasons = score.reasons();
-        for (int position = 0; position < reasons.size(); position++) {
-            ScoreReason reason = reasons.get(position);
-            jdbc.sql(
-                            """
-                            INSERT INTO offer_score_reason (offer_id, factor, label, points, position)
-                            VALUES (?, ?, ?, ?, ?)
-                            """)
-                    .params(offerId, reason.factor(), reason.label(), reason.points(), position)
-                    .update();
-        }
-    }
-
-    private static ScoreCandidate toCandidate(java.sql.ResultSet rs, int row) throws SQLException {
-        return new ScoreCandidate(
-                rs.getLong("id"),
-                rs.getString("title"),
-                rs.getString("description"),
-                rs.getString("full_text"),
-                tags(rs.getArray("tags")),
-                rs.getObject("rate_eur", BigDecimal.class),
-                rs.getString("duration"),
-                rs.getString("workload"),
-                rs.getObject("starts_on", LocalDate.class),
-                rs.getString("enrichment_note") != null);
-    }
-
-    private static List<String> tags(Array array) throws SQLException {
-        return array == null ? List.of() : List.of((String[]) array.getArray());
-    }
 }

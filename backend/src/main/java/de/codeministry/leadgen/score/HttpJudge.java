@@ -2,6 +2,7 @@ package de.codeministry.leadgen.score;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import de.codeministry.leadgen.config.model.MatchingRules;
 import java.io.IOException;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -9,6 +10,7 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -28,12 +30,22 @@ abstract class HttpJudge implements Judge {
 
     static final Duration TIMEOUT = Duration.ofSeconds(30);
 
-    /** Bounded by the weight table, so the model cannot award itself more than it is worth. */
-    private static final int ROLE_FIT = 15;
+    /**
+     * The four factors a model is asked about. The names are the judge's contract, the same
+     * way the eight field names are the extractor's — but the numbers behind them are not:
+     * they come from the weight table, per run.
+     *
+     * <p>They used to be four constants here, matching `scoring.weights.role_fit` and the
+     * three penalties by coincidence rather than by wiring. Raising `role_fit` in the
+     * configuration moved the deterministic half of the score and left the clamp and the
+     * prompt text where they were, which is the quiet half of "the weight table decides,
+     * not the answer".
+     */
+    static final String ROLE_FIT = "role_fit";
 
-    private static final int STACK_MISMATCH = -30;
-    private static final int ROLE_MISMATCH = -25;
-    private static final int VAGUE = -10;
+    static final String STACK_MISMATCH = "stack_mismatch_dominant";
+    static final String ROLE_MISMATCH = "role_mismatch";
+    static final String VAGUE = "vague_description";
 
     private static final String INSTRUCTIONS =
             """
@@ -54,17 +66,58 @@ abstract class HttpJudge implements Judge {
             something the offer actually says, in one short sentence, in English.
             """;
 
-    private final HttpClient http = HttpClient.newBuilder().connectTimeout(TIMEOUT).build();
+    /**
+     * Redirects are followed because a batch's results are served from a signed URL the
+     * results endpoint redirects to. {@code NORMAL} rather than {@code ALWAYS}: it refuses
+     * an HTTPS-to-HTTP downgrade, and the request carries an API key.
+     */
+    private final HttpClient http = HttpClient.newBuilder()
+            .connectTimeout(TIMEOUT)
+            .followRedirects(HttpClient.Redirect.NORMAL)
+            .build();
     protected final String baseUrl;
     protected final String apiKey;
     protected final String model;
     protected final ObjectMapper json;
 
-    HttpJudge(String baseUrl, String apiKey, String model, ObjectMapper json) {
+    /**
+     * What each judged factor is worth, straight from `scoring.weights` and
+     * `scoring.penalties`. A factor the table does not name is worth nothing, which is also
+     * what happens to a factor the model invents.
+     */
+    private final Map<String, Integer> bounds;
+
+    HttpJudge(String baseUrl, String apiKey, String model, ObjectMapper json, Map<String, Integer> bounds) {
         this.baseUrl = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
         this.apiKey = apiKey;
         this.model = model;
         this.json = json;
+        this.bounds = bounds;
+    }
+
+    /**
+     * The bounds for the four judged factors, read out of the configured weight table.
+     *
+     * <p>Null-tolerant on purpose: a configuration with no scoring block awards nothing, and
+     * a judge built against it clamps every factor to zero rather than falling over. The
+     * alternative is a judge that cannot be constructed at all, which would take the whole
+     * run down over a table nobody filled in.
+     */
+    static Map<String, Integer> boundsOf(MatchingRules.Scoring scoring) {
+        if (scoring == null) {
+            return Map.of();
+        }
+        Map<String, Integer> bounds = new java.util.LinkedHashMap<>();
+        for (String factor : List.of(ROLE_FIT, STACK_MISMATCH, ROLE_MISMATCH, VAGUE)) {
+            Integer weight = scoring.weights() == null ? null : scoring.weights().get(factor);
+            Integer penalty = scoring.penalties() == null ? null : scoring.penalties().get(factor);
+            bounds.put(factor, weight != null ? weight : penalty != null ? penalty : 0);
+        }
+        return Map.copyOf(bounds);
+    }
+
+    private int bound(String factor) {
+        return bounds.getOrDefault(factor, 0);
     }
 
     /** The request this provider expects, system prompt and user message already built. */
@@ -86,8 +139,7 @@ abstract class HttpJudge implements Judge {
     @Override
     public List<ScoreReason> judge(ScoreCandidate offer) {
         try {
-            HttpResponse<String> response =
-                    http.send(request(instructions(), describe(offer)), HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> response = send(request(instructions(), describe(offer)));
 
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
                 log.warn("Scoring model answered {} for offer {}; it keeps its deterministic reasons",
@@ -104,8 +156,19 @@ abstract class HttpJudge implements Judge {
         }
     }
 
-    static String instructions() {
-        return INSTRUCTIONS.formatted(ROLE_FIT, STACK_MISMATCH, ROLE_MISMATCH, VAGUE);
+    /** The one place a request actually leaves, so a subclass never holds its own client. */
+    protected HttpResponse<String> send(HttpRequest request) throws IOException, InterruptedException {
+        return http.send(request, HttpResponse.BodyHandlers.ofString());
+    }
+
+    /** 2xx. Anything else is an answer about the request rather than about the offer. */
+    protected static boolean ok(HttpResponse<String> response) {
+        return response.statusCode() >= 200 && response.statusCode() < 300;
+    }
+
+    String instructions() {
+        return INSTRUCTIONS.formatted(
+                bound(ROLE_FIT), bound(STACK_MISMATCH), bound(ROLE_MISMATCH), bound(VAGUE));
     }
 
     static String describe(ScoreCandidate offer) {
@@ -121,15 +184,30 @@ abstract class HttpJudge implements Judge {
         return text.toString();
     }
 
-    /**
-     * Only the four known factors survive, and only inside their bounds. A model that
-     * invents a factor or awards itself fifty points is answering a different question,
-     * and the weight table is what decides, not the answer.
-     */
+    /** The synchronous answer, whose body is one message. */
     private List<ScoreReason> parse(String responseBody, long offerId) {
+        try {
+            return reasonsOf(json.readTree(responseBody), offerId);
+        } catch (IOException e) {
+            log.warn("Offer {}: the scoring model did not answer with usable JSON", offerId);
+            return List.of();
+        }
+    }
+
+    /**
+     * One message, however it arrived: as the body of a synchronous answer or as an entry
+     * in a batch's results.
+     *
+     * <p>Only the four known factors survive, and only inside their bounds. A model that
+     * invents a factor or awards itself fifty points is answering a different question, and
+     * the weight table is what decides, not the answer. <b>The bounds live here and nowhere
+     * else</b> — a second copy for the batch path would mean the same offer scores
+     * differently depending on whether the night was busy.
+     */
+    protected List<ScoreReason> reasonsOf(JsonNode message, long offerId) {
         List<ScoreReason> reasons = new ArrayList<>();
         try {
-            JsonNode parsed = json.readTree(contentOf(json.readTree(responseBody)));
+            JsonNode parsed = json.readTree(contentOf(message));
 
             for (JsonNode node : parsed.path("reasons")) {
                 String factor = node.path("factor").asText("");
@@ -151,13 +229,14 @@ abstract class HttpJudge implements Judge {
         return reasons;
     }
 
-    private static int bound(String factor, int points) {
-        return switch (factor) {
-            case "role_fit" -> Math.max(0, Math.min(ROLE_FIT, points));
-            case "stack_mismatch_dominant" -> Math.max(STACK_MISMATCH, Math.min(0, points));
-            case "role_mismatch" -> Math.max(ROLE_MISMATCH, Math.min(0, points));
-            case "vague_description" -> Math.max(VAGUE, Math.min(0, points));
-            default -> 0;
-        };
+    /**
+     * Clamped to what the factor is worth, in the direction its sign says. A weight bounds a
+     * reward at zero below and itself above; a penalty bounds a deduction at itself below
+     * and zero above. A factor the table does not name is worth nothing, which is what a
+     * model inventing one gets.
+     */
+    private int bound(String factor, int points) {
+        int limit = bound(factor);
+        return limit >= 0 ? Math.max(0, Math.min(limit, points)) : Math.max(limit, Math.min(0, points));
     }
 }
