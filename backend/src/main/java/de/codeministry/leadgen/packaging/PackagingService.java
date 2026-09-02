@@ -7,6 +7,7 @@ import de.codeministry.leadgen.config.ConfigProperties;
 import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.config.ConfigSnapshot;
 import de.codeministry.leadgen.config.ConfigSource;
+import de.codeministry.leadgen.config.Directories;
 import de.codeministry.leadgen.config.model.PipelineConfig;
 import de.codeministry.leadgen.config.model.SkillProfile;
 import de.codeministry.leadgen.filter.TextFold;
@@ -190,6 +191,13 @@ public class PackagingService {
      * The fixed PDF for the ad's language. Missing is recorded rather than fatal: a
      * package without the CV is still most of the work, and the operator drops the file
      * in beside it.
+     *
+     * <p>A relative path resolves against the configuration directory, the same rule the
+     * inbox and the four YAML files follow. Against the working directory the very same
+     * configuration points at `backend/…` under `bootRun`, at the repository root in an
+     * IDE and at neither from a jar — three missing files that all look like a CV nobody
+     * put there, and the only symptom is a `cv-MISSING.txt` in every package. An absolute
+     * path is taken as given.
      */
     private String copyCv(Path folder, SkillProfile profile, String language) throws IOException {
         if (profile == null || profile.cvVariants() == null) {
@@ -205,7 +213,7 @@ public class PackagingService {
         if (variant == null) {
             return "cv missing (no variant for '%s' and no default)".formatted(language);
         }
-        Path from = Path.of(variant.file());
+        Path from = Directories.under(properties.configDirectory(), variant.file());
         if (!Files.isRegularFile(from)) {
             Files.writeString(
                     folder.resolve("cv-MISSING.txt"),
