@@ -140,18 +140,19 @@ class HardFilterTest {
     void findsACoreSkillInTheTagsAsWellAsTheText() {
         var tagged = new FilterCandidate(
                 1L, "Fachkraft (m/w/d)", "keine Details", "Musterstadt", List.of("Drachenzähmen"), TODAY);
-        assertThat(filter.judge(tagged, TODAY).passed()).isTrue();
+        assertThat(filter.judge(tagged).passed()).isTrue();
     }
 
     @Test
-    void rejectsAnOfferOlderThanTheFreshnessLimit() {
-        var stale = new FilterCandidate(
-                1L, "Barista", "Espresso", "Musterstadt", List.of(), TODAY.minusDays(22));
-        assertThat(filter.judge(stale, TODAY).stage()).isEqualTo(FilterStage.STALE);
-
-        var fresh = new FilterCandidate(
-                1L, "Barista", "Espresso", "Musterstadt", List.of(), TODAY.minusDays(21));
-        assertThat(filter.judge(fresh, TODAY).passed()).isTrue();
+    void neverLooksAtTheAge() {
+        // The age rule used to be this filter's last stage. It decides whether an offer is
+        // on the working list, not whether the advert is any good, so it moved to
+        // `ArchiveService` — and an offer old enough to have been rejected here has to
+        // pass now, or the two rules are both in force at once.
+        var old = new FilterCandidate(
+                1L, "Barista", "Espresso", "Musterstadt", List.of(), TODAY.minusDays(400));
+        assertThat(filter.judge(old).passed()).isTrue();
+        assertThat(FilterStage.values()).noneMatch(stage -> stage.name().equals("STALE"));
     }
 
     @Test
@@ -164,7 +165,7 @@ class HardFilterTest {
     }
 
     private static FilterVerdict judge(FilterCandidate candidate) {
-        return filter.judge(candidate, TODAY);
+        return filter.judge(candidate);
     }
 
     private static FilterCandidate offer(String title, String description, String location) {

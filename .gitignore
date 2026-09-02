@@ -21,6 +21,9 @@ data/
 # subscriber's mail address in headers and unsubscribe links.
 docs/samples/emails/
 docs/samples/extracted.json
+# What the reference measured, written by simulate_filter.py. Derived from the corpus and
+# from config/, so it is gitignored with them.
+docs/samples/filter-baseline.json
 # The analysis scripts are the reference implementation and stay in the repo:
 !docs/samples/analyze_samples.py
 !docs/samples/simulate_filter.py

@@ -28,6 +28,12 @@ export interface RulesView {
     readonly review: number;
     readonly discard: number;
   };
+  /**
+   * How old an advert may be before it leaves the working list, or null when nothing
+   * archives by age. Beside the knockouts and not among them: it no longer rejects
+   * anything, it only decides what is on today's list.
+   */
+  readonly archiveAfterDays: number | null;
   readonly knockouts: readonly KnockoutRule[];
   readonly antiSkills: readonly string[];
 }

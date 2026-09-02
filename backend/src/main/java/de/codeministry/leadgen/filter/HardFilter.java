@@ -2,8 +2,6 @@ package de.codeministry.leadgen.filter;
 
 import de.codeministry.leadgen.config.model.MatchingRules;
 import de.codeministry.leadgen.config.model.SkillProfile;
-import java.time.LocalDate;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -36,7 +34,6 @@ public final class HardFilter {
     private final List<Pattern> rejectedContracts;
     private final Pattern remotePercent;
     private final int minRemotePercent;
-    private final Integer maxAgeDays;
 
     public HardFilter(MatchingRules rules, SkillProfile profile) {
         MatchingRules.HardFilters filters = rules.hardFilters();
@@ -49,17 +46,15 @@ public final class HardFilter {
         this.rejectedContracts = compile(filters.contract() == null ? List.of() : filters.contract().rejected());
         this.coreSkills = compile(coreSkillsOf(profile));
         this.minRemotePercent = filters.remote() == null ? 0 : filters.remote().minRemotePercent();
-        this.maxAgeDays = filters.freshness() == null ? null : filters.freshness().maxAgeDays();
         this.remotePercent = Pattern.compile("(\\d{1,3})\\s*%\\s*remote");
     }
 
     /**
-     * @param today what "old" is measured against. A parameter rather than
-     *     {@code LocalDate.now()} so the corpus acceptance test can ask the question the
-     *     corpus was written for; a historical corpus judged against today is entirely
-     *     stale and proves nothing.
+     * <p>Nothing here reads a date. The filter asks what an advert says and where it is;
+     * how old it is decides whether it is on the working list, which is
+     * {@code archive.ArchiveService}'s question and not a verdict about the advert.
      */
-    public FilterVerdict judge(FilterCandidate offer, LocalDate today) {
+    public FilterVerdict judge(FilterCandidate offer) {
         String location = TextFold.fold(offer.location());
         String title = TextFold.fold(offer.title());
         String blob = title + " " + TextFold.fold(offer.description());
@@ -84,7 +79,16 @@ public final class HardFilter {
         // An unstated share is not a rejection: `remote.accept_unknown` is true because
         // the sources state one in 8.8 % of offers. It survives and is flagged instead.
         boolean remote = matches(remoteTokens, location) || matches(remoteTokens, blob);
-        if (!remote && !matches(nearCities, location)) {
+        // `min_remote_percent: 0` means no remote share is required, which means being on
+        // site is acceptable — and then it is acceptable anywhere, so the city list stops
+        // applying. Without this the two settings pull in opposite directions: the share
+        // rule says "on site is fine" and the reach rule still rejects every town that is
+        // not on a hand-written list. Measured on the archive: 145 of 254 offers died here
+        // while the share was set to zero, none of them stating a remote share at all.
+        //
+        // Above zero the list is back, and it has to be: needing 40 % remote means being on
+        // site for the other 60 %, and that part has to be somewhere reachable.
+        if (minRemotePercent > 0 && !remote && !matches(nearCities, location)) {
             return FilterVerdict.rejected(
                     FilterStage.OUT_OF_REACH,
                     offer.location() == null ? "no location stated" : offer.location() + " is not within reach");
@@ -102,13 +106,6 @@ public final class HardFilter {
         String contract = firstMatch(rejectedContracts, blob);
         if (contract != null) {
             return FilterVerdict.rejected(FilterStage.CONTRACT_FORM, "names " + contract);
-        }
-
-        if (maxAgeDays != null && offer.publishedOn() != null) {
-            long age = ChronoUnit.DAYS.between(offer.publishedOn(), today);
-            if (age > maxAgeDays) {
-                return FilterVerdict.rejected(FilterStage.STALE, age + " days old, the limit is " + maxAgeDays);
-            }
         }
 
         return FilterVerdict.accepted();

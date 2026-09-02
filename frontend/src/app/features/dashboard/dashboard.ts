@@ -35,6 +35,12 @@ export class Dashboard implements OnInit {
   protected readonly stages = computed(() => this.shortlist.funnel()?.stages ?? []);
   protected readonly total = computed(() => this.shortlist.funnel()?.total ?? 0);
   protected readonly survived = computed(() => this.shortlist.funnel()?.survived ?? 0);
+  /**
+   * Outside the shape, deliberately. Leaving the working list is not something the filter
+   * did, and the number is stated because otherwise the rail's total looks wrong: after a
+   * week the archive holds most of the table.
+   */
+  protected readonly archived = computed(() => this.shortlist.funnel()?.archived ?? 0);
 
   /**
    * A zero and an unreachable board look identical on a tile, and this one is the reason

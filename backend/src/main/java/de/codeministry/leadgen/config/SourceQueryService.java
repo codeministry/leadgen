@@ -27,13 +27,18 @@ public class SourceQueryService {
             """;
 
     /**
-     * Primaries only, the same set the shortlist and the funnel count. Counting duplicates
-     * as survivors makes this column disagree with the list it is about — 104 here against
-     * 96 on the screen, with nothing saying which is right.
+     * Primaries only and not archived: the same set the shortlist and the funnel count.
+     * Counting duplicates as survivors makes this column disagree with the list it is
+     * about — 104 here against 96 on the screen, with nothing saying which is right. The
+     * archive is the same argument a second time: this column answers "how many of this
+     * source's offers are on my list", and an archived offer is not.
      */
     private static final String SURVIVORS =
             """
-            SELECT s.name, count(*) FILTER (WHERE o.status = 'PASSED' AND o.duplicate_of_id IS NULL) AS survived
+            SELECT s.name,
+                   count(*) FILTER (WHERE o.status = 'PASSED'
+                                      AND o.duplicate_of_id IS NULL
+                                      AND o.archived_at IS NULL) AS survived
             FROM source s LEFT JOIN offer o ON o.source_id = s.id
             GROUP BY s.name
             """;

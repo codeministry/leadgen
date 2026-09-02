@@ -53,12 +53,6 @@ public class FilterService {
      */
     @Transactional
     public FilterReport run() {
-        return run(LocalDate.now());
-    }
-
-    /** @param today what the freshness rule measures against; see {@link HardFilter#judge}. */
-    @Transactional
-    public FilterReport run(LocalDate today) {
         ConfigSnapshot snapshot = config.snapshot();
         HardFilter filter = new HardFilter(snapshot.rules(), snapshot.profile());
 
@@ -77,7 +71,7 @@ public class FilterService {
         int passed = 0;
 
         for (FilterCandidate candidate : candidates) {
-            FilterVerdict verdict = filter.judge(candidate, today);
+            FilterVerdict verdict = filter.judge(candidate);
             if (verdict.passed()) {
                 passed++;
                 updates.add(new Object[] {"PASSED", null, null, candidate.id()});

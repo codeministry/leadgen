@@ -1,10 +1,13 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input } from '@angular/core';
 import { Router } from '@angular/router';
 import { injectDispatch } from '@ngrx/signals/events';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { shortlistEvents } from '@core/store/shortlist.events';
 import { ShortlistStore } from '@core/store/shortlist.store';
+import { ShortlistFilters } from '@core/model/shortlist-page';
+import { SCORE_THRESHOLDS } from '@shared/shared.ports';
 import { EmptyState } from '@shared/empty-state/empty-state';
+import { LoadMore } from '@shared/load-more/load-more';
 import { Icon } from '@shared/icon/icon';
 import { PageHeader } from '@shared/page-header/page-header';
 import { OfferCard } from './offer-card/offer-card';
@@ -13,12 +16,12 @@ type BandFilter = 'all' | 'shortlist' | 'review';
 
 @Component({
   selector: 'lg-shortlist-page',
-  imports: [EmptyState, Icon, OfferCard, PageHeader, TranslocoPipe],
+  imports: [EmptyState, Icon, LoadMore, OfferCard, PageHeader, TranslocoPipe],
   templateUrl: './shortlist-page.html',
   styleUrl: './shortlist-page.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class ShortlistPage implements OnInit {
+export class ShortlistPage {
   private readonly router = inject(Router);
   private readonly dispatch = injectDispatch(shortlistEvents);
   protected readonly store = inject(ShortlistStore);
@@ -39,58 +42,76 @@ export class ShortlistPage implements OnInit {
     transform: (value) => value ?? 'all',
   });
   readonly portal = input('', { transform: (value: string | undefined) => value ?? '' });
+  /**
+   * Which side of the archive is on screen. A query parameter like the rest, so a link to
+   * the archive is a link; and a string in the URL rather than a boolean, because that is
+   * what a query string carries.
+   */
+  readonly archived = input(false, { transform: (value: string | undefined) => value === '1' });
 
-  /** Catalog keys with their own parameters: the two thresholds are the same numbers the
-      bands are drawn from, and a language puts them in a different place in the sentence. */
-  protected readonly bandOptions: readonly {
-    id: BandFilter;
-    label: string;
-    params: Record<string, number>;
-  }[] = [
-    { id: 'all', label: 'shortlist.bandAll', params: {} },
-    { id: 'shortlist', label: 'shortlist.bandAbove', params: { score: 70 } },
-    { id: 'review', label: 'shortlist.bandBetween', params: { from: 50, to: 69 } },
-  ];
+  /**
+   * The same two numbers the rings band on and the rules screen prints, from one source.
+   * They were literals here, and they decided which offers the band buttons showed — so a
+   * threshold changed in the file would have moved the rules screen and the histogram while
+   * this screen quietly kept filtering on the old one. The upper bound of the middle band is
+   * derived rather than written, for the same reason.
+   */
+  private readonly thresholds = inject(SCORE_THRESHOLDS);
 
-  protected readonly shortlistAt = 70;
-  protected readonly reviewAt = 50;
+  protected readonly shortlistAt = computed(() => this.thresholds().shortlistAt);
+  protected readonly reviewAt = computed(() => this.thresholds().reviewAt);
 
-  protected readonly visible = computed(() => {
-    const needle = this.q().trim().toLowerCase();
-    const band = this.band();
-    const portal = this.portal();
+  protected readonly bandOptions = computed<
+    readonly { id: BandFilter; label: string; params: Record<string, number> }[]
+  >(() => [
+    { id: 'all' as BandFilter, label: 'shortlist.bandAll', params: {} as Record<string, number> },
+    { id: 'shortlist', label: 'shortlist.bandAbove', params: { score: this.shortlistAt() } },
+    {
+      id: 'review',
+      label: 'shortlist.bandBetween',
+      params: { from: this.reviewAt(), to: this.shortlistAt() - 1 },
+    },
+  ]);
 
-    return this.store.entries().filter((entry) => {
-      const value = entry.score.value;
-      if (band === 'shortlist' && (value === null || value < this.shortlistAt)) {
-        return false;
-      }
-      if (band === 'review' && (value === null || value >= this.shortlistAt || value < this.reviewAt)) {
-        return false;
-      }
-      if (portal !== '' && !entry.sources.some((source) => source.portal === portal)) {
-        return false;
-      }
-      if (needle === '') {
-        return true;
-      }
-      // Null-safe on purpose: 9.2 % of the corpus states no company and a description
-      // can be missing outright. `undefined.toLowerCase()` inside a computed leaves the
-      // page half-rendered with nothing in the console pointing at the cause.
-      return (
-        entry.offer.title.toLowerCase().includes(needle) ||
-        (entry.offer.description ?? '').toLowerCase().includes(needle) ||
-        entry.offer.tags.some((tag) => tag.toLowerCase().includes(needle))
-      );
-    });
-  });
+  /**
+   * The filters, as the query string states them. An effect rather than `ngOnInit`, because
+   * they change while the screen is open and every change is a new first page.
+   */
+  private readonly filters = computed<ShortlistFilters>(() => ({
+    q: this.q(),
+    band: this.band(),
+    portal: this.portal(),
+    archived: this.archived(),
+  }));
+
+  constructor() {
+    effect(() => this.dispatch.opened(this.filters()));
+  }
+
+  /** What the server sent for these filters. The browser no longer decides what is shown. */
+  protected readonly visible = computed(() => this.store.entries());
 
   protected readonly filtered = computed(
-    () => this.visible().length !== this.store.entries().length,
+    () => this.q() !== '' || this.band() !== 'all' || this.portal() !== '' || this.archived(),
   );
 
-  ngOnInit(): void {
-    this.dispatch.opened();
+  /** Asked for when the reader reaches the end of what is loaded. */
+  protected loadMore(): void {
+    if (this.store.hasMore() && !this.store.loadingMore()) {
+      this.dispatch.moreRequested();
+    }
+  }
+
+  /**
+   * The archive is a separate parameter and not a fourth band, because it composes with
+   * the bands and with the search: "archived, above 70" is a question worth asking, and a
+   * fourth button inside a group of mutually exclusive ones reads as exclusive.
+   */
+  protected toggleArchive(): void {
+    void this.router.navigate([], {
+      queryParams: { archived: this.archived() ? null : '1' },
+      queryParamsHandling: 'merge',
+    });
   }
 
   protected setFilter(key: 'q' | 'band' | 'portal', value: string): void {

@@ -4,6 +4,9 @@
 />
 
 <div class="tiles">
+  <!-- The hint names where the number came from. Without a run in this session the value is
+       the whole archive, and the hint used to claim it was the 14-mail sample corpus — true
+       on the first morning of the project and a lie every day after it. -->
   <lg-stat-tile
     [label]="'dashboard.extracted' | transloco"
     [value]="ingest.report()?.extracted ?? total()"
@@ -41,6 +44,11 @@
   <p class="type-small text-muted panel-note">{{ 'dashboard.hardFilterNote' | transloco }}</p>
   @if (total() > 0) {
     <lg-funnel-rail [stages]="stages()" [total]="total()" />
+    @if (archived() > 0) {
+      <p class="type-small text-muted panel-note">
+        {{ 'dashboard.archivedNote' | transloco: { count: archived() } }}
+      </p>
+    }
   } @else {
     <p class="type-small text-muted">{{ 'dashboard.nothingFiltered' | transloco }}</p>
   }
@@ -52,7 +60,7 @@
   @if (ingest.error(); as error) {
     <p class="type-small run-error" role="alert">
       <lg-icon name="triangle-alert" [size]="16" />
-      {{ error }}
+      {{ error | transloco }}
     </p>
   }
 
