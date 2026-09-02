@@ -31,7 +31,7 @@
 
   /* Tailwind spells this `--font-mono--font-feature-settings`, which stylelint's
      custom-property-pattern rejects for the double dash. One name, ours. */
-  --lg-mono-features: "tnum" 1, "zero" 1, "cv02" 1;
+  --lg-mono-features: 'tnum' 1, 'zero' 1, 'cv02' 1;
 }
 
 /* The type scale. Bricolage is a display face and stays one: it appears in
@@ -43,7 +43,9 @@
   font-family: var(--font-display);
   font-size: var(--text-display-xl);
   font-variant-numeric: tabular-nums;
-  font-variation-settings: "opsz" 72, "wght" 700;
+  font-variation-settings:
+    'opsz' 72,
+    'wght' 700;
   letter-spacing: -0.03em;
   line-height: 1;
 }
@@ -52,7 +54,9 @@
   font-family: var(--font-display);
   font-size: var(--text-display-l);
   font-variant-numeric: tabular-nums;
-  font-variation-settings: "opsz" 48, "wght" 650;
+  font-variation-settings:
+    'opsz' 48,
+    'wght' 650;
   letter-spacing: -0.025em;
   line-height: 1.05;
 }
@@ -61,7 +65,9 @@
   font-family: var(--font-display);
   font-size: var(--text-display-m);
   font-variant-numeric: tabular-nums;
-  font-variation-settings: "opsz" 32, "wght" 600;
+  font-variation-settings:
+    'opsz' 32,
+    'wght' 600;
   letter-spacing: -0.02em;
   line-height: 1.15;
 }
@@ -69,7 +75,9 @@
 @utility type-h1 {
   font-family: var(--font-display);
   font-size: 2rem;
-  font-variation-settings: "opsz" 36, "wght" 600;
+  font-variation-settings:
+    'opsz' 36,
+    'wght' 600;
   letter-spacing: -0.02em;
   line-height: 1.15;
 }
@@ -77,7 +85,9 @@
 @utility type-h2 {
   font-family: var(--font-display);
   font-size: 1.5rem;
-  font-variation-settings: "opsz" 24, "wght" 600;
+  font-variation-settings:
+    'opsz' 24,
+    'wght' 600;
   letter-spacing: -0.015em;
   line-height: 1.2;
 }

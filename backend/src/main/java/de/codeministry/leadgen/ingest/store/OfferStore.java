@@ -1,3 +1,11 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright 2026 Marcello Muscara (codeministry)
+ *
+ * Licensed under the Apache License, Version 2.0. You may obtain a copy of the
+ * License at http://www.apache.org/licenses/LICENSE-2.0
+ */
 package de.codeministry.leadgen.ingest.store;
 
 import de.codeministry.leadgen.ingest.ExtractedOffer;
@@ -108,7 +116,9 @@ public class OfferStore {
                     statement.setString(10, offer.fingerprint());
                     statement.setArray(
                             11,
-                            statement.getConnection().createArrayOf("text", offer.tags().toArray()));
+                            statement
+                                    .getConnection()
+                                    .createArrayOf("text", offer.tags().toArray()));
                     // Null rather than now(): a source that is not a mail has no arrival
                     // date, and the file's own timestamp would be the run's, dressed up.
                     if (offer.receivedAt() == null) {

@@ -26,7 +26,9 @@ German comment "just this once".
 Violating one of these is expensive, and most of them fail silently.
 
 - **Nothing is wired in.** This repo is going public. No newsletter name, no portal, no
-  mail provider, no model name and no personal datum belongs in a committed file. The
+  mail provider, no model name and no personal datum belongs in a committed file. The rule is
+  about **values**, not dependencies: `build.gradle.kts` names two model vendors because a
+  starter is a library, and `base_url` still decides who actually answers. The
   configuration that ships names every value as a `${PLACEHOLDER}`; the values live in
   `.env`, and anything individual beyond them in `config/`. Both gitignored.
   A new source is a YAML block, not a deploy.
@@ -48,7 +50,8 @@ Violating one of these is expensive, and most of them fail silently.
   unsubscribe links.
 - **`min_hourly_eur` must not apply before the enrichment stage.** The newsletter carries
   a rate in 0.0 % of offers. Applied earlier, the rule filters either everything or nothing.
-- **Never commit.** Do the work, leave it uncommitted, offer the commit — Marcello decides.
+- **Never commit.** Do the work, leave it uncommitted, offer the commit — the maintainer
+  reviews the diff and decides what lands.
 
 ## Monorepo
 
@@ -81,7 +84,7 @@ bun run test                   # Vitest
 
 ## Frontend conventions
 
-Carried over from `codeministry/customer/ship360`, which is the house style:
+Carried over from a sibling Angular project, which is the house style:
 
 - **Layering is strict**: `shared` → `core` → `layout` → `features`. Cross-layer imports
   go through the tsconfig aliases (`@core/*`, `@shared/*`, `@features/*`, `@layout/*`),
@@ -301,22 +304,29 @@ upserts it. `POST /api/ingest` runs one pass.
 - **The acceptance test is skipped without the corpus.** `docs/samples/emails/` is
   gitignored, so it is absent on a fresh clone and in CI. `ExtractionTest` covers the same
   mechanics against a fixture that ships, and that one must stay in step.
-- **Not flagging `\Seen` takes two things, and the obvious one alone is not enough.**
-  The folder is opened read-only *and* `mail.imap.peek` is set. Fetching a body otherwise
-  issues `FETCH BODY[]`, and the server sets the flag no matter how the folder was opened.
-  Measured against a real IMAP server: without the flag every mail a run touches is marked
-  read in the owner's mailbox.
-- **`getMessagesByUID(start, LASTUID)` lies about its range.** It returns the message with
-  the highest UID even when that UID is below `start`, so a mailbox with nothing new hands
-  back its newest mail as if it were unread. Filter by UID afterwards, or every run
-  re-extracts the last mail forever — which the upsert would hide.
-- **A changed `UIDVALIDITY` voids every UID the server ever handed out.** The folder was
-  recreated; a cursor kept across it silently skips the whole folder.
-- **The cursor is advanced after the write, never after the read.** `SourceConnector.commit`
-  exists for exactly that: a cursor moved at read time plus a failure afterwards means those
-  mails are never looked at again, and nothing says so. And it advances only over messages
-  actually processed — a mail the selector skipped is not progress, because a filter that
-  turns out too narrow is fixed by widening it.
+- **The IMAP side is Spring Integration's `ImapMailReceiver`, used with no channel and no
+  poller.** A run is a synchronous pull that has to come back with per-source counts, and an
+  inbound channel adapter has nothing to hand back. Three of its behaviours are documented
+  nowhere near the setter that causes them, and each yields zero documents from an intact
+  mailbox: it resolves `integrationEvaluationContext` on init, so `spring-integration-mail`
+  alone fails with "No such bean" without `spring-boot-starter-integration`; with
+  `autoCloseFolder` on it closes the folder before a body can be read, so every message ends
+  in `FolderClosedException`; and with it **off** `receive()` hands back Spring messages
+  rather than `jakarta.mail` ones, which an `instanceof` check silently drops.
+- **Not flagging `\Seen` still takes two things.** `shouldMarkMessagesAsRead(false)` is not
+  enough on its own: fetching a body otherwise issues `FETCH BODY[]`, and the server sets the
+  flag regardless. `mail.imap.peek` is the second. Measured against a real IMAP server.
+- **Three guarantees were given up when the cursor went, and they are worth naming.** The
+  receiver tracks what it has handed over with a *user flag* written into the mailbox, not
+  with a UID watermark kept on this side. So the tool no longer leaves the owner's mailbox
+  untouched; "a message the selector skipped is not progress" is gone, because the flag lands
+  on everything the *search* returned before sender, subject and age are applied; and a
+  recreated folder has no equivalent of the `UIDVALIDITY` reset. `flaggedAsFallback` is off,
+  so a server without user flags gets no marker rather than a `\Flagged` the owner would see.
+  What still holds: no `\Seen`, no `\Flagged`, no `\Deleted`.
+- **`IngestCursor` and `IngestCursorStore` are read by nobody now**, and the `ingest_cursor`
+  table is still there. Dead code of exactly the kind this repository removes elsewhere;
+  left standing only because dropping the table is a migration and a decision.
 - **One failing source must not end the run.** `IngestService` catches `IngestException` per
   source, so an unreachable mailbox does not stop the file sources behind it.
 - **The `<mark>` trap is not reproducible in the current corpus** — zero occurrences in all
@@ -524,7 +534,14 @@ be rude to the portals and slow for nothing.
   because the interesting property of a cached result is not that it failed but that *no
   request was made* — a cached 403 reporting itself as fresh makes the request count a lie.
 - **The rate limit is a sliding window.** Twenty a minute has to mean twenty in any sixty
-  seconds, not twenty at the top of each minute and forty across the boundary.
+  seconds, not twenty at the top of each minute and forty across the boundary. That is also
+  why it is not Resilience4j's: its `RateLimiter` resets permits at fixed cycle boundaries, so
+  adopting it would be a documented regression rather than a simplification.
+- **Retry is Framework 7's `RetryTemplate`, and it wraps the network call alone.** Two
+  attempts with backoff, on a transport failure or a 5xx and never on a 4xx. Around `fetch`
+  it would retry past the cache and past the rate limiter, spending tokens the limiter had
+  already refused. `@Retryable` is not usable here: `AdFetcher` is built per run from the
+  hot-reloadable settings, so there is no bean and no proxy.
 - **An unreachable `robots.txt` means allowed.** That is the convention, and the
   alternative is worse: a host whose robots.txt times out would silently stop being
   enriched and its offers would look merely incomplete.
@@ -574,20 +591,33 @@ be rude to the portals and slow for nothing.
   code does not know is refused loudly rather than approximated, because a request in the
   wrong shape does not fail cleanly: it comes back a 400, or gets parsed out of a field
   that is not there into an offer that looks judged and is not.
-- **The Messages API takes no `temperature`, and a judge's token ceiling is not the size of
-  its answer.** The current models removed the sampling parameters and answer a request
-  carrying one with a 400, and reasoning is counted against `max_tokens` before the text
-  begins, so a cap sized to the few lines of JSON truncates the response before the answer
-  starts. Both failures land as "the judge returned nothing", which is by design not an
-  exception — every offer would simply score lower, with nothing saying why.
+- **The wire format is Spring AI's problem now, and that is most of what it bought.** Five
+  differences between the two APIs used to be spelled out by hand and each failed silently:
+  the auth header, the version header, the system prompt as a field rather than a message, the
+  mandatory `max_tokens`, and the answer in `content[]` rather than `choices[]`. Two of them
+  had already cost a run — the current models reject a `temperature` outright, and reasoning
+  counts against `max_tokens` before the text begins.
+- **The answer is read out of every generation, not the first one.** Spring AI emits a model's
+  thinking as a generation of its own, *ahead of* the text, so `call().content()` alone hands
+  back the reasoning and drops the JSON. Four missing factors on an offer that looks judged,
+  and the same trap the raw HTTP version documented, returned through the framework.
+- **The *model* modules, never the `spring-ai-starter-model-*` ones.** The judge is built per
+  run from the hot-reloadable snapshot, so there is nothing for auto-configuration to
+  configure — and it is not merely useless: it builds every model the module knows at boot, so
+  the OpenAI starter failed the whole context with "At least one credential source must be
+  specified" while constructing an *audio speech* model this application will never call.
+- **The batch path is still hand-rolled HTTP, deliberately.** Spring AI 2.0 has no batch
+  abstraction; the SDK underneath has one only behind `client.beta()`, and taking it would
+  rebuild the request as typed params and rewrite four JSONL tests to reach the same two
+  endpoints that already work.
 - **`base_url` is required even for a hosted provider whose address never changes.** A URL
   in the code is a vendor in the code, and no committed file in this repository names one.
   It lives in `.env` beside the key.
-- **The two judges share everything but four things.** `HttpJudge` owns the question, the
-  bounds, the description of an offer and the reading of the answer; a subclass owns the
-  path, the auth header, the request body and where the text sits in the response. The
-  bounds especially: they are what stop a model outvoting the weight table, and a second
-  copy would mean the same offer scores differently depending on who was asked.
+- **One judge, one question.** `ChatClientJudge` owns the question, the bounds, the
+  description of an offer and the reading of the answer, for every provider. `AnthropicJudge`
+  extends it and adds nothing but the batch half. The bounds especially: they are what stop a
+  model outvoting the weight table, and a second copy would mean the same offer scoring
+  differently depending on who was asked.
 - **Ollama is the one provider that needs no key**, and requiring one made it unusable —
   there was nothing to write in `.env`, so the judge was silently never built. The rule is
   about the value, which is why the provider is listed separately from
@@ -637,7 +667,7 @@ be rude to the portals and slow for nothing.
   The same rule as the keyless path: five of nine weights do not make a number comparable to
   one from all nine. Written that way it is self-healing, because a null `score_model` makes
   the offer due again.
-- **The bounds live in `HttpJudge.reasonsOf` and the clamp in `Score.of`, once each.** Two
+- **The bounds live in `ChatClientJudge.reasonsOf` and the clamp in `Score.of`, once each.** Two
   paths now produce one score, and a shortlist whose halves bound or clamp differently is
   not a ranking — the same offer would score differently depending on how busy the night was.
 - **Which judge answers is a parameter of the run, not a setting.** `llm.models.scoring`
@@ -1032,12 +1062,14 @@ code has to reproduce — the numbers in `docs/SAMPLE-ANALYSIS.md` are the targe
    `ConfigRegistry.snapshot()` is how the rest of the code reads configuration.
 3. ✅ **Ingest + extract** against the `local-eml` source (files, no mailbox needed).
    Acceptance test: 1289 offers from `docs/samples/emails/`, field coverage as in the analysis.
-4. ✅ **IMAP connector** — same extraction, different source. Progress tracked via
-   `UIDVALIDITY`/`UID`, **never** via seen/unseen: the user reads the same mails on a phone.
+4. ✅ **IMAP connector** — same extraction, different source. Progress **never** via
+   seen/unseen: the owner reads the same mails on a phone. It began as a `UIDVALIDITY`/`UID`
+   watermark and is now Spring Integration's user flag; the three guarantees that cost is
+   named under § *Ingest and extraction*.
 5. ✅ **Dedupe** — `DeduplicationService` clusters after every ingest run, globally rather
    than per source, because the whole point is one project reaching the pipeline through
    several portals. One SQL statement, idempotent by construction.
-6. ✅ **Hard filter** — seven stages, every list from configuration or the profile, no
+6. ✅ **Hard filter** — six stages, every list from configuration or the profile, no
    model and no network. Reproduces `docs/samples/simulate_filter.py` exactly, and the
    corpus test asserts it against the baseline that script writes rather than against
    numbers anybody keeps in step by hand.
@@ -1056,8 +1088,8 @@ code has to reproduce — the numbers in `docs/SAMPLE-ANALYSIS.md` are the targe
     `GET/PATCH /api/applications`, and both screens on it: the board groups by the lanes
     the endpoint states, and the offer detail carries the same control plus the dates,
     the note and the history. The dashboard's follow-up tile counts what the server
-    called due. The tool never sends — it finds, filters, scores and packages; Marcello
-    sends the mail himself and therefore records the outcome himself.
+    called due. The tool never sends — it finds, filters, scores and packages; the
+    operator sends the mail and therefore records the outcome by hand.
 12. ✅ **Manual entry** — an offer found by hand must be able to enter the pipeline, or the
     shortlist quietly stops being the whole picture. A Markdown file uploaded on the
     Sources screen lands in `<config-dir>/inbox/` and is read by a `manual-inbox` **file**
@@ -1163,8 +1195,14 @@ code has to reproduce — the numbers in `docs/SAMPLE-ANALYSIS.md` are the targe
 
 - **CI.** The tooling baseline is in place (`.editorconfig`, ESLint, Prettier,
   Stylelint), but no pipeline runs it yet.
-- **The Java package is `de.codeministry.leadgen`** — decided before the repository name
-  and organisation were, so it may need a rename.
-- License for publication (Apache 2.0?)
-- Repository name and GitHub organisation
-- Which folder in the IMAP mailbox the newsletter lands in
+- Which folder in the IMAP mailbox the newsletter lands in — deployment detail, and it
+  does not belong in a committed file.
+
+## Settled
+
+- **License: Apache-2.0.** `LICENSE` and `NOTICE` at the root, SPDX headers on the Java
+  sources enforced by Spotless rather than written by hand.
+- **The repository is `codeministry/leadgen`**, which is why the Java package
+  `de.codeministry.leadgen` stays as it is.
+- **No Helm chart in the repository.** Docker Compose is the supported way to run this;
+  a chart is a later phase and the README no longer claims one.

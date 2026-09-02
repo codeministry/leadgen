@@ -1,3 +1,11 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright 2026 Marcello Muscara (codeministry)
+ *
+ * Licensed under the Apache License, Version 2.0. You may obtain a copy of the
+ * License at http://www.apache.org/licenses/LICENSE-2.0
+ */
 package de.codeministry.leadgen.score;
 
 import java.util.List;
@@ -29,10 +37,17 @@ class ScoreWriter {
                         SET score_value = ?, score_band = ?, score_model = ?, ruleset_version = ?, scored_at = now()
                         WHERE id = ?
                         """)
-                .params(score.value(), score.band(autoShortlist, review), score.model(), score.rulesetVersion(), offerId)
+                .params(
+                        score.value(),
+                        score.band(autoShortlist, review),
+                        score.model(),
+                        score.rulesetVersion(),
+                        offerId)
                 .update();
 
-        jdbc.sql("DELETE FROM offer_score_reason WHERE offer_id = ?").param(offerId).update();
+        jdbc.sql("DELETE FROM offer_score_reason WHERE offer_id = ?")
+                .param(offerId)
+                .update();
         List<ScoreReason> reasons = score.reasons();
         for (int position = 0; position < reasons.size(); position++) {
             ScoreReason reason = reasons.get(position);

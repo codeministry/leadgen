@@ -21,7 +21,8 @@ import en from '../public/i18n/en.json';
  * `canvas` package to silence a warning would put a node-gyp build in CI.
  */
 if (typeof HTMLCanvasElement !== 'undefined') {
-  HTMLCanvasElement.prototype.getContext = (() => null) as unknown as typeof HTMLCanvasElement.prototype.getContext;
+  HTMLCanvasElement.prototype.getContext = (() =>
+    null) as unknown as typeof HTMLCanvasElement.prototype.getContext;
 }
 
 beforeEach(() => {

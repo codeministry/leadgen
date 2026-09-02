@@ -1,3 +1,11 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright 2026 Marcello Muscara (codeministry)
+ *
+ * Licensed under the Apache License, Version 2.0. You may obtain a copy of the
+ * License at http://www.apache.org/licenses/LICENSE-2.0
+ */
 package de.codeministry.leadgen.filter;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -81,8 +89,7 @@ class HardFilterCorpusTest {
         Assumptions.assumeTrue(
                 Files.isRegularFile(operator.resolve("matching-rules.yaml"))
                         && Files.isRegularFile(operator.resolve("skill-profile.yaml")),
-                "config/ is absent — the rules that produce these numbers name a home region and are"
-                        + " gitignored");
+                "config/ is absent — the rules that produce these numbers name a home region and are" + " gitignored");
         Assumptions.assumeTrue(
                 Files.isRegularFile(measured),
                 "docs/samples/filter-baseline.json is absent — run"
@@ -106,7 +113,8 @@ class HardFilterCorpusTest {
         var extractor = new HtmlBlockExtractor();
         var mapper = new OfferMapper();
         offers = new ArrayList<>();
-        for (RawDocument document : new FileSourceConnector(new ConfigProperties(configDir.toString())).read(source, 0L)) {
+        for (RawDocument document :
+                new FileSourceConnector(new ConfigProperties(configDir.toString())).read(source, 0L)) {
             extractor.extract(document.html(), source.extraction()).stream()
                     .map(block -> mapper.map(block, source.extraction(), null))
                     .forEach(offers::add);
@@ -118,7 +126,8 @@ class HardFilterCorpusTest {
     @Test
     void passesTheSameShareTheReferenceMeasured() {
         var removed = judgeAll();
-        int passed = baseline.total() - removed.values().stream().mapToInt(Integer::intValue).sum();
+        int passed = baseline.total()
+                - removed.values().stream().mapToInt(Integer::intValue).sum();
 
         assertThat(offers).hasSize(baseline.total());
         assertThat(passed).isEqualTo(baseline.passed());
@@ -149,7 +158,9 @@ class HardFilterCorpusTest {
             Map<FilterStage, Integer> removed = new EnumMap<>(FilterStage.class);
             node.get("removed")
                     .properties()
-                    .forEach(entry -> removed.put(FilterStage.valueOf(entry.getKey()), entry.getValue().asInt()));
+                    .forEach(entry -> removed.put(
+                            FilterStage.valueOf(entry.getKey()),
+                            entry.getValue().asInt()));
             return new Baseline(node.get("total").asInt(), node.get("passed").asInt(), removed);
         } catch (java.io.IOException e) {
             throw new java.io.UncheckedIOException(e);
@@ -159,14 +170,8 @@ class HardFilterCorpusTest {
     private static Map<FilterStage, Integer> judgeAll() {
         Map<FilterStage, Integer> removed = new EnumMap<>(FilterStage.class);
         for (ExtractedOffer offer : offers) {
-            var verdict = filter.judge(
-                    new FilterCandidate(
-                            0L,
-                            offer.title(),
-                            offer.description(),
-                            offer.location(),
-                            offer.tags(),
-                            offer.publishedOn()));
+            var verdict = filter.judge(new FilterCandidate(
+                    0L, offer.title(), offer.description(), offer.location(), offer.tags(), offer.publishedOn()));
             if (!verdict.passed()) {
                 removed.merge(verdict.stage(), 1, Integer::sum);
             }

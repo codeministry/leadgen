@@ -1,3 +1,11 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright 2026 Marcello Muscara (codeministry)
+ *
+ * Licensed under the Apache License, Version 2.0. You may obtain a copy of the
+ * License at http://www.apache.org/licenses/LICENSE-2.0
+ */
 package de.codeministry.leadgen.manual;
 
 import com.fasterxml.jackson.databind.json.JsonMapper;
@@ -50,11 +58,7 @@ public class ManualUploadService {
                     new YAMLFactory().disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER))
             .build();
 
-    ManualUploadService(
-            ManualInbox inbox,
-            MarkdownExtractor markdown,
-            OfferMapper mapper,
-            DataSource dataSource) {
+    ManualUploadService(ManualInbox inbox, MarkdownExtractor markdown, OfferMapper mapper, DataSource dataSource) {
         this.inbox = inbox;
         this.markdown = markdown;
         this.mapper = mapper;
@@ -160,7 +164,8 @@ public class ManualUploadService {
         }
         try {
             String frontmatter = yaml.writeValueAsString(front);
-            String body = fields.description() == null ? "" : fields.description().strip();
+            String body =
+                    fields.description() == null ? "" : fields.description().strip();
             return "---\n" + frontmatter + "---\n\n" + body + "\n";
         } catch (IOException e) {
             throw new UncheckedIOException("cannot write the frontmatter", e);
@@ -242,5 +247,4 @@ public class ManualUploadService {
             return java.time.Instant.now();
         }
     }
-
 }

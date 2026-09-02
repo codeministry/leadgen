@@ -1,3 +1,11 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright 2026 Marcello Muscara (codeministry)
+ *
+ * Licensed under the Apache License, Version 2.0. You may obtain a copy of the
+ * License at http://www.apache.org/licenses/LICENSE-2.0
+ */
 package de.codeministry.leadgen.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -99,7 +107,11 @@ class ConfigLoaderTest {
         rewrite("pipeline.yaml", "batch: ${LLM_BATCH:false}", "batch: true");
         rewrite("pipeline.yaml", "provider: ${LLM_PROVIDER:}", "provider: anthropic");
 
-        assertThat(ConfigFixtures.loaderFor(configDir, VALIDATOR).load().application().llm().batch())
+        assertThat(ConfigFixtures.loaderFor(configDir, VALIDATOR)
+                        .load()
+                        .application()
+                        .llm()
+                        .batch())
                 .isTrue();
     }
 
@@ -114,7 +126,10 @@ class ConfigLoaderTest {
 
     @Test
     void rejectsAnEnabledMailSourceWithoutCredentials() throws IOException {
-        rewrite("sources.yaml", "id: sample-newsletter\n    enabled: false", "id: sample-newsletter\n    enabled: true");
+        rewrite(
+                "sources.yaml",
+                "id: sample-newsletter\n    enabled: false",
+                "id: sample-newsletter\n    enabled: true");
 
         assertThatThrownBy(() -> ConfigFixtures.loaderFor(configDir, VALIDATOR).load())
                 .isInstanceOf(ConfigValidationException.class)
@@ -123,10 +138,16 @@ class ConfigLoaderTest {
 
     @Test
     void acceptsAnEnabledMailSourceOnceTheEnvironmentSuppliesCredentials() throws IOException {
-        rewrite("sources.yaml", "id: sample-newsletter\n    enabled: false", "id: sample-newsletter\n    enabled: true");
+        rewrite(
+                "sources.yaml",
+                "id: sample-newsletter\n    enabled: false",
+                "id: sample-newsletter\n    enabled: true");
         var env = Map.of("IMAP_HOST", "imap.example.org", "IMAP_USER", "someone", "IMAP_PASSWORD", "secret");
 
-        assertThat(ConfigFixtures.loaderFor(configDir, VALIDATOR, env).load().sources().sources())
+        assertThat(ConfigFixtures.loaderFor(configDir, VALIDATOR, env)
+                        .load()
+                        .sources()
+                        .sources())
                 .filteredOn("enabled", true)
                 .extracting("id")
                 .contains("sample-newsletter");
@@ -139,7 +160,10 @@ class ConfigLoaderTest {
         // not fail — otherwise every deployment needs a full set of files to say nothing.
         Files.delete(configDir.resolve("sources.yaml"));
 
-        assertThat(ConfigFixtures.loaderFor(configDir, VALIDATOR).load().sources().sources())
+        assertThat(ConfigFixtures.loaderFor(configDir, VALIDATOR)
+                        .load()
+                        .sources()
+                        .sources())
                 .isNotEmpty();
     }
 

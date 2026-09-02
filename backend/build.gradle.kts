@@ -1,7 +1,9 @@
 plugins {
     java
+    jacoco
     alias(libs.plugins.spring.boot)
     alias(libs.plugins.spring.dependency.management)
+    alias(libs.plugins.spotless)
 }
 
 group = "de.codeministry"
@@ -39,6 +41,32 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-jdbc")
     // Reading .eml files now, the IMAP connector in the next step — same library.
     implementation("org.springframework.boot:spring-boot-starter-mail")
+    // Spring Integration for the mail receiver, and the starter with it. The mail module
+    // alone is not enough: `ImapMailReceiver` resolves `integrationEvaluationContext` from
+    // the bean factory on init, so without `@EnableIntegration`'s infrastructure beans it
+    // fails with "No such bean" — measured, not assumed.
+    //
+    // What is deliberately NOT used is the flow half: no channel, no poller, no inbound
+    // channel adapter. A run here is a synchronous pull that has to come back with per-source
+    // counts, and an adapter pushing messages into a channel has nothing to hand back.
+    implementation("org.springframework.boot:spring-boot-starter-integration")
+    implementation("org.springframework.integration:spring-integration-mail")
+    // The BOM governs the two starters' versions and everything they drag in, so the
+    // Anthropic and OpenAI client SDKs are pinned by one line rather than by three.
+    implementation(platform(libs.spring.ai.bom))
+    // Naming two vendors here is deliberate and is the one place the "nothing is wired in"
+    // rule does not reach: a dependency is not a value. No host, key or model name appears
+    // in any committed file, and `base_url` still decides who answers.
+    //
+    // The model modules, deliberately NOT the `spring-ai-starter-model-*` ones. The judge is
+    // built per run from the hot-reloadable snapshot, so the starters' auto-configuration has
+    // nothing to configure — and it is not merely useless: it builds every model the module
+    // knows at startup, so the OpenAI one failed the whole context with "At least one
+    // credential source must be specified" while trying to construct an *audio speech* model
+    // this application will never call. Measured, not guessed.
+    implementation(libs.spring.ai.chat)
+    implementation(libs.spring.ai.anthropic)
+    implementation(libs.spring.ai.openai)
     implementation(libs.jsoup)
     implementation(libs.freemarker)
     implementation(libs.flexmark.html2md)
@@ -71,6 +99,50 @@ dependencies {
 
 tasks.withType<Test>().configureEach {
     useJUnitPlatform()
+}
+
+/**
+ * Formatting and the SPDX header are enforced, not remembered. `spotlessCheck` hangs off
+ * `check`, so a file without the header fails the same gate a failing test does — which is
+ * the only way a licence header survives contact with a project over time.
+ *
+ * The header sits in a file rather than inline: `licenseHeaderFile` compares the whole
+ * block, and a header maintained in two places drifts the first time the year changes.
+ */
+spotless {
+    java {
+        target("src/*/java/**/*.java")
+        palantirJavaFormat(libs.versions.palantirJavaFormat.get())
+        removeUnusedImports()
+        formatAnnotations()
+        licenseHeaderFile(rootProject.file("gradle/spotless/java-license-header.txt"))
+    }
+    kotlinGradle {
+        target("*.gradle.kts")
+        ktlint()
+    }
+}
+
+/**
+ * Coverage is measured and published, but nothing fails on it. A threshold set on the day
+ * the tool is introduced is a threshold somebody disables the first time it is
+ * inconvenient; the number is worth having as a trend long before it is worth having as a
+ * gate. The XML report exists for CI to upload, the HTML one for a person to read.
+ */
+jacoco {
+    toolVersion = libs.versions.jacoco.get()
+}
+
+tasks.jacocoTestReport {
+    dependsOn(tasks.test)
+    reports {
+        xml.required = true
+        html.required = true
+    }
+}
+
+tasks.check {
+    dependsOn(tasks.jacocoTestReport)
 }
 
 /**

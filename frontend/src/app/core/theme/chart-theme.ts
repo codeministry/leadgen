@@ -64,7 +64,8 @@ export function provideChartPalette(): Provider {
 
 function read(document: Document, previous: ChartPalette): ChartPalette {
   const style = document.defaultView?.getComputedStyle(document.documentElement);
-  const token = (name: string, fallback: string) => style?.getPropertyValue(name).trim() || fallback;
+  const token = (name: string, fallback: string) =>
+    style?.getPropertyValue(name).trim() || fallback;
 
   return {
     primary: token('--color-primary', previous.primary),
@@ -74,6 +75,8 @@ function read(document: Document, previous: ChartPalette): ChartPalette {
     label: token('--lg-muted', previous.label),
     surface: token('--color-base-100', previous.surface),
     ink: token('--color-base-content', previous.ink),
-    stages: previous.stages.map((fallback, index) => token(`--lg-chart-stage-${index + 1}`, fallback)),
+    stages: previous.stages.map((fallback, index) =>
+      token(`--lg-chart-stage-${index + 1}`, fallback),
+    ),
   };
 }

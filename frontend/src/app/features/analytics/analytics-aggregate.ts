@@ -50,7 +50,10 @@ export function daysOf(intake: IntakeSeries, axis: TimeAxis): readonly IntakeDay
  * <p>The server already filled the empty days, so a gap in the input is a gap in the
  * archive rather than a day nothing ran — and the sum needs no gap logic at all.
  */
-export function bucketBy(days: readonly IntakeDay[], granularity: Granularity): readonly IntakeBucket[] {
+export function bucketBy(
+  days: readonly IntakeDay[],
+  granularity: Granularity,
+): readonly IntakeBucket[] {
   if (granularity === 'day') {
     return days.map((day) => ({ ...day, days: 1 }));
   }

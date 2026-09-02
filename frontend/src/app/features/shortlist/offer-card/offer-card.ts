@@ -5,6 +5,7 @@ import { ShortlistEntry } from '@core/model/shortlist-entry';
 import { Badge } from '@shared/badge/badge';
 import { Icon } from '@shared/icon/icon';
 import { Score } from '@shared/score/score';
+import { plainText } from '@shared/text/plain-text';
 
 @Component({
   selector: 'lg-offer-card',
@@ -29,6 +30,13 @@ export class OfferCard {
       .slice(0, 3);
     return [...positives, ...penalties];
   });
+
+  /**
+   * The teaser, with the Markdown taken out. Rendered as Markdown it would put headings
+   * and a bullet list inside a card whose job is to carry the score; printed raw it shows
+   * the syntax. The detail page renders the document properly.
+   */
+  protected readonly teaser = computed(() => plainText(this.entry().offer.description));
 
   /** Everyone advertising this project. One entry means no duplicate cluster. */
   protected readonly otherSources = computed(() => this.entry().sources.slice(1));

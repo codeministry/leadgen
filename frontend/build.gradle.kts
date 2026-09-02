@@ -31,12 +31,17 @@ val lint by tasks.registering(Exec::class) {
     commandLine(bun("run", "check:static"))
 }
 
+/**
+ * The coverage configuration rather than the bare run: v8 coverage costs almost nothing
+ * on a suite this size, and a report that only CI produces is a report nobody reads
+ * before pushing. `bun run test` stays the fast loop.
+ */
 val test by tasks.registering(Exec::class) {
-    description = "Vitest unit suite."
+    description = "Vitest unit suite, with coverage."
     group = "verification"
     dependsOn(installDeps)
     workingDir = frontendDir.asFile
-    commandLine(bun("run", "test"))
+    commandLine(bun("run", "test:coverage"))
 }
 
 val buildFrontend by tasks.registering(Exec::class) {

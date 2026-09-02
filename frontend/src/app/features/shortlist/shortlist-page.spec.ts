@@ -39,9 +39,9 @@ function entry(id: number, title: string, value: number | null, portal: string):
 }
 
 const ENTRIES: readonly ShortlistEntry[] = [
-  entry(1, 'Senior Java Entwickler', 88, 'FreelancerMap'),
-  entry(2, 'Java Entwickler', 64, 'freelance.de'),
-  entry(3, 'Angular Entwickler', null, 'FreelancerMap'),
+  entry(1, 'Senior Java Entwickler', 88, 'portal-a'),
+  entry(2, 'Java Entwickler', 64, 'portal-b'),
+  entry(3, 'Angular Entwickler', null, 'portal-a'),
 ];
 
 function page(over: Partial<ShortlistPayload> = {}): ShortlistPayload {
@@ -51,7 +51,7 @@ function page(over: Partial<ShortlistPayload> = {}): ShortlistPayload {
     matched: ENTRIES.length,
     unscored: 1,
     total: ENTRIES.length,
-    portals: ['FreelancerMap', 'freelance.de'],
+    portals: ['portal-a', 'portal-b'],
     ...over,
   };
 }
@@ -130,7 +130,7 @@ describe('ShortlistPage', () => {
     const options: HTMLOptionElement[] = Array.from(
       fixture.nativeElement.querySelectorAll('select option'),
     );
-    expect(options.map((option) => option.value)).toEqual(['', 'FreelancerMap', 'freelance.de']);
+    expect(options.map((option) => option.value)).toEqual(['', 'portal-a', 'portal-b']);
   });
 
   it('appends the next page and stops when the cursor runs out', () => {

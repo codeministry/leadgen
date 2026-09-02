@@ -65,7 +65,7 @@
 @media (width < 60rem) {
   .row {
     grid-template-columns: 1fr 4.5rem;
-    grid-template-areas: "name count" "bar bar" "drop drop";
+    grid-template-areas: 'name count' 'bar bar' 'drop drop';
     row-gap: 0.25rem;
   }
 

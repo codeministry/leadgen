@@ -114,7 +114,9 @@ export const ShortlistStore = signalStore(
     // would disagree with the database until the next reload.
     on(shortlistEvents.rescored, ({ payload }, state) => ({
       selected: payload,
-      entries: state.entries.map((entry) => (entry.offer.id === payload.offer.id ? payload : entry)),
+      entries: state.entries.map((entry) =>
+        entry.offer.id === payload.offer.id ? payload : entry,
+      ),
       rescoring: null,
     })),
     on(shortlistEvents.rescoreFailed, ({ payload }) => ({

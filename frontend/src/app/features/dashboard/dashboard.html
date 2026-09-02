@@ -4,24 +4,25 @@
 />
 
 <div class="tiles">
-  <!-- The hint names where the number came from. Without a run in this session the value is
-       the whole archive, and the hint used to claim it was the 14-mail sample corpus — true
-       on the first morning of the project and a lie every day after it. -->
+  <!-- The hint names where the number came from, and there are three answers rather than
+       two: a run this browser started, the run the database remembers, or the whole
+       archive. The tile used to claim "from the last run" for the archive total whenever
+       nobody had pressed the button in this session. -->
   <lg-stat-tile
     [label]="'dashboard.extracted' | transloco"
-    [value]="ingest.report()?.extracted ?? total()"
+    [value]="runExtracted() ?? total()"
     [unit]="'dashboard.unitOffers' | transloco"
-    [hint]="(ingest.report() ? 'dashboard.fromLastRun' : 'dashboard.measuredBaseline') | transloco"
+    [hint]="intakeSource() | transloco"
   />
   <lg-stat-tile
     [label]="'dashboard.written' | transloco"
-    [value]="ingest.report()?.written ?? '—'"
+    [value]="runWritten() ?? '—'"
     [unit]="'dashboard.unitRows' | transloco"
     [hint]="
-      ingest.report()
-        ? (repeats() > 0
-            ? ('dashboard.repeats' | transloco: { count: repeats() })
-            : ('dashboard.noRepeats' | transloco))
+      hasRun()
+        ? repeats() > 0
+          ? ('dashboard.repeats' | transloco: { count: repeats() })
+          : ('dashboard.noRepeats' | transloco)
         : ('dashboard.noRunYet' | transloco)
     "
   />
@@ -64,11 +65,20 @@
     </p>
   }
 
-  @if (ingest.report(); as report) {
-    @if (ingest.mismatches().length > 0) {
+  @if (hasRun()) {
+    <!-- Which run this is. A recorded one says when it finished, because without that the
+         reader cannot tell tonight's scheduled pass from their own click; a run started
+         here needs no timestamp, they watched it happen. -->
+    @if (recordedAt(); as when) {
+      <p class="type-small text-muted panel-note">
+        {{ 'dashboard.recordedRun' | transloco: { when } }}
+      </p>
+    }
+
+    @if (mismatches() > 0) {
       <p class="type-small run-error" role="alert">
         <lg-icon name="triangle-alert" [size]="16" />
-        {{ 'dashboard.mismatch' | transloco: { count: ingest.mismatches().length } }}
+        {{ 'dashboard.mismatch' | transloco: { count: mismatches() } }}
       </p>
     }
 
@@ -84,23 +94,25 @@
           </tr>
         </thead>
         <tbody>
-          @for (source of report.sources; track source.sourceId) {
+          @for (source of runSources(); track source.sourceId) {
             <tr>
               <th scope="row" class="type-small">{{ source.sourceId }}</th>
               <td class="type-mono-data num">{{ source.documents }}</td>
               <td class="type-mono-data num">{{ source.extracted }}</td>
               <td class="type-mono-data num">{{ source.written }}</td>
               <td>
-                @for (document of source.details; track document.documentId) {
-                  @if (document.announced !== null && !document.complete) {
-                    <lg-badge tone="warning">
-                      {{ document.documentId }}:
-                      {{
-                        'dashboard.ofAnnounced'
-                          | transloco: { extracted: document.extracted, announced: document.announced }
-                      }}
-                    </lg-badge>
-                  }
+                <!-- Tracked by document, falling back to the position: a recorded run has
+                     no document to name, and the list is rebuilt whole on every run. -->
+                @for (warning of source.warnings; track warning.documentId ?? $index) {
+                  <lg-badge tone="warning">
+                    @if (warning.documentId) {
+                      {{ warning.documentId }}:
+                    }
+                    {{
+                      'dashboard.ofAnnounced'
+                        | transloco: { extracted: warning.extracted, announced: warning.announced }
+                    }}
+                  </lg-badge>
                 } @empty {
                   <span class="type-small text-muted">—</span>
                 }
@@ -110,6 +122,15 @@
         </tbody>
       </table>
     </div>
+
+    <!-- Only a run this browser started carries the per-document breakdown. The recorded
+         one is not missing it by accident, and saying so beats a column that is always a
+         dash for reasons nobody can see. -->
+    @if (recordedAt() !== null) {
+      <p class="type-small text-muted panel-note">
+        {{ 'dashboard.recordedRunLimits' | transloco }}
+      </p>
+    }
   } @else {
     <lg-empty-state
       icon="funnel"

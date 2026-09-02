@@ -47,7 +47,7 @@ describe('RunsPanel', () => {
     expect(fixture.nativeElement.textContent).toContain('cannot be filled in backwards');
   });
 
-  it('shows a run in the reader\'s own clock, not in the database\'s', () => {
+  it("shows a run in the reader's own clock, not in the database's", () => {
     // finishedAt is UTC. Sliced rather than formatted, a run at 08:47 local read as 06:47,
     // while every other time on the screen was local — the pipeline looked two hours early.
     const fixture = render(series([pass('2026-09-02T06:47:00Z', 100)], '2026-09-02T06:47:00Z'));

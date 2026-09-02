@@ -37,7 +37,7 @@
     "de": "Deutsch"
   },
   "funnel": {
-    "extracted": "Eingelesen",
+    "extracted": "Im Archiv",
     "survived": "Durch den Filter"
   },
   "field": {
@@ -68,6 +68,7 @@
     "unitOffers": "Angebote",
     "unitRows": "Zeilen",
     "fromLastRun": "Aus dem letzten Lauf",
+    "fromRecordedRun": "Aus dem letzten aufgezeichneten Lauf",
     "measuredBaseline": "Alles im Archiv, nicht ein einzelner Lauf",
     "repeats": "{count, plural, one {# Anzeige stand in zwei Dokumenten} other {# Anzeigen standen in zwei Dokumenten}}",
     "noRepeats": "Jedes eingelesene Angebot war eine neue Zeile",
@@ -75,9 +76,11 @@
     "noRunYetHint": "Starte den Lauf oben im Kopf. Er liest jede aktive Quelle einmal und meldet, was jedes Dokument hergab.",
     "shareOfIntake": "{percent} % von dem, was hereinkam",
     "hardFilter": "Der harte Filter",
-    "hardFilterNote": "Sieben Stufen, in der Reihenfolge ihres Laufs. Jede nennt, was sie entfernt hat; der Balken verengt sich auf das, was bleibt.",
+    "hardFilterNote": "Sechs Stufen, in der Reihenfolge ihres Laufs. Jede nennt, was sie entfernt hat; der Balken verengt sich auf das, was bleibt.",
     "nothingFiltered": "Es wurde noch nichts gefiltert. Lies die Quellen ein, dann zählt das hier das Archiv.",
     "lastRun": "Letzter Lauf",
+    "recordedRun": "Von der Pipeline aufgezeichnet, beendet am {when}. Aus diesem Browser wurde nichts gestartet.",
+    "recordedRunLimits": "Ein aufgezeichneter Lauf wird pro Quelle gezählt. Welches Dokument zu wenig geliefert hat, ist nur während des laufenden Durchgangs bekannt.",
     "mismatch": "{count, plural, one {# Dokument hat weniger Angebote geliefert als es angekündigt hat} other {# Dokumente haben weniger Angebote geliefert als sie angekündigt haben}}. Ein Selektor, der nicht mehr greift, sieht genau aus wie ein ruhiger Markt.",
     "colSource": "Quelle",
     "colDocuments": "Dokumente",
@@ -325,6 +328,7 @@
     "rulesLoad": "Die Regeln konnten nicht geladen werden.",
     "queueLoad": "Die Prüfliste konnte nicht geladen werden.",
     "ingestRun": "Der Lauf hat nicht geantwortet.",
+    "lastRun": "Der letzte Lauf konnte nicht gelesen werden.",
     "rescore": "Das Angebot wurde nicht neu bewertet.",
     "analyticsLoad": "Die Auswertung konnte nicht geladen werden.",
     "scoringModelsLoad": "Die Bewertungsmodelle wurden nicht geladen.",

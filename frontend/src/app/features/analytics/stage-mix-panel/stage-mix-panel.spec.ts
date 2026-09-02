@@ -20,13 +20,23 @@ const MIX: readonly StageDay[] = [
 ];
 
 function scale(ruleset: string, model: string): ScaleInUse {
-  return { rulesetVersion: ruleset, scoreModel: model, offers: 10, firstScoredAt: null, lastScoredAt: null };
+  return {
+    rulesetVersion: ruleset,
+    scoreModel: model,
+    offers: 10,
+    firstScoredAt: null,
+    lastScoredAt: null,
+  };
 }
 
 describe('StageMixPanel', () => {
   beforeEach(() => TestBed.configureTestingModule({ providers: [provideChartPalette()] }));
 
-  function render(scales: readonly ScaleInUse[], mix: readonly StageDay[] = MIX, granularity: Granularity = 'day') {
+  function render(
+    scales: readonly ScaleInUse[],
+    mix: readonly StageDay[] = MIX,
+    granularity: Granularity = 'day',
+  ) {
     const fixture = TestBed.createComponent(StageMixPanel);
     fixture.componentRef.setInput('stageMix', mix);
     fixture.componentRef.setInput('funnel', FUNNEL);
@@ -68,7 +78,9 @@ describe('StageMixPanel', () => {
     const fixture = render([scale('1', 'a')]);
     const firstRow = fixture.nativeElement.querySelectorAll('tbody tr')[0];
 
-    expect([...firstRow.querySelectorAll('td')].map((c: HTMLElement) => c.textContent?.trim())).toEqual(['10', '0']);
+    expect(
+      [...firstRow.querySelectorAll('td')].map((c: HTMLElement) => c.textContent?.trim()),
+    ).toEqual(['10', '0']);
   });
 
   it('warns when the archive already holds two scales', () => {

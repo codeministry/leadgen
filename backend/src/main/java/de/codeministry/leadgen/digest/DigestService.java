@@ -1,3 +1,11 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright 2026 Marcello Muscara (codeministry)
+ *
+ * Licensed under the Apache License, Version 2.0. You may obtain a copy of the
+ * License at http://www.apache.org/licenses/LICENSE-2.0
+ */
 package de.codeministry.leadgen.digest;
 
 import de.codeministry.leadgen.config.ConfigRegistry;
@@ -68,12 +76,18 @@ public class DigestService {
 
         List<Section> sections = new java.util.ArrayList<>();
         if (include.contains("shortlisted")) {
-            sections.add(new Section("Shortlisted", "at or above %d".formatted(scoring.thresholds().autoShortlist()),
+            sections.add(new Section(
+                    "Shortlisted",
+                    "at or above %d".formatted(scoring.thresholds().autoShortlist()),
                     offers("SHORTLISTED")));
         }
         if (include.contains("review")) {
-            sections.add(new Section("For review", "between %d and %d"
-                    .formatted(scoring.thresholds().review(), scoring.thresholds().autoShortlist() - 1),
+            sections.add(new Section(
+                    "For review",
+                    "between %d and %d"
+                            .formatted(
+                                    scoring.thresholds().review(),
+                                    scoring.thresholds().autoShortlist() - 1),
                     offers("REVIEW")));
         }
         // Always, and not behind a flag: an unscored offer is invisible in a digest that
@@ -84,8 +98,11 @@ public class DigestService {
         }
 
         Path file = write(settings, day, html ? renderHtml(day, sections) : renderText(day, sections));
-        log.info("Digest written to {} ({} offers across {} sections)",
-                file, sections.stream().mapToInt(s -> s.offers().size()).sum(), sections.size());
+        log.info(
+                "Digest written to {} ({} offers across {} sections)",
+                file,
+                sections.stream().mapToInt(s -> s.offers().size()).sum(),
+                sections.size());
         return java.util.Optional.of(file);
     }
 
@@ -93,8 +110,8 @@ public class DigestService {
         try {
             Path directory = Path.of(settings.outputDir());
             Files.createDirectories(directory);
-            Path file = directory.resolve("digest-%s.%s"
-                    .formatted(day, "html".equalsIgnoreCase(settings.format()) ? "html" : "txt"));
+            Path file = directory.resolve(
+                    "digest-%s.%s".formatted(day, "html".equalsIgnoreCase(settings.format()) ? "html" : "txt"));
             Files.writeString(file, content, StandardCharsets.UTF_8);
             return file;
         } catch (IOException e) {
@@ -132,15 +149,23 @@ public class DigestService {
         out.append("=".repeat(60)).append("\n\n");
 
         for (Section section : sections) {
-            out.append(section.title()).append(" (").append(section.note()).append(") — ")
-                    .append(section.offers().size()).append("\n")
-                    .append("-".repeat(60)).append('\n');
+            out.append(section.title())
+                    .append(" (")
+                    .append(section.note())
+                    .append(") — ")
+                    .append(section.offers().size())
+                    .append("\n")
+                    .append("-".repeat(60))
+                    .append('\n');
             if (section.offers().isEmpty()) {
                 out.append("  nothing\n");
             }
             for (Offer offer : section.offers()) {
-                out.append("  ").append(offer.score() == null ? " — " : "%3d".formatted(offer.score()))
-                        .append("  ").append(offer.title()).append('\n');
+                out.append("  ")
+                        .append(offer.score() == null ? " — " : "%3d".formatted(offer.score()))
+                        .append("  ")
+                        .append(offer.title())
+                        .append('\n');
                 out.append("       ").append(meta(offer)).append('\n');
                 for (Reason reason : reasons(offer.id())) {
                     out.append("       %+d  %s%n".formatted(reason.points(), reason.label()));
@@ -156,16 +181,24 @@ public class DigestService {
     private String renderHtml(LocalDate day, List<Section> sections) {
         StringBuilder out = new StringBuilder();
         out.append("<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\">")
-                .append("<title>Lead Generation, ").append(day).append("</title>")
+                .append("<title>Lead Generation, ")
+                .append(day)
+                .append("</title>")
                 .append("<style>body{font-family:system-ui,sans-serif;max-width:52rem;margin:2rem auto;padding:0 1rem}")
                 .append("h2{margin-top:2rem}article{border-top:1px solid #ddd;padding:.75rem 0}")
                 .append(".score{font-variant-numeric:tabular-nums;font-weight:600}")
                 .append(".meta,.reason{color:#555;font-size:.9rem}</style></head><body>\n")
-                .append("<h1>Lead Generation, ").append(day).append("</h1>\n");
+                .append("<h1>Lead Generation, ")
+                .append(day)
+                .append("</h1>\n");
 
         for (Section section : sections) {
-            out.append("<h2>").append(escape(section.title())).append(" <small>(")
-                    .append(escape(section.note())).append(", ").append(section.offers().size())
+            out.append("<h2>")
+                    .append(escape(section.title()))
+                    .append(" <small>(")
+                    .append(escape(section.note()))
+                    .append(", ")
+                    .append(section.offers().size())
                     .append(")</small></h2>\n");
             if (section.offers().isEmpty()) {
                 out.append("<p>nothing</p>\n");
@@ -173,9 +206,14 @@ public class DigestService {
             for (Offer offer : section.offers()) {
                 out.append("<article><p><span class=\"score\">")
                         .append(offer.score() == null ? "&mdash;" : offer.score())
-                        .append("</span> <a href=\"").append(escape(offer.url())).append("\">")
-                        .append(escape(offer.title())).append("</a></p>\n")
-                        .append("<p class=\"meta\">").append(escape(meta(offer))).append("</p>\n<ul>");
+                        .append("</span> <a href=\"")
+                        .append(escape(offer.url()))
+                        .append("\">")
+                        .append(escape(offer.title()))
+                        .append("</a></p>\n")
+                        .append("<p class=\"meta\">")
+                        .append(escape(meta(offer)))
+                        .append("</p>\n<ul>");
                 for (Reason reason : reasons(offer.id())) {
                     out.append("<li class=\"reason\">%+d %s</li>".formatted(reason.points(), escape(reason.label())));
                 }
@@ -204,7 +242,10 @@ public class DigestService {
     private static String escape(String value) {
         return value == null
                 ? ""
-                : value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;");
+                : value.replace("&", "&amp;")
+                        .replace("<", "&lt;")
+                        .replace(">", "&gt;")
+                        .replace("\"", "&quot;");
     }
 
     private record Section(String title, String note, List<Offer> offers) {}

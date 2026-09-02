@@ -1,3 +1,11 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright 2026 Marcello Muscara (codeministry)
+ *
+ * Licensed under the Apache License, Version 2.0. You may obtain a copy of the
+ * License at http://www.apache.org/licenses/LICENSE-2.0
+ */
 package de.codeministry.leadgen.ingest;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -96,7 +104,9 @@ class SampleCorpusAcceptanceTest {
         // makes `fallback: none` defensible: nothing is quietly lost.
         for (int i = 0; i < documents.size(); i++) {
             Matcher matcher = ANNOUNCED.matcher(documents.get(i).subject());
-            assertThat(matcher.find()).as("subject of %s starts with a count", documents.get(i).id()).isTrue();
+            assertThat(matcher.find())
+                    .as("subject of %s starts with a count", documents.get(i).id())
+                    .isTrue();
             assertThat(perDocument.get(i))
                     .as("offers extracted from %s", documents.get(i).id())
                     .isEqualTo(Integer.parseInt(matcher.group(1)));
@@ -130,7 +140,8 @@ class SampleCorpusAcceptanceTest {
     void findsTheMeasuredNumberOfDuplicateTitles() {
         // 159 of 1289, 12.3 %, by normalized title alone. This is what makes
         // deduplication a step-5 concern rather than a later one.
-        long distinct = offers.stream().map(ExtractedOffer::fingerprint).distinct().count();
+        long distinct =
+                offers.stream().map(ExtractedOffer::fingerprint).distinct().count();
         assertThat(offers.size() - distinct).isEqualTo(159);
     }
 
@@ -139,7 +150,8 @@ class SampleCorpusAcceptanceTest {
         // 0.0 %. The reason `min_hourly_eur` must not apply before the enrichment stage —
         // enforced at config load, measured here.
         Pattern rate = Pattern.compile("(\\d{2,4})\\s*(?:[,.]\\d{2})?\\s*(?:€|EUR|Euro)", Pattern.CASE_INSENSITIVE);
-        assertThat(count(o -> o.description() != null && rate.matcher(o.description()).find()))
+        assertThat(count(o ->
+                        o.description() != null && rate.matcher(o.description()).find()))
                 .isZero();
     }
 

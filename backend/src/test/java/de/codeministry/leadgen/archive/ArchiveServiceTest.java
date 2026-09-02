@@ -1,13 +1,21 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright 2026 Marcello Muscara (codeministry)
+ *
+ * Licensed under the Apache License, Version 2.0. You may obtain a copy of the
+ * License at http://www.apache.org/licenses/LICENSE-2.0
+ */
 package de.codeministry.leadgen.archive;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import de.codeministry.leadgen.config.ConfigFixtures;
 import de.codeministry.leadgen.config.ConfigRegistry;
 import java.time.LocalDate;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import de.codeministry.leadgen.config.ConfigFixtures;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -41,7 +49,8 @@ class ArchiveServiceTest {
      */
     @DynamicPropertySource
     static void configuration(DynamicPropertyRegistry registry) {
-        registry.add("leadgen.config-dir", () -> ConfigFixtures.shippedDefaults().toString());
+        registry.add(
+                "leadgen.config-dir", () -> ConfigFixtures.shippedDefaults().toString());
     }
 
     private static final LocalDate TODAY = LocalDate.of(2026, 9, 2);
@@ -65,8 +74,8 @@ class ArchiveServiceTest {
         jdbc.update("DELETE FROM offer_score_reason");
         jdbc.update("DELETE FROM offer");
         jdbc.update("DELETE FROM source");
-        sourceId = jdbc.queryForObject(
-                "INSERT INTO source (name, kind) VALUES ('test', 'file') RETURNING id", Long.class);
+        sourceId =
+                jdbc.queryForObject("INSERT INTO source (name, kind) VALUES ('test', 'file') RETURNING id", Long.class);
         window = config.snapshot().rules().hardFilters().freshness().maxAgeDays();
     }
 
@@ -192,7 +201,12 @@ class ArchiveServiceTest {
                 VALUES (?, ?, ?, 'https://example.invalid/x', ?, 'PASSED', ?)
                 RETURNING id
                 """,
-                Long.class, sourceId, title, title, title.toLowerCase(), publishedOn);
+                Long.class,
+                sourceId,
+                title,
+                title,
+                title.toLowerCase(),
+                publishedOn);
     }
 
     private void application(long offerId, String status) {

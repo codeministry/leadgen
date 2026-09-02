@@ -6,15 +6,15 @@
   color: var(--score-out);
 }
 
-.score[data-band="strong"] {
+.score[data-band='strong'] {
   color: var(--score-strong);
 }
 
-.score[data-band="weak"] {
+.score[data-band='weak'] {
   color: var(--score-weak);
 }
 
-.score[data-band="unscored"] {
+.score[data-band='unscored'] {
   color: var(--lg-muted);
 }
 

@@ -1,3 +1,11 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright 2026 Marcello Muscara (codeministry)
+ *
+ * Licensed under the Apache License, Version 2.0. You may obtain a copy of the
+ * License at http://www.apache.org/licenses/LICENSE-2.0
+ */
 package de.codeministry.leadgen.enrich;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
@@ -94,8 +102,8 @@ class EnrichmentServiceTest {
         jdbc.update("DELETE FROM offer");
         jdbc.update("DELETE FROM fetched_page");
         jdbc.update("DELETE FROM source");
-        sourceId = jdbc.queryForObject(
-                "INSERT INTO source (name, kind) VALUES ('test', 'file') RETURNING id", Long.class);
+        sourceId =
+                jdbc.queryForObject("INSERT INTO source (name, kind) VALUES ('test', 'file') RETURNING id", Long.class);
         PORTAL.resetAll();
         allowEverything();
     }
@@ -138,7 +146,8 @@ class EnrichmentServiceTest {
                 .isEqualTo("PASSED");
         assertThat(jdbc.queryForObject("SELECT enrichment_note FROM offer WHERE id = ?", String.class, id))
                 .contains("403");
-        assertThat(jdbc.queryForObject("SELECT count(*) FROM offer", Integer.class)).isEqualTo(1);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM offer", Integer.class))
+                .isEqualTo(1);
     }
 
     @Test
@@ -160,8 +169,8 @@ class EnrichmentServiceTest {
     @Test
     void doesNotFetchAPathRobotsTxtDisallows() {
         // ISC-47, second half. Not fetching is the point; the offer still survives.
-        PORTAL.stubFor(get(urlEqualTo("/robots.txt"))
-                .willReturn(aResponse().withBody("User-agent: *\nDisallow: /intern/\n")));
+        PORTAL.stubFor(
+                get(urlEqualTo("/robots.txt")).willReturn(aResponse().withBody("User-agent: *\nDisallow: /intern/\n")));
         stubFor(get(urlPathEqualTo("/intern/projekt")).willReturn(aResponse().withBody(AD_HTML)));
         long id = passedOffer("/intern/projekt");
 
@@ -176,8 +185,8 @@ class EnrichmentServiceTest {
 
     @Test
     void remembersADisallowedPathSoTheNextRunDoesNotAskAgain() {
-        PORTAL.stubFor(get(urlEqualTo("/robots.txt"))
-                .willReturn(aResponse().withBody("User-agent: *\nDisallow: /intern/\n")));
+        PORTAL.stubFor(
+                get(urlEqualTo("/robots.txt")).willReturn(aResponse().withBody("User-agent: *\nDisallow: /intern/\n")));
         passedOffer("/intern/projekt");
         enrichment.run();
 

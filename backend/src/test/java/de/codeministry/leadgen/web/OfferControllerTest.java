@@ -1,3 +1,11 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright 2026 Marcello Muscara (codeministry)
+ *
+ * Licensed under the Apache License, Version 2.0. You may obtain a copy of the
+ * License at http://www.apache.org/licenses/LICENSE-2.0
+ */
 package de.codeministry.leadgen.web;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -94,13 +102,27 @@ class OfferControllerTest {
 
     private static ShortlistEntry entry(Instant archivedAt, String source) {
         var offer = new OfferView(
-                1L, "x", "Senior Java Entwickler", "Beschreibung", "https://example.invalid/1",
-                "Köln", "freelancermap", null, null, List.of(), null, null, null, null, null,
-                "de", null, null, archivedAt, source);
+                1L,
+                "x",
+                "Senior Java Entwickler",
+                "Beschreibung",
+                "https://example.invalid/1",
+                "Köln",
+                "portal-a",
+                null,
+                null,
+                List.of(),
+                null,
+                null,
+                null,
+                null,
+                null,
+                "de",
+                null,
+                null,
+                archivedAt,
+                source);
         return new ShortlistEntry(
-                offer,
-                new OfferScoreView(88, true, List.of(), null, null),
-                new OfferFlags(false, true),
-                List.of());
+                offer, new OfferScoreView(88, true, List.of(), null, null), new OfferFlags(false, true), List.of());
     }
 }

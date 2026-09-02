@@ -1,3 +1,11 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright 2026 Marcello Muscara (codeministry)
+ *
+ * Licensed under the Apache License, Version 2.0. You may obtain a copy of the
+ * License at http://www.apache.org/licenses/LICENSE-2.0
+ */
 package de.codeministry.leadgen.ingest.extract;
 
 import de.codeministry.leadgen.config.model.SourcesConfig.Extraction;
@@ -21,7 +29,6 @@ import org.springframework.stereotype.Component;
 @Slf4j
 @Component
 public class OfferMapper {
-
 
     public static final String TITLE = "title";
     public static final String URL = "url";

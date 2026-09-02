@@ -1,3 +1,11 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright 2026 Marcello Muscara (codeministry)
+ *
+ * Licensed under the Apache License, Version 2.0. You may obtain a copy of the
+ * License at http://www.apache.org/licenses/LICENSE-2.0
+ */
 package de.codeministry.leadgen.config;
 
 import java.util.concurrent.atomic.AtomicReference;
@@ -17,7 +25,6 @@ import org.springframework.stereotype.Component;
 @Component
 public class ConfigRegistry {
 
-
     private final ConfigLoader loader;
     private final AtomicReference<ConfigSnapshot> current = new AtomicReference<>();
 
@@ -25,7 +32,8 @@ public class ConfigRegistry {
         this.loader = loader;
         this.current.set(loader.load());
         var overridden = loader.overriddenFiles();
-        log.info("Configuration loaded: {} sources, {} of them enabled; {} overridden externally",
+        log.info(
+                "Configuration loaded: {} sources, {} of them enabled; {} overridden externally",
                 snapshot().sources().sources().size(),
                 snapshot().sources().sources().stream().filter(s -> s.enabled()).count(),
                 overridden.isEmpty() ? "nothing" : String.join(", ", overridden));

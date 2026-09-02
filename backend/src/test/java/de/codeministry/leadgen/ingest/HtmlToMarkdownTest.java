@@ -1,3 +1,11 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright 2026 Marcello Muscara (codeministry)
+ *
+ * Licensed under the Apache License, Version 2.0. You may obtain a copy of the
+ * License at http://www.apache.org/licenses/LICENSE-2.0
+ */
 package de.codeministry.leadgen.ingest;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -18,13 +26,15 @@ class HtmlToMarkdownTest {
 
     @Test
     void keepsHeadingsListsAndEmphasis() {
-        String markdown = HtmlToMarkdown.of(Jsoup.parseBodyFragment("""
+        String markdown = HtmlToMarkdown.of(Jsoup.parseBodyFragment(
+                        """
                 <div>
                   <h2>Ihre Aufgaben</h2>
                   <p>Wir suchen einen <strong>Java-Entwickler</strong>.</p>
                   <ul><li>Spring Boot</li><li>Kubernetes</li></ul>
                 </div>
-                """).body());
+                """)
+                .body());
 
         assertThat(markdown).contains("## Ihre Aufgaben");
         assertThat(markdown).contains("**Java-Entwickler**");
@@ -36,8 +46,9 @@ class HtmlToMarkdownTest {
 
     @Test
     void keepsAParagraphBreakAndALineBreak() {
-        String markdown = HtmlToMarkdown.of(
-                Jsoup.parseBodyFragment("<p>Erste</p><p>Start: sofort<br>Dauer: 6 Monate</p>").body());
+        String markdown =
+                HtmlToMarkdown.of(Jsoup.parseBodyFragment("<p>Erste</p><p>Start: sofort<br>Dauer: 6 Monate</p>")
+                        .body());
 
         assertThat(markdown).contains("Erste\n\n");
         assertThat(markdown).contains("Start: sofort");
@@ -48,8 +59,8 @@ class HtmlToMarkdownTest {
     void leavesInlineMarkupAsOneLine() {
         // A title or a location sits in one inline element, and reading it through this has
         // to give back the line itself — that is what makes it safe on every field.
-        String markdown = HtmlToMarkdown.of(
-                Jsoup.parseBodyFragment("<span>Senior <mark>DevOps</mark> Engineer</span>").body());
+        String markdown = HtmlToMarkdown.of(Jsoup.parseBodyFragment("<span>Senior <mark>DevOps</mark> Engineer</span>")
+                .body());
 
         assertThat(markdown).isEqualTo("Senior DevOps Engineer");
     }
@@ -57,8 +68,8 @@ class HtmlToMarkdownTest {
     @Test
     void dropsMarkupItDoesNotUnderstandRatherThanPassingItThrough() {
         // Raw HTML is legal in Markdown, and an ad is not a document to embed markup from.
-        String markdown = HtmlToMarkdown.of(
-                Jsoup.parseBodyFragment("<p>Hallo <script>alert(1)</script> Welt</p>").body());
+        String markdown = HtmlToMarkdown.of(Jsoup.parseBodyFragment("<p>Hallo <script>alert(1)</script> Welt</p>")
+                .body());
 
         assertThat(markdown).doesNotContain("<script");
     }

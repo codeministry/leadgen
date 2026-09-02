@@ -1,14 +1,22 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright 2026 Marcello Muscara (codeministry)
+ *
+ * Licensed under the Apache License, Version 2.0. You may obtain a copy of the
+ * License at http://www.apache.org/licenses/LICENSE-2.0
+ */
 package de.codeministry.leadgen.analytics;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 
 import de.codeministry.leadgen.application.ApplicationStatus;
+import de.codeministry.leadgen.config.ConfigFixtures;
 import java.time.LocalDate;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import de.codeministry.leadgen.config.ConfigFixtures;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -40,7 +48,8 @@ class AnalyticsQueryServiceTest {
      */
     @DynamicPropertySource
     static void configuration(DynamicPropertyRegistry registry) {
-        registry.add("leadgen.config-dir", () -> ConfigFixtures.shippedDefaults().toString());
+        registry.add(
+                "leadgen.config-dir", () -> ConfigFixtures.shippedDefaults().toString());
     }
 
     @Autowired
@@ -61,8 +70,8 @@ class AnalyticsQueryServiceTest {
         jdbc.update("DELETE FROM pipeline_run");
         jdbc.update("DELETE FROM source_run");
         jdbc.update("DELETE FROM source");
-        sourceId = jdbc.queryForObject(
-                "INSERT INTO source (name, kind) VALUES ('test', 'file') RETURNING id", Long.class);
+        sourceId =
+                jdbc.queryForObject("INSERT INTO source (name, kind) VALUES ('test', 'file') RETURNING id", Long.class);
     }
 
     @Test
@@ -155,19 +164,19 @@ class AnalyticsQueryServiceTest {
     void showsAPortalThatOnlyEverCarriedDuplicates() {
         // Counting primaries only would show zero listings for a portal that publishes every
         // day, because another portal happened to get there first every time.
-        long primary = arrived(LocalDate.now(), "freelancermap");
-        long second = arrived(LocalDate.now(), "gulp");
+        long primary = arrived(LocalDate.now(), "portal-a");
+        long second = arrived(LocalDate.now(), "portal-c");
         jdbc.update("UPDATE offer SET duplicate_of_id = ? WHERE id = ?", primary, second);
 
         var portals = analytics.analytics().market().portals();
 
-        assertThat(portals).extracting(MarketView.Portal::portal).contains("gulp");
-        var gulp = portals.stream()
-                .filter(portal -> "gulp".equals(portal.portal()))
+        assertThat(portals).extracting(MarketView.Portal::portal).contains("portal-c");
+        var duplicateOnly = portals.stream()
+                .filter(portal -> "portal-c".equals(portal.portal()))
                 .findFirst()
                 .orElseThrow();
-        assertThat(gulp.listings()).isEqualTo(1);
-        assertThat(gulp.projects()).isZero();
+        assertThat(duplicateOnly.listings()).isEqualTo(1);
+        assertThat(duplicateOnly.projects()).isZero();
     }
 
     @Test
@@ -179,7 +188,8 @@ class AnalyticsQueryServiceTest {
 
         assertThat(analytics.analytics().market().tags())
                 .extracting(MarketView.Tag::tag, MarketView.Tag::projects)
-                .containsExactlyInAnyOrder(org.assertj.core.groups.Tuple.tuple("Java", 1),
+                .containsExactlyInAnyOrder(
+                        org.assertj.core.groups.Tuple.tuple("Java", 1),
                         org.assertj.core.groups.Tuple.tuple("Cloud", 1));
     }
 
@@ -269,8 +279,8 @@ class AnalyticsQueryServiceTest {
 
         assertThat(analytics.analytics().scales())
                 .extracting(ScaleInUse::rulesetVersion, ScaleInUse::scoreModel)
-                .containsExactlyInAnyOrder(org.assertj.core.groups.Tuple.tuple("1", "a"),
-                        org.assertj.core.groups.Tuple.tuple("2", "b"));
+                .containsExactlyInAnyOrder(
+                        org.assertj.core.groups.Tuple.tuple("1", "a"), org.assertj.core.groups.Tuple.tuple("2", "b"));
     }
 
     @Test
@@ -321,8 +331,10 @@ class AnalyticsQueryServiceTest {
         // The three dates answer three questions, and only this one measures the market:
         // the ingest axis moves for every row when the database is refilled.
         long byMail = arrived(LocalDate.now());
-        jdbc.update("UPDATE offer SET received_at = ? WHERE id = ?",
-                java.sql.Timestamp.valueOf(LocalDate.now().minusDays(3).atTime(8, 0)), byMail);
+        jdbc.update(
+                "UPDATE offer SET received_at = ? WHERE id = ?",
+                java.sql.Timestamp.valueOf(LocalDate.now().minusDays(3).atTime(8, 0)),
+                byMail);
         arrived(LocalDate.now());
 
         var intake = analytics.analytics().intake();
@@ -346,12 +358,13 @@ class AnalyticsQueryServiceTest {
         var mix = analytics.analytics().market().stageMix();
 
         assertThat(mix).hasSize(2);
-        assertThat(mix).extracting(MarketView.StageDay::day)
+        assertThat(mix)
+                .extracting(MarketView.StageDay::day)
                 .containsExactly(LocalDate.now().minusDays(3), LocalDate.now());
     }
 
     private long arrived(LocalDate day) {
-        return arrived(day, "freelancermap");
+        return arrived(day, "portal-a");
     }
 
     private long arrived(LocalDate day, String portal) {
@@ -381,8 +394,8 @@ class AnalyticsQueryServiceTest {
 
     private long scored(int value) {
         long id = arrived(LocalDate.now());
-        jdbc.update("UPDATE offer SET score_value = ?, score_band = 'REVIEW', scored_at = now() WHERE id = ?",
-                value, id);
+        jdbc.update(
+                "UPDATE offer SET score_value = ?, score_band = 'REVIEW', scored_at = now() WHERE id = ?", value, id);
         return id;
     }
 

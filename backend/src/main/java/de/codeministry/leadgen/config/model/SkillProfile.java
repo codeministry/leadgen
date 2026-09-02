@@ -1,3 +1,11 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright 2026 Marcello Muscara (codeministry)
+ *
+ * Licensed under the Apache License, Version 2.0. You may obtain a copy of the
+ * License at http://www.apache.org/licenses/LICENSE-2.0
+ */
 package de.codeministry.leadgen.config.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -51,11 +59,7 @@ public record SkillProfile(
      * @param since the year it was first used in earnest. Not read by the filter; scoring
      *     turns it into depth.
      */
-    public record Skill(
-            @NotBlank String skill,
-            @Min(1) @Max(10) int weight,
-            Integer since,
-            List<String> aliases) {}
+    public record Skill(@NotBlank String skill, @Min(1) @Max(10) int weight, Integer since, List<String> aliases) {}
 
     public record Industry(@NotBlank String name, @Min(1) @Max(10) int weight, String note) {}
 

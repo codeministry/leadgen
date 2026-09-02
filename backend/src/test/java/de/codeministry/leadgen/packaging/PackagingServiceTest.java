@@ -1,3 +1,11 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright 2026 Marcello Muscara (codeministry)
+ *
+ * Licensed under the Apache License, Version 2.0. You may obtain a copy of the
+ * License at http://www.apache.org/licenses/LICENSE-2.0
+ */
 package de.codeministry.leadgen.packaging;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -58,13 +66,14 @@ class PackagingServiceTest {
         jdbc.update("DELETE FROM offer_score_reason");
         jdbc.update("DELETE FROM offer");
         jdbc.update("DELETE FROM source");
-        sourceId = jdbc.queryForObject(
-                "INSERT INTO source (name, kind) VALUES ('test', 'file') RETURNING id", Long.class);
+        sourceId =
+                jdbc.queryForObject("INSERT INTO source (name, kind) VALUES ('test', 'file') RETURNING id", Long.class);
     }
 
     @Test
     void buildsAFolderWithEveryDocument() {
-        long id = shortlisted("Senior Java Entwickler Spring Boot (m/w/d)",
+        long id = shortlisted(
+                "Senior Java Entwickler Spring Boot (m/w/d)",
                 "Wir suchen für unseren Kunden einen Entwickler mit Erfahrung in Spring Boot.");
         reason(id, "core_skill_overlap", "2 of 2 core skills named: Java, Spring Boot", 45);
 
@@ -73,12 +82,17 @@ class PackagingServiceTest {
         assertThat(report.built()).isEqualTo(1);
         Path folder = report.folders().getFirst();
         assertThat(files(folder))
-                .contains("cover_letter.txt", "offer.txt", "meta.json", cvFile.getFileName().toString());
+                .contains(
+                        "cover_letter.txt",
+                        "offer.txt",
+                        "meta.json",
+                        cvFile.getFileName().toString());
     }
 
     @Test
     void writesTheCoverLetterInTheLanguageOfTheAd() {
-        long german = shortlisted("Senior Java Entwickler (m/w/d)",
+        long german = shortlisted(
+                "Senior Java Entwickler (m/w/d)",
                 "Wir suchen für unseren Kunden einen Entwickler mit Erfahrung in Spring Boot.");
         packaging.run();
         assertThat(read(folderOf(german).resolve("cover_letter.txt")))
@@ -86,8 +100,8 @@ class PackagingServiceTest {
                 .doesNotContain("Dear Sir");
 
         reset();
-        long english = shortlisted("Senior Java Developer",
-                "Our client is looking for a backend engineer, Spring Boot, remote.");
+        long english = shortlisted(
+                "Senior Java Developer", "Our client is looking for a backend engineer, Spring Boot, remote.");
         packaging.run();
         assertThat(read(folderOf(english).resolve("cover_letter.txt")))
                 .contains("Dear Sir or Madam")
@@ -131,13 +145,13 @@ class PackagingServiceTest {
         // One project advertised by three portals is one package, and it says which three.
         long primary = shortlisted("Senior Java Entwickler (m/w/d)", "Spring Boot, für unseren Kunden.");
         long second = shortlisted("Senior Java Entwickler (m/w/d)", "Spring Boot, für unseren Kunden.");
-        jdbc.update("UPDATE offer SET duplicate_of_id = ?, portal = 'freelance.de' WHERE id = ?", primary, second);
+        jdbc.update("UPDATE offer SET duplicate_of_id = ?, portal = 'portal-b' WHERE id = ?", primary, second);
 
         packaging.run();
 
         JsonNode meta = JSON.readTree(read(folderOf(primary).resolve("meta.json")));
         assertThat(meta.path("sources")).hasSize(2);
-        assertThat(meta.path("sources").toString()).contains("FreelancerMap").contains("freelance.de");
+        assertThat(meta.path("sources").toString()).contains("portal-a").contains("portal-b");
     }
 
     @Test
@@ -205,19 +219,28 @@ class PackagingServiceTest {
                 INSERT INTO offer (source_id, external_id, title, description, url, fingerprint, status,
                                    score_value, score_band, location, portal, agency, published_on)
                 VALUES (?, ?, ?, ?, 'https://example.invalid/projekt/1', 'fp', 'PASSED', 88, 'SHORTLISTED',
-                        'Köln', 'FreelancerMap', 'Etengo AG', DATE '2026-08-31')
+                        'Köln', 'portal-a', 'Acme Consulting GmbH', DATE '2026-08-31')
                 RETURNING id
                 """,
-                Long.class, sourceId, "ext-" + System.nanoTime(), title, description);
+                Long.class,
+                sourceId,
+                "ext-" + System.nanoTime(),
+                title,
+                description);
     }
 
     private void reason(long offerId, String factor, String label, int points) {
         Integer next = jdbc.queryForObject(
                 "SELECT coalesce(max(position) + 1, 0) FROM offer_score_reason WHERE offer_id = ?",
-                Integer.class, offerId);
+                Integer.class,
+                offerId);
         jdbc.update(
                 "INSERT INTO offer_score_reason (offer_id, factor, label, points, position) VALUES (?, ?, ?, ?, ?)",
-                offerId, factor, label, points, next);
+                offerId,
+                factor,
+                label,
+                points,
+                next);
     }
 
     private static void writeCv() {

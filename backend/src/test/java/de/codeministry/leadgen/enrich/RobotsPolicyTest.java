@@ -1,3 +1,11 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright 2026 Marcello Muscara (codeministry)
+ *
+ * Licensed under the Apache License, Version 2.0. You may obtain a copy of the
+ * License at http://www.apache.org/licenses/LICENSE-2.0
+ */
 package de.codeministry.leadgen.enrich;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -16,21 +24,26 @@ class RobotsPolicyTest {
     void obeysADisallowedPrefix() {
         var policy = serving("User-agent: *\nDisallow: /intern/\n");
 
-        assertThat(policy.allows(URI.create("https://portal.example/intern/ad"), "lead-generation/0.1")).isFalse();
-        assertThat(policy.allows(URI.create("https://portal.example/projekt/1"), "lead-generation/0.1")).isTrue();
+        assertThat(policy.allows(URI.create("https://portal.example/intern/ad"), "lead-generation/0.1"))
+                .isFalse();
+        assertThat(policy.allows(URI.create("https://portal.example/projekt/1"), "lead-generation/0.1"))
+                .isTrue();
     }
 
     @Test
     void letsTheLongestMatchWin() {
         var policy = serving("User-agent: *\nDisallow: /a/\nAllow: /a/public/\n");
 
-        assertThat(policy.allows(URI.create("https://portal.example/a/private"), "x")).isFalse();
-        assertThat(policy.allows(URI.create("https://portal.example/a/public/ad"), "x")).isTrue();
+        assertThat(policy.allows(URI.create("https://portal.example/a/private"), "x"))
+                .isFalse();
+        assertThat(policy.allows(URI.create("https://portal.example/a/public/ad"), "x"))
+                .isTrue();
     }
 
     @Test
     void prefersTheGroupThatNamesUsOverTheWildcard() {
-        var policy = serving("""
+        var policy = serving(
+                """
                 User-agent: *
                 Disallow: /
 
@@ -38,8 +51,10 @@ class RobotsPolicyTest {
                 Disallow: /intern/
                 """);
 
-        assertThat(policy.allows(URI.create("https://portal.example/projekt/1"), "lead-generation/0.1")).isTrue();
-        assertThat(policy.allows(URI.create("https://portal.example/intern/x"), "lead-generation/0.1")).isFalse();
+        assertThat(policy.allows(URI.create("https://portal.example/projekt/1"), "lead-generation/0.1"))
+                .isTrue();
+        assertThat(policy.allows(URI.create("https://portal.example/intern/x"), "lead-generation/0.1"))
+                .isFalse();
     }
 
     @Test
@@ -47,7 +62,8 @@ class RobotsPolicyTest {
         // "Disallow:" with nothing after it is the documented way to allow everything.
         var policy = serving("User-agent: *\nDisallow:\n");
 
-        assertThat(policy.allows(URI.create("https://portal.example/anything"), "x")).isTrue();
+        assertThat(policy.allows(URI.create("https://portal.example/anything"), "x"))
+                .isTrue();
     }
 
     @Test
@@ -59,13 +75,15 @@ class RobotsPolicyTest {
             throw new IllegalStateException("timeout");
         });
 
-        assertThat(policy.allows(URI.create("https://portal.example/projekt/1"), "x")).isTrue();
+        assertThat(policy.allows(URI.create("https://portal.example/projekt/1"), "x"))
+                .isTrue();
     }
 
     @Test
     void ignoresComments() {
         var policy = serving("User-agent: *  # everyone\nDisallow: /intern/  # not this\n");
 
-        assertThat(policy.allows(URI.create("https://portal.example/intern/x"), "x")).isFalse();
+        assertThat(policy.allows(URI.create("https://portal.example/intern/x"), "x"))
+                .isFalse();
     }
 }

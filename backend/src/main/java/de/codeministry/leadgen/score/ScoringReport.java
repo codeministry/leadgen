@@ -1,3 +1,11 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright 2026 Marcello Muscara (codeministry)
+ *
+ * Licensed under the Apache License, Version 2.0. You may obtain a copy of the
+ * License at http://www.apache.org/licenses/LICENSE-2.0
+ */
 package de.codeministry.leadgen.score;
 
 /**
@@ -22,8 +30,7 @@ package de.codeministry.leadgen.score;
  *     writing the digest. `scored` and `submitted` are never both non-zero: batching is on
  *     for a run or it is not.
  */
-public record ScoringReport(
-        int considered, int scored, int unscored, int shortlisted, int review, int submitted) {
+public record ScoringReport(int considered, int scored, int unscored, int shortlisted, int review, int submitted) {
 
     public static ScoringReport nothing() {
         return new ScoringReport(0, 0, 0, 0, 0, 0);

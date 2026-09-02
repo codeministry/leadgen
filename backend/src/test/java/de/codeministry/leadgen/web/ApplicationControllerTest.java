@@ -1,3 +1,11 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright 2026 Marcello Muscara (codeministry)
+ *
+ * Licensed under the Apache License, Version 2.0. You may obtain a copy of the
+ * License at http://www.apache.org/licenses/LICENSE-2.0
+ */
 package de.codeministry.leadgen.web;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -86,8 +94,21 @@ class ApplicationControllerTest {
 
     private static ApplicationView view(ApplicationStatus status) {
         return new ApplicationView(
-                1L, 2L, status, "Senior Java Entwickler (m/w/d)", "Etengo AG", "FreelancerMap",
-                "https://example.invalid/x", 88, null, null, LocalDate.of(2026, 9, 1), null, false,
-                null, null, Instant.now());
+                1L,
+                2L,
+                status,
+                "Senior Java Entwickler (m/w/d)",
+                "Acme Consulting GmbH",
+                "portal-a",
+                "https://example.invalid/x",
+                88,
+                null,
+                null,
+                LocalDate.of(2026, 9, 1),
+                null,
+                false,
+                null,
+                null,
+                Instant.now());
     }
 }

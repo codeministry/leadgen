@@ -1,52 +1,52 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8">
-  <title>Lead Generation</title>
-  <base href="/">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="light dark">
-  <!-- Both icons, and the header's logo-mark.png, come from the gitignored
+  <head>
+    <meta charset="utf-8" />
+    <title>Lead Generation</title>
+    <base href="/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <!-- Both icons, and the header's logo-mark.png, come from the gitignored
        `public/logo.png` via `frontend/tools/build-favicon.sh`, which is the only
        thing that knows where the ochre spout sits in that bitmap. Regenerate,
        never hand-edit. -->
-  <link rel="icon" type="image/x-icon" href="favicon.ico" sizes="16x16 32x32 48x48">
-  <link rel="apple-touch-icon" href="favicon-256.png">
-  <script>
-    // Runs before the stylesheet resolves, so the page never paints in the wrong
-    // theme and then corrects itself. "System" is the *absence* of the attribute:
-    // daisyUI emits lg-dark under `:root:not([data-theme])` inside a
-    // prefers-color-scheme query, so removing it is what "follow the OS" means.
-    // Keep the key in step with THEME_STORAGE_KEY in core/theme/theme.model.ts.
-    (function () {
-      try {
-        var preference = localStorage.getItem('lg-theme');
-        if (preference === 'light' || preference === 'dark') {
-          document.documentElement.setAttribute('data-theme', 'lg-' + preference);
-        } else {
-          document.documentElement.removeAttribute('data-theme');
+    <link rel="icon" type="image/x-icon" href="favicon.ico" sizes="16x16 32x32 48x48" />
+    <link rel="apple-touch-icon" href="favicon-256.png" />
+    <script>
+      // Runs before the stylesheet resolves, so the page never paints in the wrong
+      // theme and then corrects itself. "System" is the *absence* of the attribute:
+      // daisyUI emits lg-dark under `:root:not([data-theme])` inside a
+      // prefers-color-scheme query, so removing it is what "follow the OS" means.
+      // Keep the key in step with THEME_STORAGE_KEY in core/theme/theme.model.ts.
+      (function () {
+        try {
+          var preference = localStorage.getItem('lg-theme');
+          if (preference === 'light' || preference === 'dark') {
+            document.documentElement.setAttribute('data-theme', 'lg-' + preference);
+          } else {
+            document.documentElement.removeAttribute('data-theme');
+          }
+        } catch (error) {
+          // Private mode or storage disabled. Fall through to the media query.
         }
-      } catch (error) {
-        // Private mode or storage disabled. Fall through to the media query.
-      }
 
-      // `lang` for the first paint. Not a flash of the wrong language — nothing is
-      // painted yet — but the attribute a screen reader picks its voice from and the
-      // browser hyphenates by, and it is wrong on every page until something sets it.
-      // Keep the key in step with LANGUAGE_STORAGE_KEY in core/i18n/language.model.ts.
-      try {
-        var language = localStorage.getItem('lg-language');
-        if (language !== 'en' && language !== 'de') {
-          language = (navigator.language || 'en').toLowerCase().split('-')[0];
+        // `lang` for the first paint. Not a flash of the wrong language — nothing is
+        // painted yet — but the attribute a screen reader picks its voice from and the
+        // browser hyphenates by, and it is wrong on every page until something sets it.
+        // Keep the key in step with LANGUAGE_STORAGE_KEY in core/i18n/language.model.ts.
+        try {
+          var language = localStorage.getItem('lg-language');
+          if (language !== 'en' && language !== 'de') {
+            language = (navigator.language || 'en').toLowerCase().split('-')[0];
+          }
+          document.documentElement.lang = language === 'de' ? 'de' : 'en';
+        } catch (error) {
+          // Same as above: the default in the markup stands.
         }
-        document.documentElement.lang = language === 'de' ? 'de' : 'en';
-      } catch (error) {
-        // Same as above: the default in the markup stands.
-      }
-    })();
-  </script>
-</head>
-<body>
-  <lg-root></lg-root>
-</body>
+      })();
+    </script>
+  </head>
+  <body>
+    <lg-root></lg-root>
+  </body>
 </html>

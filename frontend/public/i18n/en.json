@@ -37,7 +37,7 @@
     "de": "German"
   },
   "funnel": {
-    "extracted": "Extracted",
+    "extracted": "In the archive",
     "survived": "Survived the filter"
   },
   "field": {
@@ -68,6 +68,7 @@
     "unitOffers": "offers",
     "unitRows": "rows",
     "fromLastRun": "From the last run",
+    "fromRecordedRun": "From the last recorded run",
     "measuredBaseline": "Everything in the archive, not one run",
     "repeats": "{count, plural, one {# listing appeared in two documents} other {# listings appeared in two documents}}",
     "noRepeats": "Every extracted offer was a new row",
@@ -75,9 +76,11 @@
     "noRunYetHint": "Run ingest from the header. It reads every enabled source once and reports what each document gave up.",
     "shareOfIntake": "{percent} % of what came in",
     "hardFilter": "The hard filter",
-    "hardFilterNote": "Seven stages, in the order they run. Each one states what it removed; the rail narrows to what is left.",
+    "hardFilterNote": "Six stages, in the order they run. Each one states what it removed; the rail narrows to what is left.",
     "nothingFiltered": "Nothing has been filtered yet. Run ingest, and this counts the archive.",
     "lastRun": "Last ingest run",
+    "recordedRun": "Recorded by the pipeline, finished {when}. Nothing has been run from this browser.",
+    "recordedRunLimits": "A recorded run is counted per source. Which document came up short is known only while the run is being watched.",
     "mismatch": "{count, plural, one {# document extracted fewer offers than it announced} other {# documents extracted fewer offers than they announced}}. A selector that stopped matching looks exactly like a quiet market.",
     "colSource": "Source",
     "colDocuments": "Documents",
@@ -325,6 +328,7 @@
     "rulesLoad": "The rules did not load.",
     "queueLoad": "The review queue did not load.",
     "ingestRun": "The ingest run did not answer.",
+    "lastRun": "The last run could not be read.",
     "rescore": "The offer was not scored again.",
     "analyticsLoad": "The analytics did not load.",
     "scoringModelsLoad": "The scoring models did not load.",

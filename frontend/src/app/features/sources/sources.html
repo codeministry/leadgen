@@ -1,66 +1,71 @@
-<lg-page-header
-  [title]="'sources.title' | transloco"
-  [subtitle]="'sources.subtitle' | transloco"
-/>
+<lg-page-header [title]="'sources.title' | transloco" [subtitle]="'sources.subtitle' | transloco" />
 
 @if (store.sources().length > 0) {
-<div class="table-scroll">
-  <table class="table">
-    <thead>
-      <tr>
-        <th scope="col">{{ 'sources.colSource' | transloco }}</th>
-        <th scope="col">{{ 'sources.colLayer' | transloco }}</th>
-        <th scope="col">{{ 'sources.colLastRun' | transloco }}</th>
-        <th scope="col" class="num">{{ 'sources.colDocuments' | transloco }}</th>
-        <th scope="col" class="num">{{ 'sources.colExtracted' | transloco }}</th>
-        <th scope="col" class="num">{{ 'sources.colSurvived' | transloco }}</th>
-        <th scope="col" class="num">{{ 'sources.colHitRate' | transloco }}</th>
-        <th scope="col">{{ 'sources.colAnnounced' | transloco }}</th>
-      </tr>
-    </thead>
-    <tbody>
-      @for (source of store.sources(); track source.id) {
-        <tr [class.off]="!source.enabled">
-          <th scope="row">
-            <span class="id">
-              <lg-icon [name]="iconFor(source.kind)" [size]="16" />
-              <span class="type-small">{{ source.id }}</span>
-              @if (!source.enabled) {
-                <lg-badge tone="ghost" [outline]="true">{{ 'sources.disabled' | transloco }}</lg-badge>
-              }
-            </span>
-          </th>
-          <td>
-            <!-- Which layer won is what explains a surprising run: the jar's
-                 defaults, or a file in the config directory that overrode them. -->
-            @if (source.layer === 'default') {
-              <lg-badge tone="ghost" [outline]="true">{{ 'sources.layerDefault' | transloco }}</lg-badge>
-            } @else {
-              <lg-badge tone="primary" [outline]="true">{{ 'sources.layerConfig' | transloco }}</lg-badge>
-            }
-          </td>
-          <td class="type-mono-data">{{ day(source.lastRunAt) }}</td>
-          <td class="type-mono-data num">{{ source.documents }}</td>
-          <td class="type-mono-data num">{{ source.extracted }}</td>
-          <td class="type-mono-data num">{{ source.survived }}</td>
-          <td class="type-mono-data num">{{ hitRate(source) }}</td>
-          <td>
-            @if (shortfall(source) === null) {
-              <span class="type-small text-muted">{{ 'sources.noCount' | transloco }}</span>
-            } @else if (shortfall(source) === 0) {
-              <span class="type-small ok">
-                <lg-icon name="circle-check" [size]="14" />
-                {{ 'sources.matches' | transloco }}
-              </span>
-            } @else {
-              <lg-badge tone="warning">{{ 'sources.missing' | transloco: { count: shortfall(source) } }}</lg-badge>
-            }
-          </td>
+  <div class="table-scroll">
+    <table class="table">
+      <thead>
+        <tr>
+          <th scope="col">{{ 'sources.colSource' | transloco }}</th>
+          <th scope="col">{{ 'sources.colLayer' | transloco }}</th>
+          <th scope="col">{{ 'sources.colLastRun' | transloco }}</th>
+          <th scope="col" class="num">{{ 'sources.colDocuments' | transloco }}</th>
+          <th scope="col" class="num">{{ 'sources.colExtracted' | transloco }}</th>
+          <th scope="col" class="num">{{ 'sources.colSurvived' | transloco }}</th>
+          <th scope="col" class="num">{{ 'sources.colHitRate' | transloco }}</th>
+          <th scope="col">{{ 'sources.colAnnounced' | transloco }}</th>
         </tr>
-      }
-    </tbody>
-  </table>
-</div>
+      </thead>
+      <tbody>
+        @for (source of store.sources(); track source.id) {
+          <tr [class.off]="!source.enabled">
+            <th scope="row">
+              <span class="id">
+                <lg-icon [name]="iconFor(source.kind)" [size]="16" />
+                <span class="type-small">{{ source.id }}</span>
+                @if (!source.enabled) {
+                  <lg-badge tone="ghost" [outline]="true">{{
+                    'sources.disabled' | transloco
+                  }}</lg-badge>
+                }
+              </span>
+            </th>
+            <td>
+              <!-- Which layer won is what explains a surprising run: the jar's
+                 defaults, or a file in the config directory that overrode them. -->
+              @if (source.layer === 'default') {
+                <lg-badge tone="ghost" [outline]="true">{{
+                  'sources.layerDefault' | transloco
+                }}</lg-badge>
+              } @else {
+                <lg-badge tone="primary" [outline]="true">{{
+                  'sources.layerConfig' | transloco
+                }}</lg-badge>
+              }
+            </td>
+            <td class="type-mono-data">{{ day(source.lastRunAt) }}</td>
+            <td class="type-mono-data num">{{ source.documents }}</td>
+            <td class="type-mono-data num">{{ source.extracted }}</td>
+            <td class="type-mono-data num">{{ source.survived }}</td>
+            <td class="type-mono-data num">{{ hitRate(source) }}</td>
+            <td>
+              @if (shortfall(source) === null) {
+                <span class="type-small text-muted">{{ 'sources.noCount' | transloco }}</span>
+              } @else if (shortfall(source) === 0) {
+                <span class="type-small ok">
+                  <lg-icon name="circle-check" [size]="14" />
+                  {{ 'sources.matches' | transloco }}
+                </span>
+              } @else {
+                <lg-badge tone="warning">{{
+                  'sources.missing' | transloco: { count: shortfall(source) }
+                }}</lg-badge>
+              }
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
 }
 
 @if (store.sources().length === 0 && !store.loading()) {

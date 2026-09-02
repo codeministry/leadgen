@@ -9,7 +9,8 @@
   <p class="type-small response">
     {{
       'analytics.response'
-        | transloco: { sent: applications().response.sent, answered: applications().response.answered }
+        | transloco
+          : { sent: applications().response.sent, answered: applications().response.answered }
     }}
     @if (median(); as median) {
       · {{ 'analytics.medianDays' | transloco: { days: median } }}

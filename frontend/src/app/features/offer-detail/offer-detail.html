@@ -28,10 +28,7 @@
 
   @if (entry.offer.archivedAt) {
     <p class="type-small archived-note">
-      {{
-        'detail.archivedOn'
-          | transloco: { date: entry.offer.archivedAt | date: 'dd.MM.yyyy' }
-      }}
+      {{ 'detail.archivedOn' | transloco: { date: entry.offer.archivedAt | date: 'dd.MM.yyyy' } }}
       @if (entry.offer.archiveSource === 'AGE') {
         {{ 'detail.archivedByAge' | transloco }}
       }
@@ -80,7 +77,8 @@
           >
             <lg-icon name="refresh" [size]="14" />
             {{
-              (store.rescoring() === entry.offer.id ? 'detail.rescoring' : 'detail.rescore') | transloco
+              (store.rescoring() === entry.offer.id ? 'detail.rescoring' : 'detail.rescore')
+                | transloco
             }}
           </button>
         }
@@ -162,7 +160,11 @@
           Content-Disposition, so there is no blob to hold, no api seam to add, and it
           behaves identically through the dev proxy and through nginx.
         -->
-        <a class="btn btn-sm btn-outline package-download" [href]="packageUrl(entry.offer.id)" download>
+        <a
+          class="btn btn-sm btn-outline package-download"
+          [href]="packageUrl(entry.offer.id)"
+          download
+        >
           <lg-icon name="download" [size]="16" />
           {{ 'detail.downloadPackage' | transloco }}
         </a>

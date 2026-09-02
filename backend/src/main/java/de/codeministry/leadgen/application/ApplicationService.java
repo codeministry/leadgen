@@ -1,3 +1,11 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright 2026 Marcello Muscara (codeministry)
+ *
+ * Licensed under the Apache License, Version 2.0. You may obtain a copy of the
+ * License at http://www.apache.org/licenses/LICENSE-2.0
+ */
 package de.codeministry.leadgen.application;
 
 import java.time.LocalDate;
@@ -40,29 +48,31 @@ public class ApplicationService {
 
     public List<ApplicationView> board() {
         LocalDate today = LocalDate.now();
-        return jdbc.sql(BOARD).query((rs, row) -> {
-            LocalDate followUp = rs.getObject("follow_up_on", LocalDate.class);
-            var status = ApplicationStatus.valueOf(rs.getString("status"));
-            return new ApplicationView(
-                    rs.getLong("id"),
-                    rs.getLong("offer_id"),
-                    status,
-                    rs.getString("title"),
-                    rs.getString("agency"),
-                    rs.getString("portal"),
-                    rs.getString("url"),
-                    rs.getObject("score_value", Integer.class),
-                    rs.getObject("rate_eur", java.math.BigDecimal.class),
-                    rs.getString("package_dir"),
-                    rs.getObject("sent_on", LocalDate.class),
-                    followUp,
-                    // Closed applications never chase: a lost project with a stale reminder
-                    // is how a follow-up list stops being read.
-                    followUp != null && !status.isClosed() && !followUp.isAfter(today),
-                    rs.getString("outcome"),
-                    rs.getString("note"),
-                    instant(rs, "updated_at"));
-        }).list();
+        return jdbc.sql(BOARD)
+                .query((rs, row) -> {
+                    LocalDate followUp = rs.getObject("follow_up_on", LocalDate.class);
+                    var status = ApplicationStatus.valueOf(rs.getString("status"));
+                    return new ApplicationView(
+                            rs.getLong("id"),
+                            rs.getLong("offer_id"),
+                            status,
+                            rs.getString("title"),
+                            rs.getString("agency"),
+                            rs.getString("portal"),
+                            rs.getString("url"),
+                            rs.getObject("score_value", Integer.class),
+                            rs.getObject("rate_eur", java.math.BigDecimal.class),
+                            rs.getString("package_dir"),
+                            rs.getObject("sent_on", LocalDate.class),
+                            followUp,
+                            // Closed applications never chase: a lost project with a stale reminder
+                            // is how a follow-up list stops being read.
+                            followUp != null && !status.isClosed() && !followUp.isAfter(today),
+                            rs.getString("outcome"),
+                            rs.getString("note"),
+                            instant(rs, "updated_at"));
+                })
+                .list();
     }
 
     public Optional<ApplicationView> find(long id) {

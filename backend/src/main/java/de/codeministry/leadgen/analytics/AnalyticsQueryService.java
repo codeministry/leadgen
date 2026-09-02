@@ -1,10 +1,17 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright 2026 Marcello Muscara (codeministry)
+ *
+ * Licensed under the Apache License, Version 2.0. You may obtain a copy of the
+ * License at http://www.apache.org/licenses/LICENSE-2.0
+ */
 package de.codeministry.leadgen.analytics;
 
 import de.codeministry.leadgen.application.ApplicationStatus;
 import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.config.model.MatchingRules;
 import de.codeministry.leadgen.filter.FilterStage;
-import de.codeministry.leadgen.offer.FunnelView;
 import de.codeministry.leadgen.offer.OfferQueryService;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -532,8 +539,8 @@ public class AnalyticsQueryService {
                         new MarketView.Location(rs.getString("location"), rs.getInt("projects"), rs.getInt("passed")))
                 .list();
         var reach = jdbc.sql(REACH)
-                .query((rs, index) -> new MarketView.Reach(
-                        rs.getInt("out_of_reach"), rs.getInt("abroad"), rs.getInt("remote_share")))
+                .query((rs, index) ->
+                        new MarketView.Reach(rs.getInt("out_of_reach"), rs.getInt("abroad"), rs.getInt("remote_share")))
                 .single();
         var stageMix = jdbc.sql(STAGE_MIX)
                 .param("zone", zone)
@@ -557,8 +564,8 @@ public class AnalyticsQueryService {
         for (int bucket = 1; bucket <= 100 / SCORE_BUCKET_SIZE; bucket++) {
             // Empty buckets are listed, for the same reason the funnel lists a stage that
             // removed nothing: a gap in the middle of a distribution is information.
-            buckets.add(new ScoreDistribution.Bucket(
-                    (bucket - 1) * SCORE_BUCKET_SIZE, counted.getOrDefault(bucket, 0)));
+            buckets.add(
+                    new ScoreDistribution.Bucket((bucket - 1) * SCORE_BUCKET_SIZE, counted.getOrDefault(bucket, 0)));
         }
 
         MatchingRules.Scoring.Thresholds thresholds =
@@ -634,21 +641,24 @@ public class AnalyticsQueryService {
     }
 
     private RunSeries runs(String zone, List<RunSeries.Pass> passes, Instant since) {
-        return new RunSeries(jdbc.sql(RUNS)
-                .param("zone", zone)
-                .query((rs, index) -> {
-                    int announced = rs.getInt("announced");
-                    return new RunSeries.Day(
-                            rs.getObject("day", LocalDate.class),
-                            rs.getInt("runs"),
-                            rs.getInt("documents"),
-                            rs.getInt("extracted"),
-                            rs.getInt("written"),
-                            // Null means no source stated a count, which is not the same as
-                            // a source that announced none.
-                            rs.wasNull() ? null : announced);
-                })
-                .list(), passes, since);
+        return new RunSeries(
+                jdbc.sql(RUNS)
+                        .param("zone", zone)
+                        .query((rs, index) -> {
+                            int announced = rs.getInt("announced");
+                            return new RunSeries.Day(
+                                    rs.getObject("day", LocalDate.class),
+                                    rs.getInt("runs"),
+                                    rs.getInt("documents"),
+                                    rs.getInt("extracted"),
+                                    rs.getInt("written"),
+                                    // Null means no source stated a count, which is not the same as
+                                    // a source that announced none.
+                                    rs.wasNull() ? null : announced);
+                        })
+                        .list(),
+                passes,
+                since);
     }
 
     private static ScaleInUse scale(ResultSet rs, int index) throws SQLException {

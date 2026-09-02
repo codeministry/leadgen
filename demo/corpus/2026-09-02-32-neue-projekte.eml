@@ -1,0 +1,620 @@
+From: newsletter@example.org
+To: demo@example.org
+Subject: 32 neue Projekte sind da!
+Date: Wed, 02 Sep 2026 07:00:00 +0200
+MIME-Version: 1.0
+Content-Type: multipart/alternative; boundary="demo"
+
+--demo
+Content-Type: text/plain; charset="utf-8"
+
+Die Textfassung dieses Newsletters. Sie trägt keine der Auszeichnungen, an denen die
+Extraktion arbeitet — ein Connector, der den ersten Teil statt des HTML-Teils nimmt,
+findet hier null Angebote in einer vollkommen intakten Mail.
+
+--demo
+Content-Type: text/html; charset="utf-8"
+
+<html><body>
+<div class="tag-group">
+  <h2 class="tag-header">Embedded &#43; C</h2>
+  <div class="job-card">
+    <h3 class="job-title">Entwickler Embedded Linux E-Commerce – Firmware (m/f/d)</h3>
+    <div class="job-meta">
+      <span>&#127970; Umbrella IT Partner GmbH</span>
+      <span>&#128205; Bonn und Umgebung</span>
+      <span>&#128197; 02.09.2026 &#8211; 03:14 Uhr</span>
+      <span>&#128279; portal-e</span>
+    </div>
+    <div class="job-description">
+      <p>Branche: E-Commerce. Für ein Steuergerät im industriellen Umfeld wird die Firmware weiterentwickelt.</p>
+      <p><strong>Ihre Aufgaben</strong></p>
+      <ul><li>Entwicklung hardwarenaher Module</li><li>Inbetriebnahme am Prüfstand</li></ul>
+      <p><strong>Ihr Profil</strong></p>
+      <ul><li>Erfahrung mit Echtzeitbetriebssystemen</li><li>C, C++</li></ul>
+      <p>Start: kurzfristig<br>Laufzeit: 12 Monate mit Option auf Verlängerung<br>Auslastung: 4 Tage pro Woche</p>
+    </div>
+    <a href="https://tracker.example/proxy?target=https%3A%2F%2Fportal-e.example%2Fproject%2Fentwickler-embedded-linux-e-commerce-firmware-m-f-d-129439&amp;email=demo%2540example.org" class="job-link">Zum Projekt</a>
+  </div>
+  <div class="job-card">
+    <h3 class="job-title">Firmware Entwickler Industrie – RTOS (m/f/d)</h3>
+    <div class="job-meta">
+      <span>&#127970; Hooli Engineering AG</span>
+      <span>&#128205; Remote und Köln</span>
+      <span>&#128197; 01.09.2026 &#8211; 13:10 Uhr</span>
+      <span>&#128279; portal-c</span>
+    </div>
+    <div class="job-description">
+      <p>Branche: Industrie. Für ein Steuergerät im industriellen Umfeld wird die Firmware weiterentwickelt.</p>
+      <p><strong>Ihre Aufgaben</strong></p>
+      <ul><li>Inbetriebnahme am Prüfstand</li><li>Entwicklung hardwarenaher Module</li></ul>
+      <p><strong>Ihr Profil</strong></p>
+      <ul><li>C, C++</li><li>Erfahrung mit Echtzeitbetriebssystemen</li></ul>
+      <p>Start: kurzfristig<br>Laufzeit: 9 Monate mit Option auf Verlängerung<br>Auslastung: 80 %</p>
+    </div>
+    <a href="https://tracker.example/proxy?target=https%3A%2F%2Fportal-c.example%2Fproject%2Ffirmware-entwickler-industrie-rtos-m-f-d-129776&amp;email=demo%2540example.org" class="job-link">Zum Projekt</a>
+  </div>
+  <div class="job-card">
+    <h3 class="job-title">Firmware Entwickler Handel – Embedded Linux</h3>
+    <div class="job-meta">
+      <span>&#127970; Contoso Services GmbH</span>
+      <span>&#128205; Remote (deutschlandweit)</span>
+      <span>&#128197; 01.09.2026 &#8211; 19:11 Uhr</span>
+      <span>&#128279; portal-b</span>
+    </div>
+    <div class="job-description">
+      <p>Branche: Handel. Für ein Steuergerät im industriellen Umfeld wird die Firmware weiterentwickelt.</p>
+      <p><strong>Ihre Aufgaben</strong></p>
+      <ul><li>Entwicklung hardwarenaher Module</li><li>Inbetriebnahme am Prüfstand</li></ul>
+      <p><strong>Ihr Profil</strong></p>
+      <ul><li>C, C++</li><li>Erfahrung mit Echtzeitbetriebssystemen</li></ul>
+      <p>Start: zum Monatsbeginn<br>Laufzeit: 12 Monate mit Option auf Verlängerung<br>Auslastung: 80 %<br>Remote-Anteil: 40 %</p>
+    </div>
+    <a href="https://tracker.example/proxy?target=https%3A%2F%2Fportal-b.example%2Fproject%2Ffirmware-entwickler-handel-embedded-linux-168922&amp;email=demo%2540example.org" class="job-link">Zum Projekt</a>
+  </div>
+  <div class="job-card">
+    <h3 class="job-title">Firmware Entwickler E-Commerce (m/w/d)</h3>
+    <div class="job-meta">
+      <span>&#127970; Soylent Digital GmbH</span>
+      <span>&#128205; Remote und Leipzig</span>
+      <span>&#128197; 01.09.2026 &#8211; 22:12 Uhr</span>
+      <span>&#128279; portal-a</span>
+    </div>
+    <div class="job-description">
+      <p>Branche: E-Commerce. Für ein Steuergerät im industriellen Umfeld wird die Firmware weiterentwickelt.</p>
+      <p><strong>Ihre Aufgaben</strong></p>
+      <ul><li>Inbetriebnahme am Prüfstand</li><li>Entwicklung hardwarenaher Module</li></ul>
+      <p><strong>Ihr Profil</strong></p>
+      <ul><li>Erfahrung mit Echtzeitbetriebssystemen</li><li>C, C++</li></ul>
+      <p>Start: zum Monatsbeginn<br>Laufzeit: 6 Monate mit Option auf Verlängerung<br>Auslastung: 4 Tage pro Woche</p>
+    </div>
+    <a href="https://tracker.example/proxy?target=https%3A%2F%2Fportal-a.example%2Fproject%2Ffirmware-entwickler-e-commerce-m-w-d-882069&amp;email=demo%2540example.org" class="job-link">Zum Projekt</a>
+  </div>
+  <div class="job-card">
+    <h3 class="job-title">Entwickler Embedded Linux Telekommunikation – RTOS</h3>
+    <div class="job-meta">
+      <span>&#127970; Umbrella IT Partner GmbH</span>
+      <span>&#128205; Remote</span>
+      <span>&#128197; 02.09.2026 &#8211; 02:39 Uhr</span>
+      <span>&#128279; portal-b</span>
+    </div>
+    <div class="job-description">
+      <p>Branche: Telekommunikation. Für ein Steuergerät im industriellen Umfeld wird die Firmware weiterentwickelt.</p>
+      <p><strong>Ihre Aufgaben</strong></p>
+      <ul><li>Inbetriebnahme am Prüfstand</li><li>Entwicklung hardwarenaher Module</li></ul>
+      <p><strong>Ihr Profil</strong></p>
+      <ul><li>C, C++</li><li>Erfahrung mit Echtzeitbetriebssystemen</li></ul>
+      <p>Start: zum Monatsbeginn<br>Laufzeit: 9 Monate mit Option auf Verlängerung<br>Auslastung: 80 %</p>
+    </div>
+    <a href="https://tracker.example/proxy?target=https%3A%2F%2Fportal-b.example%2Fproject%2Fentwickler-embedded-linux-telekommunikation-rtos-113048&amp;email=demo%2540example.org" class="job-link">Zum Projekt</a>
+  </div>
+</div>
+<div class="tag-group">
+  <h2 class="tag-header">Data Engineering &#43; Python</h2>
+  <div class="job-card">
+    <h3 class="job-title">Machine Learning Engineer Handel – dbt (w/m/d)</h3>
+    <div class="job-meta">
+      <span>&#127970; Vandelay Industries GmbH</span>
+      <span>&#128205; Remote und Bonn</span>
+      <span>&#128197; 01.09.2026 &#8211; 12:47 Uhr</span>
+      <span>&#128279; portal-f</span>
+    </div>
+    <div class="job-description">
+      <p>Branche: Handel. Ein bestehendes Data Warehouse wird um automatisierte Strecken ergänzt.</p>
+      <p><strong>Ihre Aufgaben</strong></p>
+      <ul><li>Qualitätssicherung der gelieferten Daten</li><li>Aufbau von Datenstrecken</li></ul>
+      <p><strong>Ihr Profil</strong></p>
+      <ul><li>Python, dbt</li><li>SQL auf Analyseniveau</li></ul>
+      <p>Start: nach Absprache<br>Laufzeit: 6 Monate mit Option auf Verlängerung<br>Auslastung: 80 %</p>
+    </div>
+    <a href="https://tracker.example/proxy?target=https%3A%2F%2Fportal-f.example%2Fproject%2Fmachine-learning-engineer-handel-dbt-w-m-d-310506&amp;email=demo%2540example.org" class="job-link">Zum Projekt</a>
+  </div>
+  <div class="job-card">
+    <h3 class="job-title">Machine Learning Engineer Handel – dbt (w/m/d)</h3>
+    <div class="job-meta">
+      <span>&#127970; Hooli Engineering AG</span>
+      <span>&#128205; Homeoffice</span>
+      <span>&#128197; 02.09.2026 &#8211; 06:54 Uhr</span>
+      <span>&#128279; portal-e</span>
+    </div>
+    <div class="job-description">
+      <p>Branche: Handel. Ein bestehendes Data Warehouse wird um automatisierte Strecken ergänzt.</p>
+      <p><strong>Ihre Aufgaben</strong></p>
+      <ul><li>Qualitätssicherung der gelieferten Daten</li><li>Aufbau von Datenstrecken</li></ul>
+      <p><strong>Ihr Profil</strong></p>
+      <ul><li>Python, dbt</li><li>SQL auf Analyseniveau</li></ul>
+      <p>Start: ab sofort<br>Laufzeit: 9 Monate mit Option auf Verlängerung<br>Auslastung: 4 Tage pro Woche</p>
+    </div>
+    <a href="https://tracker.example/proxy?target=https%3A%2F%2Fportal-e.example%2Fproject%2Fmachine-learning-engineer-handel-dbt-w-m-d-381648&amp;email=demo%2540example.org" class="job-link">Zum Projekt</a>
+  </div>
+  <div class="job-card">
+    <h3 class="job-title">Data Scientist Öffentlicher Dienst – Snowflake</h3>
+    <div class="job-meta">
+      <span>&#127970; Acme Consulting GmbH</span>
+      <span>&#128205; Remote und Stuttgart</span>
+      <span>&#128197; 02.09.2026 &#8211; 06:54 Uhr</span>
+      <span>&#128279; portal-f</span>
+    </div>
+    <div class="job-description">
+      <p>Branche: Öffentlicher Dienst. Ein bestehendes Data Warehouse wird um automatisierte Strecken ergänzt.</p>
+      <p><strong>Ihre Aufgaben</strong></p>
+      <ul><li>Qualitätssicherung der gelieferten Daten</li><li>Aufbau von Datenstrecken</li></ul>
+      <p><strong>Ihr Profil</strong></p>
+      <ul><li>Python, dbt</li><li>SQL auf Analyseniveau</li></ul>
+      <p>Start: zum Monatsbeginn<br>Laufzeit: 9 Monate mit Option auf Verlängerung<br>Auslastung: Vollzeit</p>
+    </div>
+    <a href="https://tracker.example/proxy?target=https%3A%2F%2Fportal-f.example%2Fproject%2Fdata-scientist-oeffentlicher-dienst-snowflake-186889&amp;email=demo%2540example.org" class="job-link">Zum Projekt</a>
+  </div>
+</div>
+<div class="tag-group">
+  <h2 class="tag-header">SAP &#43; ABAP</h2>
+  <div class="job-card">
+    <h3 class="job-title">SAP S/4HANA Entwickler E-Commerce – S/4HANA (m/f/d)</h3>
+    <div class="job-meta">
+      <span>&#127970; Vandelay Industries GmbH</span>
+      <span>&#128205; Remote</span>
+      <span>&#128197; 01.09.2026 &#8211; 23:23 Uhr</span>
+      <span>&#128279; portal-d</span>
+    </div>
+    <div class="job-description">
+      <p>Branche: E-Commerce. Im Rahmen einer S/4HANA-Umstellung wird das Entwicklungsteam verstärkt.</p>
+      <p><strong>Ihre Aufgaben</strong></p>
+      <ul><li>Anpassung bestehender Reports</li><li>Entwicklung kundeneigener Erweiterungen</li></ul>
+      <p><strong>Ihr Profil</strong></p>
+      <ul><li>ABAP OO</li><li>Erfahrung mit S/4HANA</li></ul>
+      <p>Start: zum Monatsbeginn<br>Laufzeit: 12 Monate mit Option auf Verlängerung<br>Auslastung: 80 %</p>
+    </div>
+    <a href="https://tracker.example/proxy?target=https%3A%2F%2Fportal-d.example%2Fproject%2Fsap-s-4hana-entwickler-e-commerce-s-4hana-m-f-d-662408&amp;email=demo%2540example.org" class="job-link">Zum Projekt</a>
+  </div>
+  <div class="job-card">
+    <h3 class="job-title">SAP S/4HANA Entwickler Gesundheitswesen – ABAP OO (m/w/d)</h3>
+    <div class="job-meta">
+      <span>&#127970; Umbrella IT Partner GmbH</span>
+      <span>&#128205; Leverkusen</span>
+      <span>&#128197; 01.09.2026 &#8211; 19:20 Uhr</span>
+      <span>&#128279; portal-a</span>
+    </div>
+    <div class="job-description">
+      <p>Branche: Gesundheitswesen. Im Rahmen einer S/4HANA-Umstellung wird das Entwicklungsteam verstärkt.</p>
+      <p><strong>Ihre Aufgaben</strong></p>
+      <ul><li>Entwicklung kundeneigener Erweiterungen</li><li>Anpassung bestehender Reports</li></ul>
+      <p><strong>Ihr Profil</strong></p>
+      <ul><li>ABAP OO</li><li>Erfahrung mit S/4HANA</li></ul>
+      <p>Start: kurzfristig<br>Laufzeit: 12 Monate mit Option auf Verlängerung<br>Auslastung: 80 %</p>
+    </div>
+    <a href="https://tracker.example/proxy?target=https%3A%2F%2Fportal-a.example%2Fproject%2Fsap-s-4hana-entwickler-gesundheitswesen-abap-oo-m-w-d-335246&amp;email=demo%2540example.org" class="job-link">Zum Projekt</a>
+  </div>
+  <div class="job-card">
+    <h3 class="job-title">SAP S/4HANA Entwickler Automotive – ABAP OO</h3>
+    <div class="job-meta">
+      <span>&#127970; Globex Solutions GmbH</span>
+      <span>&#128205; Remote</span>
+      <span>&#128197; 02.09.2026 &#8211; 04:32 Uhr</span>
+      <span>&#128279; portal-b</span>
+    </div>
+    <div class="job-description">
+      <p>Branche: Automotive. Im Rahmen einer S/4HANA-Umstellung wird das Entwicklungsteam verstärkt.</p>
+      <p><strong>Ihre Aufgaben</strong></p>
+      <ul><li>Entwicklung kundeneigener Erweiterungen</li><li>Anpassung bestehender Reports</li></ul>
+      <p><strong>Ihr Profil</strong></p>
+      <ul><li>Erfahrung mit S/4HANA</li><li>ABAP OO</li></ul>
+      <p>Start: kurzfristig<br>Laufzeit: 9 Monate mit Option auf Verlängerung<br>Auslastung: 80 %</p>
+    </div>
+    <a href="https://tracker.example/proxy?target=https%3A%2F%2Fportal-b.example%2Fproject%2Fsap-s-4hana-entwickler-automotive-abap-oo-861975&amp;email=demo%2540example.org" class="job-link">Zum Projekt</a>
+  </div>
+  <div class="job-card">
+    <h3 class="job-title">SAP S/4HANA Entwickler Energieversorgung</h3>
+    <div class="job-meta">
+      <span>&#128205; Aachen</span>
+      <span>&#128197; 02.09.2026 &#8211; 01:27 Uhr</span>
+      <span>&#128279; portal-e</span>
+    </div>
+    <div class="job-description">
+      <p>Branche: Energieversorgung. Im Rahmen einer S/4HANA-Umstellung wird das Entwicklungsteam verstärkt.</p>
+      <p><strong>Ihre Aufgaben</strong></p>
+      <ul><li>Entwicklung kundeneigener Erweiterungen</li><li>Anpassung bestehender Reports</li></ul>
+      <p><strong>Ihr Profil</strong></p>
+      <ul><li>ABAP OO</li><li>Erfahrung mit S/4HANA</li></ul>
+      <p>Start: zum Monatsbeginn<br>Laufzeit: 12 Monate mit Option auf Verlängerung<br>Auslastung: 4 Tage pro Woche<br>Remote-Anteil: 80 %</p>
+    </div>
+    <a href="https://tracker.example/proxy?target=https%3A%2F%2Fportal-e.example%2Fproject%2Fsap-s-4hana-entwickler-energieversorgung-367945&amp;email=demo%2540example.org" class="job-link">Zum Projekt</a>
+  </div>
+</div>
+<div class="tag-group">
+  <h2 class="tag-header">Microservices &#43; Kafka</h2>
+  <div class="job-card">
+    <h3 class="job-title">Softwareentwickler Kafka Medien – Integrationsschicht</h3>
+    <div class="job-meta">
+      <span>&#127970; Hooli Engineering AG</span>
+      <span>&#128205; Dresden und Umgebung</span>
+      <span>&#128197; 01.09.2026 &#8211; 11:26 Uhr</span>
+      <span>&#128279; portal-c</span>
+    </div>
+    <div class="job-description">
+      <p>Branche: Medien. Die Auftragsverarbeitung eines Handelsunternehmens wird auf ereignisgetriebene Verarbeitung umgestellt.</p>
+      <p><strong>Ihre Aufgaben</strong></p>
+      <ul><li>Schnitt und Umsetzung neuer Services</li><li>Lastverhalten messen und nachschärfen</li><li>Entwurf der Ereignisformate und ihrer Versionierung</li></ul>
+      <p><strong>Ihr Profil</strong></p>
+      <ul><li>Kubernetes von der Anwendungsseite</li><li>PostgreSQL</li><li>Kafka, Schema Registry</li><li>Java und Spring Boot</li></ul>
+      <p>Start: nach Absprache<br>Laufzeit: 12 Monate mit Option auf Verlängerung<br>Auslastung: 4 Tage pro Woche<br>Remote-Anteil: 40 %</p>
+    </div>
+    <a href="https://tracker.example/proxy?target=https%3A%2F%2Fportal-c.example%2Fproject%2Fsoftwareentwickler-kafka-medien-integrationsschicht-251250&amp;email=demo%2540example.org" class="job-link">Zum Projekt</a>
+  </div>
+  <div class="job-card">
+    <h3 class="job-title">Senior Entwickler Microservices Logistik – Kafka (w/m/d)</h3>
+    <div class="job-meta">
+      <span>&#127970; Umbrella IT Partner GmbH</span>
+      <span>&#128205; Remote und Aachen</span>
+      <span>&#128197; 02.09.2026 &#8211; 00:08 Uhr</span>
+      <span>&#128279; portal-c</span>
+    </div>
+    <div class="job-description">
+      <p>Branche: Logistik. Zwischen zwei bestehenden Systemen entsteht eine ereignisbasierte Integrationsschicht.</p>
+      <p><strong>Ihre Aufgaben</strong></p>
+      <ul><li>Lastverhalten messen und nachschärfen</li><li>Schnitt und Umsetzung neuer Services</li><li>Entwurf der Ereignisformate und ihrer Versionierung</li></ul>
+      <p><strong>Ihr Profil</strong></p>
+      <ul><li>Kafka, Schema Registry</li><li>PostgreSQL</li><li>Kubernetes von der Anwendungsseite</li><li>Java und Spring Boot</li></ul>
+      <p>Start: nach Absprache<br>Laufzeit: 6 Monate mit Option auf Verlängerung<br>Auslastung: 4 Tage pro Woche</p>
+    </div>
+    <a href="https://tracker.example/proxy?target=https%3A%2F%2Fportal-c.example%2Fproject%2Fsenior-entwickler-microservices-logistik-kafka-w-m-d-858456&amp;email=demo%2540example.org" class="job-link">Zum Projekt</a>
+  </div>
+  <div class="job-card">
+    <h3 class="job-title">Senior Entwickler Microservices Finanzdienstleistung (m/f/d)</h3>
+    <div class="job-meta">
+      <span>&#127970; Initech Personal AG</span>
+      <span>&#128205; Düsseldorf</span>
+      <span>&#128197; 01.09.2026 &#8211; 11:44 Uhr</span>
+      <span>&#128279; portal-d</span>
+    </div>
+    <div class="job-description">
+      <p>Branche: Finanzdienstleistung. Zwischen zwei bestehenden Systemen entsteht eine ereignisbasierte Integrationsschicht.</p>
+      <p><strong>Ihre Aufgaben</strong></p>
+      <ul><li>Schnitt und Umsetzung neuer Services</li><li>Lastverhalten messen und nachschärfen</li><li>Entwurf der Ereignisformate und ihrer Versionierung</li></ul>
+      <p><strong>Ihr Profil</strong></p>
+      <ul><li>Java und Spring Boot</li><li>PostgreSQL</li><li>Kubernetes von der Anwendungsseite</li><li>Kafka, Schema Registry</li></ul>
+      <p>Start: nach Absprache<br>Laufzeit: 6 Monate mit Option auf Verlängerung<br>Auslastung: 4 Tage pro Woche</p>
+    </div>
+    <a href="https://tracker.example/proxy?target=https%3A%2F%2Fportal-d.example%2Fproject%2Fsenior-entwickler-microservices-finanzdienstleistung-m-f-d-455091&amp;email=demo%2540example.org" class="job-link">Zum Projekt</a>
+  </div>
+  <div class="job-card">
+    <h3 class="job-title">Integrationsarchitekt Öffentlicher Dienst – Spring Boot (m/f/d)</h3>
+    <div class="job-meta">
+      <span>&#127970; Globex Solutions GmbH</span>
+      <span>&#128205; Düsseldorf</span>
+      <span>&#128197; 01.09.2026 &#8211; 22:12 Uhr</span>
+      <span>&#128279; portal-f</span>
+    </div>
+    <div class="job-description">
+      <p>Branche: Öffentlicher Dienst. Die Auftragsverarbeitung eines Handelsunternehmens wird auf ereignisgetriebene Verarbeitung umgestellt.</p>
+      <p><strong>Ihre Aufgaben</strong></p>
+      <ul><li>Schnitt und Umsetzung neuer Services</li><li>Entwurf der Ereignisformate und ihrer Versionierung</li><li>Lastverhalten messen und nachschärfen</li></ul>
+      <p><strong>Ihr Profil</strong></p>
+      <ul><li>Kubernetes von der Anwendungsseite</li><li>Kafka, Schema Registry</li><li>PostgreSQL</li><li>Java und Spring Boot</li></ul>
+      <p>Start: nach Absprache<br>Laufzeit: 12 Monate mit Option auf Verlängerung<br>Auslastung: 4 Tage pro Woche</p>
+    </div>
+    <a href="https://tracker.example/proxy?target=https%3A%2F%2Fportal-f.example%2Fproject%2Fintegrationsarchitekt-oeffentlicher-dienst-spring-boot-m-f-d-662478&amp;email=demo%2540example.org" class="job-link">Zum Projekt</a>
+  </div>
+</div>
+<div class="tag-group">
+  <h2 class="tag-header">Kubernetes &#43; DevOps</h2>
+  <div class="job-card">
+    <h3 class="job-title">Cloud Engineer Kubernetes Öffentlicher Dienst – Observability (m/f/d)</h3>
+    <div class="job-meta">
+      <span>&#127970; Globex Solutions GmbH</span>
+      <span>&#128205; Remote</span>
+      <span>&#128197; 02.09.2026 &#8211; 03:25 Uhr</span>
+      <span>&#128279; portal-b</span>
+    </div>
+    <div class="job-description">
+      <p>Branche: Öffentlicher Dienst. Der Betrieb einer wachsenden Serviceplattform soll auf eine tragfähige Basis gestellt werden.</p>
+      <p><strong>Ihre Aufgaben</strong></p>
+      <ul><li>Härtung der Cluster und Rechteverwaltung</li><li>Einführung eines GitOps-Workflows</li><li>Monitoring, Alerting und Logging</li></ul>
+      <p><strong>Ihr Profil</strong></p>
+      <ul><li>Helm, ArgoCD oder Flux</li><li>Terraform oder ein vergleichbares Werkzeug</li><li>Grundlagen Java, um Anwendungen sinnvoll betreiben zu können</li><li>Kubernetes im produktiven Betrieb</li></ul>
+      <p>Start: zum Monatsbeginn<br>Laufzeit: 12 Monate mit Option auf Verlängerung<br>Auslastung: Vollzeit<br>Remote-Anteil: 80 %</p>
+    </div>
+    <a href="https://tracker.example/proxy?target=https%3A%2F%2Fportal-b.example%2Fproject%2Fcloud-engineer-kubernetes-oeffentlicher-dienst-observability-m-f-d-221680&amp;email=demo%2540example.org" class="job-link">Zum Projekt</a>
+  </div>
+  <div class="job-card">
+    <h3 class="job-title">Site Reliability Engineer Automotive (w/m/d)</h3>
+    <div class="job-meta">
+      <span>&#127970; Soylent Digital GmbH</span>
+      <span>&#128205; Hamburg</span>
+      <span>&#128197; 02.09.2026 &#8211; 06:52 Uhr</span>
+      <span>&#128279; portal-d</span>
+    </div>
+    <div class="job-description">
+      <p>Branche: Automotive. Der Betrieb einer wachsenden Serviceplattform soll auf eine tragfähige Basis gestellt werden.</p>
+      <p><strong>Ihre Aufgaben</strong></p>
+      <ul><li>Aufbau und Pflege von Helm-Charts</li><li>Monitoring, Alerting und Logging</li><li>Härtung der Cluster und Rechteverwaltung</li></ul>
+      <p><strong>Ihr Profil</strong></p>
+      <ul><li>Terraform oder ein vergleichbares Werkzeug</li><li>Grundlagen Java, um Anwendungen sinnvoll betreiben zu können</li><li>Helm, ArgoCD oder Flux</li><li>Kubernetes im produktiven Betrieb</li></ul>
+      <p>Start: zum Monatsbeginn<br>Laufzeit: 6 Monate mit Option auf Verlängerung<br>Auslastung: 80 %</p>
+    </div>
+    <a href="https://tracker.example/proxy?target=https%3A%2F%2Fportal-d.example%2Fproject%2Fsite-reliability-engineer-automotive-w-m-d-878520&amp;email=demo%2540example.org" class="job-link">Zum Projekt</a>
+  </div>
+  <div class="job-card">
+    <h3 class="job-title">DevOps Engineer Kubernetes Öffentlicher Dienst – Kubernetes / Helm (m/f/d)</h3>
+    <div class="job-meta">
+      <span>&#127970; Hooli Engineering AG</span>
+      <span>&#128205; Remote und Bonn</span>
+      <span>&#128197; 01.09.2026 &#8211; 14:50 Uhr</span>
+      <span>&#128279; portal-e</span>
+    </div>
+    <div class="job-description">
+      <p>Branche: Öffentlicher Dienst. Für die Migration von virtuellen Maschinen nach Kubernetes wird Verstärkung gesucht.</p>
+      <p><strong>Ihre Aufgaben</strong></p>
+      <ul><li>Aufbau und Pflege von Helm-Charts</li><li>Einführung eines GitOps-Workflows</li><li>Monitoring, Alerting und Logging</li></ul>
+      <p><strong>Ihr Profil</strong></p>
+      <ul><li>Helm, ArgoCD oder Flux</li><li>Kubernetes im produktiven Betrieb</li><li>Terraform oder ein vergleichbares Werkzeug</li><li>Grundlagen Java, um Anwendungen sinnvoll betreiben zu können</li></ul>
+      <p>Start: nach Absprache<br>Laufzeit: 6 Monate mit Option auf Verlängerung<br>Auslastung: 4 Tage pro Woche<br>Remote-Anteil: 60 %</p>
+    </div>
+    <a href="https://tracker.example/proxy?target=https%3A%2F%2Fportal-e.example%2Fproject%2Fdevops-engineer-kubernetes-oeffentlicher-dienst-kubernetes-helm-m-f-d-650910&amp;email=demo%2540example.org" class="job-link">Zum Projekt</a>
+  </div>
+  <div class="job-card">
+    <h3 class="job-title">Cloud Engineer Kubernetes Automotive – GitOps (m/f/d)</h3>
+    <div class="job-meta">
+      <span>&#127970; Umbrella IT Partner GmbH</span>
+      <span>&#128205; Remote (deutschlandweit)</span>
+      <span>&#128197; 02.09.2026 &#8211; 06:58 Uhr</span>
+      <span>&#128279; portal-a</span>
+    </div>
+    <div class="job-description">
+      <p>Branche: Automotive. Eine bestehende Cluster-Landschaft soll um Observability und GitOps ergänzt werden.</p>
+      <p><strong>Ihre Aufgaben</strong></p>
+      <ul><li>Aufbau und Pflege von Helm-Charts</li><li>Monitoring, Alerting und Logging</li><li>Einführung eines GitOps-Workflows</li></ul>
+      <p><strong>Ihr Profil</strong></p>
+      <ul><li>Kubernetes im produktiven Betrieb</li><li>Helm, ArgoCD oder Flux</li><li>Terraform oder ein vergleichbares Werkzeug</li><li>Grundlagen Java, um Anwendungen sinnvoll betreiben zu können</li></ul>
+      <p>Start: kurzfristig<br>Laufzeit: 12 Monate mit Option auf Verlängerung<br>Auslastung: 80 %</p>
+    </div>
+    <a href="https://tracker.example/proxy?target=https%3A%2F%2Fportal-a.example%2Fproject%2Fcloud-engineer-kubernetes-automotive-gitops-m-f-d-425843&amp;email=demo%2540example.org" class="job-link">Zum Projekt</a>
+  </div>
+  <div class="job-card">
+    <h3 class="job-title">Site Reliability Engineer Handel – Cluster-Migration</h3>
+    <div class="job-meta">
+      <span>&#127970; Initech Personal AG</span>
+      <span>&#128205; Neuss und Umgebung</span>
+      <span>&#128197; 02.09.2026 &#8211; 05:27 Uhr</span>
+      <span>&#128279; portal-e</span>
+    </div>
+    <div class="job-description">
+      <p>Branche: Handel. Der Betrieb einer wachsenden Serviceplattform soll auf eine tragfähige Basis gestellt werden.</p>
+      <p><strong>Ihre Aufgaben</strong></p>
+      <ul><li>Einführung eines GitOps-Workflows</li><li>Härtung der Cluster und Rechteverwaltung</li><li>Monitoring, Alerting und Logging</li></ul>
+      <p><strong>Ihr Profil</strong></p>
+      <ul><li>Terraform oder ein vergleichbares Werkzeug</li><li>Grundlagen Java, um Anwendungen sinnvoll betreiben zu können</li><li>Helm, ArgoCD oder Flux</li><li>Kubernetes im produktiven Betrieb</li></ul>
+      <p>Start: kurzfristig<br>Laufzeit: 12 Monate mit Option auf Verlängerung<br>Auslastung: 80 %</p>
+    </div>
+    <a href="https://tracker.example/proxy?target=https%3A%2F%2Fportal-e.example%2Fproject%2Fsite-reliability-engineer-handel-cluster-migration-322404&amp;email=demo%2540example.org" class="job-link">Zum Projekt</a>
+  </div>
+</div>
+<div class="tag-group">
+  <h2 class="tag-header">Salesforce &#43; CRM</h2>
+  <div class="job-card">
+    <h3 class="job-title">CRM Berater Salesforce Versicherung – Apex (m/w/d)</h3>
+    <div class="job-meta">
+      <span>&#127970; Globex Solutions GmbH</span>
+      <span>&#128205; Remote (deutschlandweit)</span>
+      <span>&#128197; 02.09.2026 &#8211; 00:06 Uhr</span>
+      <span>&#128279; portal-f</span>
+    </div>
+    <div class="job-description">
+      <p>Branche: Versicherung. Für den Ausbau der Vertriebsprozesse wird eine bestehende Salesforce-Instanz erweitert.</p>
+      <p><strong>Ihre Aufgaben</strong></p>
+      <ul><li>Abstimmung mit den Fachbereichen</li><li>Umsetzung von Flows und Apex-Klassen</li></ul>
+      <p><strong>Ihr Profil</strong></p>
+      <ul><li>Erfahrung mit Sales Cloud</li><li>Apex, Lightning Web Components</li></ul>
+      <p>Start: kurzfristig<br>Laufzeit: 6 Monate mit Option auf Verlängerung<br>Auslastung: 80 %</p>
+    </div>
+    <a href="https://tracker.example/proxy?target=https%3A%2F%2Fportal-f.example%2Fproject%2Fcrm-berater-salesforce-versicherung-apex-m-w-d-595341&amp;email=demo%2540example.org" class="job-link">Zum Projekt</a>
+  </div>
+  <div class="job-card">
+    <h3 class="job-title">Salesforce Consultant Versicherung – Lightning (w/m/d)</h3>
+    <div class="job-meta">
+      <span>&#127970; Vandelay Industries GmbH</span>
+      <span>&#128205; Bonn und Umgebung</span>
+      <span>&#128197; 02.09.2026 &#8211; 01:11 Uhr</span>
+      <span>&#128279; portal-a</span>
+    </div>
+    <div class="job-description">
+      <p>Branche: Versicherung. Für den Ausbau der Vertriebsprozesse wird eine bestehende Salesforce-Instanz erweitert.</p>
+      <p><strong>Ihre Aufgaben</strong></p>
+      <ul><li>Umsetzung von Flows und Apex-Klassen</li><li>Abstimmung mit den Fachbereichen</li></ul>
+      <p><strong>Ihr Profil</strong></p>
+      <ul><li>Erfahrung mit Sales Cloud</li><li>Apex, Lightning Web Components</li></ul>
+      <p>Start: ab sofort<br>Laufzeit: 9 Monate mit Option auf Verlängerung<br>Auslastung: 4 Tage pro Woche</p>
+    </div>
+    <a href="https://tracker.example/proxy?target=https%3A%2F%2Fportal-a.example%2Fproject%2Fsalesforce-consultant-versicherung-lightning-w-m-d-494205&amp;email=demo%2540example.org" class="job-link">Zum Projekt</a>
+  </div>
+</div>
+<div class="tag-group">
+  <h2 class="tag-header">Java &#43; Spring Boot</h2>
+  <div class="job-card">
+    <h3 class="job-title">Senior <mark>Java</mark> Entwickler Versicherung (w/m/d)</h3>
+    <div class="job-meta">
+      <span>&#127970; Hooli Engineering AG</span>
+      <span>&#128205; Stuttgart</span>
+      <span>&#128197; 01.09.2026 &#8211; 11:06 Uhr</span>
+      <span>&#128279; portal-d</span>
+    </div>
+    <div class="job-description">
+      <p>Branche: Versicherung. Unser Kunde löst einen über Jahre gewachsenen Monolithen schrittweise in Services auf.</p>
+      <p><strong>Ihre Aufgaben</strong></p>
+      <ul><li>Code-Reviews und fachliche Abstimmung mit den Produktteams</li><li>Ablösung bestehender Module in eigenständige Services</li><li>Entwurf und Umsetzung von REST-Schnittstellen</li></ul>
+      <p><strong>Ihr Profil</strong></p>
+      <ul><li>Java 21, Spring Boot, Spring Data</li><li>Docker, Gradle, Git</li><li>Erfahrung mit Kafka oder einem vergleichbaren Broker</li><li>PostgreSQL und saubere Datenmodellierung</li></ul>
+      <p>Start: nach Absprache<br>Laufzeit: 9 Monate mit Option auf Verlängerung<br>Auslastung: Vollzeit<br>Remote-Anteil: 100 %</p>
+    </div>
+    <a href="https://tracker.example/proxy?target=https%3A%2F%2Fportal-d.example%2Fproject%2Fsenior-java-entwickler-versicherung-w-m-d-193862&amp;email=demo%2540example.org" class="job-link">Zum Projekt</a>
+  </div>
+  <div class="job-card">
+    <h3 class="job-title">Fullstack Engineer <mark>Java</mark> / Angular Handel – Fullstack (m/w/d)</h3>
+    <div class="job-meta">
+      <span>&#127970; Vandelay Industries GmbH</span>
+      <span>&#128205; Remote und Warschau</span>
+      <span>&#128197; 01.09.2026 &#8211; 18:09 Uhr</span>
+      <span>&#128279; portal-a</span>
+    </div>
+    <div class="job-description">
+      <p>Branche: Handel. Für eine Neuentwicklung wird ein Team aufgebaut, das Service und Oberfläche gemeinsam verantwortet.</p>
+      <p><strong>Ihre Aufgaben</strong></p>
+      <ul><li>Umsetzung neuer Module von der Datenbank bis zur Oberfläche</li><li>Betrieb der Services im Cluster mitverantworten</li><li>Code-Reviews über beide Ebenen</li></ul>
+      <p><strong>Ihr Profil</strong></p>
+      <ul><li>Angular ab Version 17 und TypeScript</li><li>Java 21 und Spring Boot, sicher im Umgang mit Spring Data</li><li>PostgreSQL, Docker, Kafka von Vorteil</li><li>Kubernetes und Helm, mindestens von der Anwendungsseite</li></ul>
+      <p>Start: kurzfristig<br>Laufzeit: 9 Monate mit Option auf Verlängerung<br>Auslastung: 4 Tage pro Woche</p>
+    </div>
+    <a href="https://tracker.example/proxy?target=https%3A%2F%2Fportal-a.example%2Fproject%2Ffullstack-engineer-java-angular-handel-fullstack-m-w-d-525204&amp;email=demo%2540example.org" class="job-link">Zum Projekt</a>
+  </div>
+  <div class="job-card">
+    <h3 class="job-title"><mark>Java</mark> Entwickler Spring Boot Automotive – Microservices (m/w/d)</h3>
+    <div class="job-meta">
+      <span>&#127970; Globex Solutions GmbH</span>
+      <span>&#128205; Remote</span>
+      <span>&#128197; 01.09.2026 &#8211; 23:48 Uhr</span>
+      <span>&#128279; portal-e</span>
+    </div>
+    <div class="job-description">
+      <p>Branche: Automotive. Im Rahmen einer Produktneuentwicklung entsteht eine API-Landschaft auf der grünen Wiese.</p>
+      <p><strong>Ihre Aufgaben</strong></p>
+      <ul><li>Code-Reviews und fachliche Abstimmung mit den Produktteams</li><li>Entwurf und Umsetzung von REST-Schnittstellen</li><li>Aufbau und Pflege der automatisierten Testabdeckung</li></ul>
+      <p><strong>Ihr Profil</strong></p>
+      <ul><li>Erfahrung mit Kafka oder einem vergleichbaren Broker</li><li>Docker, Gradle, Git</li><li>Java 21, Spring Boot, Spring Data</li><li>PostgreSQL und saubere Datenmodellierung</li></ul>
+      <p>Start: zum Monatsbeginn<br>Laufzeit: 9 Monate mit Option auf Verlängerung<br>Auslastung: Vollzeit</p>
+    </div>
+    <a href="https://tracker.example/proxy?target=https%3A%2F%2Fportal-e.example%2Fproject%2Fjava-entwickler-spring-boot-automotive-microservices-m-w-d-251680&amp;email=demo%2540example.org" class="job-link">Zum Projekt</a>
+  </div>
+  <div class="job-card">
+    <h3 class="job-title">Senior Softwareentwickler Fullstack Industrie – <mark>Java</mark> / Angular (m/w/d) – Arbeitnehmerüberlassung</h3>
+    <div class="job-meta">
+      <span>&#127970; Globex Solutions GmbH</span>
+      <span>&#128205; Dresden</span>
+      <span>&#128197; 01.09.2026 &#8211; 12:29 Uhr</span>
+      <span>&#128279; portal-b</span>
+    </div>
+    <div class="job-description">
+      <p>Branche: Industrie. Für eine Neuentwicklung wird ein Team aufgebaut, das Service und Oberfläche gemeinsam verantwortet.</p>
+      <p><strong>Ihre Aufgaben</strong></p>
+      <ul><li>Betrieb der Services im Cluster mitverantworten</li><li>Umsetzung neuer Module von der Datenbank bis zur Oberfläche</li><li>Code-Reviews über beide Ebenen</li></ul>
+      <p><strong>Ihr Profil</strong></p>
+      <ul><li>Kubernetes und Helm, mindestens von der Anwendungsseite</li><li>PostgreSQL, Docker, Kafka von Vorteil</li><li>Java 21 und Spring Boot, sicher im Umgang mit Spring Data</li><li>Angular ab Version 17 und TypeScript</li></ul>
+      <p>Start: nach Absprache<br>Laufzeit: 12 Monate mit Option auf Verlängerung<br>Auslastung: 80 %</p>
+    </div>
+    <a href="https://tracker.example/proxy?target=https%3A%2F%2Fportal-b.example%2Fproject%2Fsenior-softwareentwickler-fullstack-industrie-java-angular-m-w-d-arbeitnehmerueberlassung-939323&amp;email=demo%2540example.org" class="job-link">Zum Projekt</a>
+  </div>
+  <div class="job-card">
+    <h3 class="job-title">Senior <mark>Java</mark> Entwickler Industrie – Spring Boot / Kafka (m/f/d)</h3>
+    <div class="job-meta">
+      <span>&#127970; Umbrella IT Partner GmbH</span>
+      <span>&#128205; Remote und Leverkusen</span>
+      <span>&#128197; 01.09.2026 &#8211; 14:31 Uhr</span>
+      <span>&#128279; portal-f</span>
+    </div>
+    <div class="job-description">
+      <p>Branche: Industrie. Für den Ausbau einer bestehenden Handelsplattform suchen wir Verstärkung im Backend-Team.</p>
+      <p><strong>Ihre Aufgaben</strong></p>
+      <ul><li>Aufbau und Pflege der automatisierten Testabdeckung</li><li>Ablösung bestehender Module in eigenständige Services</li><li>Entwurf und Umsetzung von REST-Schnittstellen</li></ul>
+      <p><strong>Ihr Profil</strong></p>
+      <ul><li>Erfahrung mit Kafka oder einem vergleichbaren Broker</li><li>Java 21, Spring Boot, Spring Data</li><li>Docker, Gradle, Git</li><li>PostgreSQL und saubere Datenmodellierung</li></ul>
+      <p>Start: zum Monatsbeginn<br>Laufzeit: 9 Monate mit Option auf Verlängerung<br>Auslastung: 4 Tage pro Woche</p>
+    </div>
+    <a href="https://tracker.example/proxy?target=https%3A%2F%2Fportal-f.example%2Fproject%2Fsenior-java-entwickler-industrie-spring-boot-kafka-m-f-d-157371&amp;email=demo%2540example.org" class="job-link">Zum Projekt</a>
+  </div>
+  <div class="job-card">
+    <h3 class="job-title">Senior Softwareentwickler Fullstack Gesundheitswesen – Fullstack</h3>
+    <div class="job-meta">
+      <span>&#127970; Initech Personal AG</span>
+      <span>&#128205; Remote (deutschlandweit)</span>
+      <span>&#128197; 02.09.2026 &#8211; 06:41 Uhr</span>
+      <span>&#128279; portal-b</span>
+    </div>
+    <div class="job-description">
+      <p>Branche: Gesundheitswesen. Die Plattform wird um mehrere Module erweitert, jeweils vom REST-Endpunkt bis zur fertigen Maske.</p>
+      <p><strong>Ihre Aufgaben</strong></p>
+      <ul><li>Betrieb der Services im Cluster mitverantworten</li><li>Code-Reviews über beide Ebenen</li><li>Entwurf und Umsetzung der REST-Schnittstellen</li></ul>
+      <p><strong>Ihr Profil</strong></p>
+      <ul><li>Java 21 und Spring Boot, sicher im Umgang mit Spring Data</li><li>Angular ab Version 17 und TypeScript</li><li>Kubernetes und Helm, mindestens von der Anwendungsseite</li><li>PostgreSQL, Docker, Kafka von Vorteil</li></ul>
+      <p>Start: zum Monatsbeginn<br>Laufzeit: 9 Monate mit Option auf Verlängerung<br>Auslastung: Vollzeit</p>
+    </div>
+    <a href="https://tracker.example/proxy?target=https%3A%2F%2Fportal-b.example%2Fproject%2Fsenior-softwareentwickler-fullstack-gesundheitswesen-fullstack-832105&amp;email=demo%2540example.org" class="job-link">Zum Projekt</a>
+  </div>
+  <div class="job-card">
+    <h3 class="job-title">Senior Softwareentwickler Fullstack Finanzdienstleistung</h3>
+    <div class="job-meta">
+      <span>&#127970; Contoso Services GmbH</span>
+      <span>&#128205; Remote</span>
+      <span>&#128197; 02.09.2026 &#8211; 06:50 Uhr</span>
+      <span>&#128279; portal-f</span>
+    </div>
+    <div class="job-description">
+      <p>Branche: Finanzdienstleistung. Für eine Neuentwicklung wird ein Team aufgebaut, das Service und Oberfläche gemeinsam verantwortet.</p>
+      <p><strong>Ihre Aufgaben</strong></p>
+      <ul><li>Umsetzung neuer Module von der Datenbank bis zur Oberfläche</li><li>Betrieb der Services im Cluster mitverantworten</li><li>Entwurf und Umsetzung der REST-Schnittstellen</li></ul>
+      <p><strong>Ihr Profil</strong></p>
+      <ul><li>Angular ab Version 17 und TypeScript</li><li>Kubernetes und Helm, mindestens von der Anwendungsseite</li><li>Java 21 und Spring Boot, sicher im Umgang mit Spring Data</li><li>PostgreSQL, Docker, Kafka von Vorteil</li></ul>
+      <p>Start: nach Absprache<br>Laufzeit: 6 Monate mit Option auf Verlängerung<br>Auslastung: 4 Tage pro Woche</p>
+    </div>
+    <a href="https://tracker.example/proxy?target=https%3A%2F%2Fportal-f.example%2Fproject%2Fsenior-softwareentwickler-fullstack-finanzdienstleistung-339242&amp;email=demo%2540example.org" class="job-link">Zum Projekt</a>
+  </div>
+</div>
+<div class="tag-group">
+  <h2 class="tag-header">Angular &#43; TypeScript</h2>
+  <div class="job-card">
+    <h3 class="job-title">Frontend Entwickler Angular Gesundheitswesen (m/w/d)</h3>
+    <div class="job-meta">
+      <span>&#127970; Hooli Engineering AG</span>
+      <span>&#128205; Aachen und Umgebung</span>
+      <span>&#128197; 01.09.2026 &#8211; 22:31 Uhr</span>
+      <span>&#128279; portal-b</span>
+    </div>
+    <div class="job-description">
+      <p>Branche: Gesundheitswesen. Für ein internes Verwaltungsportal wird die Oberfläche von Grund auf neu gebaut.</p>
+      <p><strong>Ihre Aufgaben</strong></p>
+      <ul><li>Barrierefreiheit und Testabdeckung im Frontend</li><li>Umsetzung neuer Oberflächen nach bestehendem Designsystem</li><li>Abstimmung der Schnittstellen mit dem Backend-Team</li></ul>
+      <p><strong>Ihr Profil</strong></p>
+      <ul><li>RxJS und ein Verständnis für State Management</li><li>CSS ohne Framework-Abhängigkeit</li><li>Angular ab Version 17, TypeScript</li><li>Erfahrung mit Vitest oder Jest</li></ul>
+      <p>Start: zum Monatsbeginn<br>Laufzeit: 12 Monate mit Option auf Verlängerung<br>Auslastung: 80 %</p>
+    </div>
+    <a href="https://tracker.example/proxy?target=https%3A%2F%2Fportal-b.example%2Fproject%2Ffrontend-entwickler-angular-gesundheitswesen-m-w-d-218123&amp;email=demo%2540example.org" class="job-link">Zum Projekt</a>
+  </div>
+  <div class="job-card">
+    <h3 class="job-title">Senior Frontend Engineer Gesundheitswesen – TypeScript / RxJS (m/w/d)</h3>
+    <div class="job-meta">
+      <span>&#127970; Acme Consulting GmbH</span>
+      <span>&#128205; Remote und Leverkusen</span>
+      <span>&#128197; 02.09.2026 &#8211; 05:35 Uhr</span>
+      <span>&#128279; portal-d</span>
+    </div>
+    <div class="job-description">
+      <p>Branche: Gesundheitswesen. Für ein internes Verwaltungsportal wird die Oberfläche von Grund auf neu gebaut.</p>
+      <p><strong>Ihre Aufgaben</strong></p>
+      <ul><li>Migration auf Standalone-Komponenten und Signals</li><li>Umsetzung neuer Oberflächen nach bestehendem Designsystem</li><li>Abstimmung der Schnittstellen mit dem Backend-Team</li></ul>
+      <p><strong>Ihr Profil</strong></p>
+      <ul><li>Angular ab Version 17, TypeScript</li><li>CSS ohne Framework-Abhängigkeit</li><li>Erfahrung mit Vitest oder Jest</li><li>RxJS und ein Verständnis für State Management</li></ul>
+      <p>Start: nach Absprache<br>Laufzeit: 6 Monate mit Option auf Verlängerung<br>Auslastung: 80 %</p>
+    </div>
+    <a href="https://tracker.example/proxy?target=https%3A%2F%2Fportal-d.example%2Fproject%2Fsenior-frontend-engineer-gesundheitswesen-typescript-rxjs-m-w-d-118435&amp;email=demo%2540example.org" class="job-link">Zum Projekt</a>
+  </div>
+</div>
+</body></html>
+
+--demo--

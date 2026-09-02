@@ -1,3 +1,11 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright 2026 Marcello Muscara (codeministry)
+ *
+ * Licensed under the Apache License, Version 2.0. You may obtain a copy of the
+ * License at http://www.apache.org/licenses/LICENSE-2.0
+ */
 package de.codeministry.leadgen.ingest.store;
 
 import javax.sql.DataSource;
@@ -16,8 +24,7 @@ public class IngestCursorStore {
     }
 
     public IngestCursor load(long sourceId, String folder) {
-        return jdbc
-                .sql("SELECT uid_validity, last_uid FROM ingest_cursor WHERE source_id = ? AND folder = ?")
+        return jdbc.sql("SELECT uid_validity, last_uid FROM ingest_cursor WHERE source_id = ? AND folder = ?")
                 .params(sourceId, folder)
                 .query((rs, row) -> new IngestCursor(rs.getLong("uid_validity"), rs.getLong("last_uid")))
                 .optional()

@@ -55,7 +55,10 @@ export class HistogramChart {
   protected readonly option = computed<ChartOption>(() => {
     const buckets = this.buckets();
     const colours = this.palette();
-    const highest = Math.max(...this.markers().map((marker) => marker.at), Number.NEGATIVE_INFINITY);
+    const highest = Math.max(
+      ...this.markers().map((marker) => marker.at),
+      Number.NEGATIVE_INFINITY,
+    );
 
     return {
       grid: { top: 24, right: 16, bottom: 24, left: 40, containLabel: true },

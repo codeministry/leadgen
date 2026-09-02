@@ -1,0 +1,23 @@
+# Normalize line endings in the repository, check out whatever the platform wants.
+# Without this a Windows clone rewrites every file and the first diff is the whole tree.
+* text=auto eol=lf
+
+# Files whose bytes are the content. Marked explicitly so a line-ending pass cannot
+# corrupt them, and so a diff does not try to render them.
+*.png    binary
+*.ico    binary
+*.jpg    binary
+*.pdf    binary
+*.jar    binary
+*.eml    -text
+
+# Shell scripts and the Gradle wrapper must keep LF even on Windows, or they stop
+# being executable the moment they are checked out.
+gradlew          text eol=lf
+*.sh             text eol=lf
+
+# The language bar on GitHub should report what somebody would work on. The Gradle
+# wrapper is vendored, the documentation is prose, and the lockfile is generated.
+gradle/wrapper/**   linguist-vendored
+docs/**             linguist-documentation
+frontend/bun.lock   linguist-generated

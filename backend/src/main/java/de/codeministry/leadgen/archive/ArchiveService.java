@@ -1,3 +1,11 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright 2026 Marcello Muscara (codeministry)
+ *
+ * Licensed under the Apache License, Version 2.0. You may obtain a copy of the
+ * License at http://www.apache.org/licenses/LICENSE-2.0
+ */
 package de.codeministry.leadgen.archive;
 
 import de.codeministry.leadgen.application.ApplicationStatus;
@@ -145,7 +153,10 @@ public class ArchiveService {
         // filter's boundary too, and moving the rule must not move the boundary by a day.
         int archived = cutoff == null
                 ? 0
-                : jdbc.sql(ARCHIVE_AGED_OUT).param("cutoff", cutoff).param("live", LIVE).update();
+                : jdbc.sql(ARCHIVE_AGED_OUT)
+                        .param("cutoff", cutoff)
+                        .param("live", LIVE)
+                        .update();
         int restored = jdbc.sql(RESTORE_INSIDE_WINDOW).param("cutoff", cutoff).update();
 
         var report = new ArchiveReport(
@@ -153,7 +164,8 @@ public class ArchiveService {
                 restored,
                 jdbc.sql(STANDING).query(Integer.class).single(),
                 jdbc.sql(UNDATED).query(Integer.class).single());
-        log.info("Archive: {} aged out, {} came back, {} archived in total{}",
+        log.info(
+                "Archive: {} aged out, {} came back, {} archived in total{}",
                 report.archived(),
                 report.restored(),
                 report.standing(),

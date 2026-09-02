@@ -1,13 +1,21 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright 2026 Marcello Muscara (codeministry)
+ *
+ * Licensed under the Apache License, Version 2.0. You may obtain a copy of the
+ * License at http://www.apache.org/licenses/LICENSE-2.0
+ */
 package de.codeministry.leadgen.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import de.codeministry.leadgen.config.ConfigFixtures;
 import java.time.LocalDate;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import de.codeministry.leadgen.config.ConfigFixtures;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -36,7 +44,8 @@ class ApplicationServiceTest {
      */
     @DynamicPropertySource
     static void configuration(DynamicPropertyRegistry registry) {
-        registry.add("leadgen.config-dir", () -> ConfigFixtures.shippedDefaults().toString());
+        registry.add(
+                "leadgen.config-dir", () -> ConfigFixtures.shippedDefaults().toString());
     }
 
     @Autowired
@@ -53,17 +62,18 @@ class ApplicationServiceTest {
         jdbc.update("DELETE FROM application");
         jdbc.update("DELETE FROM offer");
         jdbc.update("DELETE FROM source");
-        long sourceId = jdbc.queryForObject(
-                "INSERT INTO source (name, kind) VALUES ('test', 'file') RETURNING id", Long.class);
+        long sourceId =
+                jdbc.queryForObject("INSERT INTO source (name, kind) VALUES ('test', 'file') RETURNING id", Long.class);
         offerId = jdbc.queryForObject(
                 """
                 INSERT INTO offer (source_id, external_id, title, url, fingerprint, status,
                                    score_value, score_band, agency, portal)
                 VALUES (?, 'ext-1', 'Senior Java Entwickler (m/w/d)', 'https://example.invalid/x', 'fp',
-                        'PASSED', 88, 'SHORTLISTED', 'Etengo AG', 'FreelancerMap')
+                        'PASSED', 88, 'SHORTLISTED', 'Acme Consulting GmbH', 'portal-a')
                 RETURNING id
                 """,
-                Long.class, sourceId);
+                Long.class,
+                sourceId);
     }
 
     @Test
@@ -115,13 +125,17 @@ class ApplicationServiceTest {
     void marksAFollowUpDueOnceItsDayHasCome() {
         long id = applications.open(offerId, ApplicationStatus.PACKAGED);
 
-        applications.update(id, new ApplicationUpdate(
-                ApplicationStatus.SENT, null, LocalDate.now().minusDays(1), null, null, null));
+        applications.update(
+                id,
+                new ApplicationUpdate(
+                        ApplicationStatus.SENT, null, LocalDate.now().minusDays(1), null, null, null));
         assertThat(applications.find(id).orElseThrow().followUpDue()).isTrue();
         assertThat(applications.followUpsDue()).isEqualTo(1);
 
-        applications.update(id, new ApplicationUpdate(
-                ApplicationStatus.SENT, null, LocalDate.now().plusDays(3), null, null, null));
+        applications.update(
+                id,
+                new ApplicationUpdate(
+                        ApplicationStatus.SENT, null, LocalDate.now().plusDays(3), null, null, null));
         assertThat(applications.find(id).orElseThrow().followUpDue()).isFalse();
     }
 
@@ -129,8 +143,10 @@ class ApplicationServiceTest {
     void dropsTheFollowUpWhenTheApplicationCloses() {
         // A lost project with a standing reminder is how a follow-up list stops being read.
         long id = applications.open(offerId, ApplicationStatus.PACKAGED);
-        applications.update(id, new ApplicationUpdate(
-                ApplicationStatus.SENT, null, LocalDate.now().minusDays(1), null, null, null));
+        applications.update(
+                id,
+                new ApplicationUpdate(
+                        ApplicationStatus.SENT, null, LocalDate.now().minusDays(1), null, null, null));
 
         applications.update(id, update(ApplicationStatus.LOST));
 
@@ -143,8 +159,10 @@ class ApplicationServiceTest {
         // A null date cannot say both "leave it alone" and "remove it", and a board where
         // a reminder can be set but never cancelled fills up with dead reminders.
         long id = applications.open(offerId, ApplicationStatus.PACKAGED);
-        applications.update(id, new ApplicationUpdate(
-                ApplicationStatus.SENT, null, LocalDate.now().plusDays(3), null, null, null));
+        applications.update(
+                id,
+                new ApplicationUpdate(
+                        ApplicationStatus.SENT, null, LocalDate.now().plusDays(3), null, null, null));
 
         applications.update(id, new ApplicationUpdate(ApplicationStatus.SENT, null, null, true, null, null));
 
@@ -184,8 +202,9 @@ class ApplicationServiceTest {
         applications.update(id, update(ApplicationStatus.SENT));
         int after = applications.history(id).size();
 
-        applications.update(id, new ApplicationUpdate(
-                ApplicationStatus.SENT, LocalDate.now().minusDays(2), null, null, null, null));
+        applications.update(
+                id,
+                new ApplicationUpdate(ApplicationStatus.SENT, LocalDate.now().minusDays(2), null, null, null, null));
 
         assertThat(applications.history(id)).hasSize(after);
     }
@@ -197,7 +216,7 @@ class ApplicationServiceTest {
         var view = applications.find(id).orElseThrow();
 
         assertThat(view.title()).isEqualTo("Senior Java Entwickler (m/w/d)");
-        assertThat(view.agency()).isEqualTo("Etengo AG");
+        assertThat(view.agency()).isEqualTo("Acme Consulting GmbH");
         assertThat(view.scoreValue()).isEqualTo(88);
     }
 

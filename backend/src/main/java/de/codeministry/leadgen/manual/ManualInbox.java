@@ -1,3 +1,11 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright 2026 Marcello Muscara (codeministry)
+ *
+ * Licensed under the Apache License, Version 2.0. You may obtain a copy of the
+ * License at http://www.apache.org/licenses/LICENSE-2.0
+ */
 package de.codeministry.leadgen.manual;
 
 import de.codeministry.leadgen.config.ConfigProperties;
@@ -68,8 +76,9 @@ public class ManualInbox {
      */
     @EventListener(ApplicationReadyEvent.class)
     void ensure() {
-        pending().ifPresent(path -> log.info("Manual inbox at {}, uploads awaiting review in {}",
-                path.getParent(), path));
+        pending()
+                .ifPresent(
+                        path -> log.info("Manual inbox at {}, uploads awaiting review in {}", path.getParent(), path));
     }
 
     private static Path create(Path directory) {

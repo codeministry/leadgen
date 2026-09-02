@@ -1,4 +1,11 @@
-import { ChangeDetectionStrategy, Component, computed, input, linkedSignal, output } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  input,
+  linkedSignal,
+  output,
+} from '@angular/core';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { MarkdownSource } from '@shared/markdown/markdown-source';
 import { ManualOfferFields, PendingDocument } from '@core/model/manual-document';

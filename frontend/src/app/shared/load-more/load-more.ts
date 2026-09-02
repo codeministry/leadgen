@@ -1,4 +1,12 @@
-import { DOCUMENT, DestroyRef, Directive, ElementRef, afterNextRender, inject, output } from '@angular/core';
+import {
+  DOCUMENT,
+  DestroyRef,
+  Directive,
+  ElementRef,
+  afterNextRender,
+  inject,
+  output,
+} from '@angular/core';
 
 /**
  * Fires when its element scrolls into view.

@@ -1,3 +1,11 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright 2026 Marcello Muscara (codeministry)
+ *
+ * Licensed under the Apache License, Version 2.0. You may obtain a copy of the
+ * License at http://www.apache.org/licenses/LICENSE-2.0
+ */
 package de.codeministry.leadgen.config;
 
 import java.nio.file.Path;
@@ -31,8 +39,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 final class PlaceholderResolver {
 
-    private static final Pattern PLACEHOLDER =
-            Pattern.compile("\\$\\{([A-Za-z_][A-Za-z0-9_]*)(?::([^}]*))?}");
+    private static final Pattern PLACEHOLDER = Pattern.compile("\\$\\{([A-Za-z_][A-Za-z0-9_]*)(?::([^}]*))?}");
 
     private final UnaryOperator<String> environment;
 
@@ -43,12 +50,13 @@ final class PlaceholderResolver {
     /** The process environment, with `.env` behind it. A real variable always wins. */
     static PlaceholderResolver fromSystemEnvironment() {
         DotEnv dotenv = DotEnv.load();
-        dotenv.file().ifPresentOrElse(
-                file -> log.info("Reading {} for configuration values", file),
-                () -> log.info(
-                        "No {} found above {} — only real environment variables apply",
-                        DotEnv.FILE_NAME,
-                        Path.of("").toAbsolutePath()));
+        dotenv.file()
+                .ifPresentOrElse(
+                        file -> log.info("Reading {} for configuration values", file),
+                        () -> log.info(
+                                "No {} found above {} — only real environment variables apply",
+                                DotEnv.FILE_NAME,
+                                Path.of("").toAbsolutePath()));
 
         Map<String, String> file = dotenv.values();
         return new PlaceholderResolver(name -> {

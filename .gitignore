@@ -54,3 +54,14 @@ MEMORY
 # Python bytecode from running the reference scripts in docs/samples/.
 __pycache__/
 *.pyc
+
+# The Ideal State Artifact is a working document, not project documentation.
+ISA.md
+
+# Coverage reports. Produced by `./gradlew check`, never committed.
+/coverage/
+frontend/coverage/
+
+# The demo uses the repository as its configuration directory, so its manual inbox
+# is a working directory rather than a committed one.
+demo/inbox/

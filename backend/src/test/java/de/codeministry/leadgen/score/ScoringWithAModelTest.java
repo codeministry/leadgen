@@ -1,3 +1,11 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright 2026 Marcello Muscara (codeministry)
+ *
+ * Licensed under the Apache License, Version 2.0. You may obtain a copy of the
+ * License at http://www.apache.org/licenses/LICENSE-2.0
+ */
 package de.codeministry.leadgen.score;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
@@ -90,14 +98,15 @@ class ScoringWithAModelTest {
         jdbc.update("DELETE FROM offer_score_reason");
         jdbc.update("DELETE FROM offer");
         jdbc.update("DELETE FROM source");
-        sourceId = jdbc.queryForObject(
-                "INSERT INTO source (name, kind) VALUES ('test', 'file') RETURNING id", Long.class);
+        sourceId =
+                jdbc.queryForObject("INSERT INTO source (name, kind) VALUES ('test', 'file') RETURNING id", Long.class);
         MODEL.resetAll();
     }
 
     @Test
     void scoresWithTheConfiguredWeightsAndStatesAReasonPerFactor() {
-        answers("""
+        answers(
+                """
                 {"reasons":[
                   {"factor":"role_fit","label":"backend engagement, the target role","points":15},
                   {"factor":"vague_description","label":"team size and scope are left open","points":-10}
@@ -114,7 +123,8 @@ class ScoringWithAModelTest {
         var reasons = jdbc.queryForList(
                 "SELECT factor, points FROM offer_score_reason WHERE offer_id = ? ORDER BY position", id);
 
-        assertThat(reasons).extracting(r -> r.get("factor"))
+        assertThat(reasons)
+                .extracting(r -> r.get("factor"))
                 .contains("core_skill_overlap", "seniority_fit", "project_setup", "role_fit", "vague_description");
         int sum = reasons.stream().mapToInt(r -> (Integer) r.get("points")).sum();
         assertThat(value).isEqualTo(Math.max(0, Math.min(100, sum)));
@@ -128,7 +138,8 @@ class ScoringWithAModelTest {
     void dropsAFactorTheModelInvented() {
         // The weight table decides, not the answer. A factor nobody asked about is an
         // answer to a different question.
-        answers("""
+        answers(
+                """
                 {"reasons":[
                   {"factor":"role_fit","label":"fits","points":15},
                   {"factor":"vibes","label":"feels right","points":40}
@@ -143,7 +154,8 @@ class ScoringWithAModelTest {
 
     @Test
     void clampsAModelToWhatTheConfiguredWeightTableSays() {
-        answers("""
+        answers(
+                """
                 {"reasons":[{"factor":"role_fit","label":"perfect","points":900}]}
                 """);
         long id = offer("Senior Java Entwickler (m/w/d)", "Spring Boot");
@@ -157,7 +169,8 @@ class ScoringWithAModelTest {
         int roleFit = config.snapshot().rules().scoring().weights().get("role_fit");
         assertThat(jdbc.queryForObject(
                         "SELECT points FROM offer_score_reason WHERE offer_id = ? AND factor = 'role_fit'",
-                        Integer.class, id))
+                        Integer.class,
+                        id))
                 .isEqualTo(roleFit);
         assertThat(jdbc.queryForObject("SELECT score_value FROM offer WHERE id = ?", Integer.class, id))
                 .isLessThanOrEqualTo(100);
@@ -167,7 +180,8 @@ class ScoringWithAModelTest {
     void keepsTheOfferWhenTheModelIsUnreachable() {
         // One endpoint having a bad afternoon must not end the run. The offer keeps what
         // the rules decided and scores lower, which is visible and reviewable.
-        MODEL.stubFor(post(urlPathEqualTo("/chat/completions")).willReturn(aResponse().withStatus(503)));
+        MODEL.stubFor(
+                post(urlPathEqualTo("/chat/completions")).willReturn(aResponse().withStatus(503)));
         long id = offer("Senior Java Entwickler (m/w/d)", "Spring Boot");
 
         var report = scoring.run();
@@ -194,7 +208,8 @@ class ScoringWithAModelTest {
      */
     @Test
     void judgesWithTheModelTheRunNames() {
-        answers("""
+        answers(
+                """
                 {"reasons":[{"factor":"role_fit","label":"backend engagement","points":15}]}
                 """);
         long id = offer("Senior Java Entwickler (m/w/d)", "Java 21 und Spring Boot");
@@ -244,16 +259,40 @@ class ScoringWithAModelTest {
     }
 
     private List<String> factorsOf(long offerId) {
-        return jdbc.queryForList(
-                "SELECT factor FROM offer_score_reason WHERE offer_id = ?", String.class, offerId);
+        return jdbc.queryForList("SELECT factor FROM offer_score_reason WHERE offer_id = ?", String.class, offerId);
     }
 
+    /**
+     * A complete chat-completion envelope, not the one field the reader needs.
+     *
+     * <p>The provider SDK deserialises the whole object now, so a body that is merely enough
+     * for us is rejected before the reader ever sees it — and the judge, which by contract
+     * returns nothing rather than throwing, would report that as an offer with no judged
+     * factors. Measured: three tests here failed with the judged half simply absent.
+     */
     private void answers(String content) {
         try {
-            String body = JSON.writeValueAsString(
-                    Map.of("choices", List.of(Map.of("message", Map.of("content", content)))));
+            String body = JSON.writeValueAsString(Map.of(
+                    "id",
+                    "chatcmpl-1",
+                    "object",
+                    "chat.completion",
+                    "created",
+                    1,
+                    "model",
+                    "test-model",
+                    "choices",
+                    List.of(Map.of(
+                            "index",
+                            0,
+                            "message",
+                            Map.of("role", "assistant", "content", content),
+                            "finish_reason",
+                            "stop"))));
             MODEL.stubFor(post(urlPathEqualTo("/chat/completions"))
-                    .willReturn(aResponse().withHeader("Content-Type", "application/json").withBody(body)));
+                    .willReturn(aResponse()
+                            .withHeader("Content-Type", "application/json")
+                            .withBody(body)));
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }

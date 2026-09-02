@@ -1,3 +1,11 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright 2026 Marcello Muscara (codeministry)
+ *
+ * Licensed under the Apache License, Version 2.0. You may obtain a copy of the
+ * License at http://www.apache.org/licenses/LICENSE-2.0
+ */
 package de.codeministry.leadgen.ingest.connector;
 
 import de.codeministry.leadgen.config.ConfigRegistry;
@@ -6,17 +14,13 @@ import de.codeministry.leadgen.config.model.SourcesConfig.Selector;
 import de.codeministry.leadgen.config.model.SourcesConfig.Source;
 import de.codeministry.leadgen.ingest.IngestException;
 import de.codeministry.leadgen.ingest.RawDocument;
-import de.codeministry.leadgen.ingest.store.IngestCursor;
-import de.codeministry.leadgen.ingest.store.IngestCursorStore;
 import jakarta.mail.Address;
-import jakarta.mail.Folder;
 import jakarta.mail.Message;
 import jakarta.mail.MessagingException;
-import jakarta.mail.Session;
-import jakarta.mail.Store;
-import jakarta.mail.UIDFolder;
 import jakarta.mail.internet.InternetAddress;
 import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -27,28 +31,40 @@ import java.util.Properties;
 import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.BeanFactory;
+import org.springframework.integration.mail.inbound.ImapMailReceiver;
 import org.springframework.stereotype.Component;
 
 /**
- * Reads newsletter mails from an IMAP mailbox. Same extraction as the file source, only a
- * different way of getting at the HTML.
+ * Reads newsletter mails from an IMAP mailbox, through Spring Integration's
+ * {@code ImapMailReceiver}. Same extraction as the file source, only a different way of
+ * getting at the HTML.
  *
- * <p>Two things are load-bearing and both fail silently when they are wrong.
+ * <p><b>No message is ever flagged {@code \Seen}</b>, and that still takes two things:
+ * {@code shouldMarkMessagesAsRead} is off <i>and</i> {@code mail.imap.peek} is on, because
+ * fetching a body otherwise issues {@code FETCH BODY[]} and the server sets the flag
+ * regardless. Measured against a real IMAP server: without the property, every mail a run
+ * touches is marked read in the owner's mailbox.
  *
- * <p><b>No message is ever flagged {@code \Seen}.</b> That takes two things, and the
- * obvious one alone is not enough: the folder is opened read-only <i>and</i>
- * {@code mail.imap.peek} is on, because fetching a body otherwise issues
- * {@code FETCH BODY[]} and the server sets the flag regardless of how the folder was
- * opened.
- * The same mailbox is read on a phone; a run that marks mails read would rewrite what the
- * owner sees, and one that tracked its own progress by that flag would skip everything the
- * owner opened first. Progress is therefore {@code UIDVALIDITY}/{@code UID} and nothing
- * else — `state: uid` is the only accepted value.
+ * <p><b>Three guarantees were given up to get here, deliberately, and they are worth
+ * naming.</b> The receiver tracks what it has seen with a <i>user flag</i> written into the
+ * mailbox, not with a UID watermark kept on our side. So:
  *
- * <p><b>{@code getMessagesByUID(start, LASTUID)} lies about its range.</b> It returns the
- * message with the highest UID even when that UID is below {@code start}, so a mailbox
- * with nothing new hands back its newest mail as if it were unread. Without the filter
- * below, every run would re-extract the last mail forever — which the upsert would hide.
+ * <ul>
+ *   <li>the tool no longer leaves the owner's mailbox untouched — it writes one flag per
+ *       message it fetches, and on a server without user-flag support
+ *       ({@code flaggedAsFallback} is off) it has no marker at all;
+ *   <li>"a message the selector skipped is not progress" is gone. The receiver flags what
+ *       its <i>search</i> returned, before this class post-filters on sender, subject and
+ *       age, so widening a subject filter no longer makes the mails behind it reachable
+ *       again;
+ *   <li>the {@code UIDVALIDITY} reset is gone. A recreated folder has no equivalent in
+ *       flags, and the receiver simply starts again with an unflagged mailbox.
+ * </ul>
+ *
+ * <p>What is gained is that the protocol is the library's problem rather than ours,
+ * including the {@code getMessagesByUID(start, LASTUID)} range lie the previous
+ * implementation had to work around by hand.
  */
 @Slf4j
 @Component
@@ -57,8 +73,23 @@ public class ImapSourceConnector implements SourceConnector {
 
     private static final Duration TIMEOUT = Duration.ofSeconds(30);
 
+    /**
+     * The flag the receiver writes to remember a message. Named after the tool rather than
+     * left at the library default, so somebody looking at their mailbox can tell what put it
+     * there.
+     */
+    private static final String USER_FLAG = "leadgen";
+
     private final ConfigRegistry config;
-    private final IngestCursorStore cursors;
+
+    /**
+     * The application's own factory, handed to the receiver.
+     *
+     * <p>Not a throwaway one: `ImapMailReceiver` looks up `integrationEvaluationContext` on
+     * init, so anything less than the real context fails with "No such bean" — which reads
+     * like a wiring mistake and is actually a missing `@EnableIntegration`.
+     */
+    private final BeanFactory beans;
 
     @Override
     public String type() {
@@ -68,143 +99,179 @@ public class ImapSourceConnector implements SourceConnector {
     @Override
     public List<RawDocument> read(Source source, long sourceId) {
         String preferred = source.extraction().preferPartOrHtml();
-        return withFolder(source, folder -> {
-            // `UIDFolder` is jakarta.mail's own interface, not the provider's class: the
-            // whole UID protocol lives there, so nothing here depends on Angus.
-            UIDFolder uids = (UIDFolder) folder;
-            Selector selector = source.selector();
-            long uidValidity = uids.getUIDValidity();
-            IngestCursor cursor = cursors.load(sourceId, selector.folder()).validFor(uidValidity);
-
-            if (cursor.lastUid() == 0 && cursor.uidValidity() != uidValidity) {
-                log.info("UIDVALIDITY of {} changed; the folder was recreated and is read from the start",
-                        selector.folder());
-            }
-
-            Message[] candidates = uids.getMessagesByUID(cursor.lastUid() + 1, UIDFolder.LASTUID);
+        Selector selector = selectorOf(source);
+        ImapMailReceiver receiver = receiver(source, selector);
+        try {
+            Object[] received = receiver.receive();
             List<RawDocument> documents = new ArrayList<>();
-
-            for (Message message : candidates) {
-                long uid = uids.getUID(message);
-                if (uid <= cursor.lastUid()) {
-                    continue; // the documented lie about the range
+            for (Object candidate : received) {
+                Message message = mailMessageOf(candidate);
+                if (message == null) {
+                    continue;
                 }
                 if (!matches(message, selector)) {
                     continue;
                 }
                 documents.add(new RawDocument(
-                        "%d:%d".formatted(uidValidity, uid),
+                        identityOf(message),
                         message.getSubject(),
                         partOf(message, preferred),
-                        message.getReceivedDate() == null ? Instant.now() : message.getReceivedDate().toInstant()));
+                        message.getReceivedDate() == null
+                                ? Instant.now()
+                                : message.getReceivedDate().toInstant()));
             }
-            log.info("Source '{}': {} of {} messages above UID {} match the selector",
-                    source.id(), documents.size(), candidates.length, cursor.lastUid());
+            log.info(
+                    "Source '{}': {} of {} messages the receiver handed over match the selector",
+                    source.id(),
+                    documents.size(),
+                    received.length);
             return documents;
-        });
+        } catch (MessagingException | IOException e) {
+            throw new IngestException("source '%s' cannot read its mailbox".formatted(source.id()), e);
+        } finally {
+            receiver.destroy();
+        }
     }
 
     /**
-     * Advances the cursor to the highest UID actually processed — never to the highest UID
-     * in the folder. A message the selector skipped is not progress: a subject filter that
-     * turns out to be too narrow is fixed by widening it, and the mails behind it have to
-     * still be reachable.
+     * Nothing to commit any more, and that is the trade this connector made.
+     *
+     * <p>It used to advance a UID watermark to the highest message <em>actually
+     * processed</em>, after the write — never to the highest in the folder — so a subject
+     * filter that turned out too narrow could be widened and the mails behind it were
+     * reachable again. The receiver marks each message with a user flag at fetch time
+     * instead, which is a per-message decision already made by the time this would run.
+     *
+     * <p>Kept as an empty override rather than removed from the interface: the file source
+     * has nothing to commit either, and a connector that genuinely needs a cursor should
+     * still be able to have one.
      */
     @Override
     public void commit(Source source, long sourceId, List<RawDocument> processed) {
-        if (processed.isEmpty()) {
-            return;
-        }
-        long uidValidity = Long.parseLong(processed.getFirst().id().split(":")[0]);
-        long highest = processed.stream()
-                .mapToLong(document -> Long.parseLong(document.id().split(":")[1]))
-                .max()
-                .orElseThrow();
-
-        cursors.save(sourceId, source.selector().folder(), new IngestCursor(uidValidity, highest));
-        log.info("Source '{}': cursor advanced to {}:{}", source.id(), uidValidity, highest);
-    }
-
-    private <T> T withFolder(Source source, ImapAction<T> action) {
-        Connection connection = connection(source);
-        Properties properties = new Properties();
-        String protocol = connection.ssl() ? "imaps" : "imap";
-        properties.put("mail.store.protocol", protocol);
-        properties.put("mail." + protocol + ".connectiontimeout", String.valueOf(TIMEOUT.toMillis()));
-        properties.put("mail." + protocol + ".timeout", String.valueOf(TIMEOUT.toMillis()));
-        // Opening the folder read-only is NOT enough. Fetching a body issues FETCH BODY[],
-        // which sets \Seen server-side; only BODY.PEEK[] does not, and JavaMail uses it
-        // solely when this is on. Measured against a real IMAP server: without it every
-        // mail the run touches is marked read in the owner's mailbox.
-        properties.put("mail." + protocol + ".peek", "true");
-
-        try (Store store = Session.getInstance(properties).getStore(protocol)) {
-            store.connect(
-                    connection.host(),
-                    connection.port() == null ? -1 : connection.port(),
-                    connection.username(),
-                    connection.password());
-
-            Folder folder = open(store, source);
-            try {
-                return action.apply(folder);
-            } finally {
-                folder.close(false);
-            }
-        } catch (MessagingException | IOException e) {
-            throw new IngestException("source '%s' cannot read its mailbox".formatted(source.id()), e);
-        }
+        // Intentionally empty. See above.
     }
 
     /**
-     * Opens the configured folder, and says something useful when it is not there.
+     * The receiver, configured for a mailbox somebody else also reads.
      *
-     * <p>The folder is a server-side path, and its separator is the server's to choose:
-     * "/" on Dovecot, "." on Courier and older Cyrus. A leading separator is never part of
-     * the name, so `/Jobs` — which is how a mail client displays it — is normalised to
-     * `Jobs` rather than failing. A subfolder of the inbox is usually `INBOX/Jobs`, which
-     * is why the failure lists what the mailbox actually holds instead of only saying no:
-     * "folder not found" without the alternatives is a message that ends the working day.
+     * <p>Four settings and every one of them is about not disturbing the owner:
+     * {@code peek} so a fetch does not set {@code \Seen}, {@code shouldMarkMessagesAsRead}
+     * off for the same reason, {@code shouldDeleteMessages} off because nothing here owns
+     * that mail, and {@code flaggedAsFallback} off so a server without user flags is not
+     * silently given a {@code \Flagged} instead — a star the owner would see on their
+     * phone.
+     *
+     * <p>No {@code SearchTermStrategy} is supplied on purpose. The default one is what
+     * expresses "not already taken" in terms of the flags above, and replacing it would mean
+     * reimplementing that. The selector's sender, subject and age rules are applied here
+     * afterwards instead, exactly as before.
      */
-    private static Folder open(Store store, Source source) throws MessagingException {
-        String configured = source.selector().folder();
-        if (configured == null || configured.isBlank()) {
+    private ImapMailReceiver receiver(Source source, Selector selector) {
+        Connection connection = connection(source);
+        String protocol = connection.ssl() ? "imaps" : "imap";
+        ImapMailReceiver receiver = new ImapMailReceiver(url(connection, protocol, selector.folder(), source));
+
+        Properties properties = new Properties();
+        properties.put("mail.store.protocol", protocol);
+        properties.put("mail." + protocol + ".connectiontimeout", String.valueOf(TIMEOUT.toMillis()));
+        properties.put("mail." + protocol + ".timeout", String.valueOf(TIMEOUT.toMillis()));
+        properties.put("mail." + protocol + ".peek", "true");
+        receiver.setJavaMailProperties(properties);
+
+        receiver.setShouldMarkMessagesAsRead(false);
+        receiver.setShouldDeleteMessages(false);
+        receiver.setFlaggedAsFallback(false);
+        receiver.setUserFlag(USER_FLAG);
+        // The whole message, not the headers: the body is the document.
+        receiver.setSimpleContent(false);
+        // The folder must outlive `receive()`. The receiver hands back messages whose content
+        // is still fetched lazily from the server, and with the default it closes the folder
+        // on the way out — so reading a body afterwards throws `FolderClosedException` for
+        // every single message. Closed instead in the `finally` below, once the bodies are read.
+        receiver.setAutoCloseFolder(false);
+        receiver.setBeanFactory(beans);
+        receiver.afterPropertiesSet();
+        return receiver;
+    }
+
+    /**
+     * {@code imaps://user:password@host:port/folder}, with both credentials percent-encoded.
+     *
+     * <p>A password containing an {@code @} or a {@code /} is ordinary and would otherwise
+     * split the URL somewhere in the middle, producing a connection attempt against a host
+     * nobody configured — with the password in the error message.
+     */
+    private static String url(Connection connection, String protocol, String folder, Source source) {
+        if (folder == null || folder.isBlank()) {
             throw new IngestException(
                     "source '%s' names no selector.folder; an IMAP source has to say which folder to read"
                             .formatted(source.id()));
         }
-
-        char separator = store.getDefaultFolder().getSeparator();
-        String name = configured;
-        while (!name.isEmpty() && (name.charAt(0) == separator || name.charAt(0) == '/')) {
-            name = name.substring(1);
-        }
-        name = name.replace('/', separator);
-        if (!name.equals(configured)) {
-            log.info("Source '{}': folder '{}' read as '{}' (this server separates with '{}')",
-                    source.id(), configured, name, separator);
-        }
-
-        Folder folder = store.getFolder(name);
-        if (!folder.exists()) {
-            throw new IngestException("source '%s': the mailbox has no folder '%s'. It has: %s"
-                    .formatted(source.id(), configured, available(store, separator)));
-        }
-        // READ_ONLY, so nothing is ever flagged \Seen. The owner reads this mailbox too.
-        folder.open(Folder.READ_ONLY);
-        return folder;
+        String port = connection.port() == null ? "" : ":" + connection.port();
+        return "%s://%s:%s@%s%s/%s"
+                .formatted(
+                        protocol,
+                        encode(connection.username()),
+                        encode(connection.password()),
+                        connection.host(),
+                        port,
+                        folder.startsWith("/") ? folder.substring(1) : folder);
     }
 
-    /** Every folder the account can subscribe to, so a typo answers itself. */
-    private static String available(Store store, char separator) {
-        try {
-            return java.util.Arrays.stream(store.getDefaultFolder().list("*"))
-                    .map(Folder::getFullName)
-                    .sorted()
-                    .collect(java.util.stream.Collectors.joining(", "));
-        } catch (MessagingException e) {
-            return "<the folder list could not be read: " + e.getMessage() + ">";
+    private static String encode(String value) {
+        return URLEncoder.encode(value == null ? "" : value, StandardCharsets.UTF_8);
+    }
+
+    private static Selector selectorOf(Source source) {
+        if (source.selector() == null) {
+            throw new IngestException(
+                    "source '%s' declares no selector; an IMAP source has to say what to read".formatted(source.id()));
         }
+        return source.selector();
+    }
+
+    /**
+     * The mail message, whichever shape the receiver handed it over in.
+     *
+     * <p>Two shapes, and the difference is not documented anywhere near the setter that
+     * causes it: with {@code autoCloseFolder} on, {@code receive()} returns
+     * {@code jakarta.mail.Message} directly; with it off — which is what lets a body be read
+     * after the call — it returns Spring {@code Message}s instead, carrying the mail as the
+     * payload so the flow can close the folder later. Assuming the first shape silently
+     * yields zero documents from a mailbox that is perfectly fine, which is exactly the
+     * failure this source class is least able to notice.
+     */
+    private static Message mailMessageOf(Object candidate) {
+        if (candidate instanceof Message message) {
+            return message;
+        }
+        if (candidate instanceof org.springframework.messaging.Message<?> wrapper
+                && wrapper.getPayload() instanceof Message message) {
+            return message;
+        }
+        log.warn("The mail receiver handed over a {}, which is not a message", candidate.getClass());
+        return null;
+    }
+
+    /**
+     * The document's identity, and it is the message id rather than a UID.
+     *
+     * <p>The UID is gone with the cursor, and the message id is what the document carries
+     * about itself — stable across a folder move, and meaningful in a log line. A mail
+     * without one falls back to its subject and arrival time, which is the best available
+     * answer and still stable for the same message.
+     */
+    private static String identityOf(Message message) throws MessagingException {
+        String[] ids = message.getHeader("Message-ID");
+        if (ids != null && ids.length > 0 && ids[0] != null && !ids[0].isBlank()) {
+            return ids[0].trim();
+        }
+        return "%s@%s"
+                .formatted(
+                        message.getSubject(),
+                        message.getReceivedDate() == null
+                                ? "unknown"
+                                : message.getReceivedDate().toInstant());
     }
 
     private Connection connection(Source source) {
@@ -212,21 +279,30 @@ public class ImapSourceConnector implements SourceConnector {
                 .filter(candidate -> candidate.id().equals(source.connection()))
                 .findFirst()
                 // Unreachable through the loader, which rejects an undeclared connection.
-                .orElseThrow(() -> new IngestException(
-                        "source '%s' names connection '%s', which is not declared"
-                                .formatted(source.id(), source.connection())));
+                .orElseThrow(() -> new IngestException("source '%s' names connection '%s', which is not declared"
+                        .formatted(source.id(), source.connection())));
     }
 
+    /**
+     * Whether the selector wants this message, and it says why when it does not.
+     *
+     * <p>The reason is logged rather than counted. "3 of 40 messages matched" is the kind of
+     * number somebody stares at for an afternoon; "skipped, sender not in the list" answers
+     * the question in one line, and a selector that is quietly too narrow is the failure this
+     * source is most likely to have.
+     */
     private static boolean matches(Message message, Selector selector) throws MessagingException {
         if (selector.sinceDays() != null
                 && message.getReceivedDate() != null
                 && message.getReceivedDate()
                         .toInstant()
                         .isBefore(Instant.now().minus(selector.sinceDays(), ChronoUnit.DAYS))) {
+            log.debug("Skipping '{}': older than the configured window", message.getSubject());
             return false;
         }
         List<String> senders = sendersOf(message);
         if (contains(selector.excludeFrom(), senders)) {
+            log.debug("Skipping '{}': sender {} is excluded", message.getSubject(), senders);
             return false;
         }
         // Dedicated mode: the folder holds nothing else, so there is nothing to filter on.
@@ -234,11 +310,20 @@ public class ImapSourceConnector implements SourceConnector {
             return true;
         }
         if (selector.from() != null && !selector.from().isEmpty() && !contains(selector.from(), senders)) {
+            log.debug("Skipping '{}': sender {} is not in {}", message.getSubject(), senders, selector.from());
             return false;
         }
-        return selector.subjectMatches() == null
-                || (message.getSubject() != null
-                        && Pattern.compile(selector.subjectMatches()).matcher(message.getSubject()).find());
+        if (selector.subjectMatches() == null) {
+            return true;
+        }
+        boolean subjectMatches = message.getSubject() != null
+                && Pattern.compile(selector.subjectMatches())
+                        .matcher(message.getSubject())
+                        .find();
+        if (!subjectMatches) {
+            log.debug("Skipping '{}': the subject does not match {}", message.getSubject(), selector.subjectMatches());
+        }
+        return subjectMatches;
     }
 
     private static List<String> sendersOf(Message message) throws MessagingException {
@@ -247,7 +332,8 @@ public class ImapSourceConnector implements SourceConnector {
             return List.of();
         }
         return java.util.Arrays.stream(from)
-                .map(address -> address instanceof InternetAddress internet ? internet.getAddress() : address.toString())
+                .map(address ->
+                        address instanceof InternetAddress internet ? internet.getAddress() : address.toString())
                 .filter(java.util.Objects::nonNull)
                 .map(address -> address.toLowerCase(Locale.ROOT))
                 .toList();
@@ -255,7 +341,9 @@ public class ImapSourceConnector implements SourceConnector {
 
     private static boolean contains(List<String> configured, List<String> senders) {
         return configured != null
-                && configured.stream().map(value -> value.toLowerCase(Locale.ROOT)).anyMatch(senders::contains);
+                && configured.stream()
+                        .map(value -> value.toLowerCase(Locale.ROOT))
+                        .anyMatch(senders::contains);
     }
 
     /**
@@ -265,8 +353,7 @@ public class ImapSourceConnector implements SourceConnector {
      * to html — searched from the back, because `multipart/alternative` orders its parts
      * least-preferred first.
      */
-    private static String partOf(jakarta.mail.Part part, String preferred)
-            throws MessagingException, IOException {
+    private static String partOf(jakarta.mail.Part part, String preferred) throws MessagingException, IOException {
         if (part.isMimeType("text/" + preferred)) {
             return (String) part.getContent();
         }
@@ -279,10 +366,5 @@ public class ImapSourceConnector implements SourceConnector {
             }
         }
         return "";
-    }
-
-    @FunctionalInterface
-    private interface ImapAction<T> {
-        T apply(Folder folder) throws MessagingException, IOException;
     }
 }

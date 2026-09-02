@@ -1,3 +1,11 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright 2026 Marcello Muscara (codeministry)
+ *
+ * Licensed under the Apache License, Version 2.0. You may obtain a copy of the
+ * License at http://www.apache.org/licenses/LICENSE-2.0
+ */
 package de.codeministry.leadgen.ingest.extract;
 
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -138,6 +146,9 @@ public class MarkdownExtractor {
         if (line == null || line.isBlank()) {
             return List.of();
         }
-        return Arrays.stream(line.split(",")).map(String::strip).filter(tag -> !tag.isEmpty()).toList();
+        return Arrays.stream(line.split(","))
+                .map(String::strip)
+                .filter(tag -> !tag.isEmpty())
+                .toList();
     }
 }

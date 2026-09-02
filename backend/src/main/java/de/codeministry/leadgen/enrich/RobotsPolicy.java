@@ -1,3 +1,11 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright 2026 Marcello Muscara (codeministry)
+ *
+ * Licensed under the Apache License, Version 2.0. You may obtain a copy of the
+ * License at http://www.apache.org/licenses/LICENSE-2.0
+ */
 package de.codeministry.leadgen.enrich;
 
 import java.net.URI;
@@ -42,7 +50,9 @@ public final class RobotsPolicy {
 
         Rule longest = null;
         for (Rule rule : rules) {
-            if (path.startsWith(rule.prefix()) && (longest == null || rule.prefix().length() > longest.prefix().length())) {
+            if (path.startsWith(rule.prefix())
+                    && (longest == null
+                            || rule.prefix().length() > longest.prefix().length())) {
                 longest = rule;
             }
         }

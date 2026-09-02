@@ -1,0 +1,59 @@
+name: A source that does not work
+description: A portal, newsletter or feed you cannot express as a YAML block.
+labels: [source]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A new offer source is supposed to be a block of YAML and nothing else — see
+        [Adding a source](https://github.com/codeministry/leadgen/blob/main/docs/ADDING-A-SOURCE.md).
+        **If yours needs a code change, that is a bug in the abstraction**, and this is the
+        most useful issue you can file.
+
+        **Do not paste a real advert, a subscriber link or a mailbox address.** Newsletter
+        links carry the subscriber's mail address as a query parameter. Anonymise the
+        markup: `portal-a.example` and `Acme Consulting GmbH` are the placeholders the repo
+        already uses.
+
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What kind of source
+      options:
+        - A directory of files
+        - An IMAP mailbox
+        - An RSS or Atom feed
+        - An HTTP endpoint
+        - Something else
+    validations:
+      required: true
+
+  - type: textarea
+    id: yaml
+    attributes:
+      label: The block you tried
+      description: Your `sources.yaml` entry, with every credential left as its `${PLACEHOLDER}`.
+      render: yaml
+    validations:
+      required: true
+
+  - type: textarea
+    id: document
+    attributes:
+      label: An anonymised sample of the document
+      description: |
+        Enough markup to show the structure — one offer block and whatever wraps it. Names,
+        URLs and addresses replaced.
+      render: html
+
+  - type: textarea
+    id: blocked
+    attributes:
+      label: What it cannot express
+      description: |
+        Which of the eight field names (`title`, `url`, `description`, `location`, `portal`,
+        `agency`, `published`, `tags`) you could not fill, and why the existing options —
+        `css`, `attr`, `prefix`, `format`, `ancestor`, `list`, `split`, `unwrap_query_param`
+        — do not reach it.
+    validations:
+      required: true

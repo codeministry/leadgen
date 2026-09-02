@@ -1,3 +1,11 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright 2026 Marcello Muscara (codeministry)
+ *
+ * Licensed under the Apache License, Version 2.0. You may obtain a copy of the
+ * License at http://www.apache.org/licenses/LICENSE-2.0
+ */
 package de.codeministry.leadgen.packaging;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -151,11 +159,12 @@ public class PackagingService {
 
         List<String> written = new ArrayList<>();
         for (PipelineConfig.Packaging.Document document : settings.documents()) {
-            written.add(switch (document.id()) {
-                case "cv" -> copyCv(folder, profile, language);
-                case "meta" -> writeMeta(folder, row, language, projects, matchedSkills);
-                default -> render(folder, document, language, model);
-            });
+            written.add(
+                    switch (document.id()) {
+                        case "cv" -> copyCv(folder, profile, language);
+                        case "meta" -> writeMeta(folder, row, language, projects, matchedSkills);
+                        default -> render(folder, document, language, model);
+                    });
         }
 
         jdbc.sql("UPDATE offer SET package_dir = ?, packaged_at = now(), language = ? WHERE id = ?")
@@ -171,8 +180,9 @@ public class PackagingService {
     }
 
     /** A template's `{lang}` is the language of the ad; everything else is its file name. */
-    private String render(Path folder, PipelineConfig.Packaging.Document document, String language,
-            Map<String, Object> model) throws IOException, TemplateException {
+    private String render(
+            Path folder, PipelineConfig.Packaging.Document document, String language, Map<String, Object> model)
+            throws IOException, TemplateException {
         String name = document.template().replace("{lang}", language);
         ConfigSource source = ConfigSource.resolve(properties.configDirectory(), name)
                 .orElseThrow(() -> new IllegalStateException(
@@ -231,8 +241,13 @@ public class PackagingService {
      * Everything the decision rested on, in a form something else can read: the score and
      * every reason behind it, the fields, and the language that picked the documents.
      */
-    private String writeMeta(Path folder, Map<String, Object> row, String language,
-            List<SkillProfile.ReferenceProject> projects, List<String> matchedSkills) throws IOException {
+    private String writeMeta(
+            Path folder,
+            Map<String, Object> row,
+            String language,
+            List<SkillProfile.ReferenceProject> projects,
+            List<String> matchedSkills)
+            throws IOException {
         Map<String, Object> meta = new LinkedHashMap<>();
         meta.put("offerId", row.get("id"));
         meta.put("title", row.get("title"));
@@ -252,20 +267,24 @@ public class PackagingService {
         meta.put("score", row.get("score_value"));
         meta.put("band", row.get("score_band"));
         meta.put("model", row.get("score_model"));
-        meta.put("reasons", jdbc.sql(
-                        "SELECT factor, label, points FROM offer_score_reason WHERE offer_id = ? ORDER BY position")
-                .param(row.get("id"))
-                .query()
-                .listOfRows());
+        meta.put(
+                "reasons",
+                jdbc.sql("SELECT factor, label, points FROM offer_score_reason WHERE offer_id = ? ORDER BY position")
+                        .param(row.get("id"))
+                        .query()
+                        .listOfRows());
         meta.put("matchedSkills", matchedSkills);
-        meta.put("referenceProjects", projects.stream().map(SkillProfile.ReferenceProject::id).toList());
+        meta.put(
+                "referenceProjects",
+                projects.stream().map(SkillProfile.ReferenceProject::id).toList());
         meta.put("packagedAt", Instant.now().toString());
         // Every portal the cluster came through, so a duplicate is one package and not three.
-        meta.put("sources", jdbc.sql(
-                        "SELECT portal, agency, url FROM offer WHERE id = ? OR duplicate_of_id = ?")
-                .params(row.get("id"), row.get("id"))
-                .query()
-                .listOfRows());
+        meta.put(
+                "sources",
+                jdbc.sql("SELECT portal, agency, url FROM offer WHERE id = ? OR duplicate_of_id = ?")
+                        .params(row.get("id"), row.get("id"))
+                        .query()
+                        .listOfRows());
 
         Files.writeString(
                 folder.resolve("meta.json"),
@@ -302,9 +321,13 @@ public class PackagingService {
         String haystack = haystack(row);
         record Scored(SkillProfile.ReferenceProject project, long overlap) {}
         return profile.referenceProjects().stream()
-                .map(project -> new Scored(project, project.stack() == null
-                        ? 0
-                        : project.stack().stream().filter(s -> names(haystack, s)).count()))
+                .map(project -> new Scored(
+                        project,
+                        project.stack() == null
+                                ? 0
+                                : project.stack().stream()
+                                        .filter(s -> names(haystack, s))
+                                        .count()))
                 .filter(scored -> scored.overlap() > 0)
                 .sorted((a, b) -> Long.compare(b.overlap(), a.overlap()))
                 .limit(2)
@@ -325,8 +348,8 @@ public class PackagingService {
     }
 
     private static String haystack(Map<String, Object> row) {
-        return TextFold.fold("%s %s %s".formatted(
-                row.get("title"), row.getOrDefault("description", ""), row.getOrDefault("full_text", "")));
+        return TextFold.fold("%s %s %s"
+                .formatted(row.get("title"), row.getOrDefault("description", ""), row.getOrDefault("full_text", "")));
     }
 
     private static boolean names(String haystack, String keyword) {
@@ -357,7 +380,9 @@ public class PackagingService {
     /** `{date}_{company}_{slug}`, with everything reduced to what a file system likes. */
     private static String folderName(String naming, Map<String, Object> row) {
         Object published = row.get("published_on");
-        String date = published instanceof LocalDate day ? day.toString() : LocalDate.now().toString();
+        String date = published instanceof LocalDate day
+                ? day.toString()
+                : LocalDate.now().toString();
         return naming.replace("{date}", date)
                 .replace("{company}", safe(String.valueOf(row.getOrDefault("agency", "unknown"))))
                 .replace("{slug}", safe(String.valueOf(row.get("title"))))
@@ -369,5 +394,4 @@ public class PackagingService {
         String trimmed = folded.length() > 60 ? folded.substring(0, 60) : folded;
         return trimmed.isEmpty() ? "unknown" : trimmed.toLowerCase(Locale.ROOT);
     }
-
 }

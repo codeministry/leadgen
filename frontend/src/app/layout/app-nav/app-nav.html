@@ -1,4 +1,8 @@
-<nav class="rail" [class.rail-open]="shell.railOpen()" [attr.aria-label]="'nav.sections' | transloco">
+<nav
+  class="rail"
+  [class.rail-open]="shell.railOpen()"
+  [attr.aria-label]="'nav.sections' | transloco"
+>
   <ul>
     @for (item of items; track item.path) {
       @if (item.opensGroup) {

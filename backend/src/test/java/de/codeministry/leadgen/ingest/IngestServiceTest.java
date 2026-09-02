@@ -1,3 +1,11 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright 2026 Marcello Muscara (codeministry)
+ *
+ * Licensed under the Apache License, Version 2.0. You may obtain a copy of the
+ * License at http://www.apache.org/licenses/LICENSE-2.0
+ */
 package de.codeministry.leadgen.ingest;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -139,5 +147,21 @@ class IngestServiceTest {
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
+    }
+
+    @Test
+    void writesOneStageRowPerStageOfTheRun() {
+        // The row the history table cannot carry: where the time went. A run whose counts
+        // look ordinary can still have spent four minutes in enrichment because one portal
+        // was slow, and nothing in the counts says so.
+        ingest.run();
+
+        var stages = jdbc.queryForList("SELECT stage, status FROM pipeline_stage ORDER BY run_id DESC, position ASC");
+
+        assertThat(stages).isNotEmpty();
+        assertThat(stages).allSatisfy(row -> assertThat(row.get("status")).isEqualTo("OK"));
+        assertThat(stages)
+                .extracting(row -> row.get("stage"))
+                .containsSubsequence("DEDUPE", "FILTER", "ARCHIVE", "ENRICH", "SCORE", "PACKAGE", "DIGEST");
     }
 }

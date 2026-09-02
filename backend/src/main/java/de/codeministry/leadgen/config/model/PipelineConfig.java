@@ -1,3 +1,11 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright 2026 Marcello Muscara (codeministry)
+ *
+ * Licensed under the Apache License, Version 2.0. You may obtain a copy of the
+ * License at http://www.apache.org/licenses/LICENSE-2.0
+ */
 package de.codeministry.leadgen.config.model;
 
 import jakarta.validation.Valid;
@@ -105,7 +113,8 @@ public record PipelineConfig(
     /** Optional: without it `sources.yaml` in the configuration directory applies. */
     public record Sources(String path) {}
 
-    public record Enrichment(boolean enabled, @NotBlank String after, @Valid @NotNull Fetch fetch, @Valid Extract extract) {
+    public record Enrichment(
+            boolean enabled, @NotBlank String after, @Valid @NotNull Fetch fetch, @Valid Extract extract) {
 
         public record Fetch(
                 @NotNull Duration timeout,

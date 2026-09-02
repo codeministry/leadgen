@@ -1,3 +1,11 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright 2026 Marcello Muscara (codeministry)
+ *
+ * Licensed under the Apache License, Version 2.0. You may obtain a copy of the
+ * License at http://www.apache.org/licenses/LICENSE-2.0
+ */
 package de.codeministry.leadgen.config;
 
 import de.codeministry.leadgen.config.model.MatchingRules;
@@ -58,10 +66,7 @@ public record RulesView(
         var filters = rules.hardFilters();
         var knockouts = new ArrayList<KnockoutRule>();
         knockouts.add(KnockoutRule.list(
-                "location.country_allowlist",
-                "Countries",
-                filters.location().countryAllowlist(),
-                "everywhere"));
+                "location.country_allowlist", "Countries", filters.location().countryAllowlist(), "everywhere"));
         knockouts.add(KnockoutRule.list(
                 "location.onsite_cities",
                 "Reachable for on-site days",

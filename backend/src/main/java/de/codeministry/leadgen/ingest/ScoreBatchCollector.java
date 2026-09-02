@@ -1,3 +1,11 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright 2026 Marcello Muscara (codeministry)
+ *
+ * Licensed under the Apache License, Version 2.0. You may obtain a copy of the
+ * License at http://www.apache.org/licenses/LICENSE-2.0
+ */
 package de.codeministry.leadgen.ingest;
 
 import de.codeministry.leadgen.analytics.PipelineRunRecorder;
@@ -57,8 +65,11 @@ class ScoreBatchCollector {
             // not by the request that started it: that request returned before any of this
             // existed, and a row completed there would state the previous run's shortlist.
             history.complete(collected.scored(), packages.built(), written != null);
-            log.info("Collected {} scoring batch(es), {} offers scored; {} package(s) built, digest {}",
-                    collected.ended(), collected.scored(), packages.built(),
+            log.info(
+                    "Collected {} scoring batch(es), {} offers scored; {} package(s) built, digest {}",
+                    collected.ended(),
+                    collected.scored(),
+                    packages.built(),
                     written == null ? "not written" : written);
         } catch (RuntimeException e) {
             log.error("Collecting the scoring batches failed: {}", e.getMessage(), e);
