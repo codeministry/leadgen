@@ -113,6 +113,17 @@ export class OfferDetail implements OnInit {
     });
   }
 
+  /**
+   * The package as one file. A link and not a request: the server sets the filename in
+   * `Content-Disposition`, so nothing here has to hold the bytes or name the archive.
+   *
+   * Downloading is not sending. The folder stays on the machine that ran the pipeline;
+   * this only fetches a copy of it into a browser that is not on that machine.
+   */
+  protected packageUrl(id: number): string {
+    return `/api/offers/${id}/package`;
+  }
+
   protected record(update: ApplicationUpdate): void {
     const application = this.application();
     if (application !== undefined) {

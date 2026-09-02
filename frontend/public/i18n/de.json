@@ -137,7 +137,7 @@
     "advertisedBy": "Ausgeschrieben von",
     "package": "Bewerbungspaket",
     "packageNote": "Das Paket ist ein Ordner auf der Platte: Anschreiben, der feste Lebenslauf in der Sprache der Anzeige und die passenden Referenzprojekte. Von hier wird nichts versendet.",
-    "packageOnDisk": "Der Ordner liegt auf der Maschine, die den Lauf ausgeführt hat. Es gibt keinen Download und keinen Weg, ihn von hier zu verschicken.",
+    "packageOnDisk": "Der Ordner liegt auf der Maschine, die den Lauf ausgeführt hat. Der Download packt ihn als Zip; versendet wird von hier nichts.",
     "downloadPackage": "Paket herunterladen",
     "noPackageYet": "Ein Paket entsteht für alles oberhalb der Auswahlschwelle. Dieses Angebot hat noch keins.",
     "notFoundTitle": "Kein Angebot mit dieser ID",
