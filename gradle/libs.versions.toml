@@ -15,6 +15,9 @@ wiremock = "3.13.1"
 # Pinned rather than taken from the Boot BOM for the same reason as jsoup:
 # a template that stops rendering should show up as a diff here.
 freemarker = "2.3.34"
+# The HTML-to-Markdown converter, pinned for the same reason as the two above: an ad
+# that suddenly renders differently should show up as a diff here.
+flexmark = "0.64.8"
 
 [libraries]
 testcontainers-bom = { module = "org.testcontainers:testcontainers-bom", version.ref = "testcontainers" }
@@ -23,6 +26,7 @@ lombok = { module = "org.projectlombok:lombok", version.ref = "lombok" }
 greenmail-junit5 = { module = "com.icegreen:greenmail-junit5", version.ref = "greenmail" }
 wiremock-standalone = { module = "org.wiremock:wiremock-standalone", version.ref = "wiremock" }
 freemarker = { module = "org.freemarker:freemarker", version.ref = "freemarker" }
+flexmark-html2md = { module = "com.vladsch.flexmark:flexmark-html2md-converter", version.ref = "flexmark" }
 
 [plugins]
 spring-boot = { id = "org.springframework.boot", version.ref = "springBoot" }

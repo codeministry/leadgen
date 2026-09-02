@@ -41,6 +41,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-mail")
     implementation(libs.jsoup)
     implementation(libs.freemarker)
+    implementation(libs.flexmark.html2md)
     // The three config files in config/local are read by this application, not by
     // Spring: they are data with their own schema, not Spring properties.
     implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml")

@@ -1,4 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input, linkedSignal, output } from '@angular/core';
+import { TranslocoPipe } from '@jsverse/transloco';
+import { MarkdownSource } from '@shared/markdown/markdown-source';
 import { ManualOfferFields, PendingDocument } from '@core/model/manual-document';
 
 /**
@@ -11,6 +13,7 @@ import { ManualOfferFields, PendingDocument } from '@core/model/manual-document'
  */
 @Component({
   selector: 'lg-review-card',
+  imports: [MarkdownSource, TranslocoPipe],
   templateUrl: './review-card.html',
   styleUrl: './review-card.css',
   changeDetection: ChangeDetectionStrategy.OnPush,

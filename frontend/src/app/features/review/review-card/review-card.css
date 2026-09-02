@@ -65,16 +65,12 @@
   min-width: 0;
 }
 
+/* The box itself belongs to `lg-markdown-source`; what stays here is how tall the pane is
+   allowed to be inside this card. Declaring the border in both places drew two. */
 .text {
   flex: 1;
+  min-width: 0;
   max-height: 22rem;
-  padding: 0.625rem;
-  overflow: auto;
-  border: 1px solid var(--color-base-300);
-  border-radius: var(--radius-field);
-  background-color: var(--color-base-200);
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
 }
 
 .actions {

@@ -98,7 +98,9 @@ class ManualSourceControllerTest {
                 null,
                 null,
                 List.of("Java"),
-                "senior java entwickler");
+                "senior java entwickler",
+                // A file dropped in by hand did not come in the post.
+                null);
         return new PendingDocument("offer.md", 128, Instant.parse("2026-09-01T10:00:00Z"), "---\n", offer, null, null);
     }
 }
