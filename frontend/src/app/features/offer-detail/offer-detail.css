@@ -114,8 +114,12 @@
   white-space: pre-wrap;
 }
 
-.disabled-note {
+.package-note {
   margin-top: 0.5rem;
+}
+
+.package-download {
+  margin-top: 0.75rem;
 }
 
 .package-dir {

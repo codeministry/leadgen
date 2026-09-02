@@ -137,7 +137,7 @@
     "advertisedBy": "Advertised by",
     "package": "Application package",
     "packageNote": "The package is a folder on disk: cover letter, the fixed CV for the ad's language, and the matching reference projects. Nothing is sent from here.",
-    "packageOnDisk": "The folder is on the machine that ran the pipeline. There is no download, and no way to send it from here.",
+    "packageOnDisk": "The folder is on the machine that ran the pipeline. The download bundles it as a zip; nothing is sent from here.",
     "downloadPackage": "Download package",
     "noPackageYet": "A package is built for everything above the shortlist threshold. This offer has none yet.",
     "notFoundTitle": "No offer with that id",

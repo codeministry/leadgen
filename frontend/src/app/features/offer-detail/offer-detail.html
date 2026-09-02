@@ -157,15 +157,20 @@
       </p>
       @if (application()?.packageDir ?? entry.offer.packageDir; as folder) {
         <p class="type-mono-data package-dir">{{ folder }}</p>
-        <p class="type-caption text-muted disabled-note">
+        <!--
+          A plain link, not a click handler: the server answers with the zip and its own
+          Content-Disposition, so there is no blob to hold, no api seam to add, and it
+          behaves identically through the dev proxy and through nginx.
+        -->
+        <a class="btn btn-sm btn-outline package-download" [href]="packageUrl(entry.offer.id)" download>
+          <lg-icon name="download" [size]="16" />
+          {{ 'detail.downloadPackage' | transloco }}
+        </a>
+        <p class="type-caption text-muted package-note">
           {{ 'detail.packageOnDisk' | transloco }}
         </p>
       } @else {
-        <button type="button" class="btn btn-sm btn-outline" disabled>
-          <lg-icon name="download" [size]="16" />
-          {{ 'detail.downloadPackage' | transloco }}
-        </button>
-        <p class="type-caption text-muted disabled-note">
+        <p class="type-caption text-muted package-note">
           {{ 'detail.noPackageYet' | transloco }}
         </p>
       }
