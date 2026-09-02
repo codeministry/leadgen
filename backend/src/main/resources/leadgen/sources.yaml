@@ -32,7 +32,7 @@ sources:
       folder: INBOX
       from: ["newsletter@example.com"]
       subject_matches: ".*new projects.*"
-      since_days: 3
+      since_days: 360
       # Dedicated mode: set this when the folder holds nothing but this newsletter, and
       # drop `from`/`subject_matches`. Filter mode is the case above.
       match_all: false
