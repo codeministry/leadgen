@@ -97,7 +97,7 @@ export const ApplicationsStore = signalStore(
         exhaustMap(() =>
           forkJoin({ applications: api.board(), lanes: api.lanes() }).pipe(
             map((payload) => applicationEvents.loaded(payload)),
-            catchError(() => of(applicationEvents.failed('The board did not load.'))),
+            catchError(() => of(applicationEvents.failed('error.boardLoad'))),
           ),
         ),
       ),
@@ -120,7 +120,7 @@ export const ApplicationsStore = signalStore(
         concatMap(({ payload }) =>
           api.history(payload).pipe(
             map((history) => applicationEvents.historyLoaded({ id: payload, events: history })),
-            catchError(() => of(applicationEvents.failed('The history did not load.'))),
+            catchError(() => of(applicationEvents.failed('error.historyLoad'))),
           ),
         ),
       ),
