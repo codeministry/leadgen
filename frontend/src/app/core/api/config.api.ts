@@ -2,6 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { RulesView } from '@core/model/rules-view';
+import { ScoringModels } from '@core/model/scoring-models';
 import { SourceSummary } from '@core/model/source-summary';
 
 /**
@@ -20,5 +21,10 @@ export class ConfigApi {
 
   rules(): Observable<RulesView> {
     return this.http.get<RulesView>('/api/rules');
+  }
+
+  /** What the select beside the run button may offer, and what a run takes by default. */
+  scoringModels(): Observable<ScoringModels> {
+    return this.http.get<ScoringModels>('/api/scoring-models');
   }
 }

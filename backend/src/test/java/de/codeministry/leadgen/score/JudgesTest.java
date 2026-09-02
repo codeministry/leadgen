@@ -13,7 +13,7 @@ import org.mockito.Mockito;
 class JudgesTest {
 
     private static final PipelineConfig.Llm.Models SCORING =
-            new PipelineConfig.Llm.Models(null, "some-model", null, null);
+            new PipelineConfig.Llm.Models(null, "some-model", null, null, null);
 
     @Test
     void picksTheWireFormatTheProviderNames() {
@@ -56,13 +56,14 @@ class JudgesTest {
                         "anthropic",
                         "https://gateway.invalid",
                         "key",
-                        new PipelineConfig.Llm.Models(null, null, null, null),
+                        false,
+                        new PipelineConfig.Llm.Models(null, null, null, null, null),
                         null)))
                 .isEmpty();
     }
 
     private java.util.Optional<Judge> judgeFor(String provider, String baseUrl, String apiKey) {
-        return judge(new PipelineConfig.Llm(provider, baseUrl, apiKey, SCORING, null));
+        return judge(new PipelineConfig.Llm(provider, baseUrl, apiKey, false, SCORING, null));
     }
 
     private java.util.Optional<Judge> judge(PipelineConfig.Llm llm) {

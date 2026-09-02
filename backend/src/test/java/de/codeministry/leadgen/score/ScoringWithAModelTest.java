@@ -1,9 +1,14 @@
 package de.codeministry.leadgen.score;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
+import static com.github.tomakehurst.wiremock.client.WireMock.matchingJsonPath;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
+import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tomakehurst.wiremock.WireMockServer;
@@ -64,6 +69,9 @@ class ScoringWithAModelTest {
 
     @Autowired
     private JdbcTemplate jdbc;
+
+    @Autowired
+    private de.codeministry.leadgen.config.ConfigRegistry config;
 
     private long sourceId;
 
@@ -134,7 +142,7 @@ class ScoringWithAModelTest {
     }
 
     @Test
-    void clampsAModelThatAwardsItselfMoreThanTheWeight() {
+    void clampsAModelToWhatTheConfiguredWeightTableSays() {
         answers("""
                 {"reasons":[{"factor":"role_fit","label":"perfect","points":900}]}
                 """);
@@ -142,10 +150,15 @@ class ScoringWithAModelTest {
 
         scoring.run();
 
+        // Read from the configuration the app was started with, not restated here. The four
+        // bounds used to be Java constants that matched `scoring.weights` by coincidence: a
+        // weight raised in the file moved the deterministic half of the score and left the
+        // clamp where it was, and a test asserting the literal would have stayed green.
+        int roleFit = config.snapshot().rules().scoring().weights().get("role_fit");
         assertThat(jdbc.queryForObject(
                         "SELECT points FROM offer_score_reason WHERE offer_id = ? AND factor = 'role_fit'",
                         Integer.class, id))
-                .isEqualTo(15);
+                .isEqualTo(roleFit);
         assertThat(jdbc.queryForObject("SELECT score_value FROM offer WHERE id = ?", Integer.class, id))
                 .isLessThanOrEqualTo(100);
     }
@@ -173,6 +186,61 @@ class ScoringWithAModelTest {
 
         assertThat(scoring.run().scored()).isEqualTo(1);
         assertThat(factorsOf(id)).doesNotContain("role_fit");
+    }
+
+    /**
+     * ISC-48: the model a run judges with is chosen per run, which is what makes comparing
+     * two of them possible at all. The configured one stays the default.
+     */
+    @Test
+    void judgesWithTheModelTheRunNames() {
+        answers("""
+                {"reasons":[{"factor":"role_fit","label":"backend engagement","points":15}]}
+                """);
+        long id = offer("Senior Java Entwickler (m/w/d)", "Java 21 und Spring Boot");
+
+        assertThat(scoring.run("other-model").scored()).isEqualTo(1);
+
+        assertThat(modelOf(id)).isEqualTo("other-model");
+        MODEL.verify(postRequestedFor(urlPathEqualTo("/chat/completions"))
+                .withRequestBody(matchingJsonPath("$.model", equalTo("other-model"))));
+    }
+
+    /**
+     * The name arrives as a request parameter and the endpoint behind it is billed per
+     * token, so the configured list is an allowlist: anything else is refused rather than
+     * forwarded. A model the provider happens to accept would answer, score, and write
+     * itself into `score_model`, where it is indistinguishable from a deliberate choice.
+     */
+    @Test
+    void refusesAModelNobodyConfigured() {
+        offer("Senior Java Entwickler (m/w/d)", "Java 21 und Spring Boot");
+
+        assertThatThrownBy(() -> scoring.run("a-model-nobody-configured"))
+                .isInstanceOf(Judges.UnknownModel.class)
+                .hasMessageContaining("test-model")
+                .hasMessageContaining("other-model");
+
+        MODEL.verify(0, postRequestedFor(urlPathEqualTo("/chat/completions")));
+    }
+
+    /**
+     * The run asks this before it reads a single source. Scoring is the last stage, so a
+     * name checked only where it is used is checked after the whole pipeline has run — one
+     * wasted pass, and the portals asked for nothing.
+     */
+    @Test
+    void refusesAnUnknownModelWithoutBuildingAnything() {
+        assertThatThrownBy(() -> scoring.checkModel("a-model-nobody-configured"))
+                .isInstanceOf(Judges.UnknownModel.class);
+
+        assertThatCode(() -> scoring.checkModel("other-model")).doesNotThrowAnyException();
+        // Null is "whatever is configured", not a name, so it passes.
+        assertThatCode(() -> scoring.checkModel(null)).doesNotThrowAnyException();
+    }
+
+    private String modelOf(long offerId) {
+        return jdbc.queryForObject("SELECT score_model FROM offer WHERE id = ?", String.class, offerId);
     }
 
     private List<String> factorsOf(long offerId) {
@@ -217,7 +285,11 @@ class ScoringWithAModelTest {
                     .replace("provider: ${LLM_PROVIDER:}", "provider: openai-compatible")
                     .replace("base_url: ${LLM_BASE_URL:}", "base_url: " + MODEL.baseUrl())
                     .replace("api_key: ${LLM_API_KEY}", "api_key: test-key")
-                    .replace("scoring:    ${LLM_MODEL_SCORING}", "scoring:    test-model");
+                    .replace("scoring:    ${LLM_MODEL_SCORING}", "scoring:    test-model")
+                    // Named rather than left as a placeholder for the same reason the four
+                    // above are: the resolver reads the developer's `.env`, so a list left
+                    // open here would make the allowlist below depend on whose machine ran it.
+                    .replace("scoring_options: ${LLM_MODEL_SCORING_OPTIONS:}", "scoring_options: other-model");
             Files.writeString(pipeline, text, StandardCharsets.UTF_8);
             return dir;
         } catch (IOException e) {

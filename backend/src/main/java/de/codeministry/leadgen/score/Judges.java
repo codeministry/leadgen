@@ -3,6 +3,8 @@ package de.codeministry.leadgen.score;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.config.model.PipelineConfig;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -43,7 +45,52 @@ public class Judges {
         this.config = config;
     }
 
+    /** The judge the configuration names by default. */
     public Optional<Judge> current() {
+        return current(null);
+    }
+
+    /** Every model that may be asked, the configured default first. Empty when none is set. */
+    public List<String> choices() {
+        PipelineConfig.Llm llm = config.snapshot().application().llm();
+        return llm == null || llm.models() == null ? List.of() : llm.models().scoringChoices();
+    }
+
+    /**
+     * The same allowlist check {@link #current(String)} makes, without building anything.
+     *
+     * <p>It exists so a run can refuse before it starts. Scoring is the last stage, so a
+     * name checked only there is checked after the sources have been read, the duplicates
+     * clustered, the filter applied and the surviving ads fetched from their portals —
+     * measured: a request naming a model nobody configured got a 400 having already
+     * ingested and re-filtered the whole standing corpus. The pass is wasted, the portals
+     * were asked for nothing, and the answer says only that the model is unknown.
+     *
+     * @throws UnknownModel when {@code requested} is not among {@link #choices()}.
+     */
+    public void check(String requested) {
+        if (blank(requested)) {
+            return;
+        }
+        List<String> choices = choices();
+        if (!choices.contains(requested.trim())) {
+            throw new UnknownModel(requested.trim(), choices);
+        }
+    }
+
+    /**
+     * The judge for one named model, or the configured default when nothing is named.
+     *
+     * <p><b>An unrecognised name is refused, never forwarded.</b> The name arrives as a
+     * request parameter, and the endpoint it would reach is billed per token: passing it
+     * through means an arbitrary string deciding what gets bought. It is also the cheaper
+     * failure by far — a wrong model that the provider happens to accept answers, scores,
+     * and writes itself into `score_model`, where it looks exactly like a deliberate
+     * comparison.
+     *
+     * @throws UnknownModel when {@code requested} is not among {@link #choices()}.
+     */
+    public Optional<Judge> current(String requested) {
         PipelineConfig.Llm llm = config.snapshot().application().llm();
         if (llm == null || blank(llm.provider())) {
             return Optional.empty();
@@ -54,10 +101,16 @@ public class Judges {
         if (blank(llm.apiKey()) && !OLLAMA.equals(llm.provider())) {
             return Optional.empty();
         }
-        String model = llm.models() == null ? null : llm.models().scoring();
-        if (blank(model)) {
+        List<String> choices = llm.models() == null ? List.of() : llm.models().scoringChoices();
+        if (choices.isEmpty()) {
             log.warn("llm.models.scoring is not set; nothing can be scored");
             return Optional.empty();
+        }
+        // The default is the first entry, so "nothing was asked for" and "the configured
+        // one was asked for" are the same case and cannot drift apart.
+        String model = blank(requested) ? choices.getFirst() : requested.trim();
+        if (!choices.contains(model)) {
+            throw new UnknownModel(model, choices);
         }
         if (blank(llm.baseUrl())) {
             // Required even for a hosted provider whose address never changes: a URL in
@@ -70,14 +123,34 @@ public class Judges {
             // judge with a different address. It is listed separately because it is the
             // one provider that needs no key, and that is a rule about the value.
             case OPENAI_COMPATIBLE, OLLAMA ->
-                Optional.of(new OpenAiCompatibleJudge(llm.baseUrl(), key(llm), model, json));
-            case ANTHROPIC -> Optional.of(new AnthropicJudge(llm.baseUrl(), key(llm), model, json));
+                Optional.of(new OpenAiCompatibleJudge(
+                        llm.baseUrl(), key(llm), model, json, bounds()));
+            case ANTHROPIC -> Optional.of(new AnthropicJudge(
+                    llm.baseUrl(), key(llm), model, json, bounds()));
             default -> {
                 log.warn("llm.provider is '{}'; implemented are '{}', '{}' and '{}'",
                         llm.provider(), OPENAI_COMPATIBLE, OLLAMA, ANTHROPIC);
                 yield Optional.empty();
             }
         };
+    }
+
+    /**
+     * A model nobody configured. A sentence rather than a stack trace, because it reaches a
+     * select box: the browser holds its choice in localStorage, so a name that was valid
+     * yesterday and was removed from `.env` overnight arrives here on the next click.
+     */
+    public static class UnknownModel extends RuntimeException {
+        UnknownModel(String requested, List<String> choices) {
+            super("'%s' is not a configured scoring model; configured are %s"
+                    .formatted(requested, String.join(", ", choices)));
+        }
+    }
+
+    /** The weight table this run judges against, or nothing when none is configured. */
+    private Map<String, Integer> bounds() {
+        var rules = config.snapshot().rules();
+        return HttpJudge.boundsOf(rules == null ? null : rules.scoring());
     }
 
     /** Empty rather than null, so a local server gets a harmless header instead of "null". */

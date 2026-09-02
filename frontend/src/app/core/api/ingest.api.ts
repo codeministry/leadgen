@@ -1,6 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
+import { scoringModelParams } from './scoring-model-param';
 
 /** Mirrors `de.codeministry.leadgen.ingest.DocumentIngestResult`. */
 export interface DocumentIngestResult {
@@ -41,12 +42,22 @@ export interface EnrichmentReport {
 
 /** Mirrors `de.codeministry.leadgen.score.ScoringReport`. */
 export interface ScoringReport {
+  /**
+   * Everything on the shortlist's own terms, not what this run looked at. Only `scored`
+   * and `submitted` count this run: a run judges what is stale, so finding nothing new is
+   * the normal case, and per-run counts would report an empty shortlist for an idle pass.
+   */
   readonly considered: number;
   readonly scored: number;
-  /** Above zero means no language model was configured; the offers are there, unranked. */
+  /** Standing, not this run: offers whose total was withheld because nothing judged them. */
   readonly unscored: number;
   readonly shortlisted: number;
   readonly review: number;
+  /**
+   * Handed to a batch instead of judged in the run. Their scores arrive minutes later,
+   * and so do the packages and the digest. Never non-zero together with `scored`.
+   */
+  readonly submitted: number;
 }
 
 /** Mirrors `de.codeministry.leadgen.packaging.PackageReport`. */
@@ -91,7 +102,12 @@ export interface IngestReport {
 export class IngestApi {
   private readonly http = inject(HttpClient);
 
-  run(): Observable<IngestReport> {
-    return this.http.post<IngestReport>('/api/ingest', {});
+  /**
+   * @param model which judge scores this pass, or null for the one the server prefers.
+   *     Omitted rather than sent empty: an empty parameter would have to mean the default
+   *     on the other side as well, and that is a second way to say the same thing.
+   */
+  run(model: string | null): Observable<IngestReport> {
+    return this.http.post<IngestReport>('/api/ingest', {}, { params: scoringModelParams(model) });
   }
 }
