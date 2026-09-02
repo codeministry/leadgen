@@ -153,6 +153,38 @@ Carried over from `codeministry/customer/ship360`, which is the house style:
   stay as the untouched sources. The asset carries its own cyan and does not follow the
   theme; it sits on `base-100` in both, where it stays legible.
 
+## The interface language
+
+`frontend/src/app/core/i18n/` plus the two catalogs in `frontend/public/i18n/`. Transloco,
+two languages, English the fallback.
+
+- **English is the fallback because English is this repository's language.** A key nobody
+  translated shows the sentence that was written, never a blank — and Transloco's own
+  missing handler returns the key, so a *server* sentence passed through the pipe renders
+  as itself. That is what lets the plain-text reason behind a rejected upload keep working.
+- **`system` is a state, not the absence of one**, exactly as in the theme store: it
+  resolves to the browser's language and the toggle still shows `system` as chosen. The
+  same shape (`withHooks` + an `effect` on the resolved value) for the same reason — the
+  I/O is the DOM and localStorage, not HTTP.
+- **No prose is written in TypeScript.** A nav item, a band filter and a field row carry a
+  catalog key; the template pipes it. A sentence assembled in a component (`review`'s
+  summary, the dashboard's share) returns a key and its parameters instead, because the
+  number sits in a different place in every language.
+- **Plurals are ICU, through `transloco-messageformat`.** "1 listings" is the kind of wrong
+  that only appears on the one day a run finds exactly one, and German declines
+  differently — a rule per language belongs in the catalog, not in a ternary.
+- **The catalogs are static files under `public/i18n/`, not bundled.** A translation fixed
+  at five in the afternoon should not need a rebuild to reach the browser.
+- **Transloco is provided globally in the tests** (`src/test-setup.ts`, with the real
+  English catalog). Without it a spec fails with `No provider found for
+  TRANSLOCO_TRANSPILER` from inside a component that has nothing to do with i18n, and a
+  stub catalog would let the templates and the catalog drift apart unnoticed.
+- **The server's own prose is not translated and this is the boundary.** Filter-stage
+  descriptions, lane labels, knockout labels and every score reason arrive as English
+  sentences from the API and stay English in both languages. Translating them means the API
+  handing over an id and the browser holding a catalog keyed by it — which is the one thing
+  the read side deliberately does not do today.
+
 ## The configuration layer
 
 `backend/…/config/`. Everything else reads `ConfigRegistry.snapshot()` and nothing
@@ -234,14 +266,24 @@ upserts it. `POST /api/ingest` runs one pass.
 - **Meta fields are addressed by their emoji prefix, never by position.** Four spans sit in
   one row and 9.2 % of offers state no company — read by position, every following field of
   those offers is shifted by one.
-- **`text()` joins every node with a space, so an advert arrives as one line.** Nothing a
-  filter reads is lost, but the detail page shows a wall and the one thing a person does
-  with an ad is skim it. `PlainText` keeps the block boundaries and the `<br>`s, and it is
-  deliberately not used where a regex runs: a pattern is written against a single line and
-  `.` does not match a newline, so the same pattern that matched across a joined boundary
-  would silently stop matching. **A pattern reads a line, a field reads a document.** The
-  rule holds in both extractors, and it changes nothing for a title or a location because
-  those sit in one inline element.
+- **`text()` joins every node with a space, so an advert arrives as one line — and keeping
+  only the block boundaries is not enough either.** Paragraphs come back and the headings,
+  the bullet lists and the emphasis stay gone, which on screen is a column of equal-looking
+  paragraphs: nearly the wall it replaced. `HtmlToMarkdown` converts the element to
+  Markdown instead, which keeps all of it and is still plain text, so the filter still
+  matches words and a reader with no renderer still sees the ad.
+- **Only the prose field is read that way, and it is named rather than inferred.** The
+  markup does not say which field is a document: a title sits in an `<h3>` on the sample
+  source and would arrive as "### Senior Java Developer" — in the shortlist, in the
+  fingerprint and in the cover letter. `description` in ingest and `full_text` in
+  enrichment are the two, and the eight field names were already the contract.
+- **A pattern still reads the collapsed text.** A regex in YAML is written against a line,
+  `.` does not match a newline, and `**` around a word breaks it outright. **A pattern
+  reads a line, a field reads a document.**
+- **Links are resolved against the page before conversion.** A portal writes
+  `/projects/argo-cd`, and a relative link surviving into the Markdown is a link into *this*
+  application's router, which answers it with the shortlist. Without a base URI the target
+  is dropped and the text kept, which is the right way round.
 - **`ProxyLink.unwrap` is a privacy boundary, not a convenience.** Every link in the corpus
   carries the subscriber's address as a query parameter. An unrecognised wrapper therefore
   loses its whole query rather than keeping it. `SampleCorpusAcceptanceTest` fails on an
@@ -407,7 +449,7 @@ the next run; a file uploaded through the browser waits for review first.
 
 ## The hard filter
 
-`backend/…/filter/`. Seven stages in a fixed order, applied after deduplication, with no
+`backend/…/filter/`. Six stages in a fixed order, applied after deduplication, with no
 model and no network. It removes four offers in five for free, and only what survives
 costs a language-model call.
 
@@ -416,8 +458,12 @@ costs a language-model call.
   in Java. `docs/samples/simulate_filter.py` mirrors them and ISC-41 proves the two still
   agree over the corpus.
 - **The order is the meaning.** abroad → remote share → out of reach → role or stack → no
-  core skill → contract form → stale. An offer stops at the first rejection, which is the
-  only reason the per-stage counts sum to the total (ISC-42).
+  core skill → contract form. An offer stops at the first rejection, which is the only
+  reason the per-stage counts sum to the total (ISC-42).
+- **Nothing here reads a date, and `STALE` used to be the seventh stage.** "Too old" is not
+  a verdict about an advert — an old advert is a good advert nobody will answer any more —
+  and a verdict is what the funnel reports and what somebody reads when they ask why an
+  offer is missing. The rule kept its name and moved to the archive.
 - **The rate rule is deliberately absent.** It is configured `apply_after: enrichment` and
   the loader refuses any other value, because the sources state a rate in 0.0 % of offers.
 - **Fold, then match on word boundaries.** `TextFold` is the one place text and patterns
@@ -438,6 +484,23 @@ costs a language-model call.
 - **Core skills are read with their aliases.** An ad asking for "Springboot", "Spring
   Data" or "k8s" names a core skill, and eight bare names would answer no. Worth twelve
   offers over the corpus.
+- **`remote.accept_unknown` is displayed and never read.** `RulesView` renders it, the
+  config model validates it, and `HardFilter` consults it nowhere: an offer that states no
+  remote share simply falls through to the next stage, which is what the flag describes but
+  not because of it. Setting it to `false` changes nothing. Same class as the
+  `onsite_max_km` key that sat in the schema with no reader — and worth keeping in mind
+  before the flag is trusted in an argument about why an offer survived.
+- **`min_remote_percent: 0` switches the reach rule off, and that is the point.** Zero
+  required remote share means being on site is acceptable, and then it is acceptable
+  anywhere — the hand-written city list stops applying. Without the condition the two
+  settings pulled against each other: the share rule said "on site is fine" and the reach
+  rule still rejected every town not on the list. Measured on the archive: 145 of 254
+  offers died there while the share was already at zero, and not one of them stated a
+  remote share at all. Above zero the list is back, because needing 40 % remote means being
+  on site for the other 60 % and that part has to be somewhere reachable.
+- **`accept_unknown` and `OUT_OF_REACH` still answer different questions.** An unstated
+  share is not a rejection *for its share*; above a zero minimum the offer then meets the
+  reach rule, which asks whether the location is near or the text says remote.
 - **The verdict is written on the offer**, stage and reason both. A rejection without its
   reason is a number nobody trusts a week later.
 
@@ -495,9 +558,13 @@ be rude to the portals and slow for nothing.
   withheld is the *total*: computed from five of the nine weights it would not be
   comparable to one from all nine, and the same offer would score differently depending on
   whether a key happened to be configured that morning.
-- **The weight table decides, not the answer.** A factor the model invents is dropped, and
-  a model awarding itself 900 points for role fit gets 15. Every judged factor is bounded
-  by its weight before it is kept.
+- **The weight table decides, not the answer — and it is read, not restated.** A factor the
+  model invents is dropped, and a model awarding itself 900 points for role fit gets exactly
+  what `scoring.weights.role_fit` says. The four bounds used to be Java constants that
+  matched the table by coincidence: raising a weight in the file moved the deterministic
+  half of the score and left both the clamp and the prompt text where they were. The factor
+  *names* stay in Java, because they are the judge's contract the way the eight field names
+  are the extractor's; the numbers behind them come from the configuration, per run.
 - **A judge that fails returns nothing rather than throwing.** One unreachable endpoint
   must not end the run; the offer keeps its deterministic reasons and scores lower, which
   is visible and reviewable.
@@ -549,6 +616,54 @@ be rude to the portals and slow for nothing.
   answers is measured against `offer_score_reason` rather than argued about — and on models
   where thinking is on by default, the reasoning tokens are billed at the output rate for a
   classification that fits in three lines.
+- **Batching is off by default, and it moves the end of the run.** `llm.batch` hands the
+  scoring requests over as one batch at half the price; the answers arrive minutes later,
+  so `ScoreBatchCollector` polls, writes them, and then runs packaging and the digest. The
+  digest is still the last thing that happens, just not in the request that started it. Off
+  by default because a run that answers within itself is the simpler thing to reason about
+  and the saving is worth having only once the nightly pass is large.
+- **`offer.score_batch_id` is what stops a batch being paid for twice.** The staleness guard
+  asks what still needs judging, and an offer whose answer is bought and in flight does not.
+  Without the pointer the next run resubmits it, and the symptom is a bill, not a bug. It is
+  also why "what is in flight" survives a restart.
+- **`llm.batch: true` on a provider with no batch endpoint is fatal at load.** Same class of
+  lie as an unimplemented auth mode: read, ignored, and scoring synchronously at full price
+  while the person who wrote it believes they are paying half. `PipelineConfig.Llm.BATCHING_PROVIDER`
+  is the single name, so the loader and the judge factory cannot disagree.
+- **A collected batch releases its offers whatever happened to it.** Ended, failed, or
+  collected under a configuration that can no longer talk to it — all three clear the
+  pointer. An offer held by a finished batch is held forever, and nothing says so.
+- **An offer whose batch entry errored stays unscored rather than getting a partial total.**
+  The same rule as the keyless path: five of nine weights do not make a number comparable to
+  one from all nine. Written that way it is self-healing, because a null `score_model` makes
+  the offer due again.
+- **The bounds live in `HttpJudge.reasonsOf` and the clamp in `Score.of`, once each.** Two
+  paths now produce one score, and a shortlist whose halves bound or clamp differently is
+  not a ranking — the same offer would score differently depending on how busy the night was.
+- **Which judge answers is a parameter of the run, not a setting.** `llm.models.scoring`
+  is the default and `scoring_options` names the alternatives; the select beside the run
+  button sends one of them with the request, and the server remembers nothing. A stored
+  setting would mean a scheduled pass silently inheriting whatever the browser last showed,
+  and the one thing worth comparing here is two models over the same corpus.
+- **The configured list is an allowlist, and it is checked before the run starts.** The name
+  arrives as a request parameter and the endpoint behind it is billed per token, so anything
+  else is refused rather than forwarded — a model the provider happens to accept answers,
+  scores, and writes itself into `score_model`, where it is indistinguishable from a
+  deliberate choice. `Judges.check` runs as `IngestService.run`'s first statement because
+  scoring is the last stage: checked only where it is used, an unknown name comes back 400
+  having already read the sources, clustered the duplicates, applied the filter and fetched
+  the surviving ads. Measured, before the check was moved.
+- **Switching the model re-judges the standing shortlist, and that is the price of the
+  comparison.** `score_model` is one of the three staleness criteria, so the choice is never
+  free: one full pass at the chosen model's rate every time it changes. It is also why the
+  choice cannot be a display preference — two judges are two scales, and the shortlist
+  threshold is one number read against both.
+- **The browser holds the choice in localStorage and drops one the server no longer offers.**
+  The server refuses it anyway, but a name picked weeks ago and kept locally would otherwise
+  turn the next click into a 400 for a reason nobody can see. Below 40rem the select is
+  hidden rather than wrapped — measured: at 480 px the header wanted 555 — and hiding the
+  control does not clear the setting.
+
 - **The digest is a file, and the last thing a run does.** No transport, no recipient, no
   channel — and no schedule of its own either: whatever schedules the run schedules the
   digest, and a cron nothing reads would be one more key that lies. An unscored offer gets
@@ -587,6 +702,53 @@ end of a run.
   behind it, the fields, the matched skills, the reference projects chosen, and every
   portal in the duplicate cluster, so one project advertised three times is one package
   that says so.
+
+## The archive
+
+`backend/…/archive/`. What is no longer on the working list, and the only thing about an
+offer a person owns.
+
+- **It is an axis, not a verdict.** The filter says whether an advert is worth answering;
+  the archive says whether it is on today's list. Two different questions, and the second
+  one is why `FilterStage.STALE` no longer exists: age used to be reported as a rejection,
+  which is what somebody reads when they ask why an offer is missing.
+- **It cannot be a value in `offer.status`.** `FilterService.run()` reads the whole table
+  with no `WHERE` and writes a verdict onto every row, because the rules are hot-reloadable
+  and a partial re-judge would split the archive across two rule sets. An `ARCHIVED` status
+  would be overwritten by `PASSED` on the next run — silently, and only for the offers that
+  still pass.
+- **Two columns, because there are four states.** `archived_at` with `AGE` or `MANUAL` is
+  off the list; both null is on it; and `archived_at` null with `RESTORED` is on it
+  *deliberately*, which is what stops the age pass taking it back off the next morning. A
+  restore the next run undoes is a button that lies.
+- **The age pass reconciles, it does not seal.** While the rule lived in the filter,
+  staleness was recomputed every run, so widening `max_age_days` brought offers back. Rows
+  the pass archived itself still come back; rows a person archived never do.
+- **It runs between the filter and enrichment.** After the filter so a restored offer
+  carries a current verdict, before enrichment because that is the stage that leaves the
+  machine and scoring is the one that costs money. An offer off the list pays for neither.
+- **An offer somebody is working on is never archived by age.** The exemption is
+  `ApplicationStatus.isLive()` — not closed, and not `PACKAGED`, which is the state the
+  packager opens with. Treating that one as "in progress" would exempt every offer that
+  ever reached the shortlist, which is the whole shortlist.
+- **A null `published_on` is never archived** and is counted in the report rather than
+  passed over. It is the one way an offer can sit on the list forever.
+- **`archived_at IS NULL` is the third part of the working-set predicate**, beside
+  `status = 'PASSED'` and `duplicate_of_id IS NULL`, at all twelve sites. **The funnel needs
+  it on both sides of the subtraction** or `survived` goes negative — the same defect
+  duplicates once produced, and after a week the archive is the larger half of the table.
+  `survived` equals the shortlist's own total, and that is the invariant to check when
+  either number looks wrong.
+- **The analytics deliberately do not get the predicate.** They are the record of what the
+  market did, not the working list; excluding the archive would empty every chart older
+  than the window. That their numbers differ from the shortlist's is correct.
+- **The archive is a side, not a band.** A band is a range of scores; this decides which set
+  the bands apply to, so it composes with them and with the search. `total` and the portal
+  dropdown are counted over the side being read, or the filter offers a portal that
+  produces an empty list and no reason.
+- **A row archived from the list is dropped from it rather than replaced.** It is no longer
+  part of the side being read, and leaving it there shows the working list carrying
+  something that is not on it until somebody reloads.
 
 ## Manual status capture
 
@@ -658,6 +820,8 @@ screen reads one of these, and none of them writes.
 
 - **Read-only and separate from the stages that write.** Each pipeline stage owns a narrow
   slice of the `offer` row; this owns the whole row as a person reads it.
+- **The working set is `status = 'PASSED' AND duplicate_of_id IS NULL AND archived_at IS
+  NULL`.** All three parts, at every site that counts survivors — see § *The archive*.
 - **The shortlist is primaries only, and so is everything that counts against it.** A row
   with `duplicate_of_id` set is the same project through a second portal, and it belongs
   inside the entry rather than beside it. The funnel and the sources screen's *survived*
@@ -668,10 +832,28 @@ screen reads one of these, and none of them writes.
   filter rejected and asks whether the rule was right, so `/api/offers/{id}` serves any id
   and `hardPass` says which it is.
 - **Reasons and duplicate clusters are two queries for the whole list, not two per entry.**
-- **No filtering parameters on the endpoint.** The browser holds the list and filters it in
-  the query string, which is what makes a filtered shortlist survive a reload and be
-  shareable as a link. A server-side filter would be a second implementation of the same
-  rules, disagreeing the first time one of them changes.
+- **The shortlist is paged, and the filters go with the page.** The whole list used to come
+  down and the browser filtered it; at 2,219 survivors that answer was 3 MB and it grows with
+  every newsletter. The query string still holds the filters, so a filtered view survives a
+  reload and is shareable as a link — only the deciding moved into SQL, where it now exists
+  once instead of twice. A page of a browser-filtered list is not a page of anything.
+- **Keyset, never `OFFSET`.** An offset re-reads and re-sorts everything before it on every
+  page, and it skips or repeats a row whenever a run rewrites a score between two requests.
+  The key is the whole sort tuple — `(coalesce(score_value, -1), ingested_at, id)` — because
+  score alone is not unique: seven offers at 80 would let a page boundary fall inside a tie
+  and the same row could arrive on both pages or on neither.
+- **Every number printed beside the list is counted by the server, over the match.** The
+  portal dropdown and the unscored count were both derived from the loaded entries, so they
+  told a smaller truth the further you scrolled while sitting next to a sentence about the
+  whole archive. The band boundaries moved for the same reason: they are the configured
+  thresholds, and two literals in TypeScript deciding which offers a button shows is the
+  second implementation this rule exists to prevent.
+- **Loading more is a sentinel, not a button**, because the list is read by scrolling; its
+  `IntersectionObserver` is attached in `afterNextRender`, since one attached before layout
+  fires immediately against a zero-sized box and asks for page two before page one is drawn.
+  **It cannot be verified in a backgrounded tab** — Chrome suspends the observer there, and
+  the measurement comes back as a confident "nothing loaded". Measured through the
+  Interceptor skill's `Tools/VerifyViewport.ts`: 50 offers, then 100 after scrolling.
 - **`source_run` exists because nothing else can answer the announced-versus-extracted
   question.** The number of documents and the count a document announces about itself leave
   no trace in the `offer` table, and that comparison is the one check nothing else can make.
@@ -679,6 +861,12 @@ screen reads one of these, and none of them writes.
 - **The sources screen lists the configuration, not the database.** A source that has never
   run still appears, because a misconfigured source being invisible is exactly the failure
   somebody is looking for when they open that screen.
+- **Nor a threshold.** `lg-score` had 70 and 50 as input defaults and not one of its three
+  callers ever overrode them, so every score ring banded off a constant while the rules
+  screen and the analytics histogram showed the configured numbers. The shortlist's band
+  filters had the same two literals and *decided which offers were shown* with them. Both
+  now take `SCORE_THRESHOLDS`, a token provided from `core` and reached through
+  `shared/shared.ports.ts` — the same seam the chart palette uses, for the same reason.
 - **Nothing in the browser names a weight, a stage or a source type.** `scoring.weights` is
   an open map, the stages are the `FilterStage` enum, a source's `type` is whatever the YAML
   declares. A union type in TypeScript for any of them disagrees with the server the first
@@ -822,9 +1010,15 @@ code has to reproduce — the numbers in `docs/SAMPLE-ANALYSIS.md` are the targe
   in the subject matches exactly in all 14. `fallback: none` for this source.
 - **0.0 % contain an hourly rate.** Rate, duration, workload and start date only arrive
   from the enrichment stage (fetching the original ad from the portal).
-- The hard filter lets **18.5 %** through — 239 of 1289 — and **~16 per mail** after
-  deduplication. That is the daily LLM budget. The stages and the three defects that
-  moved this number are in `docs/SAMPLE-ANALYSIS.md` § 5.
+- The hard filter's share depends entirely on the rules, so the archive's own measurement
+  is written by `simulate_filter.py` into `docs/samples/filter-baseline.json` and the corpus
+  test asserts against that file rather than against a number kept here. At
+  `min_remote_percent: 40` it is **19.1 %** — 246 of 1289, ~18 per mail after
+  deduplication. That is the daily LLM budget, and the archive window narrows it again on
+  top. The stages and the three defects that moved this number are in
+  `docs/SAMPLE-ANALYSIS.md` § 5. The share is not comparable across settings: at
+  `min_remote_percent: 0` the same corpus gave 41.5 %, because the reach rule switches off
+  entirely at zero.
 - **12.3 % duplicates** by exact title alone, within a single mail.
 
 ## Order of work
@@ -844,8 +1038,9 @@ code has to reproduce — the numbers in `docs/SAMPLE-ANALYSIS.md` are the targe
    than per source, because the whole point is one project reaching the pipeline through
    several portals. One SQL statement, idempotent by construction.
 6. ✅ **Hard filter** — seven stages, every list from configuration or the profile, no
-   model and no network. Reproduces `docs/samples/simulate_filter.py` exactly: 239 of
-   1289, 18.5 %, and the per-stage counts.
+   model and no network. Reproduces `docs/samples/simulate_filter.py` exactly, and the
+   corpus test asserts it against the baseline that script writes rather than against
+   numbers anybody keeps in step by hand.
 7. ✅ **Enrichment** — HTTP fetch of the original ad, rate limit, cache, `robots.txt`.
    A failed fetch is not a knockout; the offer stays in as *incomplete*.
 8. ✅ **Scoring + digest** — deterministic factors plus a model for the four that need

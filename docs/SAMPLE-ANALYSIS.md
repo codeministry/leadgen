@@ -93,14 +93,20 @@ Simulated against all 1289 offers, using the criteria from `matching-rules.yaml`
 
 | Stage | Filtered out | Share |
 |---|---|---|
-| Beyond reach and not remote | 717 | 55.6 % |
-| No core skill | 171 | 13.3 % |
-| Foreign stack or wrong role | 115 | 8.9 % |
+| No core skill | 426 | 33.0 % |
+| Foreign stack or wrong role | 256 | 19.9 % |
+| Contract form rejected | 47 | 3.6 % |
 | Abroad (CH, AT, …) | 25 | 1.9 % |
-| Remote share below 80 % | 12 | 0.9 % |
-| Contract form rejected | 8 | 0.6 % |
-| Older than 21 days | 2 | 0.2 % |
-| **remaining** | **239** | **18.5 %** |
+| **remaining** | **535** | **41.5 %** |
+
+Measured at `min_remote_percent: 0`, which switches the reach rule off: no required remote
+share means on site is acceptable, and then it is acceptable anywhere. At 80 with a 21-day
+window it was 239 and 18.5 %, and the stage that removed the most was reach, at 717.
+
+**These numbers move with the rules, and that is why nothing keeps them by hand any more.**
+`python3 docs/samples/simulate_filter.py` reads `config/` — the same two files the Java
+filter reads — and writes `docs/samples/filter-baseline.json`; the corpus test asserts
+against that. Change a threshold, run the script, and both sides follow together.
 
 After deduplication 207 unique offers remain, so **about 16 per mail**.
 
