@@ -133,3 +133,27 @@
   margin-top: 0.75rem;
   color: var(--color-error);
 }
+
+/* The heading and the one control that belongs to it, on one line. */
+.section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+/*
+ * A refused rescore, in the warning text colour rather than the accent: the accent means
+ * "this survived the filter" everywhere else in this application and must not also mean
+ * "something went wrong".
+ */
+.rescore-refusal {
+  margin-top: 0.5rem;
+  color: var(--lg-warning-text);
+}
+
+/* An offer that is not on the working list says so once, under the title. */
+.archived-note {
+  margin-top: -0.5rem;
+  color: var(--lg-muted);
+}

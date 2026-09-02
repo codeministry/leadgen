@@ -1,3 +1,4 @@
+import { DatePipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -19,6 +20,7 @@ import { Badge } from '@shared/badge/badge';
 import { EmptyState } from '@shared/empty-state/empty-state';
 import { Icon } from '@shared/icon/icon';
 import { PageHeader } from '@shared/page-header/page-header';
+import { Markdown } from '@shared/markdown/markdown';
 import { Score } from '@shared/score/score';
 
 interface Field {
@@ -29,7 +31,17 @@ interface Field {
 
 @Component({
   selector: 'lg-offer-detail',
-  imports: [ApplicationPanel, Badge, EmptyState, Icon, PageHeader, Score, TranslocoPipe],
+  imports: [
+    ApplicationPanel,
+    Badge,
+    DatePipe,
+    EmptyState,
+    Icon,
+    Markdown,
+    PageHeader,
+    Score,
+    TranslocoPipe,
+  ],
   templateUrl: './offer-detail.html',
   styleUrl: './offer-detail.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -49,6 +61,25 @@ export class OfferDetail implements OnInit {
    * list.
    */
   protected readonly entry = computed(() => this.store.selected() ?? undefined);
+
+  /**
+   * Judge this one offer again. Costs a language-model call, so it is a click and never
+   * something the page does on its own.
+   */
+  protected rescore(id: number): void {
+    this.dispatch.rescoreRequested(id);
+  }
+
+  /**
+   * Take this offer off the working list, or put it back.
+   *
+   * <p>Reachable from here rather than from the card, because it is the screen where
+   * somebody has read enough of the advert to decide — and it is the only screen that
+   * shows an offer whichever side of the archive it is on.
+   */
+  protected setArchived(id: number, archived: boolean): void {
+    this.dispatch.archiveRequested({ id, archived });
+  }
 
   /**
    * An application exists only once a package has been built for the offer, so most
