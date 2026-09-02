@@ -4,6 +4,7 @@ import { Events, on, withEventHandlers, withReducer } from '@ngrx/signals/events
 import { catchError, exhaustMap, map, of } from 'rxjs';
 import { IngestApi, IngestReport } from '@core/api/ingest.api';
 import { ingestEvents } from './ingest.events';
+import { ScoringModelStore } from './scoring-model.store';
 
 interface IngestState {
   report: IngestReport | null;
@@ -46,13 +47,17 @@ export const IngestStore = signalStore(
   withEventHandlers(() => {
     const events = inject(Events);
     const api = inject(IngestApi);
+    // Read here rather than carried on the event: the choice belongs to the moment the
+    // request leaves, and a header that had to hand it over would be the second place
+    // that knows which models exist.
+    const models = inject(ScoringModelStore);
 
     return [
       events.on(ingestEvents.requested).pipe(
         exhaustMap(() =>
-          api.run().pipe(
+          api.run(models.effective()).pipe(
             map((report) => ingestEvents.finished(report)),
-            catchError(() => of(ingestEvents.failed('The ingest run did not answer.'))),
+            catchError(() => of(ingestEvents.failed('error.ingestRun'))),
           ),
         ),
       ),

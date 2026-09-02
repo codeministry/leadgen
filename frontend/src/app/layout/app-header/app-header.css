@@ -37,6 +37,16 @@
   white-space: nowrap;
 }
 
+/* Capped rather than sized to its content: a model name is arbitrary text from `.env`,
+   and one long enough would push the run button off a narrow header. `min-width: 0` is
+   what actually lets it shrink — a flex item does not go below its content width without
+   it, which is how a 20rem search input overflowed a 320px screen once already. */
+.model-select {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 11rem;
+}
+
 /* On a phone the rail is a bottom bar, so there is nothing to collapse, and the
    version string would push the theme toggle off the edge. */
 @media (width < 48rem) {
@@ -45,8 +55,22 @@
     display: none;
   }
 
+  /* The version string carried the auto margin that pushed this group right; with it
+     hidden the first remaining item has to. Both get it: above 40rem the select is the
+     first and consumes the free space, below it the select is gone and the button does. */
+  .model-select,
   .ingest-button {
     margin-inline-start: auto;
+  }
+}
+
+/* Below this the header runs out of room and the page starts scrolling sideways —
+   measured at 480 px, where the row wanted 555. The choice survives in localStorage,
+   so what is hidden here is the control and not the setting, and the run still uses
+   whatever was last picked on a wider screen. */
+@media (width < 40rem) {
+  .model-select {
+    display: none;
   }
 }
 

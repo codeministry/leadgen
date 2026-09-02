@@ -31,9 +31,35 @@
     } @else if (status.loading()) {
       {{ 'shell.connecting' | transloco }}
     } @else {
-      {{ status.error() }}
+      {{ status.error() | transloco }}
     }
   </span>
+
+  <!--
+    One model is not a choice and no model at all means nothing is configured to judge,
+    so the select appears only when there is something to pick. The list comes from
+    `/api/scoring-models`, never from a constant here: a second copy disagrees with the
+    configuration the first time a model is added, and the server refuses what it does
+    not know.
+
+    The selection is bound per option rather than with `[value]` on the select, the same
+    trap `shared/status-picker` documents: `[value]` depends on the options existing when
+    it is written, and losing that race leaves the first one showing while the run uses
+    another.
+  -->
+  @if (models.selectable()) {
+    <label class="sr-only" for="scoring-model">{{ 'shell.scoringModel' | transloco }}</label>
+    <select
+      id="scoring-model"
+      class="select select-xs type-mono-data model-select"
+      [disabled]="ingest.running()"
+      (change)="chooseModel($event)"
+    >
+      @for (model of models.available(); track model) {
+        <option [value]="model" [selected]="model === models.effective()">{{ model }}</option>
+      }
+    </select>
+  }
 
   <button
     type="button"

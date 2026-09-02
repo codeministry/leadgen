@@ -35,7 +35,7 @@ export const ConfigStore = signalStore(
         exhaustMap(() =>
           api.sources().pipe(
             map((sources) => configEvents.sourcesLoaded(sources)),
-            catchError(() => of(configEvents.failed('The sources did not load.'))),
+            catchError(() => of(configEvents.failed('error.sourcesLoad'))),
           ),
         ),
       ),
@@ -47,7 +47,7 @@ export const ConfigStore = signalStore(
         exhaustMap(() =>
           api.rules().pipe(
             map((rules) => configEvents.rulesLoaded(rules)),
-            catchError(() => of(configEvents.failed('The rules did not load.'))),
+            catchError(() => of(configEvents.failed('error.rulesLoad'))),
           ),
         ),
       ),
