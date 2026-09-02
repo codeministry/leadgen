@@ -22,16 +22,21 @@ interface RailSegment {
  * the five stages that did the removing. The mark in the header is the same
  * shape at 28px.
  */
+import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
+
 @Component({
   selector: 'lg-funnel-rail',
+  imports: [TranslocoPipe],
   templateUrl: './funnel-rail.html',
   styleUrl: './funnel-rail.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class FunnelRail {
+  private readonly transloco = inject(TranslocoService);
   readonly stages = input.required<readonly FunnelStage[]>();
   readonly total = input.required<number>();
-  readonly survivorLabel = input('Survived the filter');
+  /** A catalog key, not a sentence — `shared/` holds no prose either. */
+  readonly survivorLabel = input('funnel.survived');
 
   /**
    * Width tracks what is *left* after each stage rather than what the stage
@@ -74,7 +79,12 @@ export class FunnelRail {
    */
   protected readonly revealed = signal(false);
 
-  protected readonly formatter = new Intl.NumberFormat('en-GB');
+  /**
+   * The reader's own locale, not a pinned one. A German session used to get English
+   * grouping on the loudest numbers in the app, because the format was fixed at `en-GB`
+   * while everything around it followed the language toggle.
+   */
+  protected readonly formatter = computed(() => new Intl.NumberFormat(this.transloco.getActiveLang()));
 
   constructor() {
     const view = inject(DOCUMENT).defaultView;
@@ -96,7 +106,7 @@ export class FunnelRail {
   }
 
   protected format(value: number): string {
-    return this.formatter.format(value);
+    return this.formatter().format(value);
   }
 
   protected percent(value: number): string {

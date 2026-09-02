@@ -2,12 +2,30 @@
   "extends": "stylelint-config-standard",
   "rules": {
     "color-no-hex": true,
+    "selector-pseudo-element-no-unknown": [
+      true,
+      {
+        "ignorePseudoElements": [
+          "ng-deep"
+        ]
+      }
+    ],
     "at-rule-no-unknown": [
       true,
       {
-        "ignoreAtRules": ["plugin", "theme", "utility", "variant", "custom-variant", "apply", "source"]
+        "ignoreAtRules": [
+          "plugin",
+          "theme",
+          "utility",
+          "variant",
+          "custom-variant",
+          "apply",
+          "source"
+        ]
       }
     ]
   },
-  "ignoreFiles": ["src/styles.css"]
+  "ignoreFiles": [
+    "src/styles.css"
+  ]
 }

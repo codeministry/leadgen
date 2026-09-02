@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
+import { SCORE_THRESHOLDS } from '../shared.ports';
 
 export type ScoreBand = 'strong' | 'weak' | 'out' | 'unscored';
 
@@ -18,11 +19,15 @@ const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 })
 export class Score {
   readonly value = input.required<number | null>();
-  /** `scoring.thresholds.auto_shortlist` from matching-rules.yaml. */
-  readonly shortlistAt = input(70);
-  /** Below this the offer is discarded rather than put up for review. */
-  readonly reviewAt = input(50);
   readonly size = input(56);
+
+  /**
+   * The two thresholds, injected rather than passed. They used to be inputs defaulting to
+   * 70 and 50, and not one of the three callers ever overrode them — so every ring in the
+   * app banded off a constant while the rules screen showed the configured numbers. One
+   * source, reached through the seam `shared/` is allowed to use.
+   */
+  private readonly thresholds = inject(SCORE_THRESHOLDS);
 
   protected readonly circumference = CIRCUMFERENCE;
   protected readonly radius = RADIUS;
@@ -32,10 +37,10 @@ export class Score {
     if (value === null) {
       return 'unscored';
     }
-    if (value >= this.shortlistAt()) {
+    if (value >= this.thresholds().shortlistAt) {
       return 'strong';
     }
-    return value >= this.reviewAt() ? 'weak' : 'out';
+    return value >= this.thresholds().reviewAt ? 'weak' : 'out';
   });
 
   protected readonly dashOffset = computed(() => {

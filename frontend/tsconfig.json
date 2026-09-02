@@ -12,6 +12,7 @@
       "@features/*": ["./src/app/features/*"],
       "@layout/*": ["./src/app/layout/*"]
     },
+    "resolveJsonModule": true,
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,

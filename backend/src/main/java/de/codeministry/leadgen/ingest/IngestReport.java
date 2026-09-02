@@ -1,5 +1,6 @@
 package de.codeministry.leadgen.ingest;
 
+import de.codeministry.leadgen.archive.ArchiveReport;
 import de.codeministry.leadgen.enrich.EnrichmentReport;
 import de.codeministry.leadgen.filter.FilterReport;
 import de.codeministry.leadgen.packaging.PackageReport;
@@ -15,6 +16,8 @@ import java.util.List;
  *     moves nothing, and a zero there would read as "deduplication stopped working".
  * @param filtered what the hard filter did, per stage. The share that survives is the
  *     daily language-model budget, so this is the number the whole economics rests on.
+ * @param archived what aged off the working list, and what came back onto it. Runs
+ *     between the filter and enrichment, so nothing archived is ever paid for.
  * @param enriched what fetching the original ads did. The only stage that leaves the
  *     machine, and the only one that can fail for reasons unrelated to the offer.
  * @param scored what the shortlist looks like afterwards. `unscored` above zero means no
@@ -28,6 +31,7 @@ public record IngestReport(
         List<SourceIngestResult> sources,
         int merged,
         FilterReport filtered,
+        ArchiveReport archived,
         EnrichmentReport enriched,
         ScoringReport scored,
         Path digest,

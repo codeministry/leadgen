@@ -1,0 +1,29 @@
+:host {
+  display: block;
+  min-width: 0;
+}
+
+.note {
+  margin-bottom: 0.75rem;
+}
+
+.table-scroll {
+  max-height: 18rem;
+  margin-top: 0.5rem;
+  overflow: auto;
+}
+
+.num {
+  text-align: right;
+}
+
+.scales {
+  margin-top: 0.75rem;
+  color: var(--lg-muted);
+}
+
+/* Two scales in one archive is not a note, it is a warning: every comparison across time
+   on this screen is then reading two different rulers. */
+.scales.mixed {
+  color: var(--lg-warning-text);
+}

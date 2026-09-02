@@ -1,0 +1,37 @@
+@if (runs().passes.length > 0) {
+  <lg-chart-surface [option]="option()" [height]="16" />
+
+  <div class="table-scroll">
+    <table class="table table-sm">
+      <caption class="sr-only">{{ 'analytics.runsCaption' | transloco }}</caption>
+      <thead>
+        <tr>
+          <th scope="col">{{ 'analytics.colRun' | transloco }}</th>
+          <th scope="col" class="num">{{ 'dashboard.colExtracted' | transloco }}</th>
+          <th scope="col" class="num">{{ 'analytics.colPassed' | transloco }}</th>
+          <th scope="col" class="num">{{ 'analytics.colShortlisted' | transloco }}</th>
+          <th scope="col">{{ 'analytics.colScale' | transloco }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of rows(); track row.pass.finishedAt) {
+          <tr>
+            <th scope="row" class="type-mono-data">{{ row.when }}</th>
+            <td class="type-mono-data num">{{ row.pass.extracted }}</td>
+            <td class="type-mono-data num">{{ row.pass.filterPassed }}</td>
+            <td class="type-mono-data num">{{ row.pass.shortlisted }}</td>
+            <td class="type-mono-data">{{ row.pass.rulesetVersion }} · {{ row.pass.scoreModel ?? '—' }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+
+  @if (since(); as since) {
+    <!-- Not decoration: this table cannot be backfilled, and a chart that starts three
+         weeks ago must not imply that nothing happened before. -->
+    <p class="type-caption text-muted since">{{ 'analytics.historySince' | transloco: { date: since } }}</p>
+  }
+} @else {
+  <p class="type-small text-muted">{{ 'analytics.runsEmpty' | transloco }}</p>
+}

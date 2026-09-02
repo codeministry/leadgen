@@ -1,0 +1,47 @@
+<!-- The caveat is a caption on the chart, not a footnote on the page: whoever reads the
+     bars is the person who has to know what they are. -->
+<p class="type-small text-muted note">{{ 'analytics.recomputedNote' | transloco }}</p>
+
+@if (buckets().length > 0) {
+  <lg-chart-surface [option]="option()" [height]="18" />
+
+  <div class="table-scroll">
+    <table class="table table-sm">
+      <caption class="sr-only">{{ 'analytics.stageMixCaption' | transloco }}</caption>
+      <thead>
+        <tr>
+          <th scope="col">{{ 'analytics.colBucket' | transloco }}</th>
+          @for (stage of funnel().stages; track stage.id) {
+            <th scope="col" class="num">{{ stage.label }}</th>
+          }
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of rows(); track row.bucket) {
+          <tr>
+            <th scope="row" class="type-mono-data">{{ row.label }}</th>
+            @for (cell of row.cells; track $index) {
+              <td class="type-mono-data num">{{ cell }}</td>
+            }
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+} @else {
+  <p class="type-small text-muted">{{ 'analytics.stageMixEmpty' | transloco }}</p>
+}
+
+<!-- What makes the caveat checkable instead of merely stated. -->
+<p class="type-caption scales" [class.mixed]="mixed()">
+  @if (mixed()) {
+    {{ 'analytics.scalesMixed' | transloco: { count: scales().length } }}
+  } @else if (scales().length === 1) {
+    {{
+      'analytics.scalesOne'
+        | transloco: { ruleset: scales()[0].rulesetVersion, model: scales()[0].scoreModel }
+    }}
+  } @else {
+    {{ 'analytics.scalesNone' | transloco }}
+  }
+</p>

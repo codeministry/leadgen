@@ -1,7 +1,10 @@
 import {
+  Archive,
+  ArchiveRestore,
   Ban,
   Building2,
   CalendarDays,
+  ChartLine,
   ChevronDown,
   ChevronRight,
   CircleAlert,
@@ -44,9 +47,12 @@ export type IconNode = readonly IconPart[];
  * touches these two files and no template.
  */
 export const LG_ICONS = {
+  archive: Archive,
+  'archive-restore': ArchiveRestore,
   ban: Ban,
   'building-2': Building2,
   'calendar-days': CalendarDays,
+  'chart-line': ChartLine,
   'chevron-down': ChevronDown,
   'chevron-right': ChevronRight,
   'circle-alert': CircleAlert,

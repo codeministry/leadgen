@@ -1,0 +1,46 @@
+<div class="lists">
+  <section>
+    <h3 class="type-h4">{{ 'analytics.portals' | transloco }}</h3>
+    <p class="type-caption text-muted note">{{ 'analytics.portalsNote' | transloco }}</p>
+    <lg-ranked-bar-chart
+      [bars]="portals()"
+      [valueLabel]="labels().listings"
+      [secondaryLabel]="labels().passed"
+      [caption]="'analytics.portalsNote' | transloco"
+    />
+  </section>
+
+  <section>
+    <h3 class="type-h4">{{ 'analytics.tags' | transloco }}</h3>
+    <p class="type-caption text-muted note">{{ 'analytics.tagsNote' | transloco }}</p>
+    <lg-ranked-bar-chart
+      [bars]="tags()"
+      [valueLabel]="labels().projects"
+      [secondaryLabel]="labels().passed"
+      [caption]="'analytics.tagsNote' | transloco"
+    />
+  </section>
+
+  <section>
+    <h3 class="type-h4">{{ 'analytics.locations' | transloco }}</h3>
+    <p class="type-caption text-muted note">{{ 'analytics.locationsNote' | transloco }}</p>
+    <lg-ranked-bar-chart
+      [bars]="locations()"
+      [valueLabel]="labels().projects"
+      [secondaryLabel]="labels().passed"
+      [caption]="'analytics.locationsNote' | transloco"
+    />
+    <!-- The same question, decided rather than guessed: no free-text comparison anywhere. -->
+    <p class="type-small reach">
+      {{
+        'analytics.reach'
+          | transloco
+            : {
+                outOfReach: market().reach.outOfReach,
+                abroad: market().reach.abroad,
+                remoteShare: market().reach.remoteShare,
+              }
+      }}
+    </p>
+  </section>
+</div>

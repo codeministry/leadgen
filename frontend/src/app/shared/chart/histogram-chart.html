@@ -1,0 +1,23 @@
+<lg-chart-surface [option]="option()" [height]="16" />
+
+<div class="table-scroll">
+  <table class="table table-sm">
+    @if (caption()) {
+      <caption class="sr-only">{{ caption() }}</caption>
+    }
+    <thead>
+      <tr>
+        <th scope="col">{{ bucketLabel() }}</th>
+        <th scope="col" class="num">{{ countLabel() }}</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (row of rows(); track row.floor) {
+        <tr>
+          <th scope="row" class="type-mono-data">{{ row.floor }}&ndash;{{ row.to }}</th>
+          <td class="type-mono-data num">{{ row.count }}</td>
+        </tr>
+      }
+    </tbody>
+  </table>
+</div>

@@ -1,0 +1,19 @@
+@if (scored() > 0) {
+  <lg-histogram-chart
+    [buckets]="scores().buckets"
+    [markers]="markers()"
+    [bucketSize]="scores().bucketSize"
+    [bucketLabel]="labels().bucket"
+    [countLabel]="labels().count"
+    [caption]="'analytics.scoresCaption' | transloco"
+  />
+} @else {
+  <p class="type-small text-muted">{{ 'analytics.scoresEmpty' | transloco }}</p>
+}
+
+@if (scores().unscored > 0) {
+  <!-- Its own line, never a bucket: unscored is not a low score. -->
+  <p class="type-small unscored">
+    {{ 'analytics.unscored' | transloco: { count: scores().unscored } }}
+  </p>
+}

@@ -2,7 +2,7 @@
      bars, and templateAccessibility would reject a bar chart with no text. -->
 <ol class="rail">
   <li class="row head">
-    <span class="type-caption text-muted name">Extracted</span>
+    <span class="type-caption text-muted name">{{ 'funnel.extracted' | transloco }}</span>
     <span class="bar" aria-hidden="true"><span class="fill full"></span></span>
     <span class="type-mono-data count">{{ format(total()) }}</span>
     <span class="type-mono-data text-muted drop"></span>
@@ -27,7 +27,7 @@
   }
 
   <li class="row survived">
-    <span class="type-small name">{{ survivorLabel() }}</span>
+    <span class="type-small name">{{ survivorLabel() | transloco }}</span>
     <span class="bar" aria-hidden="true">
       <span
         class="fill signal"
