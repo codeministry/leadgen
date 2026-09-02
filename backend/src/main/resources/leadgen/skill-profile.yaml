@@ -49,5 +49,7 @@ languages:
 
 # Which document is attached for which language of the ad.
 cv_variants:
-  de: { file: "config/local/documents/cv-de.pdf", default: true }
-  en: { file: "config/local/documents/cv-en.pdf" }
+  # A path here names a file inside the configuration directory, not a location on
+  # the disk: in the container that directory is /config, not ./config/local.
+  de: { file: "documents/cv-de.pdf", default: true }
+  en: { file: "documents/cv-en.pdf" }
