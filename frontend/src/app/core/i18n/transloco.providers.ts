@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { Provider, inject, isDevMode } from '@angular/core';
+import { EnvironmentProviders, Provider, inject, isDevMode } from '@angular/core';
 import { Translation, TranslocoLoader, provideTransloco } from '@jsverse/transloco';
 import { provideTranslocoMessageformat } from '@jsverse/transloco-messageformat';
 import { AVAILABLE_LANGUAGES, FALLBACK_LANGUAGE } from './language.model';
@@ -17,7 +17,7 @@ class CatalogLoader implements TranslocoLoader {
   }
 }
 
-export function provideI18n(): Provider[] {
+export function provideI18n(): (Provider | EnvironmentProviders)[] {
   return [
     provideTransloco({
       config: {

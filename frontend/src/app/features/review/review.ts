@@ -35,11 +35,15 @@ export class Review implements OnInit {
    * punctuation puts the template's own whitespace into the sentence, and the result read
    * "1 waiting for review , 1 already in the pipeline ." on the page.
    */
-  protected readonly summary = computed(() => {
-    const waiting = `${this.store.waiting()} waiting for review`;
-    const duplicates = this.store.duplicates();
-    return duplicates > 0 ? `${waiting}, ${duplicates} already in the pipeline.` : `${waiting}.`;
-  });
+  /**
+   * Assembled here rather than in the template, because punctuation around an `@if` picks
+   * up the template's own whitespace and renders as "1 waiting for review , 1 already in
+   * the pipeline .". Two keys and one join, and the sentence is the catalog's problem.
+   */
+  protected readonly summary = computed(() => ({
+    key: this.store.duplicates() > 0 ? 'review.summaryWithDuplicates' : 'review.summary',
+    params: { waiting: this.store.waiting(), duplicates: this.store.duplicates() },
+  }));
 
   ngOnInit(): void {
     this.dispatch.opened();

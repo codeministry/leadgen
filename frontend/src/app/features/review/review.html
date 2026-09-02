@@ -32,7 +32,7 @@
 }
 
 @if (store.documents().length > 0) {
-  <p class="type-small text-muted count">{{ summary() }}</p>
+  <p class="type-small text-muted count">{{ summary().key | transloco: summary().params }}</p>
 
   <div class="queue">
     @for (document of store.documents(); track document.name) {

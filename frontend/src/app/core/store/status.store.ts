@@ -36,7 +36,7 @@ export const StatusStore = signalStore(
         exhaustMap(() =>
           api.load().pipe(
             map((status) => statusEvents.loaded(status)),
-            catchError(() => of(statusEvents.failed('The API did not answer.'))),
+            catchError(() => of(statusEvents.failed('error.statusLoad'))),
           ),
         ),
       ),

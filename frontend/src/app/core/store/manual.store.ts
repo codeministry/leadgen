@@ -2,6 +2,7 @@ import { computed, inject } from '@angular/core';
 import { signalStore, withComputed, withState } from '@ngrx/signals';
 import { Events, on, withEventHandlers, withReducer } from '@ngrx/signals/events';
 import { catchError, concatMap, exhaustMap, map, of } from 'rxjs';
+import { serverMessage } from '@core/api/server-message';
 import { ManualApi } from '@core/api/manual.api';
 import { PendingDocument } from '@core/model/manual-document';
 import { manualEvents } from './manual.events';
@@ -66,7 +67,7 @@ export const ManualStore = signalStore(
         exhaustMap(() =>
           api.pending().pipe(
             map((documents) => manualEvents.loaded(documents)),
-            catchError(() => of(manualEvents.failed('The review queue did not load.'))),
+            catchError(() => of(manualEvents.failed('error.queueLoad'))),
           ),
         ),
       ),
@@ -77,7 +78,7 @@ export const ManualStore = signalStore(
             // The server states the reason — a wrong extension, a file too large — and it
             // is the only useful thing to show. A generic message would hide it.
             catchError((error: { error?: unknown }) =>
-              of(manualEvents.failed(message(error, 'The document was not accepted.'))),
+              of(manualEvents.failed(serverMessage(error, 'The document was not accepted.'))),
             ),
           ),
         ),
@@ -87,7 +88,7 @@ export const ManualStore = signalStore(
           api.confirm(payload.name, payload.fields).pipe(
             map(() => manualEvents.settled(payload.name)),
             catchError((error: { error?: unknown }) =>
-              of(manualEvents.failed(message(error, 'The document was not confirmed.'))),
+              of(manualEvents.failed(serverMessage(error, 'The document was not confirmed.'))),
             ),
           ),
         ),
@@ -103,8 +104,3 @@ export const ManualStore = signalStore(
     ];
   }),
 );
-
-/** The endpoint answers with plain text, which is the actionable half of a 400. */
-function message(error: { error?: unknown }, fallback: string): string {
-  return typeof error.error === 'string' && error.error.length > 0 ? error.error : fallback;
-}
