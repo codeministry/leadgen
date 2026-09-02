@@ -21,6 +21,14 @@
   --lg-rail-w: 4rem;
   --lg-rail-w-open: 14.5rem;
 
+  /* Two content widths. The default is a reading measure: every screen in this app
+     is a list or a form and gets unreadable past it. The wide one is for a screen
+     whose content is columns rather than prose — the board, where the measure left
+     five lanes at 15rem each while the monitor had room for half again as much.
+     A route opts into it; nothing decides it per component. */
+  --lg-measure: 84rem;
+  --lg-measure-wide: 120rem;
+
   /* Tailwind spells this `--font-mono--font-feature-settings`, which stylelint's
      custom-property-pattern rejects for the double dash. One name, ours. */
   --lg-mono-features: "tnum" 1, "zero" 1, "cv02" 1;

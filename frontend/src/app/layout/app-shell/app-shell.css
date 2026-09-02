@@ -21,8 +21,15 @@
 }
 
 .measure {
-  max-width: 84rem;
+  max-width: var(--lg-measure);
   margin-inline: auto;
+}
+
+/* Set from the route's own `data.wide`, so the decision sits beside the route and
+   not inside a component that would then be centred differently depending on where
+   it was rendered. */
+.measure.wide {
+  max-width: var(--lg-measure-wide);
 }
 
 /* Room for the bottom bar the rail turns into below md. */
