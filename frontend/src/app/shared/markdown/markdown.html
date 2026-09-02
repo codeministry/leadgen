@@ -1,0 +1,3 @@
+<!-- Angular's sanitizer runs on this binding and is the whole security model here: the
+     text is scraped from a portal, so `bypassSecurityTrustHtml` must never appear. -->
+<div class="markdown type-body" [innerHTML]="html()"></div>

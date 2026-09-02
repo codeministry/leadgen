@@ -32,7 +32,12 @@ public class OfferMapper {
     public static final String PUBLISHED = "published";
     public static final String TAGS = "tags";
 
-    public ExtractedOffer map(Map<String, Object> block, Extraction extraction) {
+    /**
+     * @param receivedAt when the document arrived, which is a property of the document and
+     *     not of the block — every offer in one mail shares it. Passed in rather than read
+     *     out of the block for that reason, and null when the source is not a mail.
+     */
+    public ExtractedOffer map(Map<String, Object> block, Extraction extraction, java.time.Instant receivedAt) {
         String title = string(block, TITLE);
         String url = string(block, URL);
         String description = string(block, DESCRIPTION);
@@ -47,7 +52,8 @@ public class OfferMapper {
                 string(block, AGENCY),
                 date(string(block, PUBLISHED), patternFor(extraction)),
                 strings(block, TAGS),
-                TitleNormalizer.normalize(title));
+                TitleNormalizer.normalize(title),
+                receivedAt);
     }
 
     /**

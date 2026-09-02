@@ -1,7 +1,7 @@
 package de.codeministry.leadgen.enrich;
 
 import de.codeministry.leadgen.config.model.PipelineConfig.Enrichment.Extract;
-import de.codeministry.leadgen.ingest.extract.PlainText;
+import de.codeministry.leadgen.ingest.extract.HtmlToMarkdown;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -49,8 +49,13 @@ public class AdExtractor {
         this.compiled = Map.copyOf(patterns);
     }
 
-    public Enrichment extract(String html) {
-        Document document = Jsoup.parse(html);
+    /**
+     * The page's own address is passed in so a relative link inside the ad resolves to the
+     * portal rather than to this application. Without it a converted `[Argo CD](/projects/
+     * argo-cd)` is a link into our own router, which answers with the shortlist.
+     */
+    public Enrichment extract(String html, String baseUri) {
+        Document document = Jsoup.parse(html, baseUri == null ? "" : baseUri);
         String text = document.text();
 
         return new Enrichment(
@@ -64,8 +69,17 @@ public class AdExtractor {
                 null);
     }
 
-    private static String text(Element element, Extract.Field rule) {
-        return rule.regex() == null ? PlainText.of(element) : element.text();
+    /**
+     * `full_text` is the one field here whose value is a document rather than a value, and
+     * the only one read as Markdown. Named rather than inferred from the markup: a portal
+     * that wraps its contact line in an `<h4>` would otherwise hand over "#### Leonardo
+     * Ladu" as the contact. A pattern also forces the collapsed text, because a pattern is
+     * written against a line.
+     */
+    private static String text(String field, Element element, Extract.Field rule) {
+        return "full_text".equals(field) && rule.regex() == null
+                ? HtmlToMarkdown.of(element)
+                : element.text();
     }
 
     /**
@@ -88,7 +102,7 @@ public class AdExtractor {
             // The same split as in the ingest extractor: a pattern reads a line, a field
             // reads a document. `full_text` is the whole reason the detail page has
             // paragraphs at all.
-            scope = rule.attr() == null ? text(element, rule) : element.attr(rule.attr());
+            scope = rule.attr() == null ? text(field, element, rule) : element.attr(rule.attr());
         }
 
         Pattern pattern = compiled.get(field);

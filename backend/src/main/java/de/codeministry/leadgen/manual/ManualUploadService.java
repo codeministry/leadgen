@@ -177,7 +177,9 @@ public class ManualUploadService {
         String text = read(file);
         var extraction = inbox.source().orElseThrow(NoInbox::new).extraction();
         ExtractedOffer offer = markdown.extract(text, extraction).stream()
-                .map(block -> mapper.map(block, extraction))
+                // No arrival date: a file dropped in by hand did not come in the post, and
+                // the file's own timestamp would be the upload's, dressed up as one.
+                .map(block -> mapper.map(block, extraction, null))
                 .findFirst()
                 .orElse(null);
 

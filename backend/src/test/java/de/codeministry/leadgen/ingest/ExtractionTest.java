@@ -62,7 +62,7 @@ class ExtractionTest {
         var extractor = new HtmlBlockExtractor();
         var mapper = new OfferMapper();
         offers = extractor.extract(documents.getFirst().html(), source.extraction()).stream()
-                .map(block -> mapper.map(block, source.extraction()))
+                .map(block -> mapper.map(block, source.extraction(), null))
                 .toList();
     }
 

@@ -72,7 +72,7 @@ class SampleCorpusAcceptanceTest {
 
         for (RawDocument document : documents) {
             var extracted = extractor.extract(document.html(), source.extraction()).stream()
-                    .map(block -> mapper.map(block, source.extraction()))
+                    .map(block -> mapper.map(block, source.extraction(), null))
                     .toList();
             perDocument.add(extracted.size());
             offers.addAll(extracted);

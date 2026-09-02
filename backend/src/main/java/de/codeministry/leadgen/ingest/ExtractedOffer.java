@@ -1,5 +1,6 @@
 package de.codeministry.leadgen.ingest;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -25,4 +26,11 @@ public record ExtractedOffer(
         String agency,
         LocalDate publishedOn,
         List<String> tags,
-        String fingerprint) {}
+        String fingerprint,
+        /**
+         * When the document carrying this offer arrived — the mail's own date, not the
+         * run's. Null when the source is not a mail. Set by the caller rather than read
+         * out of the block: it is a property of the document, and every offer in one
+         * document shares it.
+         */
+        Instant receivedAt) {}

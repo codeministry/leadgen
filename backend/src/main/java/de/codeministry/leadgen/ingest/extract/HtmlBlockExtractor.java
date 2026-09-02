@@ -20,11 +20,25 @@ import org.springframework.stereotype.Component;
  * what makes a new source a YAML block rather than a deploy.
  *
  * <p>Text is taken through jsoup's {@code text()}, so markup inside a value — a search
- * term wrapped in {@code <mark>}, a line break in a description — disappears before any
- * comparison sees it.
+ * term wrapped in {@code <mark>} — disappears before any comparison sees it. The one
+ * exception is the prose field, which keeps its structure as Markdown; see
+ * {@link HtmlToMarkdown} and {@link #PROSE_FIELDS}.
  */
 @Component
 public class HtmlBlockExtractor {
+
+    /**
+     * The fields whose value is a document rather than a value, and the only ones read as
+     * Markdown.
+     *
+     * <p>It is a name and not a rule about the markup, because the markup does not say
+     * which is which: a title sits in an {@code <h3>} on this source and would come out as
+     * "### Senior Java Developer", which is then the title in the shortlist, in the
+     * fingerprint and in the cover letter. The eight field names are already the contract
+     * between `sources.yaml` and {@link OfferMapper}, so naming one of them here adds no
+     * coupling that was not there.
+     */
+    private static final java.util.Set<String> PROSE_FIELDS = java.util.Set.of("description");
 
     /** One block's fields, by config key. A list-valued field arrives as a {@code List<String>}. */
     public List<Map<String, Object>> extract(String html, Extraction extraction) {
@@ -34,7 +48,7 @@ public class HtmlBlockExtractor {
         for (Element block : document.select(extraction.blockSelector())) {
             Map<String, Object> values = new LinkedHashMap<>();
             extraction.fields().forEach((name, field) -> {
-                Object value = read(block, field);
+                Object value = read(block, field, PROSE_FIELDS.contains(name));
                 if (value != null) {
                     values.put(name, value);
                 }
@@ -44,7 +58,7 @@ public class HtmlBlockExtractor {
         return blocks;
     }
 
-    private static Object read(Element block, Field field) {
+    private static Object read(Element block, Field field, boolean prose) {
         // `ancestor` deliberately climbs out of the block: the search tags belong to the
         // group a block sits in, and copying them onto every block in the source would
         // be duplication the source does not have.
@@ -75,7 +89,7 @@ public class HtmlBlockExtractor {
 
         if (field.list()) {
             List<String> values = matches.stream()
-                    .map(element -> valueOf(element, field))
+                    .map(element -> valueOf(element, field, prose))
                     .flatMap(value -> field.split() == null
                             ? java.util.stream.Stream.of(value)
                             : Arrays.stream(value.split(Pattern.quote(field.split()))))
@@ -85,12 +99,12 @@ public class HtmlBlockExtractor {
             return values.isEmpty() ? null : values;
         }
 
-        String value = valueOf(matches.getFirst(), field);
+        String value = valueOf(matches.getFirst(), field, prose);
         return value.isEmpty() ? null : value;
     }
 
-    private static String valueOf(Element element, Field field) {
-        String value = field.attr() == null ? text(element, field) : element.attr(field.attr());
+    private static String valueOf(Element element, Field field, boolean prose) {
+        String value = field.attr() == null ? text(element, field, prose) : element.attr(field.attr());
 
         if (field.unwrapQueryParam() != null) {
             value = ProxyLink.unwrap(value, field.unwrapQueryParam());
@@ -103,11 +117,12 @@ public class HtmlBlockExtractor {
     }
 
     /**
-     * A field with a pattern reads the collapsed text and a field without one keeps the
-     * source's paragraphs — see {@link PlainText}. The description is the field this is
-     * for; a title or a location sits in one inline element and reads the same either way.
+     * A prose field keeps the source's own structure as Markdown; everything else is a
+     * value and reads as one line. A pattern also forces the collapsed text: a pattern is
+     * written against a line, `.` does not match a newline, and `**` around a word would
+     * break it outright.
      */
-    private static String text(Element element, Field field) {
-        return field.regex() == null ? PlainText.of(element) : element.text().trim();
+    private static String text(Element element, Field field, boolean prose) {
+        return prose && field.regex() == null ? HtmlToMarkdown.of(element) : element.text().trim();
     }
 }

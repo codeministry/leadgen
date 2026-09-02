@@ -1,26 +1,24 @@
 <header class="head">
   <h3 class="type-h4 name">{{ document().name }}</h3>
-  <span class="type-mono-data text-muted">{{ document().size }} bytes</span>
+  <span class="type-mono-data text-muted">{{ 'review.bytes' | transloco: { size: document().size } }}</span>
 </header>
 
 @if (!document().offer) {
   <p class="type-small note" role="status">
-    No frontmatter in this file, so nothing could be read from it deterministically. Fill
-    the fields in below; the text is on the right.
+    {{ 'review.noFrontmatter' | transloco }}
   </p>
 }
 
 @if (document().duplicateOfTitle; as existing) {
   <p class="type-small note duplicate" role="status">
-    Already in the pipeline as &ldquo;{{ existing }}&rdquo;. Confirming adds a second
-    listing, which deduplication collapses into one entry naming both sources.
+    {{ 'review.duplicate' | transloco: { title: existing } }}
   </p>
 }
 
 <div class="split">
   <div class="fields">
     <div class="field">
-      <label class="type-caption text-muted" [for]="'title-' + document().name">Title</label>
+      <label class="type-caption text-muted" [for]="'title-' + document().name">{{ 'field.title' | transloco }}</label>
       <input
         class="input input-sm"
         [id]="'title-' + document().name"
@@ -31,7 +29,7 @@
     </div>
 
     <div class="field">
-      <label class="type-caption text-muted" [for]="'url-' + document().name">URL</label>
+      <label class="type-caption text-muted" [for]="'url-' + document().name">{{ 'field.url' | transloco }}</label>
       <input
         class="input input-sm type-mono-data"
         [id]="'url-' + document().name"
@@ -43,7 +41,7 @@
 
     <div class="pair">
       <div class="field">
-        <label class="type-caption text-muted" [for]="'location-' + document().name">Location</label>
+        <label class="type-caption text-muted" [for]="'location-' + document().name">{{ 'field.location' | transloco }}</label>
         <input
           class="input input-sm"
           [id]="'location-' + document().name"
@@ -53,7 +51,7 @@
         />
       </div>
       <div class="field">
-        <label class="type-caption text-muted" [for]="'portal-' + document().name">Portal</label>
+        <label class="type-caption text-muted" [for]="'portal-' + document().name">{{ 'field.portal' | transloco }}</label>
         <input
           class="input input-sm"
           [id]="'portal-' + document().name"
@@ -66,7 +64,7 @@
 
     <div class="pair">
       <div class="field">
-        <label class="type-caption text-muted" [for]="'agency-' + document().name">Agency</label>
+        <label class="type-caption text-muted" [for]="'agency-' + document().name">{{ 'field.agency' | transloco }}</label>
         <input
           class="input input-sm"
           [id]="'agency-' + document().name"
@@ -76,7 +74,7 @@
         />
       </div>
       <div class="field">
-        <label class="type-caption text-muted" [for]="'published-' + document().name">Published</label>
+        <label class="type-caption text-muted" [for]="'published-' + document().name">{{ 'field.published' | transloco }}</label>
         <input
           class="input input-sm type-mono-data"
           [id]="'published-' + document().name"
@@ -89,7 +87,7 @@
     </div>
 
     <div class="field">
-      <label class="type-caption text-muted" [for]="'tags-' + document().name">Tags</label>
+      <label class="type-caption text-muted" [for]="'tags-' + document().name">{{ 'field.tags' | transloco }}</label>
       <input
         class="input input-sm"
         [id]="'tags-' + document().name"
@@ -97,11 +95,11 @@
         [disabled]="busy()"
         (input)="set(tags, $event)"
       />
-      <span class="type-caption text-muted">Separated by commas.</span>
+      <span class="type-caption text-muted">{{ 'review.commaSeparated' | transloco }}</span>
     </div>
 
     <div class="field">
-      <label class="type-caption text-muted" [for]="'description-' + document().name">Description</label>
+      <label class="type-caption text-muted" [for]="'description-' + document().name">{{ 'field.description' | transloco }}</label>
       <textarea
         class="textarea textarea-sm type-small"
         [id]="'description-' + document().name"
@@ -114,8 +112,8 @@
   </div>
 
   <div class="source">
-    <h4 class="type-caption text-muted">The file</h4>
-    <pre class="type-small text">{{ document().text }}</pre>
+    <h4 class="type-caption text-muted">{{ 'review.theFile' | transloco }}</h4>
+    <lg-markdown-source class="text" [text]="document().text" />
   </div>
 </div>
 
@@ -126,12 +124,12 @@
     [disabled]="!ready() || busy()"
     (click)="confirm()"
   >
-    {{ busy() ? 'Working…' : 'Confirm' }}
+    {{ (busy() ? 'review.working' : 'review.confirm') | transloco }}
   </button>
   <button type="button" class="btn btn-sm btn-ghost" [disabled]="busy()" (click)="rejected.emit()">
-    Discard
+    {{ 'review.discard' | transloco }}
   </button>
   <span class="type-caption text-muted">
-    Confirming writes these fields back into the file and moves it where the source reads.
+    {{ 'review.confirmNote' | transloco }}
   </span>
 </footer>

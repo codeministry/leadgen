@@ -1,0 +1,55 @@
+/* The same token colours as the rendered view, so a heading looks like a heading in both.
+   The palette mapping itself lives in markdown.css, which is component-scoped — these
+   rules repeat the four roles rather than reaching across a component boundary. */
+:host {
+  display: flex;
+  min-width: 0;
+}
+
+/* `::ng-deep` because the content is injected through `[innerHTML]`: emulated
+   encapsulation stamps its attribute onto elements the *template* declares, and a node the
+   sanitizer wrote afterwards carries none — so `.markdown p` compiles to a selector that
+   matches nothing at all, silently. Scoped under `:host` so it is still this component's
+   stylesheet and not a global one. */
+:host ::ng-deep .source {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  margin: 0;
+  padding: 0.75rem 0.875rem;
+  border: 1px solid var(--color-base-300);
+  border-radius: var(--radius-box);
+  background-color: var(--color-base-200);
+  font-family: var(--font-mono);
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  tab-size: 2;
+}
+
+:host ::ng-deep .source .hljs-section,
+:host ::ng-deep .source .hljs-strong {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+:host ::ng-deep .source .hljs-bullet,
+:host ::ng-deep .source .hljs-quote,
+:host ::ng-deep .source .hljs-link {
+  color: var(--lg-accent-text);
+}
+
+:host ::ng-deep .source .hljs-code,
+:host ::ng-deep .source .hljs-attr,
+:host ::ng-deep .source .hljs-string {
+  color: var(--color-secondary);
+}
+
+:host ::ng-deep .source .hljs-emphasis {
+  font-style: italic;
+}
+
+:host ::ng-deep .source .hljs-comment,
+:host ::ng-deep .source .hljs-meta {
+  color: var(--lg-muted);
+}

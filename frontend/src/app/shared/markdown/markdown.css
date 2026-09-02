@@ -1,0 +1,187 @@
+/* An advert, laid out as prose. The rules are deliberately narrow: this renders text
+   somebody else wrote, so every element Markdown can produce needs a defined look, and
+   nothing here may depend on a class the source could set. */
+
+/* `::ng-deep` because the content is injected through `[innerHTML]`: emulated
+   encapsulation stamps its attribute onto elements the *template* declares, and a node the
+   sanitizer wrote afterwards carries none — so `.markdown p` compiles to a selector that
+   matches nothing at all, silently. Scoped under `:host` so it is still this component's
+   stylesheet and not a global one. */
+:host ::ng-deep .markdown {
+  overflow-wrap: anywhere;
+}
+
+:host ::ng-deep .markdown :first-child {
+  margin-top: 0;
+}
+
+:host ::ng-deep .markdown :last-child {
+  margin-bottom: 0;
+}
+
+:host ::ng-deep .markdown p,
+:host ::ng-deep .markdown ul,
+:host ::ng-deep .markdown ol,
+:host ::ng-deep .markdown blockquote,
+:host ::ng-deep .markdown table {
+  margin-block: 0.75rem;
+}
+
+/* Bricolage for the headings an ad brings with it, at the same steps as the type scale —
+   an advert's own "Ihre Aufgaben" is a heading and should read as one. */
+:host ::ng-deep .markdown h1,
+:host ::ng-deep .markdown h2,
+:host ::ng-deep .markdown h3,
+:host ::ng-deep .markdown h4,
+:host ::ng-deep .markdown h5,
+:host ::ng-deep .markdown h6 {
+  margin-block: 1.25rem 0.5rem;
+  font-family: var(--font-display);
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+:host ::ng-deep .markdown h1 {
+  font-size: 1.35rem;
+}
+
+:host ::ng-deep .markdown h2 {
+  font-size: 1.2rem;
+}
+
+:host ::ng-deep .markdown h3,
+:host ::ng-deep .markdown h4,
+:host ::ng-deep .markdown h5,
+:host ::ng-deep .markdown h6 {
+  font-size: 1.05rem;
+}
+
+:host ::ng-deep .markdown ul,
+:host ::ng-deep .markdown ol {
+  padding-left: 1.5rem;
+}
+
+:host ::ng-deep .markdown ul {
+  list-style: disc;
+}
+
+:host ::ng-deep .markdown ol {
+  list-style: decimal;
+}
+
+:host ::ng-deep .markdown li {
+  margin-block: 0.25rem;
+}
+
+:host ::ng-deep .markdown a {
+  color: var(--color-primary);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+:host ::ng-deep .markdown blockquote {
+  padding-left: 0.875rem;
+  border-left: 2px solid var(--color-base-300);
+  color: var(--lg-muted);
+}
+
+:host ::ng-deep .markdown hr {
+  margin-block: 1.25rem;
+  border-top: 1px solid var(--color-base-300);
+}
+
+:host ::ng-deep .markdown strong {
+  font-weight: 600;
+}
+
+:host ::ng-deep .markdown em {
+  font-style: italic;
+}
+
+/* A table in an ad is a rate card or a schedule, and it scrolls inside its own box rather
+   than pushing the page sideways. */
+:host ::ng-deep .markdown table {
+  display: block;
+  overflow-x: auto;
+  border-collapse: collapse;
+}
+
+:host ::ng-deep .markdown th,
+:host ::ng-deep .markdown td {
+  padding: 0.375rem 0.625rem;
+  border: 1px solid var(--color-base-300);
+  text-align: left;
+}
+
+:host ::ng-deep .markdown code {
+  padding: 0.05em 0.3em;
+  border-radius: 0.25rem;
+  background-color: var(--color-base-200);
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+}
+
+:host ::ng-deep .markdown pre.code {
+  overflow-x: auto;
+  margin-block: 0.75rem;
+  padding: 0.75rem 0.875rem;
+  border: 1px solid var(--color-base-300);
+  border-radius: var(--radius-box);
+  background-color: var(--color-base-200);
+}
+
+:host ::ng-deep .markdown pre.code code {
+  padding: 0;
+  background-color: transparent;
+  font-size: 0.8125rem;
+  line-height: 1.55;
+}
+
+/* highlight.js ships a stylesheet per theme, every one of them a table of hex literals
+   that follows neither of this app's two themes. The token classes are mapped onto the
+   palette instead, so the code follows the theme like everything else and `color-no-hex`
+   stays true. Four roles, not twenty: more colour in a code block than in the ad around
+   it would make the quoted stack the loudest thing on the page. */
+:host ::ng-deep .markdown .hljs-keyword,
+:host ::ng-deep .markdown .hljs-selector-tag,
+:host ::ng-deep .markdown .hljs-literal,
+:host ::ng-deep .markdown .hljs-type,
+/* stylelint-disable-next-line selector-class-pattern -- highlight.js's own class name. */
+:host ::ng-deep .markdown .hljs-built_in,
+:host ::ng-deep .markdown .hljs-name,
+:host ::ng-deep .markdown .hljs-tag,
+:host ::ng-deep .markdown .hljs-section {
+  color: var(--color-primary);
+}
+
+:host ::ng-deep .markdown .hljs-string,
+:host ::ng-deep .markdown .hljs-attr,
+:host ::ng-deep .markdown .hljs-attribute,
+:host ::ng-deep .markdown .hljs-symbol,
+:host ::ng-deep .markdown .hljs-bullet,
+:host ::ng-deep .markdown .hljs-quote,
+:host ::ng-deep .markdown .hljs-addition {
+  color: var(--lg-accent-text);
+}
+
+:host ::ng-deep .markdown .hljs-number,
+:host ::ng-deep .markdown .hljs-title,
+:host ::ng-deep .markdown .hljs-variable,
+:host ::ng-deep .markdown .hljs-template-variable,
+:host ::ng-deep .markdown .hljs-meta {
+  color: var(--color-secondary);
+}
+
+:host ::ng-deep .markdown .hljs-comment,
+:host ::ng-deep .markdown .hljs-deletion {
+  color: var(--lg-muted);
+  font-style: italic;
+}
+
+:host ::ng-deep .markdown .hljs-emphasis {
+  font-style: italic;
+}
+
+:host ::ng-deep .markdown .hljs-strong {
+  font-weight: 600;
+}

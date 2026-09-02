@@ -156,7 +156,7 @@ class MarkdownExtractionTest {
         var extractor = new MarkdownExtractor();
         var mapper = new OfferMapper();
         return extractor.extract(documents.getFirst().html(), source.extraction()).stream()
-                .map(block -> mapper.map(block, source.extraction()))
+                .map(block -> mapper.map(block, source.extraction(), null))
                 .filter(offer -> offer.title() != null && !offer.title().isBlank())
                 .toList();
     }
