@@ -1,12 +1,42 @@
 @if (entry(); as entry) {
   <lg-page-header [title]="entry.offer.title" [subtitle]="entry.offer.portal">
     @if (entry.offer.url; as url) {
-      <a class="btn btn-sm btn-ghost" [href]="url" target="_blank" rel="noreferrer">
+      <!-- Out of the application, so a new tab, and `noopener` with it: a page opened
+           this way can otherwise reach back through `window.opener`, and this URL came off
+           a portal. The same pair the rendered advert's own links carry. -->
+      <a class="btn btn-sm btn-ghost" [href]="url" target="_blank" rel="noopener noreferrer">
         <lg-icon name="external-link" [size]="16" />
         {{ 'detail.originalAd' | transloco }}
       </a>
     }
+    <!--
+      The one thing about an offer a person owns; everything else on this page is written
+      by a run and rewritten by the next one. The label follows `archivedAt` and not
+      `archiveSource`, because an offer somebody restored is on the list like any other and
+      offering to restore it again would be offering to undo nothing.
+    -->
+    <button
+      type="button"
+      class="btn btn-sm btn-ghost"
+      [disabled]="store.archiving() === entry.offer.id"
+      (click)="setArchived(entry.offer.id, entry.offer.archivedAt === null)"
+    >
+      <lg-icon [name]="entry.offer.archivedAt ? 'archive-restore' : 'archive'" [size]="16" />
+      {{ (entry.offer.archivedAt ? 'detail.restore' : 'detail.archive') | transloco }}
+    </button>
   </lg-page-header>
+
+  @if (entry.offer.archivedAt) {
+    <p class="type-small archived-note">
+      {{
+        'detail.archivedOn'
+          | transloco: { date: entry.offer.archivedAt | date: 'dd.MM.yyyy' }
+      }}
+      @if (entry.offer.archiveSource === 'AGE') {
+        {{ 'detail.archivedByAge' | transloco }}
+      }
+    </p>
+  }
 
   <div class="grid">
     <section class="panel panel-wide">
@@ -15,8 +45,12 @@
         The enriched full text when enrichment reached the portal, the newsletter's own
         summary when it did not. Which one is on screen is the difference between reading
         the advert and reading a paragraph about it, so the note below says so.
+
+        Rendered as Markdown: an ad written by hand carries headings and bullet lists, and
+        one pulled off a portal carries the paragraph breaks `PlainText` kept. Plain text
+        is valid Markdown, so nothing has to decide which of the two this is.
       -->
-      <p class="type-body text-wrap">{{ entry.offer.fullText ?? entry.offer.description }}</p>
+      <lg-markdown [text]="entry.offer.fullText ?? entry.offer.description" />
       @if (!entry.offer.fullText) {
         <p class="type-caption text-muted">{{ 'detail.fromSource' | transloco }}</p>
       }
@@ -29,7 +63,31 @@
     </section>
 
     <section class="panel">
-      <h2 class="type-h2">{{ 'detail.whyScored' | transloco }}</h2>
+      <div class="section-head">
+        <h2 class="type-h2">{{ 'detail.whyScored' | transloco }}</h2>
+        <!--
+          The deliberate exception to the staleness guard. A run judges only what changed,
+          which is what stops it paying for the whole standing backlog every night; this is
+          how one offer is judged again anyway, when the operator has a reason the tool
+          cannot know. Absent on an offer the filter rejected, because scoring never saw it.
+        -->
+        @if (entry.score.hardPass) {
+          <button
+            type="button"
+            class="btn btn-sm btn-ghost"
+            [disabled]="store.rescoring() === entry.offer.id"
+            (click)="rescore(entry.offer.id)"
+          >
+            <lg-icon name="refresh" [size]="14" />
+            {{
+              (store.rescoring() === entry.offer.id ? 'detail.rescoring' : 'detail.rescore') | transloco
+            }}
+          </button>
+        }
+      </div>
+      @if (store.rescoreError(); as refusal) {
+        <p class="type-small rescore-refusal">{{ refusal | transloco }}</p>
+      }
       <div class="score-row">
         <lg-score [value]="entry.score.value" [size]="72" />
         <p class="type-small text-muted">
