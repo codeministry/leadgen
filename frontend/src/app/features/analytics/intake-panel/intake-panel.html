@@ -1,0 +1,40 @@
+@if (buckets().length > 0) {
+  <lg-chart-surface [option]="option()" [height]="20" />
+
+  <!-- The same numbers as the bars, from the same input. Not a fallback: it is the version
+       a screen reader gets, and the one a DOM-render screenshot shows. -->
+  <details class="numbers">
+    <summary class="type-small">{{ 'analytics.showNumbers' | transloco }}</summary>
+    <div class="table-scroll">
+      <table class="table table-sm">
+        <caption class="sr-only">{{ 'analytics.intakeCaption' | transloco }}</caption>
+        <thead>
+          <tr>
+            <th scope="col">{{ 'analytics.colBucket' | transloco }}</th>
+            <th scope="col" class="num">{{ 'analytics.colOffers' | transloco }}</th>
+            <th scope="col" class="num">{{ 'analytics.colPassed' | transloco }}</th>
+            <th scope="col" class="num">{{ 'analytics.colDuplicates' | transloco }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (bucket of rows(); track bucket.day) {
+            <tr>
+              <th scope="row" class="type-mono-data">{{ bucket.label }}</th>
+              <td class="type-mono-data num">{{ bucket.primaries }}</td>
+              <td class="type-mono-data num">{{ bucket.passed }}</td>
+              <td class="type-mono-data num">{{ bucket.duplicates }}</td>
+            </tr>
+          }
+        </tbody>
+        <tfoot>
+          <tr>
+            <th scope="row" class="type-small">{{ 'analytics.total' | transloco }}</th>
+            <td class="type-mono-data num">{{ total() }}</td>
+            <td class="type-mono-data num">{{ passed() }}</td>
+            <td class="type-mono-data num"></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </details>
+}

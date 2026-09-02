@@ -24,6 +24,15 @@ ul {
   gap: 0.125rem;
 }
 
+/* A hairline, not a rule: it separates without becoming a third thing to look at. The
+   inset keeps it clear of the link's own rounded corners. */
+.group-break {
+  height: 1px;
+  margin-block: 0.5rem;
+  margin-inline: 0.75rem;
+  background-color: var(--color-base-300);
+}
+
 a {
   display: flex;
   align-items: center;

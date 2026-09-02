@@ -1,0 +1,18 @@
+.lists {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(20rem, 100%), 1fr));
+  gap: 1.5rem;
+}
+
+.lists section {
+  min-width: 0;
+}
+
+.note {
+  margin-bottom: 0.5rem;
+}
+
+.reach {
+  margin-top: 0.5rem;
+  color: var(--lg-muted);
+}

@@ -1,6 +1,12 @@
 <nav class="rail" [class.rail-open]="shell.railOpen()" [attr.aria-label]="'nav.sections' | transloco">
   <ul>
     @for (item of items; track item.path) {
+      @if (item.opensGroup) {
+        <!-- A separator rather than a heading: the rail collapses to icons, and there a
+             heading has nothing to show. `role="separator"` so it is a break in the list
+             for a screen reader too, rather than a stray empty item. -->
+        <li class="group-break" role="separator"></li>
+      }
       <li>
         <a
           [routerLink]="item.path"

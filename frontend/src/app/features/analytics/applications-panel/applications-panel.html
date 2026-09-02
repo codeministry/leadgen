@@ -1,0 +1,30 @@
+@if (total() > 0) {
+  <lg-ranked-bar-chart
+    [bars]="bars()"
+    [valueLabel]="labels().applications"
+    [secondaryLabel]="labels().answered"
+    [caption]="'analytics.applicationsCaption' | transloco"
+  />
+
+  <p class="type-small response">
+    {{
+      'analytics.response'
+        | transloco: { sent: applications().response.sent, answered: applications().response.answered }
+    }}
+    @if (median(); as median) {
+      · {{ 'analytics.medianDays' | transloco: { days: median } }}
+    } @else if (applications().response.answered > 0) {
+      · {{ 'analytics.tooFewToAverage' | transloco }}
+    }
+  </p>
+
+  @if (applications().response.backdated > 0) {
+    <!-- A reply recorded before the send date is a typo, not a response time. Said out
+         loud rather than folded into the median, where it would drag it down. -->
+    <p class="type-caption text-muted">
+      {{ 'analytics.backdated' | transloco: { count: applications().response.backdated } }}
+    </p>
+  }
+} @else {
+  <p class="type-small text-muted">{{ 'analytics.applicationsEmpty' | transloco }}</p>
+}

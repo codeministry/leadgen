@@ -1,0 +1,24 @@
+:host {
+  display: block;
+  min-width: 0;
+}
+
+.numbers {
+  margin-top: 0.75rem;
+}
+
+.numbers summary {
+  cursor: pointer;
+  color: var(--lg-muted);
+}
+
+/* A wide table scrolls inside its own box rather than pushing the page sideways. */
+.table-scroll {
+  margin-top: 0.5rem;
+  max-height: 20rem;
+  overflow: auto;
+}
+
+.num {
+  text-align: right;
+}

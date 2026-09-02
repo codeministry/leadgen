@@ -1,0 +1,143 @@
+<lg-page-header
+  [title]="'analytics.title' | transloco"
+  [subtitle]="'analytics.subtitle' | transloco"
+/>
+
+@if (store.error(); as error) {
+  <p class="type-small error" role="alert">{{ error | transloco }}</p>
+} @else if (store.view()) {
+  <div class="tiles">
+    <lg-stat-tile
+      [label]="'analytics.tileOffers' | transloco"
+      [value]="total()"
+      [unit]="'dashboard.unitOffers' | transloco"
+    />
+    <lg-stat-tile
+      [label]="'analytics.tilePerWeek' | transloco"
+      [value]="perWeek()"
+      [unit]="perWeek() === '—' ? '' : ('analytics.unitPerWeek' | transloco)"
+      [hint]="perWeekHint() | transloco"
+    />
+    <lg-stat-tile
+      [label]="'analytics.tilePassRate' | transloco"
+      [value]="passRate()"
+      [emphasis]="true"
+    />
+    <lg-stat-tile
+      [label]="'analytics.tileResponse' | transloco"
+      [value]="responseRate()"
+      [hint]="'analytics.tileResponseHint' | transloco"
+    />
+  </div>
+
+  <section class="panel">
+    <div class="panel-head">
+      <h2 class="type-h2">{{ 'analytics.intake' | transloco }}</h2>
+
+      <div class="switches">
+        <!-- Two radiogroups rather than six loose buttons: the states are mutually
+             exclusive within each group, and arrow keys should move between them. -->
+        <div class="join" role="radiogroup" [attr.aria-label]="'analytics.axis' | transloco">
+          @for (option of axisOptions; track option.id) {
+            <button
+              type="button"
+              role="radio"
+              class="btn btn-sm join-item"
+              [class.btn-active]="axis() === option.id"
+              [attr.aria-checked]="axis() === option.id"
+              (click)="select('axis', option.id)"
+            >
+              {{ option.label | transloco }}
+            </button>
+          }
+        </div>
+
+        <div class="join" role="radiogroup" [attr.aria-label]="'analytics.granularity' | transloco">
+          @for (option of granularities; track option.id) {
+            <button
+              type="button"
+              role="radio"
+              class="btn btn-sm join-item"
+              [class.btn-active]="granularity() === option.id"
+              [attr.aria-checked]="granularity() === option.id"
+              (click)="select('by', option.id)"
+            >
+              {{ option.label | transloco }}
+            </button>
+          }
+        </div>
+      </div>
+    </div>
+
+    <p class="type-small text-muted panel-note">
+      {{ 'analytics.axisNote.' + axis() | transloco }}
+      @if (withoutMail(); as without) {
+        <span class="excluded">{{ 'analytics.axisWithoutMail' | transloco: { count: without } }}</span>
+      }
+      @if (excluded(); as excluded) {
+        <!-- Never silent: an axis that leaves offers out has to name them. -->
+        <span class="excluded">
+          {{ 'analytics.axisExcluded' | transloco: { undated: excluded.undated, outOfRange: excluded.outOfRange } }}
+        </span>
+      }
+    </p>
+
+    @if (buckets().length > 0) {
+      <lg-intake-panel [buckets]="buckets()" [granularity]="granularity()" />
+    } @else {
+      <lg-empty-state
+        icon="funnel"
+        [title]="'analytics.emptyAxisTitle' | transloco"
+        [description]="'analytics.emptyAxisHint' | transloco"
+      />
+    }
+  </section>
+
+  <!-- Split by provenance, not by subject. A grid that mixes a measurement with a
+       recomputation makes them look equally trustworthy, which is the whole failure. -->
+  <h2 class="type-h3 group">{{ 'analytics.recorded' | transloco }}</h2>
+
+  <div class="grid">
+    <section class="panel panel-wide">
+      <h2 class="type-h2">{{ 'analytics.runs' | transloco }}</h2>
+      <p class="type-small text-muted panel-note">{{ 'analytics.runsNote' | transloco }}</p>
+      <lg-runs-panel [runs]="store.view()!.runs" />
+    </section>
+
+    <section class="panel panel-wide">
+      <h2 class="type-h2">{{ 'analytics.market' | transloco }}</h2>
+      <lg-market-panel [market]="store.view()!.market" />
+    </section>
+
+    <section class="panel">
+      <h2 class="type-h2">{{ 'analytics.applications' | transloco }}</h2>
+      <lg-applications-panel [applications]="store.view()!.applications" />
+    </section>
+
+    <section class="panel">
+      <h2 class="type-h2">{{ 'analytics.scores' | transloco }}</h2>
+      <p class="type-small text-muted panel-note">{{ 'analytics.scoresNote' | transloco }}</p>
+      <lg-scores-panel [scores]="store.view()!.scores" />
+    </section>
+  </div>
+
+  <h2 class="type-h3 group">{{ 'analytics.recomputed' | transloco }}</h2>
+
+  <section class="panel">
+    <h2 class="type-h2">{{ 'analytics.stageMix' | transloco }}</h2>
+    <lg-stage-mix-panel
+      [stageMix]="store.view()!.market.stageMix"
+      [funnel]="store.view()!.funnel"
+      [scales]="store.view()!.scales"
+      [granularity]="granularity()"
+    />
+  </section>
+} @else if (store.loading()) {
+  <p class="type-small text-muted">{{ 'common.loading' | transloco }}</p>
+} @else {
+  <lg-empty-state
+    icon="funnel"
+    [title]="'analytics.emptyTitle' | transloco"
+    [description]="'analytics.emptyHint' | transloco"
+  />
+}

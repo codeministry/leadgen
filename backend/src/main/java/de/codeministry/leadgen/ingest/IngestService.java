@@ -1,5 +1,7 @@
 package de.codeministry.leadgen.ingest;
 
+import de.codeministry.leadgen.analytics.PipelineRunRecorder;
+import de.codeministry.leadgen.archive.ArchiveService;
 import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.config.model.SourcesConfig.Source;
 import de.codeministry.leadgen.dedupe.DeduplicationService;
@@ -46,10 +48,12 @@ public class IngestService {
     private final OfferStore store;
     private final DeduplicationService dedupe;
     private final FilterService filter;
+    private final ArchiveService archive;
     private final EnrichmentService enrich;
     private final ScoringService scoring;
     private final PackagingService packaging;
     private final DigestService digest;
+    private final PipelineRunRecorder history;
 
     IngestService(
             ConfigRegistry config,
@@ -60,10 +64,12 @@ public class IngestService {
             OfferStore store,
             DeduplicationService dedupe,
             FilterService filter,
+            ArchiveService archive,
             EnrichmentService enrich,
             ScoringService scoring,
             PackagingService packaging,
-            DigestService digest) {
+            DigestService digest,
+            PipelineRunRecorder history) {
         this.config = config;
         this.connectors = connectors.stream().collect(Collectors.toMap(SourceConnector::type, Function.identity()));
         this.extractor = extractor;
@@ -72,13 +78,36 @@ public class IngestService {
         this.store = store;
         this.dedupe = dedupe;
         this.filter = filter;
+        this.archive = archive;
         this.enrich = enrich;
         this.scoring = scoring;
         this.packaging = packaging;
         this.digest = digest;
+        this.history = history;
     }
 
+    /** One pass with the configured default scoring model. */
     public IngestReport run() {
+        return run(null);
+    }
+
+    /**
+     * One pass over every enabled source.
+     *
+     * @param scoringModel which judge scores the survivors, or null for the configured
+     *     default. It is a parameter of the run rather than a stored setting: the choice is
+     *     made next to the button that starts the pass, and nothing about it outlives the
+     *     request. See {@link ScoringService#run(String)} for what changing it costs.
+     */
+    public IngestReport run(String scoringModel) {
+        // Before anything else, because scoring is the last stage: checked only there, a
+        // name nobody configured is refused after the sources have been read, the
+        // duplicates clustered, the filter applied and the surviving ads fetched from
+        // their portals — a whole pass spent to answer that a model is unknown.
+        scoring.checkModel(scoringModel);
+        // Captured before anything runs: the row this ends in states how long the run
+        // took, and `now()` at the end would state only when it stopped.
+        var startedAt = java.time.Instant.now();
         List<SourceIngestResult> results = new ArrayList<>();
 
         for (Source source : config.snapshot().sources().sources()) {
@@ -108,13 +137,24 @@ public class IngestService {
         // portals and slow for nothing.
         var deduplicated = dedupe.run();
         var filtered = filter.run();
+        // After the filter, so an offer somebody restores carries a current verdict; before
+        // enrichment, because that is the stage that leaves the machine and scoring is the
+        // one that costs money. An offer that has aged off the working list must pay for
+        // neither.
+        var archived = archive.run();
         var enriched = enrich.run();
-        var scored = scoring.run();
+        var scored = scoring.run(scoringModel);
         // Packaging before the digest, so the digest can say which offers already have a
         // folder. Both write files and neither sends anything.
         var packages = packaging.run();
         var written = digest.render(java.time.LocalDate.now()).orElse(null);
-        return new IngestReport(results, deduplicated, filtered, enriched, scored, written, packages);
+        var report =
+                new IngestReport(results, deduplicated, filtered, archived, enriched, scored, written, packages);
+        // After the work, never before it: a run that failed halfway must not leave a row
+        // claiming a clean pass. The same placement rule the per-source row follows, and
+        // the recorder cannot throw — a history row is worth less than the run.
+        history.record(report, startedAt, scoringModel);
+        return report;
     }
 
     /**
@@ -156,7 +196,7 @@ public class IngestService {
             default -> List.of();
         };
         return blocks.stream()
-                .map(block -> mapper.map(block, source.extraction()))
+                .map(block -> mapper.map(block, source.extraction(), document.receivedAt()))
                 .filter(offer -> offer.title() != null && !offer.title().isBlank())
                 .toList();
     }

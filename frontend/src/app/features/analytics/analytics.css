@@ -1,0 +1,64 @@
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(13rem, 100%), 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.panel {
+  min-width: 0;
+  padding: 1.25rem;
+  border: 1px solid var(--color-base-300);
+  border-radius: var(--radius-box);
+  background-color: var(--color-base-100);
+}
+
+.panel-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.25rem;
+}
+
+.switches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.panel-note {
+  margin-bottom: 1rem;
+}
+
+.error {
+  color: var(--color-error);
+}
+
+.group {
+  margin-top: 2rem;
+  margin-bottom: 0.75rem;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  align-items: start;
+}
+
+@media (width < 64rem) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Three ranked lists side by side need the room; the two narrow panels sit below. */
+.panel-wide {
+  grid-column: 1 / -1;
+}
+
+.excluded {
+  color: var(--lg-warning-text);
+}

@@ -104,12 +104,39 @@
   --lg-muted: oklch(54.5% 0.02 178.83); /* #647470, 4.62:1 on sand */
   --lg-accent-text: oklch(55% 0.118 73.82); /* #9A6500, 4.68:1 on sand */
   --lg-warning-text: oklch(55.5% 0.123 67.99); /* #A16300, 4.61:1 on sand */
+
+  /* The chart palette. A charting library cannot read a custom property, so these are
+     resolved once with getComputedStyle and handed over as flat strings — which also
+     means the browser parses the OKLCH and the library never does. Nothing may ask a
+     library to lighten or fade one of these: neither zrender's nor Chart.js's colour
+     helper understands oklch() and both fail silently to something else.
+
+     The seven rejection stages get a ramp rather than seven hues. They are all
+     rejections, so a colour each would be seven things competing for attention, and
+     ochre would stop meaning the one thing it means. */
+  --lg-chart-stage-1: oklch(88% 0.008 190);
+  --lg-chart-stage-2: oklch(81% 0.011 190);
+  --lg-chart-stage-3: oklch(74% 0.014 190);
+  --lg-chart-stage-4: oklch(67% 0.017 190);
+  --lg-chart-stage-5: oklch(60% 0.02 190);
+  --lg-chart-stage-6: oklch(52% 0.023 190);
+  --lg-chart-stage-7: oklch(44% 0.026 190);
 }
 
 [data-theme="lg-dark"] {
   --lg-muted: oklch(69.08% 0.0206 176.14);
   --lg-accent-text: oklch(76.38% 0.1465 79.59);
   --lg-warning-text: oklch(73.39% 0.1415 76.21);
+
+  /* The ramp runs the other way in the dark theme: on a near-black ground the first
+     stage has to be the darkest, or the smallest slice is the loudest. */
+  --lg-chart-stage-1: oklch(32% 0.014 200);
+  --lg-chart-stage-2: oklch(39% 0.017 200);
+  --lg-chart-stage-3: oklch(46% 0.02 200);
+  --lg-chart-stage-4: oklch(53% 0.022 200);
+  --lg-chart-stage-5: oklch(60% 0.024 200);
+  --lg-chart-stage-6: oklch(67% 0.026 200);
+  --lg-chart-stage-7: oklch(74% 0.028 200);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -117,6 +144,13 @@
     --lg-muted: oklch(69.08% 0.0206 176.14);
     --lg-accent-text: oklch(76.38% 0.1465 79.59);
     --lg-warning-text: oklch(73.39% 0.1415 76.21);
+    --lg-chart-stage-1: oklch(32% 0.014 200);
+    --lg-chart-stage-2: oklch(39% 0.017 200);
+    --lg-chart-stage-3: oklch(46% 0.02 200);
+    --lg-chart-stage-4: oklch(53% 0.022 200);
+    --lg-chart-stage-5: oklch(60% 0.024 200);
+    --lg-chart-stage-6: oklch(67% 0.026 200);
+    --lg-chart-stage-7: oklch(74% 0.028 200);
   }
 }
 

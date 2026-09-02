@@ -1,0 +1,18 @@
+:host {
+  display: block;
+  min-width: 0;
+}
+
+.table-scroll {
+  max-height: 18rem;
+  margin-top: 0.5rem;
+  overflow: auto;
+}
+
+.num {
+  text-align: right;
+}
+
+.since {
+  margin-top: 0.5rem;
+}

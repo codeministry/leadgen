@@ -1,0 +1,26 @@
+<lg-chart-surface [option]="option()" [height]="height()" />
+
+<!-- The same rows as the bars, from the same input, so the two cannot drift. -->
+<div class="table-scroll">
+  <table class="table table-sm">
+    @if (caption()) {
+      <caption class="sr-only">{{ caption() }}</caption>
+    }
+    <thead>
+      <tr>
+        <th scope="col"></th>
+        <th scope="col" class="num">{{ valueLabel() }}</th>
+        <th scope="col" class="num">{{ secondaryLabel() }}</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (bar of bars(); track bar.label) {
+        <tr>
+          <th scope="row" class="type-small">{{ bar.label }}</th>
+          <td class="type-mono-data num">{{ bar.value }}</td>
+          <td class="type-mono-data num">{{ bar.secondary }}</td>
+        </tr>
+      }
+    </tbody>
+  </table>
+</div>

@@ -8,6 +8,11 @@ export const routes: Routes = [
     loadComponent: () => import('@features/dashboard/dashboard').then((m) => m.Dashboard),
   },
   {
+    path: 'analytics',
+    title: 'Analytics · Lead Generation',
+    loadComponent: () => import('@features/analytics/analytics').then((m) => m.Analytics),
+  },
+  {
     path: 'shortlist',
     title: 'Shortlist · Lead Generation',
     loadComponent: () => import('@features/shortlist/shortlist-page').then((m) => m.ShortlistPage),

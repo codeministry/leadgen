@@ -1,0 +1,4 @@
+<!-- aria-hidden, and never on its own: every chart component that uses this renders the
+     same numbers as text beside it. A picture with no text equivalent would not pass
+     templateAccessibility and should not pass review either. -->
+<div #surface class="surface" aria-hidden="true" [style.height.rem]="height()"></div>
