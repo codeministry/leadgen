@@ -26,6 +26,9 @@ public final class ConfigFixtures {
             ConfigLoader.SOURCES_FILE,
             ConfigLoader.PROFILE_FILE);
 
+    /** Built once per JVM; see {@link #shippedDefaults()}. */
+    private static Path shippedDefaults;
+
     private ConfigFixtures() {}
 
     /** The repository root, found by walking up rather than from a relative path. */
@@ -56,6 +59,32 @@ public final class ConfigFixtures {
             }
         });
         return target;
+    }
+
+    /**
+     * The shipped defaults as an external configuration directory, built once per JVM.
+     *
+     * <p>A {@code @SpringBootTest} that does not say which configuration directory it wants
+     * gets the developer's own {@code config/} through {@code .env} — so a threshold lowered
+     * on one machine fails the build there and nowhere else, and passes everywhere it is not
+     * looked at. Same class as the {@code .env} trap on the keyless scoring path: what is
+     * under test is the code, not whose machine it runs on.
+     *
+     * <p>Built once and remembered. A {@code @DynamicPropertySource} supplier is called every
+     * time the property is resolved and not once per context, so a fresh directory per
+     * resolution would give one context two configurations.
+     */
+    public static synchronized Path shippedDefaults() {
+        if (shippedDefaults == null) {
+            try {
+                Path dir = Files.createTempDirectory("leadgen-defaults");
+                dir.toFile().deleteOnExit();
+                shippedDefaults = materialize(dir);
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+        }
+        return shippedDefaults;
     }
 
     public static ConfigLoader loaderFor(Path directory, jakarta.validation.Validator validator) {

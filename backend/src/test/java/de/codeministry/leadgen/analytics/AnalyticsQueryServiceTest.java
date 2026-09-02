@@ -8,9 +8,12 @@ import java.time.LocalDate;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import de.codeministry.leadgen.config.ConfigFixtures;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -29,6 +32,16 @@ class AnalyticsQueryServiceTest {
     @Container
     @ServiceConnection
     static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:17-alpine");
+
+    /**
+     * Pinned to the shipped defaults rather than to whatever `config/` this machine has.
+     * Without it the thresholds, the rules and the profile come from the developer's own
+     * directory through `.env`, and the build turns red for a value nobody committed.
+     */
+    @DynamicPropertySource
+    static void configuration(DynamicPropertyRegistry registry) {
+        registry.add("leadgen.config-dir", () -> ConfigFixtures.shippedDefaults().toString());
+    }
 
     @Autowired
     private AnalyticsQueryService analytics;
