@@ -11,12 +11,19 @@ import java.util.Map;
  * <p>`weights` and `penalties` are open maps in `matching-rules.yaml`, so this hands over
  * whatever keys are there and names none of them. A screen that knew the keys would stop
  * showing a weight the moment somebody added one.
+ *
+ * @param archiveAfterDays how old an advert may be before it leaves the working list, or
+ *     null when nothing archives by age. It sits beside the knockouts and not among them:
+ *     the same number used to reject an offer, and now it only decides whether the offer is
+ *     on today's list. Somebody reading this screen to find out why an offer is missing
+ *     needs to be able to tell those two apart.
  */
 public record RulesView(
         String version,
         List<RuleWeight> weights,
         List<RuleWeight> penalties,
         Thresholds thresholds,
+        Integer archiveAfterDays,
         List<KnockoutRule> knockouts,
         List<String> antiSkills) {
 
@@ -77,10 +84,6 @@ public record RulesView(
                 "Rejected contract forms",
                 filters.contract() == null ? null : filters.contract().rejected(),
                 "nothing"));
-        knockouts.add(KnockoutRule.scalar(
-                "freshness.max_age_days",
-                "Maximum age",
-                filters.freshness() == null ? "any" : filters.freshness().maxAgeDays() + " days"));
         // The rate rule is listed with the reason it does not run here: it is configured
         // `apply_after: enrichment` and the loader refuses any other value.
         knockouts.add(KnockoutRule.scalar(
@@ -97,6 +100,7 @@ public record RulesView(
                         rules.scoring().thresholds().autoShortlist(),
                         rules.scoring().thresholds().review(),
                         rules.scoring().thresholds().discard()),
+                filters.freshness() == null ? null : filters.freshness().maxAgeDays(),
                 knockouts,
                 rules.antiSkills() == null ? List.of() : rules.antiSkills());
     }

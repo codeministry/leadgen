@@ -38,7 +38,8 @@ public class DigestService {
             SELECT o.id, o.title, o.location, o.portal, o.agency, o.url, o.rate_eur,
                    o.duration, o.score_value, o.score_band, o.enrichment_note
             FROM offer o
-            WHERE o.status = 'PASSED' AND o.duplicate_of_id IS NULL AND o.score_band = ?
+            WHERE o.status = 'PASSED' AND o.duplicate_of_id IS NULL AND o.archived_at IS NULL
+              AND o.score_band = ?
             ORDER BY o.score_value DESC NULLS LAST, o.id
             """;
 

@@ -17,7 +17,6 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
@@ -43,19 +42,22 @@ import org.junit.jupiter.api.io.TempDir;
  */
 class HardFilterCorpusTest {
 
-    /** From `python3 docs/samples/simulate_filter.py`. */
-    private static final int TOTAL = 1289;
+    /**
+     * What the reference measured, read rather than restated.
+     *
+     * <p>These numbers used to be constants here, and the same numbers sat in
+     * `SAMPLE-ANALYSIS.md`, in `CLAUDE.md`, and implicitly in `simulate_filter.py`'s own
+     * copied rule lists. Four places kept in step by hand, and they drifted twice in one
+     * evening: a threshold changed in `config/` moved the measurement and the build went red
+     * on numbers nobody had touched.
+     *
+     * <p>Now there is one set of settings — `config/`, which both this filter and the
+     * reference read — and one measurement, which the reference writes and this asserts
+     * against. Regenerating it is running the script.
+     */
+    private static Baseline baseline;
 
-    private static final int EXPECTED_PASSED = 239;
-
-    private static final Map<FilterStage, Integer> EXPECTED_REMOVED = Map.of(
-            FilterStage.OUT_OF_REACH, 717,
-            FilterStage.NO_CORE_SKILL, 171,
-            FilterStage.ROLE_OR_STACK, 115,
-            FilterStage.ABROAD, 25,
-            FilterStage.REMOTE_SHARE, 12,
-            FilterStage.CONTRACT_FORM, 8,
-            FilterStage.STALE, 2);
+    private record Baseline(int total, int passed, Map<FilterStage, Integer> removed) {}
 
     private static final Validator VALIDATOR =
             Validation.buildDefaultValidatorFactory().getValidator();
@@ -65,13 +67,13 @@ class HardFilterCorpusTest {
 
     private static List<ExtractedOffer> offers;
     private static HardFilter filter;
-    private static LocalDate newest;
 
     @BeforeAll
     static void extractAndConfigure() {
         Path root = ConfigFixtures.repositoryRoot();
         Path corpus = root.resolve("docs/samples/emails");
         Path operator = root.resolve("config");
+        Path measured = root.resolve("docs/samples/filter-baseline.json");
 
         Assumptions.assumeTrue(
                 Files.isDirectory(corpus),
@@ -79,10 +81,16 @@ class HardFilterCorpusTest {
         Assumptions.assumeTrue(
                 Files.isRegularFile(operator.resolve("matching-rules.yaml"))
                         && Files.isRegularFile(operator.resolve("skill-profile.yaml")),
-                "config/ is absent — the rules that produce these numbers name a home region and are gitignored");
+                "config/ is absent — the rules that produce these numbers name a home region and are"
+                        + " gitignored");
+        Assumptions.assumeTrue(
+                Files.isRegularFile(measured),
+                "docs/samples/filter-baseline.json is absent — run"
+                        + " `python3 docs/samples/simulate_filter.py` to measure the current rules");
+        baseline = readBaseline(measured);
 
-        // Shipped pipeline and sources, the operator's rules and profile: the two files
-        // that carry the lists the reference mirrors.
+        // Shipped pipeline and sources, the operator's rules and profile — the same two
+        // files the reference reads, so both sides answer with one set of settings.
         shipped("pipeline.yaml");
         shipped("sources.yaml");
         copy(operator.resolve("matching-rules.yaml"), configDir.resolve("matching-rules.yaml"));
@@ -100,40 +108,52 @@ class HardFilterCorpusTest {
         offers = new ArrayList<>();
         for (RawDocument document : new FileSourceConnector(new ConfigProperties(configDir.toString())).read(source, 0L)) {
             extractor.extract(document.html(), source.extraction()).stream()
-                    .map(block -> mapper.map(block, source.extraction()))
+                    .map(block -> mapper.map(block, source.extraction(), null))
                     .forEach(offers::add);
         }
 
         filter = new HardFilter(snapshot.rules(), snapshot.profile());
-        newest = offers.stream()
-                .map(ExtractedOffer::publishedOn)
-                .filter(java.util.Objects::nonNull)
-                .max(LocalDate::compareTo)
-                .orElseThrow();
     }
 
     @Test
-    void passesTheMeasuredShareOfTheCorpus() {
+    void passesTheSameShareTheReferenceMeasured() {
         var removed = judgeAll();
-        int passed = TOTAL - removed.values().stream().mapToInt(Integer::intValue).sum();
+        int passed = baseline.total() - removed.values().stream().mapToInt(Integer::intValue).sum();
 
-        assertThat(offers).hasSize(TOTAL);
-        assertThat(passed).isEqualTo(EXPECTED_PASSED);
-        assertThat((double) passed / TOTAL * 100).isCloseTo(18.5, org.assertj.core.data.Offset.offset(0.05));
+        assertThat(offers).hasSize(baseline.total());
+        assertThat(passed).isEqualTo(baseline.passed());
     }
 
     @Test
     void removesTheMeasuredCountAtEveryStage() {
         // ISC-42. A total alone cannot show a stage quietly dropping an offer without
         // counting it, or two stages both claiming the same one.
-        assertThat(judgeAll()).containsExactlyInAnyOrderEntriesOf(EXPECTED_REMOVED);
+        assertThat(judgeAll()).containsExactlyInAnyOrderEntriesOf(baseline.removed());
     }
 
     @Test
     void everyOfferIsAccountedForExactlyOnce() {
         var removed = judgeAll();
         int sum = removed.values().stream().mapToInt(Integer::intValue).sum();
-        assertThat(sum + EXPECTED_PASSED).isEqualTo(TOTAL);
+        assertThat(sum + baseline.passed()).isEqualTo(baseline.total());
+    }
+
+    /**
+     * The reference's own answer. Read with Jackson, which is already on the test classpath,
+     * and keyed by `FilterStage` so an added stage is a compile error here rather than a
+     * silently ignored entry.
+     */
+    private static Baseline readBaseline(Path file) {
+        try {
+            var node = new com.fasterxml.jackson.databind.ObjectMapper().readTree(file.toFile());
+            Map<FilterStage, Integer> removed = new EnumMap<>(FilterStage.class);
+            node.get("removed")
+                    .properties()
+                    .forEach(entry -> removed.put(FilterStage.valueOf(entry.getKey()), entry.getValue().asInt()));
+            return new Baseline(node.get("total").asInt(), node.get("passed").asInt(), removed);
+        } catch (java.io.IOException e) {
+            throw new java.io.UncheckedIOException(e);
+        }
     }
 
     private static Map<FilterStage, Integer> judgeAll() {
@@ -146,8 +166,7 @@ class HardFilterCorpusTest {
                             offer.description(),
                             offer.location(),
                             offer.tags(),
-                            offer.publishedOn()),
-                    newest);
+                            offer.publishedOn()));
             if (!verdict.passed()) {
                 removed.merge(verdict.stage(), 1, Integer::sum);
             }

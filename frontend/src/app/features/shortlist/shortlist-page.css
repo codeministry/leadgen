@@ -36,3 +36,10 @@
     margin-inline-start: 0;
   }
 }
+
+/* Sits below the list and is only in the DOM while there is more to load. */
+.sentinel {
+  display: flex;
+  justify-content: center;
+  padding: 1.5rem 0;
+}

@@ -82,7 +82,11 @@ hard_filters:
     english_only_penalty: 15        # not a knockout, but a downgrade
 
   freshness:
-    max_age_days: 21                # older ads are usually filled
+    # Not a knockout: an offer older than this leaves the working list rather than
+    # being rejected. It stays readable, keeps its verdict, and can be put back by
+    # hand. Widening this brings back everything the age rule archived; a manual
+    # decision is never undone by it. See `archive/ArchiveService.java`.
+    max_age_days: 21
 
 # --- Stage 2: scoring (0-100), only for offers past stage 1 ---------------
 scoring:

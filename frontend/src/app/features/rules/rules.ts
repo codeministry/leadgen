@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject } from '@angular/core';
 import { injectDispatch } from '@ngrx/signals/events';
+import { TranslocoPipe } from '@jsverse/transloco';
 import { configEvents } from '@core/store/config.events';
 import { ConfigStore } from '@core/store/config.store';
 import { Badge } from '@shared/badge/badge';
@@ -8,7 +9,7 @@ import { PageHeader } from '@shared/page-header/page-header';
 
 @Component({
   selector: 'lg-rules',
-  imports: [Badge, Icon, PageHeader],
+  imports: [Badge, Icon, PageHeader, TranslocoPipe],
   templateUrl: './rules.html',
   styleUrl: './rules.css',
   changeDetection: ChangeDetectionStrategy.OnPush,

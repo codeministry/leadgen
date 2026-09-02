@@ -31,6 +31,15 @@ export interface Offer {
   readonly fullText: string | null;
   /** The folder the packaging stage wrote. Null until the offer clears the threshold. */
   readonly packageDir: string | null;
+
+  /** When this left the working list, or null while it is still on it. */
+  readonly archivedAt: string | null;
+  /**
+   * Who took it off, or why the age rule leaves it alone. The two fields together are four
+   * states and not two: `RESTORED` with no timestamp is an offer a person deliberately put
+   * back, and offering to restore that one is offering to undo nothing.
+   */
+  readonly archiveSource: 'AGE' | 'MANUAL' | 'RESTORED' | null;
 }
 
 /**

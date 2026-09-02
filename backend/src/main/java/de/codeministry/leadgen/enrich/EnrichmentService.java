@@ -28,7 +28,8 @@ public class EnrichmentService {
     private static final String DUE =
             """
             SELECT id, url FROM offer
-            WHERE status = 'PASSED' AND enriched_at IS NULL AND url IS NOT NULL
+            WHERE status = 'PASSED' AND archived_at IS NULL
+              AND enriched_at IS NULL AND url IS NOT NULL
             ORDER BY id
             """;
 
@@ -86,7 +87,7 @@ public class EnrichmentService {
             if (!fetched.succeeded()) {
                 result = Enrichment.incomplete(fetched.note());
             } else {
-                Enrichment extracted = extractor.extract(fetched.body());
+                Enrichment extracted = extractor.extract(fetched.body(), offer.url());
                 result = extracted.fieldCount() == 0
                         ? Enrichment.incomplete("the ad was read but stated none of the fields")
                         : extracted;

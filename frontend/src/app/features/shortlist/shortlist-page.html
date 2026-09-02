@@ -16,7 +16,7 @@
   </label>
 
   <div class="join" role="group" [attr.aria-label]="'shortlist.scoreBand' | transloco">
-    @for (option of bandOptions; track option.id) {
+    @for (option of bandOptions(); track option.id) {
       <button
         type="button"
         class="btn btn-sm join-item"
@@ -29,6 +29,17 @@
     }
   </div>
 
+  <button
+    type="button"
+    class="btn btn-sm"
+    [class.btn-active]="archived()"
+    [attr.aria-pressed]="archived()"
+    (click)="toggleArchive()"
+  >
+    <lg-icon name="archive" [size]="14" />
+    {{ 'shortlist.archive' | transloco }}
+  </button>
+
   <label class="control">
     <span class="sr-only">{{ 'shortlist.portal' | transloco }}</span>
     <select class="select select-sm" [value]="portal()" (change)="onPortal($event)">
@@ -40,7 +51,10 @@
   </label>
 
   <p class="type-small text-muted count">
-    {{ 'shortlist.count' | transloco: { visible: visible().length, total: store.entries().length } }}
+    {{
+      (archived() ? 'shortlist.countArchived' : 'shortlist.count')
+        | transloco: { matched: store.matched(), total: store.total() }
+    }}
     @if (store.unscored() > 0) {
       · {{ 'shortlist.unscored' | transloco: { count: store.unscored() } }}
     }
@@ -62,6 +76,21 @@
       <lg-offer-card [entry]="entry" />
     }
   </div>
+
+  @if (store.hasMore()) {
+    <!-- The sentinel, not a button: the list is read by scrolling and the next page should
+         arrive before the scrolling stops. It stays in the DOM only while there is more, so
+         reaching the end of the archive ends the loading rather than repeating it. -->
+    <div class="sentinel" lgLoadMore (reached)="loadMore()">
+      <span class="type-small text-muted">{{ 'shortlist.loadingMore' | transloco }}</span>
+    </div>
+  }
+} @else if (archived()) {
+  <lg-empty-state
+    icon="archive"
+    [title]="'shortlist.emptyArchiveTitle' | transloco"
+    [description]="'shortlist.emptyArchiveHint' | transloco"
+  />
 } @else if (filtered()) {
   <lg-empty-state
     icon="search"
