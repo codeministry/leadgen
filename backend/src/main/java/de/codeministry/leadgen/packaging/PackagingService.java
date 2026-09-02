@@ -58,8 +58,8 @@ public class PackagingService {
                    published_on, rate_eur, duration, workload, remote_percent, starts_on, contact,
                    score_value, score_band, score_model, enrichment_note
             FROM offer
-            WHERE status = 'PASSED' AND duplicate_of_id IS NULL AND score_band = 'SHORTLISTED'
-              AND packaged_at IS NULL
+            WHERE status = 'PASSED' AND duplicate_of_id IS NULL AND archived_at IS NULL
+              AND score_band = 'SHORTLISTED' AND packaged_at IS NULL
             ORDER BY score_value DESC, id
             """;
 

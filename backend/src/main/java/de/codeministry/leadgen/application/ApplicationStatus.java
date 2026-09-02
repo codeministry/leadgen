@@ -38,6 +38,17 @@ public enum ApplicationStatus {
         return this == WON || this == LOST || this == REJECTED || this == EXPIRED;
     }
 
+    /**
+     * The operator has taken this up: not closed, and not the state the packager opens
+     * with. That one is the tool's own bookkeeping — {@code PackagingService} opens an
+     * application the moment it builds a folder, so treating PACKAGED as "in progress"
+     * would exempt every packaged offer from the age rule, which is every offer that ever
+     * reached the shortlist.
+     */
+    public boolean isLive() {
+        return !isClosed() && this != PACKAGED;
+    }
+
     /** The mail has left, so a follow-up date starts meaning something. */
     public boolean isOut() {
         return this == SENT || this == REPLIED || this == INTERVIEW || this == OFFER;
