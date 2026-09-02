@@ -48,6 +48,7 @@ class ScoringWithoutAModelTest {
     void reset() {
         jdbc.update("DELETE FROM offer_score_reason");
         jdbc.update("DELETE FROM offer");
+        jdbc.update("DELETE FROM score_batch");
         jdbc.update("DELETE FROM source");
         sourceId = jdbc.queryForObject(
                 "INSERT INTO source (name, kind) VALUES ('test', 'file') RETURNING id", Long.class);
@@ -153,6 +154,31 @@ class ScoringWithoutAModelTest {
     }
 
     @Test
+    void leavesAnOfferAloneWhileItIsWaitingInASubmittedBatch() {
+        // The pointer has to beat every staleness trigger, not sit beside them. Its whole
+        // job is that an answer already bought and on its way is not bought again, and the
+        // way that fails is silently: two batches, two bills, one score.
+        long id = offer("Senior Java Entwickler (m/w/d)", "Spring Boot");
+        scoring.run();
+        var first = scoredAt(id);
+        long batch = jdbc.queryForObject(
+                """
+                INSERT INTO score_batch (provider_id, model, ruleset_version, offers)
+                VALUES ('msgbatch_test', 'some-model', 'an older ruleset', 1)
+                RETURNING id
+                """,
+                Long.class);
+        // Stale by the ruleset as well, so what is being tested is the pointer and not the
+        // absence of a reason to look again.
+        jdbc.update(
+                "UPDATE offer SET score_batch_id = ?, ruleset_version = 'an older ruleset' WHERE id = ?", batch, id);
+
+        scoring.run();
+
+        assertThat(scoredAt(id)).isEqualTo(first);
+    }
+
+    @Test
     void scoresAgainWhenTheWeightsThatProducedTheScoreHaveChanged() {
         long id = offer("Senior Java Entwickler (m/w/d)", "Spring Boot");
         scoring.run();
@@ -178,6 +204,18 @@ class ScoringWithoutAModelTest {
         assertThat(scoredAt(id)).isAfter(first);
         assertThat(jdbc.queryForObject("SELECT score_model FROM offer WHERE id = ?", String.class, id))
                 .isNull();
+    }
+
+    @Test
+    void refusesToScoreOneOfferAgainWhenNothingIsConfiguredToAnswer() {
+        // The button on the detail page is the deliberate exception to the guard, so its
+        // failure mode matters: rewriting the deterministic half and calling it done would
+        // look exactly like the button having no effect.
+        long id = offer("Senior Java Entwickler (m/w/d)", "Spring Boot");
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> scoring.rescore(id))
+                .isInstanceOf(ScoringService.NoJudge.class)
+                .hasMessageContaining("no language model is configured");
     }
 
     /** `timestamptz` does not convert straight to an Instant; the driver throws on the whole query. */

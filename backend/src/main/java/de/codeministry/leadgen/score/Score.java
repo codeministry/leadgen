@@ -22,6 +22,21 @@ public record Score(
         return new Score(null, true, deterministic, null, rulesetVersion);
     }
 
+    /**
+     * A judged score, with the total added up and clamped.
+     *
+     * <p>The weights sum to 100 and the penalties are negative, so a heavily penalised
+     * offer can go below zero and a generous weight table above 100. Both are clamped: the
+     * thresholds are stated on a 0-100 scale and a score outside it cannot be read against
+     * them. It is a factory rather than an expression at each call site because there are
+     * two of those now, the synchronous run and the batch collector, and a shortlist whose
+     * halves clamp differently is not a ranking.
+     */
+    public static Score of(List<ScoreReason> reasons, String model, String rulesetVersion) {
+        int total = reasons.stream().mapToInt(ScoreReason::points).sum();
+        return new Score(Math.max(0, Math.min(100, total)), true, List.copyOf(reasons), model, rulesetVersion);
+    }
+
     /** The band names in `scoring.thresholds`, which the shortlist and the digest read. */
     public String band(int autoShortlist, int review) {
         if (value == null) {

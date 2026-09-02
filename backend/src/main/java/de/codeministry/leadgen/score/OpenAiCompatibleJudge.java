@@ -18,8 +18,9 @@ import java.util.Map;
  */
 public class OpenAiCompatibleJudge extends HttpJudge {
 
-    public OpenAiCompatibleJudge(String baseUrl, String apiKey, String model, ObjectMapper json) {
-        super(baseUrl, apiKey, model, json);
+    public OpenAiCompatibleJudge(
+            String baseUrl, String apiKey, String model, ObjectMapper json, java.util.Map<String, Integer> bounds) {
+        super(baseUrl, apiKey, model, json, bounds);
     }
 
     @Override

@@ -5,8 +5,10 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 
 /**
  * `application.yaml` from the config directory.
@@ -33,14 +35,65 @@ public record PipelineConfig(
      * Without a model the tool still runs: the hard filter that removes 83.5 % of the
      * offers is deterministic, and only scoring and the cover letter are lost.
      */
-    public record Llm(String provider, String baseUrl, String apiKey, @NotNull Models models, @Valid Budget budget) {
+    public record Llm(
+            String provider,
+            String baseUrl,
+            String apiKey,
+            boolean batch,
+            @NotNull Models models,
+            @Valid Budget budget) {
+
+        /**
+         * The one wire format whose batch endpoint is implemented, named here rather than
+         * in either of the two places that need it. {@code ConfigLoader} refuses `batch:
+         * true` for anything else at load, and the judge factory builds the batching judge
+         * for this provider — two copies of the same string would disagree exactly once,
+         * and the symptom would be a batch flag that is accepted and then ignored.
+         */
+        public static final String BATCHING_PROVIDER = "anthropic";
 
         /**
          * Every model is optional. Without a language model the tool still runs —
          * hard filter, dedupe and enrichment are deterministic — it only loses
          * scoring and the cover letter.
          */
-        public record Models(String extraction, String scoring, String writing, String embedding) {}
+        /**
+         * @param scoringOptions the alternatives offered beside {@link #scoring}, comma
+         *     separated. A list rather than a single value because comparing two judges is
+         *     the only way to find out what a model is worth here, and a comparison that
+         *     needs an edit to `.env` and a restart between the halves does not get made.
+         *     <p><b>Comma separated rather than a YAML sequence, and that is the
+         *     placeholder's doing.</b> Every value in a shipped file is a
+         *     <code>${PLACEHOLDER}</code> resolved from `.env`, which substitutes text into
+         *     a scalar; a sequence would have to be written out in the file itself, which
+         *     is the one thing no committed file here does.
+         */
+        public record Models(
+                String extraction, String scoring, String writing, String embedding, String scoringOptions) {
+
+            /**
+             * Every model that may be asked to judge, the configured default first.
+             *
+             * <p><b>This is an allowlist, not a suggestion.</b> The chosen model arrives as
+             * a request parameter, and a parameter passed through unchecked is an arbitrary
+             * model name on a billed endpoint. {@code Judges} refuses anything not in here.
+             *
+             * <p>{@link #scoring} is always the first entry, so the list is never empty
+             * while a judge is configured at all and the default never has to be repeated
+             * in `scoring_options`.
+             */
+            public List<String> scoringChoices() {
+                return Stream.concat(Stream.ofNullable(scoring), split(scoringOptions))
+                        .map(String::trim)
+                        .filter(model -> !model.isEmpty())
+                        .distinct()
+                        .toList();
+            }
+
+            private static Stream<String> split(String options) {
+                return options == null ? Stream.empty() : Arrays.stream(options.split(","));
+            }
+        }
 
         public record Budget(@Min(0) int maxCallsPerDay, boolean cacheByMessageId) {}
     }

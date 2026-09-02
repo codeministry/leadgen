@@ -27,6 +27,11 @@ leadgen:
   # How often the three files are checked for changes. Two polls are needed before a
   # change is applied, so the worst case is twice this value.
   config-poll-interval: ${CONFIG_POLL_INTERVAL:PT2S}
+  # How often a submitted scoring batch is asked whether it has ended. Only read when
+  # `llm.batch` is on. Five minutes because the provider's own turnaround is measured in
+  # minutes and its ceiling in hours: polling faster buys nothing and costs a request each
+  # time, and the run it belongs to has already finished either way.
+  score-batch-poll-interval: ${SCORE_BATCH_POLL_INTERVAL:PT5M}
 
 management:
   endpoints:

@@ -237,6 +237,16 @@ public class ConfigLoader {
             log.warn("hard_filters.location.onsite_cities is empty; only remote offers can pass the filter");
         }
 
+        // Same class of lie as an unimplemented auth mode: `batch: true` on a provider with
+        // no batch endpoint would be read, ignored, and score synchronously, while the
+        // person who wrote it believes they are paying half.
+        var llm = pipeline.llm();
+        if (llm != null && llm.batch() && !PipelineConfig.Llm.BATCHING_PROVIDER.equals(llm.provider())) {
+            problems.add(
+                    "llm.batch is true and llm.provider is '%s'; only '%s' has a batch endpoint implemented, and any other provider would score synchronously at full price while the flag says otherwise"
+                            .formatted(llm.provider(), PipelineConfig.Llm.BATCHING_PROVIDER));
+        }
+
         String mergePolicy = rules.deduplication().mergePolicy();
         if (mergePolicy != null && !"keep_first_seen_as_primary".equals(mergePolicy)) {
             problems.add(

@@ -82,6 +82,28 @@ class ConfigLoaderTest {
     }
 
     @Test
+    void rejectsBatchingOnAProviderThatHasNoBatchEndpoint() throws IOException {
+        // The same class of lie as an unimplemented auth mode: the flag would be read,
+        // ignored, and the run would score synchronously at full price while the person who
+        // set it believes they are paying half.
+        rewrite("pipeline.yaml", "batch: ${LLM_BATCH:false}", "batch: true");
+        rewrite("pipeline.yaml", "provider: ${LLM_PROVIDER:}", "provider: ollama");
+
+        assertThatThrownBy(() -> ConfigFixtures.loaderFor(configDir, VALIDATOR).load())
+                .hasMessageContaining("llm.batch")
+                .hasMessageContaining("ollama");
+    }
+
+    @Test
+    void acceptsBatchingOnTheProviderThatHasOne() throws IOException {
+        rewrite("pipeline.yaml", "batch: ${LLM_BATCH:false}", "batch: true");
+        rewrite("pipeline.yaml", "provider: ${LLM_PROVIDER:}", "provider: anthropic");
+
+        assertThat(ConfigFixtures.loaderFor(configDir, VALIDATOR).load().application().llm().batch())
+                .isTrue();
+    }
+
+    @Test
     void rejectsASourceNamingAnUndeclaredConnection() throws IOException {
         rewrite("sources.yaml", "connection: mailbox-primary", "connection: mailbox-typo");
 

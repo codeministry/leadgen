@@ -9,6 +9,14 @@ llm:
   provider: ${LLM_PROVIDER:}            # anthropic | ollama | openai-compatible
   base_url: ${LLM_BASE_URL:}
   api_key: ${LLM_API_KEY}
+  # Half the price, at the cost of a synchronous answer: the requests are handed over as
+  # one batch and collected by a poller minutes later, so packaging and the digest happen
+  # after the collection rather than at the end of the run that submitted. Only the
+  # Messages API batch is implemented, and the loader refuses this flag for any other
+  # provider rather than quietly scoring at full price. Off by default: a run that answers
+  # within itself is the simpler thing to reason about, and the saving is worth having only
+  # once the nightly pass is large.
+  batch: ${LLM_BATCH:false}
   models:
     # Only `scoring` is read today. The other three name stages that are deterministic or
     # not implemented: extraction has no LLM fallback, the cover letter is a Freemarker
@@ -16,7 +24,12 @@ llm:
     # skipped. They stay here because the stages exist in the concept, but a value in any
     # of them changes nothing.
     extraction: ${LLM_MODEL_EXTRACTION}  # not read yet
-    scoring:    ${LLM_MODEL_SCORING}     # the judge
+    scoring:    ${LLM_MODEL_SCORING}     # the judge, and the default of the list below
+    # The alternatives offered in the select beside the run button, comma separated.
+    # An allowlist, not a suggestion: the chosen model travels as a request parameter,
+    # and a name passed through unchecked is an arbitrary string deciding what gets
+    # bought. `scoring` is always the first entry and need not be repeated here.
+    scoring_options: ${LLM_MODEL_SCORING_OPTIONS:}
     writing:    ${LLM_MODEL_WRITING}     # not read yet
     embedding:  ${LLM_MODEL_EMBEDDING}   # not read yet
   budget:

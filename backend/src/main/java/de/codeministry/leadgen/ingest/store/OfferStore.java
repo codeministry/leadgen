@@ -70,8 +70,8 @@ public class OfferStore {
         int[][] affected = template.batchUpdate(
                 """
                 INSERT INTO offer (source_id, external_id, title, description, url, location,
-                                   portal, agency, published_on, fingerprint, tags)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                   portal, agency, published_on, fingerprint, tags, received_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT (source_id, external_id) WHERE external_id IS NOT NULL
                 DO UPDATE SET title = EXCLUDED.title,
                               description = EXCLUDED.description,
@@ -80,7 +80,14 @@ public class OfferStore {
                               agency = EXCLUDED.agency,
                               published_on = EXCLUDED.published_on,
                               fingerprint = EXCLUDED.fingerprint,
-                              tags = EXCLUDED.tags
+                              tags = EXCLUDED.tags,
+                              -- The earlier of the two, and never overwritten by a later
+                              -- mail. Nine of the measured listings appear in two mails,
+                              -- and the question this column answers is when the offer
+                              -- first reached the mailbox. LEAST ignores a null, so a row
+                              -- imported before this column existed is backfilled by the
+                              -- next re-read rather than staying empty.
+                              received_at = LEAST(offer.received_at, EXCLUDED.received_at)
                 """,
                 offers,
                 offers.size(),
@@ -102,6 +109,13 @@ public class OfferStore {
                     statement.setArray(
                             11,
                             statement.getConnection().createArrayOf("text", offer.tags().toArray()));
+                    // Null rather than now(): a source that is not a mail has no arrival
+                    // date, and the file's own timestamp would be the run's, dressed up.
+                    if (offer.receivedAt() == null) {
+                        statement.setNull(12, Types.TIMESTAMP_WITH_TIMEZONE);
+                    } else {
+                        statement.setTimestamp(12, java.sql.Timestamp.from(offer.receivedAt()));
+                    }
                 });
 
         return java.util.Arrays.stream(affected)
