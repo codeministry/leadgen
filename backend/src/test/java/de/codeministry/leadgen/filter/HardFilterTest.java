@@ -1,10 +1,16 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright 2026 Marcello Muscara (codeministry)
+ *
+ * Licensed under the Apache License, Version 2.0. You may obtain a copy of the
+ * License at http://www.apache.org/licenses/LICENSE-2.0
+ */
 package de.codeministry.leadgen.filter;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 import de.codeministry.leadgen.config.ConfigFixtures;
-import de.codeministry.leadgen.config.model.MatchingRules;
-import de.codeministry.leadgen.config.model.SkillProfile;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
 import java.io.IOException;
@@ -47,7 +53,8 @@ class HardFilterTest {
 
     @Test
     void acceptsAnOfferThatClearsEveryStage() {
-        assertThat(judge(offer("Barista (m/w/d)", "Espresso und Handaufguss", "Musterstadt")).passed())
+        assertThat(judge(offer("Barista (m/w/d)", "Espresso und Handaufguss", "Musterstadt"))
+                        .passed())
                 .isTrue();
     }
 
@@ -82,7 +89,8 @@ class HardFilterTest {
                 .isEqualTo(FilterStage.ROLE_OR_STACK);
         assertThat(judge(offer("C# Entwickler", "Espresso", "Musterstadt")).stage())
                 .isEqualTo(FilterStage.ROLE_OR_STACK);
-        assertThat(judge(offer("Barista Netzwerkpflege", "Espresso", "Musterstadt")).passed())
+        assertThat(judge(offer("Barista Netzwerkpflege", "Espresso", "Musterstadt"))
+                        .passed())
                 .isTrue();
     }
 
@@ -95,9 +103,11 @@ class HardFilterTest {
 
     @Test
     void rejectsAStatedRemoteShareBelowTheMinimum() {
-        assertThat(judge(offer("Barista", "Espresso, 40 % remote", "Musterstadt")).stage())
+        assertThat(judge(offer("Barista", "Espresso, 40 % remote", "Musterstadt"))
+                        .stage())
                 .isEqualTo(FilterStage.REMOTE_SHARE);
-        assertThat(judge(offer("Barista", "Espresso, 80 % remote", "Musterstadt")).passed())
+        assertThat(judge(offer("Barista", "Espresso, 80 % remote", "Musterstadt"))
+                        .passed())
                 .isTrue();
     }
 
@@ -105,13 +115,15 @@ class HardFilterTest {
     void keepsAnOfferWithNoStatedRemoteShare() {
         // ISC-43. `accept_unknown` is true because the sources state a share in 8.8 % of
         // offers; rejecting the silent ones would throw away nine in ten.
-        assertThat(judge(offer("Barista", "Espresso, nichts über Remote", "Beispielheim")).passed())
+        assertThat(judge(offer("Barista", "Espresso, nichts über Remote", "Beispielheim"))
+                        .passed())
                 .isTrue();
     }
 
     @Test
     void keepsARemoteOfferWhoseLocationIsNowhereNear() {
-        assertThat(judge(offer("Barista", "Espresso, homeoffice möglich", "Irgendwo")).passed())
+        assertThat(judge(offer("Barista", "Espresso, homeoffice möglich", "Irgendwo"))
+                        .passed())
                 .isTrue();
     }
 
@@ -124,7 +136,8 @@ class HardFilterTest {
 
     @Test
     void rejectsAnOfferNamingNoCoreSkill() {
-        assertThat(judge(offer("Hufschmied", "Beschlagen von Pferden", "Musterstadt")).stage())
+        assertThat(judge(offer("Hufschmied", "Beschlagen von Pferden", "Musterstadt"))
+                        .stage())
                 .isEqualTo(FilterStage.NO_CORE_SKILL);
     }
 
@@ -132,7 +145,8 @@ class HardFilterTest {
     void countsAnAliasAsTheCoreSkill() {
         // Eight bare skill names would answer "no" to an ad asking for Springboot or k8s.
         // Over the corpus the aliases are worth twelve offers.
-        assertThat(judge(offer("Fachkraft", "Espresso-Zubereitung erwünscht", "Musterstadt")).passed())
+        assertThat(judge(offer("Fachkraft", "Espresso-Zubereitung erwünscht", "Musterstadt"))
+                        .passed())
                 .isTrue();
     }
 
@@ -149,8 +163,7 @@ class HardFilterTest {
         // on the working list, not whether the advert is any good, so it moved to
         // `ArchiveService` — and an offer old enough to have been rejected here has to
         // pass now, or the two rules are both in force at once.
-        var old = new FilterCandidate(
-                1L, "Barista", "Espresso", "Musterstadt", List.of(), TODAY.minusDays(400));
+        var old = new FilterCandidate(1L, "Barista", "Espresso", "Musterstadt", List.of(), TODAY.minusDays(400));
         assertThat(filter.judge(old).passed()).isTrue();
         assertThat(FilterStage.values()).noneMatch(stage -> stage.name().equals("STALE"));
     }

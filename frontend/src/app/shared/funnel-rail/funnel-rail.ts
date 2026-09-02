@@ -84,7 +84,9 @@ export class FunnelRail {
    * grouping on the loudest numbers in the app, because the format was fixed at `en-GB`
    * while everything around it followed the language toggle.
    */
-  protected readonly formatter = computed(() => new Intl.NumberFormat(this.transloco.getActiveLang()));
+  protected readonly formatter = computed(
+    () => new Intl.NumberFormat(this.transloco.getActiveLang()),
+  );
 
   constructor() {
     const view = inject(DOCUMENT).defaultView;

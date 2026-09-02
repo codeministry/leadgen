@@ -1,5 +1,16 @@
 import { Routes } from '@angular/router';
 
+/**
+ * Every screen, lazily loaded.
+ *
+ * `title` is set per route rather than in a component: the browser tab is the only place
+ * two open screens of this application are told apart, and a route that forgets it inherits
+ * whichever title happened to be set last.
+ *
+ * The unknown path redirects rather than showing a not-found page. There is nothing here a
+ * stranger could deep-link into wrongly, and the dashboard is the honest answer to "that
+ * URL does not exist".
+ */
 export const routes: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
   {

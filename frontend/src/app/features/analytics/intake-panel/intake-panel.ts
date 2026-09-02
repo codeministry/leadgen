@@ -29,7 +29,10 @@ export class IntakePanel {
 
   /** The bucket's own span. A week labelled with its Monday alone reads as a single day. */
   protected readonly rows = computed(() =>
-    this.buckets().map((bucket) => ({ ...bucket, label: bucketLabel(bucket.day, this.granularity()) })),
+    this.buckets().map((bucket) => ({
+      ...bucket,
+      label: bucketLabel(bucket.day, this.granularity()),
+    })),
   );
 
   private readonly palette = inject(CHART_PALETTE);
@@ -78,5 +81,7 @@ export class IntakePanel {
     this.buckets().reduce((sum, bucket) => sum + bucket.primaries, 0),
   );
 
-  protected readonly passed = computed(() => this.buckets().reduce((sum, bucket) => sum + bucket.passed, 0));
+  protected readonly passed = computed(() =>
+    this.buckets().reduce((sum, bucket) => sum + bucket.passed, 0),
+  );
 }

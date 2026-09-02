@@ -1,3 +1,11 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright 2026 Marcello Muscara (codeministry)
+ *
+ * Licensed under the Apache License, Version 2.0. You may obtain a copy of the
+ * License at http://www.apache.org/licenses/LICENSE-2.0
+ */
 package de.codeministry.leadgen.digest;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -53,8 +61,8 @@ class DigestServiceTest {
         jdbc.update("DELETE FROM offer_score_reason");
         jdbc.update("DELETE FROM offer");
         jdbc.update("DELETE FROM source");
-        sourceId = jdbc.queryForObject(
-                "INSERT INTO source (name, kind) VALUES ('test', 'file') RETURNING id", Long.class);
+        sourceId =
+                jdbc.queryForObject("INSERT INTO source (name, kind) VALUES ('test', 'file') RETURNING id", Long.class);
     }
 
     @Test
@@ -97,15 +105,17 @@ class DigestServiceTest {
         // expect one. Saying so in the artefact is cheaper than explaining it later.
         offer("Senior Java Entwickler (m/w/d)", 88, "SHORTLISTED");
 
-        assertThat(read(digest.render(LocalDate.of(2026, 9, 1)).orElseThrow()))
-                .contains("Nothing here has been sent");
+        assertThat(read(digest.render(LocalDate.of(2026, 9, 1)).orElseThrow())).contains("Nothing here has been sent");
     }
 
     @Test
     void namesTheFileAfterTheDay() {
         offer("Senior Java Entwickler (m/w/d)", 88, "SHORTLISTED");
 
-        assertThat(digest.render(LocalDate.of(2026, 9, 1)).orElseThrow().getFileName().toString())
+        assertThat(digest.render(LocalDate.of(2026, 9, 1))
+                        .orElseThrow()
+                        .getFileName()
+                        .toString())
                 .isEqualTo("digest-2026-09-01.txt");
     }
 
@@ -123,16 +133,24 @@ class DigestServiceTest {
                 INSERT INTO offer (source_id, external_id, title, description, url, fingerprint,
                                    status, score_value, score_band, location, portal, agency)
                 VALUES (?, ?, ?, 'egal', 'https://example.invalid/x', 'fp', 'PASSED', ?, ?,
-                        'Köln', 'FreelancerMap', 'Etengo AG')
+                        'Köln', 'portal-a', 'Acme Consulting GmbH')
                 RETURNING id
                 """,
-                Long.class, sourceId, "ext-" + System.nanoTime(), title, score, band);
+                Long.class,
+                sourceId,
+                "ext-" + System.nanoTime(),
+                title,
+                score,
+                band);
     }
 
     private void reason(long offerId, String factor, String label, int points) {
         jdbc.update(
                 "INSERT INTO offer_score_reason (offer_id, factor, label, points, position) VALUES (?, ?, ?, ?, 0)",
-                offerId, factor, label, points);
+                offerId,
+                factor,
+                label,
+                points);
     }
 
     private static Path configWritingTextTo() {
@@ -148,8 +166,7 @@ class DigestServiceTest {
                     pipeline,
                     Files.readString(pipeline, StandardCharsets.UTF_8)
                             .replace("format: ${DIGEST_FORMAT:html}", "format: text")
-                            .replace("output_dir: ${DIGEST_DIR:./packages/digest}",
-                                    "output_dir: " + outputDir),
+                            .replace("output_dir: ${DIGEST_DIR:./packages/digest}", "output_dir: " + outputDir),
                     StandardCharsets.UTF_8);
             return dir;
         } catch (IOException e) {

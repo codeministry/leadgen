@@ -11,19 +11,19 @@ How the enrichment stage came about: [CONCEPT-addendum-enrichment.md](CONCEPT-ad
 
 **Guard rail:** this project is meant to be published as open source. No newsletter,
 no portal, no mail provider and no personal datum is wired into the code. Everything
-individual lives in `config/local/` and in environment variables.
+individual lives in `config/` and in environment variables.
 
 ## 1. Decisions
 
 | Topic | Decision |
 |---|---|
-| Repository | monorepo: `backend/`, `frontend/`, `charts/`, `config/`, `docs/` |
+| Repository | monorepo: `backend/`, `frontend/`, `config/`, `docs/` |
 | Backend | Spring Boot (modular monolith), Java 21, Gradle |
 | Frontend | Angular + NGRX + DaisyUI |
 | Persistence | PostgreSQL |
 | Sources | declaratively configured: IMAP, RSS/Atom, HTTP, file drop |
 | Scoring | deterministic hard rules first, then an LLM (provider interchangeable) |
-| Operation | Docker Compose locally → microk8s via Helm |
+| Operation | Docker Compose; a Helm chart is a later phase and not in the repo |
 | Sending | draft only, the user sends |
 | Language | repository is English throughout; the target market is German, which is content |
 
@@ -31,19 +31,20 @@ individual lives in `config/local/` and in environment variables.
 
 ```
 lead-generation/
-├── backend/           Spring Boot, Gradle
-├── frontend/          Angular + NGRX + DaisyUI
-├── charts/            Helm chart for microk8s
-├── config/
-│   ├── examples/      neutral example configuration (in the repo)
-│   └── local/         own data, profile, rules (gitignored)
+├── backend/               Spring Boot, Gradle
+│   └── src/main/resources/leadgen/
+│                          the shipped defaults — neutral, every value a ${PLACEHOLDER}
+├── frontend/              Angular + NgRx signals + Tailwind/DaisyUI
+├── config/                own data, profile, rules — overrides file by file (gitignored)
 ├── docs/
 ├── docker-compose.yml
-└── settings.gradle    root build brackets :backend and :frontend
+└── settings.gradle.kts    root build brackets :backend and :frontend
 ```
 
-One `./gradlew build` builds both; the frontend is wired in through the Node Gradle
-plugin and lands as static resources in the backend image.
+One `./gradlew build` builds both. The frontend is bracketed with plain `Exec` tasks
+calling `bun`, not with the Node Gradle plugin — the plugin does not speak bun, and
+`package.json` stays the single list of frontend commands. The two modules ship as two
+images; nginx serves the SPA and proxies `/api/` to the backend.
 
 ## 3. Source abstraction
 
@@ -61,7 +62,7 @@ interface ExtractionStrategy {       // RawDocument -> 0..n RawOffer
 
 Implementations: `ImapConnector`, `RssConnector`, `HttpJsonConnector`, `FileDropConnector`,
 and `SingleStrategy`, `HtmlBlockStrategy`, `RegexSplitStrategy`, `LlmStrategy`.
-Which combination applies to which source lives exclusively in `config/local/sources.yaml`
+Which combination applies to which source lives exclusively in `config/sources.yaml`
 — see `backend/src/main/resources/leadgen/sources.yaml`.
 
 A new offer source is therefore a YAML block, not code and not a deploy. Deterministic
@@ -71,10 +72,10 @@ fills the gaps.
 ## 4. Pipeline
 
 ```
-Sources ─▶ Ingest ─▶ Extract ─▶ Normalize ─▶ Dedupe ─▶ Filter ─▶ Enrich ─▶ Score ─▶ Package ─▶ Track ─▶ Digest
-                                                                    ▲
-                                                      only the ~16 % that survived
-                                                      the hard filter
+Sources ─▶ Ingest ─▶ Extract ─▶ Normalize ─▶ Dedupe ─▶ Filter ─▶ Archive ─▶ Enrich ─▶ Score ─▶ Package ─▶ Track ─▶ Digest
+                                                                                ▲
+                                                                  only what survived the hard
+                                                                  filter and is still on the list
 ```
 
 Measured against 14 real mails, see [SAMPLE-ANALYSIS.md](SAMPLE-ANALYSIS.md).
@@ -86,11 +87,12 @@ Measured against 14 real mails, see [SAMPLE-ANALYSIS.md](SAMPLE-ANALYSIS.md).
 | Normalize | free text → structured `Offer`, only where structure is missing | LLM schema, model freely selectable |
 | Dedupe | merge the same project coming through several agencies | `matching-rules.yaml → deduplication` |
 | Filter | knockout criteria, no LLM call | `matching-rules.yaml → hard_filters` |
-| Enrich | fetch the original ad: rate, duration, workload, full text | `application.yaml → enrichment` |
+| Archive | take aged-out offers off the working list, restore is manual | `matching-rules.yaml → freshness` |
+| Enrich | fetch the original ad: rate, duration, workload, full text | `pipeline.yaml → enrichment` |
 | Score | semantic comparison against the profile, with reasons | `matching-rules.yaml → scoring` |
-| Package | assemble the application package | `application.yaml → packaging`, Freemarker templates |
+| Package | assemble the application package | `pipeline.yaml → packaging`, Freemarker templates |
 | Track | status, follow-up, funnel | `matching-rules.yaml → follow_up` |
-| Digest | one daily overview instead of reviewing each offer | `application.yaml → digest` |
+| Digest | one daily overview instead of reviewing each offer | `pipeline.yaml → digest` |
 
 **Cost logic:** the hard filter runs before every expensive call. Only what survives gets
 scored semantically. Extraction uses a small model, scoring and writing a large one.
@@ -120,27 +122,37 @@ should be possible without a fork.
 ## 6. Backend module layout
 
 ```
-backend/src/main/java/.../leadgen/
-  ingest/       SourceConnector implementations
-  extract/      ExtractionStrategy implementations
-  normalize/    structured extraction, enforced JSON schema
-  enrich/       HTTP fetch of the original ad, rate limit, cache, robots.txt
-  matching/     rule engine (YAML-driven, hot-reloadable) + LLM scoring
-  dedupe/       fingerprint, embedding comparison
-  packaging/    document selection, cover letter, folder/ZIP
-  tracking/     lifecycle, follow-up
-  digest/       daily report, interchangeable transport
-  api/          REST for the frontend
-  config/       loading and validating the YAML configuration
+backend/src/main/java/de/codeministry/leadgen/
+  config/       loading, validating and hot-reloading the four YAML files
+    model/      the records that mirror those files
+  ingest/       the pipeline orchestrator (IngestService)
+    connector/  SourceConnector implementations — file, IMAP
+    extract/    ExtractionStrategy implementations — html-blocks, markdown-frontmatter
+    store/      the offer upsert and the IMAP cursor
+  dedupe/       fingerprint clustering of one project across several portals
+  filter/       the six deterministic knockout stages, no model and no network
+  archive/      what is no longer on the working list, by age or by hand
+  enrich/       HTTP fetch of the original ad — rate limit, cache, robots.txt
+  score/        deterministic factors (RuleScorer) plus an optional Judge
+  packaging/    document selection, cover letter, the folder on disk
+  application/  manual status capture and its event log
+  manual/       uploads waiting for review
+  digest/       the daily file, text or HTML
+  offer/        the read side of the shortlist
+  analytics/    run history and market figures
+  web/          the REST controllers, and nothing else
 ```
+
+The layout mirrors the pipeline. There is no `api/` package: each controller sits in
+`web/` and every stage owns its own slice, which is why a stage can be read on its own.
 
 ## 7. Profile and rules
 
 Two files, both outside the repository:
 
-- `config/local/skill-profile.yaml` — skills with weights and synonyms, roles, industries,
+- `config/skill-profile.yaml` — skills with weights and synonyms, roles, industries,
   reference projects as raw material for cover letters, document variants per language.
-- `config/local/matching-rules.yaml` — hard knockout criteria (remote share, region and
+- `config/matching-rules.yaml` — hard knockout criteria (remote share, region and
   travel radius, minimum hourly rate, contract type, country allowlist), weighted scoring,
   a negative list for dominant foreign stacks, deduplication and follow-up rules.
 
@@ -170,11 +182,12 @@ Each match produces a folder named by a configurable pattern:
 
 ## 10. Operation
 
-- **Phase 1:** `docker-compose.yml` (postgres, api, web), scheduler inside the backend.
-- **Phase 2:** Helm chart in `charts/`, deployed to microk8s on the local network,
-  secrets following the convention in `devops/SECRETS.md`.
-- Remote access later through Tailscale (`devops/TAILSCALE_SETUP.md`).
-- Authentication is configurable: `none` for local-only, `basic` or `oidc`/Keycloak.
+- **Phase 1, and what ships today:** `docker-compose.yml` (postgres, api, web). A run is
+  triggered from the UI; whatever schedules the run schedules the digest.
+- **Phase 2, not in the repo yet:** a Helm chart for a small Kubernetes cluster.
+- Authentication is a schema with one implemented value: `none`. `basic` and `oidc` are
+  rejected at load rather than silently ignored, and `server.address` defaults to
+  `127.0.0.1` — that loopback bind is what stands in front of the write endpoints today.
 
 ## 11. Order of work
 
@@ -183,7 +196,7 @@ Each match produces a folder named by a configurable pattern:
 3. **Configuration layer** — load YAML, validate, hot-reload
 4. **Ingest + extract** against the `local-eml` source — acceptance test: 1289 offers
    from `docs/samples/emails/`, field coverage as in the analysis
-5. **IMAP connector** — same extraction, progress via `UIDVALIDITY`/`UID`
+5. **IMAP connector** — same extraction, a different way of getting at the HTML
 6. **Dedupe** — pulled forward: 12.3 % duplicates occur within a single mail
 7. **Hard filter** — must hit the measured 16.5 %
 8. **Enrichment** — without this stage there is no rate and no full text
@@ -204,18 +217,19 @@ the simulation in `docs/samples/simulate_filter.py` is the reference.
     optionally subject.
   - *dedicated mode* (later): a separate mailbox that the provider delivers the newsletter into
     by rule — then `match_all` applies and no filter is needed.
-  - Progress is tracked via `UIDVALIDITY`/`UID`, not via seen/unseen. The mails stay
-    untouched and a second client does not interfere.
-- **Hard filters:** at least 80 % remote, within 120 km of Bedburg, no exceptions outside
+  - Progress is never tracked via seen/unseen: the owner reads the same mailbox on a phone,
+    and a flag-based cursor would skip whatever they opened first. What replaced the original
+    `UIDVALIDITY`/`UID` watermark is Spring Integration's own user flag — see
+    [ARCHITECTURE.md](ARCHITECTURE.md) for what that traded away.
+- **Hard filters:** a minimum remote share, a hand-drawn list of reachable cities rather
+  than a radius, no exceptions outside
   that radius, country allowlist DE only, no temporary-employment or permanent contracts.
 - **LLM:** provider and key via `.env`, never in a committed file. A small model for extraction, a larger one for
   scoring and writing.
 - **Documents:** fixed PDFs, language selection only. No per-offer tailoring, no
-  integration with `cvfy`. The files live in `config/local/documents/`.
+  integration with `cvfy`. The files live in `config/documents/`.
 
 ## 13. Open
 
-- Adopt the code conventions from `codeministry/customer/ship360` — see `CLAUDE.md`
-- License for publication — Apache 2.0?
-- Repository name and GitHub organisation
-- Sender address and folder of the newsletter in the IMAP mailbox
+- Sender address and folder of the newsletter in the IMAP mailbox — deployment detail,
+  and deliberately not in any committed file

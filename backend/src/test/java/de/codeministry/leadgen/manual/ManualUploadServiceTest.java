@@ -1,3 +1,11 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright 2026 Marcello Muscara (codeministry)
+ *
+ * Licensed under the Apache License, Version 2.0. You may obtain a copy of the
+ * License at http://www.apache.org/licenses/LICENSE-2.0
+ */
 package de.codeministry.leadgen.manual;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -61,7 +69,8 @@ class ManualUploadServiceTest {
     void emptyTheInbox() throws Exception {
         jdbc.update("DELETE FROM offer");
         jdbc.update("DELETE FROM source");
-        for (Path directory : List.of(inbox.pending().orElseThrow(), inbox.inbox().orElseThrow())) {
+        for (Path directory :
+                List.of(inbox.pending().orElseThrow(), inbox.inbox().orElseThrow())) {
             try (var files = Files.list(directory)) {
                 files.filter(Files::isRegularFile).forEach(file -> file.toFile().delete());
             }
@@ -91,7 +100,7 @@ class ManualUploadServiceTest {
     @Test
     void namesTheOfferAlreadyInThePipelineBeforeTheConfirmAndNotAfter() {
         long sourceId = jdbc.queryForObject(
-                "INSERT INTO source (name, kind) VALUES ('freelancermap', 'rss') RETURNING id", Long.class);
+                "INSERT INTO source (name, kind) VALUES ('portal-a', 'rss') RETURNING id", Long.class);
         jdbc.update(
                 """
                 INSERT INTO offer (source_id, external_id, title, fingerprint, status)
@@ -126,7 +135,9 @@ class ManualUploadServiceTest {
         assertThat(inbox.pending().orElseThrow().resolve("offer.md")).doesNotExist();
         // The correction lives in the document, so re-reading the same file later produces
         // the same offer — there is no second copy of the truth in a table.
-        assertThat(Files.readString(moved)).contains("Senior Java Entwickler, korrigiert").contains("LinkedIn");
+        assertThat(Files.readString(moved))
+                .contains("Senior Java Entwickler, korrigiert")
+                .contains("LinkedIn");
         assertThat(confirmed.offer().title()).isEqualTo("Senior Java Entwickler, korrigiert");
         assertThat(confirmed.offer().tags()).containsExactly("Java", "Spring Boot");
     }
@@ -171,7 +182,8 @@ class ManualUploadServiceTest {
         assertThat(dots.name()).isEqualTo("offer.md");
 
         Path pending = inbox.pending().orElseThrow();
-        assertThat(uploads.pending()).extracting(PendingDocument::name)
+        assertThat(uploads.pending())
+                .extracting(PendingDocument::name)
                 .containsExactlyInAnyOrder("passwd.md", "notes.md", "offer.md");
         assertThat(pending.resolve("passwd.md")).exists();
         assertThat(Path.of("/etc/passwd.md")).doesNotExist();

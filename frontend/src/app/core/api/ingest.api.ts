@@ -1,6 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
+import { LastRunView } from '@core/model/last-run';
 import { scoringModelParams } from './scoring-model-param';
 
 /** Mirrors `de.codeministry.leadgen.ingest.DocumentIngestResult`. */
@@ -109,5 +110,14 @@ export class IngestApi {
    */
   run(model: string | null): Observable<IngestReport> {
     return this.http.post<IngestReport>('/api/ingest', {}, { params: scoringModelParams(model) });
+  }
+
+  /**
+   * What the last run did, whoever started it. Null when nothing ever has — the server
+   * answers 204, and Angular hands a 204 over as a null body, which is the same
+   * distinction the status code was chosen for: "no run" is not "a run with zero counts".
+   */
+  last(): Observable<LastRunView | null> {
+    return this.http.get<LastRunView | null>('/api/ingest/last');
   }
 }

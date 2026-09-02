@@ -1,3 +1,11 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright 2026 Marcello Muscara (codeministry)
+ *
+ * Licensed under the Apache License, Version 2.0. You may obtain a copy of the
+ * License at http://www.apache.org/licenses/LICENSE-2.0
+ */
 package de.codeministry.leadgen.web;
 
 import de.codeministry.leadgen.archive.ArchiveService;
@@ -10,7 +18,6 @@ import de.codeministry.leadgen.offer.ShortlistQuery;
 import de.codeministry.leadgen.score.Judges;
 import de.codeministry.leadgen.score.ScoringService;
 import jakarta.validation.Valid;
-import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;

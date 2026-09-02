@@ -1,3 +1,11 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright 2026 Marcello Muscara (codeministry)
+ *
+ * Licensed under the Apache License, Version 2.0. You may obtain a copy of the
+ * License at http://www.apache.org/licenses/LICENSE-2.0
+ */
 package de.codeministry.leadgen.config.model;
 
 import jakarta.validation.Valid;
@@ -103,10 +111,7 @@ public record MatchingRules(
     }
 
     public record Deduplication(
-            List<String> fingerprintFields,
-            List<@Valid Strategy> strategies,
-            String mergePolicy,
-            @Min(1) int ttlDays) {
+            List<String> fingerprintFields, List<@Valid Strategy> strategies, String mergePolicy, @Min(1) int ttlDays) {
 
         /** {@code threshold} applies to the embedding strategies only. */
         public record Strategy(@NotBlank String type, Double threshold, @NotBlank String action) {}

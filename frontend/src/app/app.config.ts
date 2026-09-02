@@ -6,6 +6,18 @@ import { provideChartPalette } from '@core/theme/chart-theme';
 import { provideScoreThresholds } from '@core/store/score-thresholds.provider';
 import { routes } from './app.routes';
 
+/**
+ * What the application is wired with, and the two seams worth knowing about.
+ *
+ * `withComponentInputBinding` is what makes the query string the source of truth for the
+ * shortlist's filters. Note the consequence documented on those inputs: an absent parameter
+ * binds as `undefined` and overrides a declared default, so every routed input needs a
+ * `transform` that puts the default back.
+ *
+ * The two `provide*` calls below are the only way `shared/` reaches anything it is not
+ * allowed to import. It takes colour strings and threshold numbers through tokens; where
+ * they come from is knowledge the layers above it hold.
+ */
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),

@@ -1,0 +1,112 @@
+# The gate, and it is the same one command a developer runs locally: `./gradlew check`.
+# Spotless and the Testcontainers-backed Spring tests for the backend, ESLint, Stylelint,
+# tsc and Vitest for the frontend. Nothing is duplicated here that the build already knows,
+# because a CI file that reimplements the build drifts from it.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# A superseded run tells you nothing. Cancel it rather than pay for it — except on main,
+# where the finished run is the record of what that commit did.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+# Read-only, deliberately. An explicit block zeroes every scope it does not list, which is
+# what you want here — and is also worth knowing about, because on a private repository a
+# missing scope surfaces as a 404 rather than as a permission error.
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: ./gradlew check
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Pinned to 21 to match the Gradle toolchain. The toolchain would download a JDK on
+      # its own, but doing it here means the cache is warm and a mismatch is loud.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # The frontend is bracketed into the Gradle build with plain `Exec` tasks calling
+      # bun, so bun has to exist before `check` runs. Version pinned to what
+      # `package.json` declares as its packageManager.
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.3.12'
+
+      # The backend tests start a real Postgres through Testcontainers. Ubuntu runners
+      # ship Docker, so this needs no service container — and must not have one: the tests
+      # own the container's lifecycle and a second Postgres on 5432 would only confuse a
+      # failure.
+      - name: Check
+        run: ./gradlew check --no-daemon --stacktrace
+
+      # Uploaded rather than gated. A coverage threshold set on the day the tool is
+      # introduced is a threshold somebody disables the first time it is inconvenient; the
+      # number is worth having as a trend long before it is worth having as a gate.
+      - name: Coverage reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: |
+            backend/build/reports/jacoco/test/**
+            frontend/coverage/**
+          if-no-files-found: ignore
+          retention-days: 14
+
+      # The one thing worth keeping from a red run.
+      - name: Test reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: |
+            backend/build/reports/tests/**
+            backend/build/test-results/**
+          if-no-files-found: ignore
+          retention-days: 14
+
+  # A green `check` says the code compiles and passes. It does not say the images build —
+  # and the two Dockerfiles are how this is actually run, so a broken one is a broken
+  # release. Built, never pushed: publishing happens on a tag, in release.yml.
+  images:
+    name: Docker images build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: backend/Dockerfile
+          push: false
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,mode=max,scope=backend
+
+      - name: Frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: frontend/Dockerfile
+          push: false
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,mode=max,scope=frontend

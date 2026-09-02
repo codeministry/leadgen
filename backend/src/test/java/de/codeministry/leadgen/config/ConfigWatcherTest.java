@@ -1,3 +1,11 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright 2026 Marcello Muscara (codeministry)
+ *
+ * Licensed under the Apache License, Version 2.0. You may obtain a copy of the
+ * License at http://www.apache.org/licenses/LICENSE-2.0
+ */
 package de.codeministry.leadgen.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -44,12 +52,14 @@ class ConfigWatcherTest {
 
     @Test
     void appliesAValidChange() throws IOException {
-        assertThat(registry.snapshot().rules().hardFilters().remote().minRemotePercent()).isEqualTo(80);
+        assertThat(registry.snapshot().rules().hardFilters().remote().minRemotePercent())
+                .isEqualTo(80);
 
         rewrite("matching-rules.yaml", "min_remote_percent: 80", "min_remote_percent: 60");
         settle();
 
-        assertThat(registry.snapshot().rules().hardFilters().remote().minRemotePercent()).isEqualTo(60);
+        assertThat(registry.snapshot().rules().hardFilters().remote().minRemotePercent())
+                .isEqualTo(60);
     }
 
     @Test
@@ -70,7 +80,8 @@ class ConfigWatcherTest {
 
         watcher.pollForChanges(); // first sighting only
 
-        assertThat(registry.snapshot().rules().hardFilters().remote().minRemotePercent()).isEqualTo(80);
+        assertThat(registry.snapshot().rules().hardFilters().remote().minRemotePercent())
+                .isEqualTo(80);
     }
 
     @Test

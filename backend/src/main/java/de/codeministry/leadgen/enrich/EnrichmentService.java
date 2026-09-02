@@ -1,3 +1,11 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright 2026 Marcello Muscara (codeministry)
+ *
+ * Licensed under the Apache License, Version 2.0. You may obtain a copy of the
+ * License at http://www.apache.org/licenses/LICENSE-2.0
+ */
 package de.codeministry.leadgen.enrich;
 
 import de.codeministry.leadgen.config.ConfigRegistry;
@@ -59,7 +67,8 @@ public class EnrichmentService {
             return EnrichmentReport.skipped();
         }
         if (!"patterns".equals(settings.extract().strategy())) {
-            log.warn("enrichment.extract.strategy is '{}', which is not implemented; nothing is enriched",
+            log.warn(
+                    "enrichment.extract.strategy is '{}', which is not implemented; nothing is enriched",
                     settings.extract().strategy());
             return EnrichmentReport.skipped();
         }
@@ -102,8 +111,13 @@ public class EnrichmentService {
         }
 
         var report = new EnrichmentReport(due.size(), enriched, incomplete, fromCache, requests);
-        log.info("Enrichment: {} due, {} enriched, {} incomplete, {} from cache, {} requests",
-                report.considered(), report.enriched(), report.incomplete(), report.fromCache(), report.requests());
+        log.info(
+                "Enrichment: {} due, {} enriched, {} incomplete, {} from cache, {} requests",
+                report.considered(),
+                report.enriched(),
+                report.incomplete(),
+                report.fromCache(),
+                report.requests());
         return report;
     }
 

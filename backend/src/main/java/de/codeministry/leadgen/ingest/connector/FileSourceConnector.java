@@ -1,3 +1,11 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright 2026 Marcello Muscara (codeministry)
+ *
+ * Licensed under the Apache License, Version 2.0. You may obtain a copy of the
+ * License at http://www.apache.org/licenses/LICENSE-2.0
+ */
 package de.codeministry.leadgen.ingest.connector;
 
 import de.codeministry.leadgen.config.ConfigProperties;
@@ -91,9 +99,12 @@ public class FileSourceConnector implements SourceConnector {
         }
         Path fallback = Directories.resolve(source.path());
         if (Files.isDirectory(fallback)) {
-            log.warn("Source '{}' reads from {}, not from {} — the path is relative to the working directory"
+            log.warn(
+                    "Source '{}' reads from {}, not from {} — the path is relative to the working directory"
                             + " rather than to the configuration directory",
-                    source.id(), fallback, preferred);
+                    source.id(),
+                    fallback,
+                    preferred);
             return fallback;
         }
         log.warn("Source '{}' points at {}, which is not a directory", source.id(), preferred);
@@ -144,8 +155,7 @@ public class FileSourceConnector implements SourceConnector {
      * `extraction.prefer_part`, defaulting to html — searched from the back, because
      * `multipart/alternative` orders its parts least-preferred first.
      */
-    private static String partOf(jakarta.mail.Part part, String preferred)
-            throws MessagingException, IOException {
+    private static String partOf(jakarta.mail.Part part, String preferred) throws MessagingException, IOException {
         if (part.isMimeType("text/" + preferred)) {
             return (String) part.getContent();
         }
@@ -161,7 +171,9 @@ public class FileSourceConnector implements SourceConnector {
     }
 
     private static Instant received(MimeMessage message, Path file) throws MessagingException {
-        return message.getSentDate() == null ? lastModified(file) : message.getSentDate().toInstant();
+        return message.getSentDate() == null
+                ? lastModified(file)
+                : message.getSentDate().toInstant();
     }
 
     private static Instant lastModified(Path file) {

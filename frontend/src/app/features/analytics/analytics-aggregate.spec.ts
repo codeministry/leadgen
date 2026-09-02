@@ -1,5 +1,12 @@
 import { IntakeDay } from '@core/model/analytics';
-import { bucketBy, bucketLabel, perWeek, share, startOf, suggestedGranularity } from './analytics-aggregate';
+import {
+  bucketBy,
+  bucketLabel,
+  perWeek,
+  share,
+  startOf,
+  suggestedGranularity,
+} from './analytics-aggregate';
 
 function day(date: string, primaries: number): IntakeDay {
   return {
@@ -57,7 +64,9 @@ describe('analytics-aggregate', () => {
     // A fortnight with one busy day is a quiet fortnight, not a busy day.
     const days = [
       day('2026-09-01', 14),
-      ...[...Array(13).keys()].map((index) => day(`2026-09-${String(index + 2).padStart(2, '0')}`, 0)),
+      ...[...Array(13).keys()].map((index) =>
+        day(`2026-09-${String(index + 2).padStart(2, '0')}`, 0),
+      ),
     ];
 
     expect(perWeek(days)).toBe(7);
@@ -75,8 +84,12 @@ describe('analytics-aggregate', () => {
   });
 
   it('moves up a bucket once the span can carry one', () => {
-    expect(suggestedGranularity([...Array(30).keys()].map((i) => day(`2026-09-${i + 1}`, 1)))).toBe('week');
-    expect(suggestedGranularity([...Array(200).keys()].map((i) => day(`2026-09-${i + 1}`, 1)))).toBe('month');
+    expect(suggestedGranularity([...Array(30).keys()].map((i) => day(`2026-09-${i + 1}`, 1)))).toBe(
+      'week',
+    );
+    expect(
+      suggestedGranularity([...Array(200).keys()].map((i) => day(`2026-09-${i + 1}`, 1))),
+    ).toBe('month');
   });
 
   it('labels a week as the week it is, not as the Monday it starts on', () => {

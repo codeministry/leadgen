@@ -31,5 +31,4 @@ export class MarkdownSource {
       ? ''
       : hljs.highlight(source, { language: 'markdown', ignoreIllegals: true }).value;
   });
-
 }

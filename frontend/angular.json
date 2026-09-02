@@ -74,6 +74,22 @@
             "setupFiles": [
               "src/test-setup.ts"
             ]
+          },
+          "configurations": {
+            "coverage": {
+              "coverage": true,
+              "coverageReporters": [
+                "text-summary",
+                "html",
+                "lcovonly"
+              ],
+              "coverageExclude": [
+                "src/test-setup.ts",
+                "src/main.ts",
+                "**/*.spec.ts"
+              ],
+              "isolate": true
+            }
           }
         }
       }

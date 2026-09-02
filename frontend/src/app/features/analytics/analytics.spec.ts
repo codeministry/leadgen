@@ -33,7 +33,13 @@ const VIEW: AnalyticsView = {
     publishedOutOfRange: 0,
     withoutReceivedAt: 0,
   },
-  market: { portals: [], tags: [], locations: [], reach: { outOfReach: 0, abroad: 0, remoteShare: 0 }, stageMix: [] },
+  market: {
+    portals: [],
+    tags: [],
+    locations: [],
+    reach: { outOfReach: 0, abroad: 0, remoteShare: 0 },
+    stageMix: [],
+  },
   scores: { bucketSize: 10, buckets: [], unscored: 0, shortlistAt: 70, reviewAt: 50 },
   applications: {
     byStatus: [],
@@ -58,7 +64,12 @@ describe('Analytics', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting(), provideChartPalette()],
+      providers: [
+        provideRouter([]),
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        provideChartPalette(),
+      ],
     });
     http = TestBed.inject(HttpTestingController);
   });
@@ -113,7 +124,10 @@ describe('Analytics', () => {
     // A rate over nothing is unknown, not zero — and a zero would read as "nobody answers".
     const fixture = render({
       ...VIEW,
-      applications: { ...VIEW.applications, response: { ...VIEW.applications.response, sent: 0, answered: 0 } },
+      applications: {
+        ...VIEW.applications,
+        response: { ...VIEW.applications.response, sent: 0, answered: 0 },
+      },
     });
 
     expect(fixture.nativeElement.textContent).toContain('—');

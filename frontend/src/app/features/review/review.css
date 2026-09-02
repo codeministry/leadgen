@@ -10,7 +10,9 @@
   color: var(--color-base-content);
   cursor: pointer;
   text-align: center;
-  transition: border-color 150ms ease-out, background-color 150ms ease-out;
+  transition:
+    border-color 150ms ease-out,
+    background-color 150ms ease-out;
 }
 
 .drop:hover,

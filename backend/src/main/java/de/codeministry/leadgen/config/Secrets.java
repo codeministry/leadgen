@@ -1,3 +1,11 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright 2026 Marcello Muscara (codeministry)
+ *
+ * Licensed under the Apache License, Version 2.0. You may obtain a copy of the
+ * License at http://www.apache.org/licenses/LICENSE-2.0
+ */
 package de.codeministry.leadgen.config;
 
 import java.util.Arrays;
@@ -33,9 +41,22 @@ public final class Secrets {
     /** How a key that is declared with no value is printed. Distinct from being absent. */
     public static final String EMPTY = "(empty)";
 
-    private static final Set<String> SECRET_WORDS =
-            Set.of("password", "passwd", "pwd", "passphrase", "secret", "secrets", "token", "tokens",
-                    "key", "keys", "apikey", "credential", "credentials", "auth-token", "signature");
+    private static final Set<String> SECRET_WORDS = Set.of(
+            "password",
+            "passwd",
+            "pwd",
+            "passphrase",
+            "secret",
+            "secrets",
+            "token",
+            "tokens",
+            "key",
+            "keys",
+            "apikey",
+            "credential",
+            "credentials",
+            "auth-token",
+            "signature");
 
     // A segment that only ends in one of these is a secret too — `LLM_APIKEY`, `privatekey`.
     // `key` is deliberately not in this list: every word ending in it would qualify.
@@ -45,8 +66,7 @@ public final class Secrets {
     private static final Pattern SEGMENT = Pattern.compile("[^A-Za-z0-9]+");
 
     // scheme://user:password@host — the password is group 1 and nothing else is touched.
-    private static final Pattern URL_CREDENTIALS =
-            Pattern.compile("(?<=://)([^/@:\\s]+):([^/@\\s]+)(?=@)");
+    private static final Pattern URL_CREDENTIALS = Pattern.compile("(?<=://)([^/@:\\s]+):([^/@\\s]+)(?=@)");
 
     private Secrets() {}
 

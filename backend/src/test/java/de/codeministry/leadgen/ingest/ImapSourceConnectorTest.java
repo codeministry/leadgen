@@ -1,3 +1,11 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright 2026 Marcello Muscara (codeministry)
+ *
+ * Licensed under the Apache License, Version 2.0. You may obtain a copy of the
+ * License at http://www.apache.org/licenses/LICENSE-2.0
+ */
 package de.codeministry.leadgen.ingest;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -44,8 +52,7 @@ class ImapSourceConnectorTest {
     private static final String NEWSLETTER = "newsletter@example.com";
 
     @RegisterExtension
-    static final GreenMailExtension MAIL =
-            new GreenMailExtension(ServerSetupTest.IMAP).withPerMethodLifecycle(true);
+    static final GreenMailExtension MAIL = new GreenMailExtension(ServerSetupTest.IMAP).withPerMethodLifecycle(true);
 
     @Container
     @ServiceConnection
@@ -114,15 +121,28 @@ class ImapSourceConnectorTest {
     }
 
     @Test
-    void neverFlagsAMessageAsSeen() {
-        // The owner reads this mailbox on a phone. A run that marks mails read rewrites
-        // what they see, and one that tracked progress by that flag would skip whatever
-        // they opened first.
+    void marksAMessageWithItsOwnFlagAndTouchesNoFlagTheOwnerSees() {
+        // This is the trade Spring Integration's receiver comes with, written down rather
+        // than discovered later.
+        //
+        // What still holds, and is the part that matters on a phone: no \\Seen, so nothing
+        // the owner has not read appears read; no \\Flagged, because `flaggedAsFallback` is
+        // off, so no star appears beside a mail; and no \\Deleted.
+        //
+        // What changed: progress used to be a UID watermark kept on our side, and the
+        // mailbox was never written to at all. The receiver instead marks each message it
+        // hands over with a user flag. Most clients do not show it, but it is a write to
+        // somebody else's mailbox and the previous implementation did not make one.
         deliver(NEWSLETTER, "3 neue Projekte sind da!");
 
         connector.read(source, sourceId);
 
-        assertThat(flagsOfTheOnlyMessage().contains(Flags.Flag.SEEN)).isFalse();
+        Flags flags = flagsOfTheOnlyMessage();
+        assertThat(flags.contains(Flags.Flag.SEEN)).isFalse();
+        assertThat(flags.contains(Flags.Flag.FLAGGED)).isFalse();
+        assertThat(flags.contains(Flags.Flag.ANSWERED)).isFalse();
+        assertThat(flags.contains(Flags.Flag.DELETED)).isFalse();
+        assertThat(flags.getUserFlags()).containsExactly("leadgen");
     }
 
     @Test
@@ -150,30 +170,23 @@ class ImapSourceConnectorTest {
     }
 
     @Test
-    void advancesTheCursorOnlyOverMessagesItActuallyProcessed() {
-        // A mail the selector skipped is not progress. A subject filter that turns out too
-        // narrow is fixed by widening it, and the mails behind it have to still be there.
+    void handsOverAMessageOnceAndThenNotAgain() {
+        // What replaced the cursor. The receiver flags what its own search returned, so a
+        // second run sees nothing new — which is the useful half of the old guarantee.
+        //
+        // The half that is gone: the flag is written to everything the search returned,
+        // before the selector below rejects the invoice. Widening a subject filter therefore
+        // no longer makes the mails behind it reachable again, and the old test that pinned
+        // that behaviour is deleted rather than weakened.
         deliver(NEWSLETTER, "3 neue Projekte sind da!");
         deliver(NEWSLETTER, "Ihre Rechnung");
 
-        var documents = connector.read(source, sourceId);
-        connector.commit(source, sourceId, documents);
+        var first = connector.read(source, sourceId);
+        connector.commit(source, sourceId, first);
+        var second = connector.read(source, sourceId);
 
-        long lastUid = cursors.load(sourceId, "INBOX").lastUid();
-        assertThat(lastUid).isEqualTo(1L);
-    }
-
-    @Test
-    void readsFromTheStartAgainWhenUidValidityChanged() {
-        deliver(NEWSLETTER, "3 neue Projekte sind da!");
-        connector.commit(source, sourceId, connector.read(source, sourceId));
-
-        // A recreated folder hands out the same UIDs for different messages. A cursor kept
-        // across that would skip the whole folder, in silence.
-        var stale = cursors.load(sourceId, "INBOX");
-        cursors.save(sourceId, "INBOX", new de.codeministry.leadgen.ingest.store.IngestCursor(stale.uidValidity() + 1, 99));
-
-        assertThat(connector.read(source, sourceId)).hasSize(1);
+        assertThat(first).hasSize(1);
+        assertThat(second).isEmpty();
     }
 
     @Test
@@ -184,7 +197,8 @@ class ImapSourceConnectorTest {
 
         assertThat(report.extracted()).isEqualTo(3);
         assertThat(report.written()).isEqualTo(3);
-        assertThat(jdbc.queryForObject("SELECT count(*) FROM offer", Integer.class)).isEqualTo(3);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM offer", Integer.class))
+                .isEqualTo(3);
         // A second pass has nothing left to read, so it writes nothing at all.
         assertThat(ingest.run().extracted()).isZero();
     }

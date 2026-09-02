@@ -1,3 +1,11 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright 2026 Marcello Muscara (codeministry)
+ *
+ * Licensed under the Apache License, Version 2.0. You may obtain a copy of the
+ * License at http://www.apache.org/licenses/LICENSE-2.0
+ */
 package de.codeministry.leadgen.filter;
 
 import de.codeministry.leadgen.config.model.MatchingRules;
@@ -42,8 +50,10 @@ public final class HardFilter {
         this.foreign = compile(location.rejectKeywords());
         this.nearCities = compile(location.onsiteCities());
         this.remoteTokens = compile(remoteTokensOf(filters.remote()));
-        this.rejectedTitles = compile(filters.role() == null ? List.of() : filters.role().rejectedTitleKeywords());
-        this.rejectedContracts = compile(filters.contract() == null ? List.of() : filters.contract().rejected());
+        this.rejectedTitles =
+                compile(filters.role() == null ? List.of() : filters.role().rejectedTitleKeywords());
+        this.rejectedContracts = compile(
+                filters.contract() == null ? List.of() : filters.contract().rejected());
         this.coreSkills = compile(coreSkillsOf(profile));
         this.minRemotePercent = filters.remote() == null ? 0 : filters.remote().minRemotePercent();
         this.remotePercent = Pattern.compile("(\\d{1,3})\\s*%\\s*remote");
@@ -152,7 +162,10 @@ public final class HardFilter {
         if (keywords == null) {
             return List.of();
         }
-        return keywords.stream().map(TextFold::keyword).filter(java.util.Objects::nonNull).toList();
+        return keywords.stream()
+                .map(TextFold::keyword)
+                .filter(java.util.Objects::nonNull)
+                .toList();
     }
 
     private static boolean matches(List<Pattern> patterns, String text) {

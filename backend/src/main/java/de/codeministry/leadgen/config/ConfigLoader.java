@@ -1,3 +1,11 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright 2026 Marcello Muscara (codeministry)
+ *
+ * Licensed under the Apache License, Version 2.0. You may obtain a copy of the
+ * License at http://www.apache.org/licenses/LICENSE-2.0
+ */
 package de.codeministry.leadgen.config;
 
 import com.fasterxml.jackson.databind.DeserializationFeature;
@@ -79,8 +87,7 @@ public class ConfigLoader {
         MatchingRules rules = read(source(dir, fileName(pipeline.rules().path(), RULES_FILE)), MatchingRules.class);
         SourcesConfig sources = resolveInheritance(
                 read(source(dir, fileName(sourcesPath(pipeline), SOURCES_FILE)), SourcesConfig.class));
-        SkillProfile profile =
-                read(source(dir, fileName(pipeline.profile().path(), PROFILE_FILE)), SkillProfile.class);
+        SkillProfile profile = read(source(dir, fileName(pipeline.profile().path(), PROFILE_FILE)), SkillProfile.class);
 
         checkConsistency(dir, pipeline, rules, sources);
         return new ConfigSnapshot(pipeline, rules, sources, profile, Instant.now());
@@ -112,8 +119,9 @@ public class ConfigLoader {
         return ConfigSource.resolve(dir, name)
                 .orElseThrow(() -> new ConfigValidationException(
                         name,
-                        List.of("not found in %s and not on the classpath — the jar ships a default, so this means the artifact is broken"
-                                .formatted(dir))));
+                        List.of(
+                                "not found in %s and not on the classpath — the jar ships a default, so this means the artifact is broken"
+                                        .formatted(dir))));
     }
 
     /**
@@ -204,7 +212,8 @@ public class ConfigLoader {
         }
 
         sources.sources().forEach(source -> {
-            String strategy = source.extraction().inherit() == null ? source.extraction().strategy() : "inherited";
+            String strategy =
+                    source.extraction().inherit() == null ? source.extraction().strategy() : "inherited";
             if (strategy == null || strategy.isBlank()) {
                 problems.add("source '%s' states no extraction strategy and inherits none".formatted(source.id()));
             }
@@ -263,11 +272,11 @@ public class ConfigLoader {
                     "security.auth is '%s'; only 'none' is implemented — any other value would be read, ignored, and leave the write endpoints open while looking protected"
                             .formatted(auth));
         }
-        if (pipeline.enrichment().enabled() && !"hard_filter".equals(pipeline.enrichment().after())) {
+        if (pipeline.enrichment().enabled()
+                && !"hard_filter".equals(pipeline.enrichment().after())) {
             problems.add("enrichment.after is '%s'; only 'hard_filter' is allowed"
                     .formatted(pipeline.enrichment().after()));
         }
-
 
         Set<String> connectionIds = new HashSet<>();
         sources.connections().forEach(c -> {

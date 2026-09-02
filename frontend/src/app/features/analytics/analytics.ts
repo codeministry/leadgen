@@ -157,6 +157,9 @@ export class Analytics implements OnInit {
 
   /** Set on the URL, not in the component, so a reload and a shared link both survive. */
   protected select(parameter: 'axis' | 'by', value: string): void {
-    void this.router.navigate([], { queryParams: { [parameter]: value }, queryParamsHandling: 'merge' });
+    void this.router.navigate([], {
+      queryParams: { [parameter]: value },
+      queryParamsHandling: 'merge',
+    });
   }
 }

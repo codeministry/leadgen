@@ -1,3 +1,11 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright 2026 Marcello Muscara (codeministry)
+ *
+ * Licensed under the Apache License, Version 2.0. You may obtain a copy of the
+ * License at http://www.apache.org/licenses/LICENSE-2.0
+ */
 package de.codeministry.leadgen.offer;
 
 /**
@@ -18,8 +26,7 @@ package de.codeministry.leadgen.offer;
  * @param cursor the last row of the previous page, or null for the first.
  * @param limit how many rows to return.
  */
-public record ShortlistQuery(
-        String q, String band, String portal, boolean archived, String cursor, int limit) {
+public record ShortlistQuery(String q, String band, String portal, boolean archived, String cursor, int limit) {
 
     /** Fifty is a screenful and a bit, which is what the list loads as you scroll. */
     public static final int DEFAULT_LIMIT = 50;

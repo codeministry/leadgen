@@ -28,14 +28,18 @@
    case as well as in colour, so a `text-transform` on the wrapper cannot express
    it. */
 .wordmark-lead {
-  font-variation-settings: "opsz" 18, "wght" 700;
+  font-variation-settings:
+    'opsz' 18,
+    'wght' 700;
   color: var(--color-primary);
 }
 
 /* `--color-accent` is a fill, not a text colour, and fails AA at this size.
    `--lg-accent-text` is the text variant of the same ochre. */
 .wordmark-gen {
-  font-variation-settings: "opsz" 18, "wght" 500;
+  font-variation-settings:
+    'opsz' 18,
+    'wght' 500;
   color: var(--lg-accent-text);
 }
 

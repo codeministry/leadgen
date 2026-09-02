@@ -20,7 +20,7 @@
       <span>{{ entry().offer.publishedOn }}</span>
     </p>
 
-    <p class="type-small text-muted description">{{ entry().offer.description }}</p>
+    <p class="type-small text-muted description">{{ teaser() }}</p>
 
     <ul class="reasons">
       @for (reason of shownReasons(); track reason.factor) {

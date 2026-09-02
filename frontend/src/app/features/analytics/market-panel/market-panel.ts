@@ -36,16 +36,19 @@ export class MarketPanel {
   );
 
   protected readonly tags = computed<readonly RankedBar[]>(() =>
-    this.market().tags.map((tag) => ({ label: tag.tag, value: tag.projects, secondary: tag.passed })),
+    this.market().tags.map((tag) => ({
+      label: tag.tag,
+      value: tag.projects,
+      secondary: tag.passed,
+    })),
   );
 
   protected readonly locations = computed<readonly RankedBar[]>(() =>
-    this.market()
-      .locations.map((location) => ({
-        label: location.location,
-        value: location.projects,
-        secondary: location.passed,
-      })),
+    this.market().locations.map((location) => ({
+      label: location.location,
+      value: location.projects,
+      secondary: location.passed,
+    })),
   );
 
   protected readonly labels = computed(() => ({

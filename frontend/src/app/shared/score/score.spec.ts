@@ -9,7 +9,9 @@ describe('Score', () => {
   // that decides them moved.
   beforeEach(() =>
     TestBed.configureTestingModule({
-      providers: [{ provide: SCORE_THRESHOLDS, useValue: signal({ shortlistAt: 70, reviewAt: 50 }) }],
+      providers: [
+        { provide: SCORE_THRESHOLDS, useValue: signal({ shortlistAt: 70, reviewAt: 50 }) },
+      ],
     }),
   );
   function bandFor(value: number | null): string | null {

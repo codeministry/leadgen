@@ -18,9 +18,27 @@ freemarker = "2.3.34"
 # The HTML-to-Markdown converter, pinned for the same reason as the two above: an ad
 # that suddenly renders differently should show up as a diff here.
 flexmark = "0.64.8"
+# Spring AI. Two starters rather than three: the OpenAI one already covers every
+# OpenAI-compatible endpoint including Ollama, because `base_url` decides who answers, and a
+# third model module would buy nothing. Pinned rather than tracked for the same reason jsoup
+# and freemarker are — a judge that suddenly answers differently should show up as a diff.
+springAi = "2.0.1"
+# Formatting and the SPDX header, both enforced by `check` rather than remembered.
+spotless = "7.0.4"
+# palantir-java-format rather than google-java-format: 120 columns and 8-space
+# continuation indents are what this tree was already written in, so adopting it is a
+# small diff. The version is pinned because a formatter bump rewrites every file it
+# touches, and that has to be a deliberate commit rather than a surprise in CI.
+palantirJavaFormat = "2.68.0"
+# 0.8.12 is the first release that reads Java 21 class files without a warning.
+jacoco = "0.8.13"
 
 [libraries]
 testcontainers-bom = { module = "org.testcontainers:testcontainers-bom", version.ref = "testcontainers" }
+spring-ai-bom = { module = "org.springframework.ai:spring-ai-bom", version.ref = "springAi" }
+spring-ai-chat = { module = "org.springframework.ai:spring-ai-client-chat" }
+spring-ai-anthropic = { module = "org.springframework.ai:spring-ai-anthropic" }
+spring-ai-openai = { module = "org.springframework.ai:spring-ai-openai" }
 jsoup = { module = "org.jsoup:jsoup", version.ref = "jsoup" }
 lombok = { module = "org.projectlombok:lombok", version.ref = "lombok" }
 greenmail-junit5 = { module = "com.icegreen:greenmail-junit5", version.ref = "greenmail" }
@@ -31,3 +49,4 @@ flexmark-html2md = { module = "com.vladsch.flexmark:flexmark-html2md-converter",
 [plugins]
 spring-boot = { id = "org.springframework.boot", version.ref = "springBoot" }
 spring-dependency-management = { id = "io.spring.dependency-management", version.ref = "springDependencyManagement" }
+spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }

@@ -21,15 +21,17 @@ describe('App', () => {
     const fixture = TestBed.createComponent(App);
     fixture.detectChanges();
 
-    httpMock
-      .expectOne('/api/status')
-      .flush({ application: 'lead-generation', version: '0.1.0' });
+    httpMock.expectOne('/api/status').flush({ application: 'lead-generation', version: '0.1.0' });
     // The header asks for the models it may offer at the same time. Answered with one,
     // which is the shipped state: a single model is not a choice, so the select stays
     // hidden and only the run button is there.
     httpMock
       .expectOne('/api/scoring-models')
       .flush({ available: ['claude-haiku-4-5'], preferred: 'claude-haiku-4-5' });
+    // The ingest store asks what ran last as soon as it exists, which is here: the run
+    // button lives in the header, so the store is created with the shell rather than with
+    // the dashboard. 204 is the shipped answer on a database nobody has run against.
+    httpMock.expectOne('/api/ingest/last').flush(null, { status: 204, statusText: 'No Content' });
     await fixture.whenStable();
     fixture.detectChanges();
 

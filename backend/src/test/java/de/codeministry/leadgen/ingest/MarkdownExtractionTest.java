@@ -1,3 +1,11 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright 2026 Marcello Muscara (codeministry)
+ *
+ * Licensed under the Apache License, Version 2.0. You may obtain a copy of the
+ * License at http://www.apache.org/licenses/LICENSE-2.0
+ */
 package de.codeministry.leadgen.ingest;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -40,8 +48,8 @@ class MarkdownExtractionTest {
             title: Senior Java Entwickler Spring Boot (m/w/d)
             url: https://tracking.example.com/proxy?target=https%3A%2F%2Fportal.example%2Fp%2F12345&email=someone%40example.com
             location: Köln
-            portal: FreelancerMap
-            agency: Etengo AG
+            portal: portal-a
+            agency: Acme Consulting GmbH
             published: 2026-09-01
             tags: [Java, Spring Boot, Kafka]
             ---
@@ -65,8 +73,8 @@ class MarkdownExtractionTest {
 
         assertThat(offer.title()).isEqualTo("Senior Java Entwickler Spring Boot (m/w/d)");
         assertThat(offer.location()).isEqualTo("Köln");
-        assertThat(offer.portal()).isEqualTo("FreelancerMap");
-        assertThat(offer.agency()).isEqualTo("Etengo AG");
+        assertThat(offer.portal()).isEqualTo("portal-a");
+        assertThat(offer.agency()).isEqualTo("Acme Consulting GmbH");
         assertThat(offer.publishedOn()).isEqualTo(LocalDate.of(2026, 9, 1));
         assertThat(offer.tags()).containsExactly("Java", "Spring Boot", "Kafka");
         assertThat(offer.description()).isEqualTo("Ablösung eines Monolithen, Java 21, Spring Boot, Kafka.");
@@ -120,7 +128,8 @@ class MarkdownExtractionTest {
         // No frontmatter, so nothing deterministic to read. `fallback: llm` is what this
         // case is for; until that exists the file stays where it is rather than entering
         // the pipeline as an offer with no title.
-        assertThat(extract("Wir suchen ab sofort einen Java-Entwickler in Köln.")).isEmpty();
+        assertThat(extract("Wir suchen ab sofort einen Java-Entwickler in Köln."))
+                .isEmpty();
     }
 
     @Test
@@ -164,7 +173,9 @@ class MarkdownExtractionTest {
     private SourcesConfig.Source manualInbox() {
         ConfigFixtures.materialize(configDir);
         var snapshot = ConfigFixtures.loaderFor(
-                        configDir, VALIDATOR, Map.of("MANUAL_INBOX_DIR", inbox.toAbsolutePath().toString()))
+                        configDir,
+                        VALIDATOR,
+                        Map.of("MANUAL_INBOX_DIR", inbox.toAbsolutePath().toString()))
                 .load();
         return snapshot.sources().sources().stream()
                 .filter(s -> s.id().equals("manual-inbox"))

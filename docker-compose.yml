@@ -47,7 +47,20 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-leadgen}
       LEADGEN_CONFIG_DIR: /config
       PACKAGES_DIR: /packages
+      # The digest directory is its own setting and does not follow PACKAGES_DIR. Left
+      # unset it defaults to `./packages/digest`, which inside the container resolves
+      # against `/app` — owned by root, while the process runs as `app`. The run then
+      # completes every stage and dies on the very last one with an AccessDeniedException
+      # naming a path that exists on the host.
+      DIGEST_DIR: /packages/digest
       INBOX_DIR: /inbox
+      # Two different directories with similar names, and only one of them is written
+      # to. `INBOX_DIR` is where the `local-eml` source reads replays from; this is
+      # where an upload lands. It has to be named, because its default is a path
+      # *inside the configuration directory* — and that one is mounted read-only, so
+      # leaving it unset makes every upload fail with a permission error naming a path
+      # nobody configured.
+      MANUAL_INBOX_DIR: /inbox
       # A container is reachable only through its published port, and a process bound to
       # 127.0.0.1 inside it is reachable through nothing at all.
       SERVER_ADDRESS: 0.0.0.0
@@ -58,7 +71,8 @@ services:
       # The image ships working defaults on its classpath. This mount overrides them
       # file by file with the real sources, rules, profile and CV PDFs — nothing
       # individual is ever baked in.
-      - ./config:/config:ro
+      # `LEADGEN_CONFIG_MOUNT` is what `docker-compose.demo.yml` swaps for `./demo`.
+      - ${LEADGEN_CONFIG_MOUNT:-./config}:/config:ro
       - ./packages:/packages
       - ./data/inbox:/inbox
     ports:

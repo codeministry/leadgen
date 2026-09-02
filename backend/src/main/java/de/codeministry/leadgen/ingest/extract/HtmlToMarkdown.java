@@ -1,3 +1,11 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright 2026 Marcello Muscara (codeministry)
+ *
+ * Licensed under the Apache License, Version 2.0. You may obtain a copy of the
+ * License at http://www.apache.org/licenses/LICENSE-2.0
+ */
 package de.codeministry.leadgen.ingest.extract;
 
 import com.vladsch.flexmark.html2md.converter.FlexmarkHtmlConverter;
@@ -33,11 +41,10 @@ public final class HtmlToMarkdown {
      * dropped rather than passed through: raw HTML is legal in Markdown, and an ad is not
      * a document this application should be embedding markup from.
      */
-    private static final FlexmarkHtmlConverter CONVERTER = FlexmarkHtmlConverter.builder(
-                    new MutableDataSet()
-                            .set(FlexmarkHtmlConverter.SETEXT_HEADINGS, false)
-                            .set(FlexmarkHtmlConverter.OUTPUT_UNKNOWN_TAGS, false)
-                            .set(FlexmarkHtmlConverter.BR_AS_EXTRA_BLANK_LINES, false))
+    private static final FlexmarkHtmlConverter CONVERTER = FlexmarkHtmlConverter.builder(new MutableDataSet()
+                    .set(FlexmarkHtmlConverter.SETEXT_HEADINGS, false)
+                    .set(FlexmarkHtmlConverter.OUTPUT_UNKNOWN_TAGS, false)
+                    .set(FlexmarkHtmlConverter.BR_AS_EXTRA_BLANK_LINES, false))
             .build();
 
     private HtmlToMarkdown() {}

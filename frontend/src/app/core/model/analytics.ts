@@ -24,7 +24,11 @@ export interface AnalyticsView {
 export interface AnalyticsFunnel {
   readonly total: number;
   readonly survived: number;
-  readonly stages: readonly { readonly id: string; readonly label: string; readonly removed: number }[];
+  readonly stages: readonly {
+    readonly id: string;
+    readonly label: string;
+    readonly removed: number;
+  }[];
 }
 
 export interface IntakeSeries {
@@ -106,7 +110,11 @@ export interface ScoreDistribution {
 
 export interface ApplicationAnalytics {
   readonly byStatus: readonly { readonly status: string; readonly applications: number }[];
-  readonly transitions: readonly { readonly day: string; readonly toStatus: string; readonly moves: number }[];
+  readonly transitions: readonly {
+    readonly day: string;
+    readonly toStatus: string;
+    readonly moves: number;
+  }[];
   readonly response: ResponseMetrics;
 }
 

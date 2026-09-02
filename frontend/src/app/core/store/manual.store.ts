@@ -30,7 +30,9 @@ export const ManualStore = signalStore(
   withComputed(({ documents }) => ({
     waiting: computed(() => documents().length),
     /** How many of them the pipeline already holds under the same normalized title. */
-    duplicates: computed(() => documents().filter((document) => document.duplicateOfId !== null).length),
+    duplicates: computed(
+      () => documents().filter((document) => document.duplicateOfId !== null).length,
+    ),
   })),
   withReducer(
     on(manualEvents.opened, () => ({ loading: true, error: null })),
@@ -45,10 +47,7 @@ export const ManualStore = signalStore(
     on(manualEvents.stored, ({ payload }, state) => ({
       // Replaced rather than appended: uploading the same name twice overwrites the file,
       // and a second card for one document would be a queue that lies about its length.
-      documents: [
-        ...state.documents.filter((document) => document.name !== payload.name),
-        payload,
-      ],
+      documents: [...state.documents.filter((document) => document.name !== payload.name), payload],
       uploading: false,
     })),
     on(manualEvents.confirmed, ({ payload }) => ({ busy: payload.name, error: null })),

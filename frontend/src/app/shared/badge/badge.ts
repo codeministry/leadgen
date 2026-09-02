@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 
-export type BadgeTone = 'neutral' | 'primary' | 'accent' | 'success' | 'warning' | 'error' | 'ghost';
+export type BadgeTone =
+  'neutral' | 'primary' | 'accent' | 'success' | 'warning' | 'error' | 'ghost';
 
 /**
  * The class names are spelled out rather than built as `'badge-' + tone`.

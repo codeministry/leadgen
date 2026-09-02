@@ -1,3 +1,11 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright 2026 Marcello Muscara (codeministry)
+ *
+ * Licensed under the Apache License, Version 2.0. You may obtain a copy of the
+ * License at http://www.apache.org/licenses/LICENSE-2.0
+ */
 package de.codeministry.leadgen.score;
 
 import de.codeministry.leadgen.config.model.MatchingRules;
@@ -69,7 +77,10 @@ public class RuleScorer {
      */
     private void coreSkills(String haystack, List<ScoreReason> reasons) {
         Integer weight = weights.get("core_skill_overlap");
-        if (weight == null || profile == null || profile.core() == null || profile.core().isEmpty()) {
+        if (weight == null
+                || profile == null
+                || profile.core() == null
+                || profile.core().isEmpty()) {
             return;
         }
         Set<String> matched = new LinkedHashSet<>();
@@ -81,7 +92,8 @@ public class RuleScorer {
         if (matched.isEmpty()) {
             return;
         }
-        int points = (int) Math.round(weight * (double) matched.size() / profile.core().size());
+        int points = (int)
+                Math.round(weight * (double) matched.size() / profile.core().size());
         reasons.add(new ScoreReason(
                 "core_skill_overlap",
                 "%d of %d core skills named: %s"
@@ -125,7 +137,8 @@ public class RuleScorer {
         boolean comfortable = offer.rateEur().compareTo(rateFloor.multiply(BigDecimal.valueOf(1.2))) >= 0;
         reasons.add(new ScoreReason(
                 "rate_fit",
-                "%s €/h, %s the floor of %s".formatted(offer.rateEur(), comfortable ? "well above" : "above", rateFloor),
+                "%s €/h, %s the floor of %s"
+                        .formatted(offer.rateEur(), comfortable ? "well above" : "above", rateFloor),
                 comfortable ? weight : weight / 2));
     }
 

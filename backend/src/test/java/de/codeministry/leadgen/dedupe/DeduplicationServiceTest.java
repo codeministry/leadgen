@@ -1,3 +1,11 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright 2026 Marcello Muscara (codeministry)
+ *
+ * Licensed under the Apache License, Version 2.0. You may obtain a copy of the
+ * License at http://www.apache.org/licenses/LICENSE-2.0
+ */
 package de.codeministry.leadgen.dedupe;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -51,8 +59,8 @@ class DeduplicationServiceTest {
     void reset() {
         jdbc.update("DELETE FROM offer");
         jdbc.update("DELETE FROM source");
-        sourceId = jdbc.queryForObject(
-                "INSERT INTO source (name, kind) VALUES ('test', 'file') RETURNING id", Long.class);
+        sourceId =
+                jdbc.queryForObject("INSERT INTO source (name, kind) VALUES ('test', 'file') RETURNING id", Long.class);
     }
 
     @Test
@@ -60,22 +68,22 @@ class DeduplicationServiceTest {
         // ISC-37. The same project reaches the aggregator through several portals under
         // different URLs, so the listings are distinct rows by construction — the upsert
         // cannot collapse them and is not supposed to.
-        long first = insert(JAVA_LEAD, "FreelancerMap", "Etengo AG", minutesAgo(30));
-        long second = insert(JAVA_LEAD, "freelance.de", "Hays AG", minutesAgo(20));
+        long first = insert(JAVA_LEAD, "portal-a", "Acme Consulting GmbH", minutesAgo(30));
+        long second = insert(JAVA_LEAD, "portal-b", "Initech Personal AG", minutesAgo(20));
 
         assertThat(dedupe.run()).isEqualTo(1);
 
         assertThat(primaryOf(first)).isNull();
         assertThat(primaryOf(second)).isEqualTo(first);
-        assertThat(portalsOfClusterLedBy(first)).containsExactlyInAnyOrder("FreelancerMap", "freelance.de");
+        assertThat(portalsOfClusterLedBy(first)).containsExactlyInAnyOrder("portal-a", "portal-b");
     }
 
     @Test
     void keepsTheFirstSeenOfferAsPrimaryWhateverTheInsertOrder() {
         // ISC-39, the configured `keep_first_seen_as_primary`. Inserted newest first, so
         // a policy reading insertion order rather than `ingested_at` would pick wrongly.
-        long newest = insert(JAVA_LEAD, "GULP", "GULP Solution Services", minutesAgo(5));
-        long oldest = insert(JAVA_LEAD, "FreelancerMap", "Etengo AG", minutesAgo(90));
+        long newest = insert(JAVA_LEAD, "portal-c", "Contoso Services GmbH", minutesAgo(5));
+        long oldest = insert(JAVA_LEAD, "portal-a", "Acme Consulting GmbH", minutesAgo(90));
 
         dedupe.run();
 
@@ -88,10 +96,10 @@ class DeduplicationServiceTest {
         // ISC-39 again, from the other side: a newsletter arrives daily, so the second
         // and third listing of a project turn up on later runs. Each must join the
         // primary that is already there rather than start a rival cluster.
-        long first = insert(JAVA_LEAD, "FreelancerMap", "Etengo AG", minutesAgo(60));
+        long first = insert(JAVA_LEAD, "portal-a", "Acme Consulting GmbH", minutesAgo(60));
         dedupe.run();
 
-        long late = insert(JAVA_LEAD, "SOLCOM", "SOLCOM GmbH", minutesAgo(1));
+        long late = insert(JAVA_LEAD, "portal-d", "Globex Solutions GmbH", minutesAgo(1));
         assertThat(dedupe.run()).isEqualTo(1);
 
         assertThat(primaryOf(first)).isNull();
@@ -102,8 +110,8 @@ class DeduplicationServiceTest {
     void runningAgainChangesNothing() {
         // The pass runs after every ingest, and ingest runs daily. If it were not
         // idempotent the cluster would reshuffle on a schedule and nothing would say so.
-        insert(JAVA_LEAD, "FreelancerMap", "Etengo AG", minutesAgo(60));
-        insert(JAVA_LEAD, "freelance.de", "Hays AG", minutesAgo(30));
+        insert(JAVA_LEAD, "portal-a", "Acme Consulting GmbH", minutesAgo(60));
+        insert(JAVA_LEAD, "portal-b", "Initech Personal AG", minutesAgo(30));
 
         dedupe.run();
         List<Long> after = assignments();
@@ -138,11 +146,12 @@ class DeduplicationServiceTest {
         // genuinely different projects that happen to share a title do merge, and no
         // field available before enrichment separates them — the stated location was
         // measured and makes it worse.
-        long lead = insert(JAVA_LEAD, "FreelancerMap", "Etengo AG", minutesAgo(60));
-        long longer = insert("Senior Java Entwickler Spring Boot (m/w/d)", "freelance.de", "Hays AG", minutesAgo(50));
-        long other = insert("Java Entwickler (m/w/d)", "GULP", "GULP Solution Services", minutesAgo(40));
+        long lead = insert(JAVA_LEAD, "portal-a", "Acme Consulting GmbH", minutesAgo(60));
+        long longer =
+                insert("Senior Java Entwickler Spring Boot (m/w/d)", "portal-b", "Initech Personal AG", minutesAgo(50));
+        long other = insert("Java Entwickler (m/w/d)", "portal-c", "Contoso Services GmbH", minutesAgo(40));
         // Same project, three spellings the portals differ on. These do merge.
-        long spelled = insert("senior java entwickler (w/m/d)", "SOLCOM", "SOLCOM GmbH", minutesAgo(30));
+        long spelled = insert("senior java entwickler (w/m/d)", "portal-d", "Globex Solutions GmbH", minutesAgo(30));
 
         assertThat(dedupe.run()).isEqualTo(1);
 
@@ -179,8 +188,7 @@ class DeduplicationServiceTest {
     }
 
     private List<Long> assignments() {
-        return jdbc.queryForList(
-                "SELECT coalesce(duplicate_of_id, 0) FROM offer ORDER BY id", Long.class);
+        return jdbc.queryForList("SELECT coalesce(duplicate_of_id, 0) FROM offer ORDER BY id", Long.class);
     }
 
     private static Instant minutesAgo(int minutes) {

@@ -1,3 +1,11 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright 2026 Marcello Muscara (codeministry)
+ *
+ * Licensed under the Apache License, Version 2.0. You may obtain a copy of the
+ * License at http://www.apache.org/licenses/LICENSE-2.0
+ */
 package de.codeministry.leadgen.analytics;
 
 import de.codeministry.leadgen.config.ConfigRegistry;
@@ -5,6 +13,7 @@ import de.codeministry.leadgen.filter.FilterStage;
 import de.codeministry.leadgen.ingest.IngestReport;
 import de.codeministry.leadgen.score.Judges;
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import java.util.OptionalLong;
 import javax.sql.DataSource;
@@ -43,6 +52,12 @@ public class PipelineRunRecorder {
 
     private static final String INSERT_STAGE =
             "INSERT INTO pipeline_run_stage (run_id, stage, removed) VALUES (?, ?, ?)";
+
+    private static final String INSERT_TIMING =
+            """
+            INSERT INTO pipeline_stage (run_id, position, stage, started_at, ended_at, status, note)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """;
 
     /**
      * A batched run is finished by the collector, not by the request that started it, so
@@ -101,16 +116,32 @@ public class PipelineRunRecorder {
     }
 
     /** The run that just finished, or that is waiting for its batch. */
-    public void record(IngestReport report, Instant startedAt, String scoreModel) {
+    public void record(IngestReport report, Instant startedAt, String scoreModel, List<StageTiming> stages) {
         try {
             // A run that submitted a batch has not packaged anything yet and has not
             // written a digest. Recorded as COMPLETE it would state a shortlist belonging
             // to the previous run, and look entirely normal doing it.
             boolean awaiting = report.scored().submitted() > 0;
             long id = insert(report, startedAt, effectiveModel(scoreModel), awaiting);
-            for (Map.Entry<FilterStage, Integer> stage : report.filtered().removed().entrySet()) {
+            for (Map.Entry<FilterStage, Integer> stage :
+                    report.filtered().removed().entrySet()) {
                 jdbc.sql(INSERT_STAGE)
                         .params(id, stage.getKey().name(), stage.getValue())
+                        .update();
+            }
+            // Where the time went. Written here rather than as each stage finishes, because
+            // the row they reference does not exist until the run is over — the history row
+            // is deliberately the last thing a run writes.
+            for (StageTiming timing : stages) {
+                jdbc.sql(INSERT_TIMING)
+                        .params(
+                                id,
+                                timing.position(),
+                                timing.stage(),
+                                java.sql.Timestamp.from(timing.startedAt()),
+                                java.sql.Timestamp.from(timing.endedAt()),
+                                timing.status(),
+                                timing.note())
                         .update();
             }
         } catch (RuntimeException e) {

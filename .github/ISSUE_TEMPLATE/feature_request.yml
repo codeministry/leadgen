@@ -1,0 +1,49 @@
+name: Idea
+description: Something the tool should do and does not.
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Two things this project will not do, so nobody spends an evening writing them up:
+
+        - **Send anything.** Both outputs are files, and the configuration models no
+          transport, recipient or channel either — a schema with a place for one is an
+          invitation to fill it. There is a test that fails the build if a send path
+          appears.
+        - **Tailor a CV per offer.** Fixed PDFs, chosen by the language of the ad and
+          nothing else.
+
+        Everything else is open, including replacing a decision that is currently
+        documented as deliberate — those decisions carry the measurement behind them, so
+        the useful argument is a measurement.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What is hard today
+      description: The situation, not the solution. What did you try to do and where did it stop?
+    validations:
+      required: true
+
+  - type: textarea
+    id: idea
+    attributes:
+      label: What you would like instead
+    validations:
+      required: true
+
+  - type: dropdown
+    id: layer
+    attributes:
+      label: Where it would live
+      description: |
+        Configuration means a new key or a new YAML shape; code means a new stage,
+        connector or strategy. Not sure is a fine answer.
+      options:
+        - Configuration
+        - Code
+        - The web interface
+        - Not sure
+    validations:
+      required: true

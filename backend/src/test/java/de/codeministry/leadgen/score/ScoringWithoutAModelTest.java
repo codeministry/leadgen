@@ -1,3 +1,11 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright 2026 Marcello Muscara (codeministry)
+ *
+ * Licensed under the Apache License, Version 2.0. You may obtain a copy of the
+ * License at http://www.apache.org/licenses/LICENSE-2.0
+ */
 package de.codeministry.leadgen.score;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -50,8 +58,8 @@ class ScoringWithoutAModelTest {
         jdbc.update("DELETE FROM offer");
         jdbc.update("DELETE FROM score_batch");
         jdbc.update("DELETE FROM source");
-        sourceId = jdbc.queryForObject(
-                "INSERT INTO source (name, kind) VALUES ('test', 'file') RETURNING id", Long.class);
+        sourceId =
+                jdbc.queryForObject("INSERT INTO source (name, kind) VALUES ('test', 'file') RETURNING id", Long.class);
     }
 
     @Test
@@ -63,10 +71,12 @@ class ScoringWithoutAModelTest {
         assertThat(report.considered()).isEqualTo(1);
         assertThat(report.unscored()).isEqualTo(1);
         assertThat(report.scored()).isZero();
-        assertThat(jdbc.queryForObject("SELECT score_value FROM offer WHERE id = ?", Integer.class, id)).isNull();
+        assertThat(jdbc.queryForObject("SELECT score_value FROM offer WHERE id = ?", Integer.class, id))
+                .isNull();
         assertThat(jdbc.queryForObject("SELECT score_band FROM offer WHERE id = ?", String.class, id))
                 .isEqualTo("UNSCORED");
-        assertThat(jdbc.queryForObject("SELECT score_model FROM offer WHERE id = ?", String.class, id)).isNull();
+        assertThat(jdbc.queryForObject("SELECT score_model FROM offer WHERE id = ?", String.class, id))
+                .isNull();
     }
 
     @Test
@@ -106,13 +116,17 @@ class ScoringWithoutAModelTest {
     private String labelFor(long offerId, String factor) {
         return jdbc.queryForObject(
                 "SELECT label FROM offer_score_reason WHERE offer_id = ? AND factor = ?",
-                String.class, offerId, factor);
+                String.class,
+                offerId,
+                factor);
     }
 
     private int pointsFor(long offerId, String factor) {
         return jdbc.queryForObject(
                 "SELECT points FROM offer_score_reason WHERE offer_id = ? AND factor = ?",
-                Integer.class, offerId, factor);
+                Integer.class,
+                offerId,
+                factor);
     }
 
     @Test
@@ -124,8 +138,7 @@ class ScoringWithoutAModelTest {
         scoring.run();
 
         String label = jdbc.queryForObject(
-                "SELECT label FROM offer_score_reason WHERE offer_id = ? AND factor = 'rate_fit'",
-                String.class, id);
+                "SELECT label FROM offer_score_reason WHERE offer_id = ? AND factor = 'rate_fit'", String.class, id);
         assertThat(label).contains("no rate stated");
     }
 
@@ -220,8 +233,7 @@ class ScoringWithoutAModelTest {
 
     /** `timestamptz` does not convert straight to an Instant; the driver throws on the whole query. */
     private java.sql.Timestamp scoredAt(long offerId) {
-        return jdbc.queryForObject(
-                "SELECT scored_at FROM offer WHERE id = ?", java.sql.Timestamp.class, offerId);
+        return jdbc.queryForObject("SELECT scored_at FROM offer WHERE id = ?", java.sql.Timestamp.class, offerId);
     }
 
     @Test
@@ -260,9 +272,7 @@ class ScoringWithoutAModelTest {
             // The placeholders are emptied here: what is under test is the code path, not
             // whose machine it runs on.
             Path pipeline = dir.resolve("pipeline.yaml");
-            Files.writeString(
-                    pipeline,
-                    Files.readString(pipeline).replaceAll("\\$\\{LLM_[A-Z_]+(?::[^}]*)?}", "''"));
+            Files.writeString(pipeline, Files.readString(pipeline).replaceAll("\\$\\{LLM_[A-Z_]+(?::[^}]*)?}", "''"));
             return dir;
         } catch (IOException e) {
             throw new UncheckedIOException(e);

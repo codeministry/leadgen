@@ -1,4 +1,11 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  OnInit,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
 import { injectDispatch } from '@ngrx/signals/events';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { ManualOfferFields } from '@core/model/manual-document';

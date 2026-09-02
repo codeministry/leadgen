@@ -1,0 +1,118 @@
+# A tag publishes two images and a release. Nothing else publishes anything: `ci.yml`
+# builds the same images on every push and deliberately does not push them, so "it built"
+# and "it was released" stay two different events.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+jobs:
+  # The tag is not a promise. Running the gate again against exactly the tagged tree costs
+  # ten minutes and is the difference between "main was green last week" and "this artifact
+  # is green".
+  check:
+    name: ./gradlew check
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.3.12'
+      - run: ./gradlew check --no-daemon
+
+  images:
+    name: Publish images
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    permissions:
+      contents: read
+      packages: write
+
+    strategy:
+      matrix:
+        include:
+          - name: leadgen-api
+            dockerfile: backend/Dockerfile
+          - name: leadgen-web
+            dockerfile: frontend/Dockerfile
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # arm64 is emulated on an x86 runner and it is slow. It is here because the intended
+      # host is a small ARM cloud instance, and an image that only exists for amd64 is an
+      # image that cannot be deployed there.
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/${{ matrix.name }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}
+
+  release:
+    name: GitHub release
+    needs: images
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # The section CHANGELOG.md already has for this version, rather than a generated list
+      # of commit subjects. The changelog is written for a reader; a commit list is not.
+      - id: notes
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          awk -v v="$version" '
+            $0 ~ "^## \\[" v "\\]" { found = 1; next }
+            found && /^## \[/       { exit }
+            found                   { print }
+          ' CHANGELOG.md > release-notes.md
+          if [ ! -s release-notes.md ]; then
+            echo "CHANGELOG.md has no section for $version" >&2
+            exit 1
+          fi
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          body_path: release-notes.md
+          # Below 1.0.0 every release is a pre-release, and saying so is the honest
+          # version of the alpha note in the README.
+          prerelease: ${{ startsWith(github.ref_name, 'v0.') }}

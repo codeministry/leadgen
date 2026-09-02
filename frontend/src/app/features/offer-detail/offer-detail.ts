@@ -145,7 +145,10 @@ export class OfferDetail implements OnInit {
       { label: 'field.portal', value: offer.portal },
       { label: 'field.agency', value: offer.agency },
       { label: 'field.location', value: offer.location },
-      { label: 'field.remoteShare', value: offer.remotePercent === null ? null : `${offer.remotePercent} %` },
+      {
+        label: 'field.remoteShare',
+        value: offer.remotePercent === null ? null : `${offer.remotePercent} %`,
+      },
       { label: 'field.rate', value: offer.rateEur === null ? null : `${offer.rateEur} €/h` },
       { label: 'field.start', value: offer.startsOn },
       { label: 'field.duration', value: offer.duration },

@@ -1,3 +1,11 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright 2026 Marcello Muscara (codeministry)
+ *
+ * Licensed under the Apache License, Version 2.0. You may obtain a copy of the
+ * License at http://www.apache.org/licenses/LICENSE-2.0
+ */
 package de.codeministry.leadgen;
 
 import de.codeministry.leadgen.config.ConfigLoader;
@@ -8,8 +16,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
@@ -68,8 +76,7 @@ public class ConfigurationBanner {
             Pattern.compile("^spring\\.application\\.name$|^spring\\.flyway\\.locations$|^management\\.");
 
     /** `${VAR}` and `${VAR:default}`, the same shape the tool's own resolver reads. */
-    private static final Pattern PLACEHOLDER =
-            Pattern.compile("\\$\\{([A-Za-z_][A-Za-z0-9_]*)(?::([^}]*))?}");
+    private static final Pattern PLACEHOLDER = Pattern.compile("\\$\\{([A-Za-z_][A-Za-z0-9_]*)(?::([^}]*))?}");
 
     /** Where a value won. The label is what the row carries, so it stays short. */
     private enum Origin {
@@ -248,7 +255,8 @@ public class ConfigurationBanner {
                 ConfigLoader.RULES_FILE,
                 ConfigLoader.PROFILE_FILE)) {
             variables.addAll(placeholders(classpath("leadgen/" + file)).keySet());
-            variables.addAll(placeholders(onDisk(properties.configDirectory().resolve(file))).keySet());
+            variables.addAll(placeholders(onDisk(properties.configDirectory().resolve(file)))
+                    .keySet());
         }
         return variables;
     }

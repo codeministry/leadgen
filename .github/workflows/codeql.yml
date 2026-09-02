@@ -1,0 +1,58 @@
+# Static analysis for both languages. Weekly as well as on pull requests, because most of
+# what CodeQL finds arrives through a dependency rather than through a commit — and a rule
+# added upstream never triggers a push here.
+name: CodeQL
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Monday, early. Off the hour: GitHub's scheduler queues everything written at :00.
+    - cron: '17 5 * * 1'
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  analyze:
+    name: Analyze ${{ matrix.language }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    # Scoped per job rather than at the top of the file: only this one writes results, and
+    # an explicit block zeroes every scope it does not list.
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - language: java-kotlin
+            build-mode: autobuild
+          - language: javascript-typescript
+            build-mode: none
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Only the Java analysis compiles anything. Pinned to 21 for the same reason CI is.
+      - if: matrix.language == 'java-kotlin'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+
+      - uses: github/codeql-action/analyze@v3
+        with:
+          category: '/language:${{ matrix.language }}'

@@ -1,13 +1,13 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 /* Self-hosted, never a CDN: the same reasoning as the newsletter proxy, nothing
    about this machine leaves it. The axes are split across files and there is no
    `full.css`, so each import names the axes the type scale actually uses —
    `opsz.css` carries wght + opsz and is 55 kB lighter than `standard.css`, which
    would add a wdth axis nothing sets. */
-@import "@fontsource-variable/bricolage-grotesque/opsz.css";
-@import "@fontsource-variable/manrope/wght.css";
-@import "@fontsource-variable/jetbrains-mono/wght.css";
+@import '@fontsource-variable/bricolage-grotesque/opsz.css';
+@import '@fontsource-variable/manrope/wght.css';
+@import '@fontsource-variable/jetbrains-mono/wght.css';
 
 /* `themes: false` suppresses daisyUI's built-in light and dark entirely.
    Without it both ship in the bundle and never render. */
@@ -21,7 +21,7 @@
    Values are OKLCH because daisyUI 5 expects it, and each one round-trips back
    to the sRGB hex in the comment beside it. */
 @plugin "daisyui/theme" {
-  name: "lg-light";
+  name: 'lg-light';
   default: true;
   color-scheme: light;
 
@@ -58,7 +58,7 @@
 }
 
 @plugin "daisyui/theme" {
-  name: "lg-dark";
+  name: 'lg-dark';
   prefersdark: true;
   color-scheme: dark;
 
@@ -99,7 +99,7 @@
    a 14px label. Rather than weaken the fill, the text variants live beside it.
    The light block uses `:where(:root)` so the two attribute selectors below and
    the media query both outrank it; "system" is the absence of `data-theme`. */
-[data-theme="lg-light"],
+[data-theme='lg-light'],
 :where(:root) {
   --lg-muted: oklch(54.5% 0.02 178.83); /* #647470, 4.62:1 on sand */
   --lg-accent-text: oklch(55% 0.118 73.82); /* #9A6500, 4.68:1 on sand */
@@ -123,7 +123,7 @@
   --lg-chart-stage-7: oklch(44% 0.026 190);
 }
 
-[data-theme="lg-dark"] {
+[data-theme='lg-dark'] {
   --lg-muted: oklch(69.08% 0.0206 176.14);
   --lg-accent-text: oklch(76.38% 0.1465 79.59);
   --lg-warning-text: oklch(73.39% 0.1415 76.21);
@@ -156,15 +156,18 @@
 
 /* A number you compare is mono. A number you admire is display. */
 @theme {
-  --font-display: "Bricolage Grotesque Variable", "Manrope Variable", ui-sans-serif,
-    system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-display--font-variation-settings: "opsz" 32;
+  --font-display:
+    'Bricolage Grotesque Variable', 'Manrope Variable', ui-sans-serif, system-ui, -apple-system,
+    'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-display--font-variation-settings: 'opsz' 32;
 
-  --font-sans: "Manrope Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
-    Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-sans:
+    'Manrope Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
 
-  --font-mono: "JetBrains Mono Variable", ui-monospace, SFMono-Regular, "SF Mono", Menlo,
-    Consolas, "Liberation Mono", monospace;
+  --font-mono:
+    'JetBrains Mono Variable', ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas,
+    'Liberation Mono', monospace;
 
   --text-display-xl: 3.5rem;
   --text-display-xl--line-height: 1;
@@ -177,7 +180,7 @@
   --text-display-m--letter-spacing: -0.02em;
 }
 
-@import "./styles/tokens.css";
+@import './styles/tokens.css';
 
 html,
 body {

@@ -1,3 +1,11 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright 2026 Marcello Muscara (codeministry)
+ *
+ * Licensed under the Apache License, Version 2.0. You may obtain a copy of the
+ * License at http://www.apache.org/licenses/LICENSE-2.0
+ */
 package de.codeministry.leadgen.packaging;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -52,13 +60,12 @@ class NothingIsSentTest {
      * direct. Inbound and outbound share the word, and a check that cannot tell them
      * apart is a check that gets switched off.
      */
-    private static final List<Pattern> TRANSPORT_KEYS = List.of(
-            Pattern.compile("(?m)^\\s*(transport|recipients?|smtp|webhook|mail_?to)\\s*:"));
+    private static final List<Pattern> TRANSPORT_KEYS =
+            List.of(Pattern.compile("(?m)^\\s*(transport|recipients?|smtp|webhook|mail_?to)\\s*:"));
 
     @Test
     void noSourceFileContainsASendPath() {
-        var offenders = scan(
-                ConfigFixtures.repositoryRoot().resolve("backend/src/main/java"), ".java", SEND_PATHS);
+        var offenders = scan(ConfigFixtures.repositoryRoot().resolve("backend/src/main/java"), ".java", SEND_PATHS);
         assertThat(offenders)
                 .as("a send path in the application is exactly what ISC-52 forbids")
                 .isEmpty();
@@ -70,10 +77,15 @@ class NothingIsSentTest {
         // channel/transport/recipients block. The honest fix for a schema describing
         // something the tool must not do is to remove the schema, not to make it
         // vendor-neutral.
-        var offenders = scan(
+        var offenders = new ArrayList<String>();
+        offenders.addAll(scan(
                 ConfigFixtures.repositoryRoot().resolve("backend/src/main/resources/leadgen"),
                 ".yaml",
-                TRANSPORT_KEYS);
+                TRANSPORT_KEYS));
+        // `demo/` too, and not as an afterthought: it is committed configuration a reader
+        // copies from, so a transport key demonstrated there spreads faster than one in the
+        // defaults nobody edits.
+        offenders.addAll(scan(ConfigFixtures.repositoryRoot().resolve("demo"), ".yaml", TRANSPORT_KEYS));
         assertThat(offenders)
                 .as("a configuration key for a channel is an invitation to write the code behind it")
                 .isEmpty();
@@ -102,8 +114,8 @@ class NothingIsSentTest {
                         String content = read(file);
                         patterns.stream()
                                 .filter(pattern -> pattern.matcher(content).find())
-                                .forEach(pattern -> offenders.add(
-                                        root.relativize(file) + " matches " + pattern.pattern()));
+                                .forEach(pattern ->
+                                        offenders.add(root.relativize(file) + " matches " + pattern.pattern()));
                     });
         } catch (IOException e) {
             throw new UncheckedIOException(e);

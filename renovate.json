@@ -1,0 +1,50 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", ":semanticCommitsDisabled"],
+  "timezone": "Europe/Berlin",
+  "schedule": ["before 6am on monday"],
+  "prConcurrentLimit": 5,
+  "labels": ["dependencies"],
+  "lockFileMaintenance": { "enabled": true },
+  "vulnerabilityAlerts": { "labels": ["security"], "schedule": ["at any time"] },
+  "packageRules": [
+    {
+      "description": "Patch and minor updates arrive as one pull request per ecosystem. Twenty separate PRs a week is how dependency automation gets switched off.",
+      "matchUpdateTypes": ["minor", "patch"],
+      "matchManagers": ["gradle", "gradle-wrapper"],
+      "groupName": "backend (minor and patch)"
+    },
+    {
+      "matchUpdateTypes": ["minor", "patch"],
+      "matchManagers": ["bun", "npm"],
+      "groupName": "frontend (minor and patch)"
+    },
+    {
+      "description": "Angular ships its packages in lockstep; a partial bump does not build.",
+      "matchPackageNames": ["/^@angular//", "/^@angular-devkit//", "/^@ngrx//"],
+      "groupName": "angular"
+    },
+    {
+      "description": "Spring Boot manages a BOM. The plugin and the dependency-management plugin move together or the versions it resolves stop matching.",
+      "matchPackageNames": ["/^org\\.springframework\\.boot/", "/^io\\.spring\\.dependency-management/"],
+      "groupName": "spring boot"
+    },
+    {
+      "description": "A formatter bump rewrites every file it touches. That has to be a deliberate commit, never a grouped one.",
+      "matchPackageNames": ["/^com\\.diffplug\\.spotless/", "/^com\\.palantir\\.javaformat/"],
+      "groupName": null,
+      "automerge": false
+    },
+    {
+      "description": "Majors stay separate and unmerged. Every one of them is a decision.",
+      "matchUpdateTypes": ["major"],
+      "groupName": null,
+      "automerge": false
+    },
+    {
+      "description": "GitHub Actions are pinned by tag in the workflows; keep them current, together.",
+      "matchManagers": ["github-actions"],
+      "groupName": "github actions"
+    }
+  ]
+}

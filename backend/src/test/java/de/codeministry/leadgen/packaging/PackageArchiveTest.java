@@ -1,3 +1,11 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright 2026 Marcello Muscara (codeministry)
+ *
+ * Licensed under the Apache License, Version 2.0. You may obtain a copy of the
+ * License at http://www.apache.org/licenses/LICENSE-2.0
+ */
 package de.codeministry.leadgen.packaging;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -51,7 +59,8 @@ class PackageArchiveTest {
      */
     @Test
     void ignoresTheStoredPrefix() {
-        assertThat(PackageArchive.resolve(base, "/packages/2026-09-02_acme_java-dev")).isEqualTo(folder);
+        assertThat(PackageArchive.resolve(base, "/packages/2026-09-02_acme_java-dev"))
+                .isEqualTo(folder);
     }
 
     @Test
@@ -77,10 +86,8 @@ class PackageArchiveTest {
 
     @Test
     void refusesAValueThatNamesNoFolder() {
-        assertThatThrownBy(() -> PackageArchive.resolve(base, "  "))
-                .isInstanceOf(PackageArchive.Rejected.class);
-        assertThatThrownBy(() -> PackageArchive.resolve(base, "/"))
-                .isInstanceOf(PackageArchive.Rejected.class);
+        assertThatThrownBy(() -> PackageArchive.resolve(base, "  ")).isInstanceOf(PackageArchive.Rejected.class);
+        assertThatThrownBy(() -> PackageArchive.resolve(base, "/")).isInstanceOf(PackageArchive.Rejected.class);
     }
 
     @Test
@@ -91,8 +98,7 @@ class PackageArchiveTest {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         PackageArchive.writeZip(folder, out);
 
-        assertThat(entriesOf(out))
-                .containsExactlyInAnyOrder("cover_letter.txt", "meta.json", "original/offer.txt");
+        assertThat(entriesOf(out)).containsExactlyInAnyOrder("cover_letter.txt", "meta.json", "original/offer.txt");
     }
 
     @Test

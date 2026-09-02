@@ -1,0 +1,91 @@
+# The demo profile: an invented freelancer, so the filter has something to filter
+# against and the shortlist has something on it. Everything here is fictional.
+#
+# This is also the worked example of the file's shape. The structure is binding, the
+# content is yours — replace it wholesale in your own `config/skill-profile.yaml`.
+version: 1
+locale_primary: de
+
+identity:
+  name: Alex Beispiel
+  brand: example
+  base: Köln
+  freelance_since: 2018-01
+  roles: [Fullstack developer, Backend / API developer, System architect]
+  seniority: senior
+
+# Weights 1-10. The aliases matter most: an ad asking for "Springboot", "Spring Data"
+# or "k8s" names a core skill, and the bare names alone would answer no.
+core:
+  - skill: Java
+    weight: 10
+    since: 2006
+    aliases: [Java 21, Java 17, JDK, Jakarta EE, J2EE]
+  - skill: Spring Boot
+    weight: 10
+    since: 2014
+    aliases: [Spring, Springboot, Spring Framework, Spring Data, Spring Cloud]
+  - skill: Angular
+    weight: 9
+    since: 2017
+    aliases: [Angular 17, Angular 18, AngularJS, TypeScript]
+  - skill: Kubernetes
+    weight: 8
+    since: 2019
+    aliases: [k8s, k3s, OpenShift, Helm]
+
+strong:
+  - { skill: PostgreSQL, weight: 7, aliases: [Postgres, SQL, RDBMS] }
+  - { skill: Docker,     weight: 7, aliases: [Container, Podman, OCI] }
+  - { skill: Kafka,      weight: 6, aliases: [Event Streaming, Confluent] }
+  - { skill: REST,       weight: 6, aliases: [REST-API, OpenAPI, HTTP-API] }
+
+peripheral:
+  - { skill: Terraform, weight: 3 }
+  - { skill: Groovy,    weight: 2 }
+
+industries:
+  - { name: E-Commerce, weight: 8, note: "fourteen years on a SaaS commerce platform" }
+  - { name: Logistik,   weight: 5, note: "order management for a manufacturer" }
+  - { name: Versicherung, weight: 4, note: "one long-running mandate" }
+
+# Raw material for the cover letter: the packager picks the projects whose stack the
+# offer's own skills matched, so these are written to be quotable as they stand.
+reference_projects:
+  - id: commerce-platform
+    title: SaaS-Commerce-Plattform
+    period: "2015 - 2019"
+    role: Architekt und Entwickler
+    stack: [Java, Spring Boot, PostgreSQL, REST]
+    # Content, not repository language: these go verbatim into the cover letter, in
+    # the language of the ad.
+    pitch_de: "Eine Handelsplattform für mehrere Mandanten, von der Warenwirtschaft bis zur Kasse, über vier Jahre entwickelt und betrieben."
+    pitch_en: "A multi-tenant commerce platform from inventory to checkout, built and operated over four years."
+  - id: monolith-split
+    title: Zerlegung eines Monolithen
+    period: "2019 - 2021"
+    role: Backend-Entwickler
+    stack: [Java, Spring Boot, Kafka, Kubernetes]
+    pitch_de: "Ablösung eines gewachsenen Monolithen in eigenständige Services, ereignisgetrieben und ohne Big-Bang-Umstellung."
+    pitch_en: "Breaking a grown monolith into services, event-driven and without a big-bang cutover."
+  - id: inspection-pwa
+    title: Inspektions-PWA
+    period: "2022 - 2024"
+    role: Fullstack-Entwickler
+    stack: [Angular, TypeScript, PostgreSQL]
+    pitch_de: "Eine offlinefähige Angular-Anwendung für Inspektionen im Feld, inklusive Synchronisation und Konfliktauflösung."
+    pitch_en: "An offline-capable Angular application for field inspections, synchronisation and conflict resolution included."
+
+languages:
+  - { name: German,  level: native }
+  - { name: English, level: fluent }
+
+# Which document is attached for which language of the ad. No CV is tailored; the
+# language picks a fixed file and that is the whole rule.
+#
+# The demo ships no PDFs — they would be a fictional person's fictional CV, and the
+# packager records a missing file as `cv-MISSING.txt` rather than failing the package.
+# Drop your own into `documents/` to see the complete folder.
+cv_variants:
+  de: { file: "documents/cv-de.pdf", default: true }
+  en: { file: "documents/cv-en.pdf" }

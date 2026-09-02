@@ -1,3 +1,11 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright 2026 Marcello Muscara (codeministry)
+ *
+ * Licensed under the Apache License, Version 2.0. You may obtain a copy of the
+ * License at http://www.apache.org/licenses/LICENSE-2.0
+ */
 package de.codeministry.leadgen.offer;
 
 import de.codeministry.leadgen.config.ConfigRegistry;
@@ -120,12 +128,14 @@ public class OfferQueryService {
                 .single();
         // The archive clause alone, and none of the filters: these two describe the set the
         // filters are being applied to, not the match.
-        int total = jdbc.sql(TOTAL.formatted(filters.archive())).query(Integer.class).single();
-        List<String> portals =
-                jdbc.sql(PORTALS.formatted(filters.archive())).query(String.class).list();
+        int total = jdbc.sql(TOTAL.formatted(filters.archive()))
+                .query(Integer.class)
+                .single();
+        List<String> portals = jdbc.sql(PORTALS.formatted(filters.archive()))
+                .query(String.class)
+                .list();
 
-        return new ShortlistPage(
-                entries(rows), cursorAfter(rows, query.limit()), counts[0], counts[1], total, portals);
+        return new ShortlistPage(entries(rows), cursorAfter(rows, query.limit()), counts[0], counts[1], total, portals);
     }
 
     /**
@@ -147,10 +157,7 @@ public class OfferQueryService {
         // `<` then excludes every row sharing that millisecond — the rest of the batch,
         // silently. Measured: a tie test asking for four offers two at a time got three.
         return "%d|%d|%d"
-                .formatted(
-                        last.scoreValue() == null ? -1 : last.scoreValue(),
-                        micros(last.ingestedAt()),
-                        last.id());
+                .formatted(last.scoreValue() == null ? -1 : last.scoreValue(), micros(last.ingestedAt()), last.id());
     }
 
     /** Lossless for anything Postgres can store; `toEpochMilli` is not. */
@@ -198,21 +205,20 @@ public class OfferQueryService {
      *
      * <p>The search matches what the browser's did: title, description and the tags. The
      * portal matches the offer's own or any of its duplicates', because a project reaching
-     * the shortlist through gulp is on gulp even when freelancermap holds the primary — the
+     * the shortlist through portal-c is on portal-c even when portal-a holds the primary — the
      * dropdown offers those portals, so the filter has to accept them.
      */
     private static Filters where(ShortlistQuery query, MatchingRules.Scoring.Thresholds thresholds) {
         // The third part of "this is on my list today", beside PASSED and primaries-only.
         // It is a literal rather than a parameter because it is a choice between two
         // clauses, not a value: `archived_at = :x` cannot express "is null".
-        String archive = query.archived()
-                ? " AND o.archived_at IS NOT NULL\n"
-                : " AND o.archived_at IS NULL\n";
+        String archive = query.archived() ? " AND o.archived_at IS NOT NULL\n" : " AND o.archived_at IS NULL\n";
         var sql = new StringBuilder(archive);
         Map<String, Object> params = new LinkedHashMap<>();
 
         if (query.q() != null && !query.q().isBlank()) {
-            sql.append("""
+            sql.append(
+                    """
                     AND (o.title ILIKE :q OR o.description ILIKE :q
                          OR EXISTS (SELECT 1 FROM unnest(o.tags) AS tag WHERE tag ILIKE :q))
                     """);
@@ -227,7 +233,8 @@ public class OfferQueryService {
             params.put("shortlistAt", thresholds.autoShortlist());
         }
         if (query.portal() != null && !query.portal().isBlank()) {
-            sql.append("""
+            sql.append(
+                    """
                     AND EXISTS (SELECT 1 FROM offer p
                                 WHERE (p.id = o.id OR p.duplicate_of_id = o.id) AND p.portal = :portal)
                     """);
@@ -273,12 +280,10 @@ public class OfferQueryService {
                 .query((rs, index) -> removed.put(rs.getString("filter_stage"), rs.getInt("removed")))
                 .list();
 
-        int total = jdbc.sql(
-                        "SELECT count(*) FROM offer WHERE duplicate_of_id IS NULL AND archived_at IS NULL")
+        int total = jdbc.sql("SELECT count(*) FROM offer WHERE duplicate_of_id IS NULL AND archived_at IS NULL")
                 .query(Integer.class)
                 .single();
-        int archived = jdbc.sql(
-                        "SELECT count(*) FROM offer WHERE duplicate_of_id IS NULL AND archived_at IS NOT NULL")
+        int archived = jdbc.sql("SELECT count(*) FROM offer WHERE duplicate_of_id IS NULL AND archived_at IS NOT NULL")
                 .query(Integer.class)
                 .single();
 
@@ -291,7 +296,8 @@ public class OfferQueryService {
                     capitalize(stage.description()),
                     removed.getOrDefault(stage.name(), 0)));
         }
-        int survived = total - stages.stream().mapToInt(FunnelView.Stage::removed).sum();
+        int survived =
+                total - stages.stream().mapToInt(FunnelView.Stage::removed).sum();
         return new FunnelView(total, stages, survived, archived);
     }
 
@@ -352,8 +358,10 @@ public class OfferQueryService {
                         """)
                 .param(ids.toArray(Long[]::new))
                 .query((rs, index) -> {
-                    byPrimary.computeIfAbsent(rs.getLong("duplicate_of_id"), key -> new ArrayList<>())
-                            .add(new OfferSourceRef(rs.getString("portal"), rs.getString("agency"), rs.getString("url")));
+                    byPrimary
+                            .computeIfAbsent(rs.getLong("duplicate_of_id"), key -> new ArrayList<>())
+                            .add(new OfferSourceRef(
+                                    rs.getString("portal"), rs.getString("agency"), rs.getString("url")));
                     return null;
                 })
                 .list();
@@ -398,7 +406,9 @@ public class OfferQueryService {
                 rs.getString("language"),
                 rs.getString("full_text"),
                 rs.getString("package_dir"),
-                rs.getTimestamp("archived_at") == null ? null : rs.getTimestamp("archived_at").toInstant(),
+                rs.getTimestamp("archived_at") == null
+                        ? null
+                        : rs.getTimestamp("archived_at").toInstant(),
                 rs.getString("archive_source"));
         return new Row(
                 id,

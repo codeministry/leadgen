@@ -42,7 +42,9 @@ a {
   border-radius: var(--radius-field);
   color: var(--lg-muted);
   white-space: nowrap;
-  transition: background-color 140ms ease, color 140ms ease;
+  transition:
+    background-color 140ms ease,
+    color 140ms ease;
 }
 
 a:hover {
@@ -60,7 +62,7 @@ a.is-active {
 /* A left edge marker rather than more tint: at 64px the label is gone, and a
    background wash alone does not read as "you are here" on an icon-only rail. */
 a.is-active::before {
-  content: "";
+  content: '';
   position: absolute;
   inset-block: 0.5rem;
   inset-inline-start: -0.5rem;

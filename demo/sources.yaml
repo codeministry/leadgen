@@ -1,0 +1,70 @@
+# Demo sources. This file replaces the shipped `sources.yaml` whole when the
+# configuration directory points at `demo/`, so everything the demo needs is here and
+# nothing reaches for a mailbox: there are no `connections` at all, and both sources
+# read from a directory.
+version: 1
+
+sources:
+
+  # The generated newsletter corpus. A `file` source and not a new mechanism — a mail
+  # is a mail whether it arrives over IMAP or lies in a folder, and the extraction below
+  # is the same block the shipped `sample-newsletter` declares. That is deliberate: the
+  # demo has to exercise the real path, not a fixture written to match it.
+  #
+  # `path` names a directory inside the configuration directory, which is this one.
+  - id: demo-newsletter
+    enabled: true
+    type: file
+    path: corpus
+    glob: "*.eml"
+    extraction:
+      strategy: html-blocks
+      block_selector: "div.job-card"
+      # `multipart/alternative` orders its parts least-preferred first, so the plain-text
+      # version comes before the HTML one and carries none of the structure below.
+      prefer_part: html
+      # The one check nothing else can make. The generator writes the count into the
+      # subject and the extractor reads it back, so a selector that stopped matching is
+      # reported rather than mistaken for a quiet week.
+      expect_count_from_subject: "^(\\d+)"
+      fields:
+        title:       { css: "h3.job-title" }
+        description: { css: "div.job-description" }
+        # Every link is a tracking proxy. `target` is the real address; the rest of the
+        # query carries the subscriber's mail address and is discarded.
+        url:         { css: "a.job-link", attr: href, unwrap_query_param: target }
+        # Four spans in one row, told apart by their prefix and never by position: an
+        # offer without an agency would otherwise shift every following field by one,
+        # and roughly one in eleven of the generated offers has none.
+        agency:      { css: "div.job-meta span", prefix: "🏢 " }
+        location:    { css: "div.job-meta span", prefix: "📍 " }
+        published:   { css: "div.job-meta span", prefix: "📅 ", format: "dd.MM.yyyy – HH:mm 'Uhr'" }
+        portal:      { css: "div.job-meta span", prefix: "🔗 " }
+        # The search tags belong to the group the block sits in, not to the block.
+        tags:        { ancestor: "div.tag-group", css: "h2.tag-header", list: true, split: "+" }
+      # Nothing here needs a language model, which is what keeps the demo honest about
+      # "rules before model": the whole corpus is read with no key configured.
+      fallback: none
+    defaults:
+      language: de
+      channel: newsletter
+
+  # Offers found by hand. Kept in the demo because the review screen is on it: an
+  # upload lands in `inbox/pending/`, which no source globs, and becomes an offer only
+  # once somebody has seen what was read from it.
+  - id: manual-inbox
+    enabled: true
+    type: file
+    path: ${MANUAL_INBOX_DIR:inbox}
+    glob: "*.md"
+    extraction:
+      # One document is one offer here, unlike the newsletter where one document holds
+      # a hundred — so no block selector and no count to check against.
+      strategy: markdown-frontmatter
+      date_format: "yyyy-MM-dd"
+      fields:
+        url: { unwrap_query_param: target }
+      fallback: llm
+    defaults:
+      language: de
+      channel: manual

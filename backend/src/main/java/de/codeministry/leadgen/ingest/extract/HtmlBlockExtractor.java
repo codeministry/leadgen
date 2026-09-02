@@ -1,3 +1,11 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright 2026 Marcello Muscara (codeministry)
+ *
+ * Licensed under the Apache License, Version 2.0. You may obtain a copy of the
+ * License at http://www.apache.org/licenses/LICENSE-2.0
+ */
 package de.codeministry.leadgen.ingest.extract;
 
 import de.codeministry.leadgen.config.model.SourcesConfig.Extraction;
@@ -123,6 +131,8 @@ public class HtmlBlockExtractor {
      * break it outright.
      */
     private static String text(Element element, Field field, boolean prose) {
-        return prose && field.regex() == null ? HtmlToMarkdown.of(element) : element.text().trim();
+        return prose && field.regex() == null
+                ? HtmlToMarkdown.of(element)
+                : element.text().trim();
     }
 }

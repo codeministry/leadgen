@@ -1,3 +1,11 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright 2026 Marcello Muscara (codeministry)
+ *
+ * Licensed under the Apache License, Version 2.0. You may obtain a copy of the
+ * License at http://www.apache.org/licenses/LICENSE-2.0
+ */
 package de.codeministry.leadgen.ingest.extract;
 
 import java.text.Normalizer;
@@ -19,7 +27,8 @@ import java.util.regex.Pattern;
  */
 public final class TitleNormalizer {
 
-    private static final Pattern GENDER_SUFFIX = Pattern.compile("\\((?:m/w/d|w/m/d|m/f/d)\\)", Pattern.CASE_INSENSITIVE);
+    private static final Pattern GENDER_SUFFIX =
+            Pattern.compile("\\((?:m/w/d|w/m/d|m/f/d)\\)", Pattern.CASE_INSENSITIVE);
     private static final Pattern NON_ALPHANUMERIC = Pattern.compile("[^a-z0-9]+");
 
     private TitleNormalizer() {}

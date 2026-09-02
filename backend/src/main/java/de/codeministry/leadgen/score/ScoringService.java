@@ -1,3 +1,11 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright 2026 Marcello Muscara (codeministry)
+ *
+ * Licensed under the Apache License, Version 2.0. You may obtain a copy of the
+ * License at http://www.apache.org/licenses/LICENSE-2.0
+ */
 package de.codeministry.leadgen.score;
 
 import de.codeministry.leadgen.config.ConfigRegistry;
@@ -158,7 +166,10 @@ public class ScoringService {
         }
         String model = judge.map(Judge::model).orElse(null);
 
-        List<ScoreCandidate> due = jdbc.sql(DUE).params(rulesetVersion, model).query(ScoreCandidate::of).list();
+        List<ScoreCandidate> due = jdbc.sql(DUE)
+                .params(rulesetVersion, model)
+                .query(ScoreCandidate::of)
+                .list();
 
         // Batched, the run ends here: the requests are handed over at half the price and
         // the answers arrive minutes later, so packaging and the digest move behind the
@@ -169,8 +180,12 @@ public class ScoringService {
         if (!due.isEmpty() && llm != null && llm.batch() && judge.orElse(null) instanceof BatchJudge batchJudge) {
             int submitted = batches.submit(batchJudge, due, scorer, rules);
             var handedOver = standing(0, submitted);
-            log.info("Scoring: {} due, {} submitted as a batch; standing: {} considered, {} unscored",
-                    due.size(), submitted, handedOver.considered(), handedOver.unscored());
+            log.info(
+                    "Scoring: {} due, {} submitted as a batch; standing: {} considered, {} unscored",
+                    due.size(),
+                    submitted,
+                    handedOver.considered(),
+                    handedOver.unscored());
             return handedOver;
         }
 
@@ -191,8 +206,14 @@ public class ScoringService {
         }
 
         var report = standing(judged, 0);
-        log.info("Scoring: {} due, {} judged; standing: {} considered, {} unscored, {} shortlisted, {} for review",
-                due.size(), judged, report.considered(), report.unscored(), report.shortlisted(), report.review());
+        log.info(
+                "Scoring: {} due, {} judged; standing: {} considered, {} unscored, {} shortlisted, {} for review",
+                due.size(),
+                judged,
+                report.considered(),
+                report.unscored(),
+                report.shortlisted(),
+                report.review());
         return report;
     }
 
@@ -228,10 +249,13 @@ public class ScoringService {
         if (scoring == null) {
             throw new NoJudge("no scoring section is configured, so there are no weights to score against");
         }
-        Judge judge = judges.current(requestedModel).orElseThrow(() -> new NoJudge(
-                "no language model is configured, so there is nothing to ask; the deterministic reasons are already written"));
+        Judge judge = judges.current(requestedModel)
+                .orElseThrow(
+                        () -> new NoJudge(
+                                "no language model is configured, so there is nothing to ask; the deterministic reasons are already written"));
 
-        List<ScoreCandidate> found = jdbc.sql(ONE).param(offerId).query(ScoreCandidate::of).list();
+        List<ScoreCandidate> found =
+                jdbc.sql(ONE).param(offerId).query(ScoreCandidate::of).list();
         if (found.isEmpty()) {
             return Optional.empty();
         }
@@ -242,7 +266,11 @@ public class ScoringService {
         reasons.addAll(judge.judge(candidate));
         Score score = Score.of(reasons, judge.model(), String.valueOf(rules.version()));
 
-        writer.write(candidate.id(), score, scoring.thresholds().autoShortlist(), scoring.thresholds().review());
+        writer.write(
+                candidate.id(),
+                score,
+                scoring.thresholds().autoShortlist(),
+                scoring.thresholds().review());
         log.info("Offer {} judged again on request: {} by {}", offerId, score.value(), judge.model());
         return Optional.of(score);
     }
@@ -266,5 +294,4 @@ public class ScoringService {
                         submitted))
                 .single();
     }
-
 }

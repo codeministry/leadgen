@@ -1,3 +1,11 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright 2026 Marcello Muscara (codeministry)
+ *
+ * Licensed under the Apache License, Version 2.0. You may obtain a copy of the
+ * License at http://www.apache.org/licenses/LICENSE-2.0
+ */
 package de.codeministry.leadgen.score;
 
 import java.util.List;
@@ -15,8 +23,7 @@ import java.util.List;
  * @param rulesetVersion the `version` of the rules that produced this, so a score can be
  *     told apart from one produced under different weights.
  */
-public record Score(
-        Integer value, boolean hardPass, List<ScoreReason> reasons, String model, String rulesetVersion) {
+public record Score(Integer value, boolean hardPass, List<ScoreReason> reasons, String model, String rulesetVersion) {
 
     public static Score unscored(List<ScoreReason> deterministic, String rulesetVersion) {
         return new Score(null, true, deterministic, null, rulesetVersion);

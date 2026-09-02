@@ -1,3 +1,11 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright 2026 Marcello Muscara (codeministry)
+ *
+ * Licensed under the Apache License, Version 2.0. You may obtain a copy of the
+ * License at http://www.apache.org/licenses/LICENSE-2.0
+ */
 package de.codeministry.leadgen.config.model;
 
 import jakarta.validation.Valid;
@@ -13,9 +21,23 @@ import java.util.Map;
  * why the extraction rules are data down to the CSS selector.
  */
 public record SourcesConfig(
-        @Min(1) int version,
-        @NotNull List<@Valid Connection> connections,
-        @NotNull List<@Valid Source> sources) {
+        @Min(1) int version, List<@Valid Connection> connections, @NotNull List<@Valid Source> sources) {
+
+    /**
+     * A missing `connections:` block is an empty one, not an error.
+     *
+     * <p>Connections carry credentials, and a configuration whose sources are all files
+     * has none to carry — which is exactly the shape of a run with no mailbox, the one
+     * this tool has to keep working. Required, the key had to be written as an empty list
+     * to say "no mailbox", and leaving it out failed the whole file at startup with
+     * `connections: must not be null`, several stack frames away from the source that
+     * needed no connection in the first place.
+     *
+     * <p>The field stays non-null for every reader, so nothing downstream has to ask.
+     */
+    public SourcesConfig {
+        connections = connections == null ? List.of() : connections;
+    }
 
     /** Credentials arrive exclusively as `${ENV}` placeholders, never as literals. */
     public record Connection(

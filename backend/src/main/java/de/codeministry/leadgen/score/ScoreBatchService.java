@@ -1,3 +1,11 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright 2026 Marcello Muscara (codeministry)
+ *
+ * Licensed under the Apache License, Version 2.0. You may obtain a copy of the
+ * License at http://www.apache.org/licenses/LICENSE-2.0
+ */
 package de.codeministry.leadgen.score;
 
 import de.codeministry.leadgen.config.ConfigRegistry;
@@ -85,7 +93,8 @@ public class ScoreBatchService {
                 .single();
 
         for (ScoreCandidate candidate : due) {
-            writer.write(candidate.id(), Score.unscored(scorer.score(candidate), rulesetVersion), autoShortlist, review);
+            writer.write(
+                    candidate.id(), Score.unscored(scorer.score(candidate), rulesetVersion), autoShortlist, review);
             jdbc.sql("UPDATE offer SET score_batch_id = ? WHERE id = ?")
                     .params(batchId, candidate.id())
                     .update();
@@ -106,10 +115,7 @@ public class ScoreBatchService {
     public ScoreBatchCollection collect() {
         List<OpenBatch> open = jdbc.sql(OPEN)
                 .query((rs, row) -> new OpenBatch(
-                        rs.getLong("id"),
-                        rs.getString("provider_id"),
-                        rs.getString("model"),
-                        rs.getInt("offers")))
+                        rs.getLong("id"), rs.getString("provider_id"), rs.getString("model"), rs.getInt("offers")))
                 .list();
         if (open.isEmpty()) {
             return ScoreBatchCollection.nothing();
@@ -148,8 +154,11 @@ public class ScoreBatchService {
                             .update();
                     release(batch);
                     ended++;
-                    log.info("Batch {} collected: {} of {} offers came back with an answer",
-                            batch.providerId(), outcome.reasons().size(), batch.offers());
+                    log.info(
+                            "Batch {} collected: {} of {} offers came back with an answer",
+                            batch.providerId(),
+                            outcome.reasons().size(),
+                            batch.offers());
                 }
             }
         }
@@ -168,7 +177,8 @@ public class ScoreBatchService {
         int review = rules.scoring().thresholds().review();
         int scored = 0;
 
-        for (ScoreCandidate candidate : jdbc.sql(WAITING).param(batch.id()).query(ScoreCandidate::of).list()) {
+        for (ScoreCandidate candidate :
+                jdbc.sql(WAITING).param(batch.id()).query(ScoreCandidate::of).list()) {
             List<ScoreReason> reasons = new java.util.ArrayList<>(scorer.score(candidate));
             List<ScoreReason> answer = judged.get(candidate.id());
             if (answer == null) {
@@ -176,8 +186,7 @@ public class ScoreBatchService {
                 continue;
             }
             reasons.addAll(answer);
-            writer.write(
-                    candidate.id(), Score.of(reasons, batch.model(), rulesetVersion), autoShortlist, review);
+            writer.write(candidate.id(), Score.of(reasons, batch.model(), rulesetVersion), autoShortlist, review);
             scored++;
         }
         return scored;

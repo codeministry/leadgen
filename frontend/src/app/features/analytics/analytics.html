@@ -72,12 +72,17 @@
     <p class="type-small text-muted panel-note">
       {{ 'analytics.axisNote.' + axis() | transloco }}
       @if (withoutMail(); as without) {
-        <span class="excluded">{{ 'analytics.axisWithoutMail' | transloco: { count: without } }}</span>
+        <span class="excluded">{{
+          'analytics.axisWithoutMail' | transloco: { count: without }
+        }}</span>
       }
       @if (excluded(); as excluded) {
         <!-- Never silent: an axis that leaves offers out has to name them. -->
         <span class="excluded">
-          {{ 'analytics.axisExcluded' | transloco: { undated: excluded.undated, outOfRange: excluded.outOfRange } }}
+          {{
+            'analytics.axisExcluded'
+              | transloco: { undated: excluded.undated, outOfRange: excluded.outOfRange }
+          }}
         </span>
       }
     </p>

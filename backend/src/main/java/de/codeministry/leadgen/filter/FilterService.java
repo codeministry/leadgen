@@ -1,3 +1,11 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright 2026 Marcello Muscara (codeministry)
+ *
+ * Licensed under the Apache License, Version 2.0. You may obtain a copy of the
+ * License at http://www.apache.org/licenses/LICENSE-2.0
+ */
 package de.codeministry.leadgen.filter;
 
 import de.codeministry.leadgen.config.ConfigRegistry;
@@ -77,16 +85,15 @@ public class FilterService {
                 updates.add(new Object[] {"PASSED", null, null, candidate.id()});
             } else {
                 removed.merge(verdict.stage(), 1, Integer::sum);
-                updates.add(new Object[] {
-                    "FILTERED_OUT", verdict.stage().name(), verdict.reason(), candidate.id()
-                });
+                updates.add(new Object[] {"FILTERED_OUT", verdict.stage().name(), verdict.reason(), candidate.id()});
             }
         }
 
         template.batchUpdate(RECORD_VERDICT, updates);
 
         FilterReport report = new FilterReport(Map.copyOf(removed), passed, candidates.size());
-        log.info("Hard filter: {} of {} passed ({}), removed {}",
+        log.info(
+                "Hard filter: {} of {} passed ({}), removed {}",
                 report.passed(),
                 report.considered(),
                 "%.1f %%".formatted(report.passRate() * 100),

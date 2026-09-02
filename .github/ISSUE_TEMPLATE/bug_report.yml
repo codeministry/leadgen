@@ -1,0 +1,77 @@
+name: Bug report
+description: Something behaves differently from what it says it does.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before filing: this project is in alpha, and the known gaps are listed under
+        [What does not work yet](https://github.com/codeministry/leadgen#what-does-not-work-yet).
+        If it is one of those, an issue is still welcome — say which one.
+
+        **Do not paste `.env` contents, an API key, an IMAP password, or a real job
+        advert.** The startup banner masks credentials; `docker compose config` does not.
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you saw, and what you expected instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: How to reproduce
+      description: |
+        The demo dataset is the best starting point, because it is the same for both of us:
+        `docker compose -f docker-compose.yml -f docker-compose.demo.yml up --build`.
+        If it only reproduces with your own configuration, say which setting matters.
+      placeholder: |
+        1. …
+        2. …
+        3. …
+    validations:
+      required: true
+
+  - type: dropdown
+    id: where
+    attributes:
+      label: Which part
+      options:
+        - Ingest or extraction
+        - Deduplication
+        - The hard filter
+        - Enrichment
+        - Scoring
+        - Packaging or the digest
+        - The web interface
+        - Configuration or startup
+        - Build, tests or Docker
+        - Not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Log output
+      description: |
+        The startup banner is the useful part for anything configuration-shaped — it names,
+        per setting, which layer decided it. Credentials are already masked in it.
+      render: text
+
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      placeholder: v0.1.0, or the short SHA
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: How you run it
+      placeholder: Docker Compose on macOS 15 / bootRun on Linux, JDK 21

@@ -1,9 +1,8 @@
 @if (store.rules(); as rules) {
-  <lg-page-header
-    [title]="'rules.title' | transloco"
-    [subtitle]="'rules.subtitle' | transloco"
-  >
-    <lg-badge tone="ghost" [outline]="true">{{ 'rules.ruleset' | transloco: { version: rules.version } }}</lg-badge>
+  <lg-page-header [title]="'rules.title' | transloco" [subtitle]="'rules.subtitle' | transloco">
+    <lg-badge tone="ghost" [outline]="true">{{
+      'rules.ruleset' | transloco: { version: rules.version }
+    }}</lg-badge>
   </lg-page-header>
 
   <div class="grid">

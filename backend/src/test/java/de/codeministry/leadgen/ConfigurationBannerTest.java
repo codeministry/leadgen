@@ -1,3 +1,11 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright 2026 Marcello Muscara (codeministry)
+ *
+ * Licensed under the Apache License, Version 2.0. You may obtain a copy of the
+ * License at http://www.apache.org/licenses/LICENSE-2.0
+ */
 package de.codeministry.leadgen;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -36,8 +44,8 @@ class ConfigurationBannerTest {
         // banner matches on that prefix — so the fixture has to carry the real name.
         environment
                 .getPropertySources()
-                .addFirst(new MapPropertySource(
-                        "Config resource 'class path resource [application.yaml]'", properties));
+                .addFirst(
+                        new MapPropertySource("Config resource 'class path resource [application.yaml]'", properties));
         return new ConfigurationBanner(environment, new ConfigProperties("config"));
     }
 
@@ -70,8 +78,8 @@ class ConfigurationBannerTest {
     void printsTheDotenvFileWithItsSecretsMasked() {
         // All three are named by a `${...}` in the shipped leadgen YAML files, which is what
         // makes them app-relevant.
-        String text = banner()
-                .describe(dotenv("IMAP_HOST", "imap.example.org", "IMAP_PASSWORD", "s3cr3t", "LLM_API_KEY", ""));
+        String text = banner().describe(
+                        dotenv("IMAP_HOST", "imap.example.org", "IMAP_PASSWORD", "s3cr3t", "LLM_API_KEY", ""));
 
         assertThat(text).contains("/somewhere/.env");
         assertThat(text).contains("IMAP_HOST", "imap.example.org");
@@ -97,7 +105,9 @@ class ConfigurationBannerTest {
         String text = banner().describe(dotenv("LEADGEN_CONFIG_DIR", "config"));
 
         assertThat(text).contains("leadgen.config-dir");
-        assertThat(text.lines().filter(line -> line.contains("LEADGEN_CONFIG_DIR")).count())
+        assertThat(text.lines()
+                        .filter(line -> line.contains("LEADGEN_CONFIG_DIR"))
+                        .count())
                 .isZero();
     }
 
@@ -105,7 +115,8 @@ class ConfigurationBannerTest {
     void marksAValueTheDotEnvFileDecided() {
         // `.env` is a property source now, so a value written there really does decide the
         // property — and the row has to name the layer it came from rather than "yaml".
-        String row = banner().describe(dotenv("LEADGEN_CONFIG_DIR", "./config/local")).lines()
+        String row = banner().describe(dotenv("LEADGEN_CONFIG_DIR", "./config/local"))
+                .lines()
                 .filter(line -> line.contains("leadgen.config-dir "))
                 .findFirst()
                 .orElseThrow();
@@ -115,7 +126,8 @@ class ConfigurationBannerTest {
 
     @Test
     void marksAValueTheProcessEnvironmentDecided() {
-        String row = banner().describe(dotenv()).lines()
+        String row = banner().describe(dotenv())
+                .lines()
                 .filter(line -> line.contains("leadgen.packages-dir"))
                 .findFirst()
                 .orElseThrow();
@@ -128,7 +140,9 @@ class ConfigurationBannerTest {
     void namesWhereARelativeConfigDirectoryEndedUp() {
         String text = banner().describe(dotenv());
 
-        assertThat(text).contains("resolved").contains(Path.of("config").toAbsolutePath().getFileName().toString());
+        assertThat(text)
+                .contains("resolved")
+                .contains(Path.of("config").toAbsolutePath().getFileName().toString());
     }
 
     @Test
@@ -141,17 +155,21 @@ class ConfigurationBannerTest {
         int database = text.indexOf("Database");
         assertThat(mail).isPositive();
         assertThat(text.indexOf("IMAP_HOST")).isGreaterThan(mail);
-        assertThat(text.indexOf("spring.datasource.url")).isGreaterThan(database).isLessThan(mail);
+        assertThat(text.indexOf("spring.datasource.url"))
+                .isGreaterThan(database)
+                .isLessThan(mail);
     }
 
     @Test
     void everyLineOfTheBoxIsTheSameWidth() {
-        String[] lines = banner()
-                .describe(dotenv("IMAP_HOST", "imap.example.org", "LLM_PROVIDER", ""))
+        String[] lines = banner().describe(dotenv("IMAP_HOST", "imap.example.org", "LLM_PROVIDER", ""))
                 .split("\n");
 
         // Measured the way a terminal measures: the icons are two columns, not one character.
-        long widths = Arrays.stream(lines).mapToInt(ConfigurationBannerTest::columns).distinct().count();
+        long widths = Arrays.stream(lines)
+                .mapToInt(ConfigurationBannerTest::columns)
+                .distinct()
+                .count();
         assertThat(widths).as("every line: %s", Arrays.toString(lines)).isEqualTo(1);
     }
 

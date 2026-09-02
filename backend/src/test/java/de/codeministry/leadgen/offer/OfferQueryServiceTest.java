@@ -1,12 +1,20 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright 2026 Marcello Muscara (codeministry)
+ *
+ * Licensed under the Apache License, Version 2.0. You may obtain a copy of the
+ * License at http://www.apache.org/licenses/LICENSE-2.0
+ */
 package de.codeministry.leadgen.offer;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import de.codeministry.leadgen.config.ConfigFixtures;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import de.codeministry.leadgen.config.ConfigFixtures;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -32,7 +40,8 @@ class OfferQueryServiceTest {
      */
     @DynamicPropertySource
     static void configuration(DynamicPropertyRegistry registry) {
-        registry.add("leadgen.config-dir", () -> ConfigFixtures.shippedDefaults().toString());
+        registry.add(
+                "leadgen.config-dir", () -> ConfigFixtures.shippedDefaults().toString());
     }
 
     @Autowired
@@ -143,10 +152,12 @@ class OfferQueryServiceTest {
         passed("Mittel", 55);
         passed("Schwach", 10);
 
-        assertThat(offers.shortlist(new ShortlistQuery(null, "shortlist", null, false, null, 0)).entries())
+        assertThat(offers.shortlist(new ShortlistQuery(null, "shortlist", null, false, null, 0))
+                        .entries())
                 .extracting(entry -> entry.offer().title())
                 .containsExactly("Stark");
-        assertThat(offers.shortlist(new ShortlistQuery(null, "review", null, false, null, 0)).entries())
+        assertThat(offers.shortlist(new ShortlistQuery(null, "review", null, false, null, 0))
+                        .entries())
                 .extracting(entry -> entry.offer().title())
                 .containsExactly("Mittel");
     }
@@ -156,12 +167,13 @@ class OfferQueryServiceTest {
         // Derived from the page, the dropdown would offer fewer choices the further you
         // scrolled — and it filters on a duplicate's portal too, so it has to list those.
         long primary = passed("Senior Java Entwickler", 88);
-        duplicateOf(primary, "gulp", "Zweite Agentur");
+        duplicateOf(primary, "portal-c", "Zweite Agentur");
 
         var page = offers.shortlist(new ShortlistQuery(null, null, null, false, null, 1));
 
-        assertThat(page.portals()).contains("gulp");
-        assertThat(offers.shortlist(new ShortlistQuery(null, null, "gulp", false, null, 0)).entries())
+        assertThat(page.portals()).contains("portal-c");
+        assertThat(offers.shortlist(new ShortlistQuery(null, null, "portal-c", false, null, 0))
+                        .entries())
                 .extracting(entry -> entry.offer().id())
                 .containsExactly(primary);
     }
@@ -172,7 +184,8 @@ class OfferQueryServiceTest {
 
     /** The unfiltered first page, which is what every case here was written against. */
     private List<ShortlistEntry> shortlist() {
-        return offers.shortlist(new ShortlistQuery(null, null, null, false, null, 0)).entries();
+        return offers.shortlist(new ShortlistQuery(null, null, null, false, null, 0))
+                .entries();
     }
 
     @BeforeEach
@@ -180,8 +193,8 @@ class OfferQueryServiceTest {
         jdbc.update("DELETE FROM offer_score_reason");
         jdbc.update("DELETE FROM offer");
         jdbc.update("DELETE FROM source");
-        sourceId = jdbc.queryForObject(
-                "INSERT INTO source (name, kind) VALUES ('test', 'file') RETURNING id", Long.class);
+        sourceId =
+                jdbc.queryForObject("INSERT INTO source (name, kind) VALUES ('test', 'file') RETURNING id", Long.class);
     }
 
     @Test
@@ -190,9 +203,7 @@ class OfferQueryServiceTest {
         long weak = passed("Java Entwickler", 64);
         rejected("Java Entwickler in Zürich");
 
-        assertThat(shortlist())
-                .extracting(entry -> entry.offer().id())
-                .containsExactly(strong, weak);
+        assertThat(shortlist()).extracting(entry -> entry.offer().id()).containsExactly(strong, weak);
     }
 
     @Test
@@ -200,15 +211,15 @@ class OfferQueryServiceTest {
         // 12.3 % of the corpus reaches the pipeline more than once. A shortlist showing the
         // same project three times is one nobody finishes reading.
         long primary = passed("Senior Java Entwickler", 88);
-        duplicateOf(primary, "freelance.de", "Zweite Agentur");
-        duplicateOf(primary, "freelancermap", null);
+        duplicateOf(primary, "portal-b", "Zweite Agentur");
+        duplicateOf(primary, "portal-e", null);
 
         var entry = shortlist().getFirst();
 
         assertThat(shortlist()).hasSize(1);
         assertThat(entry.sources())
                 .extracting(OfferSourceRef::portal)
-                .containsExactly("FreelancerMap", "freelance.de", "freelancermap");
+                .containsExactly("portal-a", "portal-b", "portal-e");
     }
 
     @Test
@@ -257,7 +268,7 @@ class OfferQueryServiceTest {
         // too. Counting every rejection against a primaries-only total made the rail
         // report a negative number of survivors.
         long primary = passed("Senior Java Entwickler", 88);
-        duplicateOf(primary, "freelance.de", null);
+        duplicateOf(primary, "portal-b", null);
         jdbc.update("UPDATE offer SET status = 'REJECTED', filter_stage = 'ABROAD' WHERE duplicate_of_id IS NOT NULL");
         rejected("Java Entwickler in Zürich");
 
@@ -277,12 +288,7 @@ class OfferQueryServiceTest {
         assertThat(offers.funnel().stages())
                 .extracting("id")
                 .containsExactly(
-                        "abroad",
-                        "remote-share",
-                        "out-of-reach",
-                        "role-or-stack",
-                        "no-core-skill",
-                        "contract-form");
+                        "abroad", "remote-share", "out-of-reach", "role-or-stack", "no-core-skill", "contract-form");
     }
 
     @Test
@@ -312,16 +318,19 @@ class OfferQueryServiceTest {
                 """
                 INSERT INTO offer (source_id, external_id, title, url, fingerprint, status, portal,
                                    archived_at, archive_source)
-                VALUES (?, 'a', 'Archiviert', 'https://example.invalid/a', 'archiviert', 'PASSED', 'gulp',
+                VALUES (?, 'a', 'Archiviert', 'https://example.invalid/a', 'archiviert', 'PASSED', 'portal-c',
                         now(), 'AGE')
                 RETURNING id
                 """,
-                Long.class, sourceId);
+                Long.class,
+                sourceId);
 
-        assertThat(offers.shortlist(new ShortlistQuery(null, null, null, false, null, 0)).portals())
-                .containsExactly("FreelancerMap");
-        assertThat(offers.shortlist(new ShortlistQuery(null, null, null, true, null, 0)).portals())
-                .containsExactly("gulp");
+        assertThat(offers.shortlist(new ShortlistQuery(null, null, null, false, null, 0))
+                        .portals())
+                .containsExactly("portal-a");
+        assertThat(offers.shortlist(new ShortlistQuery(null, null, null, true, null, 0))
+                        .portals())
+                .containsExactly("portal-c");
         assertThat(archived).isPositive();
     }
 
@@ -372,7 +381,7 @@ class OfferQueryServiceTest {
                 """
                 INSERT INTO offer (source_id, external_id, title, description, url, fingerprint, status,
                                    score_value, portal, agency, tags)
-                VALUES (?, ?, ?, 'Ablösung eines Monolithen.', ?, ?, 'PASSED', ?, 'FreelancerMap', 'Etengo AG',
+                VALUES (?, ?, ?, 'Ablösung eines Monolithen.', ?, ?, 'PASSED', ?, 'portal-a', 'Acme Consulting GmbH',
                         ARRAY['Java','Spring Boot'])
                 RETURNING id
                 """,
@@ -392,7 +401,11 @@ class OfferQueryServiceTest {
                 VALUES (?, ?, ?, 'https://example.invalid/x', ?, 'REJECTED', 'ABROAD')
                 RETURNING id
                 """,
-                Long.class, sourceId, title, title, title.toLowerCase());
+                Long.class,
+                sourceId,
+                title,
+                title,
+                title.toLowerCase());
     }
 
     private void duplicateOf(long primary, String portal, String agency) {
@@ -402,12 +415,21 @@ class OfferQueryServiceTest {
                                    duplicate_of_id)
                 VALUES (?, ?, 'Senior Java Entwickler', ?, 'senior java entwickler', 'PASSED', ?, ?, ?)
                 """,
-                sourceId, portal + primary, "https://" + portal + "/x", portal, agency, primary);
+                sourceId,
+                portal + primary,
+                "https://" + portal + "/x",
+                portal,
+                agency,
+                primary);
     }
 
     private void reason(long offerId, String factor, String label, int points, int position) {
         jdbc.update(
                 "INSERT INTO offer_score_reason (offer_id, factor, label, points, position) VALUES (?, ?, ?, ?, ?)",
-                offerId, factor, label, points, position);
+                offerId,
+                factor,
+                label,
+                points,
+                position);
     }
 }

@@ -15,7 +15,12 @@ import prettier from 'eslint-config-prettier';
  */
 export default tseslint.config(
   {
-    ignores: ['dist/**', 'node_modules/**', '.angular/**'],
+    // `coverage/**` is not optional here. The v8 reporter writes an HTML mirror of the
+    // whole tree — one `<file>.ts.html` per source file — and ESLint then lints the
+    // report: a `.ts.html` is parsed as an Angular template, so every file in the project
+    // comes back as "unescaped {" or "Invalid ICU message". `check:static` passes until
+    // the first coverage run and fails for good afterwards, naming files that are fine.
+    ignores: ['dist/**', 'node_modules/**', '.angular/**', 'coverage/**'],
   },
   {
     files: ['**/*.ts'],

@@ -1,20 +1,29 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright 2026 Marcello Muscara (codeministry)
+ *
+ * Licensed under the Apache License, Version 2.0. You may obtain a copy of the
+ * License at http://www.apache.org/licenses/LICENSE-2.0
+ */
 package de.codeministry.leadgen.ingest;
 
 import de.codeministry.leadgen.analytics.PipelineRunRecorder;
+import de.codeministry.leadgen.analytics.StageLog;
 import de.codeministry.leadgen.archive.ArchiveService;
 import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.config.model.SourcesConfig.Source;
 import de.codeministry.leadgen.dedupe.DeduplicationService;
+import de.codeministry.leadgen.digest.DigestService;
 import de.codeministry.leadgen.enrich.EnrichmentService;
 import de.codeministry.leadgen.filter.FilterService;
-import de.codeministry.leadgen.digest.DigestService;
-import de.codeministry.leadgen.packaging.PackagingService;
-import de.codeministry.leadgen.score.ScoringService;
 import de.codeministry.leadgen.ingest.connector.SourceConnector;
 import de.codeministry.leadgen.ingest.extract.HtmlBlockExtractor;
 import de.codeministry.leadgen.ingest.extract.MarkdownExtractor;
 import de.codeministry.leadgen.ingest.extract.OfferMapper;
 import de.codeministry.leadgen.ingest.store.OfferStore;
+import de.codeministry.leadgen.packaging.PackagingService;
+import de.codeministry.leadgen.score.ScoringService;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -108,6 +117,10 @@ public class IngestService {
         // Captured before anything runs: the row this ends in states how long the run
         // took, and `now()` at the end would state only when it stopped.
         var startedAt = java.time.Instant.now();
+        // Where the time went, collected as the run goes and written with the history row at
+        // the end. A run whose counts look ordinary can still have spent four minutes in
+        // enrichment because one portal was slow, and nothing in the counts says so.
+        var stages = new StageLog();
         List<SourceIngestResult> results = new ArrayList<>();
 
         for (Source source : config.snapshot().sources().sources()) {
@@ -121,7 +134,10 @@ public class IngestService {
                 continue;
             }
             try {
-                results.add(ingest(source, connector));
+                // Timed per source rather than as one block: "ingest took four minutes" is
+                // not actionable, "the mailbox took four minutes and the two file sources
+                // took nothing" is.
+                results.add(stages.time("INGEST " + source.id(), () -> ingest(source, connector)));
             } catch (IngestException e) {
                 // One unreachable mailbox must not stop the file sources behind it.
                 log.error("Source '{}' failed: {}", source.id(), e.getMessage(), e);
@@ -135,25 +151,25 @@ public class IngestService {
         // cluster judged once. Enrichment comes last and only touches what survived:
         // fetching a thousand ads to then discard eight hundred would be rude to the
         // portals and slow for nothing.
-        var deduplicated = dedupe.run();
-        var filtered = filter.run();
+        var deduplicated = stages.time("DEDUPE", dedupe::run);
+        var filtered = stages.time("FILTER", filter::run);
         // After the filter, so an offer somebody restores carries a current verdict; before
         // enrichment, because that is the stage that leaves the machine and scoring is the
         // one that costs money. An offer that has aged off the working list must pay for
         // neither.
-        var archived = archive.run();
-        var enriched = enrich.run();
-        var scored = scoring.run(scoringModel);
+        var archived = stages.time("ARCHIVE", archive::run);
+        var enriched = stages.time("ENRICH", enrich::run);
+        var scored = stages.time("SCORE", () -> scoring.run(scoringModel));
         // Packaging before the digest, so the digest can say which offers already have a
         // folder. Both write files and neither sends anything.
-        var packages = packaging.run();
-        var written = digest.render(java.time.LocalDate.now()).orElse(null);
-        var report =
-                new IngestReport(results, deduplicated, filtered, archived, enriched, scored, written, packages);
+        var packages = stages.time("PACKAGE", packaging::run);
+        var written = stages.time(
+                "DIGEST", () -> digest.render(java.time.LocalDate.now()).orElse(null));
+        var report = new IngestReport(results, deduplicated, filtered, archived, enriched, scored, written, packages);
         // After the work, never before it: a run that failed halfway must not leave a row
         // claiming a clean pass. The same placement rule the per-source row follows, and
         // the recorder cannot throw — a history row is worth less than the run.
-        history.record(report, startedAt, scoringModel);
+        history.record(report, startedAt, scoringModel, stages.timings());
         return report;
     }
 
@@ -171,14 +187,20 @@ public class IngestService {
         }
         var matcher = java.util.regex.Pattern.compile(pattern).matcher(document.subject());
         if (!matcher.find() || matcher.groupCount() < 1) {
-            log.warn("Source '{}': '{}' does not state a count, though the source expects one",
-                    source.id(), document.subject());
+            log.warn(
+                    "Source '{}': '{}' does not state a count, though the source expects one",
+                    source.id(),
+                    document.subject());
             return new DocumentIngestResult(document.id(), extracted, null);
         }
         int announced = Integer.parseInt(matcher.group(1));
         if (announced != extracted) {
-            log.warn("Source '{}': {} announces {} offers, {} were extracted — the selectors have drifted",
-                    source.id(), document.id(), announced, extracted);
+            log.warn(
+                    "Source '{}': {} announces {} offers, {} were extracted — the selectors have drifted",
+                    source.id(),
+                    document.id(),
+                    announced,
+                    extracted);
         }
         return new DocumentIngestResult(document.id(), extracted, announced);
     }
@@ -190,11 +212,12 @@ public class IngestService {
      * or out of a file somebody dropped in by hand.
      */
     private List<ExtractedOffer> read(Source source, RawDocument document) {
-        List<Map<String, Object>> blocks = switch (source.extraction().strategy()) {
-            case HTML_BLOCKS -> extractor.extract(document.html(), source.extraction());
-            case MARKDOWN_FRONTMATTER -> markdown.extract(document.html(), source.extraction());
-            default -> List.of();
-        };
+        List<Map<String, Object>> blocks =
+                switch (source.extraction().strategy()) {
+                    case HTML_BLOCKS -> extractor.extract(document.html(), source.extraction());
+                    case MARKDOWN_FRONTMATTER -> markdown.extract(document.html(), source.extraction());
+                    default -> List.of();
+                };
         return blocks.stream()
                 .map(block -> mapper.map(block, source.extraction(), document.receivedAt()))
                 .filter(offer -> offer.title() != null && !offer.title().isBlank())
@@ -207,15 +230,22 @@ public class IngestService {
      * and the per-document detail is in the report the run returns.
      */
     private static Integer announced(List<DocumentIngestResult> details) {
-        var stated = details.stream().map(DocumentIngestResult::announced).filter(java.util.Objects::nonNull).toList();
-        return stated.isEmpty() ? null : stated.stream().mapToInt(Integer::intValue).sum();
+        var stated = details.stream()
+                .map(DocumentIngestResult::announced)
+                .filter(java.util.Objects::nonNull)
+                .toList();
+        return stated.isEmpty()
+                ? null
+                : stated.stream().mapToInt(Integer::intValue).sum();
     }
 
     private SourceIngestResult ingest(Source source, SourceConnector connector) {
         String strategy = source.extraction().strategy();
         if (!HTML_BLOCKS.equals(strategy) && !MARKDOWN_FRONTMATTER.equals(strategy)) {
-            log.warn("Source '{}' asks for extraction strategy '{}', which is not implemented yet",
-                    source.id(), strategy);
+            log.warn(
+                    "Source '{}' asks for extraction strategy '{}', which is not implemented yet",
+                    source.id(),
+                    strategy);
             return new SourceIngestResult(source.id(), 0, 0, 0, List.of());
         }
 
@@ -237,8 +267,12 @@ public class IngestService {
         // skip those mails forever if the write failed, and nothing would say so.
         connector.commit(source, sourceId, documents);
 
-        log.info("Source '{}': {} documents, {} offers extracted, {} rows written",
-                source.id(), documents.size(), extracted, written);
+        log.info(
+                "Source '{}': {} documents, {} offers extracted, {} rows written",
+                source.id(),
+                documents.size(),
+                extracted,
+                written);
         // After the commit, so a run that failed halfway does not claim a clean pass.
         store.recordRun(sourceId, documents.size(), extracted, written, announced(details));
         return new SourceIngestResult(source.id(), documents.size(), extracted, written, details);

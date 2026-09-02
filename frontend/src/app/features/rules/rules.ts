@@ -41,6 +41,9 @@ export class Rules implements OnInit {
   );
 
   protected readonly maxPenalty = computed(() =>
-    Math.max(...(this.store.rules()?.penalties ?? []).map((penalty) => Math.abs(penalty.points)), 1),
+    Math.max(
+      ...(this.store.rules()?.penalties ?? []).map((penalty) => Math.abs(penalty.points)),
+      1,
+    ),
   );
 }

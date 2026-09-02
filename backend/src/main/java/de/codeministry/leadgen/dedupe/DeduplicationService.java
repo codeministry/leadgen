@@ -1,3 +1,11 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright 2026 Marcello Muscara (codeministry)
+ *
+ * Licensed under the Apache License, Version 2.0. You may obtain a copy of the
+ * License at http://www.apache.org/licenses/LICENSE-2.0
+ */
 package de.codeministry.leadgen.dedupe;
 
 import de.codeministry.leadgen.config.ConfigRegistry;
@@ -95,8 +103,11 @@ public class DeduplicationService {
 
         int moved = jdbc.sql(CLUSTER).param("ttl", rules.ttlDays()).update();
         int attached = attached(rules.ttlDays());
-        log.info("Deduplication: {} offers attached to a primary within {} days, {} moved this run",
-                attached, rules.ttlDays(), moved);
+        log.info(
+                "Deduplication: {} offers attached to a primary within {} days, {} moved this run",
+                attached,
+                rules.ttlDays(),
+                moved);
         return attached;
     }
 
@@ -114,8 +125,7 @@ public class DeduplicationService {
 
     private boolean mergesOnExactFingerprint(List<Strategy> strategies) {
         return strategies != null
-                && strategies.stream()
-                        .anyMatch(s -> EXACT_FINGERPRINT.equals(s.type()) && MERGE.equals(s.action()));
+                && strategies.stream().anyMatch(s -> EXACT_FINGERPRINT.equals(s.type()) && MERGE.equals(s.action()));
     }
 
     /**

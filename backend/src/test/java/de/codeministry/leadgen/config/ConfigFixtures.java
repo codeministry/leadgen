@@ -1,3 +1,11 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright 2026 Marcello Muscara (codeministry)
+ *
+ * Licensed under the Apache License, Version 2.0. You may obtain a copy of the
+ * License at http://www.apache.org/licenses/LICENSE-2.0
+ */
 package de.codeministry.leadgen.config;
 
 import java.io.IOException;
@@ -21,10 +29,7 @@ import java.util.Map;
 public final class ConfigFixtures {
 
     private static final List<String> FILES = List.of(
-            ConfigLoader.PIPELINE_FILE,
-            ConfigLoader.RULES_FILE,
-            ConfigLoader.SOURCES_FILE,
-            ConfigLoader.PROFILE_FILE);
+            ConfigLoader.PIPELINE_FILE, ConfigLoader.RULES_FILE, ConfigLoader.SOURCES_FILE, ConfigLoader.PROFILE_FILE);
 
     /** Built once per JVM; see {@link #shippedDefaults()}. */
     private static Path shippedDefaults;
@@ -38,8 +43,8 @@ public final class ConfigFixtures {
             candidate = candidate.getParent();
         }
         if (candidate == null) {
-            throw new IllegalStateException(
-                    "backend/src/main/resources/leadgen not found above " + Path.of("").toAbsolutePath());
+            throw new IllegalStateException("backend/src/main/resources/leadgen not found above "
+                    + Path.of("").toAbsolutePath());
         }
         return candidate;
     }
@@ -94,8 +99,6 @@ public final class ConfigFixtures {
     public static ConfigLoader loaderFor(
             Path directory, jakarta.validation.Validator validator, Map<String, String> env) {
         return new ConfigLoader(
-                new ConfigProperties(directory.toString()),
-                validator,
-                new PlaceholderResolver(env::get));
+                new ConfigProperties(directory.toString()), validator, new PlaceholderResolver(env::get));
     }
 }

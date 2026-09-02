@@ -1,0 +1,20 @@
+# The demo: the same three services, pointed at `demo/` instead of `config/`.
+#
+#     docker compose -f docker-compose.yml -f docker-compose.demo.yml up --build
+#
+# It is an override file and not a Compose profile because a profile can add or leave
+# out a service, not change one — and what the demo changes is a single mount. This way
+# there is one `api` service in the repository rather than two that have to be kept in
+# step.
+#
+# What you get: an invented newsletter corpus under `demo/corpus/`, an invented
+# freelancer profile, and rules with the two lists filled in that ship empty. Press
+# *Run ingest* once and the funnel, the shortlist, the duplicate clusters and the
+# analytics all have something in them. Nothing here touches a mailbox, and no key is
+# required — the score total is the one thing withheld without a language model.
+services:
+  api:
+    volumes:
+      # Compose merges volume lists by target, so naming `/config` here replaces the
+      # base file's mount rather than adding a second one to the same path.
+      - ./demo:/config:ro

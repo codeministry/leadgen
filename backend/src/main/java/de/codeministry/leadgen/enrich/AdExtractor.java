@@ -1,3 +1,11 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Copyright 2026 Marcello Muscara (codeministry)
+ *
+ * Licensed under the Apache License, Version 2.0. You may obtain a copy of the
+ * License at http://www.apache.org/licenses/LICENSE-2.0
+ */
 package de.codeministry.leadgen.enrich;
 
 import de.codeministry.leadgen.config.model.PipelineConfig.Enrichment.Extract;
@@ -77,9 +85,7 @@ public class AdExtractor {
      * written against a line.
      */
     private static String text(String field, Element element, Extract.Field rule) {
-        return "full_text".equals(field) && rule.regex() == null
-                ? HtmlToMarkdown.of(element)
-                : element.text();
+        return "full_text".equals(field) && rule.regex() == null ? HtmlToMarkdown.of(element) : element.text();
     }
 
     /**

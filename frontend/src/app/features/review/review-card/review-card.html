@@ -1,6 +1,8 @@
 <header class="head">
   <h3 class="type-h4 name">{{ document().name }}</h3>
-  <span class="type-mono-data text-muted">{{ 'review.bytes' | transloco: { size: document().size } }}</span>
+  <span class="type-mono-data text-muted">{{
+    'review.bytes' | transloco: { size: document().size }
+  }}</span>
 </header>
 
 @if (!document().offer) {
@@ -18,7 +20,9 @@
 <div class="split">
   <div class="fields">
     <div class="field">
-      <label class="type-caption text-muted" [for]="'title-' + document().name">{{ 'field.title' | transloco }}</label>
+      <label class="type-caption text-muted" [for]="'title-' + document().name">{{
+        'field.title' | transloco
+      }}</label>
       <input
         class="input input-sm"
         [id]="'title-' + document().name"
@@ -29,7 +33,9 @@
     </div>
 
     <div class="field">
-      <label class="type-caption text-muted" [for]="'url-' + document().name">{{ 'field.url' | transloco }}</label>
+      <label class="type-caption text-muted" [for]="'url-' + document().name">{{
+        'field.url' | transloco
+      }}</label>
       <input
         class="input input-sm type-mono-data"
         [id]="'url-' + document().name"
@@ -41,7 +47,9 @@
 
     <div class="pair">
       <div class="field">
-        <label class="type-caption text-muted" [for]="'location-' + document().name">{{ 'field.location' | transloco }}</label>
+        <label class="type-caption text-muted" [for]="'location-' + document().name">{{
+          'field.location' | transloco
+        }}</label>
         <input
           class="input input-sm"
           [id]="'location-' + document().name"
@@ -51,7 +59,9 @@
         />
       </div>
       <div class="field">
-        <label class="type-caption text-muted" [for]="'portal-' + document().name">{{ 'field.portal' | transloco }}</label>
+        <label class="type-caption text-muted" [for]="'portal-' + document().name">{{
+          'field.portal' | transloco
+        }}</label>
         <input
           class="input input-sm"
           [id]="'portal-' + document().name"
@@ -64,7 +74,9 @@
 
     <div class="pair">
       <div class="field">
-        <label class="type-caption text-muted" [for]="'agency-' + document().name">{{ 'field.agency' | transloco }}</label>
+        <label class="type-caption text-muted" [for]="'agency-' + document().name">{{
+          'field.agency' | transloco
+        }}</label>
         <input
           class="input input-sm"
           [id]="'agency-' + document().name"
@@ -74,7 +86,9 @@
         />
       </div>
       <div class="field">
-        <label class="type-caption text-muted" [for]="'published-' + document().name">{{ 'field.published' | transloco }}</label>
+        <label class="type-caption text-muted" [for]="'published-' + document().name">{{
+          'field.published' | transloco
+        }}</label>
         <input
           class="input input-sm type-mono-data"
           [id]="'published-' + document().name"
@@ -87,7 +101,9 @@
     </div>
 
     <div class="field">
-      <label class="type-caption text-muted" [for]="'tags-' + document().name">{{ 'field.tags' | transloco }}</label>
+      <label class="type-caption text-muted" [for]="'tags-' + document().name">{{
+        'field.tags' | transloco
+      }}</label>
       <input
         class="input input-sm"
         [id]="'tags-' + document().name"
@@ -99,7 +115,9 @@
     </div>
 
     <div class="field">
-      <label class="type-caption text-muted" [for]="'description-' + document().name">{{ 'field.description' | transloco }}</label>
+      <label class="type-caption text-muted" [for]="'description-' + document().name">{{
+        'field.description' | transloco
+      }}</label>
       <textarea
         class="textarea textarea-sm type-small"
         [id]="'description-' + document().name"
