@@ -313,6 +313,16 @@ upserts it. `POST /api/ingest` runs one pass.
   `autoCloseFolder` on it closes the folder before a body can be read, so every message ends
   in `FolderClosedException`; and with it **off** `receive()` hands back Spring messages
   rather than `jakarta.mail` ones, which an `instanceof` check silently drops.
+- **The search term is this connector's own, and it must be.** Spring Integration's default
+  `SearchTermStrategy` excludes every message carrying `\Seen` as well as the ones carrying
+  the user flag. Pointed at a mailbox its owner reads on a phone, the receiver therefore
+  hands over nothing, the run reports zero documents, and nothing errors — measured against
+  the real mailbox: 165 mails in the folder, 165 matching `NOT KEYWORD leadgen`, 0 matching
+  the default term. Not marking `\Seen` is pointless if progress is read off it. The
+  replacement asks one question, "not deleted and not carrying the `leadgen` flag", and
+  `\Deleted` is in there because an unexpunged deletion is not a document, not because it
+  is progress. Every test before this delivered a fresh, unseen mail, which is why the suite
+  was green for a connector that returned nothing.
 - **Not flagging `\Seen` still takes two things.** `shouldMarkMessagesAsRead(false)` is not
   enough on its own: fetching a body otherwise issues `FETCH BODY[]`, and the server sets the
   flag regardless. `mail.imap.peek` is the second. Measured against a real IMAP server.

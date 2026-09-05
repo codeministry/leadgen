@@ -15,9 +15,14 @@ import de.codeministry.leadgen.config.model.SourcesConfig.Source;
 import de.codeministry.leadgen.ingest.IngestException;
 import de.codeministry.leadgen.ingest.RawDocument;
 import jakarta.mail.Address;
+import jakarta.mail.Flags;
+import jakarta.mail.Folder;
 import jakarta.mail.Message;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.InternetAddress;
+import jakarta.mail.search.AndTerm;
+import jakarta.mail.search.FlagTerm;
+import jakarta.mail.search.SearchTerm;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -33,6 +38,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.integration.mail.inbound.ImapMailReceiver;
+import org.springframework.integration.mail.inbound.SearchTermStrategy;
 import org.springframework.stereotype.Component;
 
 /**
@@ -161,11 +167,51 @@ public class ImapSourceConnector implements SourceConnector {
      * silently given a {@code \Flagged} instead — a star the owner would see on their
      * phone.
      *
-     * <p>No {@code SearchTermStrategy} is supplied on purpose. The default one is what
-     * expresses "not already taken" in terms of the flags above, and replacing it would mean
-     * reimplementing that. The selector's sender, subject and age rules are applied here
-     * afterwards instead, exactly as before.
+     * <p><b>The search term is ours, and it has to be.</b> Spring Integration's default
+     * strategy does not express "not already taken" in terms of the user flag alone — it
+     * also excludes every message carrying {@code \Seen}. In a mailbox somebody else also
+     * reads, that is every message they have opened, so the receiver hands over nothing and
+     * the run reports zero documents with no error anywhere. Measured against a real
+     * mailbox: 165 mails in the folder, 165 matching {@code NOT KEYWORD leadgen}, 0
+     * matching the default term, because all 165 had been read on a phone.
+     *
+     * <p>That is the one thing this connector may never do. Not marking {@code \Seen} is
+     * pointless if progress is read off it, and "fewer offers" is indistinguishable from a
+     * quiet day on the market. The selector's sender, subject and age rules are applied
+     * here afterwards, exactly as before.
      */
+    /**
+     * "Not already taken", and nothing else: no {@code \Seen}, no {@code \Answered}, no
+     * {@code \Recent}.
+     *
+     * <p>{@link SearchTermStrategy} is the only place this can be said. The receiver marks
+     * what it hands over with {@link #USER_FLAG}, so that flag is the whole of the progress
+     * state and every other flag belongs to the owner of the mailbox.
+     *
+     * <p>{@code \Deleted} is the one exception, and it is not progress: a message the owner
+     * has deleted but the server has not yet expunged is not a document.
+     *
+     * <p>Without user-flag support there is no marker at all — {@code flaggedAsFallback} is
+     * off on purpose, because the fallback is {@code \Flagged} and that is a star the owner
+     * would see. Every run then re-reads the whole folder, which is wasteful and not wrong:
+     * the upsert on {@code (source_id, external_id)} is what makes re-reading free. It is
+     * logged, because the alternative is a nightly run that quietly does far more work than
+     * anybody thinks.
+     */
+    private static SearchTerm notAlreadyTaken(Flags supportedFlags, Folder folder) {
+        SearchTerm notDeleted = new FlagTerm(new Flags(Flags.Flag.DELETED), false);
+        if (supportedFlags == null || !supportedFlags.contains(Flags.Flag.USER)) {
+            log.warn(
+                    "Mailbox folder '{}' does not support user flags, so nothing marks a message as taken"
+                            + " — every run re-reads the whole folder",
+                    folder == null ? "?" : folder.getFullName());
+            return notDeleted;
+        }
+        Flags taken = new Flags();
+        taken.add(USER_FLAG);
+        return new AndTerm(notDeleted, new FlagTerm(taken, false));
+    }
+
     private ImapMailReceiver receiver(Source source, Selector selector) {
         Connection connection = connection(source);
         String protocol = connection.ssl() ? "imaps" : "imap";
@@ -182,6 +228,7 @@ public class ImapSourceConnector implements SourceConnector {
         receiver.setShouldDeleteMessages(false);
         receiver.setFlaggedAsFallback(false);
         receiver.setUserFlag(USER_FLAG);
+        receiver.setSearchTermStrategy(ImapSourceConnector::notAlreadyTaken);
         // The whole message, not the headers: the body is the document.
         receiver.setSimpleContent(false);
         // The folder must outlive `receive()`. The receiver hands back messages whose content

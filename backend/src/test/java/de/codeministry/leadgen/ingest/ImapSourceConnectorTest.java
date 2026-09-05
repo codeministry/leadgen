@@ -146,6 +146,27 @@ class ImapSourceConnectorTest {
     }
 
     @Test
+    void handsOverAMessageTheOwnerHasAlreadyRead() {
+        // The mailbox is somebody else's and they read it on a phone, so \\Seen says nothing
+        // about whether this tool has taken a message. Spring Integration's default search
+        // strategy disagrees: it excludes every \\Seen message, which in a folder the owner
+        // actually reads is all of them. The run then reports zero documents and no error,
+        // and fewer offers looks exactly like a quiet day on the market.
+        //
+        // Measured against a real mailbox before the strategy was replaced: 165 mails in the
+        // folder, 165 matching NOT KEYWORD leadgen, 0 matching the default term.
+        //
+        // Every other test here delivers a fresh mail, which is unseen, so this is the one
+        // that pins it.
+        deliver(NEWSLETTER, "3 neue Projekte sind da!");
+        markTheOnlyMessageAsRead();
+
+        assertThat(connector.read(source, sourceId))
+                .singleElement()
+                .satisfies(document -> assertThat(document.subject()).isEqualTo("3 neue Projekte sind da!"));
+    }
+
+    @Test
     void returnsNothingWhenTheCursorIsAlreadyPastEverything() {
         // getMessagesByUID(start, LASTUID) hands back the highest-UID message even when
         // its UID is below start. Unfiltered, every run would re-extract the last mail
@@ -217,6 +238,24 @@ class ImapSourceConnectorTest {
             mailbox.deliver(message);
         } catch (IOException | jakarta.mail.MessagingException e) {
             throw new IllegalStateException("cannot deliver the fixture", e);
+        }
+    }
+
+    /** What the owner's mail client does the moment they open the newsletter. */
+    private void markTheOnlyMessageAsRead() {
+        Properties properties = new Properties();
+        properties.put("mail.store.protocol", "imap");
+        try (Store store = Session.getInstance(properties).getStore("imap")) {
+            store.connect("127.0.0.1", ServerSetupTest.IMAP.getPort(), USER, PASSWORD);
+            Folder inbox = store.getFolder("INBOX");
+            inbox.open(Folder.READ_WRITE);
+            try {
+                inbox.getMessage(1).setFlag(Flags.Flag.SEEN, true);
+            } finally {
+                inbox.close(false);
+            }
+        } catch (Exception e) {
+            throw new IllegalStateException(e);
         }
     }
 
