@@ -83,9 +83,16 @@ public class EnrichmentService {
         int incomplete = 0;
         int fromCache = 0;
         int requests = 0;
+        int deferred = 0;
 
         for (Due offer : due) {
             FetchResult fetched = fetcher.fetch(offer.url());
+            // Nothing is written, so the offer is still due next time. The due query is
+            // `enriched_at IS NULL`, and recording this would answer it forever.
+            if (fetched.deferred()) {
+                deferred++;
+                continue;
+            }
             if (fetched.fromCache()) {
                 fromCache++;
             } else if (fetched.status() > 0) {
@@ -110,14 +117,16 @@ public class EnrichmentService {
             record(offer.id(), result);
         }
 
-        var report = new EnrichmentReport(due.size(), enriched, incomplete, fromCache, requests);
+        var report = new EnrichmentReport(due.size(), enriched, incomplete, fromCache, requests, deferred);
         log.info(
-                "Enrichment: {} due, {} enriched, {} incomplete, {} from cache, {} requests",
+                "Enrichment: {} due, {} enriched, {} incomplete, {} from cache, {} requests,"
+                        + " {} deferred by the rate limit and due again",
                 report.considered(),
                 report.enriched(),
                 report.incomplete(),
                 report.fromCache(),
-                report.requests());
+                report.requests(),
+                report.deferred());
         return report;
     }
 

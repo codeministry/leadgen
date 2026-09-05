@@ -14,6 +14,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.stubFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
+import static com.github.tomakehurst.wiremock.client.WireMock.urlPathMatching;
 import static com.github.tomakehurst.wiremock.client.WireMock.verify;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -106,6 +107,36 @@ class EnrichmentServiceTest {
                 jdbc.queryForObject("INSERT INTO source (name, kind) VALUES ('test', 'file') RETURNING id", Long.class);
         PORTAL.resetAll();
         allowEverything();
+    }
+
+    @Test
+    void leavesAnOfferTheRateLimiterTurnedAwayDueForTheNextRun() {
+        // The shipped limit is 20 a minute and the limiter refuses rather than waits, so a
+        // backlog larger than the limit is the normal case on a first full pass — measured:
+        // 480 due, 20 fetched, 460 turned away.
+        //
+        // Recorded like a failure, a refusal stamps `enriched_at`, and the due query is
+        // `enriched_at IS NULL`. Those 460 were then never fetched again and went on to be
+        // scored on the newsletter summary alone, with no rate, no duration and no full
+        // text. A refusal is a fact about the minute, exactly like a timeout, and the cache
+        // already refuses to remember those.
+        stubFor(get(urlPathMatching("/projekt/.*")).willReturn(aResponse().withBody(AD_HTML)));
+        for (int i = 0; i < 25; i++) {
+            passedOffer("/projekt/limit-" + i);
+        }
+
+        var report = enrichment.run();
+
+        assertThat(report.considered()).isEqualTo(25);
+        assertThat(report.enriched()).isEqualTo(20);
+        assertThat(report.deferred()).isEqualTo(5);
+        // Nothing was written for the five, which is the whole point: they are due again.
+        assertThat(jdbc.queryForObject(
+                        "SELECT count(*) FROM offer WHERE enriched_at IS NULL AND status = 'PASSED'", Integer.class))
+                .isEqualTo(5);
+        assertThat(jdbc.queryForObject(
+                        "SELECT count(*) FROM offer WHERE enrichment_note LIKE 'rate limit%'", Integer.class))
+                .isZero();
     }
 
     @Test

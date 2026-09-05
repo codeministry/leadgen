@@ -1,0 +1,182 @@
+# The third track, between "it built" and "it was released".
+#
+# `ci.yml` builds both images on every push and deliberately does not push them;
+# `release.yml` pushes them only on a `v*` tag and writes a GitHub release from
+# CHANGELOG.md. Getting an intermediate state in front of a cluster therefore meant
+# tagging, changelogging and releasing — the wrong ceremony for a build nobody is
+# announcing.
+#
+# This publishes a deployable image for every green `main`, with a unique version derived
+# from the last release tag. It creates no git tag and no release, so the three events
+# stay three events.
+name: Dev image
+
+# After CI, not alongside it. A `push` trigger would publish an image while `./gradlew
+# check` on the very same commit is going red — and "main was green last week" and "this
+# artifact is green" are two different statements, which is exactly why release.yml runs
+# the gate again against the tagged tree. Here the gate is not paid for twice: this waits
+# for the one ci.yml already runs.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+# An explicit block zeroes every scope it does not list, so `contents: read` has to be
+# written down even though it looks like the default — on a private repository a missing
+# `contents` surfaces as a 404 on checkout rather than as a permission error.
+permissions:
+  contents: read
+  packages: write
+
+# Never cancel: two runs would race for the floating `main` tag, and the loser could be
+# the one that writes it last.
+concurrency:
+  group: dev-image-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # `completed` is not `success`. Without this the job would publish an image for a failed
+  # CI run, which is the one thing this trigger exists to prevent.
+  version:
+    name: Derive the version
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    outputs:
+      tag: ${{ steps.derive.outputs.tag }}
+      version: ${{ steps.derive.outputs.version }}
+      sha: ${{ steps.derive.outputs.sha }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # workflow_run checks out the default branch's head unless told otherwise, so
+          # without this the image would carry the wrong commit in its tag.
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          # `git describe` needs the tags, and the default shallow clone has none — it
+          # fails with "No names found, cannot describe anything".
+          fetch-depth: 0
+
+      - id: derive
+        name: Next patch, plus the commits since the last release
+        run: |
+          set -euo pipefail
+
+          # The history is imperative sentences, not Conventional Commits, and
+          # renovate.json disables semantic commits outright — so there is nothing to
+          # infer from a message. The last release tag is the only fact available.
+          last=$(git describe --tags --match 'v*' --abbrev=0 2>/dev/null || echo "v0.0.0")
+          base=${last#v}
+          IFS=. read -r major minor patch <<< "$base"
+          next="${major}.${minor}.$((patch + 1))"
+
+          # Commits since that tag. Monotonic inside one patch series and back to zero at
+          # the next real release, which is the ordering you want when reading a rollback.
+          build=$(git rev-list "${last}..HEAD" --count 2>/dev/null || git rev-list HEAD --count)
+          sha=$(git rev-parse --short HEAD)
+
+          # A docker tag is [a-zA-Z0-9_][a-zA-Z0-9._-]{0,127}: `+` is not allowed. SemVer
+          # has `+build`, the registry does not, so the two forms differ by that one
+          # character and nothing else.
+          tag="${next}-dev.${build}-g${sha}"
+          version="${next}-dev.${build}+g${sha}"
+
+          {
+            echo "tag=${tag}"
+            echo "version=${version}"
+            echo "sha=${sha}"
+          } >> "$GITHUB_OUTPUT"
+
+          echo "last release ${last} · dev image ${tag} · reports ${version}" >> "$GITHUB_STEP_SUMMARY"
+
+  images:
+    name: Publish ${{ matrix.name }}
+    needs: version
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    strategy:
+      matrix:
+        include:
+          - name: leadgen-api
+            dockerfile: backend/Dockerfile
+          - name: leadgen-web
+            dockerfile: frontend/Dockerfile
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      # arm64 is emulated here and it is slow. It is not optional: the cluster this is
+      # deployed to runs on arm64, and an image that exists only for amd64 cannot start
+      # there — it fails at pull time with an exec format error, not at build time.
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/${{ matrix.name }}
+          # `type=semver` is useless here: it only produces output on a tag ref, and this
+          # never runs on one. The unique tag is what a deploy pins and a rollback names;
+          # `main` is the floating one, for a chart that would rather set
+          # imagePullPolicy: Always than edit a value on every build.
+          tags: |
+            type=raw,value=${{ needs.version.outputs.tag }}
+            type=raw,value=main
+          labels: |
+            org.opencontainers.image.version=${{ needs.version.outputs.version }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # Same scope as the other two workflows, or the emulated arm64 half rebuilds
+          # from scratch every time.
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}
+
+  # One tag pair per commit adds up. This deletes old *dev* versions and nothing else.
+  #
+  # It is the step that destroys artifacts, so it is deliberately timid: `ignore-versions`
+  # is a regex over what to KEEP, and the negative lookahead keeps everything that is not a
+  # dev build — 0.1.1, 0.1, latest and main are all protected by it rather than by luck.
+  # A failure here must not fail the build: the images are already published and correct.
+  prune:
+    name: Prune old dev images
+    needs: [version, images]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: true
+
+    permissions:
+      packages: write
+
+    strategy:
+      matrix:
+        name: [leadgen-api, leadgen-web]
+
+    steps:
+      - uses: actions/delete-package-versions@v5
+        with:
+          owner: ${{ github.repository_owner }}
+          package-name: ${{ matrix.name }}
+          package-type: container
+          min-versions-to-keep: 10
+          ignore-versions: '^(?!.*-dev\.).*$'

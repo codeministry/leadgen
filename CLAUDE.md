@@ -537,6 +537,13 @@ be rude to the portals and slow for nothing.
 - **Four gates, cheapest first:** cache, `robots.txt`, rate limit, network. A cached page
   costs nothing and consumes no rate-limit token, which is what makes a daily run one
   request per ad per week instead of one per ad per day.
+- **A refusal from the rate limiter is deferred, never recorded.** The limiter refuses
+  rather than waits, so a backlog larger than the limit is the normal case on a first full
+  pass. Recorded like a failed fetch it stamps `enriched_at`, and the due query is
+  `enriched_at IS NULL` — the offer is then never fetched again and is scored on the
+  newsletter summary alone. Measured: 480 due, 20 fetched, 460 written off, 0 left due.
+  `FetchResult.deferred` writes nothing at all, and `EnrichmentReport` counts it apart from
+  `incomplete` because the difference between the two is whether the offer comes back.
 - **Failures are cached, timeouts are not.** A 403 or a disallowed path is a fact about
   the page; a timeout is a fact about the moment, and remembering one bad minute for a
   week is worse than asking again tomorrow.

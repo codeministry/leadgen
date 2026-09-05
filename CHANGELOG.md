@@ -9,6 +9,41 @@ may change in any release. See the status note in the README.
 
 ## [Unreleased]
 
+### Added
+
+- **A dev-image track, between "it built" and "it was released."** `ci.yml` builds both
+  images on every push and deliberately does not push them; `release.yml` pushes only on a
+  `v*` tag and writes a release from this file. Getting an intermediate state in front of a
+  cluster therefore meant tagging, changelogging and releasing — the wrong ceremony for a
+  build nobody is announcing. `dev-image.yml` publishes one for every green `main` as
+  `<next patch>-dev.<commits since the tag>-g<sha>` plus a floating `main`, creating no git
+  tag and no release. It runs on `workflow_run` after CI rather than on `push`, so an image
+  never exists for a commit whose gate went red, and the gate is not paid for twice.
+- **`leadgen.version`, so the header names the build it is.** `StatusController` has always
+  read `${leadgen.version:0.1.0}` and the property existed nowhere — not in
+  `application.yaml`, not in the chart, and the Gradle version is not injected into the jar
+  (no `buildInfo()`, no manifest entry, and the Dockerfile copies `libs/*.jar` by glob). So
+  every image reported `0.1.0` whatever it was. The deployment sets it from the image tag.
+
+## [0.1.2] — 2026-09-05
+
+### Fixed
+
+- **A rate-limited fetch was written off permanently.** The limiter refuses rather than
+  waits, and the refusal was recorded like a failed fetch — which stamps `enriched_at`,
+  and the due query is `enriched_at IS NULL`. The offer was therefore never fetched again
+  and went on to be scored on the newsletter summary alone, with no rate, no duration and
+  no full text. Measured on the first full pass against a real mailbox: 480 due, 20
+  fetched, **460 written off with "rate limit reached" and 0 left due.**
+
+  The cache already draws this line — "failures are cached, timeouts are not", because a
+  403 is a fact about the page and a timeout is a fact about the moment. A refusal from the
+  limiter is the second kind: it says this run has asked this portal often enough, which is
+  true of the minute and of nothing else. `FetchResult.deferred` now says so, nothing is
+  written for those offers, and they are due again on the next pass.
+  `EnrichmentReport.deferred` reports them separately from `incomplete`, because the whole
+  difference between the two is whether the offer comes back.
+
 ## [0.1.1] — 2026-09-05
 
 ### Fixed

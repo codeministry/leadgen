@@ -18,10 +18,14 @@ package de.codeministry.leadgen.enrich;
  * @param fromCache answered without a request. On a second run inside the TTL this equals
  *     `considered` and `requests` is zero, which is what ISC-47 asserts.
  * @param requests actual HTTP requests for ads, robots.txt excluded.
+ * @param deferred offers the rate limiter turned away. Nothing was written for them, so
+ *     they are due again on the next pass — which is the whole difference between this
+ *     count and `incomplete`, and the reason it is reported rather than folded in.
  */
-public record EnrichmentReport(int considered, int enriched, int incomplete, int fromCache, int requests) {
+public record EnrichmentReport(
+        int considered, int enriched, int incomplete, int fromCache, int requests, int deferred) {
 
     public static EnrichmentReport skipped() {
-        return new EnrichmentReport(0, 0, 0, 0, 0);
+        return new EnrichmentReport(0, 0, 0, 0, 0, 0);
     }
 }

@@ -16,15 +16,33 @@ package de.codeministry.leadgen.enrich;
  *     the cached response had.
  * @param body null unless the fetch succeeded.
  * @param note why there is no body, in words. Null on success.
+ * @param deferred no attempt was made and none should be remembered. See {@link #deferred}.
  */
-public record FetchResult(int status, String body, boolean fromCache, String note) {
+public record FetchResult(int status, String body, boolean fromCache, String note, boolean deferred) {
 
     public static FetchResult ok(int status, String body, boolean fromCache) {
-        return new FetchResult(status, body, fromCache, null);
+        return new FetchResult(status, body, fromCache, null, false);
     }
 
     public static FetchResult failed(int status, String note) {
-        return new FetchResult(status, null, false, note);
+        return new FetchResult(status, null, false, note, false);
+    }
+
+    /**
+     * Nothing was attempted, and the offer must stay due.
+     *
+     * <p>The same distinction the cache already makes: a 403 or a disallowed path is a fact
+     * about the page and is worth remembering, a timeout is a fact about the moment and is
+     * not. A rate-limit refusal is the second kind — it says the run had already asked this
+     * portal often enough, which is true of the minute and of nothing else.
+     *
+     * <p>Recorded like a failure it stamps {@code enriched_at}, and the due query is
+     * {@code enriched_at IS NULL}: the offer is then never fetched again and goes on to be
+     * scored on the newsletter summary alone. Measured on the first full pass: 480 due, 20
+     * fetched, 460 permanently written off with "rate limit reached" and 0 left due.
+     */
+    public static FetchResult deferred(String note) {
+        return new FetchResult(0, null, false, note, true);
     }
 
     /**
@@ -34,7 +52,7 @@ public record FetchResult(int status, String body, boolean fromCache, String not
      * the request count in the report a lie.
      */
     public static FetchResult cachedFailure(int status, String note) {
-        return new FetchResult(status, null, true, note);
+        return new FetchResult(status, null, true, note, false);
     }
 
     public boolean succeeded() {

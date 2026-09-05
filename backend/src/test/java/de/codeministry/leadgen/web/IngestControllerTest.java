@@ -106,7 +106,7 @@ class IngestControllerTest {
                         18,
                         new FilterReport(Map.of(), 12, 31),
                         new ArchiveReport(0, 0, 0, 0),
-                        new EnrichmentReport(12, 0, 12, 0, 0),
+                        new EnrichmentReport(12, 0, 12, 0, 0, 0),
                         new ScoringReport(12, 12, 0, 2, 3, 0),
                         null,
                         new PackageReport(2, 2, 0, List.of())));

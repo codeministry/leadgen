@@ -86,7 +86,7 @@ class IngestOrderTest {
 
         when(filter.run()).thenReturn(new FilterReport(Map.of(), 0, 0));
         when(archive.run()).thenReturn(new ArchiveReport(0, 0, 0, 0));
-        when(enrich.run()).thenReturn(new EnrichmentReport(0, 0, 0, 0, 0));
+        when(enrich.run()).thenReturn(new EnrichmentReport(0, 0, 0, 0, 0, 0));
         when(scoring.run(any())).thenReturn(new ScoringReport(0, 0, 0, 0, 0, 0));
         when(packaging.run()).thenReturn(new PackageReport(0, 0, 0, List.of()));
         when(digest.render(any())).thenReturn(Optional.empty());
