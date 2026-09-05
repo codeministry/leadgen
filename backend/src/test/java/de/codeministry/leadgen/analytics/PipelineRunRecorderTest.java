@@ -46,7 +46,7 @@ class PipelineRunRecorderTest {
             0,
             new FilterReport(Map.of(), 0, 0),
             new ArchiveReport(0, 0, 0, 0),
-            new EnrichmentReport(0, 0, 0, 0, 0),
+            new EnrichmentReport(0, 0, 0, 0, 0, 0),
             new ScoringReport(0, 0, 0, 0, 0, 0),
             null,
             new PackageReport(0, 0, 0, List.of()));

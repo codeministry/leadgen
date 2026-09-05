@@ -118,8 +118,11 @@ public class AdFetcher {
         }
 
         if (!takeToken()) {
-            return FetchResult.failed(
-                    0, "rate limit reached, %d requests a minute".formatted(settings.rateLimitPerMinute()));
+            // Deferred, not failed: the limiter is saying "not this minute", which is a fact
+            // about the run and not about the page. Written down as a failure it would stamp
+            // `enriched_at` and the offer would never be fetched again.
+            return FetchResult.deferred(
+                    "rate limit reached, %d requests a minute".formatted(settings.rateLimitPerMinute()));
         }
 
         try {

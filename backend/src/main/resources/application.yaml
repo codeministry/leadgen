@@ -23,6 +23,11 @@ spring:
 # sources, credentials, the profile, the documents. It is gitignored, and it does
 # not have to exist — without it the defaults apply.
 leadgen:
+  # What the header shows, and the only place the running build names itself. Without this
+  # line the literal default in StatusController applies and every image reports 0.1.0 —
+  # the Gradle version is not injected into the jar, and the Dockerfile copies libs/*.jar
+  # by glob, so nothing else carries it either. The deploy sets it from the image tag.
+  version: ${LEADGEN_VERSION:0.1.0}
   config-dir: ${LEADGEN_CONFIG_DIR:config}
   # How often the three files are checked for changes. Two polls are needed before a
   # change is applied, so the worst case is twice this value.
