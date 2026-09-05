@@ -2,10 +2,18 @@
   margin-bottom: 0.75rem;
 }
 
+/*
+  13rem, not 11: the panel is half a screen wide, and at 11rem three date fields shared
+  one row at 190px each — a native date input is barely wider than its own `tt.mm.jjjj`,
+  and the one carrying the Clear button was narrower still. Two roomy columns read better
+  than three cramped ones. `min(…, 100%)` because a track cannot shrink below its minimum,
+  so the fixed value alone pushes the page sideways on a phone.
+*/
 .form {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(11rem, 100%), 1fr));
-  gap: 0.75rem;
+    grid-template-columns: repeat(auto-fit, minmax(min(13rem, 100%), 1fr));
+    gap: 0.75rem 1rem;
+    align-items: end;
 }
 
 .field {
@@ -13,6 +21,16 @@
   flex-direction: column;
   gap: 0.25rem;
   min-width: 0;
+}
+
+/*
+  A control sizes itself from its own intrinsic width — a textarea from `cols`, a date
+  input from its `tt.mm.jjjj` — and DaisyUI overrides neither. Both are flex items that
+  may shrink but never grow, so on a wide row the textarea stayed at 300px inside a
+  590px cell and on a narrow one the date input stopped 21px short of its label.
+*/
+.field :is(input, textarea) {
+    width: 100%;
 }
 
 .field-wide {

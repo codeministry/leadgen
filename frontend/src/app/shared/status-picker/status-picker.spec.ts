@@ -1,5 +1,5 @@
-import { TestBed } from '@angular/core/testing';
-import { StatusPicker } from './status-picker';
+import {TestBed} from '@angular/core/testing';
+import {StatusPicker} from './status-picker';
 
 describe('StatusPicker', () => {
   it('emits the value the operator picked', () => {
@@ -36,6 +36,31 @@ describe('StatusPicker', () => {
     const select: HTMLSelectElement = fixture.nativeElement.querySelector('select');
     expect(select.value).toBe('REPLIED');
   });
+
+    it('shows the label in a form row, where the fields beside it carry theirs', () => {
+        // Hidden, the select sits a label's height above the fields next to it and the row
+        // has no common baseline.
+        const fixture = TestBed.createComponent(StatusPicker);
+        fixture.componentRef.setInput('value', 'NEW');
+        fixture.componentRef.setInput('options', [{value: 'NEW', label: 'New'}]);
+        fixture.componentRef.setInput('labelHidden', false);
+        fixture.detectChanges();
+
+        const label: HTMLLabelElement = fixture.nativeElement.querySelector('label');
+        expect(label.classList.contains('sr-only')).toBe(false);
+    });
+
+    it('spells the size variant out, because Tailwind emits no class it cannot read', () => {
+        const fixture = TestBed.createComponent(StatusPicker);
+        fixture.componentRef.setInput('value', 'NEW');
+        fixture.componentRef.setInput('options', [{value: 'NEW', label: 'New'}]);
+        fixture.componentRef.setInput('size', 'sm');
+        fixture.detectChanges();
+
+        const select: HTMLSelectElement = fixture.nativeElement.querySelector('select');
+        expect(select.classList.contains('select-sm')).toBe(true);
+        expect(select.classList.contains('select-xs')).toBe(false);
+    });
 
   it('labels the control for a screen reader, because the card has no visible label', () => {
     const fixture = TestBed.createComponent(StatusPicker);

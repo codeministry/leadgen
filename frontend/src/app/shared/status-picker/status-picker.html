@@ -1,4 +1,10 @@
-<label class="sr-only" [for]="id">{{ label() }}</label>
+<!--
+  The label is the control's accessible name in both modes; only its visibility changes.
+  On a board card the surrounding text says what the control is, so it is read but not
+  shown; in a form row it has to be shown, or the select sits a label's height above the
+  fields beside it and the row has no common baseline.
+-->
+<label [class]="labelClass()" [for]="id">{{ label() }}</label>
 <!--
   The selection is bound per option rather than with `[value]` on the select, because
   `[value]` depends on the options existing when it is written. When it loses that race
@@ -7,7 +13,7 @@
   nothing happening.
 -->
 <select
-  class="select select-xs type-caption picker"
+        [class]="selectClass()"
   [id]="id"
   [disabled]="disabled()"
   (change)="onChange($event)"

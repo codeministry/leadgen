@@ -128,7 +128,21 @@
           <div class="field">
             <dt class="type-caption text-muted">{{ field.label | transloco }}</dt>
             <dd class="type-mono-data">
-              @if (field.value) {
+                @if (field.href) {
+                    <!-- Same pair as the header's link, and for the same reason: this URL came
+                         off a portal, and a page opened from here could otherwise reach back
+                         through `window.opener`. -->
+                    <a
+                            class="field-link"
+                            [href]="field.href"
+                            [title]="field.href"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                    >
+                        {{ field.value }}
+                        <lg-icon name="external-link" [size]="12"/>
+                    </a>
+                } @else if (field.value) {
                 {{ field.value }}
               } @else {
                 <span class="text-muted missing">{{ 'common.notKnown' | transloco }}</span>

@@ -87,7 +87,24 @@
 }
 
 .field dd {
+    /* An id nobody chose the shape of: the URL is gone, but a content hash is just as
+       unbreakable and a column is 11rem wide. Wrap it anywhere rather than let one value
+       decide the panel's width. */
   margin-top: 0.125rem;
+    overflow-wrap: anywhere;
+}
+
+.field-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    color: var(--color-primary);
+    text-decoration: underline;
+    text-underline-offset: 0.15em;
+}
+
+.field-link:hover {
+    text-decoration: none;
 }
 
 .missing {

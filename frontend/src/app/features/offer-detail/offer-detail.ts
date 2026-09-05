@@ -1,32 +1,27 @@
-import { DatePipe } from '@angular/common';
-import {
-  ChangeDetectionStrategy,
-  Component,
-  OnInit,
-  computed,
-  effect,
-  inject,
-  input,
-} from '@angular/core';
-import { injectDispatch } from '@ngrx/signals/events';
-import { TranslocoPipe } from '@jsverse/transloco';
-import { ApplicationUpdate } from '@core/model/application';
-import { applicationEvents } from '@core/store/applications.events';
-import { ApplicationsStore } from '@core/store/applications.store';
-import { shortlistEvents } from '@core/store/shortlist.events';
-import { ShortlistStore } from '@core/store/shortlist.store';
-import { ApplicationPanel } from './application-panel/application-panel';
-import { Badge } from '@shared/badge/badge';
-import { EmptyState } from '@shared/empty-state/empty-state';
-import { Icon } from '@shared/icon/icon';
-import { PageHeader } from '@shared/page-header/page-header';
-import { Markdown } from '@shared/markdown/markdown';
-import { Score } from '@shared/score/score';
+import {DatePipe} from '@angular/common';
+import {ChangeDetectionStrategy, Component, computed, effect, inject, input, OnInit,} from '@angular/core';
+import {injectDispatch} from '@ngrx/signals/events';
+import {TranslocoPipe} from '@jsverse/transloco';
+import {ApplicationUpdate} from '@core/model/application';
+import {Offer} from '@core/model/offer';
+import {applicationEvents} from '@core/store/applications.events';
+import {ApplicationsStore} from '@core/store/applications.store';
+import {shortlistEvents} from '@core/store/shortlist.events';
+import {ShortlistStore} from '@core/store/shortlist.store';
+import {ApplicationPanel} from './application-panel/application-panel';
+import {Badge} from '@shared/badge/badge';
+import {EmptyState} from '@shared/empty-state/empty-state';
+import {Icon} from '@shared/icon/icon';
+import {PageHeader} from '@shared/page-header/page-header';
+import {Markdown} from '@shared/markdown/markdown';
+import {Score} from '@shared/score/score';
 
 interface Field {
   /** A catalog key, not a sentence. */
   readonly label: string;
   readonly value: string | null;
+    /** Set when the value is a link; `value` is then what the link reads as. */
+    readonly href?: string;
 }
 
 @Component({
@@ -155,9 +150,44 @@ export class OfferDetail implements OnInit {
       { label: 'field.workload', value: offer.workload },
       { label: 'field.published', value: offer.publishedOn },
       { label: 'field.language', value: offer.language },
-      { label: 'field.externalId', value: offer.externalId },
+        this.externalId(offer),
     ];
   });
+
+    /**
+     * The identity a source gave the offer, which for every portal in the corpus is the
+     * ad's own URL — 60 characters of unbroken path that pushed the panel past its border,
+     * because a URL has nothing to wrap at.
+     *
+     * So it reads as the portal it points at and carries the URL in its title. The name
+     * rather than the address: the address is what broke the layout, and it is one click
+     * away in the same place it was before. An id that is not a URL — a content hash, the
+     * fallback for a document that carries no link — stays text.
+     */
+    private externalId(offer: Offer): Field {
+        const url = this.httpUrl(offer.externalId);
+        if (url === null) {
+            return {label: 'field.externalId', value: offer.externalId};
+        }
+        return {
+            label: 'field.externalId',
+            value: offer.portal ?? url.host,
+            href: url.href,
+        };
+    }
+
+    /** `URL` accepts `mailto:` and `javascript:` alike, and neither belongs in an `href`. */
+    private httpUrl(value: string | null): URL | null {
+        if (value === null) {
+            return null;
+        }
+        try {
+            const url = new URL(value);
+            return url.protocol === 'https:' || url.protocol === 'http:' ? url : null;
+        } catch {
+            return null;
+        }
+    }
 
   ngOnInit(): void {
     this.applicationDispatch.opened();

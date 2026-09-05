@@ -8,3 +8,10 @@
   border-color: var(--color-base-300);
   background-color: var(--color-base-100);
 }
+
+/* `sm` stands in a form row beside `input input-sm` fields. Four pixels shorter than the
+   controls next to it reads as a misalignment, not as a size. */
+.picker-sm {
+    min-height: 2rem;
+    padding-block: 0.25rem;
+}
