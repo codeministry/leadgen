@@ -9,6 +9,23 @@ may change in any release. See the status note in the README.
 
 ## [Unreleased]
 
+## [0.1.1] — 2026-09-05
+
+### Fixed
+
+- **The IMAP source handed over nothing from a mailbox its owner reads.** Spring
+  Integration's default `SearchTermStrategy` does not express "not already taken" in terms
+  of the user flag alone — it also excludes every message carrying `\Seen`. In the mailbox
+  this tool is pointed at, that is every message the owner has opened, so a run reported
+  zero documents with no error anywhere. Measured against a real mailbox: 165 mails in the
+  folder, 165 matching `NOT KEYWORD leadgen`, 0 matching the default term.
+
+  Not marking `\Seen` is pointless if progress is read off it, and "fewer offers" is
+  indistinguishable from a quiet day on the market — which is why this was invisible.
+  `ImapSourceConnector` now supplies its own search term: not deleted, and not carrying the
+  `leadgen` user flag. Every existing test delivered a fresh, unseen mail, so none of them
+  could see it; the new one marks the message read first.
+
 ## [0.1.0] — 2026-09-02
 
 The first public release. Everything below already existed; this is the point at which it
