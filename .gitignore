@@ -1,7 +1,11 @@
 # Personal data and credentials. The committed configuration under
 # backend/src/main/resources/leadgen/ names its values as ${PLACEHOLDERS}; the
 # values themselves live here and are never committed.
+#
+# `.env.*` as well, because a hand-made copy — .env.bak, .env.local, .env.old — carries
+# the same keys as the original and is exactly what gets committed by accident.
 .env
+.env.*
 !.env.example
 # Anchored with a leading slash, and that matters: an unanchored `config/`
 # matches a directory of that name at ANY depth, which silently swallowed every

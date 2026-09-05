@@ -16,13 +16,7 @@ import de.codeministry.leadgen.score.Judges;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseStatus;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 /**
  * Runs one ingest pass on demand. The scheduled run comes with the IMAP connector; until
@@ -74,6 +68,19 @@ public class IngestController {
      * configured. The sentence lists the ones that exist, because the usual cause is a
      * choice the browser kept in localStorage after it was removed from `.env`.
      */
+    /**
+     * 409 rather than 429 or a queued 202: the request is refused because of the state of
+     * the resource, not because the caller asked too often, and nothing is queued — a
+     * second pass is the same work done twice, not work waiting its turn. The browser shows
+     * the sentence; the CronJob's curl exits non-zero and the job is marked failed, which is
+     * the honest record of a night that skipped.
+     */
+    @ExceptionHandler(IngestService.AlreadyRunning.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    String alreadyRunning(IngestService.AlreadyRunning e) {
+        return e.getMessage();
+    }
+
     @ExceptionHandler(Judges.UnknownModel.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     String unknownModel(Judges.UnknownModel e) {

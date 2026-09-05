@@ -8,9 +8,6 @@
  */
 package de.codeministry.leadgen.web;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.BDDMockito.given;
-
 import de.codeministry.leadgen.analytics.LastRunQueryService;
 import de.codeministry.leadgen.analytics.LastRunSource;
 import de.codeministry.leadgen.analytics.LastRunView;
@@ -23,15 +20,19 @@ import de.codeministry.leadgen.ingest.IngestService;
 import de.codeministry.leadgen.ingest.SourceIngestResult;
 import de.codeministry.leadgen.packaging.PackageReport;
 import de.codeministry.leadgen.score.ScoringReport;
-import java.time.Instant;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
+
+import java.time.Instant;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.BDDMockito.given;
 
 /**
  * What the run endpoints actually put on the wire.
@@ -109,12 +110,27 @@ class IngestControllerTest {
                         new EnrichmentReport(12, 0, 12, 0, 0, 0),
                         new ScoringReport(12, 12, 0, 2, 3, 0),
                         null,
-                        new PackageReport(2, 2, 0, List.of())));
+                        new PackageReport(2, 2, 0, List.of()),
+                        Instant.parse("2026-09-05T06:12:00Z")));
 
         assertThat(mvc.post().uri("/api/ingest"))
                 .hasStatusOk()
                 .bodyJson()
                 .extractingPath("$.sources[0].details[0].complete")
                 .isEqualTo(true);
+    }
+
+    @Test
+    void answers409WhenAPassIsAlreadyRunning() throws Exception {
+        // Not 429 and not a queued 202: the request is refused because of the state of the
+        // resource, and nothing is queued — a second pass is the same work done twice. The
+        // CronJob's curl exits non-zero on this, which is the honest record of a night that
+        // skipped rather than a night that ran twice.
+        given(ingest.run(null)).willThrow(new IngestService.AlreadyRunning());
+
+        assertThat(mvc.post().uri("/api/ingest"))
+                .hasStatus(org.springframework.http.HttpStatus.CONFLICT)
+                .bodyText()
+                .contains("already in progress");
     }
 }

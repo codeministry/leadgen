@@ -1,11 +1,11 @@
-import { provideHttpClient } from '@angular/common/http';
-import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { TestBed } from '@angular/core/testing';
-import { injectDispatch } from '@ngrx/signals/events';
-import { IngestReport } from '@core/api/ingest.api';
-import { LastRunView } from '@core/model/last-run';
-import { ingestEvents } from './ingest.events';
-import { IngestStore } from './ingest.store';
+import {provideHttpClient} from '@angular/common/http';
+import {HttpTestingController, provideHttpClientTesting} from '@angular/common/http/testing';
+import {TestBed} from '@angular/core/testing';
+import {injectDispatch} from '@ngrx/signals/events';
+import {IngestReport} from '@core/api/ingest.api';
+import {LastRunView} from '@core/model/last-run';
+import {ingestEvents} from './ingest.events';
+import {IngestStore} from './ingest.store';
 
 /** A run this browser started, carrying the one thing a recorded run cannot: the document. */
 function report(): IngestReport {
@@ -25,10 +25,11 @@ function report(): IngestReport {
     written: 26,
     merged: 18,
     filtered: { removed: { ABROAD: 2 }, passed: 12, considered: 26 },
-    enriched: { considered: 12, enriched: 0, incomplete: 12, fromCache: 0, requests: 0 },
+      enriched: {considered: 12, enriched: 0, incomplete: 12, fromCache: 0, requests: 0, deferred: 0},
     scored: { considered: 12, scored: 12, unscored: 0, shortlisted: 2, review: 3, submitted: 0 },
     digest: null,
     packaged: { due: 2, built: 2, failed: 0, folders: [] },
+      finishedAt: '2026-09-05T06:12:00Z',
   };
 }
 

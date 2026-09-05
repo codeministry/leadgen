@@ -9,6 +9,27 @@ may change in any release. See the status note in the README.
 
 ## [Unreleased]
 
+### Fixed
+
+- **The scoring stage was one transaction, and it blocked every other run.** It held a write lock on each offer it had
+  judged until the last one was answered — with a local model, hours — and any concurrent pass's filter stage, which
+  writes a verdict on every row with no `WHERE`, waited behind it. Measured on the cluster: two filter updates blocked
+  for thirteen minutes behind a scoring transaction open for twenty, advancing one offer every 33 s, with a third run
+  stacked behind those. The boundary is now one offer, one transaction, which also means a run that dies halfway keeps
+  the scores it produced instead of none.
+- **The dashboard listed every source twice while a pass was running.** `source_run` has no run id, so its rows are
+  addressed by time, and the window had a lower bound and no upper one — on the reasoning that "no later run exists to
+  contribute rows above it", which holds only while nothing else is running. A run opens its `pipeline_run` row when it
+  starts now (`RUNNING`, zeros, no `finished_at`), so the next run's `started_at` is knowable and becomes the bound.
+  That column is the right one because it never moves;
+  `finished_at` is pushed forward by the batch collector. The old placement's intent survives — a row that claims
+  nothing cannot claim a clean pass, and a run that dies leaves it saying `RUNNING`, which is more honest than leaving
+  no trace.
+- **`POST /api/ingest` had no concurrency guard, so a second pass simply queued in the database.** It now answers `409`
+  and starts nothing. The CronJob's
+  `concurrencyPolicy: Forbid` never covered this: it governs only the jobs the CronJob itself creates, and the button is
+  how a run is normally started.
+
 ### Added
 
 - **A dev-image track, between "it built" and "it was released."** `ci.yml` builds both

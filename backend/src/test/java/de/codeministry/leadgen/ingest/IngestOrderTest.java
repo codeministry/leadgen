@@ -8,16 +8,6 @@
  */
 package de.codeministry.leadgen.ingest;
 
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.inOrder;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
 import de.codeministry.leadgen.analytics.PipelineRunRecorder;
 import de.codeministry.leadgen.archive.ArchiveReport;
 import de.codeministry.leadgen.archive.ArchiveService;
@@ -39,11 +29,17 @@ import de.codeministry.leadgen.packaging.PackageReport;
 import de.codeministry.leadgen.packaging.PackagingService;
 import de.codeministry.leadgen.score.ScoringReport;
 import de.codeministry.leadgen.score.ScoringService;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.*;
 
 /**
  * The order of the pipeline, pinned as a contract rather than as a comment.
@@ -109,6 +105,37 @@ class IngestOrderTest {
     }
 
     @Test
+    void refusesASecondPassWhileOneIsRunningRatherThanQueueingBehindIt() throws Exception {
+        // Every stage rewrites the same table — the filter writes a verdict on every row
+        // with no WHERE — so two passes contend for the same rows and the loser waits.
+        // Measured on the cluster before this guard existed: two filter updates blocked for
+        // thirteen minutes behind a scoring transaction open for twenty, with a third run
+        // stacked behind those. The CronJob's `concurrencyPolicy: Forbid` does not cover
+        // this, because it only governs the jobs the CronJob itself creates — and the
+        // button is how a run is normally started.
+        var inTheMiddle = new java.util.concurrent.CountDownLatch(1);
+        var mayFinish = new java.util.concurrent.CountDownLatch(1);
+        when(scoring.run(any())).thenAnswer(invocation -> {
+            inTheMiddle.countDown();
+            mayFinish.await(5, java.util.concurrent.TimeUnit.SECONDS);
+            return new ScoringReport(0, 0, 0, 0, 0, 0);
+        });
+
+        var first = java.util.concurrent.CompletableFuture.runAsync(() -> service.run(null));
+        assertThat(inTheMiddle.await(5, java.util.concurrent.TimeUnit.SECONDS)).isTrue();
+
+        assertThatThrownBy(() -> service.run(null))
+                .isInstanceOf(IngestService.AlreadyRunning.class)
+                .hasMessageContaining("already in progress");
+
+        mayFinish.countDown();
+        first.get(5, java.util.concurrent.TimeUnit.SECONDS);
+
+        // And the lock is released, so the next pass is not refused forever.
+        assertThatCode(() -> service.run(null)).doesNotThrowAnyException();
+    }
+
+    @Test
     void runsTheStagesInTheOrderTheirPlacementIsArguedFor() {
         service.run("some-model");
 
@@ -123,7 +150,7 @@ class IngestOrderTest {
         order.verify(scoring).run("some-model");
         order.verify(packaging).run();
         order.verify(digest).render(any());
-        order.verify(history).record(any(), any(), anyString(), any());
+        order.verify(history).record(any(), any(), any(), anyString(), any());
         order.verifyNoMoreInteractions();
     }
 
@@ -137,6 +164,9 @@ class IngestOrderTest {
         // the assertion is about reading, not about touching the object at all.
         verify(connector, never()).read(any(), org.mockito.ArgumentMatchers.anyLong());
         verify(dedupe, never()).run();
-        verify(history, never()).record(any(), any(), anyString(), any());
+        verify(history, never()).record(any(), any(), any(), anyString(), any());
+        // Not even opened: the model check is the first statement in the run, before the
+        // row that would otherwise sit there saying RUNNING for a pass that never began.
+        verify(history, never()).start(any(), anyString());
     }
 }

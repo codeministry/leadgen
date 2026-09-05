@@ -8,15 +8,16 @@
  */
 package de.codeministry.leadgen.analytics;
 
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.stereotype.Service;
+
+import javax.sql.DataSource;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import javax.sql.DataSource;
-import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.stereotype.Service;
 
 /**
  * The most recent run, read back from the two tables that survive it.
@@ -52,6 +53,7 @@ public class LastRunQueryService {
                    filter_considered, filter_passed,
                    scored, shortlisted, review, packaged, digest_written
             FROM pipeline_run
+                    WHERE finished_at IS NOT NULL
             ORDER BY started_at DESC, id DESC
             LIMIT 1
             """;
@@ -62,13 +64,18 @@ public class LastRunQueryService {
     /**
      * The source rows of that run, addressed by time because they carry no run id.
      *
-     * <p>{@code source_run} predates {@code pipeline_run} and has no foreign key to it. The
-     * window is therefore the join — and for <i>the newest</i> run a lower bound alone is
-     * exact, because a source row is written during the run that produced it and no later
-     * run exists to contribute rows above it. Bounding the top with {@code finished_at}
-     * would be the wrong fix as well as an unnecessary one: a batched run's
-     * {@code finished_at} is moved forward by the collector, so an upper bound would sweep
-     * in rows from whatever ran in between.
+     * <p>{@code source_run} predates {@code pipeline_run} and has no foreign key to it, so
+     * the window is the join. A lower bound alone used to be called exact, on the reasoning
+     * that "no later run exists to contribute rows above it" — which holds only while
+     * nothing else is running. Measured on the cluster: the panel listed every source twice,
+     * because a pass begun two minutes after the reported one had already written its rows
+     * and they fell inside an unbounded window.
+     *
+     * <p>The upper bound is the <b>next run's {@code started_at}</b>, and that column is the
+     * right one precisely because it never moves. {@code finished_at} would be the wrong
+     * fix, as it always was: a batched run's is pushed forward by the collector, so a window
+     * closed on it would sweep in whatever ran in between. Since {@code V15} a run opens its
+     * row when it starts, so the next run's start is knowable even while it is still going.
      *
      * <p>Joined to {@code source} for the name, which is the id the report and the screens
      * speak in. The numeric key is the database's business.
@@ -79,6 +86,9 @@ public class LastRunQueryService {
             FROM source_run r
             JOIN source s ON s.id = r.source_id
             WHERE r.ran_at >= :startedAt
+                      AND r.ran_at < COALESCE(
+                            (SELECT min(started_at) FROM pipeline_run WHERE started_at > :startedAt),
+                            'infinity'::timestamptz)
             ORDER BY s.name
             """;
 

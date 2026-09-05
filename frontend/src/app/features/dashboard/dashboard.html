@@ -66,12 +66,15 @@
   }
 
   @if (hasRun()) {
-    <!-- Which run this is. A recorded one says when it finished, because without that the
-         reader cannot tell tonight's scheduled pass from their own click; a run started
-         here needs no timestamp, they watched it happen. -->
-    @if (recordedAt(); as when) {
+      <!-- When this run finished, always. A recorded one additionally says that nothing was
+           started here, which is what explains the missing per-document detail below. -->
+      @if (finishedAt(); as when) {
       <p class="type-small text-muted panel-note">
-        {{ 'dashboard.recordedRun' | transloco: { when } }}
+          @if (showingRecordedRun()) {
+              {{ 'dashboard.recordedRun' | transloco: {when} }}
+          } @else {
+              {{ 'dashboard.finishedRun' | transloco: {when} }}
+          }
       </p>
     }
 
@@ -126,7 +129,7 @@
     <!-- Only a run this browser started carries the per-document breakdown. The recorded
          one is not missing it by accident, and saying so beats a column that is always a
          dash for reasons nobody can see. -->
-    @if (recordedAt() !== null) {
+      @if (showingRecordedRun()) {
       <p class="type-small text-muted panel-note">
         {{ 'dashboard.recordedRunLimits' | transloco }}
       </p>

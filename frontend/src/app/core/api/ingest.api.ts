@@ -1,8 +1,8 @@
-import { HttpClient } from '@angular/common/http';
-import { Injectable, inject } from '@angular/core';
-import { Observable } from 'rxjs';
-import { LastRunView } from '@core/model/last-run';
-import { scoringModelParams } from './scoring-model-param';
+import {HttpClient} from '@angular/common/http';
+import {inject, Injectable} from '@angular/core';
+import {Observable} from 'rxjs';
+import {LastRunView} from '@core/model/last-run';
+import {scoringModelParams} from './scoring-model-param';
 
 /** Mirrors `de.codeministry.leadgen.ingest.DocumentIngestResult`. */
 export interface DocumentIngestResult {
@@ -39,6 +39,11 @@ export interface EnrichmentReport {
   readonly fromCache: number;
   /** Actual HTTP requests for ads, robots.txt excluded. */
   readonly requests: number;
+    /**
+     * Turned away by the rate limiter. Nothing was written for these, so they are due again
+     * on the next pass — which is the whole difference between this and `incomplete`.
+     */
+    readonly deferred: number;
 }
 
 /** Mirrors `de.codeministry.leadgen.score.ScoringReport`. */
@@ -72,6 +77,12 @@ export interface PackageReport {
 
 export interface IngestReport {
   readonly sources: readonly SourceIngestResult[];
+    /**
+     * When the run ended, as an ISO instant in UTC. The panel needs it for the same reason
+     * `LastRunView` carries it: without a time, a pass that ran for three hours and a click
+     * from a minute ago read identically.
+     */
+    readonly finishedAt: string;
   readonly extracted: number;
   /** Rows touched, insert or update alike. Lower than `extracted` when a listing repeats. */
   readonly written: number;

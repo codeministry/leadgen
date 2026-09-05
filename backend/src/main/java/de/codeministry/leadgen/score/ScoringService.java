@@ -12,13 +12,14 @@ import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.config.ConfigSnapshot;
 import de.codeministry.leadgen.config.model.MatchingRules;
 import de.codeministry.leadgen.config.model.PipelineConfig;
-import java.util.List;
-import java.util.Optional;
-import javax.sql.DataSource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import javax.sql.DataSource;
+import java.util.List;
+import java.util.Optional;
 
 /**
  * Turns what survived the filter into a ranked shortlist, with the reason behind every
@@ -145,7 +146,15 @@ public class ScoringService {
      *     bill: one full pass at the chosen model's price, every time the choice changes.
      * @throws Judges.UnknownModel when the model is not one of the configured ones.
      */
-    @Transactional
+    /**
+     * <b>Deliberately not {@code @Transactional}.</b> The stage writes one offer at a time
+     * and each write is its own transaction — see {@link ScoreWriter#write}. Wrapping the
+     * loop instead holds a write lock on every offer already judged until the last one is
+     * answered, which with a local model is hours, and every concurrent run's filter stage
+     * blocks behind it. There is nothing here to make atomic across offers: a partially
+     * scored shortlist is a correct shortlist with fewer scores in it, and the staleness
+     * guard finds the rest on the next pass.
+     */
     public ScoringReport run(String requestedModel) {
         ConfigSnapshot snapshot = config.snapshot();
         MatchingRules rules = snapshot.rules();
