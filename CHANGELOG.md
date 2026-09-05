@@ -26,6 +26,20 @@ may change in any release. See the status note in the README.
   `leadgen` user flag. Every existing test delivered a fresh, unseen mail, so none of them
   could see it; the new one marks the message read first.
 
+### Upgrading
+
+Nothing to configure. The first run after this release hands over the whole backlog the
+old search term was hiding, bounded only by the source's `selector.since_days` — on the
+mailbox this was measured against, 138 newsletters announcing 14,241 offers, where every
+previous run had reported zero. That pass is long and it is a one-off; the runs after it
+see only what has arrived since.
+
+What it costs is decided by `hard_filters.freshness.max_age_days`, not by `since_days`.
+The archive pass sits between the hard filter and enrichment, so everything older than
+that window is read, deduplicated, filtered and archived without ever reaching the stage
+that leaves the machine or the one that calls a language model. Check that number before
+the first run rather than after it.
+
 ## [0.1.0] — 2026-09-02
 
 The first public release. Everything below already existed; this is the point at which it
