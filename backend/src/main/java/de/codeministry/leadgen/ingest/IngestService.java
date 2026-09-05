@@ -24,13 +24,14 @@ import de.codeministry.leadgen.ingest.extract.OfferMapper;
 import de.codeministry.leadgen.ingest.store.OfferStore;
 import de.codeministry.leadgen.packaging.PackagingService;
 import de.codeministry.leadgen.score.ScoringService;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
 
 /**
  * Runs one pass over every enabled source: fetch, extract, store.
@@ -108,7 +109,45 @@ public class IngestService {
      *     made next to the button that starts the pass, and nothing about it outlives the
      *     request. See {@link ScoringService#run(String)} for what changing it costs.
      */
+    /**
+     * Thrown when a pass is already running. Not a queue: a second run is not work waiting
+     * its turn, it is the same work done twice.
+     */
+    public static class AlreadyRunning extends RuntimeException {
+        public AlreadyRunning() {
+            super("an ingest run is already in progress; this one was not started");
+        }
+    }
+
+    /**
+     * One pass at a time, and this is not caution.
+     *
+     * <p>Every stage rewrites the same table: the filter alone writes a verdict on all
+     * 13,716 rows with no {@code WHERE}, because the rules are hot-reloadable and a partial
+     * re-judge would split the archive across two rule sets. Two passes therefore contend
+     * for the same rows, and the loser waits — measured on the cluster, thirteen minutes
+     * behind a scoring transaction, with a third run stacked behind that.
+     *
+     * <p>The CronJob's {@code concurrencyPolicy: Forbid} covers only the jobs the CronJob
+     * itself creates. It says nothing about the button, and the button is how a run is
+     * normally started.
+     */
+    private final java.util.concurrent.locks.ReentrantLock pass = new java.util.concurrent.locks.ReentrantLock();
+
     public IngestReport run(String scoringModel) {
+        // tryLock, never lock: a caller that waits is a request held open for hours, and
+        // the answer it eventually gets is a report about somebody else's run.
+        if (!pass.tryLock()) {
+            throw new AlreadyRunning();
+        }
+        try {
+            return runOnce(scoringModel);
+        } finally {
+            pass.unlock();
+        }
+    }
+
+    private IngestReport runOnce(String scoringModel) {
         // Before anything else, because scoring is the last stage: checked only there, a
         // name nobody configured is refused after the sources have been read, the
         // duplicates clustered, the filter applied and the surviving ads fetched from
@@ -117,6 +156,11 @@ public class IngestService {
         // Captured before anything runs: the row this ends in states how long the run
         // took, and `now()` at the end would state only when it stopped.
         var startedAt = java.time.Instant.now();
+        // The row is opened here rather than written at the end, and the intent behind the
+        // old placement survives: it says RUNNING and carries zeros, so it claims nothing.
+        // What it buys is that a run in flight is visible to the next one — without it the
+        // dashboard's source window has no upper bound and lists every source twice.
+        var runId = history.start(startedAt, scoringModel);
         // Where the time went, collected as the run goes and written with the history row at
         // the end. A run whose counts look ordinary can still have spent four minutes in
         // enrichment because one portal was slow, and nothing in the counts says so.
@@ -165,11 +209,22 @@ public class IngestService {
         var packages = stages.time("PACKAGE", packaging::run);
         var written = stages.time(
                 "DIGEST", () -> digest.render(java.time.LocalDate.now()).orElse(null));
-        var report = new IngestReport(results, deduplicated, filtered, archived, enriched, scored, written, packages);
+        // `now()` here and not `startedAt`: the panel answers "when did this finish", the
+        // history row answers "how long did it take", and they are different questions.
+        var report = new IngestReport(
+                results,
+                deduplicated,
+                filtered,
+                archived,
+                enriched,
+                scored,
+                written,
+                packages,
+                java.time.Instant.now());
         // After the work, never before it: a run that failed halfway must not leave a row
         // claiming a clean pass. The same placement rule the per-source row follows, and
         // the recorder cannot throw — a history row is worth less than the run.
-        history.record(report, startedAt, scoringModel, stages.timings());
+        history.record(runId, report, startedAt, scoringModel, stages.timings());
         return report;
     }
 

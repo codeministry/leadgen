@@ -8,10 +8,6 @@
  */
 package de.codeministry.leadgen.analytics;
 
-import static org.assertj.core.api.Assertions.assertThatCode;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-
 import de.codeministry.leadgen.archive.ArchiveReport;
 import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.enrich.EnrichmentReport;
@@ -20,12 +16,17 @@ import de.codeministry.leadgen.ingest.IngestReport;
 import de.codeministry.leadgen.packaging.PackageReport;
 import de.codeministry.leadgen.score.Judges;
 import de.codeministry.leadgen.score.ScoringReport;
+import org.junit.jupiter.api.Test;
+
+import javax.sql.DataSource;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
-import javax.sql.DataSource;
-import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * The recorder cannot take a run down with it.
@@ -49,7 +50,8 @@ class PipelineRunRecorderTest {
             new EnrichmentReport(0, 0, 0, 0, 0, 0),
             new ScoringReport(0, 0, 0, 0, 0, 0),
             null,
-            new PackageReport(0, 0, 0, List.of()));
+            new PackageReport(0, 0, 0, List.of()),
+            Instant.EPOCH);
 
     @Test
     void swallowsADatabaseThatWillNotAnswerRatherThanEndingTheRun() throws SQLException {
@@ -58,7 +60,8 @@ class PipelineRunRecorderTest {
 
         var recorder = new PipelineRunRecorder(broken, mock(ConfigRegistry.class), mock(Judges.class));
 
-        assertThatCode(() -> recorder.record(REPORT, Instant.now(), "some-model", List.of()))
+        assertThatCode(() ->
+                recorder.record(java.util.OptionalLong.empty(), REPORT, Instant.now(), "some-model", List.of()))
                 .doesNotThrowAnyException();
     }
 }

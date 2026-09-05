@@ -14,6 +14,7 @@ import de.codeministry.leadgen.filter.FilterReport;
 import de.codeministry.leadgen.packaging.PackageReport;
 import de.codeministry.leadgen.score.ScoringReport;
 import java.nio.file.Path;
+import java.time.Instant;
 import java.util.List;
 
 /**
@@ -34,6 +35,11 @@ import java.util.List;
  *     never a message: the tool has no send path at all.
  * @param packaged the folders built for everything above the shortlist threshold. Folders
  *     on disk, for the same reason.
+ * @param finishedAt when the run ended. Present for the same reason {@code LastRunView}
+ *     carries it: without a time on the panel, a pass that ran for three hours and one
+ *     that was clicked a minute ago read identically. The start is deliberately not here
+ *     — the history row keeps it, and a duration nobody asked for is a second number to
+ *     explain on a screen that answers "what came in this morning".
  */
 public record IngestReport(
         List<SourceIngestResult> sources,
@@ -43,7 +49,8 @@ public record IngestReport(
         EnrichmentReport enriched,
         ScoringReport scored,
         Path digest,
-        PackageReport packaged) {
+        PackageReport packaged,
+        Instant finishedAt) {
 
     public int extracted() {
         return sources.stream().mapToInt(SourceIngestResult::extracted).sum();

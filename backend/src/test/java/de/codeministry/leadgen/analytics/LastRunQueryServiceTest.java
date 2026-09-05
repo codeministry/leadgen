@@ -8,12 +8,7 @@
  */
 package de.codeministry.leadgen.analytics;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 import de.codeministry.leadgen.config.ConfigFixtures;
-import java.sql.Timestamp;
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,6 +20,12 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+
+import java.sql.Timestamp;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * What the dashboard reads when nobody has pressed the button in this browser.
@@ -144,6 +145,35 @@ class LastRunQueryServiceTest {
     }
 
     @Test
+    void leavesAStillRunningPassOutOfTheOneItReports() {
+        // The defect this replaced: the window had a lower bound and no upper one, on the
+        // reasoning that "no later run exists to contribute rows above it". A pass in flight
+        // breaks exactly that. Measured on the cluster — the panel listed every source twice,
+        // because rows from a run begun two minutes later fell inside the reported one.
+        //
+        // The bound is the next run's `started_at`, and that column is the right one because
+        // it never moves. `finished_at` does: the batch collector pushes it forward.
+        Instant reported = Instant.now().minus(10, ChronoUnit.MINUTES);
+        run(reported, reported.plusSeconds(60), "COMPLETE", "reported");
+        sourceRun(sourceId, reported.plusSeconds(5), 5, 169, 151, 169);
+
+        // Still going: a row, no finished_at, and its source rows already written.
+        Instant inFlight = Instant.now().minus(2, ChronoUnit.MINUTES);
+        open(inFlight);
+        sourceRun(sourceId, inFlight.plusSeconds(5), 3, 42, 42, 42);
+
+        var last = runs.lastRun().orElseThrow();
+
+        // The finished one is reported, not the open one — a run that has done nothing yet
+        // would put zeros on the dashboard under the heading "last run".
+        assertThat(last.scoreModel()).isEqualTo("reported");
+        assertThat(last.sources()).singleElement().satisfies(source -> {
+            assertThat(source.documents()).isEqualTo(5);
+            assertThat(source.extracted()).isEqualTo(169);
+        });
+    }
+
+    @Test
     void reportsASourceThatExtractedFewerOffersThanItAnnounced() {
         // The one check nothing else can make. A selector that stops matching loses offers,
         // and fewer offers is indistinguishable from a quiet day on the market.
@@ -176,6 +206,24 @@ class LastRunQueryServiceTest {
 
     private void stage(long runId, String stage, int removed) {
         jdbc.update("INSERT INTO pipeline_run_stage (run_id, stage, removed) VALUES (?, ?, ?)", runId, stage, removed);
+    }
+
+    /**
+     * The row a run opens with: RUNNING, zeros, and no finished_at. See V15.
+     */
+    private void open(Instant startedAt) {
+        jdbc.update(
+                """
+                        INSERT INTO pipeline_run (
+                            started_at, ruleset_version, score_model, status,
+                            documents, extracted, written, merged,
+                            filter_considered, filter_passed,
+                            enrich_considered, enriched, incomplete, from_cache, requests,
+                            score_considered, scored, unscored, shortlisted, review, submitted,
+                            packaged, digest_written)
+                        VALUES (?, '1', 'in-flight', 'RUNNING', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, false)
+                        """,
+                Timestamp.from(startedAt));
     }
 
     private void sourceRun(long source, Instant ranAt, int documents, int extracted, int written, Integer announced) {

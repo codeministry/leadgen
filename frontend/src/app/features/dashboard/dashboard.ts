@@ -1,17 +1,17 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject } from '@angular/core';
-import { injectDispatch } from '@ngrx/signals/events';
-import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
-import { applicationEvents } from '@core/store/applications.events';
-import { shortlistEvents } from '@core/store/shortlist.events';
-import { ShortlistStore } from '@core/store/shortlist.store';
-import { ApplicationsStore } from '@core/store/applications.store';
-import { IngestStore } from '@core/store/ingest.store';
-import { Badge } from '@shared/badge/badge';
-import { EmptyState } from '@shared/empty-state/empty-state';
-import { FunnelRail } from '@shared/funnel-rail/funnel-rail';
-import { Icon } from '@shared/icon/icon';
-import { PageHeader } from '@shared/page-header/page-header';
-import { StatTile } from '@shared/stat-tile/stat-tile';
+import {ChangeDetectionStrategy, Component, computed, inject, OnInit} from '@angular/core';
+import {injectDispatch} from '@ngrx/signals/events';
+import {TranslocoPipe, TranslocoService} from '@jsverse/transloco';
+import {applicationEvents} from '@core/store/applications.events';
+import {shortlistEvents} from '@core/store/shortlist.events';
+import {ShortlistStore} from '@core/store/shortlist.store';
+import {ApplicationsStore} from '@core/store/applications.store';
+import {IngestStore} from '@core/store/ingest.store';
+import {Badge} from '@shared/badge/badge';
+import {EmptyState} from '@shared/empty-state/empty-state';
+import {FunnelRail} from '@shared/funnel-rail/funnel-rail';
+import {Icon} from '@shared/icon/icon';
+import {PageHeader} from '@shared/page-header/page-header';
+import {StatTile} from '@shared/stat-tile/stat-tile';
 
 /**
  * One row of the run table, from either kind of run.
@@ -115,16 +115,19 @@ export class Dashboard implements OnInit {
   );
 
   /**
-   * When the recorded run finished, on the reader's own clock.
+   * When the run on screen finished, on the reader's own clock — whichever run it is.
    *
-   * <p>The reason this panel is worth loading from the server at all: without it the reader
-   * cannot tell tonight's pass from their own click. `finishedAt` is an ISO instant in UTC,
-   * and slicing the string would show an 08:47 run as 06:47 — the same trap the runs panel
-   * documents. The locale follows the chosen language, because 09/02 and 02.09. are the
-   * same day written for two readers.
+   * <p>It used to be filled only for a recorded run, on the reasoning that somebody who had
+   * just clicked the button watched it happen. That holds for the minute after the click and
+   * not afterwards: a pass over the standing backlog runs for hours, the tab stays open, and
+   * the panel then said nothing at all about when the numbers on it were true.
+   *
+   * <p>`finishedAt` is an ISO instant in UTC, and slicing the string would show an 08:47 run
+   * as 06:47 — the same trap the runs panel documents. The locale follows the chosen
+   * language, because 09/02 and 02.09. are the same day written for two readers.
    */
-  protected readonly recordedAt = computed<string | null>(() => {
-    const finishedAt = this.ingest.showingRecordedRun() ? this.ingest.lastRun()?.finishedAt : null;
+  protected readonly finishedAt = computed<string | null>(() => {
+      const finishedAt = this.ingest.report()?.finishedAt ?? this.ingest.lastRun()?.finishedAt ?? null;
     return finishedAt
       ? new Intl.DateTimeFormat(this.transloco.getActiveLang(), {
           dateStyle: 'short',
@@ -132,6 +135,13 @@ export class Dashboard implements OnInit {
         }).format(new Date(finishedAt))
       : null;
   });
+
+    /**
+     * Whether that run is one this browser watched. Only the sentence changes: a recorded run
+     * additionally says nothing was started here, which is what explains the missing
+     * per-document detail below it.
+     */
+    protected readonly showingRecordedRun = this.ingest.showingRecordedRun;
 
   /**
    * Counted from `filter_stage` on the offers themselves, which is why the rail can be

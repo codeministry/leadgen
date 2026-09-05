@@ -623,6 +623,16 @@ be rude to the portals and slow for nothing.
   configure — and it is not merely useless: it builds every model the module knows at boot, so
   the OpenAI starter failed the whole context with "At least one credential source must be
   specified" while constructing an *audio speech* model this application will never call.
+- **One offer, one transaction — and the stage is deliberately not one.** `ScoringService.run`
+  carries no `@Transactional`; `ScoreWriter.write` does, because the three statements behind a single score have to
+  commit together. Wrapping the loop instead holds a write lock on every offer already judged until the last is
+  answered, which with a local model is hours, and the filter stage of any concurrent run writes a verdict on all rows
+  with no `WHERE` — so it waits behind it. Measured: two filter updates blocked thirteen minutes behind a scoring
+  transaction open for twenty. `ScoringTransactionBoundaryTest` pins both annotations, because a passing run reveals
+  nothing about which one is missing.
+- **A pass refuses to start while one is running.** `IngestService` holds a `tryLock` and answers `409`, never a queue:
+  a second pass is the same work done twice, and a caller that waits is a request held open for hours. The CronJob's
+  `concurrencyPolicy: Forbid` governs only the jobs the CronJob creates and says nothing about the button.
 - **The batch path is still hand-rolled HTTP, deliberately.** Spring AI 2.0 has no batch
   abstraction; the SDK underneath has one only behind `client.beta()`, and taking it would
   rebuild the request as typed params and rewrite four JSONL tests to reach the same two
@@ -901,6 +911,14 @@ screen reads one of these, and none of them writes.
   **It cannot be verified in a backgrounded tab** — Chrome suspends the observer there, and
   the measurement comes back as a confident "nothing loaded". Measured through the
   Interceptor skill's `Tools/VerifyViewport.ts`: 50 offers, then 100 after scrolling.
+- **A run opens its `pipeline_run` row when it starts, not when it ends.** The row says
+  `RUNNING` and carries zeros, so it claims nothing — which is what the old "written last"
+  placement was protecting. What it buys: `source_run` has no run id, so its rows are addressed by time, and the
+  reported run's window is closed by the **next run's
+  `started_at`**. Without a row at the start there was no upper bound, and a pass in flight put its rows inside the last
+  finished run's window — measured, every source listed twice. The bound is `started_at` and never `finished_at`,
+  because the batch collector moves the latter forward. `lastRun()` reports finished runs only; a `RUNNING` row on the
+  dashboard would be zeros under the heading "last run".
 - **`source_run` exists because nothing else can answer the announced-versus-extracted
   question.** The number of documents and the count a document announces about itself leave
   no trace in the `offer` table, and that comparison is the one check nothing else can make.
