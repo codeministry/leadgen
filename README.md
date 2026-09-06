@@ -68,11 +68,11 @@ is *configured* to run after it — the loader refuses any other value.
 ## How it works
 
 ```
-Sources ─▶ Ingest ─▶ Extract ─▶ Dedupe ─▶ Filter ─▶ Archive ─▶ Enrich ─▶ Score ─▶ Package ─▶ Digest
-                                                        │          │         │
-                              free, deterministic ──────┘          │         │
-                                        the only stage that leaves ┘         │
-                                                the only stage that costs money
+Sources ─▶ Ingest ─▶ Extract ─▶ Dedupe ─▶ Filter ─▶ Archive ─▶ Enrich ─▶ Content ─▶ Score ─▶ Package ─▶ Digest
+                                          │                    │         │
+                      free, deterministic ┘                    │         │
+                        the only stage that leaves the machine ┘         │
+                                    this and scoring are what cost money ┘
 ```
 
 Two rules decide the shape of everything above.
@@ -80,9 +80,14 @@ Two rules decide the shape of everything above.
 **Rules before model.** Six deterministic knockout stages run first, in a fixed order,
 with no network and no language model: abroad → remote share → out of reach → role or
 stack → no core skill → contract form. An offer stops at the first rejection and carries
-that verdict, so the funnel adds up and you can always ask why something is missing.
-Without an API key the tool still runs; it loses the score total and the cover letter,
-nothing else.
+that verdict, so the funnel adds up and you can always ask why something is missing. Without an API key the tool still
+runs; it loses the score total and the cover letter, and an advert is shown as the portal wrapped it — nothing else.
+
+The one place that inverts is **content segmentation**, and deliberately. A fetched page carries the portal with it, and
+the part that costs most — the recruiter's standing signature, buried inside the advert's own text — is unreachable by
+any selector. So there the model decides and the deterministic half is a cache in front of it: every block is hashed, a
+decision is remembered by that hash, and a portal's repeated furniture is paid for once and free for the eleven thousand
+adverts that repeat it. Nothing is ever hidden without a positive decision, so no key means nothing is hidden at all.
 
 **Nothing is wired in.** Not one CSS selector, keyword, weight or portal is written in
 Java. A new offer source is a block of YAML, including its extraction rules down to the
@@ -112,15 +117,15 @@ weights, and enrichment has nothing to fetch because the invented URLs do not re
 
 ## The screens
 
-|                                                          |                                                                                                                                                                                                                                                                   |
-|----------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| ![Shortlist](docs/screenshots/shortlist-light.png)       | **Shortlist** — what cleared the hard filter, each entry carrying the reason it scored what it scored, with duplicate portals collapsed into one row. The list keeps its place on the left while the offer opens beside it; reading one no longer costs the list. |
-| ![Offer detail](docs/screenshots/offer-detail-light.png) | **Offer detail** — the same screen, further down its reading column: every score reason against what was attainable, the extracted fields, the application package and the status control.                                                                        |
-| ![Pipeline board](docs/screenshots/pipeline-light.png)   | **Pipeline** — the half of the loop the tool cannot see. Nothing is sent from here, so everything here is recorded by hand.                                                                                                                                       |
-| ![Analytics](docs/screenshots/analytics-light.png)       | **Analytics** — what the market is doing, and what the rules are doing to it.                                                                                                                                                                                     |
-| ![Sources](docs/screenshots/sources-dark.png)            | **Sources** — the configuration rather than the database, so a source that has never run still shows up; and where a Markdown file enters the pipeline by hand.                                                                                                   |
-| ![Rules](docs/screenshots/rules-dark.png)                | **Rules** — the hard filter, the weights and the thresholds behind every number on the shortlist.                                                                                                                                                                 |
-| ![Review](docs/screenshots/review-light.png)             | **Review** — an upload becomes an offer only once somebody has seen what was read from it.                                                                                                                                                                        |
+|                                                          |                                                                                                                                                                                                                                                                                                                     |
+|----------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| ![Shortlist](docs/screenshots/shortlist-light.png)       | **Shortlist** — what cleared the hard filter, each entry carrying the reason it scored what it scored, with duplicate portals collapsed into one row. The list keeps its place on the left while the offer opens beside it; reading one no longer costs the list.                                                   |
+| ![Offer detail](docs/screenshots/offer-detail-light.png) | **Offer detail** — the same screen, further down its reading column: every score reason against what was attainable, the extracted fields, the application package and the status control. The portal's own furniture is folded away behind a line saying how much of it there was, and opens again where it stood. |
+| ![Pipeline board](docs/screenshots/pipeline-light.png)   | **Pipeline** — the half of the loop the tool cannot see. Nothing is sent from here, so everything here is recorded by hand.                                                                                                                                                                                         |
+| ![Analytics](docs/screenshots/analytics-light.png)       | **Analytics** — what the market is doing, and what the rules are doing to it.                                                                                                                                                                                                                                       |
+| ![Sources](docs/screenshots/sources-dark.png)            | **Sources** — the configuration rather than the database, so a source that has never run still shows up; and where a Markdown file enters the pipeline by hand.                                                                                                                                                     |
+| ![Rules](docs/screenshots/rules-dark.png)                | **Rules** — the hard filter, the weights and the thresholds behind every number on the shortlist, and the prompts as this configuration actually renders them: what the model is asked is the other half of what a score means.                                                                                                                                                                                                                   |
+| ![Review](docs/screenshots/review-light.png)             | **Review** — an upload becomes an offer only once somebody has seen what was read from it.                                                                                                                                                                                                                          |
 
 ## Configuration
 
@@ -162,9 +167,14 @@ about.
   are read, logged and skipped. And the fingerprint is the normalized title alone, so two
   genuinely different projects that share a title do merge; the fields that would tell them
   apart come from enrichment, which runs later.
-- **The LLM is used for four factors only** — role fit and three penalties. `llm.models`
-  lists `extraction`, `writing` and `embedding`; none of the three is read today, and the
-  shipped file says so.
+- **The LLM is asked two questions and no more** — the four scoring factors (role fit and three penalties), and which
+  blocks of a fetched advert are not the advert. Both read
+  `llm.models.scoring`; `llm.models` also lists `extraction`, `writing` and `embedding`, and none of those three is read
+  today. The shipped file says so.
+- **Content segmentation caches a decision per block, so a mixed block is its weak spot.** A block that is nine parts
+  portal furniture and one part per-offer text never repeats, so it never gets a cache hit and costs one model call per
+  advert. Its counters are logged and written per offer but are not yet in `pipeline_run`, so the dashboard does not
+  show them.
 - **The batched scoring path is hand-written HTTP.** Spring AI has no batch abstraction, so
   the half-price asynchronous path talks to the provider directly while the synchronous one
   goes through `ChatClient`. Two mechanisms for one question, and it is the reason the

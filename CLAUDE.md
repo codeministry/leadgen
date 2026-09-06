@@ -673,6 +673,8 @@ be rude to the portals and slow for nothing.
 - **Every enriched column is nullable and null means "not stated", never zero.** The whole
   reason this stage exists is that the newsletter states a rate in 0.0 % of offers, so a
   missing value has to stay distinguishable from a low one.
+- **`full_text` is what the page contained, not what the advert says.** The difference is read by the next stage — see §
+  *Content segmentation* — and this one deliberately does not narrow it: a fetch is the record of what was there.
 - **The page cache lives in Postgres.** The TTL is a week, the container has no volume for
   a scratch directory, and a cache that does not survive a restart turns a rate limit into
   a promise nobody keeps.
@@ -872,6 +874,84 @@ be rude to the portals and slow for nothing.
   channel — and no schedule of its own either: whatever schedules the run schedules the
   digest, and a cron nothing reads would be one more key that lies. An unscored offer gets
   its own heading rather than being sorted to the bottom of a ranking that does not exist.
+
+## Content segmentation
+
+`backend/…/content/`, between enrichment and scoring. Which parts of a fetched advert are the advert.
+
+- **It is a fix to the score before it is a fix to the screen.** `RuleScorer` folds
+  `title + description + <the ad>` into one haystack and the judge is handed the same text, so a portal's own tag
+  cloud — sixty technology names taken from the site's taxonomy rather than from the client's requirements — counted as
+  skill overlap and moved offers onto the shortlist. Measured on offer 13690. The screen being three times too long is
+  the visible half of the same defect.
+- **The model is the authority; determinism is a cache in front of it, not a filter above it.** The obvious arrangement
+  is the wrong way round here and the corpus says why:
+  freelancermap is 11,689 of 13,240 offers and 100 % of what is enriched, so a per-portal selector table is a
+  maintenance bet on one site's markup — and a selector that stops matching fails *silently*, which reads as a cleaner
+  advert. Every block is normalised and hashed instead; a known digest is free, an unknown one costs one model call and
+  is free from then on. **New furniture is noticed by construction rather than mislabelled in silence.**
+- **The part that costs the most is unreachable by any selector.** The recruiter's own signature — postal address,
+  `Amtsgericht … HRB …`, the privacy link, "Weitere interessante Projekte finden Sie in unserer LinkedIn Gruppe" — sits
+  *inside* the description container and differs per agency. That is what the model is for; the portal chrome around it
+  is what the rules and the cache are for.
+- **Fail open, always.** A block no rule matched, that the cache does not know and that no model answered about stays
+  `CONTENT` and stays on the screen. `content_undecided` counts those, and it is the number to watch: it is what a
+  changed markup looks like from here.
+- **A narrower `full_text` selector was measured and not taken.** `.project-body-description`
+  exists on the sample source and would remove the whole header structurally — but
+  `AdExtractor` uses `document.selectFirst`, and a comma-separated selector is a union whose first match is decided by
+  **document order, not by selector order**. Adding the narrow one to the existing list therefore changes nothing while
+  looking like it should, and replacing the list outright makes every portal without that class yield no `full_text` at
+  all. One mechanism was the better answer than one and a half.
+- **`content_block_label` is scoped by portal and deliberately not keyed by the model.** A score is a scale, so two
+  judges are two scales and a model change makes every score stale. A label is a fact about a paragraph: once decided it
+  stands, and re-labelling is a deliberate act — truncate the table, null `content_at` — never something a configuration
+  edit triggers. The `sample` column is the first 200 characters, because a table of hashes nobody can audit is a table
+  nobody trusts.
+- **`content_at` is stamped only when the pass is finished with the offer.** A model that was configured and did not
+  answer leaves it null, so the offer comes back; no model configured stamps it, because rules-only is a legitimate
+  terminal state and not a failure to retry. The second half of the due query is `content_model IS NULL` — the same
+  self-healing shape
+  `score_model IS NULL` already has, so configuring a key at five in the afternoon makes the standing backlog due with
+  no migration.
+- **Scoring is made to re-read by nulling `score_model`,** and only when something was actually taken out. That is the
+  mechanism already documented as self-healing rather than a fourth staleness criterion invented for the scoring stage,
+  and an advert that is all advert costs no re-judge. The price is one full re-judge of the standing shortlist on the
+  first pass, which is what fixing a corrupted score costs.
+- **The blocks carry their text inline in `offer.content_blocks`, and `full_text` is never edited.** A second copy per
+  offer buys three things: the browser needs no splitter of its own, so there is no second implementation to drift; the
+  indices cannot slip; and a later change of mind in the shared cache cannot rewrite what was decided for an advert
+  somebody has already read. `offer-archive.ftl` still prints `full_text` — the archive is the original as fetched, and
+  that is the point of it.
+- **The blocks are on `ShortlistEntry` and populated by the detail query alone.** The list uses the same row mapper, and
+  a block list riding along would put a second copy of every advert into a response this repository already measures in
+  megabytes.
+- **A block is a Markdown block, and two boundaries are forced that Markdown does not force.**
+  A heading always starts one, and so does a list's first item — without the second rule the sample corpus yields the
+  company link, the contact, the meta row and both buttons as a single paragraph, because flexmark writes those as hard
+  breaks inside one.
+- **The honest limit: a block that is nine parts boilerplate and one part per-offer text never repeats and never gets a
+  cache hit.** On the sample source that is the report dialog with the advert's taxonomy line glued to its end. It costs
+  one model call per advert, which is the budget anyway.
+- **`content.rules` are an optimisation, not the mechanism**, and every one of them is anchored or specific on purpose.
+  A loose pattern here does not produce a wrong label, it hides a paragraph of somebody's advert — a bare `datenschutz`
+  would delete exactly the offers this tool is looking for. `apply now\s+save to watchlist` and not either word alone,
+  for the same reason and because a block arrives as one line.
+- **The classifier reads `llm.models.scoring`.** A `models.content` key would mean a second allowlist, a second entry in
+  the run history and a second select in the header, for a bounded classifier answering three lines of JSON. One key
+  that two stages read keeps the "an unread
+  `models.*` key is a lie" rule true; the shipped file says so.
+- **Which classifier answers is not a parameter of the run**, unlike the judge. Two judges are two scales and comparing
+  them is the point; a label is a fact about a paragraph, so there is nothing to compare and nothing worth letting a
+  request decide.
+- **`llm/ChatModels` and `llm/Answers` are the seam both stages share.** The sync/async client pair, the `textOf` that
+  joins *every* generation (a thinking block is its own generation) and the brace-scan `objectIn` were each learned once
+  at the cost of a silently empty result; a second copy would fail exactly as quietly.
+- **Deliberately not `@Transactional`**, the shape `EnrichmentService` and `ScoringService`
+  both document.
+- **Not wired into `pipeline_run`.** The stage logs its counters and `offer.content_undecided`
+  is per-offer queryable; three parameter lists in `PipelineRunRecorder` plus a migration for a number no screen yet
+  reads was the first thing on the cut list.
 
 ## The application package
 
@@ -1283,6 +1363,17 @@ screen reads one of these, and none of them writes.
   declares. A union type in TypeScript for any of them disagrees with the server the first
   time one is added — and the symptom is a compile error in a component that has no
   business knowing the filter at all.
+- **`/api/prompts` renders what is sent, and never the template.** The Rules screen answered
+  "why did this offer score what it scored" for the deterministic half only; the prompt was the
+  one part of the decision with nowhere to look it up. Rendered, because the two things worth
+  checking are exactly the two that get substituted in — that the configured bounds reached the
+  text, and that the profile behind "this developer" is the one in `skill-profile.yaml`. Both
+  have been wrong here before, and a template on screen would have shown neither. The example
+  user message comes out of `describe(...)` itself with placeholder values, so it drifts only
+  when the code does; written out by hand beside it, it would drift in silence. It needs no key
+  to render: a prompt is a fact about the configuration, not about whether anybody can currently
+  be asked it. `PromptView` lives in `web/` because it needs the two stages that own the
+  prompts, and the configuration model deliberately depends on no stage.
 - **The enum writes its stage descriptions as sentence fragments**, because that is how they
   read in a log line. The read side capitalises them; a chart label is not a log line.
 
@@ -1400,6 +1491,10 @@ docs/samples/emails/*.eml         14 real newsletter mails (gitignored)
 docs/samples/analyze_samples.py   extraction, field coverage, duplicates
 docs/samples/simulate_filter.py   simulation of the hard filters
 
+backend/…/content/                block splitting, the digest, the label cache, the
+                                  classifier — § Content segmentation
+backend/…/llm/                    ChatModels and Answers, shared by the judge and the
+                                  classifier
 frontend/src/styles.css           both DaisyUI themes, the fonts, the @theme block —
                                   the only file allowed to hold a colour literal
 frontend/src/styles/tokens.css    semantic aliases, layout constants, the type scale
@@ -1503,6 +1598,12 @@ code has to reproduce — the numbers in `docs/SAMPLE-ANALYSIS.md` are the targe
     file name in a query parameter, because its document is already in the store the screen reads. `/offers/:id`
     redirects into the shortlist's split view, so there is one detail view in the code. What that cost and what it
     enforces is in § *The split views*.
+
+14. ✅ **Content segmentation** — an advert fetched from a portal carries the portal with it, and the tag cloud in it was
+    being counted as skill overlap. `full_text` is split into Markdown blocks; a block is decided by a configured
+    pattern, by what a digest of it was decided to be for an earlier offer, or by a model — in that order, and by nobody
+    at all as the safe default. Scoring reads what is left, the detail hides the rest behind a line that says how much
+    and of what kind, and re-opens it in place. What that costs and what it enforces is in § *Content segmentation*.
 
 ## Traps that have already cost money
 
@@ -1608,6 +1709,12 @@ code has to reproduce — the numbers in `docs/SAMPLE-ANALYSIS.md` are the targe
   height chain — were all correct in the same Safari, and the same page measured correctly a minute later.
   `OfferDetail.relayoutAd` detaches the box and reads a metric off it after the toggle. It is a workaround on an
   observation, not on a reproduced cause, and it says so.
+- **A comma in a jsoup selector is a union, and `selectFirst` answers in document order.**
+  Adding a narrower class to `article, main, .job-description, #content` therefore changes nothing whenever a `<main>`
+  wraps the page — which is every page that has one. The selector list reads like a priority order and is not one.
+- **Two methods called `kindOf(String)` that differ only in return type do not overload.**
+  Same erasure, so the compiler refuses the second — and because annotation processing then does not run, the error it
+  prints is 70 lines of "cannot find symbol: log" in files nobody touched. Read the *last* error, not the first.
 - **ImageMagick renders SVG with its own parser and drops paths containing arcs** unless
   `rsvg-convert` is on PATH as its delegate. The first favicon looked broken for that
   reason alone, with the geometry perfectly correct.

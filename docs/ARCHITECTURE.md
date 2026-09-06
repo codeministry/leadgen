@@ -32,20 +32,21 @@ thing that touches the schema.
 
 `IngestService.run(scoringModel)` is the orchestrator, and **the order is the design**.
 
-| # | Stage | Owner | Why it sits here |
-|---|---|---|---|
-| 0 | Model check | `score.ScoringService#checkModel` | Before everything, so an unknown model is not discovered *after* a whole pass has been paid for. |
-| 1 | Fetch | `ingest.connector.*` | Per source. One failing source must not end the run. |
-| 2 | Extract | `ingest.extract.*` | Strategy read from configuration, never assumed. |
-| 3 | Map + upsert | `OfferMapper`, `store.OfferStore` | `ON CONFLICT (source_id, external_id)` is what makes re-reading a newsletter free. |
-| 4 | Deduplicate | `dedupe.DeduplicationService` | Globally, after all sources: a pass scoped to one source would never see the pair it exists to collapse. |
-| 5 | Hard filter | `filter.FilterService` | Free and deterministic, so everything expensive sees a fifth of the input. |
-| 6 | Archive | `archive.ArchiveService` | After the filter so a restored offer carries a current verdict; before enrichment so an offer off the list pays for neither the fetch nor the model. |
-| 7 | Enrich | `enrich.EnrichmentService` | The only stage that leaves the machine, and only for survivors. |
-| 8 | Score | `score.ScoringService` | Deterministic factors always; a model for four of them. |
-| 9 | Package | `packaging.PackagingService` | A folder per offer above the shortlist threshold. |
-| 10 | Digest | `digest.DigestService` | A file, and the last thing a run does. |
-| 11 | Record | `analytics.PipelineRunRecorder` | Last, and it cannot throw: a history row is worth less than the run. Writes the per-stage timings `StageLog` collected as the run went. |
+| #  | Stage        | Owner                             | Why it sits here                                                                                                                                     |
+|----|--------------|-----------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------|
+| 0  | Model check  | `score.ScoringService#checkModel` | Before everything, so an unknown model is not discovered *after* a whole pass has been paid for.                                                     |
+| 1  | Fetch        | `ingest.connector.*`              | Per source. One failing source must not end the run.                                                                                                 |
+| 2  | Extract      | `ingest.extract.*`                | Strategy read from configuration, never assumed.                                                                                                     |
+| 3  | Map + upsert | `OfferMapper`, `store.OfferStore` | `ON CONFLICT (source_id, external_id)` is what makes re-reading a newsletter free.                                                                   |
+| 4  | Deduplicate  | `dedupe.DeduplicationService`     | Globally, after all sources: a pass scoped to one source would never see the pair it exists to collapse.                                             |
+| 5  | Hard filter  | `filter.FilterService`            | Free and deterministic, so everything expensive sees a fifth of the input.                                                                           |
+| 6  | Archive      | `archive.ArchiveService`          | After the filter so a restored offer carries a current verdict; before enrichment so an offer off the list pays for neither the fetch nor the model. |
+| 7  | Enrich       | `enrich.EnrichmentService`        | The only stage that leaves the machine, and only for survivors.                                                                                      |
+| 8  | Content      | `content.ContentService`          | After enrichment because it reads the fetched advert; before scoring because scoring has to judge the advert and not the portal around it.           |
+| 9  | Score        | `score.ScoringService`            | Deterministic factors always; a model for four of them.                                                                                              |
+| 10 | Package      | `packaging.PackagingService`      | A folder per offer above the shortlist threshold.                                                                                                    |
+| 11 | Digest       | `digest.DigestService`            | A file, and the last thing a run does.                                                                                                               |
+| 12 | Record       | `analytics.PipelineRunRecorder`   | Last, and it cannot throw: a history row is worth less than the run. Writes the per-stage timings `StageLog` collected as the run went.              |
 
 ### Ingest and extraction
 
@@ -157,6 +158,47 @@ merely look incomplete.
 Every enriched column is nullable and **null means "not stated", never zero** — the whole
 reason this stage exists is that the sources state a rate in 0.0 % of offers.
 
+### Content segmentation
+
+A page fetched from a portal carries the portal with it: a meta row, an apply button, a report dialog with its four
+radio labels, and a tag cloud of technology names taken from the site's own taxonomy rather than from the client's
+requirements. Measured on one live offer, sixty such names sat in a single block — and `RuleScorer` folds the advert
+into one haystack for skill matching, so they counted as skill overlap and moved offers onto the shortlist. **This is a
+fix to the score before it is a fix to the screen.**
+
+**The model is the authority; determinism is a cache in front of it, not a filter above it.**
+The obvious arrangement — selectors that strip known furniture, a model for the rest — is the wrong way round here, and
+the corpus is why: one portal is 88 % of the offers, so a per-portal selector table is a maintenance bet on one site's
+markup, and a selector that stops matching fails *silently*, which reads as a cleaner advert. And the part that costs
+the most is unreachable by any selector at all — the recruiter's standing signature, the postal address, the company
+register, the privacy link, sits *inside* the description container and differs per agency.
+
+So the advert is split into Markdown blocks, each one normalised and hashed. A block is decided by a configured pattern,
+by what its digest was decided to be for an earlier offer, or by a model — in that order. A known digest is free; an
+unknown one costs one model call and is free from then on. A portal repeats the same report dialog in every one of its
+ads, so it is paid for once and covers the rest. **A header form nobody has seen is a digest nobody has seen: one call,
+then free again, which is how new furniture gets noticed by construction rather than mislabelled in silence.**
+
+**Fail open, always.** A block no rule matched, that the cache does not know and that no model answered about stays
+`CONTENT` and stays on the screen. `content_undecided` counts exactly those, and it is the number to watch: it is what a
+changed markup looks like from here.
+
+`content_block_label` is scoped by portal and deliberately **not** keyed by the model that answered. A score is a scale,
+so two judges are two scales and a model change makes every score stale; a label is a fact about a paragraph, so once
+decided it stands and re-labelling is a deliberate act. The `sample` column keeps the first 200 characters, because a
+table of hashes nobody can audit is a table nobody trusts.
+
+`offer.full_text` is never edited — it stays the record of what was fetched, and the archived copy in an application
+package still prints it. The blocks live beside it in
+`offer.content_blocks`, carrying their text inline: a second copy per offer buys a browser that needs no splitter of its
+own, indices that cannot slip, and a decision that a later change of mind in the shared cache cannot rewrite behind a
+reader's back. Scoring reads the content blocks joined, falling back to `full_text` for an advert nothing has read that
+way — which is what lets the stage be switched on against a full table with no migration.
+
+The detail screen hides what was decided against behind a line that says how much and of what kind, and re-opens it
+exactly where it stood, muted, with the reason beside it. Over-hiding is therefore visible and one click from being
+undone, rather than something to take on trust.
+
 ### Scoring
 
 Rules before model, again. `RuleScorer` decides everything the profile and the offer's own
@@ -233,6 +275,27 @@ Read-only, and separate from the stages that write — each stage owns a narrow 
   no trace in the `offer` table.
 - **The sources screen lists the configuration, not the database** — a misconfigured source
   being invisible is exactly the failure somebody is looking for when they open that screen.
+
+### The prompts on the Rules screen
+
+`/api/prompts` hands over both system prompts **rendered**, not as templates. That screen
+already carries the weight table, the knockouts and the thresholds — the deterministic half of
+a score — and the prompt was the one input to the decision with nowhere to look it up.
+
+Rendered rather than templated, because the two things worth checking are exactly the two that
+get substituted in: whether the configured bounds reached the text, and whether the profile
+behind "this developer" is the one in `skill-profile.yaml`. Both have been wrong in this
+repository before — the prompt once described three hard-coded skills of the twenty-nine the
+profile carries, and the four bounds were once Java constants matching the weight table by
+coincidence. Neither would have been visible in a template.
+
+The second block on each prompt is the *shape* an offer arrives in, produced by the same
+`describe(...)` the pipeline calls, with placeholder values. A sample written out beside it
+would be a second description of that method and would drift from it silently.
+
+Nothing here needs an API key, and none is shown: a prompt is a fact about the configuration,
+not about whether anybody can currently be asked it. Both prompts name the same model, and the
+screen saying so twice is the point — `llm.models.scoring` is read by two stages.
 
 ## Manual status capture
 

@@ -32,12 +32,12 @@ config/                                yours, gitignored, overriding the above f
 
 ## The four files
 
-| File | Bound to | What it decides |
-|---|---|---|
-| `sources.yaml` | `SourcesConfig` | Where offers come from and how a document is read, down to the CSS selector and the date format. A new source is a block here — see [ADDING-A-SOURCE.md](ADDING-A-SOURCE.md). |
-| `matching-rules.yaml` | `MatchingRules` | The six knockout stages, the scoring weights and penalties, the three thresholds, deduplication, freshness, follow-up. |
-| `skill-profile.yaml` | `SkillProfile` | Who is applying: skills with weights and aliases, industries, reference projects, and which CV goes with which language. |
-| `pipeline.yaml` | `PipelineConfig` | The process itself: provider and model, enrichment, packaging, digest, auth. |
+| File                  | Bound to         | What it decides                                                                                                                                                               |
+|-----------------------|------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `sources.yaml`        | `SourcesConfig`  | Where offers come from and how a document is read, down to the CSS selector and the date format. A new source is a block here — see [ADDING-A-SOURCE.md](ADDING-A-SOURCE.md). |
+| `matching-rules.yaml` | `MatchingRules`  | The six knockout stages, the scoring weights and penalties, the three thresholds, deduplication, freshness, follow-up.                                                        |
+| `skill-profile.yaml`  | `SkillProfile`   | Who is applying: skills with weights and aliases, industries, reference projects, and which CV goes with which language.                                                      |
+| `pipeline.yaml`       | `PipelineConfig` | The process itself: provider and model, enrichment, content segmentation, packaging, digest, auth.                                                                            |
 
 **`pipeline.yaml` is not `application.yaml`.** The latter is Spring's and only Spring's: it
 wires the *process* — datasource, ports, where the configuration directory is. The two used
@@ -45,6 +45,13 @@ to share a name, which meant a stack trace naming it could mean either file.
 
 ### The rules that make them predictable
 
+- **`content.rules` are an optimisation, not a mechanism, and every pattern is anchored or specific on purpose.** They
+  label a block of a fetched advert for free, before anything is asked of a model; a rule that stops matching costs the
+  shortcut and nothing else, because the block then falls through to the digest cache and then to the model. A *loose*
+  pattern is the one thing that does damage: it does not produce a wrong label, it hides a paragraph of somebody's
+  advert, and a bare `datenschutz` would delete exactly the offers a data-protection contractor is looking for. Regexes
+  need **single quotes** in YAML — a double-quoted scalar allows only a fixed set of escapes, `\-` is not among them,
+  and the file then fails to parse with nothing pointing at the pattern.
 - **The three files are one snapshot**, read together and swapped atomically, which is why
   `rules.hot_reload` is one switch for all of them. Reloading one without the others would
   hand the pipeline a picture that never existed on disk.
@@ -100,15 +107,15 @@ rationale. `*` marks a credential.
 
 ### Language model
 
-| Key | Default | Note |
-|---|---|---|
-| `LLM_PROVIDER` | — | `anthropic`, `ollama` or `openai-compatible`. A kind, never a vendor: it names a wire format and the base URL decides who answers. Anything else is refused loudly. |
-| `LLM_BASE_URL` | — | Required even for a hosted provider whose address never changes. A URL in the code is a vendor in the code. |
-| `LLM_API_KEY` * | — | Optional in full. Without it the tool runs and loses the score total and the cover letter; the deterministic reasons are still written. `ollama` needs none. |
-| `LLM_BATCH` | `false` | Half the price, answers minutes later. Only the Messages API batch is implemented; `true` on any other provider is fatal at load rather than quietly synchronous at full price. |
-| `LLM_MODEL_SCORING` | — | The judge, and the default of the list below. |
-| `LLM_MODEL_SCORING_OPTIONS` | — | Comma separated. An **allowlist**, checked before the run starts: the chosen model travels as a request parameter to an endpoint billed per token. |
-| `LLM_MODEL_EXTRACTION`, `LLM_MODEL_WRITING`, `LLM_MODEL_EMBEDDING` | — | **Not read.** The stages exist in the concept and not in the code; a value in any of them changes nothing. |
+| Key                                                                | Default | Note                                                                                                                                                                                                                                                                                                                                                                                          |
+|--------------------------------------------------------------------|---------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `LLM_PROVIDER`                                                     | —       | `anthropic`, `ollama` or `openai-compatible`. A kind, never a vendor: it names a wire format and the base URL decides who answers. Anything else is refused loudly.                                                                                                                                                                                                                           |
+| `LLM_BASE_URL`                                                     | —       | Required even for a hosted provider whose address never changes. A URL in the code is a vendor in the code.                                                                                                                                                                                                                                                                                   |
+| `LLM_API_KEY` *                                                    | —       | Optional in full. Without it the tool runs and loses the score total and the cover letter; the deterministic reasons are still written. `ollama` needs none.                                                                                                                                                                                                                                  |
+| `LLM_BATCH`                                                        | `false` | Half the price, answers minutes later. Only the Messages API batch is implemented; `true` on any other provider is fatal at load rather than quietly synchronous at full price.                                                                                                                                                                                                               |
+| `LLM_MODEL_SCORING`                                                | —       | The judge, and the default of the list below. **Read by two stages**: the scoring judge and the content classifier. One key rather than a second `models.content`, because both ask a bounded question and answer in a few lines of JSON — and a `models.*` key nothing reads is the kind of lie this file exists to avoid.                                                                   |
+| `LLM_MODEL_SCORING_OPTIONS`                                        | —       | Comma separated. An **allowlist**, checked before the run starts: the chosen model travels as a request parameter to an endpoint billed per token. It governs the judge alone — which classifier reads an advert is not a parameter of the run, because two judges are two scales and comparing them is the point, while a label is a fact about a paragraph and there is nothing to compare. |
+| `LLM_MODEL_EXTRACTION`, `LLM_MODEL_WRITING`, `LLM_MODEL_EMBEDDING` | —       | **Not read.** The stages exist in the concept and not in the code; a value in any of them changes nothing.                                                                                                                                                                                                                                                                                    |
 
 ### Database
 
