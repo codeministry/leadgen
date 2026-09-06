@@ -8,9 +8,6 @@
  */
 package de.codeministry.leadgen.web;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.BDDMockito.given;
-
 import de.codeministry.leadgen.analytics.LastRunQueryService;
 import de.codeministry.leadgen.analytics.LastRunSource;
 import de.codeministry.leadgen.analytics.LastRunView;
@@ -23,16 +20,19 @@ import de.codeministry.leadgen.ingest.IngestService;
 import de.codeministry.leadgen.ingest.SourceIngestResult;
 import de.codeministry.leadgen.packaging.PackageReport;
 import de.codeministry.leadgen.score.ScoringReport;
-
-import java.time.Instant;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
+
+import java.time.Instant;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.BDDMockito.given;
 
 /**
  * What the run endpoints actually put on the wire.

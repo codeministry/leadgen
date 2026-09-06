@@ -12,14 +12,14 @@ import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.config.ConfigSnapshot;
 import de.codeministry.leadgen.config.model.MatchingRules;
 import de.codeministry.leadgen.config.model.PipelineConfig;
-
-import java.util.List;
-import java.util.Optional;
-import javax.sql.DataSource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import javax.sql.DataSource;
+import java.util.List;
+import java.util.Optional;
 
 /**
  * Turns what survived the filter into a ranked shortlist, with the reason behind every

@@ -8,11 +8,6 @@
  */
 package de.codeministry.leadgen.ingest;
 
-import static org.assertj.core.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.*;
-
 import de.codeministry.leadgen.analytics.PipelineRunRecorder;
 import de.codeministry.leadgen.archive.ArchiveReport;
 import de.codeministry.leadgen.archive.ArchiveService;
@@ -34,12 +29,17 @@ import de.codeministry.leadgen.packaging.PackageReport;
 import de.codeministry.leadgen.packaging.PackagingService;
 import de.codeministry.leadgen.score.ScoringReport;
 import de.codeministry.leadgen.score.ScoringService;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+import static org.assertj.core.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.*;
 
 /**
  * The order of the pipeline, pinned as a contract rather than as a comment.
