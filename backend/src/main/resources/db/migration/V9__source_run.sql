@@ -7,16 +7,15 @@
 --
 -- One row per source per run rather than a mutable "last run" row, because the
 -- interesting question is when the number changed, not what it is now.
-CREATE TABLE source_run
-(
-    id        BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    source_id BIGINT      NOT NULL REFERENCES source (id) ON DELETE CASCADE,
-    ran_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
-    documents INTEGER     NOT NULL,
-    extracted INTEGER     NOT NULL,
-    written   INTEGER     NOT NULL,
+CREATE TABLE source_run (
+    id         BIGINT      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    source_id  BIGINT      NOT NULL REFERENCES source (id) ON DELETE CASCADE,
+    ran_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+    documents  INTEGER     NOT NULL,
+    extracted  INTEGER     NOT NULL,
+    written    INTEGER     NOT NULL,
     -- Null when the source states no count to check against, which is most of them.
-    announced INTEGER
+    announced  INTEGER
 );
 
 CREATE INDEX source_run_latest_idx ON source_run (source_id, ran_at DESC);

@@ -7,8 +7,7 @@
 --
 -- `source_run` answers the same question one level down — per source, per document — and
 -- stays. Neither table can be computed from the other.
-CREATE TABLE pipeline_run
-(
+CREATE TABLE pipeline_run (
     id                BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     started_at        TIMESTAMPTZ NOT NULL,
     finished_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -52,8 +51,7 @@ CREATE TABLE pipeline_run
 
 -- A row per stage rather than a column per stage: FilterStage is an enum that has grown
 -- once already, and a column each would mean a migration every time it grows again.
-CREATE TABLE pipeline_run_stage
-(
+CREATE TABLE pipeline_run_stage (
     run_id  BIGINT  NOT NULL REFERENCES pipeline_run (id) ON DELETE CASCADE,
     stage   TEXT    NOT NULL,
     removed INTEGER NOT NULL,

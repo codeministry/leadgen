@@ -9,7 +9,7 @@
 -- So this is its own axis, orthogonal to the verdict: an offer can be archived
 -- and have passed the filter, and the two facts stay separately readable.
 ALTER TABLE offer
-    ADD COLUMN archived_at TIMESTAMPTZ,
+    ADD COLUMN archived_at    TIMESTAMPTZ,
     ADD COLUMN archive_source TEXT;
 
 -- Two columns rather than one flag, because there are four states and not two:
@@ -35,16 +35,11 @@ CREATE INDEX offer_working_idx ON offer (status, ingested_at DESC) WHERE archive
 -- The age question used to be the filter's last stage. It moves here, so the
 -- rows it had already decided move with it: an offer rejected as STALE is an
 -- offer that aged out, which is exactly what the age pass now records.
-UPDATE offer
-SET archived_at    = now(),
-    archive_source = 'AGE'
-WHERE filter_stage = 'STALE';
+UPDATE offer SET archived_at = now(), archive_source = 'AGE' WHERE filter_stage = 'STALE';
 
 -- And the stage itself stops existing. The next run re-judges every row anyway,
 -- so this only matters for the minutes in between -- but a funnel counting a
 -- stage the enum no longer has is a number with nothing behind it.
 UPDATE offer
-SET status        = 'INGESTED',
-    filter_stage  = NULL,
-    filter_reason = NULL
+SET status = 'INGESTED', filter_stage = NULL, filter_reason = NULL
 WHERE filter_stage = 'STALE';

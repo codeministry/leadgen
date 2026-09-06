@@ -6,21 +6,15 @@
 -- and not a failure: the deterministic reasons are still there, and a total
 -- computed from half the weights would not be comparable to one computed from all
 -- of them.
-ALTER TABLE offer
-    ADD COLUMN score_value INTEGER;
-ALTER TABLE offer
-    ADD COLUMN score_band TEXT;
-ALTER TABLE offer
-    ADD COLUMN score_model TEXT;
-ALTER TABLE offer
-    ADD COLUMN ruleset_version TEXT;
-ALTER TABLE offer
-    ADD COLUMN scored_at TIMESTAMPTZ;
+ALTER TABLE offer ADD COLUMN score_value      INTEGER;
+ALTER TABLE offer ADD COLUMN score_band       TEXT;
+ALTER TABLE offer ADD COLUMN score_model      TEXT;
+ALTER TABLE offer ADD COLUMN ruleset_version  TEXT;
+ALTER TABLE offer ADD COLUMN scored_at        TIMESTAMPTZ;
 
 -- One row per contributing factor, so a reason can be read back beside its points
 -- rather than parsed out of a rendered sentence.
-CREATE TABLE offer_score_reason
-(
+CREATE TABLE offer_score_reason (
     id       BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     offer_id BIGINT NOT NULL REFERENCES offer (id) ON DELETE CASCADE,
     factor   TEXT   NOT NULL,

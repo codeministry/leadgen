@@ -5,9 +5,8 @@
 -- exactly like an unjudged one to the next run, which would submit it a second time and pay
 -- twice for the same answer. It also makes "what is in flight" a question the database can
 -- answer, which matters because the answer outlives the process that asked.
-CREATE TABLE score_batch
-(
-    id BIGSERIAL PRIMARY KEY,
+CREATE TABLE score_batch (
+    id              BIGSERIAL   PRIMARY KEY,
     -- The id the provider returned. Unique, because collecting the same batch twice would
     -- write the same scores twice and the second write would look like a fresh judgement.
     provider_id     TEXT        NOT NULL UNIQUE,
@@ -22,8 +21,7 @@ CREATE TABLE score_batch
     note            TEXT
 );
 
-ALTER TABLE offer
-    ADD COLUMN score_batch_id BIGINT REFERENCES score_batch (id);
+ALTER TABLE offer ADD COLUMN score_batch_id BIGINT REFERENCES score_batch (id);
 
 -- Partial: almost every row is null almost all of the time, and the only question ever
 -- asked of this column is which offers are currently waiting.

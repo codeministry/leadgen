@@ -6,17 +6,16 @@
 -- is also why the transitions are not policed: the operator is the authority on
 -- their own mailbox, and a tool that argues with them about it is a tool they
 -- stop updating.
-CREATE TABLE application
-(
-    id           BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    offer_id     BIGINT      NOT NULL UNIQUE REFERENCES offer (id) ON DELETE CASCADE,
-    status       TEXT        NOT NULL DEFAULT 'NEW',
-    sent_on      DATE,
-    follow_up_on DATE,
-    outcome      TEXT,
-    note         TEXT,
-    created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+CREATE TABLE application (
+    id             BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    offer_id       BIGINT      NOT NULL UNIQUE REFERENCES offer (id) ON DELETE CASCADE,
+    status         TEXT        NOT NULL DEFAULT 'NEW',
+    sent_on        DATE,
+    follow_up_on   DATE,
+    outcome        TEXT,
+    note           TEXT,
+    created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at     TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 -- The board groups eleven states into five lanes and reads them all at once.
@@ -27,8 +26,7 @@ CREATE INDEX application_follow_up_idx ON application (follow_up_on) WHERE follo
 
 -- Every change, kept: a pipeline whose history is a single mutable row cannot
 -- answer "when did I send this" after the second correction.
-CREATE TABLE application_event
-(
+CREATE TABLE application_event (
     id             BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     application_id BIGINT      NOT NULL REFERENCES application (id) ON DELETE CASCADE,
     from_status    TEXT,

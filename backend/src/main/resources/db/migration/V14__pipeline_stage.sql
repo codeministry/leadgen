@@ -12,8 +12,7 @@
 -- Rows rather than columns, for the same reason `pipeline_run_stage` is rows: the
 -- list of stages has grown once already, and a column each would mean a migration
 -- every time it grows again.
-CREATE TABLE pipeline_stage
-(
+CREATE TABLE pipeline_stage (
     run_id     BIGINT      NOT NULL REFERENCES pipeline_run (id) ON DELETE CASCADE,
     -- The order the stages ran in, so a reader does not have to know it.
     position   INTEGER     NOT NULL,
