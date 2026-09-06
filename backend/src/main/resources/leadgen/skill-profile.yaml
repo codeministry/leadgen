@@ -28,8 +28,12 @@ strong:
 peripheral:
   - { skill: Groovy, weight: 2 }
 
+# `match` is to an industry what `aliases` is to a skill: the words an advert uses for it.
+# The name is this repository's language and the adverts are not, so without it an industry
+# called "Insurance" matches nothing in a market that writes "Versicherung". Unset falls
+# back to the name.
 industries:
-  - { name: Example industry, weight: 6, note: "one line of justification" }
+  - { name: Example industry, weight: 6, note: "one line of justification", match: [ Example, Beispiel ] }
 
 # Raw material for cover letters: the language model picks the projects that match
 # the skills an offer asks for.

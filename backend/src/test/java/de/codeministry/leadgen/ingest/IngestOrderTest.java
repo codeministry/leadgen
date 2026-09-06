@@ -8,6 +8,11 @@
  */
 package de.codeministry.leadgen.ingest;
 
+import static org.assertj.core.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.*;
+
 import de.codeministry.leadgen.analytics.PipelineRunRecorder;
 import de.codeministry.leadgen.archive.ArchiveReport;
 import de.codeministry.leadgen.archive.ArchiveService;
@@ -29,17 +34,12 @@ import de.codeministry.leadgen.packaging.PackageReport;
 import de.codeministry.leadgen.packaging.PackagingService;
 import de.codeministry.leadgen.score.ScoringReport;
 import de.codeministry.leadgen.score.ScoringService;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import static org.assertj.core.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /**
  * The order of the pipeline, pinned as a contract rather than as a comment.
@@ -83,7 +83,7 @@ class IngestOrderTest {
         when(filter.run()).thenReturn(new FilterReport(Map.of(), 0, 0));
         when(archive.run()).thenReturn(new ArchiveReport(0, 0, 0, 0));
         when(enrich.run()).thenReturn(new EnrichmentReport(0, 0, 0, 0, 0, 0));
-        when(scoring.run(any())).thenReturn(new ScoringReport(0, 0, 0, 0, 0, 0));
+        when(scoring.run(any())).thenReturn(new ScoringReport(0, 0, 0, 0, 0, 0, 0));
         when(packaging.run()).thenReturn(new PackageReport(0, 0, 0, List.of()));
         when(digest.render(any())).thenReturn(Optional.empty());
 
@@ -118,7 +118,7 @@ class IngestOrderTest {
         when(scoring.run(any())).thenAnswer(invocation -> {
             inTheMiddle.countDown();
             mayFinish.await(5, java.util.concurrent.TimeUnit.SECONDS);
-            return new ScoringReport(0, 0, 0, 0, 0, 0);
+            return new ScoringReport(0, 0, 0, 0, 0, 0, 0);
         });
 
         var first = java.util.concurrent.CompletableFuture.runAsync(() -> service.run(null));

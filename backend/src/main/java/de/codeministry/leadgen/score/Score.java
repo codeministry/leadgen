@@ -30,18 +30,54 @@ public record Score(Integer value, boolean hardPass, List<ScoreReason> reasons, 
     }
 
     /**
-     * A judged score, with the total added up and clamped.
+     * A judged score: the share of what was attainable, less the penalties.
      *
-     * <p>The weights sum to 100 and the penalties are negative, so a heavily penalised
-     * offer can go below zero and a generous weight table above 100. Both are clamped: the
-     * thresholds are stated on a 0-100 scale and a score outside it cannot be read against
-     * them. It is a factory rather than an expression at each call site because there are
-     * two of those now, the synchronous run and the batch collector, and a shortlist whose
-     * halves clamp differently is not a ranking.
+     * <p><b>The total renormalises over the factors that had something to say.</b> A flat
+     * sum charges every offer for the fields its source never states — the newsletter
+     * carries a rate in 0.0 % of offers and a workload in none of them — so a fifth of the
+     * scale was unreachable for reasons no offer could influence. Measured before this
+     * changed: 101 of 101 offers carried a 0-point `rate_fit` row, `industry_fit` never
+     * fired once, and the highest score in the whole table was 53.
+     *
+     * <p>So {@link ScoreReason#maxPoints()} decides what counts. A factor that applies
+     * contributes to both the earned and the attainable sum, including when it scored zero;
+     * a factor that does not apply writes no row and is in neither. The consequence is
+     * deliberate and worth naming: the less an ad states, the more its skill overlap
+     * carries — an offer is judged on what it says.
+     *
+     * <p>Penalties stay absolute. They are stated on the 0-100 scale in
+     * `scoring.penalties`, so a -30 is thirty points off the finished share rather than a
+     * share of something. Both ends are clamped, because the thresholds are read on that
+     * same scale and a number outside it cannot be compared against them.
+     *
+     * <p>A factory rather than an expression at each call site because there are two of
+     * those, the synchronous run and the batch collector, and a shortlist whose halves
+     * normalise differently is not a ranking.
      */
     public static Score of(List<ScoreReason> reasons, String model, String rulesetVersion) {
-        int total = reasons.stream().mapToInt(ScoreReason::points).sum();
-        return new Score(Math.max(0, Math.min(100, total)), true, List.copyOf(reasons), model, rulesetVersion);
+        int attainable = reasons.stream()
+                .filter(Score::counts)
+                .mapToInt(ScoreReason::maxPoints)
+                .sum();
+        int earned = reasons.stream()
+                .filter(Score::counts)
+                .mapToInt(ScoreReason::points)
+                .sum();
+        int penalties = reasons.stream()
+                .filter(reason -> !counts(reason))
+                .mapToInt(ScoreReason::points)
+                .sum();
+
+        int share = attainable == 0 ? 0 : (int) Math.round(100.0 * earned / attainable);
+        int total = Math.max(0, Math.min(100, share + penalties));
+        return new Score(total, true, List.copyOf(reasons), model, rulesetVersion);
+    }
+
+    /**
+     * What was attainable, and therefore what the share is measured against.
+     */
+    private static boolean counts(ScoreReason reason) {
+        return reason.maxPoints() > 0;
     }
 
     /** The band names in `scoring.thresholds`, which the shortlist and the digest read. */

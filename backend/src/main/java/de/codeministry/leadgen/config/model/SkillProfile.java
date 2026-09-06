@@ -61,7 +61,15 @@ public record SkillProfile(
      */
     public record Skill(@NotBlank String skill, @Min(1) @Max(10) int weight, Integer since, List<String> aliases) {}
 
-    public record Industry(@NotBlank String name, @Min(1) @Max(10) int weight, String note) {}
+    /**
+     * @param match the words a job advert uses for this industry. The name is the
+     *              repository's language and the adverts are German, so {@code Insurance} matched
+     *              nothing at all until this existed — the factor fired on 0 of 101 scored offers.
+     *              Same shape and same reason as {@link Skill#aliases()}. Empty falls back to the
+     *              name, so a profile written before this behaves as it did.
+     */
+    public record Industry(@NotBlank String name, @Min(1) @Max(10) int weight, String note, List<String> match) {
+    }
 
     public record ReferenceProject(
             @NotBlank String id,

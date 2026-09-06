@@ -123,11 +123,15 @@ class ScoringWithAModelTest {
         var reasons = jdbc.queryForList(
                 "SELECT factor, points FROM offer_score_reason WHERE offer_id = ? ORDER BY position", id);
 
+        // No rate, no industry and no stated duration, so those three write no reason at
+        // all — the offer is measured against what it does state. The score is therefore a
+        // share of what was attainable rather than a sum: the shipped profile's two core
+        // skills are both named (45 of 45), it asks for a senior (10 of 10) and the model
+        // gave it full role fit (15 of 15), which is 100, less the ten the model deducted.
         assertThat(reasons)
                 .extracting(r -> r.get("factor"))
-                .contains("core_skill_overlap", "seniority_fit", "project_setup", "role_fit", "vague_description");
-        int sum = reasons.stream().mapToInt(r -> (Integer) r.get("points")).sum();
-        assertThat(value).isEqualTo(Math.max(0, Math.min(100, sum)));
+                .containsExactly("core_skill_overlap", "seniority_fit", "role_fit", "vague_description");
+        assertThat(value).isEqualTo(90);
         assertThat(jdbc.queryForObject("SELECT score_model FROM offer WHERE id = ?", String.class, id))
                 .isEqualTo("test-model");
         assertThat(jdbc.queryForObject("SELECT score_band FROM offer WHERE id = ?", String.class, id))
@@ -179,16 +183,19 @@ class ScoringWithAModelTest {
     @Test
     void keepsTheOfferWhenTheModelIsUnreachable() {
         // One endpoint having a bad afternoon must not end the run. The offer keeps what
-        // the rules decided and scores lower, which is visible and reviewable.
+        // the rules decided and is left without a total, which is the keyless rule with one
+        // more step: a share of what was attainable is only comparable when every factor
+        // answered. It is also self-healing — a null model makes the offer due again.
         MODEL.stubFor(
                 post(urlPathEqualTo("/chat/completions")).willReturn(aResponse().withStatus(503)));
         long id = offer("Senior Java Entwickler (m/w/d)", "Spring Boot");
 
         var report = scoring.run();
 
-        assertThat(report.scored()).isEqualTo(1);
+        assertThat(report.scored()).isZero();
+        assertThat(report.unusable()).isEqualTo(1);
         assertThat(jdbc.queryForObject("SELECT score_value FROM offer WHERE id = ?", Integer.class, id))
-                .isNotNull();
+                .isNull();
         assertThat(factorsOf(id)).contains("core_skill_overlap").doesNotContain("role_fit");
     }
 
@@ -198,8 +205,55 @@ class ScoringWithAModelTest {
                 .willReturn(aResponse().withBody("I'd rather write you a poem about Spring Boot.")));
         long id = offer("Senior Java Entwickler (m/w/d)", "Spring Boot");
 
-        assertThat(scoring.run().scored()).isEqualTo(1);
+        var report = scoring.run();
+
+        assertThat(report.scored()).isZero();
+        assertThat(report.unusable()).isEqualTo(1);
         assertThat(factorsOf(id)).doesNotContain("role_fit");
+        assertThat(jdbc.queryForObject("SELECT score_value FROM offer WHERE id = ?", Integer.class, id))
+                .isNull();
+    }
+
+    @Test
+    void leavesAnOfferUnscoredWhenTheModelAnswersOnlyWithPenalties() {
+        // `role_fit` is the one factor a judge is told to answer even at zero, so its
+        // absence is not an opinion — it is a model that did not follow the instruction.
+        // Measured before this rule existed: 63 of 101 scored offers had no judged factor
+        // at all and every one of them still carried a number.
+        answers(
+                """
+                        {"reasons":[
+                          {"factor":"vague_description","label":"says almost nothing","points":-10}
+                        ]}
+                        """);
+        long id = offer("Senior Java Entwickler (m/w/d)", "Spring Boot");
+
+        var report = scoring.run();
+
+        assertThat(report.unusable()).isEqualTo(1);
+        assertThat(jdbc.queryForObject("SELECT score_value FROM offer WHERE id = ?", Integer.class, id))
+                .isNull();
+    }
+
+    @Test
+    void keepsAJudgedZeroBecauseZeroIsAnAnswer() {
+        // A weight is a share of what was attainable, so a role that genuinely does not fit
+        // has to stay in the denominator. Dropped, the offer would be scored as though role
+        // fit had never been asked about, and a bad match would read as a good one.
+        answers(
+                """
+                        {"reasons":[
+                          {"factor":"role_fit","label":"a QA role, not an engineering one","points":0}
+                        ]}
+                        """);
+        long id = offer("Senior Java Entwickler (m/w/d)", "Spring Boot");
+
+        scoring.run();
+
+        assertThat(factorsOf(id)).contains("role_fit");
+        // 45 of 45 for the skills, 10 of 10 for the seniority, 0 of 15 for the role.
+        assertThat(jdbc.queryForObject("SELECT score_value FROM offer WHERE id = ?", Integer.class, id))
+                .isEqualTo(79);
     }
 
     /**

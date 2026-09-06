@@ -49,6 +49,16 @@ public class AdFetcher {
     private final Deque<Instant> recentRequests = new ArrayDeque<>();
 
     /**
+     * The window this fetcher is polite within, and the longest it ever waits at once.
+     */
+    private static final Duration WINDOW = Duration.ofMinutes(1);
+
+    /**
+     * What this fetcher has taken since it was built. One fetcher is one pass.
+     */
+    private int taken;
+
+    /**
      * The window's only source of time.
      *
      * <p>Injectable for one reason: a sliding window differs from a fixed one exactly at a
@@ -117,12 +127,11 @@ public class AdFetcher {
             return FetchResult.failed(0, "disallowed by robots.txt");
         }
 
-        if (!takeToken()) {
-            // Deferred, not failed: the limiter is saying "not this minute", which is a fact
+        if (!awaitToken()) {
+            // Deferred, not failed: the limiter is saying "not in this run", which is a fact
             // about the run and not about the page. Written down as a failure it would stamp
             // `enriched_at` and the offer would never be fetched again.
-            return FetchResult.deferred(
-                    "rate limit reached, %d requests a minute".formatted(settings.rateLimitPerMinute()));
+            return FetchResult.deferred("this run's fetch budget of %d ads is spent".formatted(settings.budget()));
         }
 
         try {
@@ -194,12 +203,85 @@ public class AdFetcher {
     }
 
     /**
+     * A permit, waiting for the window to free one if the run still has budget for it.
+     *
+     * <p>The limiter refuses rather than waits, which is right for the limiter and wrong for
+     * the pass on top of it: a run stopped at one minute's worth and deferred everything
+     * else, so a backlog needed one run per {@code rate_limit_per_minute} offers to clear.
+     * Measured against the live database: 97 of 101 scored offers had never had their
+     * original ad fetched, and the judge was deciding on a three-line newsletter summary.
+     *
+     * <p>What is <em>not</em> relaxed is the window. This waits for a permit the limiter
+     * would have granted anyway; it never takes one it would have refused. Beyond
+     * {@code enrichment.fetch.max_per_run} the run gives up and the offer stays due, which
+     * is the same outcome as before, one budget later.
+     */
+    private boolean awaitToken() {
+        while (!takeToken()) {
+            if (spent()) {
+                return false;
+            }
+            if (!sleepUntilAPermitIsFree()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Whether this pass has fetched everything it was allowed to.
+     */
+    private synchronized boolean spent() {
+        return taken >= settings.budget();
+    }
+
+    /**
+     * Until the oldest request in the window ages out, and no longer.
+     *
+     * @return false when the wait was interrupted, which ends the pass rather than
+     * swallowing the flag: an interrupt during a shutdown must not turn into a
+     * twelve-minute wait nobody asked for.
+     */
+    private boolean sleepUntilAPermitIsFree() {
+        Duration wait;
+        synchronized (this) {
+            Instant oldest = recentRequests.peekFirst();
+            if (oldest == null) {
+                return true;
+            }
+            wait = Duration.between(clock.instant(), oldest.plus(WINDOW));
+        }
+        if (wait.isNegative() || wait.isZero()) {
+            return true;
+        }
+        try {
+            pause(wait.plusMillis(50));
+            return true;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return false;
+        }
+    }
+
+    /**
+     * The one place real time is spent, and the seam a test replaces.
+     *
+     * <p>The wait is computed from the injectable clock and served by the real one, so a
+     * frozen clock would otherwise mean a minute of actual sleeping and then a window that
+     * never frees. Overridden, a test can move the clock the same amount instead — the same
+     * reason {@link #clock} is injectable at all.
+     */
+    void pause(Duration wait) throws InterruptedException {
+        Thread.sleep(wait.toMillis());
+    }
+
+    /**
      * A sliding window rather than a fixed one: twenty a minute has to mean twenty in any
      * sixty seconds, not twenty at the top of each minute and forty across the boundary.
      */
     private synchronized boolean takeToken() {
         Instant now = clock.instant();
-        Instant cutoff = now.minus(Duration.ofMinutes(1));
+        Instant cutoff = now.minus(WINDOW);
         while (!recentRequests.isEmpty() && recentRequests.peekFirst().isBefore(cutoff)) {
             recentRequests.removeFirst();
         }
@@ -207,6 +289,7 @@ public class AdFetcher {
             return false;
         }
         recentRequests.addLast(now);
+        taken++;
         return true;
     }
 

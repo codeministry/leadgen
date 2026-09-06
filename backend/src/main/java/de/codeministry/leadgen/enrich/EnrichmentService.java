@@ -15,7 +15,6 @@ import javax.sql.DataSource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Fetches the original ad for everything that cleared the hard filter.
@@ -59,7 +58,16 @@ public class EnrichmentService {
         this.jdbc = JdbcClient.create(dataSource);
     }
 
-    @Transactional
+    /**
+     * <b>Deliberately not {@code @Transactional}, and that is what lets a pass wait.</b>
+     * Each offer's result is one statement and nothing here needs atomicity across offers —
+     * a partially enriched batch is a correct batch with fewer ads in it, and the due query
+     * finds the rest. Held as one transaction it was already the shape {@code ScoringService}
+     * documents: a write lock on every offer touched, kept for the length of the stage. With
+     * the fetcher now waiting for rate-limit permits, that length is minutes by design, and
+     * any concurrent run's filter stage — which writes a verdict on every row — would sit
+     * behind it.
+     */
     public EnrichmentReport run() {
         PipelineConfig.Enrichment settings = config.snapshot().application().enrichment();
         if (settings == null || !settings.enabled()) {
@@ -88,7 +96,8 @@ public class EnrichmentService {
         for (Due offer : due) {
             FetchResult fetched = fetcher.fetch(offer.url());
             // Nothing is written, so the offer is still due next time. The due query is
-            // `enriched_at IS NULL`, and recording this would answer it forever.
+            // `enriched_at IS NULL`, and recording this would answer it forever. Reached
+            // only once the run's whole fetch budget is spent, not at the first refusal.
             if (fetched.deferred()) {
                 deferred++;
                 continue;
@@ -120,7 +129,7 @@ public class EnrichmentService {
         var report = new EnrichmentReport(due.size(), enriched, incomplete, fromCache, requests, deferred);
         log.info(
                 "Enrichment: {} due, {} enriched, {} incomplete, {} from cache, {} requests,"
-                        + " {} deferred by the rate limit and due again",
+                        + " {} beyond this run's fetch budget and due again",
                 report.considered(),
                 report.enriched(),
                 report.incomplete(),

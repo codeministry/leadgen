@@ -158,14 +158,20 @@ public class Judges {
             // Ollama serves the same chat-completions shape under /v1, so it is the same
             // judge with a different address. It is listed separately because it is the
             // one provider that needs no key, and that is a rule about the value.
-            case OPENAI_COMPATIBLE, OLLAMA ->
-                Optional.of(new ChatClientJudge(openAi(llm.baseUrl(), key(llm), model), model, json, bounds()));
+            case OPENAI_COMPATIBLE, OLLAMA -> Optional.of(
+                    new ChatClientJudge(openAi(llm.baseUrl(), key(llm), model), model, json, bounds(), profile()));
             // The only provider with a batch endpoint, which is why it is the only one that
             // gets a judge of its own. Its base URL and key are handed over twice: once to
             // the chat model, and once to the batch half, which is still hand-rolled HTTP.
             case ANTHROPIC ->
                 Optional.of(new AnthropicJudge(
-                        anthropic(llm.baseUrl(), key(llm), model), llm.baseUrl(), key(llm), model, json, bounds()));
+                        anthropic(llm.baseUrl(), key(llm), model),
+                        llm.baseUrl(),
+                        key(llm),
+                        model,
+                        json,
+                        bounds(),
+                        profile()));
             default -> {
                 log.warn(
                         "llm.provider is '{}'; implemented are '{}', '{}' and '{}'",
@@ -273,6 +279,15 @@ public class Judges {
     private Map<String, Integer> bounds() {
         var rules = config.snapshot().rules();
         return ChatClientJudge.boundsOf(rules == null ? null : rules.scoring());
+    }
+
+    /**
+     * The profile this run judges against, from the same snapshot as the bounds. Read per
+     * run for the same reason everything else here is: an edited `skill-profile.yaml` has
+     * to reach the prompt without a restart.
+     */
+    private de.codeministry.leadgen.config.model.SkillProfile profile() {
+        return config.snapshot().profile();
     }
 
     /** Empty rather than null, so a local server gets a harmless header instead of "null". */

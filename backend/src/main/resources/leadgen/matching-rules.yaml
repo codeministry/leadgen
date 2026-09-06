@@ -90,8 +90,13 @@ hard_filters:
 
 # --- Stage 2: scoring (0-100), only for offers past stage 1 ---------------
 scoring:
+  # How many of the heaviest core skills an ad has to ask for to count as a full match.
+  # No advert names a whole profile, so measuring the overlap against all of them makes
+  # full marks unreachable: over the measured corpus the skill factor never exceeded five
+  # of eight, and the highest score in the table was 53 out of 100. Unset means all of them.
+  saturation_core_count: 4
   weights:
-    core_skill_overlap: 45          # overlap with skill-profile.core/strong
+    core_skill_overlap: 45          # weighted overlap with skill-profile.core/strong/peripheral
     role_fit: 15                    # fullstack / backend / architect
     industry_fit: 10                # skill-profile.industries
     seniority_fit: 10               # senior/lead wanted
@@ -101,6 +106,9 @@ scoring:
     stack_mismatch_dominant: -30    # e.g. .NET, PHP, Python data, SAP ABAP, React-only, native mobile
     role_mismatch: -25              # pure QA, PO, scrum master or support roles
     vague_description: -10
+  # review must not be above auto_shortlist. The bands are read shortlist-first, so the
+  # inverted pair does not fail — it deletes the REVIEW band and builds a package for
+  # everything above the lower of the two. The loader refuses it.
   thresholds:
     auto_shortlist: 70              # -> application package gets built
     review: 50                      # -> digest only, decision by the user

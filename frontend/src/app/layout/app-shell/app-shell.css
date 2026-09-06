@@ -32,6 +32,45 @@
   max-width: var(--lg-measure-wide);
 }
 
+/* A screen that ends at the bottom of the window instead of growing the page, so its own
+   columns can scroll. Set from the route's `data.fill`, beside `wide` and for the same
+   reason: the element that has to stop scrolling is an ancestor of the screen.
+
+   `min-height` alone is not a height — the flex chain resolves against it only while the
+   content is shorter, and a long list simply grows the shell past 100dvh, so the page
+   scrolls and the panes never do. A definite height is what makes `flex: 1` on `.body`
+   definite too. Only under this flag; every screen without it keeps what it had. */
+.shell.fill {
+    height: 100dvh;
+    min-height: 0;
+}
+
+/* The header is `display: block` and would otherwise shrink under a bounded height. */
+.shell.fill lg-app-header {
+    flex: none;
+}
+
+.content.fill {
+    display: flex;
+    overflow: hidden;
+}
+
+.measure.fill {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+
+    /* Load-bearing. A flex item's default `min-height: auto` is its content height, which is
+       exactly how a "bounded" pane grows the page instead of scrolling. */
+    min-height: 0;
+}
+
+/* `<router-outlet>` is a comment anchor with no box; in a flex container it would still
+   take a slot. The routed component is its next sibling and carries the height. */
+.measure.fill > router-outlet {
+    display: none;
+}
+
 /* Room for the bottom bar the rail turns into below md. */
 @media (width < 48rem) {
   .content {

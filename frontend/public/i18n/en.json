@@ -79,6 +79,8 @@
     "hardFilterNote": "Six stages, in the order they run. Each one states what it removed; the rail narrows to what is left.",
     "nothingFiltered": "Nothing has been filtered yet. Run ingest, and this counts the archive.",
     "lastRun": "Last ingest run",
+    "analysed": "{count, plural, =0 {Nothing needed re-judging — a run judges what is stale} one {1 offer judged} other {# offers judged}} · model {model}",
+    "analysedNoModel": "{count, plural, =0 {Nothing needed re-judging — a run judges what is stale} one {1 offer judged} other {# offers judged}}",
     "recordedRun": "Recorded by the pipeline, finished {when}. Nothing has been run from this browser.",
     "finishedRun": "Finished {when}.",
     "recordedRunLimits": "A recorded run is counted per source. Which document came up short is known only while the run is being watched.",
@@ -113,7 +115,12 @@
     "archive": "Archive",
     "countArchived": "{matched} of {total} archived",
     "emptyArchiveTitle": "Nothing archived yet",
-    "emptyArchiveHint": "Offers leave the working list when they age past the freshness window, or when you take them off it yourself."
+    "emptyArchiveHint": "Offers leave the working list when they age past the freshness window, or when you take them off it yourself.",
+    "backToList": "Back to the list",
+    "pickTitle": "Pick an offer",
+    "pickHint": "The list on the left is what cleared the hard filter. Above {shortlist} a package was built, {review} to {reviewTo} is worth a look.",
+    "listLabel": "Offers",
+    "detailLabel": "Selected offer"
   },
   "offer": {
     "rateUnknown": "rate unknown",
@@ -131,6 +138,8 @@
     "originalAd": "Original ad",
     "theAd": "The ad",
     "fromSource": "From the source document. The original ad was not fetched.",
+    "showMore": "Show the whole ad",
+    "showLess": "Show less",
     "whyScored": "Why it scored what it scored",
     "notScored": "Not scored. Without a language model the pipeline still produces this shortlist, only unranked.",
     "scoreMeta": "Ruleset {ruleset} · model {model}",

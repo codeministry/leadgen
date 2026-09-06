@@ -26,13 +26,30 @@ export const routes: Routes = [
   {
     path: 'shortlist',
     title: 'Shortlist · Lead Generation',
+      // Two columns rather than prose, so the same wide measure the board takes; `fill` is
+      // what bounds the screen to the viewport, so the two columns scroll and the page does
+      // not. Both are stated once: `paramsInheritanceStrategy` defaults to `'always'`, so the
+      // child the shell reads as the leaf inherits them.
+      data: {wide: true, fill: true},
     loadComponent: () => import('@features/shortlist/shortlist-page').then((m) => m.ShortlistPage),
+      children: [
+          {
+              // A child route rather than a second flat route on the same component: two `Route`
+              // objects are two configurations, so the default reuse strategy would destroy the
+              // list on the first click — refetching it and losing the scroll position every time
+              // an offer is opened. And a single route cannot express an optional path parameter.
+              path: ':id',
+              // Its own title: two tabs, one on the list and one on an offer, are told apart
+              // nowhere else.
+              title: 'Offer · Lead Generation',
+              loadComponent: () =>
+                  import('@features/offer-detail/offer-detail').then((m) => m.OfferDetail),
+          },
+      ],
   },
-  {
-    path: 'offers/:id',
-    title: 'Offer · Lead Generation',
-    loadComponent: () => import('@features/offer-detail/offer-detail').then((m) => m.OfferDetail),
-  },
+    // Every link and bookmark written before the detail moved into the shortlist. The id is
+    // carried across: a `:name` in `redirectTo` is substituted from the matched segments.
+    {path: 'offers/:id', redirectTo: '/shortlist/:id'},
   {
     path: 'pipeline',
     title: 'Pipeline · Lead Generation',

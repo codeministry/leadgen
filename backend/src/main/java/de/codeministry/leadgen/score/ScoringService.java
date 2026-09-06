@@ -12,14 +12,14 @@ import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.config.ConfigSnapshot;
 import de.codeministry.leadgen.config.model.MatchingRules;
 import de.codeministry.leadgen.config.model.PipelineConfig;
+
+import java.util.List;
+import java.util.Optional;
+import javax.sql.DataSource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import javax.sql.DataSource;
-import java.util.List;
-import java.util.Optional;
 
 /**
  * Turns what survived the filter into a ranked shortlist, with the reason behind every
@@ -188,7 +188,7 @@ public class ScoringService {
         PipelineConfig.Llm llm = snapshot.application().llm();
         if (!due.isEmpty() && llm != null && llm.batch() && judge.orElse(null) instanceof BatchJudge batchJudge) {
             int submitted = batches.submit(batchJudge, due, scorer, rules);
-            var handedOver = standing(0, submitted);
+            var handedOver = standing(0, 0, submitted);
             log.info(
                     "Scoring: {} due, {} submitted as a batch; standing: {} considered, {} unscored",
                     due.size(),
@@ -199,6 +199,7 @@ public class ScoringService {
         }
 
         int judged = 0;
+        int unusable = 0;
 
         for (ScoreCandidate candidate : due) {
             List<ScoreReason> reasons = new java.util.ArrayList<>(scorer.score(candidate));
@@ -207,18 +208,29 @@ public class ScoringService {
             if (judge.isEmpty()) {
                 score = Score.unscored(reasons, rulesetVersion);
             } else {
-                reasons.addAll(judge.get().judge(candidate));
-                score = Score.of(reasons, model, rulesetVersion);
-                judged++;
+                List<ScoreReason> answer = judge.get().judge(candidate);
+                reasons.addAll(answer);
+                // Nothing usable came back, so this is the keyless case with an extra step:
+                // a total from four of five weights is not comparable to one from all five,
+                // and writing it would hide a judge that has stopped answering. Left
+                // unscored the offer is due again, which is also how it repairs itself.
+                if (Judge.answered(answer)) {
+                    score = Score.of(reasons, model, rulesetVersion);
+                    judged++;
+                } else {
+                    score = Score.unscored(reasons, rulesetVersion);
+                    unusable++;
+                }
             }
             writer.write(candidate.id(), score, autoShortlist, review);
         }
 
-        var report = standing(judged, 0);
+        var report = standing(judged, unusable, 0);
         log.info(
-                "Scoring: {} due, {} judged; standing: {} considered, {} unscored, {} shortlisted, {} for review",
+                "Scoring: {} due, {} judged, {} without a usable answer; standing: {} considered, {} unscored, {} shortlisted, {} for review",
                 due.size(),
                 judged,
+                unusable,
                 report.considered(),
                 report.unscored(),
                 report.shortlisted(),
@@ -272,7 +284,14 @@ public class ScoringService {
 
         List<ScoreReason> reasons =
                 new java.util.ArrayList<>(new RuleScorer(rules, snapshot.profile()).score(candidate));
-        reasons.addAll(judge.judge(candidate));
+        List<ScoreReason> answer = judge.judge(candidate);
+        reasons.addAll(answer);
+        // Somebody pressed a button, so silence gets a sentence rather than a number: the
+        // page would otherwise show a fresh total that four of five weights produced.
+        if (!Judge.answered(answer)) {
+            throw new NoJudge("%s did not answer with a usable judgement; the offer keeps its deterministic reasons"
+                    .formatted(judge.model()));
+        }
         Score score = Score.of(reasons, judge.model(), String.valueOf(rules.version()));
 
         writer.write(
@@ -292,7 +311,7 @@ public class ScoringService {
     }
 
     /** Everything but `scored` is counted from the table, so a quiet run still reports the list. */
-    private ScoringReport standing(int judged, int submitted) {
+    private ScoringReport standing(int judged, int unusable, int submitted) {
         return jdbc.sql(STANDING)
                 .query((rs, row) -> new ScoringReport(
                         rs.getInt("considered"),
@@ -300,6 +319,7 @@ public class ScoringService {
                         rs.getInt("unscored"),
                         rs.getInt("shortlisted"),
                         rs.getInt("review"),
+                        unusable,
                         submitted))
                 .single();
     }

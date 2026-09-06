@@ -203,8 +203,11 @@ reads a YAML file itself.
   filter nobody wrote is worse than not running. Invalid at reload is not: the last good
   snapshot stays and the problem is logged, because a half-saved file must not take the
   running tool down.
-- **`min_hourly_eur` before enrichment is rejected at load time** — the invariant is
-  enforced, not just written down.
+- **`min_hourly_eur` before enrichment is rejected at load time** — the invariant is enforced, not just written down. So
+  is `review` above `auto_shortlist`: `Score.band`
+  tests the shortlist bound first, so the inverted pair does not fail, it silently deletes the REVIEW band and builds an
+  application package for every offer above the lower of the two. Found live, with `auto_shortlist: 30` sitting under
+  `review: 50`.
 - **Placeholder resolution is deliberately dumb.** `${VAR}` without a value becomes the
   empty string, and an empty YAML scalar is **null**, not `""` — every consumer treats
   both alike. Whether empty is acceptable is a question about the field, so validation
@@ -429,6 +432,17 @@ the next run; a file uploaded through the browser waits for review first.
   because a process bound to loopback inside one is reachable through nothing at all.
 - **Uploading is not ingesting.** The file goes in the queue and *Run ingest* does the
   rest, so there is exactly one thing in this application that reads sources.
+- **A long advert is folded, and the decision is a character count rather than a measured height.** A portal ad runs to
+  several thousand characters with everything the tool decided underneath it, so unfolded the ad *is* the page.
+  Measuring the overflow would mean
+  `scrollHeight` against a clamp or a `ResizeObserver`, and both are suspended in a backgrounded tab — the toggle would
+  be missing exactly where a screenshot says the page is fine. The clamp is a `max-height` plus an alpha-ramp mask, not
+  a truncated string, so the Markdown stays whole in the DOM and the browser's own find still reaches the end of it. No
+  transition either: a height animation between a clamp and `auto` needs a measured target.
+- **What is unfolded is an offer id, not a boolean.** A boolean survives the navigation to the next offer, so its ad
+  opens too, for a decision nobody made about it. Holding the id makes the reset fall out of the comparison and needs no
+  effect to undo it.
+
 - **Punctuation does not belong around `@if`.** A count assembled as
   `{{ n }} waiting@if (…) { , … }.` renders with the template's own whitespace inside the
   sentence — "1 waiting for review , 1 already in the pipeline ." on the page. Build the
@@ -544,6 +558,21 @@ be rude to the portals and slow for nothing.
   newsletter summary alone. Measured: 480 due, 20 fetched, 460 written off, 0 left due.
   `FetchResult.deferred` writes nothing at all, and `EnrichmentReport` counts it apart from
   `incomplete` because the difference between the two is whether the offer comes back.
+- **`max_per_run` is how long a pass waits, and the window is untouched by it.** Refusing rather than waiting is right
+  for the limiter and wrong for the pass on top of it: a run did one minute's worth and deferred everything else, so a
+  backlog needed one run per
+  `rate_limit_per_minute` offers to clear. It never did — measured on the live database, **2,537 offers carried
+  `enrichment_note = 'rate limit reached'` with a stamped
+  `enriched_at`** and only 23 rows in the whole table had a `full_text`. `AdFetcher` now waits for a permit the window
+  would have granted anyway, up to the run's budget, and refuses beyond it. Unset means the old behaviour, so a
+  configuration written before this key behaves as it did.
+- **The stage is therefore deliberately not `@Transactional`**, the same shape
+  `ScoringService` documents. Each result is one statement and nothing needs atomicity across offers; held as one
+  transaction, a pass that now waits for minutes by design would hold a write lock on every offer it had touched, and
+  any concurrent filter stage — which writes a verdict on every row — would sit behind it.
+- **The `pause` seam is why the waiting is testable.** The wait is computed from the injectable clock and served by the
+  real one, so a frozen clock would mean a minute of actual sleeping and then a window that never frees. Overridden, a
+  test moves the clock by the same amount instead.
 - **Failures are cached, timeouts are not.** A 403 or a disallowed path is a fact about
   the page; a timeout is a fact about the moment, and remembering one bad minute for a
   week is worse than asking again tomorrow.
@@ -583,15 +612,64 @@ be rude to the portals and slow for nothing.
 
 `backend/…/score/` and `…/digest/`. Two halves and one file.
 
-- **Rules before model, again.** `RuleScorer` decides everything the profile and the
-  offer's own fields can decide — core-skill overlap with aliases, rate against the floor,
+- **Rules before model, again.** `RuleScorer` decides everything the profile and the offer's own fields can decide —
+  skill overlap with aliases, rate against the floor,
   seniority, how much of the engagement's shape is stated, industry — for free. A `Judge`
   is asked only about role fit and the three penalties.
+- **The total is a share of what was attainable, not a sum.** A factor the offer said nothing about writes no reason at
+  all and is in neither half of the fraction; a factor that had something to say and scored badly writes a 0-point row
+  and stays in the denominator. `ScoreReason.maxPoints` is what carries the distinction, and it is on the row so the
+  screen can read "23 / 45". Summed instead, the scale was capped by things no offer could influence: the sources state
+  a rate in 0.0 % of offers, so **all 101 scored offers carried a 0-point `rate_fit`**, `project_setup` averaged 0.2 of
+  10, `industry_fit`
+  fired **zero** times, and the highest score in the whole table was **53**. The accepted consequence is that the less
+  an ad states, the more its skill overlap carries — an offer is judged on what it says.
+- **`project_setup` is a bonus and the penalties are deductions; neither is in the pool.**
+  Inside the denominator, an ad naming one of duration/workload/start scores 3 of 10 and lands below one that names
+  nothing at all, because naming nothing keeps the factor out of the denominator entirely. As an absolute addition it is
+  monotone. It is also the only factor that measures the advert rather than the fit.
+- **Skill overlap is weighted and saturates; it is not a count.** `matched.size() /
+  core.size()` ignored the per-skill weights and read neither `strong:` nor `peripheral:`
+  despite the weight table's own comment saying otherwise — so an ad asking for Kafka, PostgreSQL, Keycloak and CI/CD
+  scored nothing for four things the profile is strong in, and a backend ad was charged for not naming Angular. The
+  matched weights are added up (peripheral at half) and measured against the `scoring.saturation_core_count` heaviest
+  core skills, because no advert names a whole profile and requiring one requires something that never happens. Measured
+  over the corpus: the factor never once exceeded five of eight core skills.
+- **A composite skill name is split on `/` before matching.** Folding keeps a name whole, so `REST / API-Design` is the
+  phrase `rest api design` and matches only an ad that writes it in that order. No ad does; both halves are offered to
+  the matcher instead.
+- **An industry is matched through `match:`, not through its name.** The profile names an industry in this repository's
+  language and the adverts are German, so `Insurance` was compared against text that says *Versicherung*. Same shape and
+  same reason as a skill's aliases; the name is still tried, so a profile written before this behaves as it did.
+- **An alias has to be specific enough to mean something.** `Build` for Gradle and
+  `Reporting` for Superset matched a plain Java backend ad and added nine points of skill weight for words that say
+  nothing about a stack. A profile is data, but a generic alias is a measurement error in it.
 - **Unscored is not zero, and not nothing.** With no key the deterministic reasons are
   still written, so the operator sees "+45 core skill overlap, +10 rate fit". What is
   withheld is the *total*: computed from five of the nine weights it would not be
   comparable to one from all nine, and the same offer would score differently depending on
   whether a key happened to be configured that morning.
+- **A judge that answered nothing is the keyless case, not a low score.** `role_fit` is the one factor the prompt
+  requires even at zero, so its absence is an unreachable endpoint, a reply that was not JSON, or a model that ignored
+  the instruction — never an opinion.
+  `Judge.answered` is the single reader of that, on all three paths (run, batch collector, and the rescore button, which
+  says so out loud rather than showing a fresh number). Measured before it existed: **63 of 101 scored offers had no
+  judged factor at all** and every one of them still carried a total. It is self-healing, because a null `score_model`
+  makes the offer due again, and `ScoringReport.unusable` puts it in the run's own log.
+- **A judged zero is kept; a zero penalty is dropped.** A weight is a share of what was attainable, so "this role does
+  not fit" has to stay in the denominator or a bad match reads as a good one. A penalty is an absolute deduction, so a
+  zero one is nothing at all.
+- **The prompt carries the profile, and it is read rather than restated.** It used to say
+  "a senior Java, Spring Boot and Angular developer who works from Germany" — three skills of the twenty-nine in
+  `skill-profile.yaml`, hard-coded, while every other stage read the file. Role fit was judged against a description of
+  somebody else, and editing the profile could not move it. `describe(offer)` likewise passes the rate, duration,
+  workload and start: those come from enrichment and not from the advert's prose, and a judge calling an offer vague
+  while the row beside it states all four knows less than the application does.
+- **A stub that is not a whole chat completion proves nothing.** `JudgeIsBuiltPerRunTest`
+  sent `choices` alone; the SDK refused it with "`id` is not set", the judge caught that and returned no reasons, and
+  the test stayed green because a run counted an offer as judged whether or not an answer came back. What it actually
+  proved was that a judge gets *built*
+  after a reload.
 - **The weight table decides, not the answer — and it is read, not restated.** A factor the
   model invents is dropped, and a model awarding itself 900 points for role fit gets exactly
   what `scoring.weights.role_fit` says. The four bounds used to be Java constants that
@@ -905,6 +983,24 @@ screen reads one of these, and none of them writes.
   whole archive. The band boundaries moved for the same reason: they are the configured
   thresholds, and two literals in TypeScript deciding which offers a button shows is the
   second implementation this rule exists to prevent.
+- **The shortlist opens its first offer by itself, and only where both columns fit.** An empty right column beside a
+  full list is a page waiting for a click it does not need: the first entry is the highest-scoring one the current
+  filters produced. Below the stylesheet's own `64rem` the detail *replaces* the list, so auto-selecting there would
+  answer "show me the shortlist" with a single offer — the condition is `matchMedia`, which is a media query and not a
+  rendering-lifecycle API and therefore answers correctly in a backgrounded tab, unlike a `ResizeObserver`. The
+  breakpoint is stated once on each side and tied together by a comment; jsdom has no `matchMedia` at all, so the guard
+  is also what keeps the existing specs unaffected. `replaceUrl`, because the two URLs are the same screen once both
+  columns fit and a history entry between them makes the back button undo a selection nobody made. Only when nothing is
+  selected, so a filter change never moves the reader off the offer they are reading.
+- **The dashboard says how many offers the last run judged, and which judge answered.** The per-run count and not the
+  standing shortlist: a run judges what is stale, so zero is the normal outcome of a pass that found nothing new, and
+  the catalog says that in words rather than leaving a bare 0 to read as scoring having stopped working — the same
+  reading
+  `IngestReport.merged` had to be protected from. The model comes from the recorded row alone, because an `IngestReport`
+  carries none; a run this browser started therefore shows the count without a scale until the recorded row catches up.
+  Two catalog keys rather than one sentence with an optional tail, because "· model null" is worse than a sentence that
+  does not mention one.
+
 - **Loading more is a sentinel, not a button**, because the list is read by scrolling; its
   `IntersectionObserver` is attached in `afterNextRender`, since one attached before layout
   fires immediately against a zero-sized box and asks for page two before page one is drawn.

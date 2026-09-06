@@ -1,11 +1,13 @@
 import {
   Archive,
+    ArrowLeft,
   ArchiveRestore,
   Ban,
   Building2,
   CalendarDays,
   ChartLine,
   ChevronDown,
+    ChevronUp,
   ChevronRight,
   CircleAlert,
   CircleCheck,
@@ -48,12 +50,14 @@ export type IconNode = readonly IconPart[];
  */
 export const LG_ICONS = {
   archive: Archive,
+    'arrow-left': ArrowLeft,
   'archive-restore': ArchiveRestore,
   ban: Ban,
   'building-2': Building2,
   'calendar-days': CalendarDays,
   'chart-line': ChartLine,
   'chevron-down': ChevronDown,
+    'chevron-up': ChevronUp,
   'chevron-right': ChevronRight,
   'circle-alert': CircleAlert,
   'circle-check': CircleCheck,

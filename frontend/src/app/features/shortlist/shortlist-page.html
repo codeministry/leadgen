@@ -1,106 +1,160 @@
-<lg-page-header
-  [title]="'shortlist.title' | transloco"
-  [subtitle]="'shortlist.subtitle' | transloco"
-/>
-
-<div class="filters">
-  <label class="control">
-    <span class="sr-only">{{ 'shortlist.searchLabel' | transloco }}</span>
-    <input
-      type="search"
-      class="input input-sm"
-      [placeholder]="'shortlist.searchPlaceholder' | transloco"
-      [value]="q()"
-      (input)="onInput($event)"
+<div class="page-head">
+    <lg-page-header
+            [title]="'shortlist.title' | transloco"
+            [subtitle]="'shortlist.subtitle' | transloco"
     />
-  </label>
-
-  <div class="join" role="group" [attr.aria-label]="'shortlist.scoreBand' | transloco">
-    @for (option of bandOptions(); track option.id) {
-      <button
-        type="button"
-        class="btn btn-sm join-item"
-        [class.btn-active]="band() === option.id"
-        [attr.aria-pressed]="band() === option.id"
-        (click)="setFilter('band', option.id)"
-      >
-        {{ option.label | transloco: option.params }}
-      </button>
-    }
-  </div>
-
-  <button
-    type="button"
-    class="btn btn-sm"
-    [class.btn-active]="archived()"
-    [attr.aria-pressed]="archived()"
-    (click)="toggleArchive()"
-  >
-    <lg-icon name="archive" [size]="14" />
-    {{ 'shortlist.archive' | transloco }}
-  </button>
-
-  <label class="control">
-    <span class="sr-only">{{ 'shortlist.portal' | transloco }}</span>
-    <select class="select select-sm" [value]="portal()" (change)="onPortal($event)">
-      <option value="">{{ 'shortlist.everyPortal' | transloco }}</option>
-      @for (name of store.portals(); track name) {
-        <option [value]="name">{{ name }}</option>
-      }
-    </select>
-  </label>
-
-  <p class="type-small text-muted count">
-    {{
-      (archived() ? 'shortlist.countArchived' : 'shortlist.count')
-        | transloco: { matched: store.matched(), total: store.total() }
-    }}
-    @if (store.unscored() > 0) {
-      · {{ 'shortlist.unscored' | transloco: { count: store.unscored() } }}
-    }
-  </p>
-
-  @if (filtered()) {
-    <button type="button" class="btn btn-ghost btn-sm" (click)="clear()">
-      <lg-icon name="x" [size]="14" />
-      {{ 'shortlist.clearFilters' | transloco }}
-    </button>
-  }
 </div>
 
-@if (store.error(); as error) {
-  <p class="type-small error" role="alert">{{ error | transloco }}</p>
-} @else if (visible().length > 0) {
-  <div class="list">
-    @for (entry of visible(); track entry.offer.id) {
-      <lg-offer-card [entry]="entry" />
-    }
-  </div>
+<div class="split">
+    <!-- The filters sit in the left column, above the scroller and outside it. They filter
+         the list and nothing else; laid across both columns they read as filtering the detail
+         too, and a 20rem search field spanning the page while acting on a 26rem column is a
+         false affordance. Outside the scroller is also why this screen needs no sticky. -->
+    <div class="list-col">
+        <div class="filters">
+            <label class="control">
+                <span class="sr-only">{{ 'shortlist.searchLabel' | transloco }}</span>
+                <input
+                        type="search"
+                        class="input input-sm"
+                        [placeholder]="'shortlist.searchPlaceholder' | transloco"
+                        [value]="q()"
+                        (input)="onInput($event)"
+                />
+            </label>
 
-  @if (store.hasMore()) {
-    <!-- The sentinel, not a button: the list is read by scrolling and the next page should
-         arrive before the scrolling stops. It stays in the DOM only while there is more, so
-         reaching the end of the archive ends the loading rather than repeating it. -->
-    <div class="sentinel" lgLoadMore (reached)="loadMore()">
-      <span class="type-small text-muted">{{ 'shortlist.loadingMore' | transloco }}</span>
+            <div class="row">
+                <div class="join" role="group" [attr.aria-label]="'shortlist.scoreBand' | transloco">
+                    @for (option of bandOptions(); track option.id) {
+                        <button
+                                type="button"
+                                class="btn btn-sm join-item"
+                                [class.btn-active]="band() === option.id"
+                                [attr.aria-pressed]="band() === option.id"
+                                (click)="setFilter('band', option.id)"
+                        >
+                            {{ option.label | transloco: option.params }}
+                        </button>
+                    }
+                </div>
+
+                <button
+                        type="button"
+                        class="btn btn-sm"
+                        [class.btn-active]="archived()"
+                        [attr.aria-pressed]="archived()"
+                        (click)="toggleArchive()"
+                >
+                    <lg-icon name="archive" [size]="14"/>
+                    {{ 'shortlist.archive' | transloco }}
+                </button>
+
+                <label class="control">
+                    <span class="sr-only">{{ 'shortlist.portal' | transloco }}</span>
+                    <select class="select select-sm" [value]="portal()" (change)="onPortal($event)">
+                        <option value="">{{ 'shortlist.everyPortal' | transloco }}</option>
+                        @for (name of store.portals(); track name) {
+                            <option [value]="name">{{ name }}</option>
+                        }
+                    </select>
+                </label>
+
+                @if (filtered()) {
+                    <button type="button" class="btn btn-ghost btn-sm" (click)="clear()">
+                        <lg-icon name="x" [size]="14"/>
+                        {{ 'shortlist.clearFilters' | transloco }}
+                    </button>
+                }
+            </div>
+
+            <p class="type-small text-muted count">
+                {{
+                    (archived() ? 'shortlist.countArchived' : 'shortlist.count')
+                        | transloco: {matched: store.matched(), total: store.total()}
+                }}
+                @if (store.unscored() > 0) {
+                    · {{ 'shortlist.unscored' | transloco: {count: store.unscored()} }}
+                }
+            </p>
+        </div>
+
+        <section class="pane list-pane" #listPane [attr.aria-label]="'shortlist.listLabel' | transloco">
+            @if (store.listError(); as error) {
+                <p class="type-small error" role="alert">{{ error | transloco }}</p>
+            } @else if (visible().length > 0) {
+                <ul class="list">
+                    @for (entry of visible(); track entry.offer.id) {
+                        <li>
+                            <lg-offer-card [entry]="entry" [selected]="entry.offer.id === selectedId()"/>
+                        </li>
+                    }
+                </ul>
+
+                @if (store.hasMore()) {
+                    <!-- The sentinel, not a button: the list is read by scrolling and the next page
+                         should arrive before the scrolling stops. It stays in the DOM only while there
+                         is more, so reaching the end of the archive ends the loading rather than
+                         repeating it. `root` is the pane, because the list scrolls inside it now — the
+                         window as root would intersect on the first frame and never stop. -->
+                    <div class="sentinel" lgLoadMore [root]="listPane" (reached)="loadMore()">
+                        <span class="type-small text-muted">{{ 'shortlist.loadingMore' | transloco }}</span>
+                    </div>
+                }
+            } @else if (store.listLoading()) {
+                <!-- An empty left column now sits permanently beside a detail, so the moment during
+                     a filter change is far more visible than it was on a whole page. -->
+                <p class="type-small text-muted">{{ 'common.loading' | transloco }}</p>
+            } @else if (archived()) {
+                <lg-empty-state
+                        icon="archive"
+                        [title]="'shortlist.emptyArchiveTitle' | transloco"
+                        [description]="'shortlist.emptyArchiveHint' | transloco"
+                />
+            } @else if (filtered()) {
+                <lg-empty-state
+                        icon="search"
+                        [title]="'shortlist.noMatchTitle' | transloco"
+                        [description]="'shortlist.noMatchHint' | transloco"
+                />
+            } @else {
+                <lg-empty-state
+                        icon="inbox"
+                        [title]="'shortlist.emptyTitle' | transloco"
+                        [description]="'shortlist.emptyHint' | transloco"
+                />
+            }
+        </section>
     </div>
-  }
-} @else if (archived()) {
-  <lg-empty-state
-    icon="archive"
-    [title]="'shortlist.emptyArchiveTitle' | transloco"
-    [description]="'shortlist.emptyArchiveHint' | transloco"
-  />
-} @else if (filtered()) {
-  <lg-empty-state
-    icon="search"
-    [title]="'shortlist.noMatchTitle' | transloco"
-    [description]="'shortlist.noMatchHint' | transloco"
-  />
-} @else {
-  <lg-empty-state
-    icon="inbox"
-    [title]="'shortlist.emptyTitle' | transloco"
-    [description]="'shortlist.emptyHint' | transloco"
-  />
-}
+
+    <section
+            class="pane detail-pane"
+            #detailPane
+            [attr.aria-label]="'shortlist.detailLabel' | transloco"
+    >
+        @if (selectedId() !== null) {
+            <!-- A link and not a click handler, so it can be middle-clicked and shows its URL;
+                 outside the scroller, so it never disappears behind a 4000-character advert.
+                 `preserve` returns to the same filtered list. -->
+            <a class="btn btn-sm btn-ghost back" routerLink="/shortlist" queryParamsHandling="preserve">
+                <lg-icon name="arrow-left" [size]="16"/>
+                {{ 'shortlist.backToList' | transloco }}
+            </a>
+        }
+
+        <router-outlet/>
+
+        <!-- Only while there is a list to pick from. "Pick an offer" beside "no offers yet"
+             would be a page arguing with itself. -->
+        @if (selectedId() === null && visible().length > 0) {
+            <lg-empty-state
+                    icon="list-checks"
+                    [title]="'shortlist.pickTitle' | transloco"
+                    [description]="
+          'shortlist.pickHint'
+            | transloco
+              : { shortlist: shortlistAt(), review: reviewAt(), reviewTo: shortlistAt() - 1 }
+        "
+            />
+        }
+    </section>
+</div>

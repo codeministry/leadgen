@@ -17,6 +17,13 @@ import { plainText } from '@shared/text/plain-text';
 export class OfferCard {
   readonly entry = input.required<ShortlistEntry>();
 
+    /**
+     * Whether this is the offer the detail column is showing. Passed in from the routed id
+     * rather than held here: the URL is what a deep link, the back button and a card click
+     * all agree on, and a second copy would disagree with it the first time one is used.
+     */
+    readonly selected = input(false);
+
   /**
    * The three factors that moved the score most, plus every penalty. A penalty is
    * never hidden behind a cut-off: it is the reason a promising title scored low,

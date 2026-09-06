@@ -7,6 +7,12 @@ export interface ScoreReason {
   readonly factor: string;
   readonly label: string;
   readonly points: number;
+    /**
+     * What this factor could have contributed, which is what makes the total a share and
+     * not a sum. Zero for an absolute bonus or penalty, and for a score written before the
+     * column existed — in both cases there is no denominator to show.
+     */
+    readonly maxPoints: number;
 }
 
 export interface Score {

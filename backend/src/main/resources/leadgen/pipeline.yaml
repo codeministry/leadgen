@@ -56,6 +56,12 @@ enrichment:
   fetch:
     timeout: PT10S
     rate_limit_per_minute: 20
+    # How many ads one pass will wait for. The limiter refuses rather than waits, so
+    # without this a pass fetches one minute's worth and defers the rest — a backlog then
+    # needs one run per `rate_limit_per_minute` offers to clear. Unset means that older
+    # behaviour. The window itself is untouched: this only says how long a run waits for
+    # permits it would have been granted anyway.
+    max_per_run: 200
     user_agent: "lead-generation/0.1"
     cache_ttl: P7D
     respect_robots_txt: true

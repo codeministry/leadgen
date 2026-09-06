@@ -30,6 +30,8 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -106,19 +108,36 @@ class AdFetcherTest {
     }
 
     private AdFetcher fetcher(int perMinute, PageCache cache, Duration timeout) {
-        Fetch settings = new Fetch(timeout, perMinute, "leadgen-test", Duration.ofDays(7), true);
-        return new AdFetcher(settings, cache, clock);
+        return fetcher(perMinute, perMinute, cache, timeout);
     }
+
+    /**
+     * Separate budget and limit, which is the pair every waiting question is about.
+     */
+    private AdFetcher fetcher(int perMinute, int maxPerRun, PageCache cache, Duration timeout) {
+        Fetch settings = new Fetch(timeout, perMinute, maxPerRun, "leadgen-test", Duration.ofDays(7), true);
+        // The wait is served by moving the same clock the window is read from, so the
+        // sliding behaviour is exercised in full without a minute of real sleeping.
+        return new AdFetcher(settings, cache, clock) {
+            @Override
+            void pause(Duration wait) {
+                waited.add(wait);
+                clock.advance(wait);
+            }
+        };
+    }
+
+    private final List<Duration> waited = new ArrayList<>();
 
     private String url(int n) {
         return PORTAL.baseUrl() + "/ad?n=" + n;
     }
 
     @Test
-    void refusesTheRequestOverTheLimitRatherThanWaitingForATokenToFreeUp() {
-        // Waiting would be the friendlier-looking choice and the wrong one: the fetch runs
-        // inside a run somebody is watching, and a stage that blocks turns a busy minute
-        // into a stalled pipeline. The offer stays in, marked incomplete, with a reason.
+    void refusesTheRequestOnceTheRunsBudgetIsSpentRatherThanWaitingForever() {
+        // `max_per_run` is what says how long a pass is prepared to wait. Spent, it refuses
+        // immediately: the alternative is a stage that blocks until the backlog is gone,
+        // and a backlog is measured in hundreds. The offer stays in and is due again.
         AdFetcher fetcher = fetcher(3);
         for (int i = 0; i < 3; i++) {
             assertThat(fetcher.fetch(url(i)).succeeded()).isTrue();
@@ -129,10 +148,31 @@ class AdFetcherTest {
         long tookMillis = (System.nanoTime() - before) / 1_000_000;
 
         assertThat(refused.succeeded()).isFalse();
-        assertThat(refused.note()).containsIgnoringCase("rate");
+        assertThat(refused.note()).containsIgnoringCase("budget");
         assertThat(refused.fromCache()).isFalse();
         assertThat(tookMillis).isLessThan(200);
         PORTAL.verify(3, getRequestedFor(urlPathEqualTo("/ad")));
+    }
+
+    @Test
+    void waitsForTheWindowWhileTheRunStillHasBudgetForTheAd() {
+        // The limiter refuses rather than waits, which is right for the limiter and wrong
+        // for the pass on top of it: a run stopped at one minute's worth and deferred the
+        // rest, so a backlog needed one run per `rate_limit_per_minute` offers to clear.
+        // Measured on the live database: 97 of 101 scored offers had never had their
+        // original ad fetched at all.
+        AdFetcher fetcher = fetcher(3, 5, mock(PageCache.class), Duration.ofSeconds(5));
+        for (int i = 0; i < 3; i++) {
+            assertThat(fetcher.fetch(url(i)).succeeded()).isTrue();
+        }
+
+        assertThat(fetcher.fetch(url(3)).succeeded()).isTrue();
+
+        // It waited for a permit the window would have granted anyway; it did not take one
+        // the window had refused. The wait is the first request's remaining sixty seconds.
+        assertThat(waited).hasSize(1);
+        assertThat(waited.getFirst()).isBetween(Duration.ofSeconds(59), Duration.ofSeconds(61));
+        PORTAL.verify(4, getRequestedFor(urlPathEqualTo("/ad")));
     }
 
     @Test

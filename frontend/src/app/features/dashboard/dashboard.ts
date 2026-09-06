@@ -94,6 +94,28 @@ export class Dashboard implements OnInit {
     () => this.ingest.report() !== null || this.ingest.lastRun() !== null,
   );
 
+    /**
+     * How many offers this run actually sent to a judge, and which judge answered.
+     *
+     * <p>The per-run count, not the standing shortlist: a run judges what is stale, so zero
+     * is the normal outcome of a pass that found nothing new. The catalog says that in words
+     * rather than leaving a bare 0 to be read as scoring having stopped working, which is the
+     * same reading `merged` had to be protected from.
+     *
+     * <p>The model comes from the recorded row alone, because an `IngestReport` does not
+     * carry one. A run this browser started therefore shows the count without a scale until
+     * the recorded row catches up, which is honest: two runs under two models are not
+     * comparable, and guessing which one answered would hide exactly that.
+     */
+    protected readonly analysed = computed<{ readonly count: number; readonly model: string | null } | null>(() => {
+        const report = this.ingest.report();
+        const recorded = this.ingest.lastRun();
+        if (report !== null) {
+            return {count: report.scored.scored, model: recorded?.scoreModel ?? null};
+        }
+        return recorded === null ? null : {count: recorded.scored, model: recorded.scoreModel};
+    });
+
   /**
    * How many things came up short of what they announced, over whichever run is on screen.
    *

@@ -181,7 +181,10 @@ public class ScoreBatchService {
                 jdbc.sql(WAITING).param(batch.id()).query(ScoreCandidate::of).list()) {
             List<ScoreReason> reasons = new java.util.ArrayList<>(scorer.score(candidate));
             List<ScoreReason> answer = judged.get(candidate.id());
-            if (answer == null) {
+            // No entry at all, or one that came back without the factor a judge is told to
+            // answer even at zero. Both mean the same thing here — no usable judgement —
+            // and both leave the offer due again rather than scored on part of the table.
+            if (answer == null || !Judge.answered(answer)) {
                 writer.write(candidate.id(), Score.unscored(reasons, rulesetVersion), autoShortlist, review);
                 continue;
             }

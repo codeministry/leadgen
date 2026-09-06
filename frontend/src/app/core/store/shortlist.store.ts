@@ -24,8 +24,17 @@ interface ShortlistState {
   /** The offer the detail is showing, fetched by id rather than found in the list. */
   selected: ShortlistEntry | null;
   funnel: FunnelView | null;
-  error: string | null;
-  loading: boolean;
+    /**
+     * Four fields where there were two. The list and the detail share a screen now, and they
+     * used to share one `loading` and one `error`: a detail fetch that failed set `error`,
+     * the list's template branched on `error` first, and one bad id blanked the whole list
+     * beside it. `listError` replaces the list, `detailError` replaces the right column, and
+     * neither reaches the other. Same reason `rescoreError` was kept apart below.
+     */
+    listLoading: boolean;
+    listError: string | null;
+    detailLoading: boolean;
+    detailError: string | null;
   /**
    * The offer being judged again, not a boolean. One button shows a spinner; every other
    * control on the page stays usable, and the same rule the board follows for `saving`.
@@ -53,8 +62,10 @@ const initialState: ShortlistState = {
   loadingMore: false,
   selected: null,
   funnel: null,
-  error: null,
-  loading: false,
+    listLoading: false,
+    listError: null,
+    detailLoading: false,
+    detailError: null,
   rescoring: null,
   rescoreError: null,
   archiving: null,
@@ -74,8 +85,8 @@ export const ShortlistStore = signalStore(
     // rather than after it, so the page never shows the previous filter's offers under the
     // new filter's heading.
     on(shortlistEvents.opened, ({ payload }) => ({
-      loading: true,
-      error: null,
+        listLoading: true,
+        listError: null,
       entries: [],
       cursor: null,
       filters: payload,
@@ -87,7 +98,7 @@ export const ShortlistStore = signalStore(
       unscored: payload.unscored,
       total: payload.total,
       portals: payload.portals,
-      loading: false,
+        listLoading: false,
     })),
     on(shortlistEvents.moreRequested, () => ({ loadingMore: true })),
     on(shortlistEvents.moreLoaded, ({ payload }, state) => ({
@@ -98,12 +109,22 @@ export const ShortlistStore = signalStore(
       total: payload.total,
       loadingMore: false,
     })),
-    on(shortlistEvents.failed, ({ payload }) => ({ error: payload, loading: false })),
+      on(shortlistEvents.failed, ({payload}) => ({listError: payload, listLoading: false})),
     // Cleared on request, not on arrival: leaving the previous offer on screen while the
     // next one loads shows the wrong ad under the right title.
-    on(shortlistEvents.offerRequested, () => ({ selected: null, loading: true, error: null })),
-    on(shortlistEvents.offerLoaded, ({ payload }) => ({ selected: payload, loading: false })),
-    on(shortlistEvents.offerFailed, ({ payload }) => ({ error: payload, loading: false })),
+      on(shortlistEvents.offerRequested, () => ({
+          selected: null,
+          detailLoading: true,
+          detailError: null,
+      })),
+      on(shortlistEvents.offerLoaded, ({payload}) => ({
+          selected: payload,
+          detailLoading: false,
+      })),
+      on(shortlistEvents.offerFailed, ({payload}) => ({
+          detailError: payload,
+          detailLoading: false,
+      })),
     on(shortlistEvents.funnelLoaded, ({ payload }) => ({ funnel: payload })),
     on(shortlistEvents.rescoreRequested, ({ payload }) => ({
       rescoring: payload,

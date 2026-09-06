@@ -116,12 +116,31 @@ public record PipelineConfig(
     public record Enrichment(
             boolean enabled, @NotBlank String after, @Valid @NotNull Fetch fetch, @Valid Extract extract) {
 
+        /**
+         * @param maxPerRun how many ads one pass is willing to wait for. The limiter
+         *                  refuses rather than waits, so without this a pass fetches one minute's worth
+         *                  and defers the rest — measured: 480 due, 20 fetched, and a backlog that needs
+         *                  one run per twenty offers to clear. Unset means exactly that older behaviour,
+         *                  {@code rateLimitPerMinute}, so a configuration written before this key
+         *                  behaves as it did. The politeness guarantee is untouched either way: the
+         *                  window still allows what it allowed, this only says how long a run is
+         *                  prepared to sit and wait for it.
+         */
         public record Fetch(
                 @NotNull Duration timeout,
                 @Min(1) int rateLimitPerMinute,
+                @Min(1) Integer maxPerRun,
                 @NotBlank String userAgent,
                 @NotNull Duration cacheTtl,
-                boolean respectRobotsTxt) {}
+                boolean respectRobotsTxt) {
+
+            /**
+             * What one pass may fetch, with the fallback applied once and in one place.
+             */
+            public int budget() {
+                return maxPerRun == null ? rateLimitPerMinute : maxPerRun;
+            }
+        }
 
         /**
          * @param strategy how the fields are read. Only {@code patterns} exists: a

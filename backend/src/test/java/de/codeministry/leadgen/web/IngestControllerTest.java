@@ -8,6 +8,9 @@
  */
 package de.codeministry.leadgen.web;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.BDDMockito.given;
+
 import de.codeministry.leadgen.analytics.LastRunQueryService;
 import de.codeministry.leadgen.analytics.LastRunSource;
 import de.codeministry.leadgen.analytics.LastRunView;
@@ -20,19 +23,16 @@ import de.codeministry.leadgen.ingest.IngestService;
 import de.codeministry.leadgen.ingest.SourceIngestResult;
 import de.codeministry.leadgen.packaging.PackageReport;
 import de.codeministry.leadgen.score.ScoringReport;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.test.web.servlet.assertj.MockMvcTester;
 
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.BDDMockito.given;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.web.servlet.assertj.MockMvcTester;
 
 /**
  * What the run endpoints actually put on the wire.
@@ -108,7 +108,7 @@ class IngestControllerTest {
                         new FilterReport(Map.of(), 12, 31),
                         new ArchiveReport(0, 0, 0, 0),
                         new EnrichmentReport(12, 0, 12, 0, 0, 0),
-                        new ScoringReport(12, 12, 0, 2, 3, 0),
+                        new ScoringReport(12, 12, 0, 2, 3, 0, 0),
                         null,
                         new PackageReport(2, 2, 0, List.of()),
                         Instant.parse("2026-09-05T06:12:00Z")));

@@ -29,6 +29,30 @@
   --lg-measure: 84rem;
   --lg-measure-wide: 120rem;
 
+    /* How much of an advert is shown before it is folded away. A portal ad runs to
+       several thousand characters and the panels that say what the tool decided sit
+       underneath it, so unfolded it is the page. Tall enough that a short ad is never
+       folded at all and a long one still shows what it is asking for. */
+    --lg-ad-clamp: 26rem;
+
+    /* The shortlist's split view. A fixed reading column and the rest: a proportional split
+       re-wraps the card's four meta values on every monitor, and the card is the thing being
+       scanned twenty at a time. The route takes the wide measure so the columns have room,
+       and the split caps itself inside it — ungapped, the advert would run 92rem wide on a
+       large monitor, which is the one prose surface in the app. */
+    --lg-list-w: 26rem;
+    --lg-split-gap: 1.25rem;
+    --lg-split-max: 100rem;
+
+    /* Selection in a list. Not the accent: ochre means "this survived the filter" and nothing
+       else, so the one on screen takes the primary edge and wash the nav rail already uses
+       for "you are here". Ten per cent lands one step below `--color-base-300` in the light
+       theme and one clear step above `--color-base-100` in the dark one, at a chroma the
+       theme already contains. Resolved at the using element, so each daisyUI theme scope
+       contributes its own primary — the same mechanism `--score-strong` stands on. */
+    --lg-selected-surface: color-mix(in oklab, var(--color-primary) 10%, var(--color-base-100));
+    --lg-selected-surface-hover: color-mix(in oklab, var(--color-primary) 14%, var(--color-base-100));
+
   /* Tailwind spells this `--font-mono--font-feature-settings`, which stylelint's
      custom-property-pattern rejects for the double dash. One name, ours. */
   --lg-mono-features: 'tnum' 1, 'zero' 1, 'cv02' 1;

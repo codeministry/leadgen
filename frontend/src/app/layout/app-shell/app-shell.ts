@@ -1,6 +1,12 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { ActivatedRoute, NavigationEnd, Router, RouterOutlet } from '@angular/router';
+import {
+    ActivatedRoute,
+    ActivatedRouteSnapshot,
+    NavigationEnd,
+    Router,
+    RouterOutlet,
+} from '@angular/router';
 import { filter, map } from 'rxjs';
 import { injectDispatch } from '@ngrx/signals/events';
 import { statusEvents } from '@core/store/status.events';
@@ -32,6 +38,20 @@ export class AppShell implements OnInit {
     { initialValue: this.router.url },
   );
 
+    /**
+     * The deepest activated route, which is the one that decides. `data` is inherited down
+     * the chain — `paramsInheritanceStrategy` defaults to `'always'` — so a flag written once
+     * on a parent is visible here even when a child is active.
+     */
+    private leaf(): ActivatedRouteSnapshot {
+        this.url();
+        let leaf = this.route.snapshot;
+        while (leaf.firstChild !== null) {
+            leaf = leaf.firstChild;
+        }
+        return leaf;
+    }
+
   /**
    * Whether the routed screen asked for the wide measure.
    *
@@ -40,14 +60,16 @@ export class AppShell implements OnInit {
    * screen styling its own host would be centred differently depending on where it was
    * rendered. The decision belongs beside the route.
    */
-  protected readonly wide = computed(() => {
-    this.url();
-    let leaf = this.route.snapshot;
-    while (leaf.firstChild !== null) {
-      leaf = leaf.firstChild;
-    }
-    return leaf.data['wide'] === true;
-  });
+  protected readonly wide = computed(() => this.leaf().data['wide'] === true);
+
+    /**
+     * Whether the screen bounds itself to the viewport instead of growing the page.
+     *
+     * Beside `wide` and for the same reason: the element that has to stop scrolling is an
+     * ancestor of the screen, so the screen cannot set it on itself. `.shell` keeps its
+     * `min-height`, so every screen without this flag scrolls the document exactly as before.
+     */
+    protected readonly fill = computed(() => this.leaf().data['fill'] === true);
 
   ngOnInit(): void {
     this.dispatch.opened();

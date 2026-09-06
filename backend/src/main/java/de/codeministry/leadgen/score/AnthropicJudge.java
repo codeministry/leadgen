@@ -88,8 +88,9 @@ public class AnthropicJudge extends ChatClientJudge implements BatchJudge {
             String apiKey,
             String model,
             ObjectMapper json,
-            Map<String, Integer> bounds) {
-        super(chatModel, model, json, bounds);
+            Map<String, Integer> bounds,
+            de.codeministry.leadgen.config.model.SkillProfile profile) {
+        super(chatModel, model, json, bounds, profile);
         this.baseUrl = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
         this.apiKey = apiKey;
     }

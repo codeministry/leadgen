@@ -12,15 +12,15 @@ import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.filter.FilterStage;
 import de.codeministry.leadgen.ingest.IngestReport;
 import de.codeministry.leadgen.score.Judges;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.stereotype.Service;
-
-import javax.sql.DataSource;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalLong;
+import javax.sql.DataSource;
+
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.stereotype.Service;
 
 /**
  * Writes down what a run did, at the moment it is still true.

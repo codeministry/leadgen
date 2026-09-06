@@ -30,4 +30,18 @@ public interface Judge {
      *     legitimate answer and means the offer earns no role-fit points and no penalties.
      */
     List<ScoreReason> judge(ScoreCandidate offer);
+
+    /**
+     * Whether an answer arrived at all.
+     *
+     * <p>`role_fit` is the one factor a judge is told to answer even when it is zero, so its
+     * absence is not an opinion — it is an unreachable endpoint, a reply that was not JSON,
+     * or a model that ignored the instruction. Without this the three cases are
+     * indistinguishable from "no penalties applied", and the offer gets a total computed
+     * from four of five weights: measured, 63 of 101 scored offers had no judged factor at
+     * all and every one of them still carried a number.
+     */
+    static boolean answered(List<ScoreReason> reasons) {
+        return reasons.stream().anyMatch(reason -> "role_fit".equals(reason.factor()));
+    }
 }

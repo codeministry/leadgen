@@ -1,8 +1,8 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import {Router, provideRouter} from '@angular/router';
 import { signal } from '@angular/core';
-import { provideRouter } from '@angular/router';
 import { ShortlistEntry } from '@core/model/shortlist-entry';
 import { ShortlistPage as ShortlistPayload } from '@core/model/shortlist-page';
 import { SCORE_THRESHOLDS } from '@shared/shared.ports';
@@ -175,4 +175,49 @@ describe('ShortlistPage', () => {
     expect(fixture.nativeElement.textContent).toContain('12');
     expect(fixture.nativeElement.textContent).toContain('2219');
   });
+
+    /**
+     * jsdom implements no `matchMedia` at all, which is why the component guards it — and
+     * why the width has to be stated here for either case to be reachable.
+     */
+    function widthAllowsBothColumns(matches: boolean): void {
+        Object.defineProperty(window, 'matchMedia', {
+            configurable: true,
+            writable: true,
+            value: (query: string) => ({
+                matches,
+                media: query,
+                addEventListener: () => undefined,
+                removeEventListener: () => undefined,
+            }),
+        });
+    }
+
+    it('opens the first offer by itself when both columns fit', () => {
+        // An empty right column beside a full list is a page waiting for a click it does not
+        // need: the first entry is the highest-scoring one the filters produced.
+        widthAllowsBothColumns(true);
+        const router = TestBed.inject(Router);
+        const navigate = vi.spyOn(router, 'navigate').mockResolvedValue(true);
+
+        render();
+
+        expect(navigate).toHaveBeenCalledWith(
+            ['/shortlist', ENTRIES[0]!.offer.id],
+            // `replaceUrl`, or the back button would undo a selection nobody made.
+            expect.objectContaining({replaceUrl: true, queryParamsHandling: 'preserve'}),
+        );
+    });
+
+    it('leaves the list alone where the detail would replace it', () => {
+        // Below the stylesheet's breakpoint the detail takes the whole screen, so opening one
+        // by itself answers "show me the shortlist" with a single offer.
+        widthAllowsBothColumns(false);
+        const router = TestBed.inject(Router);
+        const navigate = vi.spyOn(router, 'navigate').mockResolvedValue(true);
+
+        render();
+
+        expect(navigate).not.toHaveBeenCalled();
+    });
 });

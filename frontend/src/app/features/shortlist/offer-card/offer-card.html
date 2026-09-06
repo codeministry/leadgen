@@ -1,9 +1,17 @@
-<article class="card">
+<article class="card" [class.is-selected]="selected()">
   <lg-score [value]="entry().score.value" />
 
   <div class="main">
     <h3 class="type-h4 title">
-      <a [routerLink]="['/offers', entry().offer.id]">{{ entry().offer.title }}</a>
+        <!-- Into the split view, and `preserve` is not optional: navigating to a new URL
+             otherwise drops the query string, and the filters reset the moment an offer is
+             opened. `aria-current` says which of the set is on screen. -->
+        <a
+                [routerLink]="['/shortlist', entry().offer.id]"
+                queryParamsHandling="preserve"
+                [attr.aria-current]="selected() ? 'true' : null"
+        >{{ entry().offer.title }}</a
+        >
     </h3>
 
     <p class="type-mono-data text-muted meta">

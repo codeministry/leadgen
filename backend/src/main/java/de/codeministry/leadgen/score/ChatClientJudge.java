@@ -11,6 +11,7 @@ package de.codeministry.leadgen.score;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import de.codeministry.leadgen.config.model.MatchingRules;
+import de.codeministry.leadgen.config.model.SkillProfile;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -53,23 +54,32 @@ public class ChatClientJudge implements Judge {
     static final String ROLE_MISMATCH = "role_mismatch";
     static final String VAGUE = "vague_description";
 
+    /**
+     * <b>The profile is a parameter, not a sentence.</b> It used to read "a senior Java,
+     * Spring Boot and Angular developer who works from Germany" — three skills of the
+     * twenty-nine the profile carries, hard-coded, while every other stage in this
+     * application read `skill-profile.yaml`. Role fit was therefore judged against a
+     * description of somebody else, and editing the profile could not move it.
+     */
     private static final String INSTRUCTIONS =
             """
-            You assess freelance project offers for a senior Java, Spring Boot and Angular
-            developer who works from Germany.
+                    You assess freelance project offers for one specific developer.
+                    
+                    %s
 
             Answer only with JSON of this shape, and nothing else:
             {"reasons":[{"factor":"role_fit","label":"...","points":0}]}
 
             Use only these factors, each at most once:
-              role_fit                  0 to %d, how well the described role matches a
-                                        backend, fullstack or architecture engagement
+                      role_fit                  0 to %d, how well the described role matches this
+                                                developer's own roles and stack
               stack_mismatch_dominant   %d to 0, if the dominant stack is something else
               role_mismatch             %d to 0, if the role is QA, PO, scrum master or support
               vague_description         %d to 0, if the text says too little to judge
 
-            Omit a factor entirely rather than scoring it zero. Every label must name
-            something the offer actually says, in one short sentence, in English.
+                    Always answer role_fit, even when it is 0. Omit the other three entirely rather
+                    than scoring them zero. Every label must name something the offer actually says,
+                    in one short sentence, in English.
             """;
 
     private final ChatModel chatModel;
@@ -83,11 +93,18 @@ public class ChatClientJudge implements Judge {
      */
     private final Map<String, Integer> bounds;
 
-    public ChatClientJudge(ChatModel chatModel, String model, ObjectMapper json, Map<String, Integer> bounds) {
+    /**
+     * Who the offer is being judged for. Null is tolerated and yields no profile block.
+     */
+    private final SkillProfile profile;
+
+    public ChatClientJudge(
+            ChatModel chatModel, String model, ObjectMapper json, Map<String, Integer> bounds, SkillProfile profile) {
         this.chatModel = chatModel;
         this.model = model;
         this.json = json;
         this.bounds = bounds;
+        this.profile = profile;
     }
 
     /**
@@ -179,20 +196,78 @@ public class ChatClientJudge implements Judge {
     }
 
     String instructions() {
-        return INSTRUCTIONS.formatted(bound(ROLE_FIT), bound(STACK_MISMATCH), bound(ROLE_MISMATCH), bound(VAGUE));
+        return INSTRUCTIONS.formatted(
+                describe(profile), bound(ROLE_FIT), bound(STACK_MISMATCH), bound(ROLE_MISMATCH), bound(VAGUE));
     }
 
+    /**
+     * The profile in the few lines a judge needs: what they are, how senior, and what they
+     * work with. Not the reference projects and not the weights — this answers "does the
+     * role fit", and the arithmetic of how much that is worth stays on this side.
+     */
+    static String describe(SkillProfile profile) {
+        if (profile == null) {
+            return "No profile is configured; judge the role on its own terms.";
+        }
+        StringBuilder text = new StringBuilder("The developer:\n");
+        SkillProfile.Identity identity = profile.identity();
+        if (identity != null) {
+            if (identity.roles() != null && !identity.roles().isEmpty()) {
+                text.append("  Roles: ")
+                        .append(String.join(", ", identity.roles()))
+                        .append('\n');
+            }
+            if (identity.seniority() != null) {
+                text.append("  Seniority: ").append(identity.seniority()).append('\n');
+            }
+            if (identity.base() != null) {
+                text.append("  Based in: ").append(identity.base()).append('\n');
+            }
+        }
+        names(text, "  Core skills: ", profile.core());
+        names(text, "  Also strong in: ", profile.strong());
+        return text.toString();
+    }
+
+    private static void names(StringBuilder text, String heading, List<SkillProfile.Skill> skills) {
+        if (skills == null || skills.isEmpty()) {
+            return;
+        }
+        text.append(heading)
+                .append(skills.stream()
+                        .map(SkillProfile.Skill::skill)
+                        .collect(java.util.stream.Collectors.joining(", ")))
+                .append('\n');
+    }
+
+    /**
+     * The offer as the judge sees it. The structured fields are in it because the model was
+     * inferring them from prose that often does not carry them: rate, duration, workload
+     * and start come from the enrichment stage, not from the advert's own text, and a judge
+     * calling an offer vague while the row beside it states all four is answering with less
+     * than the application knows.
+     */
     static String describe(ScoreCandidate offer) {
         StringBuilder text = new StringBuilder();
         text.append("Title: ").append(offer.title()).append('\n');
         if (offer.tags() != null && !offer.tags().isEmpty()) {
             text.append("Tags: ").append(String.join(", ", offer.tags())).append('\n');
         }
+        field(text, "Rate", offer.rateEur() == null ? null : offer.rateEur() + " EUR/h");
+        field(text, "Duration", offer.duration());
+        field(text, "Workload", offer.workload());
+        field(text, "Start", offer.startsOn() == null ? null : offer.startsOn().toString());
         text.append("Description: ").append(offer.description()).append('\n');
         if (offer.fullText() != null && !offer.fullText().isBlank()) {
             text.append("Original ad: ").append(offer.fullText()).append('\n');
         }
         return text.toString();
+    }
+
+    private static void field(StringBuilder text, String name, String value) {
+        if (value != null && !value.isBlank()) {
+            text.append(name).append(": ").append(value).append('\n');
+        }
     }
 
     /**
@@ -219,10 +294,19 @@ public class ChatClientJudge implements Judge {
                             factor);
                     continue;
                 }
+                int limit = bound(factor);
                 int points = bound(factor, node.path("points").asInt(0));
                 String label = node.path("label").asText("");
-                if (points != 0 && !label.isBlank()) {
-                    reasons.add(new ScoreReason(factor, label, points));
+                if (label.isBlank()) {
+                    continue;
+                }
+                // A weight is a share of what was attainable and carries its bound, so a
+                // judged zero is a real answer and belongs in the denominator. A penalty is
+                // an absolute deduction, so a zero one is nothing at all and is dropped.
+                if (limit > 0) {
+                    reasons.add(new ScoreReason(factor, label, points, limit));
+                } else if (points != 0) {
+                    reasons.add(ScoreReason.penalty(factor, label, points));
                 }
             }
         } catch (IOException e) {

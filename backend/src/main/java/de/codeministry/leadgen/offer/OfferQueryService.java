@@ -335,13 +335,19 @@ public class OfferQueryService {
         Map<Long, List<ScoreReason>> byOffer = new LinkedHashMap<>();
         jdbc.sql(
                         """
-                        SELECT offer_id, factor, label, points FROM offer_score_reason
+                                SELECT offer_id, factor, label, points, max_points FROM offer_score_reason
                         WHERE offer_id = ANY (?) ORDER BY offer_id, position
                         """)
                 .param(ids.toArray(Long[]::new))
                 .query((rs, index) -> {
                     byOffer.computeIfAbsent(rs.getLong("offer_id"), key -> new ArrayList<>())
-                            .add(new ScoreReason(rs.getString("factor"), rs.getString("label"), rs.getInt("points")));
+                            .add(new ScoreReason(
+                                    rs.getString("factor"),
+                                    rs.getString("label"),
+                                    rs.getInt("points"),
+                                    // Zero for a row written before the column existed, which
+                                    // renders as no denominator rather than as "0 of 0".
+                                    rs.getInt("max_points")));
                     return null;
                 })
                 .list();

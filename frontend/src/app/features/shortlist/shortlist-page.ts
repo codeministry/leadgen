@@ -1,5 +1,18 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, input } from '@angular/core';
-import { Router } from '@angular/router';
+import {
+    ChangeDetectionStrategy,
+    Component,
+    DOCUMENT,
+    ElementRef,
+    computed,
+    effect,
+    inject,
+    input,
+    signal,
+    viewChild,
+} from '@angular/core';
+import {toSignal} from '@angular/core/rxjs-interop';
+import {ActivatedRoute, NavigationEnd, Router, RouterLink, RouterOutlet} from '@angular/router';
+import {filter, map} from 'rxjs';
 import { injectDispatch } from '@ngrx/signals/events';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { shortlistEvents } from '@core/store/shortlist.events';
@@ -16,15 +29,56 @@ type BandFilter = 'all' | 'shortlist' | 'review';
 
 @Component({
   selector: 'lg-shortlist-page',
-  imports: [EmptyState, Icon, LoadMore, OfferCard, PageHeader, TranslocoPipe],
+    imports: [
+        EmptyState,
+        Icon,
+        LoadMore,
+        OfferCard,
+        PageHeader,
+        RouterLink,
+        RouterOutlet,
+        TranslocoPipe,
+    ],
   templateUrl: './shortlist-page.html',
   styleUrl: './shortlist-page.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
+    // Whether the right column is showing an offer. On the host rather than on a wrapper,
+    // because the page header sits outside the split and has to disappear with the list on a
+    // narrow screen — one flag, read by every rule that needs it.
+    host: {'[class.detail-open]': 'selectedId() !== null'},
 })
 export class ShortlistPage {
   private readonly router = inject(Router);
+    private readonly route = inject(ActivatedRoute);
   private readonly dispatch = injectDispatch(shortlistEvents);
   protected readonly store = inject(ShortlistStore);
+
+    private readonly detailPane = viewChild<ElementRef<HTMLElement>>('detailPane');
+
+    /**
+     * The URL, only as a reason to look again — the same shape the shell uses, and for the
+     * same reason: route state is read from the snapshot, so something has to say when the
+     * snapshot changed, and RxJS stays at the I/O boundary, which the router is.
+     */
+    private readonly navigated = toSignal(
+        this.router.events.pipe(
+            filter((event) => event instanceof NavigationEnd),
+            map(() => this.router.url),
+        ),
+        {initialValue: this.router.url},
+    );
+
+    /**
+     * Which offer the child route is showing. Read from the route rather than held here: the
+     * URL is what a deep link, the back button and a card click all agree on, and a second
+     * copy in a signal disagrees with it the first time one of the three is used.
+     */
+    protected readonly selectedId = computed<number | null>(() => {
+        this.navigated();
+        const raw = this.route.snapshot.firstChild?.paramMap.get('id') ?? null;
+        const id = Number(raw);
+        return raw !== null && Number.isFinite(id) ? id : null;
+    });
 
   /**
    * Filters live in the query string, not in the component: a shortlist worth
@@ -84,8 +138,67 @@ export class ShortlistPage {
     archived: this.archived(),
   }));
 
+    /**
+     * Whether both columns are on screen, which is the whole condition for opening one by
+     * itself.
+     *
+     * <p>The number is the stylesheet's, stated once on each side and tied together by this
+     * comment: below it the detail <em>replaces</em> the list rather than sitting beside it,
+     * so auto-selecting there would answer "show me the shortlist" with a single offer and
+     * the reader would have to press back to reach the list they asked for.
+     *
+     * <p>`matchMedia` and not a measured width: it is a media query and not a rendering-
+     * lifecycle API, so it answers correctly in a backgrounded tab, unlike a
+     * `ResizeObserver`. Guarded because jsdom has neither it nor `addEventListener` on the
+     * result, and a specs run must not depend on either.
+     */
+    private static readonly BOTH_COLUMNS = '(width >= 64rem)';
+
+    private readonly bothColumns = signal(false);
+
   constructor() {
+      const view = inject(DOCUMENT).defaultView;
+      if (typeof view?.matchMedia === 'function') {
+          const query = view.matchMedia(ShortlistPage.BOTH_COLUMNS);
+          this.bothColumns.set(query.matches);
+          query.addEventListener?.('change', (event) => this.bothColumns.set(event.matches));
+      }
+
     effect(() => this.dispatch.opened(this.filters()));
+
+      /*
+       * An empty right column beside a full list is a page waiting for a click it does not
+       * need: the first entry is the highest-scoring one the current filters produced, which
+       * is the offer somebody opening this screen was going to open anyway.
+       *
+       * `replaceUrl`, because `/shortlist` and `/shortlist/:id` are the same screen once both
+       * columns fit — a history entry between them would make the back button undo a
+       * selection nobody made. Only when nothing is selected, so a filter change never moves
+       * the reader off the offer they are reading.
+       */
+      effect(() => {
+          const first = this.visible()[0];
+          if (this.selectedId() !== null || first === undefined || !this.bothColumns()) {
+              return;
+          }
+          void this.router.navigate(['/shortlist', first.offer.id], {
+              queryParamsHandling: 'preserve',
+              replaceUrl: true,
+          });
+      });
+
+      // A new offer starts at its own top. The right column is one element that survives the
+      // navigation, so without this the second offer opens wherever the first one was left.
+      // `scrollTop` rather than `scrollTo`: jsdom implements the property and not the method,
+      // and jumping is what is wanted here anyway — a smooth scroll through a whole advert
+      // between two clicks reads as lag.
+      effect(() => {
+          this.selectedId();
+          const pane = this.detailPane()?.nativeElement;
+          if (pane !== undefined) {
+              pane.scrollTop = 0;
+          }
+      });
   }
 
   /** What the server sent for these filters. The browser no longer decides what is shown. */

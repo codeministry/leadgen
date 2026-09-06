@@ -1,9 +1,67 @@
+/* The screen fills the window rather than growing the page, which is what lets the two
+   columns scroll on their own. The route asks for it with `data.fill`; the shell bounds
+   `.content` and `.measure`, and this is the last link in that chain. Every `min-height: 0`
+   below is load-bearing: a flex item's default is its content height, and that is exactly
+   how a "bounded" pane grows the page instead of scrolling.
+
+   The route also takes the wide measure so the columns have room, and the split caps itself
+   inside it — ungapped, the advert would run 92rem wide on a large monitor. */
+:host {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    width: 100%;
+    max-width: var(--lg-split-max);
+    min-height: 0;
+    margin-inline: auto;
+}
+
+.split {
+    display: grid;
+
+    /* Fixed reading column and the rest. A proportional split re-wraps the card's four meta
+       values on every monitor, and the card is the thing being scanned twenty at a time. */
+    grid-template-columns: var(--lg-list-w) minmax(0, 1fr);
+    flex: 1;
+    gap: var(--lg-split-gap);
+    min-height: 0;
+}
+
+/* A column, not a pane: the filters live in it but outside the scroll container. */
+.list-col {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.pane {
+    min-height: 0;
+    overflow-y: auto;
+
+    /* The advert's scroll does not chain to the page behind it. */
+    overscroll-behavior: contain;
+
+    /* No layout shift the first time a detail is long enough to scroll. */
+    scrollbar-gutter: stable;
+
+    /* A focus ring at `outline-offset: 2px` on a card at the pane's edge is otherwise
+       clipped by the scroll container. */
+    padding-inline: 0.25rem;
+}
+
+/* Two rows inside a 26rem column: the search full width, the switches under it. */
 .filters {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.filters .row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem;
-  margin-bottom: 1rem;
 }
 
 .control {
@@ -13,28 +71,18 @@
 }
 
 .control input[type='search'] {
-  width: 20rem;
-  max-width: 100%;
-}
-
-.count {
-  margin-inline-start: auto;
+    width: 100%;
 }
 
 .list {
   display: flex;
   flex-direction: column;
   gap: 0.625rem;
+    list-style: none;
 }
 
 .error {
   color: var(--color-error);
-}
-
-@media (width < 48rem) {
-  .count {
-    margin-inline-start: 0;
-  }
 }
 
 /* Sits below the list and is only in the DOM while there is more to load. */
@@ -42,4 +90,34 @@
   display: flex;
   justify-content: center;
   padding: 1.5rem 0;
+}
+
+/* Mobile-last, as everywhere in this repo: the back control exists only where the list is
+   not on screen beside the detail. */
+.back {
+    display: none;
+}
+
+/* Below this the two columns do not both fit: at 1024px with the rail collapsed the detail
+   would be about 35.8rem, which is the floor at which its own panels still sit two per row.
+   60rem would leave 31.5rem, and 48rem is where the nav rail becomes a bottom bar — two
+   structural relayouts on one number make both harder to check. 64rem is also the number
+   the detail's own grid already used. */
+@media (width < 64rem) {
+    .split {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    :host(.detail-open) .page-head,
+    :host(.detail-open) .list-col {
+        display: none;
+    }
+
+    :host(:not(.detail-open)) .detail-pane {
+        display: none;
+    }
+
+    .back {
+        display: inline-flex;
+    }
 }

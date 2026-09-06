@@ -1,15 +1,43 @@
 .card {
+    position: relative;
   display: flex;
   gap: 1rem;
   padding: 1rem 1.25rem;
   border: 1px solid var(--color-base-300);
   border-radius: var(--radius-box);
   background-color: var(--color-base-100);
-  transition: border-color 140ms ease;
+    transition: border-color 140ms ease,
+    background-color 140ms ease;
 }
 
 .card:hover {
   border-color: color-mix(in oklab, var(--color-primary) 45%, var(--color-base-300));
+}
+
+/* Which one the detail column is showing, in petrol. Selection is interaction, and ochre
+   means one thing only: this survived the filter. The same edge marker and tint the nav
+   rail uses for "you are here", because it is the same statement — 3px rather than the
+   rail's 2, the card being four times the height of a nav item. No elevation: both themes
+   ship `--depth: 0` and this design system has no shadows. */
+.card.is-selected {
+    border-color: var(--color-primary);
+    background-color: var(--lg-selected-surface);
+}
+
+.card.is-selected::before {
+    content: '';
+    position: absolute;
+    inset-block: 0.75rem;
+    inset-inline-start: 0;
+    width: 3px;
+    border-radius: 0 2px 2px 0;
+    background-color: var(--color-primary);
+}
+
+/* Selected keeps the border; hover on it raises the wash instead of weakening the border,
+   so hovering a selected card never reads as deselecting it. */
+.card.is-selected:hover {
+    background-color: var(--lg-selected-surface-hover);
 }
 
 .main {
@@ -24,6 +52,29 @@
 
 .title a:hover {
   text-decoration: underline;
+}
+
+/* The whole card is the link, and the title anchor stays the only interactive element in
+   it: a click handler on the article would need a key handler and a tabindex to satisfy the
+   template accessibility rules, and it would be a second way to reach the same route.
+   Two costs that come with it — text in the card can no longer be selected with the mouse,
+   and any control added here later needs `position: relative; z-index: 1` or it is
+   unclickable. Today the badges and the "also advertised by" line are inert. */
+.title a::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+}
+
+/* The ring belongs on the card, not on the title text, now that the anchor covers it. */
+.title a:focus-visible {
+    outline: none;
+}
+
+.card:has(.title a:focus-visible) {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
 }
 
 .meta {

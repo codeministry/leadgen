@@ -78,7 +78,20 @@
       </p>
     }
 
-    @if (mismatches() > 0) {
+      <!-- What the run judged, beside which judge judged it. Two keys rather than one
+           sentence with an optional tail: a live report carries no model, and "· model null"
+           is worse than a sentence that does not mention one. -->
+      @if (analysed(); as analysed) {
+          <p class="type-small text-muted panel-note">
+              @if (analysed.model) {
+                  {{ 'dashboard.analysed' | transloco: {count: analysed.count, model: analysed.model} }}
+              } @else {
+                  {{ 'dashboard.analysedNoModel' | transloco: {count: analysed.count} }}
+              }
+          </p>
+      }
+
+      @if (mismatches() > 0) {
       <p class="type-small run-error" role="alert">
         <lg-icon name="triangle-alert" [size]="16" />
         {{ 'dashboard.mismatch' | transloco: { count: mismatches() } }}

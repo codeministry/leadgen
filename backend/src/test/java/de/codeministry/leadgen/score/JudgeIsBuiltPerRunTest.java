@@ -130,22 +130,44 @@ class JudgeIsBuiltPerRunTest {
         var withAModel = scoring.run();
 
         assertThat(withAModel.scored()).isEqualTo(1);
+        assertThat(withAModel.unusable()).isZero();
         assertThat(scoreOf(id)).isNotNull();
         assertThat(modelOf(id)).isEqualTo("test-model");
+        assertThat(jdbc.queryForObject(
+                "SELECT count(*) FROM offer_score_reason WHERE offer_id = ? AND factor = 'role_fit'",
+                Integer.class,
+                id))
+                .isEqualTo(1);
     }
 
+    /**
+     * A whole chat completion, not just the part this test cares about.
+     *
+     * <p>It used to send `choices` alone, and the SDK refused the object with "`id` is not
+     * set" — which the judge caught, logged and turned into no reasons at all. The test
+     * stayed green because a run counted an offer as judged whether or not an answer came
+     * back, so what it actually proved was that a judge is <em>built</em> after a reload,
+     * never that one answers. Both halves are asserted now, and both need a real body.
+     */
     private void answers(String json) {
         MODEL.stubFor(post(urlPathEqualTo("/chat/completions"))
                 .willReturn(aResponse()
                         .withHeader("Content-Type", "application/json")
                         .withBody(JSON.createObjectNode()
+                                .put("id", "chatcmpl-1")
+                                .put("object", "chat.completion")
+                                .put("created", 1)
+                                .put("model", "test-model")
                                 .putPOJO(
                                         "choices",
                                         JSON.createArrayNode()
                                                 .add(JSON.createObjectNode()
+                                                        .put("index", 0)
+                                                        .put("finish_reason", "stop")
                                                         .putPOJO(
                                                                 "message",
                                                                 JSON.createObjectNode()
+                                                                        .put("role", "assistant")
                                                                         .put("content", json))))
                                 .toString())));
     }

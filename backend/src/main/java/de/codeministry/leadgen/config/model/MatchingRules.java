@@ -101,11 +101,29 @@ public record MatchingRules(
         public record Freshness(@Min(1) int maxAgeDays) {}
     }
 
+    /**
+     * @param saturationCoreCount how many of the heaviest core skills an advert has to ask
+     *                            for to count as a full match. No advert names a whole profile, so measuring the
+     *                            overlap against all of them makes full marks unreachable: over the measured
+     *                            corpus the skill factor never once exceeded five of eight core skills, and the
+     *                            highest score in the table was 53 out of 100. Unset means all of them, which is
+     *                            that old shape.
+     */
     public record Scoring(
             @NotNull java.util.Map<String, Integer> weights,
             java.util.Map<String, Integer> penalties,
+            @Min(1) Integer saturationCoreCount,
             @Valid @NotNull Thresholds thresholds) {
 
+        /**
+         * @param autoShortlist at or above this, a package is built.
+         * @param review at or above this and below {@code autoShortlist}, the digest lists
+         *     it and a person decides. The loader refuses a {@code review} above
+         *     {@code autoShortlist}: {@link de.codeministry.leadgen.score.Score#band} tests
+         *     the shortlist bound first, so the inverted pair does not fail — it silently
+         *     deletes the REVIEW band and builds a package for everything above the lower
+         *     of the two.
+         */
         public record Thresholds(
                 @Min(0) @Max(100) int autoShortlist, @Min(0) @Max(100) int review, @Min(0) int discard) {}
     }

@@ -25,14 +25,18 @@ package de.codeministry.leadgen.score;
  *     the weights.
  * @param shortlisted at or above `scoring.thresholds.auto_shortlist`.
  * @param review between `review` and `auto_shortlist`.
+ * @param unusable offers this pass asked about and got no usable answer for. They stay
+ *     unscored and therefore due again, so a judge that has stopped answering shows up as a
+ *     number in the run rather than as a shortlist that quietly stopped growing.
  * @param submitted offers handed to a batch instead of judged here. Their scores arrive
  *     minutes later through the collector, which then finishes the run by packaging and
  *     writing the digest. `scored` and `submitted` are never both non-zero: batching is on
  *     for a run or it is not.
  */
-public record ScoringReport(int considered, int scored, int unscored, int shortlisted, int review, int submitted) {
+public record ScoringReport(
+        int considered, int scored, int unscored, int shortlisted, int review, int unusable, int submitted) {
 
     public static ScoringReport nothing() {
-        return new ScoringReport(0, 0, 0, 0, 0, 0);
+        return new ScoringReport(0, 0, 0, 0, 0, 0, 0);
     }
 }

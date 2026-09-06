@@ -135,7 +135,7 @@ class EnrichmentServiceTest {
                         "SELECT count(*) FROM offer WHERE enriched_at IS NULL AND status = 'PASSED'", Integer.class))
                 .isEqualTo(5);
         assertThat(jdbc.queryForObject(
-                        "SELECT count(*) FROM offer WHERE enrichment_note LIKE 'rate limit%'", Integer.class))
+                "SELECT count(*) FROM offer WHERE enrichment_note LIKE '%budget%'", Integer.class))
                 .isZero();
     }
 
@@ -261,12 +261,24 @@ class EnrichmentServiceTest {
                 status);
     }
 
-    /** The shipped defaults: a broken default has to fail the build, not the first user. */
+    /**
+     * The shipped defaults, with one number brought down to the rate limit.
+     *
+     * <p>A broken default has to fail the build rather than the first user, so everything
+     * else here is read as it ships. {@code max_per_run} is the exception: shipped at 200 a
+     * pass waits for the window rather than deferring, which is the point of the setting and
+     * three real minutes inside a test. Lowered to the limit it is the older behaviour — one
+     * minute's worth and then a refusal — which is exactly the boundary these tests are
+     * about.
+     */
     private static Path shippedDefaults() {
         try {
             Path dir = Files.createTempDirectory("leadgen-enrich");
             dir.toFile().deleteOnExit();
             ConfigFixtures.materialize(dir);
+            Path pipeline = dir.resolve("pipeline.yaml");
+            Files.writeString(
+                    pipeline, Files.readString(pipeline).replaceAll("max_per_run:\\s*\\d+", "max_per_run: 20"));
             return dir;
         } catch (IOException e) {
             throw new UncheckedIOException(e);

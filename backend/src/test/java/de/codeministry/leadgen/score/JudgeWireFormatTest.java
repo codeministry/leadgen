@@ -154,7 +154,7 @@ class JudgeWireFormatTest {
                         List.of()))
                 .options(OpenAiChatOptions.builder().model("some-model").build())
                 .build();
-        return new ChatClientJudge(model, "some-model", JSON, BOUNDS);
+        return new ChatClientJudge(model, "some-model", JSON, BOUNDS, null);
     }
 
     private AnthropicJudge anthropicJudge() {
@@ -172,7 +172,7 @@ class JudgeWireFormatTest {
                         .maxTokens(AnthropicJudge.MAX_TOKENS)
                         .build())
                 .build();
-        return new AnthropicJudge(model, baseUrl(), "secret", "some-model", JSON, bounds);
+        return new AnthropicJudge(model, baseUrl(), "secret", "some-model", JSON, bounds, null);
     }
 
     /** A complete Messages-API answer carrying this text. */

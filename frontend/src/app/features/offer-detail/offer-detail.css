@@ -61,7 +61,7 @@
 
 .reason {
   display: grid;
-  grid-template-columns: 3rem 1fr auto;
+    grid-template-columns: 4.5rem 1fr auto;
   align-items: baseline;
   gap: 0.75rem;
 }
@@ -177,4 +177,34 @@
 .archived-note {
   margin-top: -0.5rem;
   color: var(--lg-muted);
+}
+
+/* The folded advert.
+ *
+ * A portal ad runs to several thousand characters and everything the tool decided sits
+ * underneath it, so unfolded the ad is the page. Folding is a max-height and a mask rather
+ * than a truncated string: the Markdown stays whole in the DOM, so it is still searchable
+ * with the browser's own find and still readable to anything that ignores the clamp.
+ *
+ * No transition. A height animation between a clamp and `auto` needs a measured target, and
+ * the measurement is dead in a backgrounded tab; folding instantly is the same result in
+ * every tab.
+ */
+.ad.folded {
+    max-height: var(--lg-ad-clamp);
+    overflow: hidden;
+
+    /* The fade is what says "there is more", so the button never has to be the only clue.
+       It is an alpha ramp and not a colour, which is why it carries no palette value and
+       works on either theme. */
+    mask-image: linear-gradient(to bottom, rgb(0 0 0) calc(100% - 5rem), rgb(0 0 0 / 0%));
+}
+
+.ad-toggle {
+    margin-top: 0.25rem;
+}
+
+/* A failed fetch, in the same red the shortlist uses for the same thing. */
+.error {
+    color: var(--color-error);
 }

@@ -24,14 +24,14 @@ import de.codeministry.leadgen.ingest.extract.OfferMapper;
 import de.codeministry.leadgen.ingest.store.OfferStore;
 import de.codeministry.leadgen.packaging.PackagingService;
 import de.codeministry.leadgen.score.ScoringService;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
 
 /**
  * Runs one pass over every enabled source: fetch, extract, store.

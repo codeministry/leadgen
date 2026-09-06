@@ -8,10 +8,10 @@
  */
 package de.codeministry.leadgen.score;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import org.junit.jupiter.api.Test;
 import org.springframework.transaction.annotation.Transactional;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Where the scoring stage's transaction begins and ends, pinned rather than remembered.

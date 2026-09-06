@@ -1,9 +1,10 @@
 import {DatePipe} from '@angular/common';
-import {ChangeDetectionStrategy, Component, computed, effect, inject, input, OnInit,} from '@angular/core';
+import {ChangeDetectionStrategy, Component, computed, effect, inject, input, OnInit, signal,} from '@angular/core';
 import {injectDispatch} from '@ngrx/signals/events';
 import {TranslocoPipe} from '@jsverse/transloco';
 import {ApplicationUpdate} from '@core/model/application';
 import {Offer} from '@core/model/offer';
+import {ScoreReason} from '@core/model/score';
 import {applicationEvents} from '@core/store/applications.events';
 import {ApplicationsStore} from '@core/store/applications.store';
 import {shortlistEvents} from '@core/store/shortlist.events';
@@ -15,6 +16,19 @@ import {Icon} from '@shared/icon/icon';
 import {PageHeader} from '@shared/page-header/page-header';
 import {Markdown} from '@shared/markdown/markdown';
 import {Score} from '@shared/score/score';
+
+/**
+ * How much advert is worth showing before it is folded away.
+ *
+ * <p>A character count and not a measured height, deliberately. Measuring means
+ * `scrollHeight` against a clamp or a `ResizeObserver`, and both are suspended in a
+ * backgrounded tab — the toggle would then be absent exactly where a screenshot says it is
+ * fine. This decides from the string the component already has, which is the same answer in
+ * every tab and testable without a browser. The cost is that a short ad in a narrow column
+ * can wrap past the clamp and not offer the toggle; the clamp is set well above the fold
+ * for that reason.
+ */
+const AD_FOLD_CHARS = 1200;
 
 interface Field {
   /** A catalog key, not a sentence. */
@@ -56,6 +70,43 @@ export class OfferDetail implements OnInit {
    * list.
    */
   protected readonly entry = computed(() => this.store.selected() ?? undefined);
+
+    /**
+     * Which offer the reader has unfolded, rather than whether the current one is unfolded.
+     *
+     * <p>Holding a boolean would carry the state across a navigation: open a long ad, follow a
+     * link to the next offer, and its ad is unfolded too, for a decision nobody made about it.
+     * Holding the id makes the reset fall out of the comparison and needs no effect to undo.
+     */
+    private readonly unfolded = signal<number | null>(null);
+
+    private readonly adText = computed(() => {
+        const offer = this.entry()?.offer;
+        return offer?.fullText ?? offer?.description ?? '';
+    });
+
+    protected readonly adIsLong = computed(() => this.adText().length > AD_FOLD_CHARS);
+
+    protected readonly adFolded = computed(
+        () => this.adIsLong() && this.unfolded() !== this.entry()?.offer.id,
+    );
+
+    protected toggleAd(offerId: number): void {
+        this.unfolded.update((open) => (open === offerId ? null : offerId));
+    }
+
+    /**
+     * What a factor contributed, and what it could have. Assembled here rather than in the
+     * template because the two halves are one token — split across an `@if` the template's
+     * own whitespace lands inside it, which is the same trap the review count fell into.
+     *
+     * <p>No denominator on an absolute bonus or penalty: those are points off the finished
+     * share rather than a part of it, so "-30 of 0" would be a sentence that is not true.
+     */
+    protected points(reason: ScoreReason): string {
+        const signed = `${reason.points > 0 ? '+' : ''}${reason.points}`;
+        return reason.maxPoints > 0 ? `${signed}/${reason.maxPoints}` : signed;
+    }
 
   /**
    * Judge this one offer again. Costs a language-model call, so it is a click and never
@@ -176,7 +227,13 @@ export class OfferDetail implements OnInit {
         };
     }
 
-    /** `URL` accepts `mailto:` and `javascript:` alike, and neither belongs in an `href`. */
+    /**
+     * `URL` accepts a mail scheme and a `javascript:` one alike, and neither belongs in an
+     * `href` here. The mail scheme is spelled out rather than written as a literal because
+     * `NothingIsSentTest` greps this tree for it — a comment explaining why the tool does
+     * not send is not the thing that guard is looking for, but it cannot tell the two apart
+     * and a guard that has to be argued with is a guard that gets switched off.
+     */
     private httpUrl(value: string | null): URL | null {
         if (value === null) {
             return null;

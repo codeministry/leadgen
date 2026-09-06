@@ -256,6 +256,17 @@ public class ConfigLoader {
                             .formatted(llm.provider(), PipelineConfig.Llm.BATCHING_PROVIDER));
         }
 
+        // Inverted, this does not fail: `Score.band` tests the shortlist bound first, so a
+        // `review` above `auto_shortlist` deletes the REVIEW band outright and builds an
+        // application package for every offer above the lower of the two. Found live, with
+        // `auto_shortlist: 30` under `review: 50`.
+        var thresholds = rules.scoring() == null ? null : rules.scoring().thresholds();
+        if (thresholds != null && thresholds.review() > thresholds.autoShortlist()) {
+            problems.add(
+                    "scoring.thresholds.review is %d and auto_shortlist is %d; review must not be the higher of the two — the bands are read shortlist-first, so the REVIEW band would never be reached and every offer above %d would get a package"
+                            .formatted(thresholds.review(), thresholds.autoShortlist(), thresholds.autoShortlist()));
+        }
+
         String mergePolicy = rules.deduplication().mergePolicy();
         if (mergePolicy != null && !"keep_first_seen_as_primary".equals(mergePolicy)) {
             problems.add(

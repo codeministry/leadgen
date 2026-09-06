@@ -47,7 +47,15 @@
         one pulled off a portal carries the paragraph breaks `PlainText` kept. Plain text
         is valid Markdown, so nothing has to decide which of the two this is.
       -->
-      <lg-markdown [text]="entry.offer.fullText ?? entry.offer.description" />
+        <div class="ad" [class.folded]="adFolded()">
+            <lg-markdown [text]="entry.offer.fullText ?? entry.offer.description"/>
+        </div>
+        @if (adIsLong()) {
+            <button type="button" class="btn btn-sm btn-ghost ad-toggle" (click)="toggleAd(entry.offer.id)">
+                <lg-icon [name]="adFolded() ? 'chevron-down' : 'chevron-up'" [size]="16"/>
+                {{ (adFolded() ? 'detail.showMore' : 'detail.showLess') | transloco }}
+            </button>
+        }
       @if (!entry.offer.fullText) {
         <p class="type-caption text-muted">{{ 'detail.fromSource' | transloco }}</p>
       }
@@ -110,7 +118,7 @@
         @for (reason of entry.score.reasons; track reason.factor) {
           <li class="reason">
             <span class="type-mono-data points" [class.penalty]="reason.points < 0">
-              {{ reason.points > 0 ? '+' : '' }}{{ reason.points }}
+              {{ points(reason) }}
             </span>
             <span class="type-small">{{ reason.label }}</span>
             <span class="type-mono-data text-muted factor">{{ reason.factor }}</span>
@@ -210,8 +218,12 @@
       </section>
     }
   </div>
-} @else if (store.loading()) {
+} @else if (store.detailLoading()) {
   <p class="type-small text-muted">{{ 'common.loading' | transloco }}</p>
+} @else if (store.detailError(); as error) {
+    <!-- Before the not-found state, not after it: a fetch that failed and an id that does
+         not exist are two different answers, and they used to render as the same one. -->
+    <p class="type-small error" role="alert">{{ error | transloco }}</p>
 } @else {
   <lg-empty-state
     icon="circle-alert"

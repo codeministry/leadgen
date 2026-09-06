@@ -90,8 +90,55 @@ class ScoringWithoutAModelTest {
 
         var factors = jdbc.queryForList(
                 "SELECT factor FROM offer_score_reason WHERE offer_id = ? ORDER BY position", String.class, id);
-        assertThat(factors).contains("core_skill_overlap", "seniority_fit", "project_setup");
+        assertThat(factors).contains("core_skill_overlap", "seniority_fit");
         assertThat(factors).doesNotContain("role_fit", "vague_description");
+    }
+
+    @Test
+    void writesNoReasonForSomethingTheOfferNeverStated() {
+        // The difference this whole scale rests on. "12 Monate" in the prose is not a
+        // stated duration — the column is what enrichment fills, and it is empty here — so
+        // the factor has nothing to say and stays out of the total entirely. Scored as a
+        // zero instead, it cost every offer alike: 101 of 101 carried a 0-point `rate_fit`
+        // row for a rate the source states in 0.0 % of offers, and the highest score in the
+        // table was 53.
+        long id = offer("Senior Java Entwickler (m/w/d)", "Spring Boot, 12 Monate");
+
+        scoring.run();
+
+        var factors = jdbc.queryForList(
+                "SELECT factor FROM offer_score_reason WHERE offer_id = ? ORDER BY position", String.class, id);
+        assertThat(factors).doesNotContain("rate_fit", "project_setup", "industry_fit");
+    }
+
+    @Test
+    void scoresAStatedRateBelowTheFloorAsZeroRatherThanAsSilence() {
+        // The other half of the same rule: a rate that is stated and is bad is a judgement
+        // about the offer, so it keeps its zero and its place in the denominator.
+        long id = offer("Senior Java Entwickler (m/w/d)", "Spring Boot");
+        jdbc.update("UPDATE offer SET rate_eur = 35 WHERE id = ?", id);
+
+        scoring.run();
+
+        assertThat(pointsFor(id, "rate_fit")).isZero();
+        assertThat(labelFor(id, "rate_fit")).contains("below the floor");
+    }
+
+    @Test
+    void addsTheStatedShapeOfTheEngagementRatherThanChargingForIt() {
+        // A bonus, not a share. Inside the denominator an ad naming one of three fields
+        // scores 3 of 10 and comes out below one that names nothing at all, because saying
+        // nothing keeps the factor out of the denominator entirely.
+        long bare = offer("Senior Java Entwickler (m/w/d)", "Spring Boot");
+        long stated = offer("Senior Java Entwickler (m/w/d)", "Spring Boot");
+        jdbc.update("UPDATE offer SET duration = '12', starts_on = DATE '2026-11-01' WHERE id = ?", stated);
+
+        scoring.run();
+
+        var bareFactors =
+                jdbc.queryForList("SELECT factor FROM offer_score_reason WHERE offer_id = ?", String.class, bare);
+        assertThat(bareFactors).doesNotContain("project_setup");
+        assertThat(pointsFor(stated, "project_setup")).isPositive();
     }
 
     @Test
@@ -104,12 +151,16 @@ class ScoringWithoutAModelTest {
 
         scoring.run();
 
+        // The weight, not the count: the shipped profile weights both core skills at 10 and
+        // saturates at the two of them, so naming both is the full 20.
         assertThat(labelFor(both, "core_skill_overlap"))
-                .contains("2 of 2")
+                .contains("skill weight 20, a full match is 20")
                 .contains("Java")
                 .contains("Spring Boot");
         // An alias counts as the skill: an ad asking for "Springboot" is naming one.
-        assertThat(labelFor(one, "core_skill_overlap")).contains("1 of 2").contains("Spring Boot");
+        assertThat(labelFor(one, "core_skill_overlap"))
+                .contains("skill weight 10, a full match is 20")
+                .contains("Spring Boot");
         assertThat(pointsFor(both, "core_skill_overlap")).isGreaterThan(pointsFor(one, "core_skill_overlap"));
     }
 
@@ -127,19 +178,6 @@ class ScoringWithoutAModelTest {
                 Integer.class,
                 offerId,
                 factor);
-    }
-
-    @Test
-    void saysSoWhenNoRateWasFoundAnywhere() {
-        // The newsletter states a rate in 0.0 % of offers, so "no rate" is the normal
-        // case and has to read as a fact rather than as a bad score.
-        long id = offer("Senior Java Entwickler (m/w/d)", "Spring Boot");
-
-        scoring.run();
-
-        String label = jdbc.queryForObject(
-                "SELECT label FROM offer_score_reason WHERE offer_id = ? AND factor = 'rate_fit'", String.class, id);
-        assertThat(label).contains("no rate stated");
     }
 
     /**

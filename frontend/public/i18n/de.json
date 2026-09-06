@@ -79,6 +79,8 @@
     "hardFilterNote": "Sechs Stufen, in der Reihenfolge ihres Laufs. Jede nennt, was sie entfernt hat; der Balken verengt sich auf das, was bleibt.",
     "nothingFiltered": "Es wurde noch nichts gefiltert. Lies die Quellen ein, dann zählt das hier das Archiv.",
     "lastRun": "Letzter Lauf",
+    "analysed": "{count, plural, =0 {Nichts war neu zu bewerten — ein Lauf bewertet, was veraltet ist} one {1 Offer bewertet} other {# Offers bewertet}} · Modell {model}",
+    "analysedNoModel": "{count, plural, =0 {Nichts war neu zu bewerten — ein Lauf bewertet, was veraltet ist} one {1 Offer bewertet} other {# Offers bewertet}}",
     "recordedRun": "Von der Pipeline aufgezeichnet, beendet am {when}. Aus diesem Browser wurde nichts gestartet.",
     "finishedRun": "Beendet am {when}.",
     "recordedRunLimits": "Ein aufgezeichneter Lauf wird pro Quelle gezählt. Welches Dokument zu wenig geliefert hat, ist nur während des laufenden Durchgangs bekannt.",
@@ -113,7 +115,12 @@
     "archive": "Archiv",
     "countArchived": "{matched} von {total} archivierten",
     "emptyArchiveTitle": "Noch nichts archiviert",
-    "emptyArchiveHint": "Angebote verlassen die Arbeitsliste, wenn sie älter als das Frischefenster werden oder wenn du sie selbst herausnimmst."
+    "emptyArchiveHint": "Angebote verlassen die Arbeitsliste, wenn sie älter als das Frischefenster werden oder wenn du sie selbst herausnimmst.",
+    "backToList": "Zurück zur Liste",
+    "pickTitle": "Ein Angebot auswählen",
+    "pickHint": "Links steht, was den harten Filter passiert hat. Über {shortlist} wurde ein Paket gebaut, {review} bis {reviewTo} lohnt einen Blick.",
+    "listLabel": "Angebote",
+    "detailLabel": "Ausgewähltes Angebot"
   },
   "offer": {
     "rateUnknown": "Satz unbekannt",
@@ -131,6 +138,8 @@
     "originalAd": "Originalanzeige",
     "theAd": "Die Anzeige",
     "fromSource": "Aus dem Quelldokument. Die Originalanzeige wurde nicht abgerufen.",
+    "showMore": "Ganze Anzeige zeigen",
+    "showLess": "Weniger zeigen",
     "whyScored": "Warum diese Punktzahl",
     "notScored": "Nicht bewertet. Ohne Sprachmodell entsteht diese Auswahl trotzdem, nur ohne Rangfolge.",
     "scoreMeta": "Regelsatz {ruleset} · Modell {model}",

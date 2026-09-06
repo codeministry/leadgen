@@ -60,6 +60,12 @@ export interface ScoringReport {
   readonly shortlisted: number;
   readonly review: number;
   /**
+   * This run: offers a judge was asked about and gave no usable answer for. They stay
+   * unscored and due again, so a model that has stopped answering is a number here rather
+   * than a shortlist that quietly stopped growing.
+   */
+  readonly unusable: number;
+    /**
    * Handed to a batch instead of judged in the run. Their scores arrive minutes later,
    * and so do the packages and the digest. Never non-zero together with `scored`.
    */
