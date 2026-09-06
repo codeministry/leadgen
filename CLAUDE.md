@@ -954,11 +954,30 @@ write endpoint in the application.
 underneath all three. One list on the left, one thing being read on the right, and neither column scrolls the other.
 
 - **The screen is bounded, not the page.** A route asks for it with `data: { fill: true }`
-  and `AppShell` reads that exactly where it reads `wide`, because the element that has to stop scrolling is an ancestor
+  and `AppShell` reads that exactly where it reads `data.measure`, because the element that has to stop scrolling is an
+  ancestor
   of the screen. `.shell.fill` takes a real `height: 100dvh`:
   `min-height` alone is not a height, the flex chain resolves against it only while the content is shorter, and a long
   list simply grows the shell past the viewport — the page scrolls and the panes never do. Measured that way before the
   `height` was added.
+- **Every screen sits against the nav rail; the measure caps the line length and never places the screen.** Centred, a
+  wide monitor put each screen's content somewhere else — the board hard against the rail, the dashboard floating in the
+  middle between two margins — so the left edge had to be found again on every navigation. Left-aligned, that edge is
+  the same on all seven screens and the width a screen does not need stays on the right. Two rules carried it:
+  `margin-inline` on `.measure` in the shell and on the shortlist's own host, which caps itself at `--lg-split-max`
+  inside the wide measure.
+- **The list column takes 34rem and the advert gives them up.** The card is what is scanned twenty at a time and it
+  carries a title, four meta values and a score; the advert is prose and was the wider of the two by a long way. It
+  stays a fixed width — a proportional split re-wraps the card's meta row on every monitor. One token for the shortlist
+  and the review both: the review's queue is the same card read the same way. The cost is at the bottom of the
+  two-column range, where the reading column is 4rem narrower than it was; at 1024px with the nav rail open it is around
+  15rem, which was already too narrow before this change.
+- **The board takes the whole window; the other two take the wide measure.** `data.measure` is one string with three
+  states, not a flag per width — two booleans on one axis can both be set and then the stylesheet's order silently
+  decides. The shortlist and the review each have a prose column, which is what a measure exists for. The board has five
+  lanes and a reading column dividing whatever width there is, so every rem a cap withholds is width taken off all five,
+  and `.measure.full` is `max-width: none` rather than a bigger number: a cap wide enough for today's monitor is wrong
+  on the next one. That is also why there is no `--lg-measure-full` token.
 - **Every `min-height: 0` down that chain is load-bearing.** A flex item's default is its content height, which is
   exactly how a "bounded" pane grows the page instead of scrolling, and it looks correct in a screenshot while doing it.
   The chain is
@@ -966,10 +985,17 @@ underneath all three. One list on the left, one thing being read on the right, a
   `.split` → `.pane`.
 - **`<router-outlet>` gets `display: none` inside `.measure.fill`.** It is a comment anchor with no box; in a flex
   container it would still take a slot. The routed component is its next sibling and carries the height.
-- **The breakpoint is 64rem on all three, and below it the list is hidden rather than overlaid.** At 1024px with the
-  rail collapsed the reading column is about 35.8rem, which is the floor at which the detail's own panels still sit two
-  per row. 60rem leaves 31.5rem; 48rem is where the nav rail becomes a bottom bar, and stacking two structural relayouts
-  on one number makes both harder to check. It is also the number the detail's grid already used.
+- **The breakpoint is 80rem on all three, and below it the list is hidden rather than overlaid.** It is measured with
+  the nav rail **open**, because that is the worse of the two states and no media query can see which one is showing:
+  the rail goes from 4rem to 14.5rem on a click with no breakpoint of its own. Measured at the breakpoint: the reading
+  column is 489px with the rail open and 647px with it collapsed. The old 64rem was measured against a narrower list and
+  against the collapsed rail alone, and the state it left out was the bad one — at 1024px with the rail open the advert
+  was 233px wide and the title broke over four lines. 48rem is where the rail becomes a bottom bar and stays its own
+  number: stacking two structural relayouts on one makes both harder to check.
+- **A `rem` in a media query is not a `rem` in a rule, in this repository.** `html` sits at `font-size: 93.75%`, so the
+  layout's rem is 15px while a media query resolves against the initial 16px whatever the root says. `80rem` is
+  therefore 1280px, and `--lg-list-w: 34rem` is 510px. Comparing the two numbers as if they were the same unit is how a
+  breakpoint gets picked for a column width it does not actually produce.
 - **The selection is a route, never local state.** The URL is what a deep link, the back button and a click all agree
   on, and a second copy in a signal disagrees with it the first time one of the three is used. Read from
   `route.snapshot.firstChild` with `NavigationEnd`
@@ -1004,7 +1030,7 @@ underneath all three. One list on the left, one thing being read on the right, a
   `<section>`, not a `viewChild`, so it is a real element on the first pass.
 - **The fill layout applies at every width, which is what makes that root safe.** One scroll model everywhere, no
   `matchMedia` in TypeScript duplicating a CSS breakpoint, and nothing that changes behaviour when a window is dragged
-  across 64rem.
+  across the split's own breakpoint.
 - **The detail's panel grid is a container query, and the container is the pane.**
   `@container detail (width < 44rem)`. The viewport cannot answer for that column: the nav rail expands from 4rem to
   14.5rem **with no media query at all**, so at 1280px the detail is 47.5rem collapsed and 37rem open and no viewport
@@ -1071,7 +1097,7 @@ screen reads one of these, and none of them writes.
   second implementation this rule exists to prevent.
 - **The shortlist opens its first offer by itself, and only where both columns fit.** An empty right column beside a
   full list is a page waiting for a click it does not need: the first entry is the highest-scoring one the current
-  filters produced. Below the stylesheet's own `64rem` the detail *replaces* the list, so auto-selecting there would
+  filters produced. Below the stylesheet's own `80rem` the detail *replaces* the list, so auto-selecting there would
   answer "show me the shortlist" with a single offer — the condition is `matchMedia`, which is a media query and not a
   rendering-lifecycle API and therefore answers correctly in a backgrounded tab, unlike a `ResizeObserver`. The
   breakpoint is stated once on each side and tied together by a comment; jsdom has no `matchMedia` at all, so the guard

@@ -80,7 +80,7 @@
     display: none;
 }
 
-@media (width < 64rem) {
+@media (width < 80rem) {
     .split {
         grid-template-columns: minmax(0, 1fr);
     }

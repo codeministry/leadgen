@@ -45,6 +45,10 @@
     container-name: detail;
 }
 
+/* The lanes divide the pane at every width, and the 14rem minimum is what makes the pane
+   scroll sideways instead of the lanes collapsing. They used to be pinned to 15rem below the
+   split's breakpoint, which made the board scroll at widths where five stretched lanes still
+   fit — the one screen that takes the whole window would then not use it. */
 .board {
     display: grid;
     grid-template-columns: repeat(5, minmax(14rem, 1fr));
@@ -131,7 +135,7 @@
 /* Below this the board and a reading column do not both fit — the same number the shortlist
    splits on, and the same reason: two structural relayouts on one breakpoint make both
    harder to check. */
-@media (width < 64rem) {
+@media (width < 80rem) {
     .split {
         grid-template-columns: minmax(0, 1fr);
     }
@@ -180,12 +184,6 @@
 
 .empty {
     padding: 0.5rem 0;
-}
-
-@media (width < 64rem) {
-    .board {
-        grid-template-columns: repeat(5, 15rem);
-    }
 }
 
 .board-error {

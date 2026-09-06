@@ -47,14 +47,23 @@ export class AppShell implements OnInit {
     }
 
     /**
-     * Whether the routed screen asked for the wide measure.
+     * Which measure the routed screen asked for: the reading default, the wide one, or the
+     * whole window.
      *
      * From route data, not from the component: the element that caps the width is an
      * ancestor of the screen, so a custom property set on the child cannot reach it, and a
      * screen styling its own host would be centred differently depending on where it was
      * rendered. The decision belongs beside the route.
+     *
+     * One string rather than a flag per width. Three states on one axis written as two
+     * booleans can be set to both at once, and then the stylesheet's order decides which
+     * width a screen gets — silently, and only on the screen that carries both.
      */
-    protected readonly wide = computed(() => this.leaf().data['wide'] === true);
+    private readonly measure = computed(() => this.leaf().data['measure'] as string | undefined);
+
+    protected readonly wide = computed(() => this.measure() === 'wide');
+
+    protected readonly full = computed(() => this.measure() === 'full');
 
     /**
      * Whether the screen bounds itself to the viewport instead of growing the page.

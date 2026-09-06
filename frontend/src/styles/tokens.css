@@ -21,11 +21,14 @@
     --lg-rail-w: 4rem;
     --lg-rail-w-open: 14.5rem;
 
-    /* Two content widths. The default is a reading measure: every screen in this app
-       is a list or a form and gets unreadable past it. The wide one is for a screen
-       whose content is columns rather than prose — the board, where the measure left
-       five lanes at 15rem each while the monitor had room for half again as much.
-       A route opts into it; nothing decides it per component. */
+    /* Two content widths and a third state with no token. The default is a reading
+       measure: every screen in this app is a list or a form and gets unreadable past it.
+       The wide one is for a screen whose content is columns rather than prose — the two
+       split views, where the measure left the list and the advert fighting over one
+       screen. The board takes neither and runs to the window's own width, which is why
+       there is no `--lg-measure-full`: its lanes divide whatever is given them, so the
+       honest cap is none. A route opts in with `data.measure`; nothing decides it per
+       component. */
     --lg-measure: 84rem;
     --lg-measure-wide: 120rem;
 
@@ -35,12 +38,18 @@
        folded at all and a long one still shows what it is asking for. */
     --lg-ad-clamp: 26rem;
 
-    /* The shortlist's split view. A fixed reading column and the rest: a proportional split
-       re-wraps the card's four meta values on every monitor, and the card is the thing being
-       scanned twenty at a time. The route takes the wide measure so the columns have room,
-       and the split caps itself inside it — ungapped, the advert would run 92rem wide on a
-       large monitor, which is the one prose surface in the app. */
-    --lg-list-w: 30rem;
+    /* The two split views' list column. Fixed and the advert takes the rest: a proportional
+       split re-wraps the card's four meta values on every monitor, and the card is the thing
+       being scanned twenty at a time. The route takes the wide measure so the columns have
+       room, and the split caps itself inside it — ungapped, the advert would run 92rem wide
+       on a large monitor, which is the one prose surface in the app.
+
+       It is the scanning column that the width is worth spending on, so it takes 34rem and
+       the advert gives them up: the card carries a title, four meta values and a score, the
+       advert is prose and was the wider of the two by a long way. One token for both screens
+       — the review's queue is the same card being scanned the same way, and two numbers that
+       are only ever set together are one number written twice. */
+    --lg-list-w: 34rem;
     --lg-split-gap: 1.25rem;
     --lg-split-max: 104rem;
 

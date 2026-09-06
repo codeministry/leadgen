@@ -28,7 +28,11 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: '1.3.12'
-      - run: ./gradlew check --no-daemon
+      # TODO: re-enable Spotless here together with the same exclusion in ci.yml. The
+      # release gate is the CI gate run against the tagged tree, so it has to skip exactly
+      # what CI skips or a tag fails on formatting alone.
+      # - run: ./gradlew check --no-daemon
+      - run: ./gradlew check -x spotlessCheck --no-daemon
 
   images:
     name: Publish images

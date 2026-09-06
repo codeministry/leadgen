@@ -20,16 +20,30 @@
     padding: 1.5rem;
 }
 
+/* Left-aligned, never centred: the measure is a cap on line length, not a position on the
+   screen. Centred, a wide screen put every screen's content in a different place — the board
+   against the nav rail, the dashboard floating in the middle with a margin on both sides —
+   and the eye has to find the left edge again on every navigation. Against the rail it is
+   the same edge everywhere and the space a screen does not need stays on the right, which
+   is also where a scrollbar and a second window live. */
 .measure {
     max-width: var(--lg-measure);
-    margin-inline: auto;
+    margin-inline: 0;
 }
 
-/* Set from the route's own `data.wide`, so the decision sits beside the route and
+/* Set from the route's own `data.measure`, so the decision sits beside the route and
    not inside a component that would then be centred differently depending on where
    it was rendered. */
 .measure.wide {
     max-width: var(--lg-measure-wide);
+}
+
+/* No cap at all, for a screen whose content is lanes: the board's five columns divide
+   whatever is there, so every rem the measure withholds is width taken off all five.
+   `none` rather than a larger number — a cap wide enough for today's monitor is a
+   number that will be wrong on the next one, and there is nothing to read across here. */
+.measure.full {
+    max-width: none;
 }
 
 /* A screen that ends at the bottom of the window instead of growing the page, so its own

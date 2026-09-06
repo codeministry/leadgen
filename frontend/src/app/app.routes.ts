@@ -30,7 +30,7 @@ export const routes: Routes = [
         // what bounds the screen to the viewport, so the two columns scroll and the page does
         // not. Both are stated once: `paramsInheritanceStrategy` defaults to `'always'`, so the
         // child the shell reads as the leaf inherits them.
-        data: {wide: true, fill: true},
+        data: {measure: 'wide', fill: true},
         loadComponent: () => import('@features/shortlist/shortlist-page').then((m) => m.ShortlistPage),
         children: [
             {
@@ -53,10 +53,12 @@ export const routes: Routes = [
     {
         path: 'pipeline',
         title: 'Pipeline · Lead Generation',
-        // Columns, not prose: the board is the one screen the reading measure costs
-        // something, so it takes the wide one the shell reads from here. `fill` bounds the
-        // screen to the viewport so the board and the detail column scroll on their own.
-        data: {wide: true, fill: true},
+        // The whole window, not a measure: five lanes and a reading column divide whatever
+        // width there is, so a cap here is width taken off every lane. The other two split
+        // views keep the wide measure — they have one prose column, which does get unreadable.
+        // `fill` bounds the screen to the viewport so the board and the detail column scroll
+        // on their own.
+        data: {measure: 'full', fill: true},
         loadComponent: () => import('@features/pipeline/pipeline').then((m) => m.Pipeline),
         children: [
             {
@@ -76,7 +78,7 @@ export const routes: Routes = [
         title: 'Review · Lead Generation',
         // The queue beside the document, so correcting one extraction does not cost the place
         // in the queue. `fill` bounds the screen so both columns scroll on their own.
-        data: {wide: true, fill: true},
+        data: {measure: 'wide', fill: true},
         loadComponent: () => import('@features/review/review').then((m) => m.Review),
     },
     {

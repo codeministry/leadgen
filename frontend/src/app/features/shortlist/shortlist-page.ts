@@ -165,7 +165,7 @@ export class ShortlistPage {
      * `ResizeObserver`. Guarded because jsdom has neither it nor `addEventListener` on the
      * result, and a specs run must not depend on either.
      */
-    private static readonly BOTH_COLUMNS = '(width >= 64rem)';
+    private static readonly BOTH_COLUMNS = '(width >= 80rem)';
 
     private readonly bothColumns = signal(false);
 

@@ -13,7 +13,10 @@
     width: 100%;
     max-width: var(--lg-split-max);
     min-height: 0;
-    margin-inline: auto;
+
+    /* Against the nav rail like every other screen: the cap limits the advert's line length,
+       it does not place the screen. See the note on `.measure` in the shell. */
+    margin-inline: 0;
 }
 
 .split {
@@ -59,7 +62,7 @@
     container-name: detail;
 }
 
-/* Two rows inside a 26rem column: the search full width, the switches under it. */
+/* Two rows inside the list column: the search full width, the switches under it. */
 .filters {
     display: grid;
     grid-template-columns: 1fr;
@@ -108,12 +111,23 @@
     display: none;
 }
 
-/* Below this the two columns do not both fit: at 1024px with the rail collapsed the detail
-   would be about 35.8rem, which is the floor at which its own panels still sit two per row.
-   60rem would leave 31.5rem, and 48rem is where the nav rail becomes a bottom bar — two
-   structural relayouts on one number make both harder to check. 64rem is also the number
-   the detail's own grid already used. */
-@media (width < 64rem) {
+/* Below this the two columns do not both fit, and the number is measured with the nav rail
+   OPEN, because that is the worse of the two states and no media query can see which one is
+   showing: the rail goes from 4rem to 14.5rem on a click, with no breakpoint of its own.
+   Measured at the breakpoint itself: the reading column is 489px with the rail open and
+   647px with it collapsed. The old 64rem was measured against a narrower list and against
+   the collapsed rail alone, which is the state that was not the problem — at 1024px with the
+   rail open the advert was 233px wide and the title broke over four lines. 48rem is where the
+   rail becomes a bottom bar and stays its own number: two structural relayouts on one
+   breakpoint make both harder to check.
+
+   A `rem` here is not a `rem` in the rules below it: `html` is at 93.75%, so the layout's
+   own rem is 15px while a media query resolves against the initial 16px. 80rem is 1280px;
+   `--lg-list-w: 34rem` is 510px.
+
+   Stated once here, once in `shortlist-page.ts` for the auto-selection, and once each in the
+   two sibling split views. */
+@media (width < 80rem) {
     .split {
         grid-template-columns: minmax(0, 1fr);
     }
