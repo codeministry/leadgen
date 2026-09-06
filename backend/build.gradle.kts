@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "de.codeministry"
-version = "0.1.0"
+version = "0.2.0"
 
 /**
  * Java 21 through the toolchain rather than the ambient JDK: Gradle runs on

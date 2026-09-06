@@ -9,29 +9,25 @@ may change in any release. See the status note in the README.
 
 ## [Unreleased]
 
-### Fixed
+## [0.2.0] — 2026-09-06
 
-- **The scoring stage was one transaction, and it blocked every other run.** It held a write lock on each offer it had
-  judged until the last one was answered — with a local model, hours — and any concurrent pass's filter stage, which
-  writes a verdict on every row with no `WHERE`, waited behind it. Measured on the cluster: two filter updates blocked
-  for thirteen minutes behind a scoring transaction open for twenty, advancing one offer every 33 s, with a third run
-  stacked behind those. The boundary is now one offer, one transaction, which also means a run that dies halfway keeps
-  the scores it produced instead of none.
-- **The dashboard listed every source twice while a pass was running.** `source_run` has no run id, so its rows are
-  addressed by time, and the window had a lower bound and no upper one — on the reasoning that "no later run exists to
-  contribute rows above it", which holds only while nothing else is running. A run opens its `pipeline_run` row when it
-  starts now (`RUNNING`, zeros, no `finished_at`), so the next run's `started_at` is knowable and becomes the bound.
-  That column is the right one because it never moves;
-  `finished_at` is pushed forward by the batch collector. The old placement's intent survives — a row that claims
-  nothing cannot claim a clean pass, and a run that dies leaves it saying `RUNNING`, which is more honest than leaving
-  no trace.
-- **`POST /api/ingest` had no concurrency guard, so a second pass simply queued in the database.** It now answers `409`
-  and starts nothing. The CronJob's
-  `concurrencyPolicy: Forbid` never covered this: it governs only the jobs the CronJob itself creates, and the button is
-  how a run is normally started.
+The scoring half changed shape here: a total is a share of what an advert made attainable rather than a sum over every
+weight, so a number written by 0.1.x and a number written by 0.2.0 are not the same measurement. See **Upgrading**.
 
 ### Added
 
+- **Split views.** Reading an offer used to cost the list — the shortlist, the board and the review queue each replaced
+  their list with the thing being read. All three now keep the list on the left and open what is selected on the right,
+  in two columns that scroll independently under a screen bounded to the viewport. The shortlist and the board open a
+  child route on a real component; the review holds the file name in a query parameter, because its document is already
+  in the store the screen reads. `/offers/:id` redirects into the shortlist's split view, so there is one detail view in
+  the code rather than two.
+- **Keyboard navigation in the shortlist.** `j`/`k` and the arrow keys move between entries, and past the last loaded
+  one the key asks for the next page and stays put. The handler is bound to the list pane rather than to the document,
+  so `j` stays a letter in the search field and the arrow keys still scroll the advert while the reader is in the detail
+  column.
+- **The status picker carries a visible label**, on the board and in the offer detail. A bare select beside a badge
+  stated an application's state twice and named it neither time.
 - **A dev-image track, between "it built" and "it was released."** `ci.yml` builds both
   images on every push and deliberately does not push them; `release.yml` pushes only on a
   `v*` tag and writes a release from this file. Getting an intermediate state in front of a
@@ -40,16 +36,57 @@ may change in any release. See the status note in the README.
   `<next patch>-dev.<commits since the tag>-g<sha>` plus a floating `main`, creating no git
   tag and no release. It runs on `workflow_run` after CI rather than on `push`, so an image
   never exists for a commit whose gate went red, and the gate is not paid for twice.
-- **`leadgen.version`, so the header names the build it is.** `StatusController` has always
-  read `${leadgen.version:0.1.0}` and the property existed nowhere — not in
-  `application.yaml`, not in the chart, and the Gradle version is not injected into the jar
-  (no `buildInfo()`, no manifest entry, and the Dockerfile copies `libs/*.jar` by glob). So
-  every image reported `0.1.0` whatever it was. The deployment sets it from the image tag.
+- **`leadgen.version`, so the header names the build it is.** `StatusController` has always read `${leadgen.version:…}`
+  and the property existed nowhere — not in `application.yaml`, not in the chart, and the Gradle version is not injected
+  into the jar (no `buildInfo()`, no manifest entry, and the Dockerfile copies `libs/*.jar` by glob). So every image
+  reported the literal default whatever it was. The deployment sets it from the image tag.
 
-## [0.1.2] — 2026-09-05
+### Changed
+
+- **A score is a share of what was attainable, not a sum over every weight.** A factor the advert said nothing about
+  writes no reason at all and is in neither half of the fraction; a factor that had something to say and scored badly
+  writes a 0-point row and stays in the denominator. `offer_score_reason` carries `max_points` for that, so a screen can
+  read
+  "23 / 45". Summed instead, the scale was capped by things no advert could influence: the sources state a rate in 0.0 %
+  of offers, so all 101 scored offers carried a 0-point
+  `rate_fit`, `industry_fit` fired zero times, `project_setup` averaged 0.2 of 10, and the highest score in the whole
+  table was 53. The accepted consequence is that the less an advert states, the more its skill overlap carries — an
+  offer is judged on what it says.
+- **Skill overlap is weighted and saturates; it is no longer a count.** `matched.size() /
+  core.size()` ignored the per-skill weights and read neither `strong:` nor `peripheral:`, despite the weight table's
+  own comment saying otherwise — so an advert asking for Kafka, PostgreSQL, Keycloak and CI/CD scored nothing for four
+  things the profile is strong in, and a backend advert was charged for not naming Angular. The matched weights are
+  added up (peripheral at half) and measured against the `scoring.saturation_core_count` heaviest core skills, because
+  no advert names a whole profile and requiring one requires something that never happens. Over the corpus the factor
+  never once exceeded five of eight core skills.
+- **A composite skill name is split on `/` before matching, and an industry is matched through `match:` rather than
+  through its name.** Folding keeps a name whole, so
+  `REST / API-Design` was the phrase `rest api design` and matched only an advert writing it in that order — no advert
+  does. And the profile names an industry in this repository's language while the adverts are German, so `Insurance` was
+  compared against text that says *Versicherung*. Same shape and same reason as a skill's aliases; the name is still
+  tried, so a profile written before this behaves as it did.
+- **The judge is given the profile it is judging against.** The prompt used to say "a senior Java, Spring Boot and
+  Angular developer who works from Germany" — three skills of the twenty-nine in `skill-profile.yaml`, hard-coded, while
+  every other stage read the file. Role fit was judged against a description of somebody else, and editing the profile
+  could not move it. The offer's rate, duration, workload and start go into the description too: those come from
+  enrichment rather than from the advert's prose, and a judge calling an offer vague while the row beside it states all
+  four knows less than the application does.
 
 ### Fixed
 
+- **An offer the judge never answered for still carried a total.** `role_fit` is the one factor the prompt requires even
+  at zero, so its absence is an unreachable endpoint, a reply that was not JSON, or a model that ignored the
+  instruction — never an opinion. Measured before `Judge.answered` existed: 63 of 101 scored offers had no judged factor
+  at all, and every one of them carried a number that looked like all the others. Such an offer is left unscored now,
+  which is self-healing: a null `score_model` makes it due again, and `ScoringReport.unusable` puts it in the run's own
+  log.
+- **`max_per_run` did not bound how long a pass waits, so a backlog never cleared.**
+  Refusing rather than waiting is right for the rate limiter and wrong for the pass on top of it: a run did one minute's
+  worth of fetching and deferred the rest, so a backlog needed one run per `rate_limit_per_minute` offers to clear, and
+  it never got them. Measured on the live database: **2,537 offers carried `enrichment_note = 'rate limit reached'` with
+  a stamped `enriched_at`**, and only 23 rows in the whole table had a `full_text`.
+  `AdFetcher` now waits for a permit the window would have granted anyway, up to the run's budget, and refuses beyond
+  it. Unset means the old behaviour, so a configuration written before this key behaves as it did.
 - **A rate-limited fetch was written off permanently.** The limiter refuses rather than
   waits, and the refusal was recorded like a failed fetch — which stamps `enriched_at`,
   and the due query is `enriched_at IS NULL`. The offer was therefore never fetched again
@@ -64,6 +101,41 @@ may change in any release. See the status note in the README.
   written for those offers, and they are due again on the next pass.
   `EnrichmentReport.deferred` reports them separately from `incomplete`, because the whole
   difference between the two is whether the offer comes back.
+- **The scoring stage was one transaction, and it blocked every other run.** It held a write lock on each offer it had
+  judged until the last one was answered — with a local model, hours — and any concurrent pass's filter stage, which
+  writes a verdict on every row with no `WHERE`, waited behind it. Measured on the cluster: two filter updates blocked
+  for thirteen minutes behind a scoring transaction open for twenty, advancing one offer every 33 s, with a third run
+  stacked behind those. The boundary is now one offer, one transaction, which also means a run that dies halfway keeps
+  the scores it produced instead of none.
+- **The enrichment stage was one transaction too**, and it became the worse of the two the moment that stage started
+  waiting for rate-limit permits by design: a pass holding a write lock on every offer it had touched, for minutes, with
+  any concurrent filter stage sitting behind it. Each result is one statement and nothing there needs atomicity across
+  offers.
+- **The dashboard listed every source twice while a pass was running.** `source_run` has no run id, so its rows are
+  addressed by time, and the window had a lower bound and no upper one — on the reasoning that "no later run exists to
+  contribute rows above it", which holds only while nothing else is running. A run opens its `pipeline_run` row when it
+  starts now (`RUNNING`, zeros, no `finished_at`), so the next run's `started_at` is knowable and becomes the bound.
+  That column is the right one because it never moves;
+  `finished_at` is pushed forward by the batch collector. The old placement's intent survives — a row that claims
+  nothing cannot claim a clean pass, and a run that dies leaves it saying `RUNNING`, which is more honest than leaving
+  no trace.
+- **`POST /api/ingest` had no concurrency guard, so a second pass simply queued in the database.** It now answers `409`
+  and starts nothing. The CronJob's
+  `concurrencyPolicy: Forbid` never covered this: it governs only the jobs the CronJob itself creates, and the button is
+  how a run is normally started.
+
+### Upgrading
+
+The schema migrates itself (`V16` adds `offer_score_reason.max_points`), but **the scores already in the table do not**:
+a total written by 0.1.x is a sum over every weight, a total written by 0.2.0 is a share of what the advert made
+attainable, and the shortlist threshold is one number read against both. Nothing recomputes them by itself either — a
+run judges what is stale, and stale means never written, a different `ruleset_version` or a different
+`score_model`, none of which this release changes on its own.
+
+Bump `version:` in your `matching-rules.yaml` once after upgrading to put the standing list back on one scale. That is
+one full pass at the configured model's rate, so check
+`hard_filters.freshness.max_age_days` and the archive first: everything outside that window is filtered and archived
+before the stage that costs money is reached.
 
 ## [0.1.1] — 2026-09-05
 
@@ -154,5 +226,7 @@ Found while building the demo, all of them in paths only a container exercises:
   left six.
 - The shortlist card printed the description's Markdown syntax in its teaser.
 
-[Unreleased]: https://github.com/codeministry/leadgen/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/codeministry/leadgen/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/codeministry/leadgen/releases/tag/v0.2.0
+[0.1.1]: https://github.com/codeministry/leadgen/releases/tag/v0.1.1
 [0.1.0]: https://github.com/codeministry/leadgen/releases/tag/v0.1.0

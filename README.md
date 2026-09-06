@@ -20,8 +20,9 @@ matches. **It never sends anything.**
 
 Read this before you rely on it.
 
-- **It has never run anywhere but its author's machine.** There is no released version, no
-  upgrade path, and no promise that a database written today is readable next month.
+- **It has never run anywhere but its author's own machine and cluster.** Releases are tagged and their images
+  published, but the only upgrade path is the *Upgrading* note in
+  [CHANGELOG.md](CHANGELOG.md), and there is no promise that a database written today is readable next month.
 - **The API and the configuration schema will change** without a deprecation period.
 - **It is single-operator by design.** There is no authentication (`security.auth` accepts
   only `none`), no multi-tenancy, and the only thing standing in front of the write
