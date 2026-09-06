@@ -8,6 +8,8 @@
  */
 package de.codeministry.leadgen.score;
 
+import de.codeministry.leadgen.content.ContentText;
+
 import java.math.BigDecimal;
 import java.sql.Array;
 import java.sql.ResultSet;
@@ -18,16 +20,24 @@ import java.util.List;
 /**
  * Everything scoring reads about an offer, after the filter and after enrichment.
  *
- * @param fullText the original ad, when enrichment could fetch it. Null leaves the score
- *                 resting on the newsletter's two-line summary, which is exactly the situation the
- *                 enrichment stage exists to avoid — so an incomplete offer scores lower on
- *                 `project_setup` honestly, rather than being penalised for it twice.
+ * @param fullText    the original ad, when enrichment could fetch it. Null leaves the score
+ *                    resting on the newsletter's two-line summary, which is exactly the
+ *                    situation the enrichment stage exists to avoid — so an incomplete offer
+ *                    scores lower on `project_setup` honestly, rather than being penalised
+ *                    for it twice.
+ * @param contentText the same ad with the portal's own furniture taken out, and <b>this is
+ *                    what scoring reads</b>. A tag cloud of sixty technology names lifted
+ *                    from a site's taxonomy is not something the client asked for, and folded
+ *                    into the skill haystack it inflated the very overlap that decides the
+ *                    shortlist. Equal to {@code fullText} until the content stage has read
+ *                    the advert, so switching the stage on needs no migration.
  */
 public record ScoreCandidate(
         long id,
         String title,
         String description,
         String fullText,
+        String contentText,
         List<String> tags,
         BigDecimal rateEur,
         String duration,
@@ -41,8 +51,8 @@ public record ScoreCandidate(
      * field that is null on some scoring paths and not on others.
      */
     static final String COLUMNS = """
-        id, title, description, full_text, tags, rate_eur, duration, workload,
-        starts_on, enrichment_note\
+        id, title, description, full_text, content_blocks, tags, rate_eur, duration,
+        workload, starts_on, enrichment_note\
         """;
 
     static ScoreCandidate of(ResultSet rs, int row) throws SQLException {
@@ -51,6 +61,7 @@ public record ScoreCandidate(
                 rs.getString("title"),
                 rs.getString("description"),
                 rs.getString("full_text"),
+            ContentText.of(rs.getString("content_blocks"), rs.getString("full_text")),
                 tags(rs.getArray("tags")),
                 rs.getObject("rate_eur", BigDecimal.class),
                 rs.getString("duration"),

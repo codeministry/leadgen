@@ -14,6 +14,7 @@ import de.codeministry.leadgen.application.ApplicationStatus;
 import de.codeministry.leadgen.config.*;
 import de.codeministry.leadgen.config.model.PipelineConfig;
 import de.codeministry.leadgen.config.model.SkillProfile;
+import de.codeministry.leadgen.content.ContentText;
 import de.codeministry.leadgen.filter.TextFold;
 import freemarker.template.Configuration;
 import freemarker.template.Template;
@@ -57,7 +58,7 @@ public class PackagingService {
     private static final String DUE = """
         SELECT id, title, description, full_text, url, location, portal, agency, tags,
                published_on, rate_eur, duration, workload, remote_percent, starts_on, contact,
-               score_value, score_band, score_model, enrichment_note
+               score_value, score_band, score_model, enrichment_note, content_blocks
         FROM offer
         WHERE status = 'PASSED' AND duplicate_of_id IS NULL AND archived_at IS NULL
           AND score_band = 'SHORTLISTED' AND packaged_at IS NULL
@@ -343,9 +344,16 @@ public class PackagingService {
                 .toList();
     }
 
+    /**
+     * The advert as the skill matcher and the language detector read it: the content blocks
+     * when the advert has been read that way, `full_text` when it has not. A portal's own tag
+     * cloud otherwise decides which reference projects a cover letter pitches.
+     */
     private static String haystack(Map<String, Object> row) {
-        return TextFold.fold("%s %s %s"
-                .formatted(row.get("title"), row.getOrDefault("description", ""), row.getOrDefault("full_text", "")));
+        String advert = ContentText.of(
+            (String) row.get("content_blocks"),
+            (String) row.getOrDefault("full_text", ""));
+        return TextFold.fold("%s %s %s".formatted(row.get("title"), row.getOrDefault("description", ""), advert));
     }
 
     private static boolean names(String haystack, String keyword) {

@@ -100,9 +100,15 @@ public class RuleScorer {
      * Everything the offer says, folded once. The tags are in it for every factor and not
      * only for the skills: a portal that files an ad under "Senior" and never writes the
      * word in the prose was answering the seniority question all the same.
+     *
+     * <p><b>The advert and not the page it sat on.</b> {@code contentText} is `full_text` with
+     * the portal's furniture removed, and until that distinction existed a site's own taxonomy
+     * — sixty technology names nobody in the advert had asked for — counted as skill overlap
+     * and moved offers onto the shortlist. It equals `full_text` for an advert nothing has
+     * decided anything about, so nothing changes for an offer the content stage has not read.
      */
     private static String haystack(ScoreCandidate offer) {
-        String text = TextFold.fold(offer.title() + " " + offer.description() + " " + offer.fullText());
+        String text = TextFold.fold(offer.title() + " " + offer.description() + " " + offer.contentText());
         String tags = offer.tags() == null
                 ? ""
                 : String.join(" ", offer.tags().stream().map(TextFold::fold).toList());

@@ -78,6 +78,7 @@ class JudgeWireFormatTest {
             "Senior Java Entwickler Spring Boot (m/w/d)",
             "Ablösung eines Monolithen.",
             null,
+        null,
             List.of("Java", "Spring Boot"),
             null,
             null,
@@ -86,7 +87,7 @@ class JudgeWireFormatTest {
             false);
 
     private static final ScoreCandidate OTHER = new ScoreCandidate(
-        2L, "Scrum Master (m/w/d)", "Kein Code.", null, List.of(), null, null, null, null, false);
+        2L, "Scrum Master (m/w/d)", "Kein Code.", null, null, List.of(), null, null, null, null, false);
 
     @AfterAll
     static void stop() {

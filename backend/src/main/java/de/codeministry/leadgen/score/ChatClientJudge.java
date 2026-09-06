@@ -242,8 +242,10 @@ public class ChatClientJudge implements Judge {
         field(text, "Workload", offer.workload());
         field(text, "Start", offer.startsOn() == null ? null : offer.startsOn().toString());
         text.append("Description: ").append(offer.description()).append('\n');
-        if (offer.fullText() != null && !offer.fullText().isBlank()) {
-            text.append("Original ad: ").append(offer.fullText()).append('\n');
+        // The advert, not the page it sat on. A report dialog and a portal tag cloud are
+        // tokens paid for and then judged as if the client had written them.
+        if (offer.contentText() != null && !offer.contentText().isBlank()) {
+            text.append("Original ad: ").append(offer.contentText()).append('\n');
         }
         return text.toString();
     }
