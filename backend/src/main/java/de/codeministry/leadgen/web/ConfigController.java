@@ -49,6 +49,23 @@ class ConfigController {
     }
 
     /**
+     * What this configuration actually sends to a language model.
+     *
+     * <p>Beside `/rules` rather than on its own path: the Rules screen answers "why did this
+     * offer score what it scored", and until now it could answer only for the deterministic
+     * half. Rendered rather than templated — see {@link PromptView}.
+     *
+     * <p>No key and no base URL is in it, and none is needed to render it: which model would
+     * answer is shown, whether or not one currently can be.
+     */
+    @GetMapping("/prompts")
+    List<PromptView> prompts() {
+        var snapshot = config.snapshot();
+        var choices = judges.choices();
+        return PromptView.all(snapshot.rules(), snapshot.profile(), choices.isEmpty() ? null : choices.getFirst());
+    }
+
+    /**
      * What the select beside the run button offers.
      *
      * <p>Read from {@code Judges} rather than from the snapshot directly, so the endpoint

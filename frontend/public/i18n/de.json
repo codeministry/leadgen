@@ -254,7 +254,17 @@
     "penalties": "Abzüge",
     "readOnly": "Nur lesend. Die Regeln stammen aus matching-rules.yaml, und es gibt noch keinen Schreibendpunkt — hier zu bearbeiten würde nur behaupten, etwas sei gespeichert worden.",
     "archive": "Archiv",
-    "archiveAfter": "Ein Angebot verlässt die Arbeitsliste, sobald die Anzeige älter als {days} Tage ist. Es bleibt lesbar und lässt sich von Hand zurückholen."
+    "archiveAfter": "Ein Angebot verlässt die Arbeitsliste, sobald die Anzeige älter als {days} Tage ist. Es bleibt lesbar und lässt sich von Hand zurückholen.",
+    "prompts": "Prompts",
+    "promptsNote": "Was diese Konfiguration tatsächlich sendet, aus Gewichtstabelle und Profil gerendert statt als Vorlage gezeigt. Der zweite Block ist die Form, in der eine Nachricht ankommt, kein echtes Angebot.",
+    "promptSystem": "System-Prompt",
+    "promptUser": "Das Angebot, wie das Modell es sieht",
+    "promptModel": "beantwortet von {{model}}",
+    "promptNoModel": "kein Modell konfiguriert — der Prompt ist, was gesendet würde",
+    "prompt": {
+      "scoring": "Scoring-Judge",
+      "content": "Content-Klassifikator"
+    }
   },
   "analytics": {
     "title": "Auswertung",
@@ -357,6 +367,7 @@
     "rescore": "Das Angebot wurde nicht neu bewertet.",
     "analyticsLoad": "Die Auswertung konnte nicht geladen werden.",
     "scoringModelsLoad": "Die Bewertungsmodelle wurden nicht geladen.",
-    "archive": "Das Archiv konnte nicht geändert werden."
+    "archive": "Das Archiv konnte nicht geändert werden.",
+    "promptsLoad": "Die Prompts konnten nicht geladen werden."
   }
 }

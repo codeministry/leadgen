@@ -111,6 +111,40 @@
         </section>
     </div>
 
+    <!--
+      The other half of a score. Everything above decides what a factor is worth; this decides
+      what the model is asked. Rendered rather than templated: the two things worth checking
+      are the two that get substituted in — that the configured bounds reached the text, and
+      that the profile behind "this developer" is the one in skill-profile.yaml.
+    -->
+    @if (store.prompts().length > 0) {
+        <section class="panel panel-wide prompts">
+            <h2 class="type-h2">{{ 'rules.prompts' | transloco }}</h2>
+            <p class="type-small text-muted panel-note">{{ 'rules.promptsNote' | transloco }}</p>
+
+            @for (prompt of store.prompts(); track prompt.id) {
+                <article class="prompt">
+                    <header class="prompt-head">
+                        <h3 class="type-h4">{{ 'rules.prompt.' + prompt.id | transloco }}</h3>
+                        @if (prompt.model) {
+                            <span class="type-mono-data text-muted">{{
+                                    'rules.promptModel' | transloco: {model: prompt.model}
+                                }}</span>
+                        } @else {
+                            <span class="type-small text-muted">{{ 'rules.promptNoModel' | transloco }}</span>
+                        }
+                    </header>
+
+                    <h4 class="type-small prompt-part">{{ 'rules.promptSystem' | transloco }}</h4>
+                    <pre class="prompt-text type-mono-data">{{ prompt.system }}</pre>
+
+                    <h4 class="type-small prompt-part">{{ 'rules.promptUser' | transloco }}</h4>
+                    <pre class="prompt-text type-mono-data">{{ prompt.user }}</pre>
+                </article>
+            }
+        </section>
+    }
+
     <p class="type-small text-muted note">
         <lg-icon name="ban" [size]="14"/>
         {{ 'rules.readOnly' | transloco }}

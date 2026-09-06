@@ -180,8 +180,58 @@ public class ChatClientJudge implements Judge {
     }
 
     String instructions() {
+        return instructions(bounds, profile);
+    }
+
+    /**
+     * The system prompt as this configuration states it, without a judge having to be
+     * buildable at all.
+     *
+     * <p>It exists so the Rules screen can show what is actually sent. That screen already
+     * shows the weight table and the thresholds — the deterministic half of a score — and the
+     * prompt is the other half; showing the *template* instead would prove nothing, because
+     * the two things worth checking are exactly the two that get substituted in: that the
+     * configured bounds reached the text, and that the profile behind "this developer" is the
+     * one in `skill-profile.yaml`. Both have been wrong here before.
+     *
+     * <p>No key is needed and none is shown. A prompt is a fact about the configuration, not
+     * about whether anybody can currently be asked it.
+     */
+    public static String instructions(MatchingRules.Scoring scoring, SkillProfile profile) {
+        return instructions(boundsOf(scoring), profile);
+    }
+
+    private static String instructions(Map<String, Integer> bounds, SkillProfile profile) {
         return INSTRUCTIONS.formatted(
-                describe(profile), bound(ROLE_FIT), bound(STACK_MISMATCH), bound(ROLE_MISMATCH), bound(VAGUE));
+                describe(profile),
+                bounds.getOrDefault(ROLE_FIT, 0),
+                bounds.getOrDefault(STACK_MISMATCH, 0),
+                bounds.getOrDefault(ROLE_MISMATCH, 0),
+                bounds.getOrDefault(VAGUE, 0));
+    }
+
+    /**
+     * The shape of the message an offer arrives in, built by the real builder rather than
+     * written out beside it.
+     *
+     * <p>A hand-written sample would be a second description of {@link #describe(ScoreCandidate)}
+     * and would drift from it silently, which is the failure this repository keeps designing
+     * against. Running placeholders through the same method means the screen is wrong only
+     * when the code is.
+     */
+    public static String exampleUser() {
+        return describe(new ScoreCandidate(
+                0L,
+                "<the offer's title>",
+                "<the summary the source stated>",
+                "<the advert as it was fetched>",
+                "<the advert with the portal's own furniture removed>",
+                List.of("<a tag the source filed it under>"),
+                null,
+                "<duration, when the ad states one>",
+                "<workload, when the ad states one>",
+                null,
+                false));
     }
 
     /**

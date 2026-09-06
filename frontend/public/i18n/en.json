@@ -254,7 +254,17 @@
     "penalties": "Penalties",
     "readOnly": "Read-only. The rules come from matching-rules.yaml and there is no write endpoint yet, so editing here would only lie about what was saved.",
     "archive": "Archive",
-    "archiveAfter": "An offer leaves the working list once the ad is more than {days} days old. It stays readable and can be put back by hand."
+    "archiveAfter": "An offer leaves the working list once the ad is more than {days} days old. It stays readable and can be put back by hand.",
+    "prompts": "Prompts",
+    "promptsNote": "What this configuration actually sends, rendered from the weight table and the profile rather than shown as a template. The second block is the shape a message arrives in, not a real offer.",
+    "promptSystem": "System prompt",
+    "promptUser": "The offer, as the model sees it",
+    "promptModel": "answered by {{model}}",
+    "promptNoModel": "no model configured — the prompt is what would be sent",
+    "prompt": {
+      "scoring": "Scoring judge",
+      "content": "Content classifier"
+    }
   },
   "analytics": {
     "title": "Analytics",
@@ -357,6 +367,7 @@
     "rescore": "The offer was not scored again.",
     "analyticsLoad": "The analytics did not load.",
     "scoringModelsLoad": "The scoring models did not load.",
-    "archive": "The archive could not be changed."
+    "archive": "The archive could not be changed.",
+    "promptsLoad": "The prompts could not be loaded."
   }
 }

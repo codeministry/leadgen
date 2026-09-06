@@ -1,5 +1,6 @@
 import {type} from '@ngrx/signals';
 import {eventGroup} from '@ngrx/signals/events';
+import {PromptView} from '@core/model/prompt-view';
 import {RulesView} from '@core/model/rules-view';
 import {SourceSummary} from '@core/model/source-summary';
 
@@ -14,6 +15,7 @@ export const configEvents = eventGroup({
         sourcesLoaded: type<readonly SourceSummary[]>(),
         rulesOpened: type<void>(),
         rulesLoaded: type<RulesView>(),
+        promptsLoaded: type<readonly PromptView[]>(),
         failed: type<string>(),
     },
 });

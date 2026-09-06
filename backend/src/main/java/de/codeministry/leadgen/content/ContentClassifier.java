@@ -81,6 +81,28 @@ public class ContentClassifier {
     }
 
     /**
+     * The system prompt, for the Rules screen. Nothing is substituted into it — unlike the
+     * judge's, this one carries no weights and no profile, because the question is about a
+     * paragraph and not about who is applying.
+     */
+    public static String instructions() {
+        return INSTRUCTIONS;
+    }
+
+    /**
+     * The shape of the message an advert arrives in, built by the real builder for the same
+     * reason the judge's is: a sample written out by hand drifts from the method it describes,
+     * and nothing fails when it does.
+     */
+    public static String exampleUser() {
+        return describe(
+                "<the offer's title>",
+                List.of(
+                        new Candidate(0, "<the first block of the advert, up to 200 characters>"),
+                        new Candidate(1, "<the second block>")));
+    }
+
+    /**
      * What the given blocks are, keyed by their index.
      *
      * <p><b>An empty {@link Optional} means the model did not answer</b>, which is a different
