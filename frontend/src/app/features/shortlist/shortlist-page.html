@@ -1,27 +1,72 @@
-<div class="page-head">
-    <lg-page-header
-            [title]="'shortlist.title' | transloco"
-            [subtitle]="'shortlist.subtitle' | transloco"
-    />
-</div>
-
 <div class="split">
-    <!-- The filters sit in the left column, above the scroller and outside it. They filter
-         the list and nothing else; laid across both columns they read as filtering the detail
-         too, and a 20rem search field spanning the page while acting on a 26rem column is a
-         false affordance. Outside the scroller is also why this screen needs no sticky. -->
+    <!-- The screen's own heading lives in the left column rather than above both, because it
+         belongs to the list: it names the screen, says how much of it the filters matched, and
+         carries the side being read. Above the split it spanned the detail as well, and on a
+         screen bounded to the viewport the advert paid for those 81px in height.
+
+         The filters sit in the same block, above the scroller and outside it. They filter the
+         list and nothing else; laid across both columns they read as filtering the detail too,
+         and a search field spanning the page while acting on a 34rem column is a false
+         affordance. Outside the scroller is also why this screen needs no sticky. -->
     <div class="list-col">
         <div class="filters">
-            <label class="control">
-                <span class="sr-only">{{ 'shortlist.searchLabel' | transloco }}</span>
-                <input
-                        type="search"
-                        class="input input-sm"
-                        [placeholder]="'shortlist.searchPlaceholder' | transloco"
-                        [value]="q()"
-                        (input)="onInput($event)"
-                />
-            </label>
+            <div class="row head-row">
+                <h1 class="type-h3">{{ 'shortlist.title' | transloco }}</h1>
+
+                <!-- Where the subtitle used to be. One sentence is read once and then never
+                     again; this one is read on every filter change. -->
+                <p class="type-small text-muted count">
+                    {{
+                        (archived() ? 'shortlist.countArchived' : 'shortlist.count')
+                            | transloco: {matched: store.matched(), total: store.total()}
+                    }}
+                    @if (store.unscored() > 0) {
+                        · {{ 'shortlist.unscored' | transloco: {count: store.unscored()} }}
+                    }
+                </p>
+
+                <!-- A side, not a fourth band, and beside the heading because toggling it
+                     changes which set the screen is showing. Inside the control row the only
+                     thing saying so was a 0.5rem gap next to the band group. -->
+                <button
+                        type="button"
+                        class="btn btn-sm"
+                        [class.btn-active]="archived()"
+                        [attr.aria-pressed]="archived()"
+                        (click)="toggleArchive()"
+                >
+                    <lg-icon name="archive" [size]="14"/>
+                    {{ 'shortlist.archive' | transloco }}
+                </button>
+            </div>
+
+            <div class="row">
+                <label class="control">
+                    <span class="sr-only">{{ 'shortlist.searchLabel' | transloco }}</span>
+                    <input
+                            type="search"
+                            class="input input-sm"
+                            [placeholder]="'shortlist.searchPlaceholder' | transloco"
+                            [value]="q()"
+                            (input)="onInput($event)"
+                    />
+                </label>
+
+                <!-- Always rendered and disabled while there is nothing to reset: an `@if`
+                     here re-widens the search field on the first keystroke. The accessible
+                     name is on the button and never on the icon, and `title` hands the mouse
+                     the same sentence. -->
+                <button
+                        type="button"
+                        class="btn btn-sm btn-square btn-ghost"
+                        [disabled]="!filtered()"
+                        [attr.aria-label]="'shortlist.clearFilters' | transloco"
+                        [attr.title]="'shortlist.clearFilters' | transloco"
+                        (click)="clear()"
+                >
+                    <lg-icon name="x" [size]="16"/>
+                </button>
+            </div>
 
             <div class="row">
                 <div class="join" role="group" [attr.aria-label]="'shortlist.scoreBand' | transloco">
@@ -38,17 +83,6 @@
                     }
                 </div>
 
-                <button
-                        type="button"
-                        class="btn btn-sm"
-                        [class.btn-active]="archived()"
-                        [attr.aria-pressed]="archived()"
-                        (click)="toggleArchive()"
-                >
-                    <lg-icon name="archive" [size]="14"/>
-                    {{ 'shortlist.archive' | transloco }}
-                </button>
-
                 <label class="control">
                     <span class="sr-only">{{ 'shortlist.portal' | transloco }}</span>
                     <select class="select select-sm" [value]="portal()" (change)="onPortal($event)">
@@ -58,24 +92,7 @@
                         }
                     </select>
                 </label>
-
-                @if (filtered()) {
-                    <button type="button" class="btn btn-ghost btn-sm" (click)="clear()">
-                        <lg-icon name="x" [size]="14"/>
-                        {{ 'shortlist.clearFilters' | transloco }}
-                    </button>
-                }
             </div>
-
-            <p class="type-small text-muted count">
-                {{
-                    (archived() ? 'shortlist.countArchived' : 'shortlist.count')
-                        | transloco: {matched: store.matched(), total: store.total()}
-                }}
-                @if (store.unscored() > 0) {
-                    · {{ 'shortlist.unscored' | transloco: {count: store.unscored()} }}
-                }
-            </p>
         </div>
 
         <!-- `tabindex` because a scrollable region has to be reachable by keyboard at all, and
@@ -90,7 +107,7 @@
             @if (store.listError(); as error) {
                 <p class="type-small error" role="alert">{{ error | transloco }}</p>
             } @else if (visible().length > 0) {
-                <ul class="list">
+                <ul class="offer-list">
                     @for (entry of visible(); track entry.offer.id) {
                         <li>
                             <lg-offer-card [entry]="entry" [selected]="entry.offer.id === selectedId()"/>

@@ -30,7 +30,8 @@
     min-height: 0;
 }
 
-/* A column, not a pane: the filters live in it but outside the scroll container. */
+/* A column, not a pane: the heading and the filters live in it but outside the scroll
+   container. */
 .list-col {
     display: flex;
     flex-direction: column;
@@ -62,10 +63,19 @@
     container-name: detail;
 }
 
-/* Two rows inside the list column: the search full width, the switches under it. */
+/* Heading, count and the three controls as one block, capped at the column they describe —
+   at every width, not only inside the split. Below the breakpoint the list runs to the whole
+   measure, and a search field spanning 1100px while acting on the column under it is the
+   same false affordance the template comment argues against. `--lg-list-w` and not a token
+   of its own: two numbers that are only ever set together are one number written twice.
+
+   Three rows and not four. All four controls in one row wanted 558px of the 510px this
+   column has — in English as well as in German, so shorter labels alone would only have
+   moved the wrap rather than removed it. */
 .filters {
-    display: grid;
-    grid-template-columns: 1fr;
+    display: flex;
+    flex-direction: column;
+    max-width: var(--lg-list-w);
     gap: 0.5rem;
     margin-bottom: 0.75rem;
 }
@@ -77,17 +87,27 @@
     gap: 0.5rem;
 }
 
-.control {
-    display: inline-flex;
-    min-width: 0;
-    max-width: 100%;
+.head-row .count {
+    margin-inline-start: auto;
 }
 
-.control input[type='search'] {
+/* Search and portal each take what is left of their row. `min-width: 0` is load-bearing: a
+   flex item does not go below its content width without it, which is what let a 20rem search
+   input overflow a 320px screen once already. */
+.control {
+    display: inline-flex;
+    flex: 1;
+    min-width: 0;
+}
+
+.control input[type='search'],
+.control select {
     width: 100%;
 }
 
-.list {
+/* Not `.list`: daisyUI ships a component under that name, and a class that happens to agree
+   with it today is the same trap `.status` sprang in the header. */
+.offer-list {
     display: flex;
     flex-direction: column;
     gap: 0.625rem;
@@ -132,7 +152,6 @@
         grid-template-columns: minmax(0, 1fr);
     }
 
-    :host(.detail-open) .page-head,
     :host(.detail-open) .list-col {
         display: none;
     }

@@ -1381,6 +1381,14 @@ code has to reproduce — the numbers in `docs/SAMPLE-ANALYSIS.md` are the targe
 
 ## Traps that have already cost money
 
+- **Reformatting an applied migration takes every deployed database down.** Flyway hashes the file's bytes, so
+  realigning a column list or moving a `(` to its own line changes the checksum of a migration that ran months ago, and
+  the application refuses to start with a mismatch per version rather than with anything naming the commit. Measured:
+  one
+  "Reformat Code" across the repository touched thirteen of sixteen migrations and stopped the microk8s deployment dead.
+  The repair is to restore the files, not to repair the database, because the checksum has to match on every environment
+  at once.
+  `.editorconfig` switches the IntelliJ formatter off for `db/migration/*.sql` for exactly this reason.
 - Search terms are wrapped in `<mark>` inside the title on some sources. Strip before any
   title comparison, or deduplication trips over `<mark>DevOps</mark>`. Not present in the
   current sample corpus; jsoup's `text()` handles it either way.

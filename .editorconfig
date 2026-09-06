@@ -13,3 +13,13 @@ indent_size = 4
 
 [*.md]
 trim_trailing_whitespace = false
+
+# An applied migration is immutable: Flyway hashes the file's bytes, so a
+# reformat changes the checksum and every database that already ran it refuses
+# to start. `ij_formatter_enabled` is IntelliJ's own EditorConfig property and
+# takes "Reformat Code" off these files entirely; the two whitespace rules are
+# switched off for the same reason, so that saving cannot rewrite a byte either.
+[backend/src/main/resources/db/migration/*.sql]
+ij_formatter_enabled = false
+trim_trailing_whitespace = false
+insert_final_newline = false

@@ -24,7 +24,6 @@ import {SCORE_THRESHOLDS} from '@shared/shared.ports';
 import {EmptyState} from '@shared/empty-state/empty-state';
 import {LoadMore} from '@shared/load-more/load-more';
 import {Icon} from '@shared/icon/icon';
-import {PageHeader} from '@shared/page-header/page-header';
 import {OfferCard} from './offer-card/offer-card';
 
 type BandFilter = 'all' | 'shortlist' | 'review';
@@ -36,7 +35,6 @@ type BandFilter = 'all' | 'shortlist' | 'review';
         Icon,
         LoadMore,
         OfferCard,
-        PageHeader,
         RouterLink,
         RouterOutlet,
         TranslocoPipe,
@@ -45,8 +43,8 @@ type BandFilter = 'all' | 'shortlist' | 'review';
     styleUrl: './shortlist-page.css',
     changeDetection: ChangeDetectionStrategy.OnPush,
     // Whether the right column is showing an offer. On the host rather than on a wrapper,
-    // because the page header sits outside the split and has to disappear with the list on a
-    // narrow screen — one flag, read by every rule that needs it.
+    // because below the breakpoint the detail replaces the whole left column rather than
+    // sitting beside it — one flag, read by every rule that needs it.
     host: {'[class.detail-open]': 'selectedId() !== null'},
 })
 export class ShortlistPage {
