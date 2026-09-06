@@ -1,52 +1,109 @@
-<lg-page-header [title]="'review.title' | transloco" [subtitle]="'review.subtitle' | transloco" />
+<div class="page-head">
+    <lg-page-header [title]="'review.title' | transloco" [subtitle]="'review.subtitle' | transloco"/>
 
-<!--
-  A label wrapping a file input rather than a div with a click handler: the keyboard and
-  the screen reader get the control for free, and the drop zone is the same element.
--->
-<label
-  class="drop"
-  [class.dragging]="dragging()"
-  (dragover)="over($event)"
-  (dragleave)="leave()"
-  (drop)="drop($event)"
->
-  <input class="sr-only" type="file" accept=".md" multiple (change)="pick($event)" />
-  <lg-icon name="file-text" [size]="20" />
-  <span class="type-small">
-    {{ (store.uploading() ? 'review.uploading' : 'review.drop') | transloco }}
-  </span>
-  <span class="type-caption text-muted">
-    {{ 'review.dropHint' | transloco }}
-  </span>
-</label>
+    <!--
+      A label wrapping a file input rather than a div with a click handler: the keyboard and
+      the screen reader get the control for free, and the drop zone is the same element.
+    -->
+    <label
+            class="drop"
+            [class.dragging]="dragging()"
+            (dragover)="over($event)"
+            (dragleave)="leave()"
+            (drop)="drop($event)"
+    >
+        <input class="sr-only" type="file" accept=".md" multiple (change)="pick($event)"/>
+        <lg-icon name="file-text" [size]="20"/>
+        <span class="type-small">
+      {{ (store.uploading() ? 'review.uploading' : 'review.drop') | transloco }}
+    </span>
+        <span class="type-caption text-muted">
+      {{ 'review.dropHint' | transloco }}
+    </span>
+    </label>
 
-@if (store.error(); as error) {
-  <p class="type-small queue-error" role="alert">
-    <lg-icon name="triangle-alert" [size]="16" />
-    {{ error | transloco }}
-  </p>
-}
-
-@if (store.documents().length > 0) {
-  <p class="type-small text-muted count">{{ summary().key | transloco: summary().params }}</p>
-
-  <div class="queue">
-    @for (document of store.documents(); track document.name) {
-      <lg-review-card
-        [document]="document"
-        [busy]="store.busy() === document.name"
-        (confirmed)="confirm(document.name, $event)"
-        (rejected)="reject(document.name)"
-      />
+    @if (store.error(); as error) {
+        <p class="type-small queue-error" role="alert">
+            <lg-icon name="triangle-alert" [size]="16"/>
+            {{ error | transloco }}
+        </p>
     }
-  </div>
-} @else if (store.loading()) {
-  <p class="type-small text-muted">{{ 'common.loading' | transloco }}</p>
-} @else {
-  <lg-empty-state
-    icon="inbox"
-    [title]="'review.emptyTitle' | transloco"
-    [description]="'review.emptyHint' | transloco"
-  />
-}
+</div>
+
+<div class="split">
+    <div class="queue-col">
+        @if (store.documents().length > 0) {
+            <p class="type-small text-muted count">{{ summary().key | transloco: summary().params }}</p>
+        }
+
+        <section class="pane queue-pane" [attr.aria-label]="'review.queueLabel' | transloco">
+            @if (store.documents().length > 0) {
+                <ul class="queue">
+                    @for (document of store.documents(); track document.name) {
+                        <li>
+                            <!-- One row, one link. The name is the identity everywhere in this feature:
+                                 the file is the state, so the URL names the file. -->
+                            <a
+                                    class="row"
+                                    [class.is-selected]="document.name === selectedName()"
+                                    [routerLink]="[]"
+                                    [queryParams]="{ doc: document.name }"
+                                    [attr.aria-current]="document.name === selectedName() ? 'true' : null"
+                            >
+                                <span class="type-small row-name">{{ document.name }}</span>
+                                <span class="type-caption text-muted row-title">
+                  @if (document.offer?.title; as title) {
+                      {{ title }}
+                  } @else {
+                      {{ 'review.noFrontmatter' | transloco }}
+                  }
+                </span>
+                                @if (document.duplicateOfTitle) {
+                                    <span class="type-caption row-duplicate">{{ 'review.duplicateShort' | transloco }}</span>
+                                }
+                            </a>
+                        </li>
+                    }
+                </ul>
+            } @else if (store.loading()) {
+                <p class="type-small text-muted">{{ 'common.loading' | transloco }}</p>
+            } @else {
+                <lg-empty-state
+                        icon="inbox"
+                        [title]="'review.emptyTitle' | transloco"
+                        [description]="'review.emptyHint' | transloco"
+                />
+            }
+        </section>
+    </div>
+
+    <section
+            class="pane detail-pane"
+            #detailPane
+            [attr.aria-label]="'review.detailLabel' | transloco"
+    >
+        @if (selectedName() !== null) {
+            <a class="btn btn-sm btn-ghost back" [routerLink]="[]" [queryParams]="{ doc: null }">
+                <lg-icon name="arrow-left" [size]="16"/>
+                {{ 'review.backToQueue' | transloco }}
+            </a>
+        }
+
+        @if (selected(); as document) {
+            <lg-review-card
+                    [document]="document"
+                    [busy]="store.busy() === document.name"
+                    (confirmed)="confirm(document.name, $event)"
+                    (rejected)="reject(document.name)"
+            />
+        } @else if (store.documents().length > 0) {
+            <!-- Reachable in two ways: nothing picked yet, and a name in the URL whose file has
+                 since been confirmed or rejected. Both are answered by the same sentence. -->
+            <lg-empty-state
+                    icon="file-text"
+                    [title]="'review.pickTitle' | transloco"
+                    [description]="'review.pickHint' | transloco"
+            />
+        }
+    </section>
+</div>

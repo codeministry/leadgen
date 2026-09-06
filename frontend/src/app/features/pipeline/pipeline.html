@@ -3,75 +3,107 @@
   [subtitle]="'pipeline.subtitle' | transloco"
 />
 
-@if (store.error(); as error) {
-  <p class="type-small board-error" role="alert">
-    <lg-icon name="triangle-alert" [size]="16" />
-    {{ error | transloco }}
-  </p>
-}
+<div class="split">
+    <div class="board-col">
+        @if (store.error(); as error) {
+            <p class="type-small board-error" role="alert">
+                <lg-icon name="triangle-alert" [size]="16"/>
+                {{ error | transloco }}
+            </p>
+        }
 
-@if (store.columns().length > 0) {
-  <div class="board">
-    @for (column of store.columns(); track column.lane.id) {
-      <section class="lane">
-        <h2 class="type-caption lane-head">
-          {{ column.lane.label }}
-          <span class="type-mono-data text-muted">{{ column.applications.length }}</span>
-        </h2>
+        @if (store.columns().length > 0) {
+            <div class="board">
+                @for (column of store.columns(); track column.lane.id) {
+                    <section class="lane">
+                        <h2 class="type-caption lane-head">
+                            {{ column.lane.label }}
+                            <span class="type-mono-data text-muted">{{ column.applications.length }}</span>
+                        </h2>
 
-        <ul class="cards">
-          @for (application of column.applications; track application.id) {
-            <li class="card" [class.saving]="store.saving() === application.id">
-              <div class="card-top">
-                <lg-score [value]="application.scoreValue" [size]="40" />
-                <h3 class="type-small card-title">{{ application.title }}</h3>
-              </div>
+                        <ul class="cards">
+                            @for (application of column.applications; track application.id) {
+                                <li
+                                        class="card"
+                                        [class.saving]="store.saving() === application.id"
+                                        [class.is-selected]="application.offerId === selectedId()"
+                                >
+                                    <div class="card-top">
+                                        <lg-score [value]="application.scoreValue" [size]="40"/>
+                                        <h3 class="type-small card-title">
+                                            <!-- The title link covers the whole card (see the CSS), so the status
+                                                 picker below has to lift itself above it or it stops being
+                                                 clickable. -->
+                                            <a
+                                                    [routerLink]="['/pipeline', application.offerId]"
+                                                    [attr.aria-current]="application.offerId === selectedId() ? 'true' : null"
+                                            >{{ application.title }}</a
+                                            >
+                                        </h3>
+                                    </div>
 
-              <p class="type-mono-data text-muted card-meta">
-                @if (application.rateEur !== null) {
-                  <span>{{ application.rateEur }} &euro;/h</span>
+                                    <p class="type-mono-data text-muted card-meta">
+                                        @if (application.rateEur !== null) {
+                                            <span>{{ application.rateEur }} &euro;/h</span>
+                                        }
+                                        @if (application.sentOn; as sent) {
+                                            <span>{{ 'pipeline.sent' | transloco: {date: sent} }}</span>
+                                        }
+                                        @if (application.followUpOn; as due) {
+                                            <span [class.due]="application.followUpDue">
+                        {{ 'pipeline.followUp' | transloco: {date: due} }}
+                      </span>
+                                        }
+                                    </p>
+
+                                    <lg-status-picker
+                                            class="card-status"
+                                            [value]="application.status"
+                                            [options]="store.statusChoices()"
+                                            [disabled]="store.saving() === application.id"
+                                            [label]="'pipeline.statusOf' | transloco: { title: application.title }"
+                                            (picked)="move(application, $event)"
+                                    />
+
+                                    <div class="card-foot">
+                                        <lg-badge [tone]="toneFor(application.status)" [outline]="true">
+                                            {{ application.status }}
+                                        </lg-badge>
+                                        <span class="type-caption text-muted">
+                      {{ application.agency ?? ('offer.noAgency' | transloco) }}
+                    </span>
+                                    </div>
+                                </li>
+                            } @empty {
+                                <li class="type-small text-muted empty">{{ 'pipeline.laneEmpty' | transloco }}</li>
+                            }
+                        </ul>
+                    </section>
                 }
-                @if (application.sentOn; as sent) {
-                  <span>{{ 'pipeline.sent' | transloco: { date: sent } }}</span>
-                }
-                @if (application.followUpOn; as due) {
-                  <span [class.due]="application.followUpDue">
-                    {{ 'pipeline.followUp' | transloco: { date: due } }}
-                  </span>
-                }
-              </p>
+            </div>
+        } @else if (store.loading()) {
+            <p class="type-small text-muted">{{ 'common.loading' | transloco }}</p>
+        } @else {
+            <lg-empty-state
+                    icon="funnel"
+                    [title]="'pipeline.emptyTitle' | transloco"
+                    [description]="'pipeline.emptyHint' | transloco"
+            />
+        }
+    </div>
 
-              <lg-status-picker
-                class="card-status"
-                [value]="application.status"
-                [options]="store.statusChoices()"
-                [disabled]="store.saving() === application.id"
-                [label]="'pipeline.statusOf' | transloco: { title: application.title }"
-                (picked)="move(application, $event)"
-              />
+    <section
+            class="pane detail-pane"
+            #detailPane
+            [attr.aria-label]="'pipeline.detailLabel' | transloco"
+    >
+        @if (selectedId() !== null) {
+            <a class="btn btn-sm btn-ghost back" routerLink="/pipeline">
+                <lg-icon name="arrow-left" [size]="16"/>
+                {{ 'pipeline.backToBoard' | transloco }}
+            </a>
+        }
 
-              <div class="card-foot">
-                <lg-badge [tone]="toneFor(application.status)" [outline]="true">
-                  {{ application.status }}
-                </lg-badge>
-                <span class="type-caption text-muted">
-                  {{ application.agency ?? ('offer.noAgency' | transloco) }}
-                </span>
-              </div>
-            </li>
-          } @empty {
-            <li class="type-small text-muted empty">{{ 'pipeline.laneEmpty' | transloco }}</li>
-          }
-        </ul>
-      </section>
-    }
-  </div>
-} @else if (store.loading()) {
-  <p class="type-small text-muted">{{ 'common.loading' | transloco }}</p>
-} @else {
-  <lg-empty-state
-    icon="funnel"
-    [title]="'pipeline.emptyTitle' | transloco"
-    [description]="'pipeline.emptyHint' | transloco"
-  />
-}
+        <router-outlet/>
+    </section>
+</div>

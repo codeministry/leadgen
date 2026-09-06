@@ -78,7 +78,15 @@
             </p>
         </div>
 
-        <section class="pane list-pane" #listPane [attr.aria-label]="'shortlist.listLabel' | transloco">
+        <!-- `tabindex` because a scrollable region has to be reachable by keyboard at all, and
+         because it is what gives the arrow keys and j/k a home before any card is clicked. -->
+        <section
+                class="pane list-pane"
+                #listPane
+                tabindex="0"
+                [attr.aria-label]="'shortlist.listLabel' | transloco"
+                (keydown)="onListKey($event)"
+        >
             @if (store.listError(); as error) {
                 <p class="type-small error" role="alert">{{ error | transloco }}</p>
             } @else if (visible().length > 0) {
@@ -143,18 +151,5 @@
 
         <router-outlet/>
 
-        <!-- Only while there is a list to pick from. "Pick an offer" beside "no offers yet"
-             would be a page arguing with itself. -->
-        @if (selectedId() === null && visible().length > 0) {
-            <lg-empty-state
-                    icon="list-checks"
-                    [title]="'shortlist.pickTitle' | transloco"
-                    [description]="
-          'shortlist.pickHint'
-            | transloco
-              : { shortlist: shortlistAt(), review: reviewAt(), reviewTo: shortlistAt() - 1 }
-        "
-            />
-        }
     </section>
 </div>

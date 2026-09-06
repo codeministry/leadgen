@@ -117,8 +117,6 @@
     "emptyArchiveTitle": "Nothing archived yet",
     "emptyArchiveHint": "Offers leave the working list when they age past the freshness window, or when you take them off it yourself.",
     "backToList": "Back to the list",
-    "pickTitle": "Pick an offer",
-    "pickHint": "The list on the left is what cleared the hard filter. Above {shortlist} a package was built, {review} to {reviewTo} is worth a look.",
     "listLabel": "Offers",
     "detailLabel": "Selected offer"
   },
@@ -160,7 +158,9 @@
     "archive": "Archive",
     "restore": "Back on the list",
     "archivedOn": "Off the working list since {date}.",
-    "archivedByAge": "It aged past the freshness window."
+    "archivedByAge": "It aged past the freshness window.",
+    "summary": "Summary",
+    "summaryNote": "As the source summarised the ad. Not written here."
   },
   "application": {
     "title": "Where this stands",
@@ -181,7 +181,9 @@
     "statusOf": "Status of {title}",
     "laneEmpty": "Nothing here",
     "emptyTitle": "No applications yet",
-    "emptyHint": "An application opens when its package is built. Run ingest, and everything above the shortlist threshold arrives in Prepared."
+    "emptyHint": "An application opens when its package is built. Run ingest, and everything above the shortlist threshold arrives in Prepared.",
+    "backToBoard": "Back to the board",
+    "detailLabel": "Selected offer"
   },
   "review": {
     "title": "Review",
@@ -201,7 +203,13 @@
     "emptyTitle": "Nothing waiting",
     "emptyHint": "Drop a Markdown file above. It lands in the inbox unread, and enters the pipeline on the next run once you confirm it.",
     "summary": "{waiting, plural, one {# file waiting for review} other {# files waiting for review}}.",
-    "summaryWithDuplicates": "{waiting, plural, one {# file waiting for review} other {# files waiting for review}}, {duplicates, plural, one {# already in the pipeline} other {# already in the pipeline}}."
+    "summaryWithDuplicates": "{waiting, plural, one {# file waiting for review} other {# files waiting for review}}, {duplicates, plural, one {# already in the pipeline} other {# already in the pipeline}}.",
+    "queueLabel": "Upload queue",
+    "detailLabel": "Selected document",
+    "backToQueue": "Back to the queue",
+    "duplicateShort": "already in the pipeline",
+    "pickTitle": "Pick a document",
+    "pickHint": "The queue on the left is what has been uploaded and not yet confirmed. Open one to check what the extraction read before it becomes an offer."
   },
   "sources": {
     "title": "Sources",

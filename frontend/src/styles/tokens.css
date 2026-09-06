@@ -40,9 +40,14 @@
        scanned twenty at a time. The route takes the wide measure so the columns have room,
        and the split caps itself inside it — ungapped, the advert would run 92rem wide on a
        large monitor, which is the one prose surface in the app. */
-    --lg-list-w: 26rem;
+    --lg-list-w: 30rem;
     --lg-split-gap: 1.25rem;
-    --lg-split-max: 100rem;
+    --lg-split-max: 104rem;
+
+    /* The board's detail column. Fixed, and the board takes the rest: the board is the thing
+       being worked through and it already scrolls sideways, so giving the reading column a
+       stable width is what keeps the lanes from re-wrapping every time an offer is opened. */
+    --lg-detail-w: 30rem;
 
     /* Selection in a list. Not the accent: ochre means "this survived the filter" and nothing
        else, so the one on screen takes the primary edge and wash the nav rail already uses

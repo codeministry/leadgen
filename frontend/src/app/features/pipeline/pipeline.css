@@ -1,8 +1,54 @@
+/* The screen fills the window so the board and the reading column scroll on their own; the
+   route asks for it with `data.fill` and the shell bounds everything above this host. Every
+   `min-height: 0` below is load-bearing — a flex item's default is its content height. */
+:host {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.split {
+    display: grid;
+
+    /* The board takes what is left and the reading column is fixed: the board is the thing
+       being worked through and it already scrolls sideways, so a proportional detail column
+       would re-wrap the lanes every time an offer is opened. */
+    grid-template-columns: minmax(0, 1fr) var(--lg-detail-w);
+    flex: 1;
+    gap: var(--lg-split-gap);
+    min-height: 0;
+}
+
+.board-col {
+    min-height: 0;
+
+    /* One scroller for both axes rather than a vertical one wrapped around the board's own
+       horizontal one: the lanes are read as a whole and two nested scrollers on different
+       axes are two things to hit by accident. */
+    overflow: auto;
+    overscroll-behavior: contain;
+    padding-inline: 0.25rem;
+}
+
+.pane {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+    padding-inline: 0.25rem;
+}
+
+/* The query container for the detail's own panel grid — see the note in the shortlist. */
+.detail-pane {
+    container-type: inline-size;
+    container-name: detail;
+}
+
 .board {
   display: grid;
   grid-template-columns: repeat(5, minmax(14rem, 1fr));
   gap: 0.75rem;
-  overflow-x: auto;
   padding-bottom: 0.5rem;
 }
 
@@ -29,10 +75,78 @@
 }
 
 .card {
+    position: relative;
   padding: 0.625rem 0.75rem;
   border: 1px solid var(--color-base-300);
   border-radius: var(--radius-field);
   background-color: var(--color-base-200);
+    transition: border-color 140ms ease,
+    background-color 140ms ease;
+}
+
+/* The whole card opens the offer, through the title link and nothing else: a handler on the
+   list item would need its own keyboard path and would be a second way to the same route. */
+.card-title a::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+}
+
+.card-title a:focus-visible {
+    outline: none;
+}
+
+.card:has(.card-title a:focus-visible) {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+}
+
+/* Which offer the reading column is showing, in petrol — never the ochre accent, which
+   means one thing only. The same edge marker the shortlist's cards carry. */
+.card.is-selected {
+    border-color: var(--color-primary);
+    background-color: var(--lg-selected-surface);
+}
+
+.card.is-selected::before {
+    content: '';
+    position: absolute;
+    inset-block: 0.5rem;
+    inset-inline-start: 0;
+    width: 3px;
+    border-radius: 0 2px 2px 0;
+    background-color: var(--color-primary);
+}
+
+.card.is-selected:hover {
+    background-color: var(--lg-selected-surface-hover);
+}
+
+/* Mobile-last: the way back exists only where the board is not on screen beside it. */
+.back {
+    display: none;
+}
+
+/* Below this the board and a reading column do not both fit — the same number the shortlist
+   splits on, and the same reason: two structural relayouts on one breakpoint make both
+   harder to check. */
+@media (width < 64rem) {
+    .split {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    :host(.detail-open) .board-col {
+        display: none;
+    }
+
+    :host(:not(.detail-open)) .detail-pane {
+        display: none;
+    }
+
+    .back {
+        display: inline-flex;
+    }
 }
 
 .card-top {
@@ -82,7 +196,11 @@
   color: var(--color-error);
 }
 
+/* `position` and `z-index` are not cosmetic: the title link is stretched across the whole
+   card, so a control on the card has to lift itself above it or it stops being clickable. */
 .card-status {
+    position: relative;
+    z-index: 1;
   display: block;
   margin-top: 0.5rem;
 }

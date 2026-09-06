@@ -1,12 +1,12 @@
-import { provideHttpClient } from '@angular/common/http';
-import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { ComponentFixture, TestBed } from '@angular/core/testing';
-import {Router, provideRouter} from '@angular/router';
-import { signal } from '@angular/core';
-import { ShortlistEntry } from '@core/model/shortlist-entry';
-import { ShortlistPage as ShortlistPayload } from '@core/model/shortlist-page';
-import { SCORE_THRESHOLDS } from '@shared/shared.ports';
-import { ShortlistPage } from './shortlist-page';
+import {provideHttpClient} from '@angular/common/http';
+import {HttpTestingController, provideHttpClientTesting} from '@angular/common/http/testing';
+import {ComponentFixture, TestBed} from '@angular/core/testing';
+import {provideRouter, Router} from '@angular/router';
+import {signal} from '@angular/core';
+import {ShortlistEntry} from '@core/model/shortlist-entry';
+import {ShortlistPage as ShortlistPayload} from '@core/model/shortlist-page';
+import {SCORE_THRESHOLDS} from '@shared/shared.ports';
+import {ShortlistPage} from './shortlist-page';
 
 function entry(id: number, title: string, value: number | null, portal: string): ShortlistEntry {
   return {
@@ -193,6 +193,13 @@ describe('ShortlistPage', () => {
         });
     }
 
+    /** The pane is where the handler lives, and a card link's keydown bubbles up to it. */
+    function press(fixture: ComponentFixture<ShortlistPage>, key: string): void {
+        const pane = fixture.nativeElement.querySelector('.list-pane') as HTMLElement;
+        pane.dispatchEvent(new KeyboardEvent('keydown', {key, bubbles: true}));
+        fixture.detectChanges();
+    }
+
     it('opens the first offer by itself when both columns fit', () => {
         // An empty right column beside a full list is a page waiting for a click it does not
         // need: the first entry is the highest-scoring one the filters produced.
@@ -207,6 +214,40 @@ describe('ShortlistPage', () => {
             // `replaceUrl`, or the back button would undo a selection nobody made.
             expect.objectContaining({replaceUrl: true, queryParamsHandling: 'preserve'}),
         );
+    });
+
+    it('walks the list with the arrow keys and with j', () => {
+        // Triage is twenty offers in a row, and a mouse round trip per offer is what the
+        // split view exists to remove. Nothing is selected here, so both directions land on
+        // the first entry; which way each key moves from a selection is measured in the
+        // browser, where a child route can actually be active.
+        widthAllowsBothColumns(false);
+        const router = TestBed.inject(Router);
+        const navigate = vi.spyOn(router, 'navigate').mockResolvedValue(true);
+        const fixture = render();
+
+        for (const key of ['ArrowDown', 'j', 'ArrowUp', 'k']) {
+            press(fixture, key);
+        }
+
+        expect(navigate).toHaveBeenCalledTimes(4);
+        expect(navigate).toHaveBeenLastCalledWith(['/shortlist', ENTRIES[0]!.offer.id], {
+            queryParamsHandling: 'preserve',
+        });
+    });
+
+    it('leaves every other key alone', () => {
+        // The handler sits on the pane rather than on the document precisely so that no key
+        // has to be sniffed for; anything that is not one of the four passes straight through.
+        widthAllowsBothColumns(false);
+        const router = TestBed.inject(Router);
+        const navigate = vi.spyOn(router, 'navigate').mockResolvedValue(true);
+        const fixture = render();
+
+        press(fixture, 'a');
+        press(fixture, 'Enter');
+
+        expect(navigate).not.toHaveBeenCalled();
     });
 
     it('leaves the list alone where the detail would replace it', () => {

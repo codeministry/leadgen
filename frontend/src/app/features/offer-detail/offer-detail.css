@@ -1,3 +1,9 @@
+/* A block, so the panels below it are laid out by this element and not by a line box.
+   The query container is the shortlist's detail pane, not this host — see the note there. */
+:host {
+    display: block;
+}
+
 .grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -5,7 +11,13 @@
   align-items: start;
 }
 
-@media (width < 64rem) {
+/* Two 21rem panels plus the gap. 21rem is this repo's own minimum panel width, and the
+   named container is the column this component sits in — the viewport cannot answer for it:
+   at 1280px it says "wide" while the detail column is 47.5rem with the nav rail collapsed
+   and 37rem with it open, and the rail expands with no media query at all. A named query
+   applies only where that container exists, which is the shortlist's detail pane — the one
+   place this component is rendered, now that `/offers/:id` redirects into the split view. */
+@container detail (width < 44rem) {
   .grid {
     grid-template-columns: 1fr;
   }

@@ -1,5 +1,18 @@
 import {DatePipe} from '@angular/common';
-import {ChangeDetectionStrategy, Component, computed, effect, inject, input, OnInit, signal,} from '@angular/core';
+import {
+    afterNextRender,
+    ChangeDetectionStrategy,
+    Component,
+    computed,
+    effect,
+    ElementRef,
+    inject,
+    Injector,
+    input,
+    OnInit,
+    signal,
+    viewChild,
+} from '@angular/core';
 import {injectDispatch} from '@ngrx/signals/events';
 import {TranslocoPipe} from '@jsverse/transloco';
 import {ApplicationUpdate} from '@core/model/application';
@@ -85,6 +98,9 @@ export class OfferDetail implements OnInit {
         return offer?.fullText ?? offer?.description ?? '';
     });
 
+    private readonly ad = viewChild<ElementRef<HTMLElement>>('ad');
+    private readonly injector = inject(Injector);
+
     protected readonly adIsLong = computed(() => this.adText().length > AD_FOLD_CHARS);
 
     protected readonly adFolded = computed(
@@ -93,6 +109,39 @@ export class OfferDetail implements OnInit {
 
     protected toggleAd(offerId: number): void {
         this.unfolded.update((open) => (open === offerId ? null : offerId));
+        this.relayoutAd();
+    }
+
+    /**
+     * Forces the advert's box to be measured again after the fold has been toggled.
+     *
+     * <p>A workaround, and it is worth saying plainly that it stands on an observation
+     * rather than on a reproduced cause. In Safari the panel intermittently keeps its folded
+     * height after the class comes off — measured on the page: `max-height: none`,
+     * `overflow: visible`, no mask, and the box still exactly 390px, the clamp's own value,
+     * with the advert's text running on behind the panels below it. Six isolated variants of
+     * the same structure (scroll pane, grid, spanning panel, mask, the whole height chain)
+     * were all correct in that Safari, and the same page measured correctly a minute later,
+     * so this is a relayout WebKit sometimes leaves lying rather than a rule that holds the
+     * height. Detaching the box and reading a metric off it removes the opportunity.
+     *
+     * <p>Chrome pays two forced layouts on a click it already relayouts for, which is
+     * nothing. Delete this the day the fold survives a Safari release untouched.
+     */
+    private relayoutAd(): void {
+        afterNextRender(
+            () => {
+                const element = this.ad()?.nativeElement;
+                if (element === undefined) {
+                    return;
+                }
+                const display = element.style.display;
+                element.style.display = 'none';
+                void element.offsetHeight;
+                element.style.display = display;
+            },
+            {injector: this.injector},
+        );
     }
 
     /**

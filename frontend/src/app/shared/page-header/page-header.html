@@ -1,6 +1,10 @@
 <div class="mb-6 flex flex-wrap items-end justify-between gap-4">
   <div class="min-w-0 flex-1">
-    <h1 class="type-h1">{{ title() }}</h1>
+      @if (heading() === 'h1') {
+          <h1 class="type-h1">{{ title() }}</h1>
+      } @else {
+          <h2 class="type-h2">{{ title() }}</h2>
+      }
     @if (subtitle(); as subtitle) {
       <p class="type-small text-muted mt-1">{{ subtitle }}</p>
     }

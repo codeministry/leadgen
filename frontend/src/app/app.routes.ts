@@ -1,4 +1,4 @@
-import { Routes } from '@angular/router';
+import {Routes} from '@angular/router';
 
 /**
  * Every screen, lazily loaded.
@@ -54,13 +54,29 @@ export const routes: Routes = [
     path: 'pipeline',
     title: 'Pipeline · Lead Generation',
     // Columns, not prose: the board is the one screen the reading measure costs
-    // something, so it takes the wide one the shell reads from here.
-    data: { wide: true },
+      // something, so it takes the wide one the shell reads from here. `fill` bounds the
+      // screen to the viewport so the board and the detail column scroll on their own.
+      data: {wide: true, fill: true},
     loadComponent: () => import('@features/pipeline/pipeline').then((m) => m.Pipeline),
+      children: [
+          {
+              // The offer behind the card, in the same detail component the shortlist opens. A
+              // child route rather than a jump to `/shortlist/:id`: the board is where somebody
+              // works through what is out, and losing the board to read one ad is the round trip
+              // this pattern removes.
+              path: ':id',
+              title: 'Offer · Lead Generation',
+              loadComponent: () =>
+                  import('@features/offer-detail/offer-detail').then((m) => m.OfferDetail),
+          },
+      ],
   },
   {
     path: 'review',
     title: 'Review · Lead Generation',
+      // The queue beside the document, so correcting one extraction does not cost the place
+      // in the queue. `fill` bounds the screen so both columns scroll on their own.
+      data: {wide: true, fill: true},
     loadComponent: () => import('@features/review/review').then((m) => m.Review),
   },
   {

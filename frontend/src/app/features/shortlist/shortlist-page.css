@@ -49,6 +49,16 @@
     padding-inline: 0.25rem;
 }
 
+/* The query container for the detail's own panel grid. It sits here rather than on
+   `lg-offer-detail` because containment must not land on an element whose height has to
+   grow: unfolding an advert made the panel keep its folded height in Safari while the text
+   ran on behind the panels below it. This pane's height comes from the flex chain and never
+   from its content, so containing it cannot squeeze anything. */
+.detail-pane {
+    container-type: inline-size;
+    container-name: detail;
+}
+
 /* Two rows inside a 26rem column: the search full width, the switches under it. */
 .filters {
     display: grid;

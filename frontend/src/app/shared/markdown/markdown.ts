@@ -1,6 +1,6 @@
-import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
-import { Marked } from 'marked';
-import { escapeHtml, hljs } from './highlight';
+import {ChangeDetectionStrategy, Component, computed, input} from '@angular/core';
+import {Marked} from 'marked';
+import {escapeHtml, hljs} from './highlight';
 
 /**
  * Its own parser instance rather than the module-level `marked`, whose options are global:
@@ -59,6 +59,20 @@ parser.use({
       const label = title ? ` title="${escapeHtml(title)}"` : '';
       return `<a href="${escapeHtml(href)}"${label} target="_blank" rel="noopener noreferrer">${text}</a>`;
     },
+
+      /**
+       * Every heading in an advert is pushed two levels down.
+       *
+       * <p>The text is somebody else's, and Markdown's `#` renders an `<h1>`: an advert that
+       * opens with its own title therefore claimed to be the page's heading, beside the
+       * screen's real one. Two levels rather than one, because this sits inside a panel whose
+       * own heading is an `<h2>` — so the advert's top level lands under it, where it belongs.
+       * Clamped at six, which is as deep as HTML goes.
+       */
+      heading({tokens, depth}) {
+          const level = Math.min(depth + 2, 6);
+          return `<h${level}>${this.parser.parseInline(tokens)}</h${level}>\n`;
+      },
 
     code({ text, lang }) {
       const language = lang && hljs.getLanguage(lang) ? lang : null;

@@ -1,11 +1,13 @@
 import {
+    afterNextRender,
     ChangeDetectionStrategy,
     Component,
-    DOCUMENT,
-    ElementRef,
     computed,
+    DOCUMENT,
     effect,
+    ElementRef,
     inject,
+    Injector,
     input,
     signal,
     viewChild,
@@ -13,17 +15,17 @@ import {
 import {toSignal} from '@angular/core/rxjs-interop';
 import {ActivatedRoute, NavigationEnd, Router, RouterLink, RouterOutlet} from '@angular/router';
 import {filter, map} from 'rxjs';
-import { injectDispatch } from '@ngrx/signals/events';
-import { TranslocoPipe } from '@jsverse/transloco';
-import { shortlistEvents } from '@core/store/shortlist.events';
-import { ShortlistStore } from '@core/store/shortlist.store';
-import { ShortlistFilters } from '@core/model/shortlist-page';
-import { SCORE_THRESHOLDS } from '@shared/shared.ports';
-import { EmptyState } from '@shared/empty-state/empty-state';
-import { LoadMore } from '@shared/load-more/load-more';
-import { Icon } from '@shared/icon/icon';
-import { PageHeader } from '@shared/page-header/page-header';
-import { OfferCard } from './offer-card/offer-card';
+import {injectDispatch} from '@ngrx/signals/events';
+import {TranslocoPipe} from '@jsverse/transloco';
+import {shortlistEvents} from '@core/store/shortlist.events';
+import {ShortlistStore} from '@core/store/shortlist.store';
+import {ShortlistFilters} from '@core/model/shortlist-page';
+import {SCORE_THRESHOLDS} from '@shared/shared.ports';
+import {EmptyState} from '@shared/empty-state/empty-state';
+import {LoadMore} from '@shared/load-more/load-more';
+import {Icon} from '@shared/icon/icon';
+import {PageHeader} from '@shared/page-header/page-header';
+import {OfferCard} from './offer-card/offer-card';
 
 type BandFilter = 'all' | 'shortlist' | 'review';
 
@@ -54,6 +56,17 @@ export class ShortlistPage {
   protected readonly store = inject(ShortlistStore);
 
     private readonly detailPane = viewChild<ElementRef<HTMLElement>>('detailPane');
+    private readonly listPane = viewChild<ElementRef<HTMLElement>>('listPane');
+    private readonly injector = inject(Injector);
+
+    /**
+     * The offer a key press asked for, cleared once the focus has followed it there.
+     *
+     * A flag rather than "focus whatever is selected": a deep link and a mouse click both
+     * change the selection too, and pulling the focus into the list on either of those would
+     * move it away from what the reader was doing.
+     */
+    private readonly focusWanted = signal<number | null>(null);
 
     /**
      * The URL, only as a reason to look again — the same shape the shell uses, and for the
@@ -187,6 +200,26 @@ export class ShortlistPage {
           });
       });
 
+      // The focus follows a key press, which is what makes the browser scroll the card into
+      // view — no measuring, no `scrollIntoView`, and the ring lands where the reader is.
+      // `afterNextRender` because `aria-current` is on the new card only after the change
+      // detection the navigation triggers.
+      effect(() => {
+          const wanted = this.focusWanted();
+          if (wanted === null || this.selectedId() !== wanted) {
+              return;
+          }
+          this.focusWanted.set(null);
+          afterNextRender(
+              () => {
+                  this.listPane()
+                      ?.nativeElement.querySelector<HTMLAnchorElement>('[aria-current="true"]')
+                      ?.focus();
+              },
+              {injector: this.injector},
+          );
+      });
+
       // A new offer starts at its own top. The right column is one element that survives the
       // navigation, so without this the second offer opens wherever the first one was left.
       // `scrollTop` rather than `scrollTo`: jsdom implements the property and not the method,
@@ -233,6 +266,53 @@ export class ShortlistPage {
       queryParamsHandling: 'merge',
     });
   }
+
+    /**
+     * Arrow keys and `j`/`k` walk the list, because triage is twenty offers in a row and a
+     * mouse round trip per offer is the thing this screen was rebuilt to remove.
+     *
+     * <p>Bound on the pane rather than on the document: `keydown` bubbles from the focused
+     * card link, so the handler only fires while the focus is in the list. That is what lets
+     * `j` stay a letter in the search field, which sits outside the pane, and leaves the
+     * arrow keys scrolling the advert while the reader is in the detail column — no target
+     * sniffing anywhere.
+     *
+     * <p>Past the last loaded entry it asks for the next page and stays put, rather than
+     * doing nothing: the list is keyset-paged, so "next" beyond what is loaded does not exist
+     * yet. After an archive the selected row is gone from `entries` and the index is -1; the
+     * key then behaves as it does with nothing selected. Better a known first entry than a
+     * guessed neighbour.
+     */
+    protected onListKey(event: KeyboardEvent): void {
+        if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) {
+            return;
+        }
+        const step =
+            event.key === 'ArrowDown' || event.key === 'j'
+                ? 1
+                : event.key === 'ArrowUp' || event.key === 'k'
+                    ? -1
+                    : 0;
+        const entries = this.visible();
+        if (step === 0 || entries.length === 0) {
+            return;
+        }
+
+        event.preventDefault();
+        const current = entries.findIndex((entry) => entry.offer.id === this.selectedId());
+        const next = current === -1 ? 0 : current + step;
+        if (next < 0) {
+            return;
+        }
+        if (next >= entries.length) {
+            this.loadMore();
+            return;
+        }
+
+        const id = entries[next].offer.id;
+        this.focusWanted.set(id);
+        void this.router.navigate(['/shortlist', id], {queryParamsHandling: 'preserve'});
+    }
 
   protected onInput(event: Event): void {
     this.setFilter('q', (event.target as HTMLInputElement).value);

@@ -1,5 +1,5 @@
-import { TestBed } from '@angular/core/testing';
-import { Markdown } from './markdown';
+import {TestBed} from '@angular/core/testing';
+import {Markdown} from './markdown';
 
 describe('Markdown', () => {
   function render(text: string): string {
@@ -12,9 +12,21 @@ describe('Markdown', () => {
   it('turns an ad into headings and a list, which is the whole point', () => {
     const html = render('## Ihre Aufgaben\n\n- Spring Boot\n- Kubernetes');
 
-    expect(html).toContain('<h2');
+      expect(html).toContain('<h4');
     expect(html).toContain('<li>Spring Boot</li>');
   });
+
+    it('pushes the advert\'s own headings below the panel that holds them', () => {
+        // The text is somebody else's and `#` renders an `<h1>`, so an ad that opens with its
+        // own title claimed to be the page's heading beside the screen's real one.
+        expect(render('# Senior Java Entwickler')).toContain('<h3');
+        expect(render('# Senior Java Entwickler')).not.toContain('<h1');
+    });
+
+    it('stops at the deepest level HTML has', () => {
+        expect(render('##### Nice to have')).toContain('<h6');
+        expect(render('###### Nice to have')).toContain('<h6');
+    });
 
   it('keeps a single newline as a line break, because an ad writes one per requirement', () => {
     expect(render('Start: sofort\nDauer: 6 Monate')).toContain('<br');

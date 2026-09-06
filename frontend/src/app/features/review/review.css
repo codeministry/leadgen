@@ -1,3 +1,104 @@
+/* The screen fills the window so the queue and the document scroll on their own. The route
+   asks for it with `data.fill`; every `min-height: 0` below is load-bearing, because a flex
+   item's default is its content height and that is how a bounded pane grows the page. */
+:host {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.split {
+    display: grid;
+
+    /* The queue is a column of file names, the document is what is read and corrected. */
+    grid-template-columns: var(--lg-list-w) minmax(0, 1fr);
+    flex: 1;
+    gap: var(--lg-split-gap);
+    min-height: 0;
+}
+
+.queue-col {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.pane {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+    padding-inline: 0.25rem;
+}
+
+.queue {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+    list-style: none;
+}
+
+.row {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--color-base-300);
+    border-radius: var(--radius-field);
+    background-color: var(--color-base-100);
+    transition: border-color 140ms ease,
+    background-color 140ms ease;
+}
+
+.row:hover {
+    border-color: color-mix(in oklab, var(--color-primary) 45%, var(--color-base-300));
+}
+
+/* Which document the right column is showing — petrol, never the ochre accent. */
+.row.is-selected {
+    border-color: var(--color-primary);
+    background-color: var(--lg-selected-surface);
+}
+
+.row-name {
+    overflow-wrap: anywhere;
+}
+
+.row-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.row-duplicate {
+    color: var(--lg-warning-text);
+}
+
+/* Mobile-last: the way back exists only where the queue is not on screen beside it. */
+.back {
+    display: none;
+}
+
+@media (width < 64rem) {
+    .split {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    :host(.detail-open) .page-head,
+    :host(.detail-open) .queue-col {
+        display: none;
+    }
+
+    :host(:not(.detail-open)) .detail-pane {
+        display: none;
+    }
+
+    .back {
+        display: inline-flex;
+    }
+}
+
 .drop {
   display: flex;
   flex-direction: column;
@@ -30,17 +131,14 @@
 }
 
 .count {
-  margin-top: 1rem;
-}
-
-.queue {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  margin-top: 0.5rem;
+    margin-bottom: 0.5rem;
 }
 
 @media (prefers-reduced-motion: reduce) {
+    .row {
+        transition: none;
+    }
+
   .drop {
     transition: none;
   }

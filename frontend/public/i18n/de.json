@@ -117,8 +117,6 @@
     "emptyArchiveTitle": "Noch nichts archiviert",
     "emptyArchiveHint": "Angebote verlassen die Arbeitsliste, wenn sie älter als das Frischefenster werden oder wenn du sie selbst herausnimmst.",
     "backToList": "Zurück zur Liste",
-    "pickTitle": "Ein Angebot auswählen",
-    "pickHint": "Links steht, was den harten Filter passiert hat. Über {shortlist} wurde ein Paket gebaut, {review} bis {reviewTo} lohnt einen Blick.",
     "listLabel": "Angebote",
     "detailLabel": "Ausgewähltes Angebot"
   },
@@ -160,7 +158,9 @@
     "archive": "Archivieren",
     "restore": "Zurück auf die Liste",
     "archivedOn": "Seit {date} nicht mehr auf der Arbeitsliste.",
-    "archivedByAge": "Älter als das Frischefenster."
+    "archivedByAge": "Älter als das Frischefenster.",
+    "summary": "Zusammenfassung",
+    "summaryNote": "So fasst die Quelle die Anzeige zusammen. Nicht hier geschrieben."
   },
   "application": {
     "title": "Wie es hier steht",
@@ -181,7 +181,9 @@
     "statusOf": "Status von {title}",
     "laneEmpty": "Nichts hier",
     "emptyTitle": "Noch keine Bewerbungen",
-    "emptyHint": "Eine Bewerbung entsteht, sobald ihr Paket gebaut ist. Lies die Quellen ein, dann landet alles oberhalb der Auswahlschwelle in Vorbereitet."
+    "emptyHint": "Eine Bewerbung entsteht, sobald ihr Paket gebaut ist. Lies die Quellen ein, dann landet alles oberhalb der Auswahlschwelle in Vorbereitet.",
+    "backToBoard": "Zurück zum Board",
+    "detailLabel": "Ausgewähltes Angebot"
   },
   "review": {
     "title": "Prüfung",
@@ -201,7 +203,13 @@
     "emptyTitle": "Nichts zu prüfen",
     "emptyHint": "Leg oben eine Markdown-Datei ab. Sie landet ungelesen im Eingang und geht beim nächsten Lauf in den Verlauf, sobald du sie bestätigst.",
     "summary": "{waiting, plural, one {# Datei wartet auf Prüfung} other {# Dateien warten auf Prüfung}}.",
-    "summaryWithDuplicates": "{waiting, plural, one {# Datei wartet auf Prüfung} other {# Dateien warten auf Prüfung}}, {duplicates, plural, one {# steht schon im Verlauf} other {# stehen schon im Verlauf}}."
+    "summaryWithDuplicates": "{waiting, plural, one {# Datei wartet auf Prüfung} other {# Dateien warten auf Prüfung}}, {duplicates, plural, one {# steht schon im Verlauf} other {# stehen schon im Verlauf}}.",
+    "queueLabel": "Warteschlange",
+    "detailLabel": "Ausgewähltes Dokument",
+    "backToQueue": "Zurück zur Warteschlange",
+    "duplicateShort": "schon in der Pipeline",
+    "pickTitle": "Ein Dokument auswählen",
+    "pickHint": "Links steht, was hochgeladen und noch nicht bestätigt wurde. Öffne eines, um vor der Übernahme zu prüfen, was die Extraktion gelesen hat."
   },
   "sources": {
     "title": "Quellen",

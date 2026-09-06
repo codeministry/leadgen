@@ -1,5 +1,5 @@
 @if (entry(); as entry) {
-  <lg-page-header [title]="entry.offer.title" [subtitle]="entry.offer.portal">
+    <lg-page-header heading="h2" [title]="entry.offer.title" [subtitle]="entry.offer.portal">
     @if (entry.offer.url; as url) {
       <!-- Out of the application, so a new tab, and `noopener` with it: a page opened
            this way can otherwise reach back through `window.opener`, and this URL came off
@@ -36,7 +36,21 @@
   }
 
   <div class="grid">
-    <section class="panel panel-wide">
+      <!--
+        The summary the source states about the advert, above the advert itself, because it is
+        what the shortlist card showed and the reason somebody opened this offer. It only
+        appears when the enriched full text is on screen: without that, the advert panel below
+        *is* this description, and the same paragraph twice says nothing the second time.
+      -->
+      @if (entry.offer.fullText && entry.offer.description; as summary) {
+          <section class="panel panel-wide">
+              <h2 class="type-h2">{{ 'detail.summary' | transloco }}</h2>
+              <lg-markdown [text]="summary"/>
+              <p class="type-caption text-muted">{{ 'detail.summaryNote' | transloco }}</p>
+          </section>
+      }
+
+      <section class="panel panel-wide">
       <h2 class="type-h2">{{ 'detail.theAd' | transloco }}</h2>
       <!--
         The enriched full text when enrichment reached the portal, the newsletter's own
@@ -47,7 +61,7 @@
         one pulled off a portal carries the paragraph breaks `PlainText` kept. Plain text
         is valid Markdown, so nothing has to decide which of the two this is.
       -->
-        <div class="ad" [class.folded]="adFolded()">
+          <div class="ad" #ad [class.folded]="adFolded()">
             <lg-markdown [text]="entry.offer.fullText ?? entry.offer.description"/>
         </div>
         @if (adIsLong()) {
