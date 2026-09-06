@@ -8,17 +8,8 @@
  */
 package de.codeministry.leadgen.dedupe;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 import de.codeministry.leadgen.config.ConfigFixtures;
 import de.codeministry.leadgen.ingest.extract.TitleNormalizer;
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.time.Duration;
-import java.time.Instant;
-import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,7 +22,19 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-/** Collapsing the listings of one project into one cluster. */
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+/**
+ * Collapsing the listings of one project into one cluster.
+ */
 @SpringBootTest
 @Testcontainers
 class DeduplicationServiceTest {
@@ -163,10 +166,10 @@ class DeduplicationServiceTest {
     private long insert(String title, String portal, String agency, Instant ingestedAt) {
         return jdbc.queryForObject(
                 """
-                INSERT INTO offer (source_id, external_id, title, url, portal, agency, fingerprint, ingested_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                RETURNING id
-                """,
+                        INSERT INTO offer (source_id, external_id, title, url, portal, agency, fingerprint, ingested_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                        RETURNING id
+                        """,
                 Long.class,
                 sourceId,
                 "ext-" + portal + "-" + title.hashCode(),
@@ -195,7 +198,9 @@ class DeduplicationServiceTest {
         return Instant.now().minus(Duration.ofMinutes(minutes));
     }
 
-    /** The shipped defaults, materialized: a broken default has to fail the build. */
+    /**
+     * The shipped defaults, materialized: a broken default has to fail the build.
+     */
     private static Path shippedDefaults() {
         try {
             Path dir = Files.createTempDirectory("leadgen-dedupe");

@@ -13,9 +13,12 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+
 import java.util.List;
 
-/** `matching-rules.yaml`: the deterministic hard filter plus the scoring weights. */
+/**
+ * `matching-rules.yaml`: the deterministic hard filter plus the scoring weights.
+ */
 public record MatchingRules(
         @Min(1) int version,
         @Valid @NotNull HardFilters hardFilters,
@@ -49,17 +52,18 @@ public record MatchingRules(
                     List<String> containsAny,
                     String regex,
                     @NotBlank String set,
-                    String confidence) {}
+                    String confidence) {
+            }
         }
 
         /**
          * @param onsiteCities the places reachable for on-site days, as a list rather
-         *     than a radius. Nothing here geocodes: an offer states its location as free
-         *     text — "Remote und Nürnberg", "DE 7XXXX" — so a kilometre figure would need
-         *     a dataset, a parser and a network call the filter must not need. The list
-         *     is drawn once from a map, and it is what actually runs. A `onsite_max_km`
-         *     key used to sit here; nothing read it, and a number nothing reads is the
-         *     kind of decoration that outlives the intent it was written for.
+         *                     than a radius. Nothing here geocodes: an offer states its location as free
+         *                     text — "Remote und Nürnberg", "DE 7XXXX" — so a kilometre figure would need
+         *                     a dataset, a parser and a network call the filter must not need. The list
+         *                     is drawn once from a map, and it is what actually runs. A `onsite_max_km`
+         *                     key used to sit here; nothing read it, and a number nothing reads is the
+         *                     kind of decoration that outlives the intent it was written for.
          */
         public record Location(
                 List<String> countryAllowlist,
@@ -68,18 +72,22 @@ public record MatchingRules(
                 List<String> onsiteCities,
                 List<@Valid OnsiteWaiver> onsiteExceptions) {
 
-            /** A city outside the usual range that is acceptable anyway, with the reason. */
-            public record OnsiteWaiver(@NotBlank String city, String reason) {}
+            /**
+             * A city outside the usual range that is acceptable anyway, with the reason.
+             */
+            public record OnsiteWaiver(@NotBlank String city, String reason) {
+            }
         }
 
         /**
          * @param rejectedTitleKeywords roles and stacks that end the assessment on the
-         *     title alone. Deliberately not {@code anti_skills}: that list is documented
-         *     as a scoring penalty worth -30, and reading it as a knockout as well would
-         *     mean anyone tuning the score silently changes what reaches the shortlist.
-         *     The lists also differ — this one rejects roles, not only stacks.
+         *                              title alone. Deliberately not {@code anti_skills}: that list is documented
+         *                              as a scoring penalty worth -30, and reading it as a knockout as well would
+         *                              mean anyone tuning the score silently changes what reaches the shortlist.
+         *                              The lists also differ — this one rejects roles, not only stacks.
          */
-        public record Role(List<String> rejectedTitleKeywords) {}
+        public record Role(List<String> rejectedTitleKeywords) {
+        }
 
         /**
          * {@code applyAfter} exists because the newsletter carries a rate in 0.0 % of
@@ -92,13 +100,17 @@ public record MatchingRules(
                 @NotBlank String currency,
                 boolean acceptUnknown,
                 @NotBlank String applyAfter,
-                String rejectBelowAs) {}
+                String rejectBelowAs) {
+        }
 
-        public record Contract(List<String> allowed, List<String> rejected) {}
+        public record Contract(List<String> allowed, List<String> rejected) {
+        }
 
-        public record Language(String preferred, List<String> accepted, int englishOnlyPenalty) {}
+        public record Language(String preferred, List<String> accepted, int englishOnlyPenalty) {
+        }
 
-        public record Freshness(@Min(1) int maxAgeDays) {}
+        public record Freshness(@Min(1) int maxAgeDays) {
+        }
     }
 
     /**
@@ -117,23 +129,28 @@ public record MatchingRules(
 
         /**
          * @param autoShortlist at or above this, a package is built.
-         * @param review at or above this and below {@code autoShortlist}, the digest lists
-         *     it and a person decides. The loader refuses a {@code review} above
-         *     {@code autoShortlist}: {@link de.codeministry.leadgen.score.Score#band} tests
-         *     the shortlist bound first, so the inverted pair does not fail — it silently
-         *     deletes the REVIEW band and builds a package for everything above the lower
-         *     of the two.
+         * @param review        at or above this and below {@code autoShortlist}, the digest lists
+         *                      it and a person decides. The loader refuses a {@code review} above
+         *                      {@code autoShortlist}: {@link de.codeministry.leadgen.score.Score#band} tests
+         *                      the shortlist bound first, so the inverted pair does not fail — it silently
+         *                      deletes the REVIEW band and builds a package for everything above the lower
+         *                      of the two.
          */
         public record Thresholds(
-                @Min(0) @Max(100) int autoShortlist, @Min(0) @Max(100) int review, @Min(0) int discard) {}
+                @Min(0) @Max(100) int autoShortlist, @Min(0) @Max(100) int review, @Min(0) int discard) {
+        }
     }
 
     public record Deduplication(
             List<String> fingerprintFields, List<@Valid Strategy> strategies, String mergePolicy, @Min(1) int ttlDays) {
 
-        /** {@code threshold} applies to the embedding strategies only. */
-        public record Strategy(@NotBlank String type, Double threshold, @NotBlank String action) {}
+        /**
+         * {@code threshold} applies to the embedding strategies only.
+         */
+        public record Strategy(@NotBlank String type, Double threshold, @NotBlank String action) {
+        }
     }
 
-    public record FollowUp(@Min(1) int afterDays, @Min(0) int maxReminders, @Min(1) int autoExpireDays) {}
+    public record FollowUp(@Min(1) int afterDays, @Min(0) int maxReminders, @Min(1) int autoExpireDays) {
+    }
 }

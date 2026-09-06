@@ -8,9 +8,9 @@
  */
 package de.codeministry.leadgen.packaging;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 import de.codeministry.leadgen.config.ConfigFixtures;
+import org.junit.jupiter.api.Test;
+
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
@@ -20,7 +20,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
-import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * ISC-52, the anti-criterion that outranks every other in this feature: the tool has no

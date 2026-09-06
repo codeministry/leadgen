@@ -5,74 +5,74 @@
      re-declares every token for this subtree and the buttons, the muted version
      string and the wordmark all follow without a single override. -->
 <header class="header" data-theme="lg-dark">
-  <!-- The name belongs on the button, not on the icon inside it: a control whose
-       accessible name comes from a nested role="img" is one refactor away from
-       having none at all. -->
-  <button
-    type="button"
-    class="btn btn-ghost btn-sm btn-square rail-button"
-    [attr.aria-label]="'shell.toggleNavigation' | transloco"
-    [attr.aria-expanded]="shell.railOpen()"
-    aria-controls="app-nav"
-    (click)="toggleRail()"
-  >
-    <lg-icon name="panel-left" [size]="18" />
-  </button>
+    <!-- The name belongs on the button, not on the icon inside it: a control whose
+         accessible name comes from a nested role="img" is one refactor away from
+         having none at all. -->
+    <button
+            type="button"
+            class="btn btn-ghost btn-sm btn-square rail-button"
+            [attr.aria-label]="'shell.toggleNavigation' | transloco"
+            [attr.aria-expanded]="shell.railOpen()"
+            aria-controls="app-nav"
+            (click)="toggleRail()"
+    >
+        <lg-icon name="panel-left" [size]="18"/>
+    </button>
 
-  <a routerLink="/dashboard" class="brand-link">
-    <lg-brand-mark [size]="26" />
-  </a>
+    <a routerLink="/dashboard" class="brand-link">
+        <lg-brand-mark [size]="26"/>
+    </a>
 
-  <!-- The version is the honest health check: it is what the API answered with,
-       so a stale or silent backend shows up here rather than nowhere. -->
-  <span class="type-mono-data text-muted api-version">
+    <!-- The version is the honest health check: it is what the API answered with,
+         so a stale or silent backend shows up here rather than nowhere. -->
+    <span class="type-mono-data text-muted api-version">
     @if (status.status(); as status) {
-      {{ status.application }} {{ status.version }}
+        {{ status.application }} {{ status.version }}
     } @else if (status.loading()) {
-      {{ 'shell.connecting' | transloco }}
+        {{ 'shell.connecting' | transloco }}
     } @else {
-      {{ status.error() | transloco }}
+        {{ status.error() | transloco }}
     }
   </span>
 
-  <!--
-    One model is not a choice and no model at all means nothing is configured to judge,
-    so the select appears only when there is something to pick. The list comes from
-    `/api/scoring-models`, never from a constant here: a second copy disagrees with the
-    configuration the first time a model is added, and the server refuses what it does
-    not know.
+    <!--
+      One model is not a choice and no model at all means nothing is configured to judge,
+      so the select appears only when there is something to pick. The list comes from
+      `/api/scoring-models`, never from a constant here: a second copy disagrees with the
+      configuration the first time a model is added, and the server refuses what it does
+      not know.
 
-    The selection is bound per option rather than with `[value]` on the select, the same
-    trap `shared/status-picker` documents: `[value]` depends on the options existing when
-    it is written, and losing that race leaves the first one showing while the run uses
-    another.
-  -->
-  @if (models.selectable()) {
-    <label class="sr-only" for="scoring-model">{{ 'shell.scoringModel' | transloco }}</label>
-    <select
-      id="scoring-model"
-      class="select select-xs type-mono-data model-select"
-      [disabled]="ingest.running()"
-      (change)="chooseModel($event)"
+      The selection is bound per option rather than with `[value]` on the select, the same
+      trap `shared/status-picker` documents: `[value]` depends on the options existing when
+      it is written, and losing that race leaves the first one showing while the run uses
+      another.
+    -->
+    @if (models.selectable()) {
+        <label class="sr-only" for="scoring-model">{{ 'shell.scoringModel' | transloco }}</label>
+        <select
+                id="scoring-model"
+                class="select select-xs type-mono-data model-select"
+                [disabled]="ingest.running()"
+                (change)="chooseModel($event)"
+        >
+            @for (model of models.available(); track model) {
+                <option [value]="model" [selected]="model === models.effective()">{{ model }}</option>
+            }
+        </select>
+    }
+
+    <button
+            type="button"
+            class="btn btn-primary btn-sm ingest-button"
+            [disabled]="ingest.running()"
+            (click)="runIngest()"
     >
-      @for (model of models.available(); track model) {
-        <option [value]="model" [selected]="model === models.effective()">{{ model }}</option>
-      }
-    </select>
-  }
-
-  <button
-    type="button"
-    class="btn btn-primary btn-sm ingest-button"
-    [disabled]="ingest.running()"
-    (click)="runIngest()"
-  >
-    <lg-icon name="refresh" [size]="16" />
-    <span class="ingest-label">
+        <lg-icon name="refresh" [size]="16"/>
+        <span class="ingest-label">
       {{ (ingest.running() ? 'shell.ingestRunning' : 'shell.ingest') | transloco }}
     </span>
-  </button>
+    </button>
 
-  <lg-language-toggle />
-  <lg-theme-toggle />
+    <lg-language-toggle/>
+    <lg-theme-toggle/>
 </header>

@@ -8,11 +8,8 @@
  */
 package de.codeministry.leadgen.archive;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 import de.codeministry.leadgen.config.ConfigFixtures;
 import de.codeministry.leadgen.config.ConfigRegistry;
-import java.time.LocalDate;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,6 +21,10 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+
+import java.time.LocalDate;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * The age pass: what leaves the working list, what comes back, and what it must not touch.
@@ -197,10 +198,10 @@ class ArchiveServiceTest {
     private long offer(String title, LocalDate publishedOn) {
         return jdbc.queryForObject(
                 """
-                INSERT INTO offer (source_id, external_id, title, url, fingerprint, status, published_on)
-                VALUES (?, ?, ?, 'https://example.invalid/x', ?, 'PASSED', ?)
-                RETURNING id
-                """,
+                        INSERT INTO offer (source_id, external_id, title, url, fingerprint, status, published_on)
+                        VALUES (?, ?, ?, 'https://example.invalid/x', ?, 'PASSED', ?)
+                        RETURNING id
+                        """,
                 Long.class,
                 sourceId,
                 title,

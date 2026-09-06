@@ -29,19 +29,19 @@ import {ReviewCard} from './review-card/review-card';
  * and the shortlist is what gets trusted instead of the mailbox.
  */
 @Component({
-  selector: 'lg-review',
+    selector: 'lg-review',
     imports: [EmptyState, Icon, PageHeader, ReviewCard, RouterLink, TranslocoPipe],
-  templateUrl: './review.html',
-  styleUrl: './review.css',
-  changeDetection: ChangeDetectionStrategy.OnPush,
+    templateUrl: './review.html',
+    styleUrl: './review.css',
+    changeDetection: ChangeDetectionStrategy.OnPush,
     // Whether the right column is showing a document; the drop zone and the page header sit
     // outside the split and have to disappear with the queue on a narrow screen.
     host: {'[class.detail-open]': 'selected() !== undefined'},
 })
 export class Review implements OnInit {
-  private readonly dispatch = injectDispatch(manualEvents);
+    private readonly dispatch = injectDispatch(manualEvents);
     private readonly router = inject(Router);
-  protected readonly store = inject(ManualStore);
+    protected readonly store = inject(ManualStore);
 
     private readonly detailPane = viewChild<ElementRef<HTMLElement>>('detailPane');
 
@@ -74,23 +74,23 @@ export class Review implements OnInit {
         this.store.documents().find((document) => document.name === this.selectedName()),
     );
 
-  /** Only for the drop zone's own highlight; the queue is the store's business. */
-  protected readonly dragging = signal(false);
+    /** Only for the drop zone's own highlight; the queue is the store's business. */
+    protected readonly dragging = signal(false);
 
-  /**
-   * Assembled here rather than interleaved with `@if` in the template. Control flow around
-   * punctuation puts the template's own whitespace into the sentence, and the result read
-   * "1 waiting for review , 1 already in the pipeline ." on the page.
-   */
-  /**
-   * Assembled here rather than in the template, because punctuation around an `@if` picks
-   * up the template's own whitespace and renders as "1 waiting for review , 1 already in
-   * the pipeline .". Two keys and one join, and the sentence is the catalog's problem.
-   */
-  protected readonly summary = computed(() => ({
-    key: this.store.duplicates() > 0 ? 'review.summaryWithDuplicates' : 'review.summary',
-    params: { waiting: this.store.waiting(), duplicates: this.store.duplicates() },
-  }));
+    /**
+     * Assembled here rather than interleaved with `@if` in the template. Control flow around
+     * punctuation puts the template's own whitespace into the sentence, and the result read
+     * "1 waiting for review , 1 already in the pipeline ." on the page.
+     */
+    /**
+     * Assembled here rather than in the template, because punctuation around an `@if` picks
+     * up the template's own whitespace and renders as "1 waiting for review , 1 already in
+     * the pipeline .". Two keys and one join, and the sentence is the catalog's problem.
+     */
+    protected readonly summary = computed(() => ({
+        key: this.store.duplicates() > 0 ? 'review.summaryWithDuplicates' : 'review.summary',
+        params: {waiting: this.store.waiting(), duplicates: this.store.duplicates()},
+    }));
 
     constructor() {
         // A different document starts at its own top, the same as the offer detail: the column
@@ -104,31 +104,31 @@ export class Review implements OnInit {
         });
     }
 
-  ngOnInit(): void {
-    this.dispatch.opened();
-  }
+    ngOnInit(): void {
+        this.dispatch.opened();
+    }
 
-  protected pick(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    this.send(input.files);
-    // Cleared so picking the same file twice fires a second change event.
-    input.value = '';
-  }
+    protected pick(event: Event): void {
+        const input = event.target as HTMLInputElement;
+        this.send(input.files);
+        // Cleared so picking the same file twice fires a second change event.
+        input.value = '';
+    }
 
-  protected drop(event: DragEvent): void {
-    event.preventDefault();
-    this.dragging.set(false);
-    this.send(event.dataTransfer?.files ?? null);
-  }
+    protected drop(event: DragEvent): void {
+        event.preventDefault();
+        this.dragging.set(false);
+        this.send(event.dataTransfer?.files ?? null);
+    }
 
-  protected over(event: DragEvent): void {
-    event.preventDefault();
-    this.dragging.set(true);
-  }
+    protected over(event: DragEvent): void {
+        event.preventDefault();
+        this.dragging.set(true);
+    }
 
-  protected leave(): void {
-    this.dragging.set(false);
-  }
+    protected leave(): void {
+        this.dragging.set(false);
+    }
 
     /**
      * Both of these end the document: confirming moves the file into the inbox and rejecting
@@ -136,15 +136,15 @@ export class Review implements OnInit {
      * with it. `replaceUrl`, because a document that no longer exists is not a place the back
      * button should be able to return to.
      */
-  protected confirm(name: string, fields: ManualOfferFields): void {
-    this.dispatch.confirmed({ name, fields });
+    protected confirm(name: string, fields: ManualOfferFields): void {
+        this.dispatch.confirmed({name, fields});
         this.closeDetail();
-  }
+    }
 
-  protected reject(name: string): void {
-    this.dispatch.rejected(name);
-      this.closeDetail();
-  }
+    protected reject(name: string): void {
+        this.dispatch.rejected(name);
+        this.closeDetail();
+    }
 
     private closeDetail(): void {
         void this.router.navigate([], {
@@ -152,19 +152,19 @@ export class Review implements OnInit {
             queryParamsHandling: 'merge',
             replaceUrl: true,
         });
-  }
+    }
 
-  /**
-   * Every file, one request each. The endpoint answers per document with what the
-   * extraction read, and a batch endpoint would have to invent a shape for partial
-   * failure.
-   */
-  private send(files: FileList | null): void {
-    if (files === null) {
-      return;
+    /**
+     * Every file, one request each. The endpoint answers per document with what the
+     * extraction read, and a batch endpoint would have to invent a shape for partial
+     * failure.
+     */
+    private send(files: FileList | null): void {
+        if (files === null) {
+            return;
+        }
+        for (const file of Array.from(files)) {
+            this.dispatch.uploaded(file);
+        }
     }
-    for (const file of Array.from(files)) {
-      this.dispatch.uploaded(file);
-    }
-  }
 }

@@ -8,14 +8,15 @@
  */
 package de.codeministry.leadgen.config;
 
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Component;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Component;
 
 /**
  * Notices changes to the three configuration files and asks the registry to reload.
@@ -41,8 +42,11 @@ public class ConfigWatcher {
     private final Map<Path, Stamp> applied = new HashMap<>();
     private final Map<Path, Stamp> pending = new HashMap<>();
 
-    /** Size as well as timestamp: a file saved twice within one filesystem tick differs only in size. */
-    private record Stamp(long lastModified, long size) {}
+    /**
+     * Size as well as timestamp: a file saved twice within one filesystem tick differs only in size.
+     */
+    private record Stamp(long lastModified, long size) {
+    }
 
     ConfigWatcher(ConfigRegistry registry, ConfigLoader loader) {
         this.registry = registry;

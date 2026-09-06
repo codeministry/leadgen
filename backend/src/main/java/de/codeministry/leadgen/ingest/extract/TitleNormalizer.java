@@ -31,7 +31,8 @@ public final class TitleNormalizer {
             Pattern.compile("\\((?:m/w/d|w/m/d|m/f/d)\\)", Pattern.CASE_INSENSITIVE);
     private static final Pattern NON_ALPHANUMERIC = Pattern.compile("[^a-z0-9]+");
 
-    private TitleNormalizer() {}
+    private TitleNormalizer() {
+    }
 
     public static String normalize(String title) {
         if (title == null) {

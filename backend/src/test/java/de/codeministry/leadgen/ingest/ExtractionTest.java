@@ -8,8 +8,6 @@
  */
 package de.codeministry.leadgen.ingest;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 import de.codeministry.leadgen.config.ConfigFixtures;
 import de.codeministry.leadgen.config.ConfigProperties;
 import de.codeministry.leadgen.config.model.SourcesConfig;
@@ -19,14 +17,17 @@ import de.codeministry.leadgen.ingest.extract.OfferMapper;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
 import jakarta.validation.ValidatorFactory;
-import java.nio.file.Path;
-import java.time.LocalDate;
-import java.util.List;
-import java.util.Map;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+
+import java.nio.file.Path;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Map;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Extraction against a fixture that is part of the repository, so this runs on a fresh

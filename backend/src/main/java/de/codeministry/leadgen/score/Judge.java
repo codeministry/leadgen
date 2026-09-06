@@ -19,15 +19,19 @@ import java.util.List;
  */
 public interface Judge {
 
-    /** The factors a judge is asked about. The rest are decided by {@link RuleScorer}. */
+    /**
+     * The factors a judge is asked about. The rest are decided by {@link RuleScorer}.
+     */
     List<String> JUDGED = List.of("role_fit", "stack_mismatch_dominant", "role_mismatch", "vague_description");
 
-    /** Which model answered, for the record on every score it produced. */
+    /**
+     * Which model answered, for the record on every score it produced.
+     */
     String model();
 
     /**
      * @return one reason per factor the judge has an opinion about. An empty list is a
-     *     legitimate answer and means the offer earns no role-fit points and no penalties.
+     * legitimate answer and means the offer earns no role-fit points and no penalties.
      */
     List<ScoreReason> judge(ScoreCandidate offer);
 

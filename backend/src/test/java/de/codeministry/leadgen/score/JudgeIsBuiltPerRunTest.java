@@ -54,7 +54,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 class JudgeIsBuiltPerRunTest {
 
     private static final WireMockServer MODEL;
-    /** Written before the context starts and rewritten mid-test; hence a static field. */
+    /**
+     * Written before the context starts and rewritten mid-test; hence a static field.
+     */
     private static final Path CONFIG_DIR;
 
     static {
@@ -121,8 +123,8 @@ class JudgeIsBuiltPerRunTest {
         pointConfigAtTheStub();
         answers(
                 """
-                {"reasons":[{"factor":"role_fit","label":"backend engagement, the target role","points":15}]}
-                """);
+                        {"reasons":[{"factor":"role_fit","label":"backend engagement, the target role","points":15}]}
+                        """);
 
         assertThat(config.reload()).isTrue();
         assertThat(config.snapshot().application().llm().models().scoring()).isEqualTo("test-model");
@@ -186,10 +188,10 @@ class JudgeIsBuiltPerRunTest {
     private long offer(String title, String description) {
         return jdbc.queryForObject(
                 """
-                INSERT INTO offer (source_id, external_id, title, description, url, fingerprint, status)
-                VALUES (?, ?, ?, ?, 'https://example.invalid/x', 'fp', 'PASSED')
-                RETURNING id
-                """,
+                        INSERT INTO offer (source_id, external_id, title, description, url, fingerprint, status)
+                        VALUES (?, ?, ?, ?, 'https://example.invalid/x', 'fp', 'PASSED')
+                        RETURNING id
+                        """,
                 Long.class,
                 sourceId,
                 "ext-" + System.nanoTime(),
@@ -224,7 +226,9 @@ class JudgeIsBuiltPerRunTest {
         }
     }
 
-    /** The same directory, now naming the stub. No vendor appears anywhere. */
+    /**
+     * The same directory, now naming the stub. No vendor appears anywhere.
+     */
     private static void pointConfigAtTheStub() {
         try {
             Path pipeline = CONFIG_DIR.resolve("pipeline.yaml");

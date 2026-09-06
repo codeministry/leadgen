@@ -15,25 +15,25 @@
  * heading runs into the first word of the paragraph under it.
  */
 export function plainText(markdown: string | null | undefined): string {
-  if (!markdown) {
-    return '';
-  }
-  return (
-    markdown
-      // Fenced and inline code: the fence marks go, the code stays readable.
-      .replace(/```+[^\n]*\n?/g, ' ')
-      .replace(/`([^`]*)`/g, '$1')
-      // A link keeps its text and loses its target — the card already links the title.
-      .replace(/!?\[([^\]]*)]\([^)]*\)/g, '$1')
-      // Leading block marks: heading hashes, quote arrows, list bullets, ordered numbers.
-      .replace(/^[ \t]*(#{1,6}|>+|[-*+]|\d+\.)[ \t]+/gm, '')
-      // Emphasis, strong and strikethrough, wherever they sit.
-      .replace(/(\*{1,3}|_{1,3}|~~)(?=\S)([\s\S]*?\S)\1/g, '$2')
-      // A horizontal rule is a line of marks with nothing to keep.
-      .replace(/^[ \t]*([-*_])(?:[ \t]*\1){2,}[ \t]*$/gm, ' ')
-      // Whatever emphasis marks are left were unbalanced by the truncation.
-      .replace(/[*_`]/g, '')
-      .replace(/\s+/g, ' ')
-      .trim()
-  );
+    if (!markdown) {
+        return '';
+    }
+    return (
+        markdown
+            // Fenced and inline code: the fence marks go, the code stays readable.
+            .replace(/```+[^\n]*\n?/g, ' ')
+            .replace(/`([^`]*)`/g, '$1')
+            // A link keeps its text and loses its target — the card already links the title.
+            .replace(/!?\[([^\]]*)]\([^)]*\)/g, '$1')
+            // Leading block marks: heading hashes, quote arrows, list bullets, ordered numbers.
+            .replace(/^[ \t]*(#{1,6}|>+|[-*+]|\d+\.)[ \t]+/gm, '')
+            // Emphasis, strong and strikethrough, wherever they sit.
+            .replace(/(\*{1,3}|_{1,3}|~~)(?=\S)([\s\S]*?\S)\1/g, '$2')
+            // A horizontal rule is a line of marks with nothing to keep.
+            .replace(/^[ \t]*([-*_])(?:[ \t]*\1){2,}[ \t]*$/gm, ' ')
+            // Whatever emphasis marks are left were unbalanced by the truncation.
+            .replace(/[*_`]/g, '')
+            .replace(/\s+/g, ' ')
+            .trim()
+    );
 }

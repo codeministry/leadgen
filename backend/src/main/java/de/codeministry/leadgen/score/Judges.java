@@ -58,7 +58,9 @@ public class Judges {
      */
     private final ObjectMapper json = new ObjectMapper();
 
-    /** The same ceiling the batched request carries, for the same reason it does. */
+    /**
+     * The same ceiling the batched request carries, for the same reason it does.
+     */
     private static final Duration TIMEOUT = Duration.ofSeconds(30);
 
     /**
@@ -82,12 +84,16 @@ public class Judges {
         this.config = config;
     }
 
-    /** The judge the configuration names by default. */
+    /**
+     * The judge the configuration names by default.
+     */
     public Optional<Judge> current() {
         return current(null);
     }
 
-    /** Every model that may be asked, the configured default first. Empty when none is set. */
+    /**
+     * Every model that may be asked, the configured default first. Empty when none is set.
+     */
     public List<String> choices() {
         PipelineConfig.Llm llm = config.snapshot().application().llm();
         return llm == null || llm.models() == null ? List.of() : llm.models().scoringChoices();
@@ -164,15 +170,14 @@ public class Judges {
             // The only provider with a batch endpoint, which is why it is the only one that
             // gets a judge of its own. Its base URL and key are handed over twice: once to
             // the chat model, and once to the batch half, which is still hand-rolled HTTP.
-            case ANTHROPIC ->
-                Optional.of(new AnthropicJudge(
-                        anthropic(llm.baseUrl(), key(llm), model),
-                        llm.baseUrl(),
-                        key(llm),
-                        model,
-                        json,
-                        bounds(),
-                        profile()));
+            case ANTHROPIC -> Optional.of(new AnthropicJudge(
+                    anthropic(llm.baseUrl(), key(llm), model),
+                    llm.baseUrl(),
+                    key(llm),
+                    model,
+                    json,
+                    bounds(),
+                    profile()));
             default -> {
                 log.warn(
                         "llm.provider is '{}'; implemented are '{}', '{}' and '{}'",
@@ -271,12 +276,16 @@ public class Judges {
                         .build());
     }
 
-    /** The key is hashed rather than kept, so a heap dump does not hand out the API key. */
+    /**
+     * The key is hashed rather than kept, so a heap dump does not hand out the API key.
+     */
     private static String cacheKey(String provider, String baseUrl, String apiKey, String model) {
         return provider + '\u0000' + baseUrl + '\u0000' + Integer.toHexString(apiKey.hashCode()) + '\u0000' + model;
     }
 
-    /** The weight table this run judges against, or nothing when none is configured. */
+    /**
+     * The weight table this run judges against, or nothing when none is configured.
+     */
     private Map<String, Integer> bounds() {
         var rules = config.snapshot().rules();
         return ChatClientJudge.boundsOf(rules == null ? null : rules.scoring());
@@ -291,7 +300,9 @@ public class Judges {
         return config.snapshot().profile();
     }
 
-    /** Empty rather than null, so a local server gets a harmless header instead of "null". */
+    /**
+     * Empty rather than null, so a local server gets a harmless header instead of "null".
+     */
     private static String key(PipelineConfig.Llm llm) {
         return llm.apiKey() == null ? "" : llm.apiKey();
     }

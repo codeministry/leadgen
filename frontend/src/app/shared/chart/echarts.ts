@@ -1,7 +1,7 @@
-import { BarChart, LineChart } from 'echarts/charts';
-import { GridComponent, MarkLineComponent, TooltipComponent } from 'echarts/components';
-import { init, use } from 'echarts/core';
-import { SVGRenderer } from 'echarts/renderers';
+import {BarChart, LineChart} from 'echarts/charts';
+import {GridComponent, MarkLineComponent, TooltipComponent} from 'echarts/components';
+import {init, use} from 'echarts/core';
+import {SVGRenderer} from 'echarts/renderers';
 
 /**
  * The one file that imports from `echarts`, and the only place the build is decided.
@@ -21,8 +21,8 @@ import { SVGRenderer } from 'echarts/renderers';
  */
 use([LineChart, BarChart, GridComponent, TooltipComponent, MarkLineComponent, SVGRenderer]);
 
-export { init };
-export type { EChartsType } from 'echarts/core';
+export {init};
+export type {EChartsType} from 'echarts/core';
 
 /** Whatever `setOption` accepts. Deliberately opaque: only the callers know the shape. */
 export type ChartOption = Parameters<import('echarts/core').EChartsType['setOption']>[0];

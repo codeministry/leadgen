@@ -8,14 +8,15 @@
  */
 package de.codeministry.leadgen.application;
 
-import java.time.LocalDate;
-import java.util.List;
-import java.util.Optional;
-import javax.sql.DataSource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import javax.sql.DataSource;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Optional;
 
 /**
  * The half of the loop the system cannot observe.
@@ -32,13 +33,13 @@ public class ApplicationService {
 
     private static final String BOARD =
             """
-            SELECT a.id, a.offer_id, a.status, a.sent_on, a.follow_up_on, a.outcome, a.note,
-                   a.updated_at, o.title, o.agency, o.portal, o.url, o.score_value, o.rate_eur,
-                   o.package_dir
-            FROM application a
-            JOIN offer o ON o.id = a.offer_id
-            ORDER BY o.score_value DESC NULLS LAST, a.updated_at DESC
-            """;
+                    SELECT a.id, a.offer_id, a.status, a.sent_on, a.follow_up_on, a.outcome, a.note,
+                           a.updated_at, o.title, o.agency, o.portal, o.url, o.score_value, o.rate_eur,
+                           o.package_dir
+                    FROM application a
+                    JOIN offer o ON o.id = a.offer_id
+                    ORDER BY o.score_value DESC NULLS LAST, a.updated_at DESC
+                    """;
 
     private final JdbcClient jdbc;
 
@@ -132,10 +133,10 @@ public class ApplicationService {
 
         jdbc.sql(
                         """
-                        UPDATE application
-                        SET status = ?, sent_on = ?, follow_up_on = ?, outcome = ?, note = ?, updated_at = now()
-                        WHERE id = ?
-                        """)
+                                UPDATE application
+                                SET status = ?, sent_on = ?, follow_up_on = ?, outcome = ?, note = ?, updated_at = now()
+                                WHERE id = ?
+                                """)
                 .params(
                         update.status().name(),
                         sentOn,
@@ -155,9 +156,9 @@ public class ApplicationService {
     public List<ApplicationEvent> history(long id) {
         return jdbc.sql(
                         """
-                        SELECT from_status, to_status, note, recorded_at
-                        FROM application_event WHERE application_id = ? ORDER BY recorded_at DESC
-                        """)
+                                SELECT from_status, to_status, note, recorded_at
+                                FROM application_event WHERE application_id = ? ORDER BY recorded_at DESC
+                                """)
                 .param(id)
                 .query((rs, row) -> new ApplicationEvent(
                         rs.getString("from_status") == null
@@ -169,7 +170,9 @@ public class ApplicationService {
                 .list();
     }
 
-    /** How many applications are waiting on a follow-up that is already due. */
+    /**
+     * How many applications are waiting on a follow-up that is already due.
+     */
     public int followUpsDue() {
         return (int) board().stream().filter(ApplicationView::followUpDue).count();
     }
@@ -187,14 +190,16 @@ public class ApplicationService {
     private void record(long applicationId, ApplicationStatus from, ApplicationStatus to, String note) {
         jdbc.sql(
                         """
-                        INSERT INTO application_event (application_id, from_status, to_status, note)
-                        VALUES (?, ?, ?, ?)
-                        """)
+                                INSERT INTO application_event (application_id, from_status, to_status, note)
+                                VALUES (?, ?, ?, ?)
+                                """)
                 .params(applicationId, from == null ? null : from.name(), to.name(), note)
                 .update();
     }
 
-    /** Thrown when an id names nothing. The controller turns it into a 404. */
+    /**
+     * Thrown when an id names nothing. The controller turns it into a 404.
+     */
     public static class ApplicationNotFound extends RuntimeException {
         public ApplicationNotFound(long id) {
             super("no application with id " + id);

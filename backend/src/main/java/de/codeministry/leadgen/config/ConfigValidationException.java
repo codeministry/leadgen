@@ -10,7 +10,9 @@ package de.codeministry.leadgen.config;
 
 import java.util.List;
 
-/** Every configuration problem, with the file it came from, in one message. */
+/**
+ * Every configuration problem, with the file it came from, in one message.
+ */
 public class ConfigValidationException extends RuntimeException {
 
     private final transient List<String> problems;

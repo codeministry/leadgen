@@ -9,6 +9,7 @@
 package de.codeministry.leadgen.analytics;
 
 import de.codeministry.leadgen.application.ApplicationStatus;
+
 import java.time.LocalDate;
 import java.util.List;
 
@@ -21,19 +22,21 @@ import java.util.List;
 public record ApplicationAnalytics(
         List<StatusCount> byStatus, List<TransitionDay> transitions, ResponseMetrics response) {
 
-    public record StatusCount(ApplicationStatus status, int applications) {}
+    public record StatusCount(ApplicationStatus status, int applications) {
+    }
 
-    public record TransitionDay(LocalDate day, ApplicationStatus toStatus, int moves) {}
+    public record TransitionDay(LocalDate day, ApplicationStatus toStatus, int moves) {
+    }
 
     /**
-     * @param answered what the medians were computed over. Shipped beside them on purpose:
-     *     a median over three applications is theatre, and the screen can only say so if it
-     *     is told how many there were.
-     * @param backdated a reply recorded before the send date. That is a data-entry fact and
-     *     not a response time, so it is excluded from the medians and counted here rather
-     *     than clamped to zero, where it would quietly pull the median down.
+     * @param answered               what the medians were computed over. Shipped beside them on purpose:
+     *                               a median over three applications is theatre, and the screen can only say so if it
+     *                               is told how many there were.
+     * @param backdated              a reply recorded before the send date. That is a data-entry fact and
+     *                               not a response time, so it is excluded from the medians and counted here rather
+     *                               than clamped to zero, where it would quietly pull the median down.
      * @param medianDaysToFirstReply null when nothing has been answered. Null rather than
-     *     zero, because "no answer yet" and "answered the same day" are opposites.
+     *                               zero, because "no answer yet" and "answered the same day" are opposites.
      */
     public record ResponseMetrics(
             int sent,
@@ -43,5 +46,6 @@ public record ApplicationAnalytics(
             Double p90DaysToFirstReply,
             int won,
             int lost,
-            int rejected) {}
+            int rejected) {
+    }
 }

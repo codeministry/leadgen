@@ -14,15 +14,18 @@ import de.codeministry.leadgen.config.model.SourcesConfig.Selector;
 import de.codeministry.leadgen.config.model.SourcesConfig.Source;
 import de.codeministry.leadgen.ingest.IngestException;
 import de.codeministry.leadgen.ingest.RawDocument;
-import jakarta.mail.Address;
-import jakarta.mail.Flags;
-import jakarta.mail.Folder;
-import jakarta.mail.Message;
-import jakarta.mail.MessagingException;
+import jakarta.mail.*;
 import jakarta.mail.internet.InternetAddress;
 import jakarta.mail.search.AndTerm;
 import jakarta.mail.search.FlagTerm;
 import jakarta.mail.search.SearchTerm;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.BeanFactory;
+import org.springframework.integration.mail.inbound.ImapMailReceiver;
+import org.springframework.integration.mail.inbound.SearchTermStrategy;
+import org.springframework.stereotype.Component;
+
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -34,12 +37,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Properties;
 import java.util.regex.Pattern;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.BeanFactory;
-import org.springframework.integration.mail.inbound.ImapMailReceiver;
-import org.springframework.integration.mail.inbound.SearchTermStrategy;
-import org.springframework.stereotype.Component;
 
 /**
  * Reads newsletter mails from an IMAP mailbox, through Spring Integration's
@@ -342,8 +339,8 @@ public class ImapSourceConnector implements SourceConnector {
         if (selector.sinceDays() != null
                 && message.getReceivedDate() != null
                 && message.getReceivedDate()
-                        .toInstant()
-                        .isBefore(Instant.now().minus(selector.sinceDays(), ChronoUnit.DAYS))) {
+                .toInstant()
+                .isBefore(Instant.now().minus(selector.sinceDays(), ChronoUnit.DAYS))) {
             log.debug("Skipping '{}': older than the configured window", message.getSubject());
             return false;
         }
@@ -365,8 +362,8 @@ public class ImapSourceConnector implements SourceConnector {
         }
         boolean subjectMatches = message.getSubject() != null
                 && Pattern.compile(selector.subjectMatches())
-                        .matcher(message.getSubject())
-                        .find();
+                .matcher(message.getSubject())
+                .find();
         if (!subjectMatches) {
             log.debug("Skipping '{}': the subject does not match {}", message.getSubject(), selector.subjectMatches());
         }
@@ -389,8 +386,8 @@ public class ImapSourceConnector implements SourceConnector {
     private static boolean contains(List<String> configured, List<String> senders) {
         return configured != null
                 && configured.stream()
-                        .map(value -> value.toLowerCase(Locale.ROOT))
-                        .anyMatch(senders::contains);
+                .map(value -> value.toLowerCase(Locale.ROOT))
+                .anyMatch(senders::contains);
     }
 
     /**

@@ -8,13 +8,6 @@
  */
 package de.codeministry.leadgen.manual;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,6 +19,14 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * The review queue: an upload waits in `pending/` until somebody confirms it, and the file
@@ -41,13 +42,13 @@ class ManualUploadServiceTest {
 
     private static final String DOCUMENT =
             """
-            ---
-            title: Senior Java Entwickler (m/w/d)
-            url: https://portal.example/p/12345
-            location: Köln
-            ---
-            Ablösung eines Monolithen.
-            """;
+                    ---
+                    title: Senior Java Entwickler (m/w/d)
+                    url: https://portal.example/p/12345
+                    location: Köln
+                    ---
+                    Ablösung eines Monolithen.
+                    """;
 
     static Path configDirectory;
 
@@ -103,9 +104,9 @@ class ManualUploadServiceTest {
                 "INSERT INTO source (name, kind) VALUES ('portal-a', 'rss') RETURNING id", Long.class);
         jdbc.update(
                 """
-                INSERT INTO offer (source_id, external_id, title, fingerprint, status)
-                VALUES (?, 'x', 'Senior Java Entwickler (m/w/d)', 'senior java entwickler', 'INGESTED')
-                """,
+                        INSERT INTO offer (source_id, external_id, title, fingerprint, status)
+                        VALUES (?, 'x', 'Senior Java Entwickler (m/w/d)', 'senior java entwickler', 'INGESTED')
+                        """,
                 sourceId);
 
         var stored = uploads.store("offer.md", DOCUMENT.getBytes(StandardCharsets.UTF_8));

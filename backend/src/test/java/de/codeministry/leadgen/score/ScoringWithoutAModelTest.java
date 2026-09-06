@@ -8,13 +8,7 @@
  */
 package de.codeministry.leadgen.score;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 import de.codeministry.leadgen.config.ConfigFixtures;
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,6 +20,13 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * ISC-50, and the state of a fresh clone on its first morning: the shipped configuration
@@ -214,10 +215,10 @@ class ScoringWithoutAModelTest {
         var first = scoredAt(id);
         long batch = jdbc.queryForObject(
                 """
-                INSERT INTO score_batch (provider_id, model, ruleset_version, offers)
-                VALUES ('msgbatch_test', 'some-model', 'an older ruleset', 1)
-                RETURNING id
-                """,
+                        INSERT INTO score_batch (provider_id, model, ruleset_version, offers)
+                        VALUES ('msgbatch_test', 'some-model', 'an older ruleset', 1)
+                        RETURNING id
+                        """,
                 Long.class);
         // Stale by the ruleset as well, so what is being tested is the pointer and not the
         // absence of a reason to look again.
@@ -269,7 +270,9 @@ class ScoringWithoutAModelTest {
                 .hasMessageContaining("no language model is configured");
     }
 
-    /** `timestamptz` does not convert straight to an Instant; the driver throws on the whole query. */
+    /**
+     * `timestamptz` does not convert straight to an Instant; the driver throws on the whole query.
+     */
     private java.sql.Timestamp scoredAt(long offerId) {
         return jdbc.queryForObject("SELECT scored_at FROM offer WHERE id = ?", java.sql.Timestamp.class, offerId);
     }
@@ -286,10 +289,10 @@ class ScoringWithoutAModelTest {
     private long offer(String title, String description) {
         return jdbc.queryForObject(
                 """
-                INSERT INTO offer (source_id, external_id, title, description, url, fingerprint, status)
-                VALUES (?, ?, ?, ?, 'https://example.invalid/x', 'fp', 'PASSED')
-                RETURNING id
-                """,
+                        INSERT INTO offer (source_id, external_id, title, description, url, fingerprint, status)
+                        VALUES (?, ?, ?, ?, 'https://example.invalid/x', 'fp', 'PASSED')
+                        RETURNING id
+                        """,
                 Long.class,
                 sourceId,
                 "ext-" + System.nanoTime(),

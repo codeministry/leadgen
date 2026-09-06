@@ -8,11 +8,12 @@
  */
 package de.codeministry.leadgen.score;
 
-import java.util.List;
-import javax.sql.DataSource;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+
+import javax.sql.DataSource;
+import java.util.List;
 
 /**
  * The one place a score reaches the database.
@@ -50,10 +51,10 @@ class ScoreWriter {
     void write(long offerId, Score score, int autoShortlist, int review) {
         jdbc.sql(
                         """
-                        UPDATE offer
-                        SET score_value = ?, score_band = ?, score_model = ?, ruleset_version = ?, scored_at = now()
-                        WHERE id = ?
-                        """)
+                                UPDATE offer
+                                SET score_value = ?, score_band = ?, score_model = ?, ruleset_version = ?, scored_at = now()
+                                WHERE id = ?
+                                """)
                 .params(
                         score.value(),
                         score.band(autoShortlist, review),
@@ -70,9 +71,9 @@ class ScoreWriter {
             ScoreReason reason = reasons.get(position);
             jdbc.sql(
                             """
-                                    INSERT INTO offer_score_reason (offer_id, factor, label, points, max_points, position)
-                                    VALUES (?, ?, ?, ?, ?, ?)
-                            """)
+                                            INSERT INTO offer_score_reason (offer_id, factor, label, points, max_points, position)
+                                            VALUES (?, ?, ?, ?, ?, ?)
+                                    """)
                     .params(offerId, reason.factor(), reason.label(), reason.points(), reason.maxPoints(), position)
                     .update();
         }

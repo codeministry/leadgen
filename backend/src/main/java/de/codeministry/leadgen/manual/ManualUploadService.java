@@ -14,22 +14,18 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
 import de.codeministry.leadgen.ingest.ExtractedOffer;
 import de.codeministry.leadgen.ingest.extract.MarkdownExtractor;
 import de.codeministry.leadgen.ingest.extract.OfferMapper;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.stereotype.Service;
+
+import javax.sql.DataSource;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import javax.sql.DataSource;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.stereotype.Service;
+import java.util.*;
 
 /**
  * The review queue: what an upload does before it is allowed to become an offer.
@@ -47,7 +43,9 @@ import org.springframework.stereotype.Service;
 @Service
 public class ManualUploadService {
 
-    /** Generous for an advert, small enough that nothing here is a place to store files. */
+    /**
+     * Generous for an advert, small enough that nothing here is a place to store files.
+     */
     public static final long MAX_BYTES = 512 * 1024L;
 
     private final ManualInbox inbox;
@@ -65,7 +63,9 @@ public class ManualUploadService {
         this.jdbc = JdbcClient.create(dataSource);
     }
 
-    /** Thrown when there is no enabled `manual-inbox` source to write into. */
+    /**
+     * Thrown when there is no enabled `manual-inbox` source to write into.
+     */
     public static class NoInbox extends RuntimeException {
         public NoInbox() {
             super("no enabled 'manual-inbox' source is configured, so there is nowhere to put the document");
@@ -76,7 +76,7 @@ public class ManualUploadService {
      * Writes an upload into `pending/`, where no source globs it.
      *
      * @return the document as the extraction reads it right now, so the review screen needs
-     *     no second request to show what is about to enter.
+     * no second request to show what is about to enter.
      */
     public PendingDocument store(String rawName, byte[] content) {
         if (content.length == 0) {
@@ -97,7 +97,9 @@ public class ManualUploadService {
         return describe(target);
     }
 
-    /** Everything waiting for review, newest last so the list reads as a queue. */
+    /**
+     * Everything waiting for review, newest last so the list reads as a queue.
+     */
     public List<PendingDocument> pending() {
         Path directory = pendingDirectory();
         try (var files = Files.list(directory)) {
@@ -140,7 +142,9 @@ public class ManualUploadService {
         return describe(target);
     }
 
-    /** A rejected upload leaves nothing behind. */
+    /**
+     * A rejected upload leaves nothing behind.
+     */
     public boolean reject(String name) {
         Path file = ManualDocumentName.resolve(pendingDirectory(), name);
         try {
@@ -150,7 +154,9 @@ public class ManualUploadService {
         }
     }
 
-    /** The document as YAML frontmatter plus the description as the body. */
+    /**
+     * The document as YAML frontmatter plus the description as the body.
+     */
     String document(ManualOfferFields fields) {
         Map<String, Object> front = new LinkedHashMap<>();
         put(front, OfferMapper.TITLE, fields.title());
@@ -213,7 +219,8 @@ public class ManualUploadService {
                 .optional();
     }
 
-    private record Existing(long id, String title) {}
+    private record Existing(long id, String title) {
+    }
 
     private Path pendingDirectory() {
         return inbox.pending().orElseThrow(NoInbox::new);
@@ -223,7 +230,9 @@ public class ManualUploadService {
         return inbox.inbox().orElseThrow(NoInbox::new);
     }
 
-    /** The upload is text by contract, so a file that is not UTF-8 is a rejected file. */
+    /**
+     * The upload is text by contract, so a file that is not UTF-8 is a rejected file.
+     */
     private static String read(Path file) {
         try {
             return Files.readString(file, StandardCharsets.UTF_8);

@@ -8,23 +8,11 @@
  */
 package de.codeministry.leadgen.score;
 
-import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
-import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
-import static com.github.tomakehurst.wiremock.client.WireMock.get;
-import static com.github.tomakehurst.wiremock.client.WireMock.matching;
-import static com.github.tomakehurst.wiremock.client.WireMock.matchingJsonPath;
-import static com.github.tomakehurst.wiremock.client.WireMock.post;
-import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
-import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
-import static org.assertj.core.api.Assertions.assertThat;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.client.ResponseDefinitionBuilder;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import io.micrometer.observation.ObservationRegistry;
-import java.time.Duration;
-import java.util.List;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -37,6 +25,12 @@ import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.ai.openai.setup.OpenAiSetup;
+
+import java.time.Duration;
+import java.util.List;
+
+import static com.github.tomakehurst.wiremock.client.WireMock.*;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Two providers, one question, asserted at the level of the bytes.
@@ -74,10 +68,10 @@ class JudgeWireFormatTest {
 
     private static final String ANSWER =
             """
-            {"reasons":[{"factor":"role_fit","label":"Backend engagement on Spring Boot","points":15},
-                        {"factor":"role_mismatch","label":"nope","points":-900},
-                        {"factor":"invented","label":"nope","points":50}]}
-            """;
+                    {"reasons":[{"factor":"role_fit","label":"Backend engagement on Spring Boot","points":15},
+                                {"factor":"role_mismatch","label":"nope","points":-900},
+                                {"factor":"invented","label":"nope","points":50}]}
+                    """;
 
     private static final ScoreCandidate OFFER = new ScoreCandidate(
             1L,
@@ -175,7 +169,9 @@ class JudgeWireFormatTest {
         return new AnthropicJudge(model, baseUrl(), "secret", "some-model", JSON, bounds, null);
     }
 
-    /** A complete Messages-API answer carrying this text. */
+    /**
+     * A complete Messages-API answer carrying this text.
+     */
     private static ResponseDefinitionBuilder anthropicAnswer(String assistantText) {
         return anthropicAnswer(JSON.createArrayNode()
                 .add(JSON.createObjectNode().put("type", "text").put("text", assistantText)));
@@ -198,7 +194,9 @@ class JudgeWireFormatTest {
                         .toString());
     }
 
-    /** A complete chat-completions answer carrying this text. */
+    /**
+     * A complete chat-completions answer carrying this text.
+     */
     private static ResponseDefinitionBuilder openAiAnswer(String assistantText) {
         return aResponse()
                 .withHeader("Content-Type", "application/json")
@@ -441,9 +439,11 @@ class JudgeWireFormatTest {
         assertThat(outcome.note()).contains("404");
     }
 
-    /** A line addressed to something that is not one of our offers. It has to be skipped
+    /**
+     * A line addressed to something that is not one of our offers. It has to be skipped
      * rather than parsed: the id is the only address here, and a batch that came back with
-     * somebody else's entry in it must not put an answer on one of ours. */
+     * somebody else's entry in it must not put an answer on one of ours.
+     */
     private static String unaddressed() {
         return JSON.createObjectNode()
                 .put("custom_id", "not-ours-at-all")

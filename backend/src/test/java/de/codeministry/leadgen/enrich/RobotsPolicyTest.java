@@ -8,12 +8,15 @@
  */
 package de.codeministry.leadgen.enrich;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
-import java.net.URI;
 import org.junit.jupiter.api.Test;
 
-/** The small part of robots.txt this crawler needs, and the conventions around it. */
+import java.net.URI;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+/**
+ * The small part of robots.txt this crawler needs, and the conventions around it.
+ */
 class RobotsPolicyTest {
 
     private static RobotsPolicy serving(String body) {
@@ -44,12 +47,12 @@ class RobotsPolicyTest {
     void prefersTheGroupThatNamesUsOverTheWildcard() {
         var policy = serving(
                 """
-                User-agent: *
-                Disallow: /
-
-                User-agent: lead-generation
-                Disallow: /intern/
-                """);
+                        User-agent: *
+                        Disallow: /
+                        
+                        User-agent: lead-generation
+                        Disallow: /intern/
+                        """);
 
         assertThat(policy.allows(URI.create("https://portal.example/projekt/1"), "lead-generation/0.1"))
                 .isTrue();

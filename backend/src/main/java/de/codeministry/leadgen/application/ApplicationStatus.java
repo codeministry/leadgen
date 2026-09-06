@@ -33,7 +33,9 @@ public enum ApplicationStatus {
     REJECTED,
     EXPIRED;
 
-    /** The five lanes the board groups these into; eleven columns cannot be read at a glance. */
+    /**
+     * The five lanes the board groups these into; eleven columns cannot be read at a glance.
+     */
     public static final List<Lane> LANES = List.of(
             new Lane("backlog", "Backlog", List.of(NEW, SHORTLISTED)),
             new Lane("prepared", "Prepared", List.of(PACKAGED)),
@@ -41,7 +43,9 @@ public enum ApplicationStatus {
             new Lane("talking", "Talking", List.of(INTERVIEW, OFFER)),
             new Lane("closed", "Closed", List.of(WON, LOST, REJECTED, EXPIRED)));
 
-    /** A state nothing follows. Reaching one is what stops the follow-up counter. */
+    /**
+     * A state nothing follows. Reaching one is what stops the follow-up counter.
+     */
     public boolean isClosed() {
         return this == WON || this == LOST || this == REJECTED || this == EXPIRED;
     }
@@ -57,10 +61,13 @@ public enum ApplicationStatus {
         return !isClosed() && this != PACKAGED;
     }
 
-    /** The mail has left, so a follow-up date starts meaning something. */
+    /**
+     * The mail has left, so a follow-up date starts meaning something.
+     */
     public boolean isOut() {
         return this == SENT || this == REPLIED || this == INTERVIEW || this == OFFER;
     }
 
-    public record Lane(String id, String label, List<ApplicationStatus> states) {}
+    public record Lane(String id, String label, List<ApplicationStatus> states) {
+    }
 }

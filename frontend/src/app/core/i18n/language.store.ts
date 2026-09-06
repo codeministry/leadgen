@@ -1,25 +1,25 @@
-import { DOCUMENT, computed, effect, inject } from '@angular/core';
-import { TranslocoService } from '@jsverse/transloco';
-import { signalStore, withComputed, withHooks, withState } from '@ngrx/signals';
-import { Dispatcher, on, withReducer } from '@ngrx/signals/events';
-import { languageEvents } from './language.events';
+import {computed, DOCUMENT, effect, inject} from '@angular/core';
+import {TranslocoService} from '@jsverse/transloco';
+import {signalStore, withComputed, withHooks, withState} from '@ngrx/signals';
+import {Dispatcher, on, withReducer} from '@ngrx/signals/events';
+import {languageEvents} from './language.events';
 import {
-  FALLBACK_LANGUAGE,
-  LANGUAGE_STORAGE_KEY,
-  Language,
-  LanguagePreference,
-  isLanguagePreference,
-  languageOf,
+    FALLBACK_LANGUAGE,
+    isLanguagePreference,
+    Language,
+    LANGUAGE_STORAGE_KEY,
+    languageOf,
+    LanguagePreference,
 } from './language.model';
 
 interface LanguageState {
-  preference: LanguagePreference;
-  systemLanguage: Language;
+    preference: LanguagePreference;
+    systemLanguage: Language;
 }
 
 const initialState: LanguageState = {
-  preference: 'system',
-  systemLanguage: FALLBACK_LANGUAGE,
+    preference: 'system',
+    systemLanguage: FALLBACK_LANGUAGE,
 };
 
 /**
@@ -34,59 +34,59 @@ const initialState: LanguageState = {
  * as chosen while English is on screen.
  */
 export const LanguageStore = signalStore(
-  { providedIn: 'root' },
-  withState(initialState),
-  withComputed(({ preference, systemLanguage }) => ({
-    language: computed<Language>(() => {
-      const chosen = preference();
-      return chosen === 'system' ? systemLanguage() : chosen;
+    {providedIn: 'root'},
+    withState(initialState),
+    withComputed(({preference, systemLanguage}) => ({
+        language: computed<Language>(() => {
+            const chosen = preference();
+            return chosen === 'system' ? systemLanguage() : chosen;
+        }),
+    })),
+    withReducer(
+        on(languageEvents.restored, ({payload}) => ({preference: payload})),
+        on(languageEvents.chosen, ({payload}) => ({preference: payload})),
+        on(languageEvents.systemDetected, ({payload}) => ({systemLanguage: payload})),
+    ),
+    withHooks({
+        onInit(store) {
+            const document = inject(DOCUMENT);
+            const transloco = inject(TranslocoService);
+            const dispatcher = inject(Dispatcher);
+            const view = document.defaultView;
+
+            dispatcher.dispatch(
+                languageEvents.systemDetected(languageOf(view?.navigator.language) ?? FALLBACK_LANGUAGE),
+            );
+            dispatcher.dispatch(languageEvents.restored(readPreference(view)));
+
+            effect(() => {
+                const language = store.language();
+
+                transloco.setActiveLang(language);
+                // Not cosmetic: it is what a screen reader picks a voice from and what the
+                // browser hyphenates by, and it is wrong on every page until something sets it.
+                document.documentElement.lang = language;
+
+                writePreference(view, store.preference());
+            });
+        },
     }),
-  })),
-  withReducer(
-    on(languageEvents.restored, ({ payload }) => ({ preference: payload })),
-    on(languageEvents.chosen, ({ payload }) => ({ preference: payload })),
-    on(languageEvents.systemDetected, ({ payload }) => ({ systemLanguage: payload })),
-  ),
-  withHooks({
-    onInit(store) {
-      const document = inject(DOCUMENT);
-      const transloco = inject(TranslocoService);
-      const dispatcher = inject(Dispatcher);
-      const view = document.defaultView;
-
-      dispatcher.dispatch(
-        languageEvents.systemDetected(languageOf(view?.navigator.language) ?? FALLBACK_LANGUAGE),
-      );
-      dispatcher.dispatch(languageEvents.restored(readPreference(view)));
-
-      effect(() => {
-        const language = store.language();
-
-        transloco.setActiveLang(language);
-        // Not cosmetic: it is what a screen reader picks a voice from and what the
-        // browser hyphenates by, and it is wrong on every page until something sets it.
-        document.documentElement.lang = language;
-
-        writePreference(view, store.preference());
-      });
-    },
-  }),
 );
 
 /** Storage throws in private mode. A language is not worth failing the boot over. */
 function readPreference(view: Window | null): LanguagePreference {
-  try {
-    const stored = view?.localStorage.getItem(LANGUAGE_STORAGE_KEY) ?? null;
-    return isLanguagePreference(stored) ? stored : 'system';
-  } catch {
-    return 'system';
-  }
+    try {
+        const stored = view?.localStorage.getItem(LANGUAGE_STORAGE_KEY) ?? null;
+        return isLanguagePreference(stored) ? stored : 'system';
+    } catch {
+        return 'system';
+    }
 }
 
 function writePreference(view: Window | null, preference: LanguagePreference): void {
-  try {
-    view?.localStorage.setItem(LANGUAGE_STORAGE_KEY, preference);
-  } catch {
-    // Nothing to do: the choice simply will not survive the reload.
-  }
+    try {
+        view?.localStorage.setItem(LANGUAGE_STORAGE_KEY, preference);
+    } catch {
+        // Nothing to do: the choice simply will not survive the reload.
+    }
 }

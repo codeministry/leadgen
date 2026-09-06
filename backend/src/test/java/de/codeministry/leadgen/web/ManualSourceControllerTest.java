@@ -8,19 +8,10 @@
  */
 package de.codeministry.leadgen.web;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.BDDMockito.given;
-import static org.mockito.BDDMockito.willThrow;
-
 import de.codeministry.leadgen.ingest.ExtractedOffer;
 import de.codeministry.leadgen.manual.ManualDocumentName;
 import de.codeministry.leadgen.manual.ManualUploadService;
 import de.codeministry.leadgen.manual.PendingDocument;
-import java.time.Instant;
-import java.util.List;
-import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -29,7 +20,19 @@ import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 
-/** The upload endpoint: what it accepts, what it refuses, and with which status. */
+import java.time.Instant;
+import java.util.List;
+import java.util.Optional;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
+
+/**
+ * The upload endpoint: what it accepts, what it refuses, and with which status.
+ */
 @WebMvcTest(ManualSourceController.class)
 class ManualSourceControllerTest {
 
@@ -76,9 +79,9 @@ class ManualSourceControllerTest {
         given(uploads.confirm(anyString(), any())).willReturn(document());
 
         assertThat(mvc.post()
-                        .uri("/api/sources/manual/pending/offer.md/confirm")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"title\":\"Senior Java Entwickler (m/w/d)\",\"tags\":[\"Java\"]}"))
+                .uri("/api/sources/manual/pending/offer.md/confirm")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"title\":\"Senior Java Entwickler (m/w/d)\",\"tags\":[\"Java\"]}"))
                 .hasStatusOk();
     }
 

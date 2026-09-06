@@ -8,8 +8,6 @@
  */
 package de.codeministry.leadgen.ingest;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 import de.codeministry.leadgen.config.ConfigFixtures;
 import de.codeministry.leadgen.config.ConfigProperties;
 import de.codeministry.leadgen.ingest.connector.FileSourceConnector;
@@ -18,6 +16,12 @@ import de.codeministry.leadgen.ingest.extract.OfferMapper;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
 import jakarta.validation.ValidatorFactory;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.Assumptions;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -26,11 +30,8 @@ import java.util.Map;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.Assumptions;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * The acceptance test for step 3: the Java extraction has to reproduce what
@@ -151,7 +152,7 @@ class SampleCorpusAcceptanceTest {
         // enforced at config load, measured here.
         Pattern rate = Pattern.compile("(\\d{2,4})\\s*(?:[,.]\\d{2})?\\s*(?:€|EUR|Euro)", Pattern.CASE_INSENSITIVE);
         assertThat(count(o ->
-                        o.description() != null && rate.matcher(o.description()).find()))
+                o.description() != null && rate.matcher(o.description()).find()))
                 .isZero();
     }
 

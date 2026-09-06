@@ -8,21 +8,22 @@
  */
 package de.codeministry.leadgen.config;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
 import jakarta.validation.ValidatorFactory;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Map;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class ConfigLoaderTest {
 
@@ -108,10 +109,10 @@ class ConfigLoaderTest {
         rewrite("pipeline.yaml", "provider: ${LLM_PROVIDER:}", "provider: anthropic");
 
         assertThat(ConfigFixtures.loaderFor(configDir, VALIDATOR)
-                        .load()
-                        .application()
-                        .llm()
-                        .batch())
+                .load()
+                .application()
+                .llm()
+                .batch())
                 .isTrue();
     }
 
@@ -145,9 +146,9 @@ class ConfigLoaderTest {
         var env = Map.of("IMAP_HOST", "imap.example.org", "IMAP_USER", "someone", "IMAP_PASSWORD", "secret");
 
         assertThat(ConfigFixtures.loaderFor(configDir, VALIDATOR, env)
-                        .load()
-                        .sources()
-                        .sources())
+                .load()
+                .sources()
+                .sources())
                 .filteredOn("enabled", true)
                 .extracting("id")
                 .contains("sample-newsletter");
@@ -161,9 +162,9 @@ class ConfigLoaderTest {
         Files.delete(configDir.resolve("sources.yaml"));
 
         assertThat(ConfigFixtures.loaderFor(configDir, VALIDATOR)
-                        .load()
-                        .sources()
-                        .sources())
+                .load()
+                .sources()
+                .sources())
                 .isNotEmpty();
     }
 
@@ -172,11 +173,11 @@ class ConfigLoaderTest {
         rewrite("matching-rules.yaml", "min_remote_percent: 80", "min_remote_percent: 55");
 
         assertThat(ConfigFixtures.loaderFor(configDir, VALIDATOR)
-                        .load()
-                        .rules()
-                        .hardFilters()
-                        .remote()
-                        .minRemotePercent())
+                .load()
+                .rules()
+                .hardFilters()
+                .remote()
+                .minRemotePercent())
                 .isEqualTo(55);
     }
 

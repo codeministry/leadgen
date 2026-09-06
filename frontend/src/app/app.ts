@@ -1,5 +1,5 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
-import { AppShell } from '@layout/app-shell/app-shell';
+import {ChangeDetectionStrategy, Component} from '@angular/core';
+import {AppShell} from '@layout/app-shell/app-shell';
 
 /**
  * The root exists to mount the shell and nothing else. Renaming its selector
@@ -7,9 +7,10 @@ import { AppShell } from '@layout/app-shell/app-shell';
  * and the only symptom is a blank page with no console error.
  */
 @Component({
-  selector: 'lg-root',
-  imports: [AppShell],
-  templateUrl: './app.html',
-  changeDetection: ChangeDetectionStrategy.OnPush,
+    selector: 'lg-root',
+    imports: [AppShell],
+    templateUrl: './app.html',
+    changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class App {}
+export class App {
+}

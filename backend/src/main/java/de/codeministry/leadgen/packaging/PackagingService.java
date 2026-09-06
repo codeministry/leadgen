@@ -11,11 +11,7 @@ package de.codeministry.leadgen.packaging;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import de.codeministry.leadgen.application.ApplicationService;
 import de.codeministry.leadgen.application.ApplicationStatus;
-import de.codeministry.leadgen.config.ConfigProperties;
-import de.codeministry.leadgen.config.ConfigRegistry;
-import de.codeministry.leadgen.config.ConfigSnapshot;
-import de.codeministry.leadgen.config.ConfigSource;
-import de.codeministry.leadgen.config.Directories;
+import de.codeministry.leadgen.config.*;
 import de.codeministry.leadgen.config.model.PipelineConfig;
 import de.codeministry.leadgen.config.model.SkillProfile;
 import de.codeministry.leadgen.filter.TextFold;
@@ -23,6 +19,12 @@ import freemarker.template.Configuration;
 import freemarker.template.Template;
 import freemarker.template.TemplateException;
 import freemarker.template.TemplateExceptionHandler;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import javax.sql.DataSource;
 import java.io.IOException;
 import java.io.StringReader;
 import java.io.StringWriter;
@@ -32,17 +34,8 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
+import java.util.*;
 import java.util.regex.Pattern;
-import javax.sql.DataSource;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Assembles the folder an application is sent from — by hand, by a person, later.
@@ -63,14 +56,14 @@ public class PackagingService {
 
     private static final String DUE =
             """
-            SELECT id, title, description, full_text, url, location, portal, agency, tags,
-                   published_on, rate_eur, duration, workload, remote_percent, starts_on, contact,
-                   score_value, score_band, score_model, enrichment_note
-            FROM offer
-            WHERE status = 'PASSED' AND duplicate_of_id IS NULL AND archived_at IS NULL
-              AND score_band = 'SHORTLISTED' AND packaged_at IS NULL
-            ORDER BY score_value DESC, id
-            """;
+                    SELECT id, title, description, full_text, url, location, portal, agency, tags,
+                           published_on, rate_eur, duration, workload, remote_percent, starts_on, contact,
+                           score_value, score_band, score_model, enrichment_note
+                    FROM offer
+                    WHERE status = 'PASSED' AND duplicate_of_id IS NULL AND archived_at IS NULL
+                      AND score_band = 'SHORTLISTED' AND packaged_at IS NULL
+                    ORDER BY score_value DESC, id
+                    """;
 
     /**
      * The heuristic that picks the cover letter and the CV. Measured over the sample
@@ -179,7 +172,9 @@ public class PackagingService {
         return folder;
     }
 
-    /** A template's `{lang}` is the language of the ad; everything else is its file name. */
+    /**
+     * A template's `{lang}` is the language of the ad; everything else is its file name.
+     */
     private String render(
             Path folder, PipelineConfig.Packaging.Document document, String language, Map<String, Object> model)
             throws IOException, TemplateException {
@@ -313,21 +308,24 @@ public class PackagingService {
         return out.toString();
     }
 
-    /** The reference projects whose stack the offer actually asks for, strongest first. */
+    /**
+     * The reference projects whose stack the offer actually asks for, strongest first.
+     */
     private static List<SkillProfile.ReferenceProject> referencesFor(Map<String, Object> row, SkillProfile profile) {
         if (profile == null || profile.referenceProjects() == null) {
             return List.of();
         }
         String haystack = haystack(row);
-        record Scored(SkillProfile.ReferenceProject project, long overlap) {}
+        record Scored(SkillProfile.ReferenceProject project, long overlap) {
+        }
         return profile.referenceProjects().stream()
                 .map(project -> new Scored(
                         project,
                         project.stack() == null
                                 ? 0
                                 : project.stack().stream()
-                                        .filter(s -> names(haystack, s))
-                                        .count()))
+                                .filter(s -> names(haystack, s))
+                                .count()))
                 .filter(scored -> scored.overlap() > 0)
                 .sorted((a, b) -> Long.compare(b.overlap(), a.overlap()))
                 .limit(2)
@@ -377,7 +375,9 @@ public class PackagingService {
         return profile == null || profile.localePrimary() == null ? "de" : profile.localePrimary();
     }
 
-    /** `{date}_{company}_{slug}`, with everything reduced to what a file system likes. */
+    /**
+     * `{date}_{company}_{slug}`, with everything reduced to what a file system likes.
+     */
     private static String folderName(String naming, Map<String, Object> row) {
         Object published = row.get("published_on");
         String date = published instanceof LocalDate day

@@ -10,14 +10,15 @@ package de.codeministry.leadgen.score;
 
 import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.config.model.MatchingRules;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import javax.sql.DataSource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import javax.sql.DataSource;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 /**
  * The half of scoring that does not finish inside the run that started it.
@@ -39,11 +40,11 @@ public class ScoreBatchService {
 
     private static final String OPEN =
             """
-            SELECT id, provider_id, model, ruleset_version, offers
-            FROM score_batch
-            WHERE status = 'SUBMITTED'
-            ORDER BY id
-            """;
+                    SELECT id, provider_id, model, ruleset_version, offers
+                    FROM score_batch
+                    WHERE status = 'SUBMITTED'
+                    ORDER BY id
+                    """;
 
     private static final String WAITING =
             "SELECT " + ScoreCandidate.COLUMNS + " FROM offer WHERE score_batch_id = ? ORDER BY id";
@@ -69,8 +70,8 @@ public class ScoreBatchService {
      * that never arrives costs nothing but the wait.
      *
      * @return how many offers were submitted, or zero when the submission did not happen.
-     *     Zero is not a failure: nothing was written, nothing is in flight, and every offer
-     *     is still due for the next run.
+     * Zero is not a failure: nothing was written, nothing is in flight, and every offer
+     * is still due for the next run.
      */
     @Transactional
     int submit(BatchJudge judge, List<ScoreCandidate> due, RuleScorer scorer, MatchingRules rules) {
@@ -84,10 +85,10 @@ public class ScoreBatchService {
 
         Long batchId = jdbc.sql(
                         """
-                        INSERT INTO score_batch (provider_id, model, ruleset_version, offers)
-                        VALUES (?, ?, ?, ?)
-                        RETURNING id
-                        """)
+                                INSERT INTO score_batch (provider_id, model, ruleset_version, offers)
+                                VALUES (?, ?, ?, ?)
+                                RETURNING id
+                                """)
                 .params(providerId.get(), judge.model(), rulesetVersion, due.size())
                 .query(Long.class)
                 .single();
@@ -202,12 +203,15 @@ public class ScoreBatchService {
         release(batch);
     }
 
-    /** By batch rather than by offer: an entry missing from the results still has to be let go. */
+    /**
+     * By batch rather than by offer: an entry missing from the results still has to be let go.
+     */
     private void release(OpenBatch batch) {
         jdbc.sql("UPDATE offer SET score_batch_id = NULL WHERE score_batch_id = ?")
                 .param(batch.id())
                 .update();
     }
 
-    private record OpenBatch(long id, String providerId, String model, int offers) {}
+    private record OpenBatch(long id, String providerId, String model, int offers) {
+    }
 }

@@ -15,7 +15,7 @@ import java.util.List;
  * What one packaging pass did.
  *
  * @param folders the directories written. Directories, not messages: the tool has no
- *     send path at all, and what happens to a package is the operator's decision.
+ *                send path at all, and what happens to a package is the operator's decision.
  */
 public record PackageReport(int due, int built, int failed, List<Path> folders) {
 

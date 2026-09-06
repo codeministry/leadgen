@@ -19,11 +19,11 @@ import java.util.List;
  * <p>Every enriched field is nullable and null means "not stated", never zero: the
  * newsletter states a rate in 0.0 % of offers, so an unfetched ad is the normal case.
  *
- * @param archivedAt when this left the working list, or null while it is still on it.
+ * @param archivedAt    when this left the working list, or null while it is still on it.
  * @param archiveSource who took it off, or why it is exempt from the age rule. Carried
- *     beside the timestamp because the two together are four states and not two, and a
- *     screen showing "restore" on an offer a person deliberately restored is a screen
- *     offering to undo nothing.
+ *                      beside the timestamp because the two together are four states and not two, and a
+ *                      screen showing "restore" on an offer a person deliberately restored is a screen
+ *                      offering to undo nothing.
  */
 public record OfferView(
         long id,
@@ -45,4 +45,5 @@ public record OfferView(
         String fullText,
         String packageDir,
         Instant archivedAt,
-        String archiveSource) {}
+        String archiveSource) {
+}

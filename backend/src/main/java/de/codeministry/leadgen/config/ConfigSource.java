@@ -30,13 +30,15 @@ import java.util.Optional;
  *
  * @param origin where the content was read from, for the log line and the error message
  * @param onDisk the file, when it came from the external directory. A classpath default has
- *     no path, which is also why it cannot be hot-reloaded.
+ *               no path, which is also why it cannot be hot-reloaded.
  */
 public record ConfigSource(String name, String origin, Optional<Path> onDisk, String content) {
 
     private static final String CLASSPATH_DIRECTORY = "/leadgen/";
 
-    /** External first, classpath second. Empty when neither has the file. */
+    /**
+     * External first, classpath second. Empty when neither has the file.
+     */
     public static Optional<ConfigSource> resolve(Path externalDirectory, String name) {
         Path external = externalDirectory.resolve(name);
         if (Files.isRegularFile(external)) {

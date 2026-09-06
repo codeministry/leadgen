@@ -1,153 +1,153 @@
 <header class="head">
-  <h3 class="type-h4 name">{{ document().name }}</h3>
-  <span class="type-mono-data text-muted">{{
-    'review.bytes' | transloco: { size: document().size }
-  }}</span>
+    <h3 class="type-h4 name">{{ document().name }}</h3>
+    <span class="type-mono-data text-muted">{{
+            'review.bytes' | transloco: {size: document().size}
+        }}</span>
 </header>
 
 @if (!document().offer) {
-  <p class="type-small note" role="status">
-    {{ 'review.noFrontmatter' | transloco }}
-  </p>
+    <p class="type-small note" role="status">
+        {{ 'review.noFrontmatter' | transloco }}
+    </p>
 }
 
 @if (document().duplicateOfTitle; as existing) {
-  <p class="type-small note duplicate" role="status">
-    {{ 'review.duplicate' | transloco: { title: existing } }}
-  </p>
+    <p class="type-small note duplicate" role="status">
+        {{ 'review.duplicate' | transloco: {title: existing} }}
+    </p>
 }
 
 <div class="split">
-  <div class="fields">
-    <div class="field">
-      <label class="type-caption text-muted" [for]="'title-' + document().name">{{
-        'field.title' | transloco
-      }}</label>
-      <input
-        class="input input-sm"
-        [id]="'title-' + document().name"
-        [value]="title()"
-        [disabled]="busy()"
-        (input)="set(title, $event)"
-      />
+    <div class="fields">
+        <div class="field">
+            <label class="type-caption text-muted" [for]="'title-' + document().name">{{
+                    'field.title' | transloco
+                }}</label>
+            <input
+                    class="input input-sm"
+                    [id]="'title-' + document().name"
+                    [value]="title()"
+                    [disabled]="busy()"
+                    (input)="set(title, $event)"
+            />
+        </div>
+
+        <div class="field">
+            <label class="type-caption text-muted" [for]="'url-' + document().name">{{
+                    'field.url' | transloco
+                }}</label>
+            <input
+                    class="input input-sm type-mono-data"
+                    [id]="'url-' + document().name"
+                    [value]="url()"
+                    [disabled]="busy()"
+                    (input)="set(url, $event)"
+            />
+        </div>
+
+        <div class="pair">
+            <div class="field">
+                <label class="type-caption text-muted" [for]="'location-' + document().name">{{
+                        'field.location' | transloco
+                    }}</label>
+                <input
+                        class="input input-sm"
+                        [id]="'location-' + document().name"
+                        [value]="location()"
+                        [disabled]="busy()"
+                        (input)="set(location, $event)"
+                />
+            </div>
+            <div class="field">
+                <label class="type-caption text-muted" [for]="'portal-' + document().name">{{
+                        'field.portal' | transloco
+                    }}</label>
+                <input
+                        class="input input-sm"
+                        [id]="'portal-' + document().name"
+                        [value]="portal()"
+                        [disabled]="busy()"
+                        (input)="set(portal, $event)"
+                />
+            </div>
+        </div>
+
+        <div class="pair">
+            <div class="field">
+                <label class="type-caption text-muted" [for]="'agency-' + document().name">{{
+                        'field.agency' | transloco
+                    }}</label>
+                <input
+                        class="input input-sm"
+                        [id]="'agency-' + document().name"
+                        [value]="agency()"
+                        [disabled]="busy()"
+                        (input)="set(agency, $event)"
+                />
+            </div>
+            <div class="field">
+                <label class="type-caption text-muted" [for]="'published-' + document().name">{{
+                        'field.published' | transloco
+                    }}</label>
+                <input
+                        class="input input-sm type-mono-data"
+                        [id]="'published-' + document().name"
+                        type="date"
+                        [value]="published()"
+                        [disabled]="busy()"
+                        (input)="set(published, $event)"
+                />
+            </div>
+        </div>
+
+        <div class="field">
+            <label class="type-caption text-muted" [for]="'tags-' + document().name">{{
+                    'field.tags' | transloco
+                }}</label>
+            <input
+                    class="input input-sm"
+                    [id]="'tags-' + document().name"
+                    [value]="tags()"
+                    [disabled]="busy()"
+                    (input)="set(tags, $event)"
+            />
+            <span class="type-caption text-muted">{{ 'review.commaSeparated' | transloco }}</span>
+        </div>
+
+        <div class="field">
+            <label class="type-caption text-muted" [for]="'description-' + document().name">{{
+                    'field.description' | transloco
+                }}</label>
+            <textarea
+                    class="textarea textarea-sm type-small"
+                    [id]="'description-' + document().name"
+                    rows="4"
+                    [value]="description()"
+                    [disabled]="busy()"
+                    (input)="set(description, $event)"
+            ></textarea>
+        </div>
     </div>
 
-    <div class="field">
-      <label class="type-caption text-muted" [for]="'url-' + document().name">{{
-        'field.url' | transloco
-      }}</label>
-      <input
-        class="input input-sm type-mono-data"
-        [id]="'url-' + document().name"
-        [value]="url()"
-        [disabled]="busy()"
-        (input)="set(url, $event)"
-      />
+    <div class="source">
+        <h4 class="type-caption text-muted">{{ 'review.theFile' | transloco }}</h4>
+        <lg-markdown-source class="text" [text]="document().text"/>
     </div>
-
-    <div class="pair">
-      <div class="field">
-        <label class="type-caption text-muted" [for]="'location-' + document().name">{{
-          'field.location' | transloco
-        }}</label>
-        <input
-          class="input input-sm"
-          [id]="'location-' + document().name"
-          [value]="location()"
-          [disabled]="busy()"
-          (input)="set(location, $event)"
-        />
-      </div>
-      <div class="field">
-        <label class="type-caption text-muted" [for]="'portal-' + document().name">{{
-          'field.portal' | transloco
-        }}</label>
-        <input
-          class="input input-sm"
-          [id]="'portal-' + document().name"
-          [value]="portal()"
-          [disabled]="busy()"
-          (input)="set(portal, $event)"
-        />
-      </div>
-    </div>
-
-    <div class="pair">
-      <div class="field">
-        <label class="type-caption text-muted" [for]="'agency-' + document().name">{{
-          'field.agency' | transloco
-        }}</label>
-        <input
-          class="input input-sm"
-          [id]="'agency-' + document().name"
-          [value]="agency()"
-          [disabled]="busy()"
-          (input)="set(agency, $event)"
-        />
-      </div>
-      <div class="field">
-        <label class="type-caption text-muted" [for]="'published-' + document().name">{{
-          'field.published' | transloco
-        }}</label>
-        <input
-          class="input input-sm type-mono-data"
-          [id]="'published-' + document().name"
-          type="date"
-          [value]="published()"
-          [disabled]="busy()"
-          (input)="set(published, $event)"
-        />
-      </div>
-    </div>
-
-    <div class="field">
-      <label class="type-caption text-muted" [for]="'tags-' + document().name">{{
-        'field.tags' | transloco
-      }}</label>
-      <input
-        class="input input-sm"
-        [id]="'tags-' + document().name"
-        [value]="tags()"
-        [disabled]="busy()"
-        (input)="set(tags, $event)"
-      />
-      <span class="type-caption text-muted">{{ 'review.commaSeparated' | transloco }}</span>
-    </div>
-
-    <div class="field">
-      <label class="type-caption text-muted" [for]="'description-' + document().name">{{
-        'field.description' | transloco
-      }}</label>
-      <textarea
-        class="textarea textarea-sm type-small"
-        [id]="'description-' + document().name"
-        rows="4"
-        [value]="description()"
-        [disabled]="busy()"
-        (input)="set(description, $event)"
-      ></textarea>
-    </div>
-  </div>
-
-  <div class="source">
-    <h4 class="type-caption text-muted">{{ 'review.theFile' | transloco }}</h4>
-    <lg-markdown-source class="text" [text]="document().text" />
-  </div>
 </div>
 
 <footer class="actions">
-  <button
-    type="button"
-    class="btn btn-sm btn-primary"
-    [disabled]="!ready() || busy()"
-    (click)="confirm()"
-  >
-    {{ (busy() ? 'review.working' : 'review.confirm') | transloco }}
-  </button>
-  <button type="button" class="btn btn-sm btn-ghost" [disabled]="busy()" (click)="rejected.emit()">
-    {{ 'review.discard' | transloco }}
-  </button>
-  <span class="type-caption text-muted">
+    <button
+            type="button"
+            class="btn btn-sm btn-primary"
+            [disabled]="!ready() || busy()"
+            (click)="confirm()"
+    >
+        {{ (busy() ? 'review.working' : 'review.confirm') | transloco }}
+    </button>
+    <button type="button" class="btn btn-sm btn-ghost" [disabled]="busy()" (click)="rejected.emit()">
+        {{ 'review.discard' | transloco }}
+    </button>
+    <span class="type-caption text-muted">
     {{ 'review.confirmNote' | transloco }}
   </span>
 </footer>

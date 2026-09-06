@@ -10,36 +10,36 @@
  * screen renders one.
  */
 export interface Offer {
-  readonly id: number;
-  readonly externalId: string | null;
-  readonly title: string;
-  readonly description: string | null;
-  readonly url: string | null;
-  readonly location: string | null;
-  readonly portal: string | null;
-  readonly agency: string | null;
-  readonly publishedOn: string | null;
-  readonly tags: readonly string[];
+    readonly id: number;
+    readonly externalId: string | null;
+    readonly title: string;
+    readonly description: string | null;
+    readonly url: string | null;
+    readonly location: string | null;
+    readonly portal: string | null;
+    readonly agency: string | null;
+    readonly publishedOn: string | null;
+    readonly tags: readonly string[];
 
-  readonly rateEur: number | null;
-  readonly remotePercent: number | null;
-  readonly startsOn: string | null;
-  readonly duration: string | null;
-  readonly workload: string | null;
-  readonly language: string | null;
-  /** The original ad as enrichment fetched it. Null when the fetch never succeeded. */
-  readonly fullText: string | null;
-  /** The folder the packaging stage wrote. Null until the offer clears the threshold. */
-  readonly packageDir: string | null;
+    readonly rateEur: number | null;
+    readonly remotePercent: number | null;
+    readonly startsOn: string | null;
+    readonly duration: string | null;
+    readonly workload: string | null;
+    readonly language: string | null;
+    /** The original ad as enrichment fetched it. Null when the fetch never succeeded. */
+    readonly fullText: string | null;
+    /** The folder the packaging stage wrote. Null until the offer clears the threshold. */
+    readonly packageDir: string | null;
 
-  /** When this left the working list, or null while it is still on it. */
-  readonly archivedAt: string | null;
-  /**
-   * Who took it off, or why the age rule leaves it alone. The two fields together are four
-   * states and not two: `RESTORED` with no timestamp is an offer a person deliberately put
-   * back, and offering to restore that one is offering to undo nothing.
-   */
-  readonly archiveSource: 'AGE' | 'MANUAL' | 'RESTORED' | null;
+    /** When this left the working list, or null while it is still on it. */
+    readonly archivedAt: string | null;
+    /**
+     * Who took it off, or why the age rule leaves it alone. The two fields together are four
+     * states and not two: `RESTORED` with no timestamp is an offer a person deliberately put
+     * back, and offering to restore that one is offering to undo nothing.
+     */
+    readonly archiveSource: 'AGE' | 'MANUAL' | 'RESTORED' | null;
 }
 
 /**
@@ -48,13 +48,13 @@ export interface Offer {
  * and an unstated remote share survives the filter.
  */
 export interface OfferFlags {
-  readonly incomplete: boolean;
-  readonly remoteUnknown: boolean;
+    readonly incomplete: boolean;
+    readonly remoteUnknown: boolean;
 }
 
 /** One portal advertising an offer. A duplicate cluster names all of them. */
 export interface OfferSource {
-  readonly portal: string | null;
-  readonly agency: string | null;
-  readonly url: string | null;
+    readonly portal: string | null;
+    readonly agency: string | null;
+    readonly url: string | null;
 }

@@ -9,6 +9,7 @@
 package de.codeministry.leadgen.analytics;
 
 import de.codeministry.leadgen.offer.FunnelView;
+
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
@@ -29,11 +30,11 @@ import java.util.List;
  * thing the browser cannot re-bucket is a median, which is why the response metrics arrive
  * as scalars.
  *
- * @param zone the timezone the day boundaries were cut on. A `date_trunc` over a
- *     `timestamptz` uses the session timezone, so two readers in two zones would bucket
- *     differently — the same reason a follow-up is decided to be due on the server.
+ * @param zone   the timezone the day boundaries were cut on. A `date_trunc` over a
+ *               `timestamptz` uses the session timezone, so two readers in two zones would bucket
+ *               differently — the same reason a follow-up is decided to be due on the server.
  * @param funnel reused as it stands. It already carries the stage ids, their labels and
- *     their order, and nothing in the browser may hold a second copy of that list.
+ *               their order, and nothing in the browser may hold a second copy of that list.
  * @param scales which rulesets and judges the archive's scores were produced under.
  */
 public record AnalyticsView(
@@ -47,4 +48,5 @@ public record AnalyticsView(
         ScoreDistribution scores,
         ApplicationAnalytics applications,
         RunSeries runs,
-        List<ScaleInUse> scales) {}
+        List<ScaleInUse> scales) {
+}

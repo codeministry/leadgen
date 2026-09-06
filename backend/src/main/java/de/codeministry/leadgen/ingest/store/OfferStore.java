@@ -9,13 +9,14 @@
 package de.codeministry.leadgen.ingest.store;
 
 import de.codeministry.leadgen.ingest.ExtractedOffer;
-import java.sql.Types;
-import java.util.List;
-import javax.sql.DataSource;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+
+import javax.sql.DataSource;
+import java.sql.Types;
+import java.util.List;
 
 /**
  * Writes extracted offers. Plain SQL against the schema Flyway owns.
@@ -48,28 +49,32 @@ public class OfferStore {
     public void recordRun(long sourceId, int documents, int extracted, int written, Integer announced) {
         jdbc.sql(
                         """
-                        INSERT INTO source_run (source_id, documents, extracted, written, announced)
-                        VALUES (?, ?, ?, ?, ?)
-                        """)
+                                INSERT INTO source_run (source_id, documents, extracted, written, announced)
+                                VALUES (?, ?, ?, ?, ?)
+                                """)
                 .params(sourceId, documents, extracted, written, announced)
                 .update();
     }
 
-    /** Creates the source row on first sight and returns its id. */
+    /**
+     * Creates the source row on first sight and returns its id.
+     */
     @Transactional
     public long sourceId(String name, String kind) {
         return jdbc.sql(
                         """
-                        INSERT INTO source (name, kind) VALUES (?, ?)
-                        ON CONFLICT (name) DO UPDATE SET kind = EXCLUDED.kind
-                        RETURNING id
-                        """)
+                                INSERT INTO source (name, kind) VALUES (?, ?)
+                                ON CONFLICT (name) DO UPDATE SET kind = EXCLUDED.kind
+                                RETURNING id
+                                """)
                 .params(name, kind)
                 .query(Long.class)
                 .single();
     }
 
-    /** Returns how many rows the batch actually inserted or updated. */
+    /**
+     * Returns how many rows the batch actually inserted or updated.
+     */
     @Transactional
     public int store(long sourceId, List<ExtractedOffer> offers) {
         if (offers.isEmpty()) {
@@ -77,26 +82,26 @@ public class OfferStore {
         }
         int[][] affected = template.batchUpdate(
                 """
-                INSERT INTO offer (source_id, external_id, title, description, url, location,
-                                   portal, agency, published_on, fingerprint, tags, received_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT (source_id, external_id) WHERE external_id IS NOT NULL
-                DO UPDATE SET title = EXCLUDED.title,
-                              description = EXCLUDED.description,
-                              location = EXCLUDED.location,
-                              portal = EXCLUDED.portal,
-                              agency = EXCLUDED.agency,
-                              published_on = EXCLUDED.published_on,
-                              fingerprint = EXCLUDED.fingerprint,
-                              tags = EXCLUDED.tags,
-                              -- The earlier of the two, and never overwritten by a later
-                              -- mail. Nine of the measured listings appear in two mails,
-                              -- and the question this column answers is when the offer
-                              -- first reached the mailbox. LEAST ignores a null, so a row
-                              -- imported before this column existed is backfilled by the
-                              -- next re-read rather than staying empty.
-                              received_at = LEAST(offer.received_at, EXCLUDED.received_at)
-                """,
+                        INSERT INTO offer (source_id, external_id, title, description, url, location,
+                                           portal, agency, published_on, fingerprint, tags, received_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ON CONFLICT (source_id, external_id) WHERE external_id IS NOT NULL
+                        DO UPDATE SET title = EXCLUDED.title,
+                                      description = EXCLUDED.description,
+                                      location = EXCLUDED.location,
+                                      portal = EXCLUDED.portal,
+                                      agency = EXCLUDED.agency,
+                                      published_on = EXCLUDED.published_on,
+                                      fingerprint = EXCLUDED.fingerprint,
+                                      tags = EXCLUDED.tags,
+                                      -- The earlier of the two, and never overwritten by a later
+                                      -- mail. Nine of the measured listings appear in two mails,
+                                      -- and the question this column answers is when the offer
+                                      -- first reached the mailbox. LEAST ignores a null, so a row
+                                      -- imported before this column existed is backfilled by the
+                                      -- next re-read rather than staying empty.
+                                      received_at = LEAST(offer.received_at, EXCLUDED.received_at)
+                        """,
                 offers,
                 offers.size(),
                 (statement, offer) -> {

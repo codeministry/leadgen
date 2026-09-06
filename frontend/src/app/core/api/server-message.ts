@@ -11,5 +11,5 @@
  * for the case where the server said nothing useful, such as a network failure.
  */
 export function serverMessage(error: { error?: unknown }, fallback: string): string {
-  return typeof error.error === 'string' && error.error.length > 0 ? error.error : fallback;
+    return typeof error.error === 'string' && error.error.length > 0 ? error.error : fallback;
 }

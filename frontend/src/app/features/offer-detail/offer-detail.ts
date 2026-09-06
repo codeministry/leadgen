@@ -44,45 +44,45 @@ import {Score} from '@shared/score/score';
 const AD_FOLD_CHARS = 1200;
 
 interface Field {
-  /** A catalog key, not a sentence. */
-  readonly label: string;
-  readonly value: string | null;
+    /** A catalog key, not a sentence. */
+    readonly label: string;
+    readonly value: string | null;
     /** Set when the value is a link; `value` is then what the link reads as. */
     readonly href?: string;
 }
 
 @Component({
-  selector: 'lg-offer-detail',
-  imports: [
-    ApplicationPanel,
-    Badge,
-    DatePipe,
-    EmptyState,
-    Icon,
-    Markdown,
-    PageHeader,
-    Score,
-    TranslocoPipe,
-  ],
-  templateUrl: './offer-detail.html',
-  styleUrl: './offer-detail.css',
-  changeDetection: ChangeDetectionStrategy.OnPush,
+    selector: 'lg-offer-detail',
+    imports: [
+        ApplicationPanel,
+        Badge,
+        DatePipe,
+        EmptyState,
+        Icon,
+        Markdown,
+        PageHeader,
+        Score,
+        TranslocoPipe,
+    ],
+    templateUrl: './offer-detail.html',
+    styleUrl: './offer-detail.css',
+    changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class OfferDetail implements OnInit {
-  private readonly dispatch = injectDispatch(shortlistEvents);
-  private readonly applicationDispatch = injectDispatch(applicationEvents);
-  protected readonly store = inject(ShortlistStore);
-  protected readonly applications = inject(ApplicationsStore);
+    private readonly dispatch = injectDispatch(shortlistEvents);
+    private readonly applicationDispatch = injectDispatch(applicationEvents);
+    protected readonly store = inject(ShortlistStore);
+    protected readonly applications = inject(ApplicationsStore);
 
-  /** Bound from the route parameter by `withComponentInputBinding()`. */
-  readonly id = input.required<string>();
+    /** Bound from the route parameter by `withComponentInputBinding()`. */
+    readonly id = input.required<string>();
 
-  /**
-   * Fetched by id rather than found in the shortlist. The detail has to work on a reload,
-   * and it has to open an offer the hard filter rejected — neither of which is in the
-   * list.
-   */
-  protected readonly entry = computed(() => this.store.selected() ?? undefined);
+    /**
+     * Fetched by id rather than found in the shortlist. The detail has to work on a reload,
+     * and it has to open an offer the hard filter rejected — neither of which is in the
+     * list.
+     */
+    protected readonly entry = computed(() => this.store.selected() ?? undefined);
 
     /**
      * Which offer the reader has unfolded, rather than whether the current one is unfolded.
@@ -157,102 +157,102 @@ export class OfferDetail implements OnInit {
         return reason.maxPoints > 0 ? `${signed}/${reason.maxPoints}` : signed;
     }
 
-  /**
-   * Judge this one offer again. Costs a language-model call, so it is a click and never
-   * something the page does on its own.
-   */
-  protected rescore(id: number): void {
-    this.dispatch.rescoreRequested(id);
-  }
+    /**
+     * Judge this one offer again. Costs a language-model call, so it is a click and never
+     * something the page does on its own.
+     */
+    protected rescore(id: number): void {
+        this.dispatch.rescoreRequested(id);
+    }
 
-  /**
-   * Take this offer off the working list, or put it back.
-   *
-   * <p>Reachable from here rather than from the card, because it is the screen where
-   * somebody has read enough of the advert to decide — and it is the only screen that
-   * shows an offer whichever side of the archive it is on.
-   */
-  protected setArchived(id: number, archived: boolean): void {
-    this.dispatch.archiveRequested({ id, archived });
-  }
+    /**
+     * Take this offer off the working list, or put it back.
+     *
+     * <p>Reachable from here rather than from the card, because it is the screen where
+     * somebody has read enough of the advert to decide — and it is the only screen that
+     * shows an offer whichever side of the archive it is on.
+     */
+    protected setArchived(id: number, archived: boolean): void {
+        this.dispatch.archiveRequested({id, archived});
+    }
 
-  /**
-   * An application exists only once a package has been built for the offer, so most
-   * offers have none. That absence is the honest state, not an error.
-   */
-  protected readonly application = computed(() =>
-    this.applications.applications().find((candidate) => String(candidate.offerId) === this.id()),
-  );
+    /**
+     * An application exists only once a package has been built for the offer, so most
+     * offers have none. That absence is the honest state, not an error.
+     */
+    protected readonly application = computed(() =>
+        this.applications.applications().find((candidate) => String(candidate.offerId) === this.id()),
+    );
 
-  protected readonly history = computed(() => {
-    const application = this.application();
-    return application === undefined ? [] : (this.applications.history()[application.id] ?? []);
-  });
-
-  constructor() {
-    // The id comes from the URL, so it changes without the component being recreated.
-    effect(() => {
-      const id = Number(this.id());
-      if (Number.isFinite(id)) {
-        this.dispatch.offerRequested(id);
-      }
+    protected readonly history = computed(() => {
+        const application = this.application();
+        return application === undefined ? [] : (this.applications.history()[application.id] ?? []);
     });
 
-    // The store replaces the row after every save, so this re-reads the log exactly when
-    // there is something new in it — and never while the board is merely being scrolled.
-    effect(() => {
-      const application = this.application();
-      if (application !== undefined) {
-        this.applicationDispatch.historyRequested(application.id);
-      }
+    constructor() {
+        // The id comes from the URL, so it changes without the component being recreated.
+        effect(() => {
+            const id = Number(this.id());
+            if (Number.isFinite(id)) {
+                this.dispatch.offerRequested(id);
+            }
+        });
+
+        // The store replaces the row after every save, so this re-reads the log exactly when
+        // there is something new in it — and never while the board is merely being scrolled.
+        effect(() => {
+            const application = this.application();
+            if (application !== undefined) {
+                this.applicationDispatch.historyRequested(application.id);
+            }
+        });
+    }
+
+    /**
+     * The package as one file. A link and not a request: the server sets the filename in
+     * `Content-Disposition`, so nothing here has to hold the bytes or name the archive.
+     *
+     * Downloading is not sending. The folder stays on the machine that ran the pipeline;
+     * this only fetches a copy of it into a browser that is not on that machine.
+     */
+    protected packageUrl(id: number): string {
+        return `/api/offers/${id}/package`;
+    }
+
+    protected record(update: ApplicationUpdate): void {
+        const application = this.application();
+        if (application !== undefined) {
+            this.applicationDispatch.changed({id: application.id, update});
+        }
+    }
+
+    /**
+     * Every extracted field, including the ones that came back empty. A missing
+     * rate is information — it means enrichment did not reach the original ad —
+     * and hiding the row would make the gap invisible.
+     */
+    protected readonly fields = computed<readonly Field[]>(() => {
+        const offer = this.entry()?.offer;
+        if (offer === undefined) {
+            return [];
+        }
+        return [
+            {label: 'field.portal', value: offer.portal},
+            {label: 'field.agency', value: offer.agency},
+            {label: 'field.location', value: offer.location},
+            {
+                label: 'field.remoteShare',
+                value: offer.remotePercent === null ? null : `${offer.remotePercent} %`,
+            },
+            {label: 'field.rate', value: offer.rateEur === null ? null : `${offer.rateEur} €/h`},
+            {label: 'field.start', value: offer.startsOn},
+            {label: 'field.duration', value: offer.duration},
+            {label: 'field.workload', value: offer.workload},
+            {label: 'field.published', value: offer.publishedOn},
+            {label: 'field.language', value: offer.language},
+            this.externalId(offer),
+        ];
     });
-  }
-
-  /**
-   * The package as one file. A link and not a request: the server sets the filename in
-   * `Content-Disposition`, so nothing here has to hold the bytes or name the archive.
-   *
-   * Downloading is not sending. The folder stays on the machine that ran the pipeline;
-   * this only fetches a copy of it into a browser that is not on that machine.
-   */
-  protected packageUrl(id: number): string {
-    return `/api/offers/${id}/package`;
-  }
-
-  protected record(update: ApplicationUpdate): void {
-    const application = this.application();
-    if (application !== undefined) {
-      this.applicationDispatch.changed({ id: application.id, update });
-    }
-  }
-
-  /**
-   * Every extracted field, including the ones that came back empty. A missing
-   * rate is information — it means enrichment did not reach the original ad —
-   * and hiding the row would make the gap invisible.
-   */
-  protected readonly fields = computed<readonly Field[]>(() => {
-    const offer = this.entry()?.offer;
-    if (offer === undefined) {
-      return [];
-    }
-    return [
-      { label: 'field.portal', value: offer.portal },
-      { label: 'field.agency', value: offer.agency },
-      { label: 'field.location', value: offer.location },
-      {
-        label: 'field.remoteShare',
-        value: offer.remotePercent === null ? null : `${offer.remotePercent} %`,
-      },
-      { label: 'field.rate', value: offer.rateEur === null ? null : `${offer.rateEur} €/h` },
-      { label: 'field.start', value: offer.startsOn },
-      { label: 'field.duration', value: offer.duration },
-      { label: 'field.workload', value: offer.workload },
-      { label: 'field.published', value: offer.publishedOn },
-      { label: 'field.language', value: offer.language },
-        this.externalId(offer),
-    ];
-  });
 
     /**
      * The identity a source gave the offer, which for every portal in the corpus is the
@@ -295,7 +295,7 @@ export class OfferDetail implements OnInit {
         }
     }
 
-  ngOnInit(): void {
-    this.applicationDispatch.opened();
-  }
+    ngOnInit(): void {
+        this.applicationDispatch.opened();
+    }
 }

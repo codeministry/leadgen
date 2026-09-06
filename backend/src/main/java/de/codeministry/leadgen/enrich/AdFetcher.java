@@ -9,14 +9,6 @@
 package de.codeministry.leadgen.enrich;
 
 import de.codeministry.leadgen.config.model.PipelineConfig.Enrichment.Fetch;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.time.Clock;
-import java.time.Duration;
-import java.time.Instant;
-import java.util.ArrayDeque;
-import java.util.Deque;
-import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.retry.RetryException;
 import org.springframework.core.retry.RetryPolicy;
@@ -25,6 +17,15 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
+
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.Optional;
 
 /**
  * Fetches one original ad, and refuses to more often than it should.
@@ -180,11 +181,14 @@ public class AdFetcher {
                 .header("User-Agent", settings.userAgent())
                 .header("Accept", "text/html,application/xhtml+xml")
                 .retrieve()
-                .onStatus(status -> true, (request, response) -> {})
+                .onStatus(status -> true, (request, response) -> {
+                })
                 .toEntity(String.class);
     }
 
-    /** A 5xx, wrapped so the retry policy can tell it from an answer worth keeping. */
+    /**
+     * A 5xx, wrapped so the retry policy can tell it from an answer worth keeping.
+     */
     private static final class TransientAnswer extends RuntimeException {
         private final int status;
 
@@ -305,7 +309,8 @@ public class AdFetcher {
                     .uri(robotsUri)
                     .header("User-Agent", settings.userAgent())
                     .retrieve()
-                    .onStatus(status -> true, (request, response2) -> {})
+                    .onStatus(status -> true, (request, response2) -> {
+                    })
                     .toEntity(String.class);
             return response.getStatusCode().value() == 200 ? response.getBody() : null;
         } catch (RuntimeException e) {

@@ -35,16 +35,21 @@ import java.util.zip.ZipOutputStream;
  */
 public final class PackageArchive {
 
-    private PackageArchive() {}
+    private PackageArchive() {
+    }
 
-    /** Thrown when a stored value names no package this application is allowed to read. */
+    /**
+     * Thrown when a stored value names no package this application is allowed to read.
+     */
     public static class Rejected extends RuntimeException {
         public Rejected(String message) {
             super(message);
         }
     }
 
-    /** The folder a stored {@code package_dir} names, with any directory part dropped. */
+    /**
+     * The folder a stored {@code package_dir} names, with any directory part dropped.
+     */
     public static String folderName(String packageDir) {
         if (packageDir == null || packageDir.isBlank()) {
             throw new Rejected("no package folder is recorded");
@@ -87,7 +92,7 @@ public final class PackageArchive {
      */
     public static void writeZip(Path folder, OutputStream out) throws IOException {
         try (ZipOutputStream zip = new ZipOutputStream(out, StandardCharsets.UTF_8);
-                Stream<Path> walk = Files.walk(folder)) {
+             Stream<Path> walk = Files.walk(folder)) {
             List<Path> files = walk.filter(file -> Files.isRegularFile(file, LinkOption.NOFOLLOW_LINKS))
                     .sorted()
                     .toList();

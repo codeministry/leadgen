@@ -1,4 +1,4 @@
-import { InjectionToken, Signal } from '@angular/core';
+import {InjectionToken, Signal} from '@angular/core';
 
 /**
  * The two numbers that decide a score's band, as the configuration states them.
@@ -13,8 +13,8 @@ import { InjectionToken, Signal } from '@angular/core';
  * seam the chart palette uses.
  */
 export interface ScoreThresholds {
-  readonly shortlistAt: number;
-  readonly reviewAt: number;
+    readonly shortlistAt: number;
+    readonly reviewAt: number;
 }
 
 export const SCORE_THRESHOLDS = new InjectionToken<Signal<ScoreThresholds>>('lg.score.thresholds');

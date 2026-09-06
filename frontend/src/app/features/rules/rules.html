@@ -1,121 +1,122 @@
 @if (store.rules(); as rules) {
-  <lg-page-header [title]="'rules.title' | transloco" [subtitle]="'rules.subtitle' | transloco">
-    <lg-badge tone="ghost" [outline]="true">{{
-      'rules.ruleset' | transloco: { version: rules.version }
-    }}</lg-badge>
-  </lg-page-header>
+    <lg-page-header [title]="'rules.title' | transloco" [subtitle]="'rules.subtitle' | transloco">
+        <lg-badge tone="ghost" [outline]="true">{{
+                'rules.ruleset' | transloco: {version: rules.version}
+            }}
+        </lg-badge>
+    </lg-page-header>
 
-  <div class="grid">
-    <section class="panel panel-wide">
-      <h2 class="type-h2">{{ 'rules.knockouts' | transloco }}</h2>
-      <p class="type-small text-muted panel-note">
-        {{ 'rules.knockoutsNote' | transloco }}
-      </p>
-      <dl class="scalars">
-        @for (rule of scalarKnockouts(); track rule.key) {
-          <div class="knockout">
-            <dt>
-              <span class="type-small">{{ rule.label }}</span>
-              <span class="type-mono-data text-muted key">{{ rule.key }}</span>
-            </dt>
-            <dd class="type-mono-data">{{ rule.value }}</dd>
-          </div>
-        }
-      </dl>
+    <div class="grid">
+        <section class="panel panel-wide">
+            <h2 class="type-h2">{{ 'rules.knockouts' | transloco }}</h2>
+            <p class="type-small text-muted panel-note">
+                {{ 'rules.knockoutsNote' | transloco }}
+            </p>
+            <dl class="scalars">
+                @for (rule of scalarKnockouts(); track rule.key) {
+                    <div class="knockout">
+                        <dt>
+                            <span class="type-small">{{ rule.label }}</span>
+                            <span class="type-mono-data text-muted key">{{ rule.key }}</span>
+                        </dt>
+                        <dd class="type-mono-data">{{ rule.value }}</dd>
+                    </div>
+                }
+            </dl>
 
-      <dl class="lists">
-        @for (rule of listKnockouts(); track rule.key) {
-          <div class="knockout">
-            <dt>
-              <span class="type-small">{{ rule.label }}</span>
-              <span class="type-mono-data text-muted key">{{ rule.key }}</span>
-              <span class="type-mono-data text-muted count">{{ rule.values.length }}</span>
-            </dt>
-            <dd class="chips">
-              @for (entry of rule.values; track entry) {
-                <lg-badge tone="ghost" [outline]="true">{{ entry }}</lg-badge>
-              }
-            </dd>
-          </div>
-        }
-      </dl>
-    </section>
+            <dl class="lists">
+                @for (rule of listKnockouts(); track rule.key) {
+                    <div class="knockout">
+                        <dt>
+                            <span class="type-small">{{ rule.label }}</span>
+                            <span class="type-mono-data text-muted key">{{ rule.key }}</span>
+                            <span class="type-mono-data text-muted count">{{ rule.values.length }}</span>
+                        </dt>
+                        <dd class="chips">
+                            @for (entry of rule.values; track entry) {
+                                <lg-badge tone="ghost" [outline]="true">{{ entry }}</lg-badge>
+                            }
+                        </dd>
+                    </div>
+                }
+            </dl>
+        </section>
 
-    <section class="panel">
-      <h2 class="type-h2">{{ 'rules.thresholds' | transloco }}</h2>
-      <ul class="thresholds">
-        <li>
-          <span class="swatch strong"></span>
-          <span class="type-mono-data">&ge; {{ rules.thresholds.autoShortlist }}</span>
-          <span class="type-small">{{ 'rules.bandStrong' | transloco }}</span>
-        </li>
-        <li>
-          <span class="swatch weak"></span>
-          <span class="type-mono-data">
+        <section class="panel">
+            <h2 class="type-h2">{{ 'rules.thresholds' | transloco }}</h2>
+            <ul class="thresholds">
+                <li>
+                    <span class="swatch strong"></span>
+                    <span class="type-mono-data">&ge; {{ rules.thresholds.autoShortlist }}</span>
+                    <span class="type-small">{{ 'rules.bandStrong' | transloco }}</span>
+                </li>
+                <li>
+                    <span class="swatch weak"></span>
+                    <span class="type-mono-data">
             {{ rules.thresholds.review }}&ndash;{{ rules.thresholds.autoShortlist - 1 }}
           </span>
-          <span class="type-small">{{ 'rules.bandReview' | transloco }}</span>
-        </li>
-        <li>
-          <span class="swatch out"></span>
-          <span class="type-mono-data">&lt; {{ rules.thresholds.review }}</span>
-          <span class="type-small">{{ 'rules.bandOut' | transloco }}</span>
-        </li>
-      </ul>
+                    <span class="type-small">{{ 'rules.bandReview' | transloco }}</span>
+                </li>
+                <li>
+                    <span class="swatch out"></span>
+                    <span class="type-mono-data">&lt; {{ rules.thresholds.review }}</span>
+                    <span class="type-small">{{ 'rules.bandOut' | transloco }}</span>
+                </li>
+            </ul>
 
-      @if (rules.archiveAfterDays !== null) {
-        <h3 class="type-h4 sub">{{ 'rules.archive' | transloco }}</h3>
-        <p class="type-small text-muted">
-          {{ 'rules.archiveAfter' | transloco: { days: rules.archiveAfterDays } }}
-        </p>
-      }
+            @if (rules.archiveAfterDays !== null) {
+                <h3 class="type-h4 sub">{{ 'rules.archive' | transloco }}</h3>
+                <p class="type-small text-muted">
+                    {{ 'rules.archiveAfter' | transloco: {days: rules.archiveAfterDays} }}
+                </p>
+            }
 
-      <h3 class="type-h4 sub">{{ 'rules.antiSkills' | transloco }}</h3>
-      <div class="anti">
-        @for (skill of rules.antiSkills; track skill) {
-          <lg-badge tone="ghost" [outline]="true">{{ skill }}</lg-badge>
-        }
-      </div>
-    </section>
+            <h3 class="type-h4 sub">{{ 'rules.antiSkills' | transloco }}</h3>
+            <div class="anti">
+                @for (skill of rules.antiSkills; track skill) {
+                    <lg-badge tone="ghost" [outline]="true">{{ skill }}</lg-badge>
+                }
+            </div>
+        </section>
 
-    <section class="panel">
-      <h2 class="type-h2">{{ 'rules.weights' | transloco }}</h2>
-      <ul class="bars">
-        @for (weight of rules.weights; track weight.key) {
-          <li class="bar-row">
-            <span class="type-mono-data name" [attr.title]="weight.key">{{ weight.key }}</span>
-            <span class="track">
+        <section class="panel">
+            <h2 class="type-h2">{{ 'rules.weights' | transloco }}</h2>
+            <ul class="bars">
+                @for (weight of rules.weights; track weight.key) {
+                    <li class="bar-row">
+                        <span class="type-mono-data name" [attr.title]="weight.key">{{ weight.key }}</span>
+                        <span class="track">
               <span class="fill" [style.width.%]="(weight.points / maxWeight()) * 100"></span>
             </span>
-            <span class="type-mono-data value">+{{ weight.points }}</span>
-          </li>
-        }
-      </ul>
+                        <span class="type-mono-data value">+{{ weight.points }}</span>
+                    </li>
+                }
+            </ul>
 
-      <h3 class="type-h4 sub">{{ 'rules.penalties' | transloco }}</h3>
-      <ul class="bars">
-        @for (penalty of rules.penalties; track penalty.key) {
-          <li class="bar-row">
-            <span class="type-mono-data name" [attr.title]="penalty.key">{{ penalty.key }}</span>
-            <span class="track">
+            <h3 class="type-h4 sub">{{ 'rules.penalties' | transloco }}</h3>
+            <ul class="bars">
+                @for (penalty of rules.penalties; track penalty.key) {
+                    <li class="bar-row">
+                        <span class="type-mono-data name" [attr.title]="penalty.key">{{ penalty.key }}</span>
+                        <span class="track">
               <span
-                class="fill penalty"
-                [style.width.%]="(-penalty.points / maxPenalty()) * 100"
+                      class="fill penalty"
+                      [style.width.%]="(-penalty.points / maxPenalty()) * 100"
               ></span>
             </span>
-            <span class="type-mono-data value">{{ penalty.points }}</span>
-          </li>
-        }
-      </ul>
-    </section>
-  </div>
+                        <span class="type-mono-data value">{{ penalty.points }}</span>
+                    </li>
+                }
+            </ul>
+        </section>
+    </div>
 
-  <p class="type-small text-muted note">
-    <lg-icon name="ban" [size]="14" />
-    {{ 'rules.readOnly' | transloco }}
-  </p>
+    <p class="type-small text-muted note">
+        <lg-icon name="ban" [size]="14"/>
+        {{ 'rules.readOnly' | transloco }}
+    </p>
 } @else if (store.error(); as error) {
-  <p class="type-small rules-error" role="alert">{{ error | transloco }}</p>
+    <p class="type-small rules-error" role="alert">{{ error | transloco }}</p>
 } @else {
-  <p class="type-small text-muted">{{ 'common.loading' | transloco }}</p>
+    <p class="type-small text-muted">{{ 'common.loading' | transloco }}</p>
 }

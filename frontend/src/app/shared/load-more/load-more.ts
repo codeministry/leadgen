@@ -1,14 +1,4 @@
-import {
-  DOCUMENT,
-  Directive,
-  ElementRef,
-  afterNextRender,
-    effect,
-  inject,
-    input,
-  output,
-    signal,
-} from '@angular/core';
+import {afterNextRender, Directive, DOCUMENT, effect, ElementRef, inject, input, output, signal,} from '@angular/core';
 
 /**
  * Fires when its element scrolls into view.
@@ -21,9 +11,9 @@ import {
  * fires immediately against a zero-sized box, which asks for page two before page one is
  * drawn. Guarded for the test environment, where there is no observer at all.
  */
-@Directive({ selector: '[lgLoadMore]' })
+@Directive({selector: '[lgLoadMore]'})
 export class LoadMore {
-  readonly reached = output<void>();
+    readonly reached = output<void>();
 
     /**
      * The box the sentinel is measured against. `null` is the window, which is right for a
@@ -41,30 +31,30 @@ export class LoadMore {
      */
     readonly root = input<HTMLElement | null>(null);
 
-  private readonly element = inject<ElementRef<HTMLElement>>(ElementRef);
+    private readonly element = inject<ElementRef<HTMLElement>>(ElementRef);
     private readonly laidOut = signal(false);
 
-  constructor() {
-    inject(DOCUMENT);
+    constructor() {
+        inject(DOCUMENT);
 
-      afterNextRender(() => this.laidOut.set(true));
+        afterNextRender(() => this.laidOut.set(true));
 
-      // An effect rather than a single read inside `afterNextRender`, so a root that arrives
-      // or changes later re-arms the observer instead of leaving it silently on the window.
-      effect((onCleanup) => {
-          if (!this.laidOut() || typeof IntersectionObserver !== 'function') {
-        return;
-      }
-          const observer = new IntersectionObserver(
-        (entries) => {
-          if (entries.some((entry) => entry.isIntersecting)) {
-            this.reached.emit();
-          }
-        },
-              {root: this.root(), rootMargin: '600px 0px', threshold: 0},
-      );
-          observer.observe(this.element.nativeElement);
-          onCleanup(() => observer.disconnect());
-    });
-  }
+        // An effect rather than a single read inside `afterNextRender`, so a root that arrives
+        // or changes later re-arms the observer instead of leaving it silently on the window.
+        effect((onCleanup) => {
+            if (!this.laidOut() || typeof IntersectionObserver !== 'function') {
+                return;
+            }
+            const observer = new IntersectionObserver(
+                (entries) => {
+                    if (entries.some((entry) => entry.isIntersecting)) {
+                        this.reached.emit();
+                    }
+                },
+                {root: this.root(), rootMargin: '600px 0px', threshold: 0},
+            );
+            observer.observe(this.element.nativeElement);
+            onCleanup(() => observer.disconnect());
+        });
+    }
 }

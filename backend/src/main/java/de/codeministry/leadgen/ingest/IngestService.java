@@ -47,7 +47,9 @@ import java.util.stream.Collectors;
 public class IngestService {
 
     private static final String HTML_BLOCKS = "html-blocks";
-    /** One document is one offer, and the frontmatter carries the eight fields. */
+    /**
+     * One document is one offer, and the frontmatter carries the eight fields.
+     */
     private static final String MARKDOWN_FRONTMATTER = "markdown-frontmatter";
 
     private final ConfigRegistry config;
@@ -96,7 +98,9 @@ public class IngestService {
         this.history = history;
     }
 
-    /** One pass with the configured default scoring model. */
+    /**
+     * One pass with the configured default scoring model.
+     */
     public IngestReport run() {
         return run(null);
     }

@@ -19,11 +19,11 @@ import java.util.List;
  * be a select box offering something the server refuses.
  *
  * @param available every configured model, the default first. Empty means no judge is
- *     configured at all, which is a legitimate state — the pipeline still runs and the
- *     shortlist stays unscored — and the select has nothing to offer, so it is not shown.
+ *                  configured at all, which is a legitimate state — the pipeline still runs and the
+ *                  shortlist stays unscored — and the select has nothing to offer, so it is not shown.
  * @param preferred the model a run uses when none is chosen. Always the first entry of
- *     {@code available} while that list is not empty, named separately so the browser does
- *     not have to know that.
+ *                  {@code available} while that list is not empty, named separately so the browser does
+ *                  not have to know that.
  */
 record ScoringModels(List<String> available, String preferred) {
 

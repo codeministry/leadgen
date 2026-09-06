@@ -33,9 +33,9 @@ public class IngestController {
 
     /**
      * @param model which judge scores this pass, or absent for the configured default. The
-     *     choice belongs to the run and not to the server: it is made in the select beside
-     *     the button, travels with the request, and nothing about it is remembered
-     *     afterwards. What it costs is in {@code ScoringService.run}.
+     *              choice belongs to the run and not to the server: it is made in the select beside
+     *              the button, travels with the request, and nothing about it is remembered
+     *              afterwards. What it costs is in {@code ScoringService.run}.
      */
     @PostMapping("/ingest")
     IngestReport run(@RequestParam(required = false) String model) {

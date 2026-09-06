@@ -1,28 +1,28 @@
 <nav
-  class="rail"
-  [class.rail-open]="shell.railOpen()"
-  [attr.aria-label]="'nav.sections' | transloco"
+        class="rail"
+        [class.rail-open]="shell.railOpen()"
+        [attr.aria-label]="'nav.sections' | transloco"
 >
-  <ul>
-    @for (item of items; track item.path) {
-      @if (item.opensGroup) {
-        <!-- A separator rather than a heading: the rail collapses to icons, and there a
-             heading has nothing to show. `role="separator"` so it is a break in the list
-             for a screen reader too, rather than a stray empty item. -->
-        <li class="group-break" role="separator"></li>
-      }
-      <li>
-        <a
-          [routerLink]="item.path"
-          routerLinkActive="is-active"
-          [attr.title]="shell.railOpen() ? null : (item.label | transloco)"
-        >
-          <lg-icon [name]="item.icon" [size]="20" />
-          <!-- The label stays in the DOM when the rail is collapsed and is hidden
-               visually, so the link keeps its accessible name either way. -->
-          <span class="type-small nav-label">{{ item.label | transloco }}</span>
-        </a>
-      </li>
-    }
-  </ul>
+    <ul>
+        @for (item of items; track item.path) {
+            @if (item.opensGroup) {
+                <!-- A separator rather than a heading: the rail collapses to icons, and there a
+                     heading has nothing to show. `role="separator"` so it is a break in the list
+                     for a screen reader too, rather than a stray empty item. -->
+                <li class="group-break" role="separator"></li>
+            }
+            <li>
+                <a
+                        [routerLink]="item.path"
+                        routerLinkActive="is-active"
+                        [attr.title]="shell.railOpen() ? null : (item.label | transloco)"
+                >
+                    <lg-icon [name]="item.icon" [size]="20"/>
+                    <!-- The label stays in the DOM when the rail is collapsed and is hidden
+                         visually, so the link keeps its accessible name either way. -->
+                    <span class="type-small nav-label">{{ item.label | transloco }}</span>
+                </a>
+            </li>
+        }
+    </ul>
 </nav>

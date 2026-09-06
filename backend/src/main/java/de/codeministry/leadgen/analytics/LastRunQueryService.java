@@ -48,15 +48,15 @@ public class LastRunQueryService {
      */
     private static final String LAST_RUN =
             """
-            SELECT id, started_at, finished_at, status, score_model,
-                   extracted, written, merged,
-                   filter_considered, filter_passed,
-                   scored, shortlisted, review, packaged, digest_written
-            FROM pipeline_run
-                    WHERE finished_at IS NOT NULL
-            ORDER BY started_at DESC, id DESC
-            LIMIT 1
-            """;
+                    SELECT id, started_at, finished_at, status, score_model,
+                           extracted, written, merged,
+                           filter_considered, filter_passed,
+                           scored, shortlisted, review, packaged, digest_written
+                    FROM pipeline_run
+                            WHERE finished_at IS NOT NULL
+                    ORDER BY started_at DESC, id DESC
+                    LIMIT 1
+                    """;
 
     private static final String STAGES =
             "SELECT stage, removed FROM pipeline_run_stage WHERE run_id = :id ORDER BY stage";
@@ -82,15 +82,15 @@ public class LastRunQueryService {
      */
     private static final String SOURCES =
             """
-            SELECT s.name AS source_id, r.documents, r.extracted, r.written, r.announced
-            FROM source_run r
-            JOIN source s ON s.id = r.source_id
-            WHERE r.ran_at >= :startedAt
-                      AND r.ran_at < COALESCE(
-                            (SELECT min(started_at) FROM pipeline_run WHERE started_at > :startedAt),
-                            'infinity'::timestamptz)
-            ORDER BY s.name
-            """;
+                    SELECT s.name AS source_id, r.documents, r.extracted, r.written, r.announced
+                    FROM source_run r
+                    JOIN source s ON s.id = r.source_id
+                    WHERE r.ran_at >= :startedAt
+                              AND r.ran_at < COALESCE(
+                                    (SELECT min(started_at) FROM pipeline_run WHERE started_at > :startedAt),
+                                    'infinity'::timestamptz)
+                    ORDER BY s.name
+                    """;
 
     private final JdbcClient jdbc;
 
@@ -98,7 +98,9 @@ public class LastRunQueryService {
         this.jdbc = JdbcClient.create(dataSource);
     }
 
-    /** Empty when nothing has ever run, which is a state and not an error. */
+    /**
+     * Empty when nothing has ever run, which is a state and not an error.
+     */
     public Optional<LastRunView> lastRun() {
         // The row is read out whole before the two follow-up queries run. Issuing them from
         // inside the row mapper would hold this ResultSet open while borrowing a second
@@ -145,7 +147,9 @@ public class LastRunQueryService {
                 sourcesSince(run.startedAt())));
     }
 
-    /** The row as it stands in the table, so the ResultSet can be closed before the rest. */
+    /**
+     * The row as it stands in the table, so the ResultSet can be closed before the rest.
+     */
     private record Row(
             long id,
             Timestamp startedAt,
@@ -161,9 +165,12 @@ public class LastRunQueryService {
             int shortlisted,
             int review,
             int packaged,
-            boolean digestWritten) {}
+            boolean digestWritten) {
+    }
 
-    /** Insertion-ordered, so the stages arrive in the order the SQL sorted them. */
+    /**
+     * Insertion-ordered, so the stages arrive in the order the SQL sorted them.
+     */
     private Map<String, Integer> stagesOf(long runId) {
         Map<String, Integer> removed = new LinkedHashMap<>();
         for (Map.Entry<String, Integer> stage : jdbc.sql(STAGES)

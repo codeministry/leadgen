@@ -13,10 +13,11 @@ import de.codeministry.leadgen.config.RulesView;
 import de.codeministry.leadgen.config.SourceQueryService;
 import de.codeministry.leadgen.config.SourceSummary;
 import de.codeministry.leadgen.score.Judges;
-import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 /**
  * The configuration as the screens read it. Read-only, and deliberately so: the four YAML

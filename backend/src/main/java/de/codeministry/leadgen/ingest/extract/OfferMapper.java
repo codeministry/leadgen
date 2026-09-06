@@ -10,13 +10,14 @@ package de.codeministry.leadgen.ingest.extract;
 
 import de.codeministry.leadgen.config.model.SourcesConfig.Extraction;
 import de.codeministry.leadgen.ingest.ExtractedOffer;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
+
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
 
 /**
  * Turns one block's raw field values into an offer.
@@ -41,8 +42,8 @@ public class OfferMapper {
 
     /**
      * @param receivedAt when the document arrived, which is a property of the document and
-     *     not of the block — every offer in one mail shares it. Passed in rather than read
-     *     out of the block for that reason, and null when the source is not a mail.
+     *                   not of the block — every offer in one mail shares it. Passed in rather than read
+     *                   out of the block for that reason, and null when the source is not a mail.
      */
     public ExtractedOffer map(Map<String, Object> block, Extraction extraction, java.time.Instant receivedAt) {
         String title = string(block, TITLE);
@@ -101,7 +102,9 @@ public class OfferMapper {
         return value instanceof List<?> list ? (List<String>) list : List.of();
     }
 
-    /** The field's own `format` wins; the source's `date_format` is the fallback. */
+    /**
+     * The field's own `format` wins; the source's `date_format` is the fallback.
+     */
     private static String patternFor(Extraction extraction) {
         var field = extraction.fields() == null ? null : extraction.fields().get(PUBLISHED);
         return field != null && field.format() != null ? field.format() : extraction.dateFormat();

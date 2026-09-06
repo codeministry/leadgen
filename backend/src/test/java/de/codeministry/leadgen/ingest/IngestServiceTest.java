@@ -8,13 +8,7 @@
  */
 package de.codeministry.leadgen.ingest;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 import de.codeministry.leadgen.config.ConfigFixtures;
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -26,7 +20,16 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-/** The wired pass: config, connector, extraction and the write into Postgres. */
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+/**
+ * The wired pass: config, connector, extraction and the write into Postgres.
+ */
 @SpringBootTest
 @Testcontainers
 class IngestServiceTest {
@@ -37,16 +40,16 @@ class IngestServiceTest {
 
     private static final String MANUAL_OFFER =
             """
-            ---
-            title: Senior Java Entwickler, gefunden auf LinkedIn
-            url: https://portal.example/p/98765
-            location: Köln
-            agency: Beispiel GmbH
-            published: 2026-09-01
-            tags: [Java, Spring Boot]
-            ---
-            Ablösung eines Monolithen.
-            """;
+                    ---
+                    title: Senior Java Entwickler, gefunden auf LinkedIn
+                    url: https://portal.example/p/98765
+                    location: Köln
+                    agency: Beispiel GmbH
+                    published: 2026-09-01
+                    tags: [Java, Spring Boot]
+                    ---
+                    Ablösung eines Monolithen.
+                    """;
 
     @Autowired
     private IngestService ingest;
@@ -91,8 +94,8 @@ class IngestServiceTest {
                     assertThat(source.written()).isEqualTo(1);
                 });
         assertThat(jdbc.queryForObject(
-                        "SELECT title FROM offer o JOIN source s ON s.id = o.source_id WHERE s.name = 'manual-inbox'",
-                        String.class))
+                "SELECT title FROM offer o JOIN source s ON s.id = o.source_id WHERE s.name = 'manual-inbox'",
+                String.class))
                 .isEqualTo("Senior Java Entwickler, gefunden auf LinkedIn");
     }
 
@@ -117,14 +120,18 @@ class IngestServiceTest {
         assertThat(tags).containsExactly("Kubernetes");
     }
 
-    /** Scoped to one source: `manual-inbox` ships enabled and contributes a row of its own. */
+    /**
+     * Scoped to one source: `manual-inbox` ships enabled and contributes a row of its own.
+     */
     private int rows() {
         return jdbc.queryForObject(
                 "SELECT count(*) FROM offer o JOIN source s ON s.id = o.source_id WHERE s.name = 'local-eml'",
                 Integer.class);
     }
 
-    /** The shipped example with `local-eml` enabled and pointed at the test fixture. */
+    /**
+     * The shipped example with `local-eml` enabled and pointed at the test fixture.
+     */
     private static Path enabledLocalEmlConfig() {
         try {
             Path dir = Files.createTempDirectory("leadgen-ingest");

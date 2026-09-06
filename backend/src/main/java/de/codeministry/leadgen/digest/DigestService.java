@@ -11,6 +11,11 @@ package de.codeministry.leadgen.digest;
 import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.config.model.MatchingRules;
 import de.codeministry.leadgen.config.model.PipelineConfig;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.stereotype.Service;
+
+import javax.sql.DataSource;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.math.BigDecimal;
@@ -19,10 +24,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.List;
-import javax.sql.DataSource;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.stereotype.Service;
 
 /**
  * The morning's one page, rendered to a file.
@@ -43,13 +44,13 @@ public class DigestService {
 
     private static final String OFFERS =
             """
-            SELECT o.id, o.title, o.location, o.portal, o.agency, o.url, o.rate_eur,
-                   o.duration, o.score_value, o.score_band, o.enrichment_note
-            FROM offer o
-            WHERE o.status = 'PASSED' AND o.duplicate_of_id IS NULL AND o.archived_at IS NULL
-              AND o.score_band = ?
-            ORDER BY o.score_value DESC NULLS LAST, o.id
-            """;
+                    SELECT o.id, o.title, o.location, o.portal, o.agency, o.url, o.rate_eur,
+                           o.duration, o.score_value, o.score_band, o.enrichment_note
+                    FROM offer o
+                    WHERE o.status = 'PASSED' AND o.duplicate_of_id IS NULL AND o.archived_at IS NULL
+                      AND o.score_band = ?
+                    ORDER BY o.score_value DESC NULLS LAST, o.id
+                    """;
 
     private static final String REASONS =
             "SELECT label, points FROM offer_score_reason WHERE offer_id = ? ORDER BY position";
@@ -62,7 +63,9 @@ public class DigestService {
         this.jdbc = JdbcClient.create(dataSource);
     }
 
-    /** @return the file written, or empty when the digest is switched off. */
+    /**
+     * @return the file written, or empty when the digest is switched off.
+     */
     public java.util.Optional<Path> render(LocalDate day) {
         PipelineConfig.Digest settings = config.snapshot().application().digest();
         if (settings == null || !settings.enabled()) {
@@ -243,12 +246,13 @@ public class DigestService {
         return value == null
                 ? ""
                 : value.replace("&", "&amp;")
-                        .replace("<", "&lt;")
-                        .replace(">", "&gt;")
-                        .replace("\"", "&quot;");
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+                .replace("\"", "&quot;");
     }
 
-    private record Section(String title, String note, List<Offer> offers) {}
+    private record Section(String title, String note, List<Offer> offers) {
+    }
 
     private record Offer(
             long id,
@@ -260,7 +264,9 @@ public class DigestService {
             BigDecimal rate,
             String duration,
             Integer score,
-            boolean incomplete) {}
+            boolean incomplete) {
+    }
 
-    private record Reason(String label, int points) {}
+    private record Reason(String label, int points) {
+    }
 }

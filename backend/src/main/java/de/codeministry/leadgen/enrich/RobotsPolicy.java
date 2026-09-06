@@ -8,6 +8,8 @@
  */
 package de.codeministry.leadgen.enrich;
 
+import lombok.extern.slf4j.Slf4j;
+
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
@@ -15,7 +17,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
-import lombok.extern.slf4j.Slf4j;
 
 /**
  * Whether a path may be fetched, per host, from that host's {@code /robots.txt}.
@@ -52,7 +53,7 @@ public final class RobotsPolicy {
         for (Rule rule : rules) {
             if (path.startsWith(rule.prefix())
                     && (longest == null
-                            || rule.prefix().length() > longest.prefix().length())) {
+                    || rule.prefix().length() > longest.prefix().length())) {
                 longest = rule;
             }
         }
@@ -121,5 +122,6 @@ public final class RobotsPolicy {
         return forAgent.isEmpty() ? forEveryone : forAgent;
     }
 
-    record Rule(String prefix, boolean allowed) {}
+    record Rule(String prefix, boolean allowed) {
+    }
 }

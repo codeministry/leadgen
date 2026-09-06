@@ -8,11 +8,13 @@
  */
 package de.codeministry.leadgen.filter;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 import de.codeministry.leadgen.config.ConfigFixtures;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
@@ -20,9 +22,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.List;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * The stages, against a fictional rule set. The corpus numbers live in
@@ -54,7 +55,7 @@ class HardFilterTest {
     @Test
     void acceptsAnOfferThatClearsEveryStage() {
         assertThat(judge(offer("Barista (m/w/d)", "Espresso und Handaufguss", "Musterstadt"))
-                        .passed())
+                .passed())
                 .isTrue();
     }
 
@@ -90,7 +91,7 @@ class HardFilterTest {
         assertThat(judge(offer("C# Entwickler", "Espresso", "Musterstadt")).stage())
                 .isEqualTo(FilterStage.ROLE_OR_STACK);
         assertThat(judge(offer("Barista Netzwerkpflege", "Espresso", "Musterstadt"))
-                        .passed())
+                .passed())
                 .isTrue();
     }
 
@@ -104,10 +105,10 @@ class HardFilterTest {
     @Test
     void rejectsAStatedRemoteShareBelowTheMinimum() {
         assertThat(judge(offer("Barista", "Espresso, 40 % remote", "Musterstadt"))
-                        .stage())
+                .stage())
                 .isEqualTo(FilterStage.REMOTE_SHARE);
         assertThat(judge(offer("Barista", "Espresso, 80 % remote", "Musterstadt"))
-                        .passed())
+                .passed())
                 .isTrue();
     }
 
@@ -116,14 +117,14 @@ class HardFilterTest {
         // ISC-43. `accept_unknown` is true because the sources state a share in 8.8 % of
         // offers; rejecting the silent ones would throw away nine in ten.
         assertThat(judge(offer("Barista", "Espresso, nichts über Remote", "Beispielheim"))
-                        .passed())
+                .passed())
                 .isTrue();
     }
 
     @Test
     void keepsARemoteOfferWhoseLocationIsNowhereNear() {
         assertThat(judge(offer("Barista", "Espresso, homeoffice möglich", "Irgendwo"))
-                        .passed())
+                .passed())
                 .isTrue();
     }
 
@@ -137,7 +138,7 @@ class HardFilterTest {
     @Test
     void rejectsAnOfferNamingNoCoreSkill() {
         assertThat(judge(offer("Hufschmied", "Beschlagen von Pferden", "Musterstadt"))
-                        .stage())
+                .stage())
                 .isEqualTo(FilterStage.NO_CORE_SKILL);
     }
 
@@ -146,7 +147,7 @@ class HardFilterTest {
         // Eight bare skill names would answer "no" to an ad asking for Springboot or k8s.
         // Over the corpus the aliases are worth twelve offers.
         assertThat(judge(offer("Fachkraft", "Espresso-Zubereitung erwünscht", "Musterstadt"))
-                        .passed())
+                .passed())
                 .isTrue();
     }
 
@@ -196,7 +197,9 @@ class HardFilterTest {
         }
     }
 
-    /** The two files this test does not care about, taken from the shipped defaults. */
+    /**
+     * The two files this test does not care about, taken from the shipped defaults.
+     */
     private static void copyDefault(String name) {
         try (var in = HardFilterTest.class.getResourceAsStream("/leadgen/" + name)) {
             Files.writeString(

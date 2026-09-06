@@ -1,9 +1,9 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
-import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
-import { CHART_PALETTE } from '@shared/shared.ports';
-import { ChartOption } from '@shared/chart/echarts';
-import { ChartSurface } from '@shared/chart/chart-surface';
-import { Granularity, IntakeBucket, bucketLabel } from '../analytics-aggregate';
+import {ChangeDetectionStrategy, Component, computed, inject, input} from '@angular/core';
+import {TranslocoPipe, TranslocoService} from '@jsverse/transloco';
+import {CHART_PALETTE} from '@shared/shared.ports';
+import {ChartOption} from '@shared/chart/echarts';
+import {ChartSurface} from '@shared/chart/chart-surface';
+import {bucketLabel, Granularity, IntakeBucket} from '../analytics-aggregate';
 
 /**
  * Offers over time — the number this screen exists for.
@@ -17,71 +17,71 @@ import { Granularity, IntakeBucket, bucketLabel } from '../analytics-aggregate';
  * day's offers. The caption says so, because nothing in the numbers can.
  */
 @Component({
-  selector: 'lg-intake-panel',
-  imports: [ChartSurface, TranslocoPipe],
-  templateUrl: './intake-panel.html',
-  styleUrl: './intake-panel.css',
-  changeDetection: ChangeDetectionStrategy.OnPush,
+    selector: 'lg-intake-panel',
+    imports: [ChartSurface, TranslocoPipe],
+    templateUrl: './intake-panel.html',
+    styleUrl: './intake-panel.css',
+    changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class IntakePanel {
-  readonly buckets = input.required<readonly IntakeBucket[]>();
-  readonly granularity = input.required<Granularity>();
+    readonly buckets = input.required<readonly IntakeBucket[]>();
+    readonly granularity = input.required<Granularity>();
 
-  /** The bucket's own span. A week labelled with its Monday alone reads as a single day. */
-  protected readonly rows = computed(() =>
-    this.buckets().map((bucket) => ({
-      ...bucket,
-      label: bucketLabel(bucket.day, this.granularity()),
-    })),
-  );
+    /** The bucket's own span. A week labelled with its Monday alone reads as a single day. */
+    protected readonly rows = computed(() =>
+        this.buckets().map((bucket) => ({
+            ...bucket,
+            label: bucketLabel(bucket.day, this.granularity()),
+        })),
+    );
 
-  private readonly palette = inject(CHART_PALETTE);
-  private readonly transloco = inject(TranslocoService);
+    private readonly palette = inject(CHART_PALETTE);
+    private readonly transloco = inject(TranslocoService);
 
-  protected readonly option = computed<ChartOption>(() => {
-    const buckets = this.buckets();
-    const colours = this.palette();
+    protected readonly option = computed<ChartOption>(() => {
+        const buckets = this.buckets();
+        const colours = this.palette();
 
-    return {
-      // No title and no legend inside the chart: both are text the page already carries in
-      // the catalog, and a string rendered by the library bypasses Transloco entirely.
-      grid: { top: 16, right: 12, bottom: 28, left: 48, containLabel: true },
-      tooltip: { trigger: 'axis' },
-      xAxis: {
-        type: 'category',
-        data: buckets.map((bucket) => bucket.day),
-        axisLine: { lineStyle: { color: colours.track } },
-        axisLabel: { color: colours.label },
-      },
-      yAxis: {
-        type: 'value',
-        splitLine: { lineStyle: { color: colours.track } },
-        axisLabel: { color: colours.label },
-      },
-      series: [
-        {
-          type: 'bar',
-          stack: 'intake',
-          name: this.transloco.translate('analytics.rejected'),
-          data: buckets.map((bucket) => bucket.primaries - bucket.passed),
-          itemStyle: { color: colours.track },
-        },
-        {
-          type: 'bar',
-          stack: 'intake',
-          name: this.transloco.translate('analytics.passed'),
-          data: buckets.map((bucket) => bucket.passed),
-          itemStyle: { color: colours.primary },
-        },
-      ],
-    };
-  });
+        return {
+            // No title and no legend inside the chart: both are text the page already carries in
+            // the catalog, and a string rendered by the library bypasses Transloco entirely.
+            grid: {top: 16, right: 12, bottom: 28, left: 48, containLabel: true},
+            tooltip: {trigger: 'axis'},
+            xAxis: {
+                type: 'category',
+                data: buckets.map((bucket) => bucket.day),
+                axisLine: {lineStyle: {color: colours.track}},
+                axisLabel: {color: colours.label},
+            },
+            yAxis: {
+                type: 'value',
+                splitLine: {lineStyle: {color: colours.track}},
+                axisLabel: {color: colours.label},
+            },
+            series: [
+                {
+                    type: 'bar',
+                    stack: 'intake',
+                    name: this.transloco.translate('analytics.rejected'),
+                    data: buckets.map((bucket) => bucket.primaries - bucket.passed),
+                    itemStyle: {color: colours.track},
+                },
+                {
+                    type: 'bar',
+                    stack: 'intake',
+                    name: this.transloco.translate('analytics.passed'),
+                    data: buckets.map((bucket) => bucket.passed),
+                    itemStyle: {color: colours.primary},
+                },
+            ],
+        };
+    });
 
-  protected readonly total = computed(() =>
-    this.buckets().reduce((sum, bucket) => sum + bucket.primaries, 0),
-  );
+    protected readonly total = computed(() =>
+        this.buckets().reduce((sum, bucket) => sum + bucket.primaries, 0),
+    );
 
-  protected readonly passed = computed(() =>
-    this.buckets().reduce((sum, bucket) => sum + bucket.passed, 0),
-  );
+    protected readonly passed = computed(() =>
+        this.buckets().reduce((sum, bucket) => sum + bucket.passed, 0),
+    );
 }

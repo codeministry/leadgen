@@ -12,16 +12,6 @@ import de.codeministry.leadgen.config.ConfigLoader;
 import de.codeministry.leadgen.config.ConfigProperties;
 import de.codeministry.leadgen.config.DotEnv;
 import de.codeministry.leadgen.config.Secrets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.TreeSet;
-import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -30,6 +20,11 @@ import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.env.EnumerablePropertySource;
 import org.springframework.core.env.PropertySource;
 import org.springframework.stereotype.Component;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.*;
+import java.util.regex.Pattern;
 
 /**
  * Prints the configuration the process actually came up with, once, as one box.
@@ -75,10 +70,14 @@ public class ConfigurationBanner {
     private static final Pattern NOT_APP_RELEVANT =
             Pattern.compile("^spring\\.application\\.name$|^spring\\.flyway\\.locations$|^management\\.");
 
-    /** `${VAR}` and `${VAR:default}`, the same shape the tool's own resolver reads. */
+    /**
+     * `${VAR}` and `${VAR:default}`, the same shape the tool's own resolver reads.
+     */
     private static final Pattern PLACEHOLDER = Pattern.compile("\\$\\{([A-Za-z_][A-Za-z0-9_]*)(?::([^}]*))?}");
 
-    /** Where a value won. The label is what the row carries, so it stays short. */
+    /**
+     * Where a value won. The label is what the row carries, so it stays short.
+     */
     private enum Origin {
         YAML("yaml"),
         DOTENV(".env"),
@@ -92,7 +91,8 @@ public class ConfigurationBanner {
         }
     }
 
-    private record Entry(String key, String value, Origin origin) {}
+    private record Entry(String key, String value, Origin origin) {
+    }
 
     /**
      * A heading with the keys that belong under it. <b>First match wins</b>, so the order is
@@ -222,7 +222,9 @@ public class ConfigurationBanner {
         return "";
     }
 
-    /** Every {@code ${VAR:default}} in a raw value, as variable to default (null if none). */
+    /**
+     * Every {@code ${VAR:default}} in a raw value, as variable to default (null if none).
+     */
     private static Map<String, String> placeholders(String raw) {
         Map<String, String> found = new java.util.LinkedHashMap<>();
         var matcher = PLACEHOLDER.matcher(raw);

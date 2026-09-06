@@ -11,12 +11,13 @@ package de.codeministry.leadgen.packaging;
 import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.config.Directories;
 import de.codeministry.leadgen.config.model.PipelineConfig;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.stereotype.Service;
+
+import javax.sql.DataSource;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
-import javax.sql.DataSource;
-import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.stereotype.Service;
 
 /**
  * Reads a finished package folder back out, as one file.

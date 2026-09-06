@@ -8,17 +8,9 @@
  */
 package de.codeministry.leadgen.packaging;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import de.codeministry.leadgen.config.ConfigFixtures;
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,6 +22,15 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.stream.Stream;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * ISC-51: an offer above the threshold produces a folder with the cover letter, the CV
@@ -216,12 +217,12 @@ class PackagingServiceTest {
     private long shortlisted(String title, String description) {
         return jdbc.queryForObject(
                 """
-                INSERT INTO offer (source_id, external_id, title, description, url, fingerprint, status,
-                                   score_value, score_band, location, portal, agency, published_on)
-                VALUES (?, ?, ?, ?, 'https://example.invalid/projekt/1', 'fp', 'PASSED', 88, 'SHORTLISTED',
-                        'Köln', 'portal-a', 'Acme Consulting GmbH', DATE '2026-08-31')
-                RETURNING id
-                """,
+                        INSERT INTO offer (source_id, external_id, title, description, url, fingerprint, status,
+                                           score_value, score_band, location, portal, agency, published_on)
+                        VALUES (?, ?, ?, ?, 'https://example.invalid/projekt/1', 'fp', 'PASSED', 88, 'SHORTLISTED',
+                                'Köln', 'portal-a', 'Acme Consulting GmbH', DATE '2026-08-31')
+                        RETURNING id
+                        """,
                 Long.class,
                 sourceId,
                 "ext-" + System.nanoTime(),

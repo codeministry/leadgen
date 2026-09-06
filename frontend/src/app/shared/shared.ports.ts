@@ -7,5 +7,5 @@
  * one place where a dependency pointing the wrong way is turned into one pointing the
  * right way.
  */
-export { CHART_PALETTE, type ChartPalette } from './chart/chart-palette';
-export { SCORE_THRESHOLDS, type ScoreThresholds } from './score/score-thresholds';
+export {CHART_PALETTE, type ChartPalette} from './chart/chart-palette';
+export {SCORE_THRESHOLDS, type ScoreThresholds} from './score/score-thresholds';

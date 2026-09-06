@@ -11,18 +11,15 @@ package de.codeministry.leadgen.offer;
 import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.config.model.MatchingRules;
 import de.codeministry.leadgen.score.ScoreReason;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.stereotype.Service;
+
+import javax.sql.DataSource;
 import java.math.BigDecimal;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import javax.sql.DataSource;
-import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.stereotype.Service;
+import java.util.*;
 
 /**
  * The read side of the pipeline: what survived, why, and under how many portals.
@@ -45,13 +42,13 @@ public class OfferQueryService {
      */
     private static final String SHORTLIST =
             """
-            SELECT o.*
-            FROM offer o
-            WHERE o.status = 'PASSED' AND o.duplicate_of_id IS NULL
-            %s
-            ORDER BY coalesce(o.score_value, -1) DESC, o.ingested_at DESC, o.id DESC
-            LIMIT :limit
-            """;
+                    SELECT o.*
+                    FROM offer o
+                    WHERE o.status = 'PASSED' AND o.duplicate_of_id IS NULL
+                    %s
+                    ORDER BY coalesce(o.score_value, -1) DESC, o.ingested_at DESC, o.id DESC
+                    LIMIT :limit
+                    """;
 
     /**
      * The same predicate without the page, so the counts describe what the filters matched
@@ -64,12 +61,12 @@ public class OfferQueryService {
      */
     private static final String MATCHED =
             """
-            SELECT count(*) AS matched,
-                   count(*) FILTER (WHERE o.score_value IS NULL) AS unscored
-            FROM offer o
-            WHERE o.status = 'PASSED' AND o.duplicate_of_id IS NULL
-            %s
-            """;
+                    SELECT count(*) AS matched,
+                           count(*) FILTER (WHERE o.score_value IS NULL) AS unscored
+                    FROM offer o
+                    WHERE o.status = 'PASSED' AND o.duplicate_of_id IS NULL
+                    %s
+                    """;
 
     /**
      * What the match was narrowed from — the working list, or the archive when that is what
@@ -78,10 +75,10 @@ public class OfferQueryService {
      */
     private static final String TOTAL =
             """
-            SELECT count(*) FROM offer o
-            WHERE o.status = 'PASSED' AND o.duplicate_of_id IS NULL
-            %s
-            """;
+                    SELECT count(*) FROM offer o
+                    WHERE o.status = 'PASSED' AND o.duplicate_of_id IS NULL
+                    %s
+                    """;
 
     /**
      * Every portal the shortlist knows, including the ones only a duplicate was seen on —
@@ -90,13 +87,13 @@ public class OfferQueryService {
      */
     private static final String PORTALS =
             """
-            SELECT DISTINCT p.portal
-            FROM offer o
-            JOIN offer p ON p.id = o.id OR p.duplicate_of_id = o.id
-            WHERE o.status = 'PASSED' AND o.duplicate_of_id IS NULL AND p.portal IS NOT NULL
-            %s
-            ORDER BY 1
-            """;
+                    SELECT DISTINCT p.portal
+                    FROM offer o
+                    JOIN offer p ON p.id = o.id OR p.duplicate_of_id = o.id
+                    WHERE o.status = 'PASSED' AND o.duplicate_of_id IS NULL AND p.portal IS NOT NULL
+                    %s
+                    ORDER BY 1
+                    """;
 
     private final JdbcClient jdbc;
     private final ConfigRegistry config;
@@ -124,7 +121,7 @@ public class OfferQueryService {
                 .query(OfferQueryService::row)
                 .list();
         var counts = bind(jdbc.sql(MATCHED.formatted(filters.sql())), filters)
-                .query((rs, n) -> new int[] {rs.getInt("matched"), rs.getInt("unscored")})
+                .query((rs, n) -> new int[]{rs.getInt("matched"), rs.getInt("unscored")})
                 .single();
         // The archive clause alone, and none of the filters: these two describe the set the
         // filters are being applied to, not the match.
@@ -160,7 +157,9 @@ public class OfferQueryService {
                 .formatted(last.scoreValue() == null ? -1 : last.scoreValue(), micros(last.ingestedAt()), last.id());
     }
 
-    /** Lossless for anything Postgres can store; `toEpochMilli` is not. */
+    /**
+     * Lossless for anything Postgres can store; `toEpochMilli` is not.
+     */
     private static long micros(java.time.Instant instant) {
         return instant.getEpochSecond() * 1_000_000L + instant.getNano() / 1_000L;
     }
@@ -186,11 +185,12 @@ public class OfferQueryService {
      * The filter clause and the values it needs, kept together so neither can be forgotten.
      *
      * @param archive which side of the archive is being read, on its own. Two queries need
-     *     that clause without the filters, and assembling it twice is how the two disagree.
-     * @param sql the archive clause and every filter, which is what the page and the match
-     *     count are read with.
+     *                that clause without the filters, and assembling it twice is how the two disagree.
+     * @param sql     the archive clause and every filter, which is what the page and the match
+     *                count are read with.
      */
-    private record Filters(String archive, String sql, Map<String, Object> params) {}
+    private record Filters(String archive, String sql, Map<String, Object> params) {
+    }
 
     private static JdbcClient.StatementSpec bind(JdbcClient.StatementSpec statement, Filters filters) {
         var bound = statement;
@@ -219,9 +219,9 @@ public class OfferQueryService {
         if (query.q() != null && !query.q().isBlank()) {
             sql.append(
                     """
-                    AND (o.title ILIKE :q OR o.description ILIKE :q
-                         OR EXISTS (SELECT 1 FROM unnest(o.tags) AS tag WHERE tag ILIKE :q))
-                    """);
+                            AND (o.title ILIKE :q OR o.description ILIKE :q
+                                 OR EXISTS (SELECT 1 FROM unnest(o.tags) AS tag WHERE tag ILIKE :q))
+                            """);
             params.put("q", "%" + query.q().trim() + "%");
         }
         if ("shortlist".equals(query.band())) {
@@ -235,9 +235,9 @@ public class OfferQueryService {
         if (query.portal() != null && !query.portal().isBlank()) {
             sql.append(
                     """
-                    AND EXISTS (SELECT 1 FROM offer p
-                                WHERE (p.id = o.id OR p.duplicate_of_id = o.id) AND p.portal = :portal)
-                    """);
+                            AND EXISTS (SELECT 1 FROM offer p
+                                        WHERE (p.id = o.id OR p.duplicate_of_id = o.id) AND p.portal = :portal)
+                            """);
             params.put("portal", query.portal());
         }
         if (query.cursor() != null && !query.cursor().isBlank()) {
@@ -272,11 +272,11 @@ public class OfferQueryService {
         // of the table.
         jdbc.sql(
                         """
-                        SELECT filter_stage, count(*) AS removed FROM offer
-                        WHERE filter_stage IS NOT NULL AND duplicate_of_id IS NULL
-                          AND archived_at IS NULL
-                        GROUP BY 1
-                        """)
+                                SELECT filter_stage, count(*) AS removed FROM offer
+                                WHERE filter_stage IS NOT NULL AND duplicate_of_id IS NULL
+                                  AND archived_at IS NULL
+                                GROUP BY 1
+                                """)
                 .query((rs, index) -> removed.put(rs.getString("filter_stage"), rs.getInt("removed")))
                 .list();
 
@@ -335,9 +335,9 @@ public class OfferQueryService {
         Map<Long, List<ScoreReason>> byOffer = new LinkedHashMap<>();
         jdbc.sql(
                         """
-                                SELECT offer_id, factor, label, points, max_points FROM offer_score_reason
-                        WHERE offer_id = ANY (?) ORDER BY offer_id, position
-                        """)
+                                        SELECT offer_id, factor, label, points, max_points FROM offer_score_reason
+                                WHERE offer_id = ANY (?) ORDER BY offer_id, position
+                                """)
                 .param(ids.toArray(Long[]::new))
                 .query((rs, index) -> {
                     byOffer.computeIfAbsent(rs.getLong("offer_id"), key -> new ArrayList<>())
@@ -354,14 +354,16 @@ public class OfferQueryService {
         return byOffer;
     }
 
-    /** The other portals advertising the same project, keyed by the primary they point at. */
+    /**
+     * The other portals advertising the same project, keyed by the primary they point at.
+     */
     private Map<Long, List<OfferSourceRef>> clustersFor(List<Long> ids) {
         Map<Long, List<OfferSourceRef>> byPrimary = new LinkedHashMap<>();
         jdbc.sql(
                         """
-                        SELECT duplicate_of_id, portal, agency, url FROM offer
-                        WHERE duplicate_of_id = ANY (?) ORDER BY duplicate_of_id, id
-                        """)
+                                SELECT duplicate_of_id, portal, agency, url FROM offer
+                                WHERE duplicate_of_id = ANY (?) ORDER BY duplicate_of_id, id
+                                """)
                 .param(ids.toArray(Long[]::new))
                 .query((rs, index) -> {
                     byPrimary
@@ -374,7 +376,9 @@ public class OfferQueryService {
         return byPrimary;
     }
 
-    /** The row plus the few columns the entry needs but the view does not carry. */
+    /**
+     * The row plus the few columns the entry needs but the view does not carry.
+     */
     private record Row(
             long id,
             OfferView offer,
@@ -389,7 +393,8 @@ public class OfferQueryService {
             java.time.Instant enrichedAt,
             String enrichmentNote,
             /** Carried only so the cursor can name the row it stopped at. */
-            java.time.Instant ingestedAt) {}
+            java.time.Instant ingestedAt) {
+    }
 
     private static Row row(ResultSet rs, int index) throws SQLException {
         long id = rs.getLong("id");
@@ -437,7 +442,9 @@ public class OfferQueryService {
         return array == null ? List.of() : List.of((String[]) array.getArray());
     }
 
-    /** `timestamptz` does not convert straight to an `Instant`; the driver throws instead. */
+    /**
+     * `timestamptz` does not convert straight to an `Instant`; the driver throws instead.
+     */
     private static java.time.Instant instant(ResultSet rs) throws SQLException {
         var value = rs.getTimestamp("enriched_at");
         return value == null ? null : value.toInstant();

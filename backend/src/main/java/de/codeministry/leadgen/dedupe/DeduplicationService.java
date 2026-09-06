@@ -11,12 +11,13 @@ package de.codeministry.leadgen.dedupe;
 import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.config.model.MatchingRules.Deduplication;
 import de.codeministry.leadgen.config.model.MatchingRules.Deduplication.Strategy;
-import java.util.List;
-import javax.sql.DataSource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import javax.sql.DataSource;
+import java.util.List;
 
 /**
  * Collapses the listings of one project into one cluster.
@@ -41,7 +42,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class DeduplicationService {
 
-    /** The only strategy that needs no model. The others are logged and skipped. */
+    /**
+     * The only strategy that needs no model. The others are logged and skipped.
+     */
     private static final String EXACT_FINGERPRINT = "exact_fingerprint";
 
     private static final String MERGE = "merge";
@@ -57,23 +60,23 @@ public class DeduplicationService {
      */
     private static final String CLUSTER =
             """
-            WITH ranked AS (
-                SELECT id,
-                       first_value(id) OVER (
-                           PARTITION BY fingerprint
-                           ORDER BY ingested_at, id
-                       ) AS primary_id
-                FROM offer
-                WHERE fingerprint <> ''
-                  AND ingested_at >= now() - make_interval(days => :ttl)
-            )
-            UPDATE offer o
-            SET duplicate_of_id = CASE WHEN r.primary_id = o.id THEN NULL ELSE r.primary_id END
-            FROM ranked r
-            WHERE o.id = r.id
-              AND o.duplicate_of_id IS DISTINCT FROM
-                  (CASE WHEN r.primary_id = o.id THEN NULL ELSE r.primary_id END)
-            """;
+                    WITH ranked AS (
+                        SELECT id,
+                               first_value(id) OVER (
+                                   PARTITION BY fingerprint
+                                   ORDER BY ingested_at, id
+                               ) AS primary_id
+                        FROM offer
+                        WHERE fingerprint <> ''
+                          AND ingested_at >= now() - make_interval(days => :ttl)
+                    )
+                    UPDATE offer o
+                    SET duplicate_of_id = CASE WHEN r.primary_id = o.id THEN NULL ELSE r.primary_id END
+                    FROM ranked r
+                    WHERE o.id = r.id
+                      AND o.duplicate_of_id IS DISTINCT FROM
+                          (CASE WHEN r.primary_id = o.id THEN NULL ELSE r.primary_id END)
+                    """;
 
     private final ConfigRegistry config;
     private final JdbcClient jdbc;
@@ -114,10 +117,10 @@ public class DeduplicationService {
     private int attached(int ttlDays) {
         return jdbc.sql(
                         """
-                        SELECT count(*) FROM offer
-                        WHERE duplicate_of_id IS NOT NULL
-                          AND ingested_at >= now() - make_interval(days => :ttl)
-                        """)
+                                SELECT count(*) FROM offer
+                                WHERE duplicate_of_id IS NOT NULL
+                                  AND ingested_at >= now() - make_interval(days => :ttl)
+                                """)
                 .param("ttl", ttlDays)
                 .query(Integer.class)
                 .single();

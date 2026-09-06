@@ -40,7 +40,9 @@ public record BatchOutcome(Status status, Map<Long, List<ScoreReason>> reasons, 
         return new BatchOutcome(Status.ENDED, Map.copyOf(reasons), null);
     }
 
-    /** The note is written to `score_batch.note`, so it has to read as a sentence later. */
+    /**
+     * The note is written to `score_batch.note`, so it has to read as a sentence later.
+     */
     public static BatchOutcome failed(String note) {
         return new BatchOutcome(Status.FAILED, Map.of(), note);
     }

@@ -8,34 +8,24 @@
  */
 package de.codeministry.leadgen.enrich;
 
-import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
-import static com.github.tomakehurst.wiremock.client.WireMock.get;
-import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
-import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import de.codeministry.leadgen.config.model.PipelineConfig.Enrichment.Fetch;
-import java.time.Clock;
-import java.time.Duration;
-import java.time.Instant;
-import java.time.ZoneId;
-import java.time.ZoneOffset;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+
+import java.time.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+
+import static com.github.tomakehurst.wiremock.client.WireMock.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.verify;
 
 /**
  * The rate limiter, on its own and against a clock that can be moved.
@@ -60,8 +50,10 @@ class AdFetcherTest {
         PORTAL.start();
     }
 
-    /** A clock the test moves by hand. A sliding window differs from a fixed one only at a
-     * boundary, and waiting sixty seconds to prove it is a test nobody runs. */
+    /**
+     * A clock the test moves by hand. A sliding window differs from a fixed one only at a
+     * boundary, and waiting sixty seconds to prove it is a test nobody runs.
+     */
     private static final class TestClock extends Clock {
         private Instant now = Instant.parse("2026-09-02T12:00:00Z");
 

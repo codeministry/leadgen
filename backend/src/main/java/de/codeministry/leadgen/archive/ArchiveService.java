@@ -10,14 +10,15 @@ package de.codeministry.leadgen.archive;
 
 import de.codeministry.leadgen.application.ApplicationStatus;
 import de.codeministry.leadgen.config.ConfigRegistry;
-import java.time.LocalDate;
-import java.util.Arrays;
-import java.util.List;
-import javax.sql.DataSource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import javax.sql.DataSource;
+import java.time.LocalDate;
+import java.util.Arrays;
+import java.util.List;
 
 /**
  * Takes what has aged out off the working list, and puts back what belongs on it again.
@@ -54,22 +55,24 @@ public class ArchiveService {
      */
     private static final String ARCHIVE_AGED_OUT =
             """
-            UPDATE offer SET archived_at = now(), archive_source = 'AGE'
-            WHERE archived_at IS NULL
-              AND archive_source IS NULL
-              AND published_on IS NOT NULL
-              AND published_on < :cutoff
-              AND NOT EXISTS (SELECT 1 FROM application a
-                               WHERE a.offer_id = offer.id AND a.status IN (:live))
-            """;
+                    UPDATE offer SET archived_at = now(), archive_source = 'AGE'
+                    WHERE archived_at IS NULL
+                      AND archive_source IS NULL
+                      AND published_on IS NOT NULL
+                      AND published_on < :cutoff
+                      AND NOT EXISTS (SELECT 1 FROM application a
+                                       WHERE a.offer_id = offer.id AND a.status IN (:live))
+                    """;
 
-    /** Inside the window again, because the operator widened it. Only what the pass owns. */
+    /**
+     * Inside the window again, because the operator widened it. Only what the pass owns.
+     */
     private static final String RESTORE_INSIDE_WINDOW =
             """
-            UPDATE offer SET archived_at = NULL, archive_source = NULL
-            WHERE archive_source = 'AGE'
-              AND (:cutoff IS NULL OR published_on >= :cutoff)
-            """;
+                    UPDATE offer SET archived_at = NULL, archive_source = NULL
+                    WHERE archive_source = 'AGE'
+                      AND (:cutoff IS NULL OR published_on >= :cutoff)
+                    """;
 
     /**
      * A person's decision, in both directions.
@@ -80,24 +83,30 @@ public class ArchiveService {
      */
     private static final String SET_BY_HAND =
             """
-            UPDATE offer
-            SET archived_at    = CASE WHEN :archived THEN now() ELSE NULL END,
-                archive_source = CASE WHEN :archived THEN 'MANUAL' ELSE 'RESTORED' END
-            WHERE id = :id
-            """;
+                    UPDATE offer
+                    SET archived_at    = CASE WHEN :archived THEN now() ELSE NULL END,
+                        archive_source = CASE WHEN :archived THEN 'MANUAL' ELSE 'RESTORED' END
+                    WHERE id = :id
+                    """;
 
-    /** Primaries, like every other number an operator reads: a duplicate is not an entry. */
+    /**
+     * Primaries, like every other number an operator reads: a duplicate is not an entry.
+     */
     private static final String STANDING =
             "SELECT count(*) FROM offer WHERE archived_at IS NOT NULL AND duplicate_of_id IS NULL";
 
-    /** No date, no age. These stay on the list for as long as they exist. */
+    /**
+     * No date, no age. These stay on the list for as long as they exist.
+     */
     private static final String UNDATED =
             """
-            SELECT count(*) FROM offer
-            WHERE published_on IS NULL AND archived_at IS NULL AND duplicate_of_id IS NULL
-            """;
+                    SELECT count(*) FROM offer
+                    WHERE published_on IS NULL AND archived_at IS NULL AND duplicate_of_id IS NULL
+                    """;
 
-    /** The states that mean a person has taken an offer up; decided by the enum, not here. */
+    /**
+     * The states that mean a person has taken an offer up; decided by the enum, not here.
+     */
     private static final List<String> LIVE = Arrays.stream(ApplicationStatus.values())
             .filter(ApplicationStatus::isLive)
             .map(Enum::name)
@@ -120,7 +129,7 @@ public class ArchiveService {
      * rather than a second application of it.
      *
      * @return false when there is no such offer, so the endpoint can answer 404 rather
-     *     than reporting success for a row that does not exist.
+     * than reporting success for a row that does not exist.
      */
     @Transactional
     public boolean setArchived(long offerId, boolean archived) {
@@ -134,7 +143,9 @@ public class ArchiveService {
         return updated > 0;
     }
 
-    /** One pass, against today. */
+    /**
+     * One pass, against today.
+     */
     @Transactional
     public ArchiveReport run() {
         return run(LocalDate.now());
@@ -142,8 +153,8 @@ public class ArchiveService {
 
     /**
      * @param today what "old" is measured against. A parameter for the same reason the
-     *     filter's used to be one: a test needs to ask the question its fixture was
-     *     written for.
+     *              filter's used to be one: a test needs to ask the question its fixture was
+     *              written for.
      */
     @Transactional
     public ArchiveReport run(LocalDate today) {
@@ -154,9 +165,9 @@ public class ArchiveService {
         int archived = cutoff == null
                 ? 0
                 : jdbc.sql(ARCHIVE_AGED_OUT)
-                        .param("cutoff", cutoff)
-                        .param("live", LIVE)
-                        .update();
+                .param("cutoff", cutoff)
+                .param("live", LIVE)
+                .update();
         int restored = jdbc.sql(RESTORE_INSIDE_WINDOW).param("cutoff", cutoff).update();
 
         var report = new ArchiveReport(

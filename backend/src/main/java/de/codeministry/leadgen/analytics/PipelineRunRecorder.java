@@ -40,16 +40,16 @@ public class PipelineRunRecorder {
 
     private static final String INSERT =
             """
-            INSERT INTO pipeline_run (
-                started_at, ruleset_version, score_model, status,
-                documents, extracted, written, merged,
-                filter_considered, filter_passed,
-                enrich_considered, enriched, incomplete, from_cache, requests,
-                score_considered, scored, unscored, shortlisted, review, submitted,
-                packaged, digest_written)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            RETURNING id
-            """;
+                    INSERT INTO pipeline_run (
+                        started_at, ruleset_version, score_model, status,
+                        documents, extracted, written, merged,
+                        filter_considered, filter_passed,
+                        enrich_considered, enriched, incomplete, from_cache, requests,
+                        score_considered, scored, unscored, shortlisted, review, submitted,
+                        packaged, digest_written)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    RETURNING id
+                    """;
 
     /**
      * The row a run opens with. Zeros and {@code RUNNING}, because at this moment the run
@@ -90,9 +90,9 @@ public class PipelineRunRecorder {
 
     private static final String INSERT_TIMING =
             """
-            INSERT INTO pipeline_stage (run_id, position, stage, started_at, ended_at, status, note)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-            """;
+                    INSERT INTO pipeline_stage (run_id, position, stage, started_at, ended_at, status, note)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """;
 
     /**
      * A batched run is finished by the collector, not by the request that started it, so
@@ -102,26 +102,26 @@ public class PipelineRunRecorder {
      */
     private static final String COMPLETE_AWAITING =
             """
-            UPDATE pipeline_run
-            SET status = 'COMPLETE', finished_at = now(), packaged = ?, digest_written = ?,
-                scored = scored + ?,
-                -- Recomputed rather than passed in: the two band counts are standing totals
-                -- in the report as well, and the collection the batch produced does not
-                -- carry them. Read here, after the scores landed, they are the same
-                -- quantity measured at the right moment. Primaries only and not archived,
-                -- like everywhere: this row is what the dashboard shows for that run, and
-                -- a historical row counting the archive disagrees with the live screen.
-                shortlisted = (SELECT count(*) FROM offer
-                               WHERE duplicate_of_id IS NULL AND archived_at IS NULL
-                                 AND score_band = 'SHORTLISTED'),
-                review      = (SELECT count(*) FROM offer
-                               WHERE duplicate_of_id IS NULL AND archived_at IS NULL
-                                 AND score_band = 'REVIEW')
-            WHERE id = (
-                SELECT id FROM pipeline_run WHERE status = 'AWAITING_BATCH'
-                ORDER BY finished_at DESC LIMIT 1
-            )
-            """;
+                    UPDATE pipeline_run
+                    SET status = 'COMPLETE', finished_at = now(), packaged = ?, digest_written = ?,
+                        scored = scored + ?,
+                        -- Recomputed rather than passed in: the two band counts are standing totals
+                        -- in the report as well, and the collection the batch produced does not
+                        -- carry them. Read here, after the scores landed, they are the same
+                        -- quantity measured at the right moment. Primaries only and not archived,
+                        -- like everywhere: this row is what the dashboard shows for that run, and
+                        -- a historical row counting the archive disagrees with the live screen.
+                        shortlisted = (SELECT count(*) FROM offer
+                                       WHERE duplicate_of_id IS NULL AND archived_at IS NULL
+                                         AND score_band = 'SHORTLISTED'),
+                        review      = (SELECT count(*) FROM offer
+                                       WHERE duplicate_of_id IS NULL AND archived_at IS NULL
+                                         AND score_band = 'REVIEW')
+                    WHERE id = (
+                        SELECT id FROM pipeline_run WHERE status = 'AWAITING_BATCH'
+                        ORDER BY finished_at DESC LIMIT 1
+                    )
+                    """;
 
     private final JdbcClient jdbc;
     private final ConfigRegistry config;
@@ -173,7 +173,9 @@ public class PipelineRunRecorder {
         }
     }
 
-    /** The run that just finished, or that is waiting for its batch. */
+    /**
+     * The run that just finished, or that is waiting for its batch.
+     */
     public void record(
             OptionalLong runId, IngestReport report, Instant startedAt, String scoreModel, List<StageTiming> stages) {
         try {

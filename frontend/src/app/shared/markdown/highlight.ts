@@ -18,19 +18,19 @@ import yaml from 'highlight.js/lib/languages/yaml';
  * components is harmless but means two places to look when a fence renders unhighlighted.
  */
 for (const [name, language] of Object.entries({
-  bash,
-  java,
-  json,
-  markdown,
-  sql,
-  typescript,
-  xml,
-  yaml,
+    bash,
+    java,
+    json,
+    markdown,
+    sql,
+    typescript,
+    xml,
+    yaml,
 })) {
-  hljs.registerLanguage(name, language);
+    hljs.registerLanguage(name, language);
 }
 
-export { hljs };
+export {hljs};
 
 /**
  * Unknown language means the code is shown as it stands, and it still has to be escaped:
@@ -38,5 +38,5 @@ export { hljs };
  * `<div>` an ad is quoting, which is content rather than an attack.
  */
 export function escapeHtml(text: string): string {
-  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }

@@ -11,5 +11,5 @@ const target = process.env['API_PROXY_TARGET'] ?? 'http://localhost:8080';
 console.log(`[proxy] /api → ${target}`);
 
 module.exports = {
-  '/api': { target, secure: false, changeOrigin: true },
+    '/api': {target, secure: false, changeOrigin: true},
 };

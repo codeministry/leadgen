@@ -8,8 +8,6 @@
  */
 package de.codeministry.leadgen.ingest;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 import com.icegreen.greenmail.junit5.GreenMailExtension;
 import com.icegreen.greenmail.util.ServerSetupTest;
 import de.codeministry.leadgen.config.ConfigFixtures;
@@ -21,11 +19,6 @@ import jakarta.mail.Flags;
 import jakarta.mail.Folder;
 import jakarta.mail.Session;
 import jakarta.mail.Store;
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.Properties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -38,6 +31,14 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Properties;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * A real IMAP server in-process. The UID semantics this connector rests on cannot be
@@ -241,7 +242,9 @@ class ImapSourceConnectorTest {
         }
     }
 
-    /** What the owner's mail client does the moment they open the newsletter. */
+    /**
+     * What the owner's mail client does the moment they open the newsletter.
+     */
     private void markTheOnlyMessageAsRead() {
         Properties properties = new Properties();
         properties.put("mail.store.protocol", "imap");
@@ -276,7 +279,9 @@ class ImapSourceConnectorTest {
         }
     }
 
-    /** The shipped example plus one IMAP source pointed at the in-process server. */
+    /**
+     * The shipped example plus one IMAP source pointed at the in-process server.
+     */
     private static Path imapConfig() {
         try {
             Path dir = Files.createTempDirectory("leadgen-imap");
@@ -288,27 +293,27 @@ class ImapSourceConnectorTest {
             Files.writeString(
                     sources,
                     """
-                    version: 1
-                    connections:
-                      - id: local-imap
-                        type: imap
-                        host: 127.0.0.1
-                        port: %d
-                        ssl: false
-                        username: %s
-                        password: %s
-                    sources:
-                      - id: imap-newsletter
-                        enabled: true
-                        type: imap
-                        connection: local-imap
-                        selector:
-                          folder: INBOX
-                          from: ["%s"]
-                          subject_matches: "^\\\\d+ neue Projekte sind da!$"
-                          mark_seen: false
-                          state: uid
-                    %s"""
+                            version: 1
+                            connections:
+                              - id: local-imap
+                                type: imap
+                                host: 127.0.0.1
+                                port: %d
+                                ssl: false
+                                username: %s
+                                password: %s
+                            sources:
+                              - id: imap-newsletter
+                                enabled: true
+                                type: imap
+                                connection: local-imap
+                                selector:
+                                  folder: INBOX
+                                  from: ["%s"]
+                                  subject_matches: "^\\\\d+ neue Projekte sind da!$"
+                                  mark_seen: false
+                                  state: uid
+                            %s"""
                             .formatted(ServerSetupTest.IMAP.getPort(), USER, PASSWORD, NEWSLETTER, extraction));
             return dir;
         } catch (IOException e) {

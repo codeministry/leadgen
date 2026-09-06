@@ -8,27 +8,10 @@
  */
 package de.codeministry.leadgen.score;
 
-import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
-import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
-import static com.github.tomakehurst.wiremock.client.WireMock.matchingJsonPath;
-import static com.github.tomakehurst.wiremock.client.WireMock.post;
-import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
-import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatCode;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import de.codeministry.leadgen.config.ConfigFixtures;
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.List;
-import java.util.Map;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -41,6 +24,17 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
+import java.util.Map;
+
+import static com.github.tomakehurst.wiremock.client.WireMock.*;
+import static org.assertj.core.api.Assertions.*;
 
 /**
  * ISC-48: a score built from the configured weights, with a stated reason per factor.
@@ -107,11 +101,11 @@ class ScoringWithAModelTest {
     void scoresWithTheConfiguredWeightsAndStatesAReasonPerFactor() {
         answers(
                 """
-                {"reasons":[
-                  {"factor":"role_fit","label":"backend engagement, the target role","points":15},
-                  {"factor":"vague_description","label":"team size and scope are left open","points":-10}
-                ]}
-                """);
+                        {"reasons":[
+                          {"factor":"role_fit","label":"backend engagement, the target role","points":15},
+                          {"factor":"vague_description","label":"team size and scope are left open","points":-10}
+                        ]}
+                        """);
         long id = offer("Senior Java Entwickler (m/w/d)", "Java 21 und Spring Boot, 12 Monate");
 
         var report = scoring.run();
@@ -144,11 +138,11 @@ class ScoringWithAModelTest {
         // answer to a different question.
         answers(
                 """
-                {"reasons":[
-                  {"factor":"role_fit","label":"fits","points":15},
-                  {"factor":"vibes","label":"feels right","points":40}
-                ]}
-                """);
+                        {"reasons":[
+                          {"factor":"role_fit","label":"fits","points":15},
+                          {"factor":"vibes","label":"feels right","points":40}
+                        ]}
+                        """);
         long id = offer("Senior Java Entwickler (m/w/d)", "Spring Boot");
 
         scoring.run();
@@ -160,8 +154,8 @@ class ScoringWithAModelTest {
     void clampsAModelToWhatTheConfiguredWeightTableSays() {
         answers(
                 """
-                {"reasons":[{"factor":"role_fit","label":"perfect","points":900}]}
-                """);
+                        {"reasons":[{"factor":"role_fit","label":"perfect","points":900}]}
+                        """);
         long id = offer("Senior Java Entwickler (m/w/d)", "Spring Boot");
 
         scoring.run();
@@ -172,9 +166,9 @@ class ScoringWithAModelTest {
         // clamp where it was, and a test asserting the literal would have stayed green.
         int roleFit = config.snapshot().rules().scoring().weights().get("role_fit");
         assertThat(jdbc.queryForObject(
-                        "SELECT points FROM offer_score_reason WHERE offer_id = ? AND factor = 'role_fit'",
-                        Integer.class,
-                        id))
+                "SELECT points FROM offer_score_reason WHERE offer_id = ? AND factor = 'role_fit'",
+                Integer.class,
+                id))
                 .isEqualTo(roleFit);
         assertThat(jdbc.queryForObject("SELECT score_value FROM offer WHERE id = ?", Integer.class, id))
                 .isLessThanOrEqualTo(100);
@@ -264,8 +258,8 @@ class ScoringWithAModelTest {
     void judgesWithTheModelTheRunNames() {
         answers(
                 """
-                {"reasons":[{"factor":"role_fit","label":"backend engagement","points":15}]}
-                """);
+                        {"reasons":[{"factor":"role_fit","label":"backend engagement","points":15}]}
+                        """);
         long id = offer("Senior Java Entwickler (m/w/d)", "Java 21 und Spring Boot");
 
         assertThat(scoring.run("other-model").scored()).isEqualTo(1);
@@ -355,10 +349,10 @@ class ScoringWithAModelTest {
     private long offer(String title, String description) {
         return jdbc.queryForObject(
                 """
-                INSERT INTO offer (source_id, external_id, title, description, url, fingerprint, status)
-                VALUES (?, ?, ?, ?, 'https://example.invalid/x', 'fp', 'PASSED')
-                RETURNING id
-                """,
+                        INSERT INTO offer (source_id, external_id, title, description, url, fingerprint, status)
+                        VALUES (?, ?, ?, ?, 'https://example.invalid/x', 'fp', 'PASSED')
+                        RETURNING id
+                        """,
                 Long.class,
                 sourceId,
                 "ext-" + System.nanoTime(),
@@ -366,7 +360,9 @@ class ScoringWithAModelTest {
                 description);
     }
 
-    /** The shipped defaults with the llm block pointed at the stub. No vendor is named. */
+    /**
+     * The shipped defaults with the llm block pointed at the stub. No vendor is named.
+     */
     private static Path configPointingAtTheStub() {
         try {
             Path dir = Files.createTempDirectory("leadgen-score-model");

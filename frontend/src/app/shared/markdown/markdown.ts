@@ -11,8 +11,8 @@ import {escapeHtml, hljs} from './highlight';
  * rule would run the whole list together — which is exactly the wall this exists to undo.
  */
 const parser = new Marked({
-  breaks: true,
-  gfm: true,
+    breaks: true,
+    gfm: true,
 });
 
 /**
@@ -26,20 +26,20 @@ const parser = new Marked({
  * advert into an injection.
  */
 @Component({
-  selector: 'lg-markdown',
-  templateUrl: './markdown.html',
-  styleUrl: './markdown.css',
-  changeDetection: ChangeDetectionStrategy.OnPush,
+    selector: 'lg-markdown',
+    templateUrl: './markdown.html',
+    styleUrl: './markdown.css',
+    changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class Markdown {
-  /** Null is a real state: an offer can reach the detail with neither text nor
-      description, and an empty box says that better than a crash. */
-  readonly text = input<string | null>('');
+    /** Null is a real state: an offer can reach the detail with neither text nor
+     description, and an empty box says that better than a crash. */
+    readonly text = input<string | null>('');
 
-  protected readonly html = computed(() => {
-    const source = (this.text() ?? '').trim();
-    return source === '' ? '' : (parser.parse(source, { async: false }) as string);
-  });
+    protected readonly html = computed(() => {
+        const source = (this.text() ?? '').trim();
+        return source === '' ? '' : (parser.parse(source, {async: false}) as string);
+    });
 }
 
 /**
@@ -47,37 +47,37 @@ export class Markdown {
  * over the code and its language and nothing has to be found again in the output.
  */
 parser.use({
-  renderer: {
-    /**
-     * Every link in an advert leaves this application, so every one of them opens in a new
-     * tab: the shortlist is a working list, and following a link out of it should not cost
-     * the place in it. `rel` goes with the target and is not optional — `noopener` because
-     * a page opened with `target="_blank"` can otherwise reach back through
-     * `window.opener`, and this markup came off a portal.
-     */
-    link({ href, title, text }) {
-      const label = title ? ` title="${escapeHtml(title)}"` : '';
-      return `<a href="${escapeHtml(href)}"${label} target="_blank" rel="noopener noreferrer">${text}</a>`;
-    },
+    renderer: {
+        /**
+         * Every link in an advert leaves this application, so every one of them opens in a new
+         * tab: the shortlist is a working list, and following a link out of it should not cost
+         * the place in it. `rel` goes with the target and is not optional — `noopener` because
+         * a page opened with `target="_blank"` can otherwise reach back through
+         * `window.opener`, and this markup came off a portal.
+         */
+        link({href, title, text}) {
+            const label = title ? ` title="${escapeHtml(title)}"` : '';
+            return `<a href="${escapeHtml(href)}"${label} target="_blank" rel="noopener noreferrer">${text}</a>`;
+        },
 
-      /**
-       * Every heading in an advert is pushed two levels down.
-       *
-       * <p>The text is somebody else's, and Markdown's `#` renders an `<h1>`: an advert that
-       * opens with its own title therefore claimed to be the page's heading, beside the
-       * screen's real one. Two levels rather than one, because this sits inside a panel whose
-       * own heading is an `<h2>` — so the advert's top level lands under it, where it belongs.
-       * Clamped at six, which is as deep as HTML goes.
-       */
-      heading({tokens, depth}) {
-          const level = Math.min(depth + 2, 6);
-          return `<h${level}>${this.parser.parseInline(tokens)}</h${level}>\n`;
-      },
+        /**
+         * Every heading in an advert is pushed two levels down.
+         *
+         * <p>The text is somebody else's, and Markdown's `#` renders an `<h1>`: an advert that
+         * opens with its own title therefore claimed to be the page's heading, beside the
+         * screen's real one. Two levels rather than one, because this sits inside a panel whose
+         * own heading is an `<h2>` — so the advert's top level lands under it, where it belongs.
+         * Clamped at six, which is as deep as HTML goes.
+         */
+        heading({tokens, depth}) {
+            const level = Math.min(depth + 2, 6);
+            return `<h${level}>${this.parser.parseInline(tokens)}</h${level}>\n`;
+        },
 
-    code({ text, lang }) {
-      const language = lang && hljs.getLanguage(lang) ? lang : null;
-      const body = language ? hljs.highlight(text, { language }).value : escapeHtml(text);
-      return `<pre class="code"><code class="hljs">${body}</code></pre>`;
+        code({text, lang}) {
+            const language = lang && hljs.getLanguage(lang) ? lang : null;
+            const body = language ? hljs.highlight(text, {language}).value : escapeHtml(text);
+            return `<pre class="code"><code class="hljs">${body}</code></pre>`;
+        },
     },
-  },
 });

@@ -12,6 +12,7 @@ import de.codeministry.leadgen.config.model.MatchingRules;
 import de.codeministry.leadgen.config.model.PipelineConfig;
 import de.codeministry.leadgen.config.model.SkillProfile;
 import de.codeministry.leadgen.config.model.SourcesConfig;
+
 import java.time.Instant;
 
 /**
@@ -28,4 +29,5 @@ public record ConfigSnapshot(
         MatchingRules rules,
         SourcesConfig sources,
         SkillProfile profile,
-        Instant loadedAt) {}
+        Instant loadedAt) {
+}

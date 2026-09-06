@@ -1,14 +1,14 @@
 import {ChangeDetectionStrategy, Component, input} from '@angular/core';
 
 @Component({
-  selector: 'lg-page-header',
-  templateUrl: './page-header.html',
-  changeDetection: ChangeDetectionStrategy.OnPush,
+    selector: 'lg-page-header',
+    templateUrl: './page-header.html',
+    changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PageHeader {
-  readonly title = input.required<string>();
-  /** One line saying what the screen is for. Omitted when the title is enough. */
-  readonly subtitle = input<string | null>(null);
+    readonly title = input.required<string>();
+    /** One line saying what the screen is for. Omitted when the title is enough. */
+    readonly subtitle = input<string | null>(null);
 
     /**
      * Which heading level the title is. `h1` is the screen's own title and the default; `h2`

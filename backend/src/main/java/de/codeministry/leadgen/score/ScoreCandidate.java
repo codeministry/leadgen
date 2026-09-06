@@ -19,9 +19,9 @@ import java.util.List;
  * Everything scoring reads about an offer, after the filter and after enrichment.
  *
  * @param fullText the original ad, when enrichment could fetch it. Null leaves the score
- *     resting on the newsletter's two-line summary, which is exactly the situation the
- *     enrichment stage exists to avoid — so an incomplete offer scores lower on
- *     `project_setup` honestly, rather than being penalised for it twice.
+ *                 resting on the newsletter's two-line summary, which is exactly the situation the
+ *                 enrichment stage exists to avoid — so an incomplete offer scores lower on
+ *                 `project_setup` honestly, rather than being penalised for it twice.
  */
 public record ScoreCandidate(
         long id,
@@ -42,8 +42,8 @@ public record ScoreCandidate(
      */
     static final String COLUMNS =
             """
-            id, title, description, full_text, tags, rate_eur, duration, workload,
-            starts_on, enrichment_note""";
+                    id, title, description, full_text, tags, rate_eur, duration, workload,
+                    starts_on, enrichment_note""";
 
     static ScoreCandidate of(ResultSet rs, int row) throws SQLException {
         return new ScoreCandidate(

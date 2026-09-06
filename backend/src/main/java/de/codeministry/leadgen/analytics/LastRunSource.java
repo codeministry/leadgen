@@ -19,11 +19,11 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  * that absence is left visible rather than filled in.
  *
  * @param announced what the documents of this source said they contained, summed. Null
- *     when the source states no count to check against, which is most of them. The
- *     comparison between announced and extracted is the one check nothing else can make: a
- *     selector that stops matching loses offers, and fewer offers is indistinguishable
- *     from a quiet day on the market.
- * @param written rows the upsert touched, insert or update alike — not new rows.
+ *                  when the source states no count to check against, which is most of them. The
+ *                  comparison between announced and extracted is the one check nothing else can make: a
+ *                  selector that stops matching loses offers, and fewer offers is indistinguishable
+ *                  from a quiet day on the market.
+ * @param written   rows the upsert touched, insert or update alike — not new rows.
  */
 public record LastRunSource(String sourceId, int documents, int extracted, int written, Integer announced) {
 

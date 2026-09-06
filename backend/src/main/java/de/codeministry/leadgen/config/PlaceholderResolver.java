@@ -8,12 +8,13 @@
  */
 package de.codeministry.leadgen.config;
 
+import lombok.extern.slf4j.Slf4j;
+
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.function.UnaryOperator;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import lombok.extern.slf4j.Slf4j;
 
 /**
  * Resolves `${VAR}` and `${VAR:default}` in the raw YAML text, before it is parsed.
@@ -47,7 +48,9 @@ final class PlaceholderResolver {
         this.environment = environment;
     }
 
-    /** The process environment, with `.env` behind it. A real variable always wins. */
+    /**
+     * The process environment, with `.env` behind it. A real variable always wins.
+     */
     static PlaceholderResolver fromSystemEnvironment() {
         DotEnv dotenv = DotEnv.load();
         dotenv.file()

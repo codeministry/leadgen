@@ -11,11 +11,11 @@ package de.codeministry.leadgen.enrich;
 /**
  * One attempt at the original ad.
  *
- * @param status the HTTP status, or 0 when no request was made at all — blocked by
- *     robots.txt, or the host was unreachable. A `fromCache` result carries the status
- *     the cached response had.
- * @param body null unless the fetch succeeded.
- * @param note why there is no body, in words. Null on success.
+ * @param status   the HTTP status, or 0 when no request was made at all — blocked by
+ *                 robots.txt, or the host was unreachable. A `fromCache` result carries the status
+ *                 the cached response had.
+ * @param body     null unless the fetch succeeded.
+ * @param note     why there is no body, in words. Null on success.
  * @param deferred no attempt was made and none should be remembered. See {@link #deferred}.
  */
 public record FetchResult(int status, String body, boolean fromCache, String note, boolean deferred) {

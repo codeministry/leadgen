@@ -1,157 +1,160 @@
 <lg-page-header
-  [title]="'dashboard.title' | transloco"
-  [subtitle]="'dashboard.subtitle' | transloco"
+        [title]="'dashboard.title' | transloco"
+        [subtitle]="'dashboard.subtitle' | transloco"
 />
 
 <div class="tiles">
-  <!-- The hint names where the number came from, and there are three answers rather than
-       two: a run this browser started, the run the database remembers, or the whole
-       archive. The tile used to claim "from the last run" for the archive total whenever
-       nobody had pressed the button in this session. -->
-  <lg-stat-tile
-    [label]="'dashboard.extracted' | transloco"
-    [value]="runExtracted() ?? total()"
-    [unit]="'dashboard.unitOffers' | transloco"
-    [hint]="intakeSource() | transloco"
-  />
-  <lg-stat-tile
-    [label]="'dashboard.written' | transloco"
-    [value]="runWritten() ?? '—'"
-    [unit]="'dashboard.unitRows' | transloco"
-    [hint]="
+    <!-- The hint names where the number came from, and there are three answers rather than
+         two: a run this browser started, the run the database remembers, or the whole
+         archive. The tile used to claim "from the last run" for the archive total whenever
+         nobody had pressed the button in this session. -->
+    <lg-stat-tile
+            [label]="'dashboard.extracted' | transloco"
+            [value]="runExtracted() ?? total()"
+            [unit]="'dashboard.unitOffers' | transloco"
+            [hint]="intakeSource() | transloco"
+    />
+    <lg-stat-tile
+            [label]="'dashboard.written' | transloco"
+            [value]="runWritten() ?? '—'"
+            [unit]="'dashboard.unitRows' | transloco"
+            [hint]="
       hasRun()
         ? repeats() > 0
           ? ('dashboard.repeats' | transloco: { count: repeats() })
           : ('dashboard.noRepeats' | transloco)
         : ('dashboard.noRunYet' | transloco)
     "
-  />
-  <lg-stat-tile
-    [label]="'dashboard.survived' | transloco"
-    [value]="survived()"
-    [unit]="'dashboard.unitOffers' | transloco"
-    [emphasis]="true"
-    [hint]="share().key | transloco: share().params"
-  />
-  <lg-stat-tile
-    [label]="'dashboard.followUps' | transloco"
-    [value]="followUpsDue()"
-    [hint]="'dashboard.followUpsHint' | transloco"
-  />
+    />
+    <lg-stat-tile
+            [label]="'dashboard.survived' | transloco"
+            [value]="survived()"
+            [unit]="'dashboard.unitOffers' | transloco"
+            [emphasis]="true"
+            [hint]="share().key | transloco: share().params"
+    />
+    <lg-stat-tile
+            [label]="'dashboard.followUps' | transloco"
+            [value]="followUpsDue()"
+            [hint]="'dashboard.followUpsHint' | transloco"
+    />
 </div>
 
 <section class="panel">
-  <h2 class="type-h2">{{ 'dashboard.hardFilter' | transloco }}</h2>
-  <p class="type-small text-muted panel-note">{{ 'dashboard.hardFilterNote' | transloco }}</p>
-  @if (total() > 0) {
-    <lg-funnel-rail [stages]="stages()" [total]="total()" />
-    @if (archived() > 0) {
-      <p class="type-small text-muted panel-note">
-        {{ 'dashboard.archivedNote' | transloco: { count: archived() } }}
-      </p>
+    <h2 class="type-h2">{{ 'dashboard.hardFilter' | transloco }}</h2>
+    <p class="type-small text-muted panel-note">{{ 'dashboard.hardFilterNote' | transloco }}</p>
+    @if (total() > 0) {
+        <lg-funnel-rail [stages]="stages()" [total]="total()"/>
+        @if (archived() > 0) {
+            <p class="type-small text-muted panel-note">
+                {{ 'dashboard.archivedNote' | transloco: {count: archived()} }}
+            </p>
+        }
+    } @else {
+        <p class="type-small text-muted">{{ 'dashboard.nothingFiltered' | transloco }}</p>
     }
-  } @else {
-    <p class="type-small text-muted">{{ 'dashboard.nothingFiltered' | transloco }}</p>
-  }
 </section>
 
 <section class="panel">
-  <h2 class="type-h2">{{ 'dashboard.lastRun' | transloco }}</h2>
+    <h2 class="type-h2">{{ 'dashboard.lastRun' | transloco }}</h2>
 
-  @if (ingest.error(); as error) {
-    <p class="type-small run-error" role="alert">
-      <lg-icon name="triangle-alert" [size]="16" />
-      {{ error | transloco }}
-    </p>
-  }
-
-  @if (hasRun()) {
-      <!-- When this run finished, always. A recorded one additionally says that nothing was
-           started here, which is what explains the missing per-document detail below. -->
-      @if (finishedAt(); as when) {
-      <p class="type-small text-muted panel-note">
-          @if (showingRecordedRun()) {
-              {{ 'dashboard.recordedRun' | transloco: {when} }}
-          } @else {
-              {{ 'dashboard.finishedRun' | transloco: {when} }}
-          }
-      </p>
+    @if (ingest.error(); as error) {
+        <p class="type-small run-error" role="alert">
+            <lg-icon name="triangle-alert" [size]="16"/>
+            {{ error | transloco }}
+        </p>
     }
 
-      <!-- What the run judged, beside which judge judged it. Two keys rather than one
-           sentence with an optional tail: a live report carries no model, and "· model null"
-           is worse than a sentence that does not mention one. -->
-      @if (analysed(); as analysed) {
-          <p class="type-small text-muted panel-note">
-              @if (analysed.model) {
-                  {{ 'dashboard.analysed' | transloco: {count: analysed.count, model: analysed.model} }}
-              } @else {
-                  {{ 'dashboard.analysedNoModel' | transloco: {count: analysed.count} }}
-              }
-          </p>
-      }
-
-      @if (mismatches() > 0) {
-      <p class="type-small run-error" role="alert">
-        <lg-icon name="triangle-alert" [size]="16" />
-        {{ 'dashboard.mismatch' | transloco: { count: mismatches() } }}
-      </p>
-    }
-
-    <div class="table-scroll">
-      <table class="table table-sm">
-        <thead>
-          <tr>
-            <th scope="col">{{ 'dashboard.colSource' | transloco }}</th>
-            <th scope="col" class="num">{{ 'dashboard.colDocuments' | transloco }}</th>
-            <th scope="col" class="num">{{ 'dashboard.colExtracted' | transloco }}</th>
-            <th scope="col" class="num">{{ 'dashboard.colWritten' | transloco }}</th>
-            <th scope="col">{{ 'dashboard.colAnnounced' | transloco }}</th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (source of runSources(); track source.sourceId) {
-            <tr>
-              <th scope="row" class="type-small">{{ source.sourceId }}</th>
-              <td class="type-mono-data num">{{ source.documents }}</td>
-              <td class="type-mono-data num">{{ source.extracted }}</td>
-              <td class="type-mono-data num">{{ source.written }}</td>
-              <td>
-                <!-- Tracked by document, falling back to the position: a recorded run has
-                     no document to name, and the list is rebuilt whole on every run. -->
-                @for (warning of source.warnings; track warning.documentId ?? $index) {
-                  <lg-badge tone="warning">
-                    @if (warning.documentId) {
-                      {{ warning.documentId }}:
-                    }
-                    {{
-                      'dashboard.ofAnnounced'
-                        | transloco: { extracted: warning.extracted, announced: warning.announced }
-                    }}
-                  </lg-badge>
-                } @empty {
-                  <span class="type-small text-muted">—</span>
+    @if (hasRun()) {
+        <!-- When this run finished, always. A recorded one additionally says that nothing was
+             started here, which is what explains the missing per-document detail below. -->
+        @if (finishedAt(); as when) {
+            <p class="type-small text-muted panel-note">
+                @if (showingRecordedRun()) {
+                    {{ 'dashboard.recordedRun' | transloco: {when} }}
+                } @else {
+                    {{ 'dashboard.finishedRun' | transloco: {when} }}
                 }
-              </td>
-            </tr>
-          }
-        </tbody>
-      </table>
-    </div>
+            </p>
+        }
 
-    <!-- Only a run this browser started carries the per-document breakdown. The recorded
-         one is not missing it by accident, and saying so beats a column that is always a
-         dash for reasons nobody can see. -->
-      @if (showingRecordedRun()) {
-      <p class="type-small text-muted panel-note">
-        {{ 'dashboard.recordedRunLimits' | transloco }}
-      </p>
+        <!-- What the run judged, beside which judge judged it. Two keys rather than one
+             sentence with an optional tail: a live report carries no model, and "· model null"
+             is worse than a sentence that does not mention one. -->
+        @if (analysed(); as analysed) {
+            <p class="type-small text-muted panel-note">
+                @if (analysed.model) {
+                    {{ 'dashboard.analysed' | transloco: {count: analysed.count, model: analysed.model} }}
+                } @else {
+                    {{ 'dashboard.analysedNoModel' | transloco: {count: analysed.count} }}
+                }
+            </p>
+        }
+
+        @if (mismatches() > 0) {
+            <p class="type-small run-error" role="alert">
+                <lg-icon name="triangle-alert" [size]="16"/>
+                {{ 'dashboard.mismatch' | transloco: {count: mismatches()} }}
+            </p>
+        }
+
+        <div class="table-scroll">
+            <table class="table table-sm">
+                <thead>
+                <tr>
+                    <th scope="col">{{ 'dashboard.colSource' | transloco }}</th>
+                    <th scope="col" class="num">{{ 'dashboard.colDocuments' | transloco }}</th>
+                    <th scope="col" class="num">{{ 'dashboard.colExtracted' | transloco }}</th>
+                    <th scope="col" class="num">{{ 'dashboard.colWritten' | transloco }}</th>
+                    <th scope="col">{{ 'dashboard.colAnnounced' | transloco }}</th>
+                </tr>
+                </thead>
+                <tbody>
+                    @for (source of runSources(); track source.sourceId) {
+                        <tr>
+                            <th scope="row" class="type-small">{{ source.sourceId }}</th>
+                            <td class="type-mono-data num">{{ source.documents }}</td>
+                            <td class="type-mono-data num">{{ source.extracted }}</td>
+                            <td class="type-mono-data num">{{ source.written }}</td>
+                            <td>
+                                <!-- Tracked by document, falling back to the position: a recorded run has
+                                     no document to name, and the list is rebuilt whole on every run. -->
+                                @for (warning of source.warnings; track warning.documentId ?? $index) {
+                                    <lg-badge tone="warning">
+                                        @if (warning.documentId) {
+                                            {{ warning.documentId }}:
+                                        }
+                                        {{
+                                            'dashboard.ofAnnounced'
+                                                | transloco: {
+                                                extracted: warning.extracted,
+                                                announced: warning.announced
+                                            }
+                                        }}
+                                    </lg-badge>
+                                } @empty {
+                                    <span class="type-small text-muted">—</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Only a run this browser started carries the per-document breakdown. The recorded
+             one is not missing it by accident, and saying so beats a column that is always a
+             dash for reasons nobody can see. -->
+        @if (showingRecordedRun()) {
+            <p class="type-small text-muted panel-note">
+                {{ 'dashboard.recordedRunLimits' | transloco }}
+            </p>
+        }
+    } @else {
+        <lg-empty-state
+                icon="funnel"
+                [title]="'dashboard.noRunYet' | transloco"
+                [description]="'dashboard.noRunYetHint' | transloco"
+        />
     }
-  } @else {
-    <lg-empty-state
-      icon="funnel"
-      [title]="'dashboard.noRunYet' | transloco"
-      [description]="'dashboard.noRunYetHint' | transloco"
-    />
-  }
 </section>

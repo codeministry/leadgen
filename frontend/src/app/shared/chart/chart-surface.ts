@@ -1,17 +1,17 @@
 import {
-  ChangeDetectionStrategy,
-  Component,
-  DestroyRef,
-  DOCUMENT,
-  ElementRef,
-  afterNextRender,
-  effect,
-  inject,
-  input,
-  viewChild,
+    afterNextRender,
+    ChangeDetectionStrategy,
+    Component,
+    DestroyRef,
+    DOCUMENT,
+    effect,
+    ElementRef,
+    inject,
+    input,
+    viewChild,
 } from '@angular/core';
-import { CHART_PALETTE } from '../shared.ports';
-import { ChartOption, EChartsType, init } from './echarts';
+import {CHART_PALETTE} from '../shared.ports';
+import {ChartOption, EChartsType, init} from './echarts';
 
 /**
  * One chart instance, and nothing else.
@@ -39,108 +39,108 @@ import { ChartOption, EChartsType, init } from './echarts';
  * </ul>
  */
 @Component({
-  selector: 'lg-chart-surface',
-  templateUrl: './chart-surface.html',
-  styleUrl: './chart-surface.css',
-  changeDetection: ChangeDetectionStrategy.OnPush,
+    selector: 'lg-chart-surface',
+    templateUrl: './chart-surface.html',
+    styleUrl: './chart-surface.css',
+    changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ChartSurface {
-  /** What `setOption` gets. Replaced wholesale; never merged away. */
-  readonly option = input.required<ChartOption>();
+    /** What `setOption` gets. Replaced wholesale; never merged away. */
+    readonly option = input.required<ChartOption>();
 
-  /** Chart height in rem, because the root font size is 93.75 % and everything scales. */
-  readonly height = input(18);
+    /** Chart height in rem, because the root font size is 93.75 % and everything scales. */
+    readonly height = input(18);
 
-  private readonly surface = viewChild.required<ElementRef<HTMLDivElement>>('surface');
-  private readonly view = inject(DOCUMENT).defaultView;
-  private readonly palette = inject(CHART_PALETTE);
-  private chart: EChartsType | null = null;
-  private observer: ResizeObserver | null = null;
+    private readonly surface = viewChild.required<ElementRef<HTMLDivElement>>('surface');
+    private readonly view = inject(DOCUMENT).defaultView;
+    private readonly palette = inject(CHART_PALETTE);
+    private chart: EChartsType | null = null;
+    private observer: ResizeObserver | null = null;
 
-  constructor() {
-    afterNextRender(() => {
-      const element = this.surface().nativeElement;
-      this.chart = init(element, undefined, { renderer: 'svg' });
-      this.chart.setOption(this.normalise(this.option()));
-      this.observeSize(element);
-    });
+    constructor() {
+        afterNextRender(() => {
+            const element = this.surface().nativeElement;
+            this.chart = init(element, undefined, {renderer: 'svg'});
+            this.chart.setOption(this.normalise(this.option()));
+            this.observeSize(element);
+        });
 
-    effect(() => {
-      const option = this.option();
-      this.chart?.setOption(this.normalise(option));
-    });
+        effect(() => {
+            const option = this.option();
+            this.chart?.setOption(this.normalise(option));
+        });
 
-    inject(DestroyRef).onDestroy(() => {
-      this.observer?.disconnect();
-      this.chart?.dispose();
-      this.chart = null;
-    });
-  }
-
-  /**
-   * Three things every chart needs and none of them should have to remember.
-   *
-   * <p><b>The emphasis colour is set to `inherit`, and that is a bug fix rather than a
-   * preference.</b> On hover ECharts lightens the item's own colour through zrender's
-   * colour helper, and that helper does not understand `oklch()` — measured:
-   * `parse('oklch(48.78% 0.0805 191.43)')` returns `undefined`, so `lift` returns
-   * `undefined` and the bar is painted with no fill at all. The tooltip appears and the
-   * bar vanishes underneath it. `inherit` keeps the fill; the tooltip and the axis pointer
-   * are what say "this one".
-   *
-   * <p><b>The tooltip is themed here too</b>, because otherwise it is the library's own
-   * white box, which on the dark theme is the brightest thing on the page.
-   *
-   * <p><b>Reduced motion switches the animation off</b> rather than shortening it, the
-   * same rule the funnel rail follows. `matchMedia` is guarded: it is absent in jsdom.
-   */
-  private normalise(option: ChartOption): ChartOption {
-    const colours = this.palette();
-    const reduced =
-      typeof this.view?.matchMedia === 'function' &&
-      this.view.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-    // Cast rather than typed: the option is deliberately opaque here — only the chart
-    // components above know its shape — and this reaches for two fields common to all.
-    const source = option as { series?: unknown; tooltip?: object };
-    const series = Array.isArray(source.series) ? source.series : undefined;
-
-    return {
-      ...(option as object),
-      ...(reduced ? { animation: false } : {}),
-      ...(source.tooltip
-        ? {
-            tooltip: {
-              backgroundColor: colours.surface,
-              borderColor: colours.track,
-              textStyle: { color: colours.ink },
-              ...source.tooltip,
-            },
-          }
-        : {}),
-      ...(series
-        ? {
-            series: series.map((one) => ({
-              emphasis: { itemStyle: { color: 'inherit' } },
-              ...(one as object),
-            })),
-          }
-        : {}),
-    } as ChartOption;
-  }
-
-  private observeSize(element: HTMLElement): void {
-    if (typeof ResizeObserver !== 'function') {
-      return;
+        inject(DestroyRef).onDestroy(() => {
+            this.observer?.disconnect();
+            this.chart?.dispose();
+            this.chart = null;
+        });
     }
-    this.observer = new ResizeObserver((entries) => {
-      // The observer fires once on observe, sometimes before layout. A resize to zero
-      // collapses the chart and it never comes back on its own.
-      if (entries[0].contentRect.width <= 0) {
-        return;
-      }
-      this.view?.requestAnimationFrame(() => this.chart?.resize());
-    });
-    this.observer.observe(element);
-  }
+
+    /**
+     * Three things every chart needs and none of them should have to remember.
+     *
+     * <p><b>The emphasis colour is set to `inherit`, and that is a bug fix rather than a
+     * preference.</b> On hover ECharts lightens the item's own colour through zrender's
+     * colour helper, and that helper does not understand `oklch()` — measured:
+     * `parse('oklch(48.78% 0.0805 191.43)')` returns `undefined`, so `lift` returns
+     * `undefined` and the bar is painted with no fill at all. The tooltip appears and the
+     * bar vanishes underneath it. `inherit` keeps the fill; the tooltip and the axis pointer
+     * are what say "this one".
+     *
+     * <p><b>The tooltip is themed here too</b>, because otherwise it is the library's own
+     * white box, which on the dark theme is the brightest thing on the page.
+     *
+     * <p><b>Reduced motion switches the animation off</b> rather than shortening it, the
+     * same rule the funnel rail follows. `matchMedia` is guarded: it is absent in jsdom.
+     */
+    private normalise(option: ChartOption): ChartOption {
+        const colours = this.palette();
+        const reduced =
+            typeof this.view?.matchMedia === 'function' &&
+            this.view.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+        // Cast rather than typed: the option is deliberately opaque here — only the chart
+        // components above know its shape — and this reaches for two fields common to all.
+        const source = option as { series?: unknown; tooltip?: object };
+        const series = Array.isArray(source.series) ? source.series : undefined;
+
+        return {
+            ...(option as object),
+            ...(reduced ? {animation: false} : {}),
+            ...(source.tooltip
+                ? {
+                    tooltip: {
+                        backgroundColor: colours.surface,
+                        borderColor: colours.track,
+                        textStyle: {color: colours.ink},
+                        ...source.tooltip,
+                    },
+                }
+                : {}),
+            ...(series
+                ? {
+                    series: series.map((one) => ({
+                        emphasis: {itemStyle: {color: 'inherit'}},
+                        ...(one as object),
+                    })),
+                }
+                : {}),
+        } as ChartOption;
+    }
+
+    private observeSize(element: HTMLElement): void {
+        if (typeof ResizeObserver !== 'function') {
+            return;
+        }
+        this.observer = new ResizeObserver((entries) => {
+            // The observer fires once on observe, sometimes before layout. A resize to zero
+            // collapses the chart and it never comes back on its own.
+            if (entries[0].contentRect.width <= 0) {
+                return;
+            }
+            this.view?.requestAnimationFrame(() => this.chart?.resize());
+        });
+        this.observer.observe(element);
+    }
 }

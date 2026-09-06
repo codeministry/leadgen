@@ -10,11 +10,12 @@ package de.codeministry.leadgen.enrich;
 
 import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.config.model.PipelineConfig;
-import java.util.List;
-import javax.sql.DataSource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
+
+import javax.sql.DataSource;
+import java.util.List;
 
 /**
  * Fetches the original ad for everything that cleared the hard filter.
@@ -34,19 +35,19 @@ public class EnrichmentService {
 
     private static final String DUE =
             """
-            SELECT id, url FROM offer
-            WHERE status = 'PASSED' AND archived_at IS NULL
-              AND enriched_at IS NULL AND url IS NOT NULL
-            ORDER BY id
-            """;
+                    SELECT id, url FROM offer
+                    WHERE status = 'PASSED' AND archived_at IS NULL
+                      AND enriched_at IS NULL AND url IS NOT NULL
+                    ORDER BY id
+                    """;
 
     private static final String RECORD =
             """
-            UPDATE offer
-            SET rate_eur = ?, duration = ?, workload = ?, remote_percent = ?, starts_on = ?,
-                contact = ?, full_text = ?, enriched_at = now(), enrichment_note = ?
-            WHERE id = ?
-            """;
+                    UPDATE offer
+                    SET rate_eur = ?, duration = ?, workload = ?, remote_percent = ?, starts_on = ?,
+                        contact = ?, full_text = ?, enriched_at = now(), enrichment_note = ?
+                    WHERE id = ?
+                    """;
 
     private final ConfigRegistry config;
     private final PageCache cache;
@@ -154,5 +155,6 @@ public class EnrichmentService {
                 .update();
     }
 
-    private record Due(long id, String url) {}
+    private record Due(long id, String url) {
+    }
 }

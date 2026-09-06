@@ -8,17 +8,9 @@
  */
 package de.codeministry.leadgen.web;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.BDDMockito.given;
-import static org.mockito.BDDMockito.willThrow;
-
 import de.codeministry.leadgen.application.ApplicationService;
 import de.codeministry.leadgen.application.ApplicationStatus;
 import de.codeministry.leadgen.application.ApplicationView;
-import java.time.Instant;
-import java.time.LocalDate;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -26,7 +18,18 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 
-/** The first write endpoint: what it accepts, and what it refuses. */
+import java.time.Instant;
+import java.time.LocalDate;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
+
+/**
+ * The first write endpoint: what it accepts, and what it refuses.
+ */
 @WebMvcTest(ApplicationController.class)
 class ApplicationControllerTest {
 
@@ -41,9 +44,9 @@ class ApplicationControllerTest {
         given(applications.update(anyLong(), any())).willReturn(view(ApplicationStatus.SENT));
 
         assertThat(mvc.patch()
-                        .uri("/api/applications/1")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"status\":\"SENT\",\"sentOn\":\"2026-09-01\"}"))
+                .uri("/api/applications/1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"status\":\"SENT\",\"sentOn\":\"2026-09-01\"}"))
                 .hasStatusOk()
                 .bodyJson()
                 .extractingPath("$.status")
@@ -55,18 +58,18 @@ class ApplicationControllerTest {
         // A typo has to fail at the door rather than reaching the database as a string
         // nothing can read back.
         assertThat(mvc.patch()
-                        .uri("/api/applications/1")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"status\":\"POSTED\"}"))
+                .uri("/api/applications/1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"status\":\"POSTED\"}"))
                 .hasStatus4xxClientError();
     }
 
     @Test
     void refusesAnUpdateWithNoStatusAtAll() {
         assertThat(mvc.patch()
-                        .uri("/api/applications/1")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"note\":\"just a note\"}"))
+                .uri("/api/applications/1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"note\":\"just a note\"}"))
                 .hasStatus4xxClientError();
     }
 
@@ -77,9 +80,9 @@ class ApplicationControllerTest {
                 .update(anyLong(), any());
 
         assertThat(mvc.patch()
-                        .uri("/api/applications/42")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"status\":\"SENT\"}"))
+                .uri("/api/applications/42")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"status\":\"SENT\"}"))
                 .hasStatus(org.springframework.http.HttpStatus.NOT_FOUND);
     }
 

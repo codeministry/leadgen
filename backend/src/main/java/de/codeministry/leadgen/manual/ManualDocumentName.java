@@ -21,15 +21,20 @@ import java.util.Locale;
  */
 public final class ManualDocumentName {
 
-    /** The only extension accepted, and the only one the `manual-inbox` source globs. */
+    /**
+     * The only extension accepted, and the only one the `manual-inbox` source globs.
+     */
     public static final String EXTENSION = ".md";
 
     private static final int MAX_LENGTH = 96;
     private static final String FALLBACK = "offer";
 
-    private ManualDocumentName() {}
+    private ManualDocumentName() {
+    }
 
-    /** Thrown when a name cannot be made safe, or names a file the source would not read. */
+    /**
+     * Thrown when a name cannot be made safe, or names a file the source would not read.
+     */
     public static class Rejected extends RuntimeException {
         public Rejected(String message) {
             super(message);

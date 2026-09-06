@@ -1,4 +1,4 @@
-import { HttpParams } from '@angular/common/http';
+import {HttpParams} from '@angular/common/http';
 
 /**
  * The chosen judge as a query parameter, or none at all.
@@ -9,5 +9,5 @@ import { HttpParams } from '@angular/common/http';
  * the server as well, which is a second way of saying the same thing.
  */
 export function scoringModelParams(model: string | null): HttpParams {
-  return model === null ? new HttpParams() : new HttpParams().set('model', model);
+    return model === null ? new HttpParams() : new HttpParams().set('model', model);
 }

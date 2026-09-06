@@ -21,10 +21,13 @@ import java.nio.file.Path;
  */
 public final class Directories {
 
-    /** How far up the tree a relative path is searched for. */
+    /**
+     * How far up the tree a relative path is searched for.
+     */
     private static final int SEARCH_DEPTH = 4;
 
-    private Directories() {}
+    private Directories() {
+    }
 
     /**
      * An absolute path is taken as given, and so is a relative one that already exists
@@ -32,7 +35,7 @@ public final class Directories {
      * one that is already there.
      *
      * @return the literal reading when nothing is found, so an error names the path the
-     *     configuration asked for rather than the last place that was tried.
+     * configuration asked for rather than the last place that was tried.
      */
     public static Path resolve(String path) {
         Path given = Path.of(path);

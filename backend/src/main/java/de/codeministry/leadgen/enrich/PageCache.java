@@ -8,13 +8,14 @@
  */
 package de.codeministry.leadgen.enrich;
 
-import java.time.Duration;
-import java.time.Instant;
-import java.util.Optional;
-import javax.sql.DataSource;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+
+import javax.sql.DataSource;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.Optional;
 
 /**
  * Remembers what a URL answered, so a second run inside the TTL asks nobody.
@@ -48,15 +49,18 @@ public class PageCache {
     public void store(String url, int status, String body) {
         jdbc.sql(
                         """
-                        INSERT INTO fetched_page (url, status, body, fetched_at)
-                        VALUES (?, ?, ?, now())
-                        ON CONFLICT (url) DO UPDATE
-                        SET status = EXCLUDED.status, body = EXCLUDED.body, fetched_at = now()
-                        """)
+                                INSERT INTO fetched_page (url, status, body, fetched_at)
+                                VALUES (?, ?, ?, now())
+                                ON CONFLICT (url) DO UPDATE
+                                SET status = EXCLUDED.status, body = EXCLUDED.body, fetched_at = now()
+                                """)
                 .params(url, status, body)
                 .update();
     }
 
-    /** @param body null when the page could not be read; the status says why. */
-    public record Entry(int status, String body) {}
+    /**
+     * @param body null when the page could not be read; the status says why.
+     */
+    public record Entry(int status, String body) {
+    }
 }

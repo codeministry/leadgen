@@ -11,6 +11,7 @@
 --
 -- Nullable, because a source need not be a mail at all: a file dropped in the manual inbox
 -- has no arrival date, and a null there is the honest answer rather than the file's mtime.
-ALTER TABLE offer ADD COLUMN received_at TIMESTAMPTZ;
+ALTER TABLE offer
+    ADD COLUMN received_at TIMESTAMPTZ;
 
 CREATE INDEX offer_received_idx ON offer (received_at);

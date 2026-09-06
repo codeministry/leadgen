@@ -1,21 +1,21 @@
-import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
-import { RouterLink } from '@angular/router';
-import { TranslocoPipe } from '@jsverse/transloco';
-import { ShortlistEntry } from '@core/model/shortlist-entry';
-import { Badge } from '@shared/badge/badge';
-import { Icon } from '@shared/icon/icon';
-import { Score } from '@shared/score/score';
-import { plainText } from '@shared/text/plain-text';
+import {ChangeDetectionStrategy, Component, computed, input} from '@angular/core';
+import {RouterLink} from '@angular/router';
+import {TranslocoPipe} from '@jsverse/transloco';
+import {ShortlistEntry} from '@core/model/shortlist-entry';
+import {Badge} from '@shared/badge/badge';
+import {Icon} from '@shared/icon/icon';
+import {Score} from '@shared/score/score';
+import {plainText} from '@shared/text/plain-text';
 
 @Component({
-  selector: 'lg-offer-card',
-  imports: [Badge, Icon, RouterLink, Score, TranslocoPipe],
-  templateUrl: './offer-card.html',
-  styleUrl: './offer-card.css',
-  changeDetection: ChangeDetectionStrategy.OnPush,
+    selector: 'lg-offer-card',
+    imports: [Badge, Icon, RouterLink, Score, TranslocoPipe],
+    templateUrl: './offer-card.html',
+    styleUrl: './offer-card.css',
+    changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class OfferCard {
-  readonly entry = input.required<ShortlistEntry>();
+    readonly entry = input.required<ShortlistEntry>();
 
     /**
      * Whether this is the offer the detail column is showing. Passed in from the routed id
@@ -24,27 +24,27 @@ export class OfferCard {
      */
     readonly selected = input(false);
 
-  /**
-   * The three factors that moved the score most, plus every penalty. A penalty is
-   * never hidden behind a cut-off: it is the reason a promising title scored low,
-   * and that is exactly what the reader is scanning for.
-   */
-  protected readonly shownReasons = computed(() => {
-    const reasons = this.entry().score.reasons;
-    const penalties = reasons.filter((reason) => reason.points < 0);
-    const positives = [...reasons.filter((reason) => reason.points > 0)]
-      .sort((a, b) => b.points - a.points)
-      .slice(0, 3);
-    return [...positives, ...penalties];
-  });
+    /**
+     * The three factors that moved the score most, plus every penalty. A penalty is
+     * never hidden behind a cut-off: it is the reason a promising title scored low,
+     * and that is exactly what the reader is scanning for.
+     */
+    protected readonly shownReasons = computed(() => {
+        const reasons = this.entry().score.reasons;
+        const penalties = reasons.filter((reason) => reason.points < 0);
+        const positives = [...reasons.filter((reason) => reason.points > 0)]
+            .sort((a, b) => b.points - a.points)
+            .slice(0, 3);
+        return [...positives, ...penalties];
+    });
 
-  /**
-   * The teaser, with the Markdown taken out. Rendered as Markdown it would put headings
-   * and a bullet list inside a card whose job is to carry the score; printed raw it shows
-   * the syntax. The detail page renders the document properly.
-   */
-  protected readonly teaser = computed(() => plainText(this.entry().offer.description));
+    /**
+     * The teaser, with the Markdown taken out. Rendered as Markdown it would put headings
+     * and a bullet list inside a card whose job is to carry the score; printed raw it shows
+     * the syntax. The detail page renders the document properly.
+     */
+    protected readonly teaser = computed(() => plainText(this.entry().offer.description));
 
-  /** Everyone advertising this project. One entry means no duplicate cluster. */
-  protected readonly otherSources = computed(() => this.entry().sources.slice(1));
+    /** Everyone advertising this project. One entry means no duplicate cluster. */
+    protected readonly otherSources = computed(() => this.entry().sources.slice(1));
 }

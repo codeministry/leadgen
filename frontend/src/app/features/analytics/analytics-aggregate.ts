@@ -1,4 +1,4 @@
-import { IntakeDay, IntakeSeries } from '@core/model/analytics';
+import {IntakeDay, IntakeSeries} from '@core/model/analytics';
 
 /** Which date the series is read along. Both answer a different question. */
 export type TimeAxis = 'published' | 'received' | 'ingested';
@@ -8,15 +8,15 @@ export type Granularity = 'day' | 'week' | 'month';
 
 /** One bar: a bucket start and the counts that fall inside it. */
 export interface IntakeBucket extends IntakeDay {
-  readonly days: number;
+    readonly days: number;
 }
 
 export function isTimeAxis(value: unknown): value is TimeAxis {
-  return value === 'published' || value === 'received' || value === 'ingested';
+    return value === 'published' || value === 'received' || value === 'ingested';
 }
 
 export function isGranularity(value: unknown): value is Granularity {
-  return value === 'day' || value === 'week' || value === 'month';
+    return value === 'day' || value === 'week' || value === 'month';
 }
 
 /**
@@ -29,14 +29,14 @@ export function isGranularity(value: unknown): value is Granularity {
  * refilled.
  */
 export function daysOf(intake: IntakeSeries, axis: TimeAxis): readonly IntakeDay[] {
-  switch (axis) {
-    case 'published':
-      return intake.byPublishedOn;
-    case 'received':
-      return intake.byReceivedAt;
-    default:
-      return intake.byIngestedAt;
-  }
+    switch (axis) {
+        case 'published':
+            return intake.byPublishedOn;
+        case 'received':
+            return intake.byReceivedAt;
+        default:
+            return intake.byIngestedAt;
+    }
 }
 
 /**
@@ -51,20 +51,20 @@ export function daysOf(intake: IntakeSeries, axis: TimeAxis): readonly IntakeDay
  * archive rather than a day nothing ran — and the sum needs no gap logic at all.
  */
 export function bucketBy(
-  days: readonly IntakeDay[],
-  granularity: Granularity,
+    days: readonly IntakeDay[],
+    granularity: Granularity,
 ): readonly IntakeBucket[] {
-  if (granularity === 'day') {
-    return days.map((day) => ({ ...day, days: 1 }));
-  }
+    if (granularity === 'day') {
+        return days.map((day) => ({...day, days: 1}));
+    }
 
-  const buckets = new Map<string, IntakeBucket>();
-  for (const day of days) {
-    const start = startOf(day.day, granularity);
-    const current = buckets.get(start);
-    buckets.set(start, current ? add(current, day) : { ...day, day: start, days: 1 });
-  }
-  return [...buckets.values()];
+    const buckets = new Map<string, IntakeBucket>();
+    for (const day of days) {
+        const start = startOf(day.day, granularity);
+        const current = buckets.get(start);
+        buckets.set(start, current ? add(current, day) : {...day, day: start, days: 1});
+    }
+    return [...buckets.values()];
 }
 
 /**
@@ -79,14 +79,14 @@ export function bucketBy(
  * a negative offset and shift a whole series by one day.
  */
 export function startOf(day: string, granularity: Granularity): string {
-  const date = new Date(`${day}T00:00:00Z`);
-  if (granularity === 'month') {
-    date.setUTCDate(1);
-  } else if (granularity === 'week') {
-    const weekday = (date.getUTCDay() + 6) % 7;
-    date.setUTCDate(date.getUTCDate() - weekday);
-  }
-  return date.toISOString().slice(0, 10);
+    const date = new Date(`${day}T00:00:00Z`);
+    if (granularity === 'month') {
+        date.setUTCDate(1);
+    } else if (granularity === 'week') {
+        const weekday = (date.getUTCDay() + 6) % 7;
+        date.setUTCDate(date.getUTCDate() - weekday);
+    }
+    return date.toISOString().slice(0, 10);
 }
 
 /** A week's worth of days. Below this there is no week to average over. */
@@ -102,13 +102,13 @@ const DAYS_IN_A_WEEK = 7;
  * and the tile is worth reading again in a fortnight.
  */
 export function perWeek(days: readonly IntakeDay[]): number | null {
-  if (days.length < DAYS_IN_A_WEEK) {
-    return null;
-  }
-  const total = days.reduce((sum, day) => sum + day.primaries, 0);
-  // The span, not the number of days carrying an offer: a fortnight with one busy day
-  // averages to what actually happened rather than to that one day.
-  return (total / days.length) * DAYS_IN_A_WEEK;
+    if (days.length < DAYS_IN_A_WEEK) {
+        return null;
+    }
+    const total = days.reduce((sum, day) => sum + day.primaries, 0);
+    // The span, not the number of days carrying an offer: a fortnight with one busy day
+    // averages to what actually happened rather than to that one day.
+    return (total / days.length) * DAYS_IN_A_WEEK;
 }
 
 /**
@@ -119,10 +119,10 @@ export function perWeek(days: readonly IntakeDay[]): number | null {
  * this exists. A bucket wider than the data is not a summary, it is a collapse.
  */
 export function suggestedGranularity(days: readonly IntakeDay[]): Granularity {
-  if (days.length > 120) {
-    return 'month';
-  }
-  return days.length > 21 ? 'week' : 'day';
+    if (days.length > 120) {
+        return 'month';
+    }
+    return days.length > 21 ? 'week' : 'day';
 }
 
 /**
@@ -133,32 +133,32 @@ export function suggestedGranularity(days: readonly IntakeDay[]): Granularity {
  * holding two days is still a week.
  */
 export function bucketLabel(day: string, granularity: Granularity): string {
-  if (granularity === 'day') {
-    return day;
-  }
-  if (granularity === 'month') {
-    return day.slice(0, 7);
-  }
-  const end = new Date(`${day}T00:00:00Z`);
-  end.setUTCDate(end.getUTCDate() + 6);
-  return `${day} – ${end.toISOString().slice(0, 10)}`;
+    if (granularity === 'day') {
+        return day;
+    }
+    if (granularity === 'month') {
+        return day.slice(0, 7);
+    }
+    const end = new Date(`${day}T00:00:00Z`);
+    end.setUTCDate(end.getUTCDate() + 6);
+    return `${day} – ${end.toISOString().slice(0, 10)}`;
 }
 
 /** A share as a percentage, or null when there is nothing to divide by. */
 export function share(part: number, whole: number): number | null {
-  return whole === 0 ? null : (part / whole) * 100;
+    return whole === 0 ? null : (part / whole) * 100;
 }
 
 function add(bucket: IntakeBucket, day: IntakeDay): IntakeBucket {
-  return {
-    day: bucket.day,
-    days: bucket.days + 1,
-    primaries: bucket.primaries + day.primaries,
-    duplicates: bucket.duplicates + day.duplicates,
-    passed: bucket.passed + day.passed,
-    shortlisted: bucket.shortlisted + day.shortlisted,
-    review: bucket.review + day.review,
-    discarded: bucket.discarded + day.discarded,
-    unscored: bucket.unscored + day.unscored,
-  };
+    return {
+        day: bucket.day,
+        days: bucket.days + 1,
+        primaries: bucket.primaries + day.primaries,
+        duplicates: bucket.duplicates + day.duplicates,
+        passed: bucket.passed + day.passed,
+        shortlisted: bucket.shortlisted + day.shortlisted,
+        review: bucket.review + day.review,
+        discarded: bucket.discarded + day.discarded,
+        unscored: bucket.unscored + day.unscored,
+    };
 }

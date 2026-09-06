@@ -1,6 +1,6 @@
-import { TestBed } from '@angular/core/testing';
-import { TranslocoTestingModule } from '@jsverse/transloco';
-import { provideTranslocoMessageformat } from '@jsverse/transloco-messageformat';
+import {TestBed} from '@angular/core/testing';
+import {TranslocoTestingModule} from '@jsverse/transloco';
+import {provideTranslocoMessageformat} from '@jsverse/transloco-messageformat';
 import en from '../public/i18n/en.json';
 
 /**
@@ -21,19 +21,19 @@ import en from '../public/i18n/en.json';
  * `canvas` package to silence a warning would put a node-gyp build in CI.
  */
 if (typeof HTMLCanvasElement !== 'undefined') {
-  HTMLCanvasElement.prototype.getContext = (() =>
-    null) as unknown as typeof HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext = (() =>
+        null) as unknown as typeof HTMLCanvasElement.prototype.getContext;
 }
 
 beforeEach(() => {
-  TestBed.configureTestingModule({
-    imports: [
-      TranslocoTestingModule.forRoot({
-        langs: { en },
-        translocoConfig: { availableLangs: ['en', 'de'], defaultLang: 'en' },
-        preloadLangs: true,
-      }),
-    ],
-    providers: [provideTranslocoMessageformat()],
-  });
+    TestBed.configureTestingModule({
+        imports: [
+            TranslocoTestingModule.forRoot({
+                langs: {en},
+                translocoConfig: {availableLangs: ['en', 'de'], defaultLang: 'en'},
+                preloadLangs: true,
+            }),
+        ],
+        providers: [provideTranslocoMessageformat()],
+    });
 });

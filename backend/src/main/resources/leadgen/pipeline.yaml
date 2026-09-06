@@ -24,14 +24,14 @@ llm:
     # skipped. They stay here because the stages exist in the concept, but a value in any
     # of them changes nothing.
     extraction: ${LLM_MODEL_EXTRACTION}  # not read yet
-    scoring:    ${LLM_MODEL_SCORING}     # the judge, and the default of the list below
+    scoring: ${LLM_MODEL_SCORING}     # the judge, and the default of the list below
     # The alternatives offered in the select beside the run button, comma separated.
     # An allowlist, not a suggestion: the chosen model travels as a request parameter,
     # and a name passed through unchecked is an arbitrary string deciding what gets
     # bought. `scoring` is always the first entry and need not be repeated here.
     scoring_options: ${LLM_MODEL_SCORING_OPTIONS:}
-    writing:    ${LLM_MODEL_WRITING}     # not read yet
-    embedding:  ${LLM_MODEL_EMBEDDING}   # not read yet
+    writing: ${LLM_MODEL_WRITING}     # not read yet
+    embedding: ${LLM_MODEL_EMBEDDING}   # not read yet
   budget:
     max_calls_per_day: 300
     cache_by_message_id: true
@@ -111,7 +111,7 @@ digest:
   # nothing reads is the decoration this file has been losing all day.
   format: ${DIGEST_FORMAT:html}         # text | html
   output_dir: ${DIGEST_DIR:./packages/digest}
-  include: [shortlisted, review, follow_ups_due]
+  include: [ shortlisted, review, follow_ups_due ]
 
 security:
   auth: ${AUTH_MODE:none}               # none | basic | oidc

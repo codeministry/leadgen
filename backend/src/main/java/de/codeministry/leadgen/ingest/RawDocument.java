@@ -16,4 +16,5 @@ import java.time.Instant;
  *
  * @param id stable within the source: a file name now, an IMAP UID next
  */
-public record RawDocument(String id, String subject, String html, Instant receivedAt) {}
+public record RawDocument(String id, String subject, String html, Instant receivedAt) {
+}

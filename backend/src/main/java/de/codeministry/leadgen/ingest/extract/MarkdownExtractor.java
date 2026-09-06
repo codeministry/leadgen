@@ -12,18 +12,14 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import de.codeministry.leadgen.config.model.SourcesConfig.Extraction;
-import java.io.IOException;
-import java.time.temporal.TemporalAccessor;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Date;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+
+import java.io.IOException;
+import java.time.temporal.TemporalAccessor;
+import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Reads one offer out of one Markdown file: YAML frontmatter carries the fields, the body
@@ -55,8 +51,8 @@ public class MarkdownExtractor {
 
     /**
      * @return one block, or none when the file has no frontmatter at all. A file without
-     *     it is a pasted ad, which is what `fallback: llm` is for; until that exists the
-     *     file is left where it is rather than entering as an offer with no title.
+     * it is a pasted ad, which is what `fallback: llm` is for; until that exists the
+     * file is left where it is rather than entering as an offer with no title.
      */
     public List<Map<String, Object>> extract(String text, Extraction extraction) {
         if (text == null || text.isBlank()) {
@@ -97,7 +93,8 @@ public class MarkdownExtractor {
 
     private Map<String, Object> parse(String frontmatter) {
         try {
-            Map<String, Object> parsed = yaml.readValue(frontmatter, new TypeReference<>() {});
+            Map<String, Object> parsed = yaml.readValue(frontmatter, new TypeReference<>() {
+            });
             return parsed == null ? Map.of() : parsed;
         } catch (IOException e) {
             // Not fatal, and not silent: the file stays on disk and the operator is told
@@ -130,7 +127,9 @@ public class MarkdownExtractor {
         };
     }
 
-    /** A YAML list, or the comma-separated line someone typed instead. */
+    /**
+     * A YAML list, or the comma-separated line someone typed instead.
+     */
     private static List<String> tags(Object raw) {
         if (raw instanceof List<?> list) {
             List<String> tags = new ArrayList<>();

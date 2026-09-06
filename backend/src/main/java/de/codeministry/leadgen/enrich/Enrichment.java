@@ -18,7 +18,7 @@ import java.time.LocalDate;
  * distinguishable from a low one.
  *
  * @param note why the offer is incomplete, or null when the fetch and the extraction
- *     both worked. A failed fetch never discards an offer; it marks it.
+ *             both worked. A failed fetch never discards an offer; it marks it.
  */
 public record Enrichment(
         BigDecimal rateEur,
@@ -38,7 +38,9 @@ public record Enrichment(
         return note == null;
     }
 
-    /** How many of the seven fields the ad actually yielded. */
+    /**
+     * How many of the seven fields the ad actually yielded.
+     */
     public int fieldCount() {
         int found = 0;
         if (rateEur != null) found++;

@@ -8,19 +8,20 @@
  */
 package de.codeministry.leadgen;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 import de.codeministry.leadgen.config.ConfigProperties;
 import de.codeministry.leadgen.config.DotEnv;
 import de.codeministry.leadgen.config.Secrets;
+import org.junit.jupiter.api.Test;
+import org.springframework.core.env.MapPropertySource;
+import org.springframework.core.env.StandardEnvironment;
+
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
-import org.junit.jupiter.api.Test;
-import org.springframework.core.env.MapPropertySource;
-import org.springframework.core.env.StandardEnvironment;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 class ConfigurationBannerTest {
 
@@ -79,7 +80,7 @@ class ConfigurationBannerTest {
         // All three are named by a `${...}` in the shipped leadgen YAML files, which is what
         // makes them app-relevant.
         String text = banner().describe(
-                        dotenv("IMAP_HOST", "imap.example.org", "IMAP_PASSWORD", "s3cr3t", "LLM_API_KEY", ""));
+                dotenv("IMAP_HOST", "imap.example.org", "IMAP_PASSWORD", "s3cr3t", "LLM_API_KEY", ""));
 
         assertThat(text).contains("/somewhere/.env");
         assertThat(text).contains("IMAP_HOST", "imap.example.org");
@@ -106,8 +107,8 @@ class ConfigurationBannerTest {
 
         assertThat(text).contains("leadgen.config-dir");
         assertThat(text.lines()
-                        .filter(line -> line.contains("LEADGEN_CONFIG_DIR"))
-                        .count())
+                .filter(line -> line.contains("LEADGEN_CONFIG_DIR"))
+                .count())
                 .isZero();
     }
 

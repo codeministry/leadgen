@@ -20,9 +20,10 @@ public record RunSeries(List<Day> days, List<Pass> passes, Instant historySince)
 
     /**
      * @param announced null when no source stated a count. The comparison between what a
-     *     document announced and what came out of it is the one check nothing else can make.
+     *                  document announced and what came out of it is the one check nothing else can make.
      */
-    public record Day(LocalDate day, int runs, int documents, int extracted, int written, Integer announced) {}
+    public record Day(LocalDate day, int runs, int documents, int extracted, int written, Integer announced) {
+    }
 
     /**
      * One whole run, as that run reported itself.
@@ -44,5 +45,6 @@ public record RunSeries(List<Day> days, List<Pass> passes, Instant historySince)
             int filterPassed,
             int scored,
             int shortlisted,
-            int packaged) {}
+            int packaged) {
+    }
 }

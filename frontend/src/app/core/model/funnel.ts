@@ -11,15 +11,15 @@
  * inside it: leaving the working list is not something the filter did.
  */
 export interface FunnelStageCount {
-  readonly id: string;
-  readonly label: string;
-  readonly removed: number;
+    readonly id: string;
+    readonly label: string;
+    readonly removed: number;
 }
 
 export interface FunnelView {
-  readonly total: number;
-  readonly stages: readonly FunnelStageCount[];
-  readonly survived: number;
-  /** Primaries taken off the working list, by age or by hand. Not a stage. */
-  readonly archived: number;
+    readonly total: number;
+    readonly stages: readonly FunnelStageCount[];
+    readonly survived: number;
+    /** Primaries taken off the working list, by age or by hand. Not a stage. */
+    readonly archived: number;
 }

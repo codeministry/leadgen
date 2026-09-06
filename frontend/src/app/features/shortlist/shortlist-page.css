@@ -68,16 +68,16 @@
 }
 
 .filters .row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
 }
 
 .control {
-  display: inline-flex;
-  min-width: 0;
-  max-width: 100%;
+    display: inline-flex;
+    min-width: 0;
+    max-width: 100%;
 }
 
 .control input[type='search'] {
@@ -85,21 +85,21 @@
 }
 
 .list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.625rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
     list-style: none;
 }
 
 .error {
-  color: var(--color-error);
+    color: var(--color-error);
 }
 
 /* Sits below the list and is only in the DOM while there is more to load. */
 .sentinel {
-  display: flex;
-  justify-content: center;
-  padding: 1.5rem 0;
+    display: flex;
+    justify-content: center;
+    padding: 1.5rem 0;
 }
 
 /* Mobile-last, as everywhere in this repo: the back control exists only where the list is

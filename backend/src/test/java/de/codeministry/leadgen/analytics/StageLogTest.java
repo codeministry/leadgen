@@ -8,10 +8,10 @@
  */
 package de.codeministry.leadgen.analytics;
 
+import org.junit.jupiter.api.Test;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
-import org.junit.jupiter.api.Test;
 
 /**
  * What the run's own stopwatch has to guarantee.
@@ -50,8 +50,8 @@ class StageLogTest {
         log.time("DEDUPE", () -> 1);
 
         assertThatThrownBy(() -> log.time("FILTER", () -> {
-                    throw new IllegalStateException("the rules did not load");
-                }))
+            throw new IllegalStateException("the rules did not load");
+        }))
                 .isInstanceOf(IllegalStateException.class);
 
         assertThat(log.timings()).hasSize(2);

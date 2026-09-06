@@ -11,13 +11,9 @@ package de.codeministry.leadgen.score;
 import de.codeministry.leadgen.config.model.MatchingRules;
 import de.codeministry.leadgen.config.model.SkillProfile;
 import de.codeministry.leadgen.filter.TextFold;
+
 import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.regex.Pattern;
 
 /**
@@ -40,7 +36,9 @@ import java.util.regex.Pattern;
  */
 public class RuleScorer {
 
-    /** The factors this scorer can decide. The rest belong to a {@link Judge}. */
+    /**
+     * The factors this scorer can decide. The rest belong to a {@link Judge}.
+     */
     public static final Set<String> DETERMINISTIC =
             Set.of("core_skill_overlap", "rate_fit", "seniority_fit", "project_setup", "industry_fit");
 

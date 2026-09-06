@@ -12,6 +12,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
@@ -67,14 +68,14 @@ public record PipelineConfig(
          */
         /**
          * @param scoringOptions the alternatives offered beside {@link #scoring}, comma
-         *     separated. A list rather than a single value because comparing two judges is
-         *     the only way to find out what a model is worth here, and a comparison that
-         *     needs an edit to `.env` and a restart between the halves does not get made.
-         *     <p><b>Comma separated rather than a YAML sequence, and that is the
-         *     placeholder's doing.</b> Every value in a shipped file is a
-         *     <code>${PLACEHOLDER}</code> resolved from `.env`, which substitutes text into
-         *     a scalar; a sequence would have to be written out in the file itself, which
-         *     is the one thing no committed file here does.
+         *                       separated. A list rather than a single value because comparing two judges is
+         *                       the only way to find out what a model is worth here, and a comparison that
+         *                       needs an edit to `.env` and a restart between the halves does not get made.
+         *                       <p><b>Comma separated rather than a YAML sequence, and that is the
+         *                       placeholder's doing.</b> Every value in a shipped file is a
+         *                       <code>${PLACEHOLDER}</code> resolved from `.env`, which substitutes text into
+         *                       a scalar; a sequence would have to be written out in the file itself, which
+         *                       is the one thing no committed file here does.
          */
         public record Models(
                 String extraction, String scoring, String writing, String embedding, String scoringOptions) {
@@ -103,15 +104,21 @@ public record PipelineConfig(
             }
         }
 
-        public record Budget(@Min(0) int maxCallsPerDay, boolean cacheByMessageId) {}
+        public record Budget(@Min(0) int maxCallsPerDay, boolean cacheByMessageId) {
+        }
     }
 
-    public record Profile(@NotBlank String path) {}
+    public record Profile(@NotBlank String path) {
+    }
 
-    public record Rules(@NotBlank String path, boolean hotReload) {}
+    public record Rules(@NotBlank String path, boolean hotReload) {
+    }
 
-    /** Optional: without it `sources.yaml` in the configuration directory applies. */
-    public record Sources(String path) {}
+    /**
+     * Optional: without it `sources.yaml` in the configuration directory applies.
+     */
+    public record Sources(String path) {
+    }
 
     public record Enrichment(
             boolean enabled, @NotBlank String after, @Valid @NotNull Fetch fetch, @Valid Extract extract) {
@@ -144,21 +151,21 @@ public record PipelineConfig(
 
         /**
          * @param strategy how the fields are read. Only {@code patterns} exists: a
-         *     selector or a regular expression per field, in YAML. A `readability` value
-         *     used to sit here and nothing implemented it.
-         * @param fields the field name to the rule that finds it. The names are the
-         *     contract with the enrichment stage, exactly as the eight names in
-         *     `sources.yaml` are the contract with `OfferMapper`: a field spelled
-         *     differently is extracted and then ignored, in silence.
+         *                 selector or a regular expression per field, in YAML. A `readability` value
+         *                 used to sit here and nothing implemented it.
+         * @param fields   the field name to the rule that finds it. The names are the
+         *                 contract with the enrichment stage, exactly as the eight names in
+         *                 `sources.yaml` are the contract with `OfferMapper`: a field spelled
+         *                 differently is extracted and then ignored, in silence.
          */
         public record Extract(@NotBlank String strategy, Map<String, @Valid Field> fields) {
 
             /**
-             * @param css narrows the search to part of the page before the regex runs, or
-             *     takes the element's text when there is no regex.
+             * @param css   narrows the search to part of the page before the regex runs, or
+             *              takes the element's text when there is no regex.
              * @param regex the value, or its first capturing group when {@code group} is set.
              * @param group which capturing group holds the value. 1 by default, because a
-             *     pattern that matches "85 €/h" wants the 85 and not the whole phrase.
+             *              pattern that matches "85 €/h" wants the 85 and not the whole phrase.
              */
             public record Field(String css, String regex, Integer group, String attr) {
 
@@ -184,7 +191,8 @@ public record PipelineConfig(
                 String template,
                 boolean generated,
                 String format,
-                String mode) {}
+                String mode) {
+        }
     }
 
     /**
@@ -192,7 +200,9 @@ public record PipelineConfig(
      * no recipient and no channel: the application has no send path, and a configuration
      * that modelled one would be an invitation to add it.
      */
-    public record Digest(boolean enabled, String format, String outputDir, List<String> include) {}
+    public record Digest(boolean enabled, String format, String outputDir, List<String> include) {
+    }
 
-    public record Security(@NotBlank String auth, Map<String, String> oidc) {}
+    public record Security(@NotBlank String auth, Map<String, String> oidc) {
+    }
 }

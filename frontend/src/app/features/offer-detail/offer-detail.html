@@ -1,247 +1,247 @@
 @if (entry(); as entry) {
     <lg-page-header heading="h2" [title]="entry.offer.title" [subtitle]="entry.offer.portal">
-    @if (entry.offer.url; as url) {
-      <!-- Out of the application, so a new tab, and `noopener` with it: a page opened
-           this way can otherwise reach back through `window.opener`, and this URL came off
-           a portal. The same pair the rendered advert's own links carry. -->
-      <a class="btn btn-sm btn-ghost" [href]="url" target="_blank" rel="noopener noreferrer">
-        <lg-icon name="external-link" [size]="16" />
-        {{ 'detail.originalAd' | transloco }}
-      </a>
-    }
-    <!--
-      The one thing about an offer a person owns; everything else on this page is written
-      by a run and rewritten by the next one. The label follows `archivedAt` and not
-      `archiveSource`, because an offer somebody restored is on the list like any other and
-      offering to restore it again would be offering to undo nothing.
-    -->
-    <button
-      type="button"
-      class="btn btn-sm btn-ghost"
-      [disabled]="store.archiving() === entry.offer.id"
-      (click)="setArchived(entry.offer.id, entry.offer.archivedAt === null)"
-    >
-      <lg-icon [name]="entry.offer.archivedAt ? 'archive-restore' : 'archive'" [size]="16" />
-      {{ (entry.offer.archivedAt ? 'detail.restore' : 'detail.archive') | transloco }}
-    </button>
-  </lg-page-header>
-
-  @if (entry.offer.archivedAt) {
-    <p class="type-small archived-note">
-      {{ 'detail.archivedOn' | transloco: { date: entry.offer.archivedAt | date: 'dd.MM.yyyy' } }}
-      @if (entry.offer.archiveSource === 'AGE') {
-        {{ 'detail.archivedByAge' | transloco }}
-      }
-    </p>
-  }
-
-  <div class="grid">
-      <!--
-        The summary the source states about the advert, above the advert itself, because it is
-        what the shortlist card showed and the reason somebody opened this offer. It only
-        appears when the enriched full text is on screen: without that, the advert panel below
-        *is* this description, and the same paragraph twice says nothing the second time.
-      -->
-      @if (entry.offer.fullText && entry.offer.description; as summary) {
-          <section class="panel panel-wide">
-              <h2 class="type-h2">{{ 'detail.summary' | transloco }}</h2>
-              <lg-markdown [text]="summary"/>
-              <p class="type-caption text-muted">{{ 'detail.summaryNote' | transloco }}</p>
-          </section>
-      }
-
-      <section class="panel panel-wide">
-      <h2 class="type-h2">{{ 'detail.theAd' | transloco }}</h2>
-      <!--
-        The enriched full text when enrichment reached the portal, the newsletter's own
-        summary when it did not. Which one is on screen is the difference between reading
-        the advert and reading a paragraph about it, so the note below says so.
-
-        Rendered as Markdown: an ad written by hand carries headings and bullet lists, and
-        one pulled off a portal carries the paragraph breaks `PlainText` kept. Plain text
-        is valid Markdown, so nothing has to decide which of the two this is.
-      -->
-          <div class="ad" #ad [class.folded]="adFolded()">
-            <lg-markdown [text]="entry.offer.fullText ?? entry.offer.description"/>
-        </div>
-        @if (adIsLong()) {
-            <button type="button" class="btn btn-sm btn-ghost ad-toggle" (click)="toggleAd(entry.offer.id)">
-                <lg-icon [name]="adFolded() ? 'chevron-down' : 'chevron-up'" [size]="16"/>
-                {{ (adFolded() ? 'detail.showMore' : 'detail.showLess') | transloco }}
-            </button>
+        @if (entry.offer.url; as url) {
+            <!-- Out of the application, so a new tab, and `noopener` with it: a page opened
+                 this way can otherwise reach back through `window.opener`, and this URL came off
+                 a portal. The same pair the rendered advert's own links carry. -->
+            <a class="btn btn-sm btn-ghost" [href]="url" target="_blank" rel="noopener noreferrer">
+                <lg-icon name="external-link" [size]="16"/>
+                {{ 'detail.originalAd' | transloco }}
+            </a>
         }
-      @if (!entry.offer.fullText) {
-        <p class="type-caption text-muted">{{ 'detail.fromSource' | transloco }}</p>
-      }
-
-      <div class="tags">
-        @for (tag of entry.offer.tags; track tag) {
-          <lg-badge tone="ghost" [outline]="true">{{ tag }}</lg-badge>
-        }
-      </div>
-    </section>
-
-    <section class="panel">
-      <div class="section-head">
-        <h2 class="type-h2">{{ 'detail.whyScored' | transloco }}</h2>
         <!--
-          The deliberate exception to the staleness guard. A run judges only what changed,
-          which is what stops it paying for the whole standing backlog every night; this is
-          how one offer is judged again anyway, when the operator has a reason the tool
-          cannot know. Absent on an offer the filter rejected, because scoring never saw it.
+          The one thing about an offer a person owns; everything else on this page is written
+          by a run and rewritten by the next one. The label follows `archivedAt` and not
+          `archiveSource`, because an offer somebody restored is on the list like any other and
+          offering to restore it again would be offering to undo nothing.
         -->
-        @if (entry.score.hardPass) {
-          <button
-            type="button"
-            class="btn btn-sm btn-ghost"
-            [disabled]="store.rescoring() === entry.offer.id"
-            (click)="rescore(entry.offer.id)"
-          >
-            <lg-icon name="refresh" [size]="14" />
-            {{
-              (store.rescoring() === entry.offer.id ? 'detail.rescoring' : 'detail.rescore')
-                | transloco
-            }}
-          </button>
-        }
-      </div>
-      @if (store.rescoreError(); as refusal) {
-        <p class="type-small rescore-refusal">{{ refusal | transloco }}</p>
-      }
-      <div class="score-row">
-        <lg-score [value]="entry.score.value" [size]="72" />
-        <p class="type-small text-muted">
-          @if (entry.score.value === null) {
-            {{ 'detail.notScored' | transloco }}
-          } @else {
-            {{
-              'detail.scoreMeta'
-                | transloco
-                  : {
-                      ruleset: entry.score.rulesetVersion ?? ('common.unknown' | transloco),
-                      model: entry.score.model ?? ('common.none' | transloco),
-                    }
-            }}
-            ·
-            {{ (entry.score.hardPass ? 'detail.hardPassed' : 'detail.hardRejected') | transloco }}
-          }
-        </p>
-      </div>
+        <button
+                type="button"
+                class="btn btn-sm btn-ghost"
+                [disabled]="store.archiving() === entry.offer.id"
+                (click)="setArchived(entry.offer.id, entry.offer.archivedAt === null)"
+        >
+            <lg-icon [name]="entry.offer.archivedAt ? 'archive-restore' : 'archive'" [size]="16"/>
+            {{ (entry.offer.archivedAt ? 'detail.restore' : 'detail.archive') | transloco }}
+        </button>
+    </lg-page-header>
 
-      <ul class="reasons">
-        @for (reason of entry.score.reasons; track reason.factor) {
-          <li class="reason">
+    @if (entry.offer.archivedAt) {
+        <p class="type-small archived-note">
+            {{ 'detail.archivedOn' | transloco: {date: entry.offer.archivedAt | date: 'dd.MM.yyyy'} }}
+            @if (entry.offer.archiveSource === 'AGE') {
+                {{ 'detail.archivedByAge' | transloco }}
+            }
+        </p>
+    }
+
+    <div class="grid">
+        <!--
+          The summary the source states about the advert, above the advert itself, because it is
+          what the shortlist card showed and the reason somebody opened this offer. It only
+          appears when the enriched full text is on screen: without that, the advert panel below
+          *is* this description, and the same paragraph twice says nothing the second time.
+        -->
+        @if (entry.offer.fullText && entry.offer.description; as summary) {
+            <section class="panel panel-wide">
+                <h2 class="type-h2">{{ 'detail.summary' | transloco }}</h2>
+                <lg-markdown [text]="summary"/>
+                <p class="type-caption text-muted">{{ 'detail.summaryNote' | transloco }}</p>
+            </section>
+        }
+
+        <section class="panel panel-wide">
+            <h2 class="type-h2">{{ 'detail.theAd' | transloco }}</h2>
+            <!--
+              The enriched full text when enrichment reached the portal, the newsletter's own
+              summary when it did not. Which one is on screen is the difference between reading
+              the advert and reading a paragraph about it, so the note below says so.
+
+              Rendered as Markdown: an ad written by hand carries headings and bullet lists, and
+              one pulled off a portal carries the paragraph breaks `PlainText` kept. Plain text
+              is valid Markdown, so nothing has to decide which of the two this is.
+            -->
+            <div class="ad" #ad [class.folded]="adFolded()">
+                <lg-markdown [text]="entry.offer.fullText ?? entry.offer.description"/>
+            </div>
+            @if (adIsLong()) {
+                <button type="button" class="btn btn-sm btn-ghost ad-toggle" (click)="toggleAd(entry.offer.id)">
+                    <lg-icon [name]="adFolded() ? 'chevron-down' : 'chevron-up'" [size]="16"/>
+                    {{ (adFolded() ? 'detail.showMore' : 'detail.showLess') | transloco }}
+                </button>
+            }
+            @if (!entry.offer.fullText) {
+                <p class="type-caption text-muted">{{ 'detail.fromSource' | transloco }}</p>
+            }
+
+            <div class="tags">
+                @for (tag of entry.offer.tags; track tag) {
+                    <lg-badge tone="ghost" [outline]="true">{{ tag }}</lg-badge>
+                }
+            </div>
+        </section>
+
+        <section class="panel">
+            <div class="section-head">
+                <h2 class="type-h2">{{ 'detail.whyScored' | transloco }}</h2>
+                <!--
+                  The deliberate exception to the staleness guard. A run judges only what changed,
+                  which is what stops it paying for the whole standing backlog every night; this is
+                  how one offer is judged again anyway, when the operator has a reason the tool
+                  cannot know. Absent on an offer the filter rejected, because scoring never saw it.
+                -->
+                @if (entry.score.hardPass) {
+                    <button
+                            type="button"
+                            class="btn btn-sm btn-ghost"
+                            [disabled]="store.rescoring() === entry.offer.id"
+                            (click)="rescore(entry.offer.id)"
+                    >
+                        <lg-icon name="refresh" [size]="14"/>
+                        {{
+                            (store.rescoring() === entry.offer.id ? 'detail.rescoring' : 'detail.rescore')
+                                | transloco
+                        }}
+                    </button>
+                }
+            </div>
+            @if (store.rescoreError(); as refusal) {
+                <p class="type-small rescore-refusal">{{ refusal | transloco }}</p>
+            }
+            <div class="score-row">
+                <lg-score [value]="entry.score.value" [size]="72"/>
+                <p class="type-small text-muted">
+                    @if (entry.score.value === null) {
+                        {{ 'detail.notScored' | transloco }}
+                    } @else {
+                        {{
+                            'detail.scoreMeta'
+                                | transloco
+                                : {
+                                    ruleset: entry.score.rulesetVersion ?? ('common.unknown' | transloco),
+                                    model: entry.score.model ?? ('common.none' | transloco),
+                                }
+                        }}
+                        ·
+                        {{ (entry.score.hardPass ? 'detail.hardPassed' : 'detail.hardRejected') | transloco }}
+                    }
+                </p>
+            </div>
+
+            <ul class="reasons">
+                @for (reason of entry.score.reasons; track reason.factor) {
+                    <li class="reason">
             <span class="type-mono-data points" [class.penalty]="reason.points < 0">
               {{ points(reason) }}
             </span>
-            <span class="type-small">{{ reason.label }}</span>
-            <span class="type-mono-data text-muted factor">{{ reason.factor }}</span>
-          </li>
-        } @empty {
-          <li class="type-small text-muted">{{ 'detail.noFactors' | transloco }}</li>
+                        <span class="type-small">{{ reason.label }}</span>
+                        <span class="type-mono-data text-muted factor">{{ reason.factor }}</span>
+                    </li>
+                } @empty {
+                    <li class="type-small text-muted">{{ 'detail.noFactors' | transloco }}</li>
+                }
+            </ul>
+        </section>
+
+        <section class="panel">
+            <h2 class="type-h2">{{ 'detail.extractedFields' | transloco }}</h2>
+            <dl class="fields">
+                @for (field of fields(); track field.label) {
+                    <div class="field">
+                        <dt class="type-caption text-muted">{{ field.label | transloco }}</dt>
+                        <dd class="type-mono-data">
+                            @if (field.href) {
+                                <!-- Same pair as the header's link, and for the same reason: this URL came
+                                     off a portal, and a page opened from here could otherwise reach back
+                                     through `window.opener`. -->
+                                <a
+                                        class="field-link"
+                                        [href]="field.href"
+                                        [title]="field.href"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                >
+                                    {{ field.value }}
+                                    <lg-icon name="external-link" [size]="12"/>
+                                </a>
+                            } @else if (field.value) {
+                                {{ field.value }}
+                            } @else {
+                                <span class="text-muted missing">{{ 'common.notKnown' | transloco }}</span>
+                            }
+                        </dd>
+                    </div>
+                }
+            </dl>
+
+            @if (entry.sources.length > 1) {
+                <h3 class="type-h4 sources-head">{{ 'detail.advertisedBy' | transloco }}</h3>
+                <ul class="type-small sources">
+                    @for (source of entry.sources; track source.url) {
+                        <li>{{ source.agency ?? ('offer.noAgency' | transloco) }} · {{ source.portal }}</li>
+                    }
+                </ul>
+            }
+        </section>
+
+        <section class="panel">
+            <h2 class="type-h2">{{ 'detail.package' | transloco }}</h2>
+            <p class="type-small text-muted panel-note">
+                {{ 'detail.packageNote' | transloco }}
+            </p>
+            @if (application()?.packageDir ?? entry.offer.packageDir; as folder) {
+                <p class="type-mono-data package-dir">{{ folder }}</p>
+                <!--
+                  A plain link, not a click handler: the server answers with the zip and its own
+                  Content-Disposition, so there is no blob to hold, no api seam to add, and it
+                  behaves identically through the dev proxy and through nginx.
+                -->
+                <a
+                        class="btn btn-sm btn-outline package-download"
+                        [href]="packageUrl(entry.offer.id)"
+                        download
+                >
+                    <lg-icon name="download" [size]="16"/>
+                    {{ 'detail.downloadPackage' | transloco }}
+                </a>
+                <p class="type-caption text-muted package-note">
+                    {{ 'detail.packageOnDisk' | transloco }}
+                </p>
+            } @else {
+                <p class="type-caption text-muted package-note">
+                    {{ 'detail.noPackageYet' | transloco }}
+                </p>
+            }
+        </section>
+
+        @if (application(); as application) {
+            <section class="panel">
+                <lg-application-panel
+                        [application]="application"
+                        [statusChoices]="applications.statusChoices()"
+                        [history]="history()"
+                        [saving]="applications.saving() === application.id"
+                        (changed)="record($event)"
+                />
+                @if (applications.error(); as error) {
+                    <p class="type-small record-error" role="alert">
+                        <lg-icon name="triangle-alert" [size]="16"/>
+                        {{ error | transloco }}
+                    </p>
+                }
+            </section>
         }
-      </ul>
-    </section>
-
-    <section class="panel">
-      <h2 class="type-h2">{{ 'detail.extractedFields' | transloco }}</h2>
-      <dl class="fields">
-        @for (field of fields(); track field.label) {
-          <div class="field">
-            <dt class="type-caption text-muted">{{ field.label | transloco }}</dt>
-            <dd class="type-mono-data">
-                @if (field.href) {
-                    <!-- Same pair as the header's link, and for the same reason: this URL came
-                         off a portal, and a page opened from here could otherwise reach back
-                         through `window.opener`. -->
-                    <a
-                            class="field-link"
-                            [href]="field.href"
-                            [title]="field.href"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                    >
-                        {{ field.value }}
-                        <lg-icon name="external-link" [size]="12"/>
-                    </a>
-                } @else if (field.value) {
-                {{ field.value }}
-              } @else {
-                <span class="text-muted missing">{{ 'common.notKnown' | transloco }}</span>
-              }
-            </dd>
-          </div>
-        }
-      </dl>
-
-      @if (entry.sources.length > 1) {
-        <h3 class="type-h4 sources-head">{{ 'detail.advertisedBy' | transloco }}</h3>
-        <ul class="type-small sources">
-          @for (source of entry.sources; track source.url) {
-            <li>{{ source.agency ?? ('offer.noAgency' | transloco) }} · {{ source.portal }}</li>
-          }
-        </ul>
-      }
-    </section>
-
-    <section class="panel">
-      <h2 class="type-h2">{{ 'detail.package' | transloco }}</h2>
-      <p class="type-small text-muted panel-note">
-        {{ 'detail.packageNote' | transloco }}
-      </p>
-      @if (application()?.packageDir ?? entry.offer.packageDir; as folder) {
-        <p class="type-mono-data package-dir">{{ folder }}</p>
-        <!--
-          A plain link, not a click handler: the server answers with the zip and its own
-          Content-Disposition, so there is no blob to hold, no api seam to add, and it
-          behaves identically through the dev proxy and through nginx.
-        -->
-        <a
-          class="btn btn-sm btn-outline package-download"
-          [href]="packageUrl(entry.offer.id)"
-          download
-        >
-          <lg-icon name="download" [size]="16" />
-          {{ 'detail.downloadPackage' | transloco }}
-        </a>
-        <p class="type-caption text-muted package-note">
-          {{ 'detail.packageOnDisk' | transloco }}
-        </p>
-      } @else {
-        <p class="type-caption text-muted package-note">
-          {{ 'detail.noPackageYet' | transloco }}
-        </p>
-      }
-    </section>
-
-    @if (application(); as application) {
-      <section class="panel">
-        <lg-application-panel
-          [application]="application"
-          [statusChoices]="applications.statusChoices()"
-          [history]="history()"
-          [saving]="applications.saving() === application.id"
-          (changed)="record($event)"
-        />
-        @if (applications.error(); as error) {
-          <p class="type-small record-error" role="alert">
-            <lg-icon name="triangle-alert" [size]="16" />
-            {{ error | transloco }}
-          </p>
-        }
-      </section>
-    }
-  </div>
+    </div>
 } @else if (store.detailLoading()) {
-  <p class="type-small text-muted">{{ 'common.loading' | transloco }}</p>
+    <p class="type-small text-muted">{{ 'common.loading' | transloco }}</p>
 } @else if (store.detailError(); as error) {
     <!-- Before the not-found state, not after it: a fetch that failed and an id that does
          not exist are two different answers, and they used to render as the same one. -->
     <p class="type-small error" role="alert">{{ error | transloco }}</p>
 } @else {
-  <lg-empty-state
-    icon="circle-alert"
-    [title]="'detail.notFoundTitle' | transloco"
-    [description]="'detail.notFoundHint' | transloco"
-  />
+    <lg-empty-state
+            icon="circle-alert"
+            [title]="'detail.notFoundTitle' | transloco"
+            [description]="'detail.notFoundHint' | transloco"
+    />
 }

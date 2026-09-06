@@ -8,10 +8,7 @@
  */
 package de.codeministry.leadgen.offer;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 import de.codeministry.leadgen.config.ConfigFixtures;
-import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,7 +21,13 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-/** What the shortlist screen reads: survivors, their reasons, and their duplicate cluster. */
+import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+/**
+ * What the shortlist screen reads: survivors, their reasons, and their duplicate cluster.
+ */
 @SpringBootTest
 @Testcontainers
 class OfferQueryServiceTest {
@@ -153,11 +156,11 @@ class OfferQueryServiceTest {
         passed("Schwach", 10);
 
         assertThat(offers.shortlist(new ShortlistQuery(null, "shortlist", null, false, null, 0))
-                        .entries())
+                .entries())
                 .extracting(entry -> entry.offer().title())
                 .containsExactly("Stark");
         assertThat(offers.shortlist(new ShortlistQuery(null, "review", null, false, null, 0))
-                        .entries())
+                .entries())
                 .extracting(entry -> entry.offer().title())
                 .containsExactly("Mittel");
     }
@@ -173,7 +176,7 @@ class OfferQueryServiceTest {
 
         assertThat(page.portals()).contains("portal-c");
         assertThat(offers.shortlist(new ShortlistQuery(null, null, "portal-c", false, null, 0))
-                        .entries())
+                .entries())
                 .extracting(entry -> entry.offer().id())
                 .containsExactly(primary);
     }
@@ -182,7 +185,9 @@ class OfferQueryServiceTest {
         return page.entries().stream().map(entry -> entry.offer().id()).toList();
     }
 
-    /** The unfiltered first page, which is what every case here was written against. */
+    /**
+     * The unfiltered first page, which is what every case here was written against.
+     */
     private List<ShortlistEntry> shortlist() {
         return offers.shortlist(new ShortlistQuery(null, null, null, false, null, 0))
                 .entries();
@@ -316,20 +321,20 @@ class OfferQueryServiceTest {
         passed("Aktuell", 88);
         long archived = jdbc.queryForObject(
                 """
-                INSERT INTO offer (source_id, external_id, title, url, fingerprint, status, portal,
-                                   archived_at, archive_source)
-                VALUES (?, 'a', 'Archiviert', 'https://example.invalid/a', 'archiviert', 'PASSED', 'portal-c',
-                        now(), 'AGE')
-                RETURNING id
-                """,
+                        INSERT INTO offer (source_id, external_id, title, url, fingerprint, status, portal,
+                                           archived_at, archive_source)
+                        VALUES (?, 'a', 'Archiviert', 'https://example.invalid/a', 'archiviert', 'PASSED', 'portal-c',
+                                now(), 'AGE')
+                        RETURNING id
+                        """,
                 Long.class,
                 sourceId);
 
         assertThat(offers.shortlist(new ShortlistQuery(null, null, null, false, null, 0))
-                        .portals())
+                .portals())
                 .containsExactly("portal-a");
         assertThat(offers.shortlist(new ShortlistQuery(null, null, null, true, null, 0))
-                        .portals())
+                .portals())
                 .containsExactly("portal-c");
         assertThat(archived).isPositive();
     }
@@ -379,12 +384,12 @@ class OfferQueryServiceTest {
     private long passed(String title, Integer score) {
         return jdbc.queryForObject(
                 """
-                INSERT INTO offer (source_id, external_id, title, description, url, fingerprint, status,
-                                   score_value, portal, agency, tags)
-                VALUES (?, ?, ?, 'Ablösung eines Monolithen.', ?, ?, 'PASSED', ?, 'portal-a', 'Acme Consulting GmbH',
-                        ARRAY['Java','Spring Boot'])
-                RETURNING id
-                """,
+                        INSERT INTO offer (source_id, external_id, title, description, url, fingerprint, status,
+                                           score_value, portal, agency, tags)
+                        VALUES (?, ?, ?, 'Ablösung eines Monolithen.', ?, ?, 'PASSED', ?, 'portal-a', 'Acme Consulting GmbH',
+                                ARRAY['Java','Spring Boot'])
+                        RETURNING id
+                        """,
                 Long.class,
                 sourceId,
                 title,
@@ -397,10 +402,10 @@ class OfferQueryServiceTest {
     private long rejected(String title) {
         return jdbc.queryForObject(
                 """
-                INSERT INTO offer (source_id, external_id, title, url, fingerprint, status, filter_stage)
-                VALUES (?, ?, ?, 'https://example.invalid/x', ?, 'REJECTED', 'ABROAD')
-                RETURNING id
-                """,
+                        INSERT INTO offer (source_id, external_id, title, url, fingerprint, status, filter_stage)
+                        VALUES (?, ?, ?, 'https://example.invalid/x', ?, 'REJECTED', 'ABROAD')
+                        RETURNING id
+                        """,
                 Long.class,
                 sourceId,
                 title,
@@ -411,10 +416,10 @@ class OfferQueryServiceTest {
     private void duplicateOf(long primary, String portal, String agency) {
         jdbc.update(
                 """
-                INSERT INTO offer (source_id, external_id, title, url, fingerprint, status, portal, agency,
-                                   duplicate_of_id)
-                VALUES (?, ?, 'Senior Java Entwickler', ?, 'senior java entwickler', 'PASSED', ?, ?, ?)
-                """,
+                        INSERT INTO offer (source_id, external_id, title, url, fingerprint, status, portal, agency,
+                                           duplicate_of_id)
+                        VALUES (?, ?, 'Senior Java Entwickler', ?, 'senior java entwickler', 'PASSED', ?, ?, ?)
+                        """,
                 sourceId,
                 portal + primary,
                 "https://" + portal + "/x",

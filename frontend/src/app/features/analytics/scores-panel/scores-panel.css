@@ -1,9 +1,9 @@
 :host {
-  display: block;
-  min-width: 0;
+    display: block;
+    min-width: 0;
 }
 
 .unscored {
-  margin-top: 0.5rem;
-  color: var(--lg-muted);
+    margin-top: 0.5rem;
+    color: var(--lg-muted);
 }

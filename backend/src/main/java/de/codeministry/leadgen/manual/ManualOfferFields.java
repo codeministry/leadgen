@@ -24,4 +24,5 @@ public record ManualOfferFields(
         String portal,
         String agency,
         String published,
-        List<String> tags) {}
+        List<String> tags) {
+}

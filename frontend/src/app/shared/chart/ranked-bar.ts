@@ -10,7 +10,7 @@
  *     share of the same number and two bars would invite reading it as a second total.
  */
 export interface RankedBar {
-  readonly label: string;
-  readonly value: number;
-  readonly secondary: number;
+    readonly label: string;
+    readonly value: number;
+    readonly secondary: number;
 }

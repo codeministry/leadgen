@@ -23,11 +23,12 @@ import java.util.List;
  * rather than inside it, because leaving the working list is not something the filter did.
  *
  * @param survived stated rather than derived, so a screen never has to reproduce the
- *     subtraction and get it subtly wrong. It equals the shortlist's own total, and that
- *     is the invariant worth checking when either number looks wrong.
+ *                 subtraction and get it subtly wrong. It equals the shortlist's own total, and that
+ *                 is the invariant worth checking when either number looks wrong.
  * @param archived primaries taken off the working list, by age or by hand. Not a stage.
  */
 public record FunnelView(int total, List<Stage> stages, int survived, int archived) {
 
-    public record Stage(String id, String label, int removed) {}
+    public record Stage(String id, String label, int removed) {
+    }
 }

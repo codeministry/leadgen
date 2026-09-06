@@ -1,7 +1,7 @@
-import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import {ChangeDetectionStrategy, Component, computed, input} from '@angular/core';
 
 export type BadgeTone =
-  'neutral' | 'primary' | 'accent' | 'success' | 'warning' | 'error' | 'ghost';
+    'neutral' | 'primary' | 'accent' | 'success' | 'warning' | 'error' | 'ghost';
 
 /**
  * The class names are spelled out rather than built as `'badge-' + tone`.
@@ -11,13 +11,13 @@ export type BadgeTone =
  * the built stylesheet.
  */
 const TONE_CLASS: Record<BadgeTone, string> = {
-  neutral: 'badge-neutral',
-  primary: 'badge-primary',
-  accent: 'badge-accent',
-  success: 'badge-success',
-  warning: 'badge-warning',
-  error: 'badge-error',
-  ghost: 'badge-ghost',
+    neutral: 'badge-neutral',
+    primary: 'badge-primary',
+    accent: 'badge-accent',
+    success: 'badge-success',
+    warning: 'badge-warning',
+    error: 'badge-error',
+    ghost: 'badge-ghost',
 };
 
 /**
@@ -25,20 +25,20 @@ const TONE_CLASS: Record<BadgeTone, string> = {
  * shortlist threshold. Anything else that wants attention takes `warning`.
  */
 @Component({
-  selector: 'lg-badge',
-  templateUrl: './badge.html',
-  styleUrl: './badge.css',
-  changeDetection: ChangeDetectionStrategy.OnPush,
+    selector: 'lg-badge',
+    templateUrl: './badge.html',
+    styleUrl: './badge.css',
+    changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class Badge {
-  readonly tone = input<BadgeTone>('neutral');
-  readonly outline = input(false);
+    readonly tone = input<BadgeTone>('neutral');
+    readonly outline = input(false);
 
-  protected readonly classes = computed(() => {
-    const classes = ['badge', 'badge-sm', 'lg-badge-text', TONE_CLASS[this.tone()]];
-    if (this.outline()) {
-      classes.push('badge-outline');
-    }
-    return classes.join(' ');
-  });
+    protected readonly classes = computed(() => {
+        const classes = ['badge', 'badge-sm', 'lg-badge-text', TONE_CLASS[this.tone()]];
+        if (this.outline()) {
+            classes.push('badge-outline');
+        }
+        return classes.join(' ');
+    });
 }

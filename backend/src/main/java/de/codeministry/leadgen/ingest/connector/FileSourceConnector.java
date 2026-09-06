@@ -15,6 +15,9 @@ import de.codeministry.leadgen.ingest.RawDocument;
 import jakarta.mail.MessagingException;
 import jakarta.mail.Session;
 import jakarta.mail.internet.MimeMessage;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
@@ -22,13 +25,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Properties;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
+import java.util.*;
 
 /**
  * Reads documents from a directory. The source that needs no mailbox, no credentials
@@ -90,7 +87,7 @@ public class FileSourceConnector implements SourceConnector {
      * process was pointed at and looks entirely normal doing it.
      *
      * @return null when neither reading is a directory, which is not fatal: one source
-     *     with nothing behind it must not stop the sources after it.
+     * with nothing behind it must not stop the sources after it.
      */
     private Path directoryFor(Source source) {
         Path preferred = Directories.under(configDirectory, source.path());

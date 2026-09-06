@@ -8,18 +8,19 @@
  */
 package de.codeministry.leadgen.config;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
 import jakarta.validation.ValidatorFactory;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * The watcher is driven by calling its poll directly. Waiting on the scheduler would
@@ -104,7 +105,9 @@ class ConfigWatcherTest {
         assertThat(registry.snapshot()).isSameAs(before);
     }
 
-    /** Two polls: the first sees the change, the second confirms it has settled. */
+    /**
+     * Two polls: the first sees the change, the second confirms it has settled.
+     */
     private void settle() {
         watcher.pollForChanges();
         watcher.pollForChanges();

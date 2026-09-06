@@ -14,8 +14,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  * One document's contribution to a run.
  *
  * @param announced what the document said it contained, when it says so at all — the
- *     newsletter names the number in its subject line. Null when the source declares no
- *     `expect_count_from_subject`.
+ *                  newsletter names the number in its subject line. Null when the source declares no
+ *                  `expect_count_from_subject`.
  */
 public record DocumentIngestResult(String documentId, int extracted, Integer announced) {
 

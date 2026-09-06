@@ -25,11 +25,11 @@ export const AVAILABLE_LANGUAGES: readonly Language[] = ['en', 'de'];
 export const LANGUAGE_STORAGE_KEY = 'lg-language';
 
 export function isLanguage(value: unknown): value is Language {
-  return AVAILABLE_LANGUAGES.includes(value as Language);
+    return AVAILABLE_LANGUAGES.includes(value as Language);
 }
 
 export function isLanguagePreference(value: unknown): value is LanguagePreference {
-  return value === 'system' || isLanguage(value);
+    return value === 'system' || isLanguage(value);
 }
 
 /**
@@ -37,6 +37,6 @@ export function isLanguagePreference(value: unknown): value is LanguagePreferenc
  * resolve to the language, or every reader outside Germany silently gets English.
  */
 export function languageOf(tag: string | null | undefined): Language | null {
-  const base = (tag ?? '').toLowerCase().split('-')[0];
-  return isLanguage(base) ? base : null;
+    const base = (tag ?? '').toLowerCase().split('-')[0];
+    return isLanguage(base) ? base : null;
 }

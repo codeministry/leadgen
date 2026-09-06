@@ -59,7 +59,7 @@ public class ScoringService {
      */
     private static final String DUE = "SELECT " + ScoreCandidate.COLUMNS
             + """
-
+            
             FROM offer
             WHERE status = 'PASSED'
               AND duplicate_of_id IS NULL
@@ -79,13 +79,13 @@ public class ScoringService {
      */
     private static final String STANDING =
             """
-            SELECT count(*)                                            AS considered,
-                   count(*) FILTER (WHERE score_value IS NULL)         AS unscored,
-                   count(*) FILTER (WHERE score_band = 'SHORTLISTED')  AS shortlisted,
-                   count(*) FILTER (WHERE score_band = 'REVIEW')       AS review
-            FROM offer
-            WHERE status = 'PASSED' AND duplicate_of_id IS NULL AND archived_at IS NULL
-            """;
+                    SELECT count(*)                                            AS considered,
+                           count(*) FILTER (WHERE score_value IS NULL)         AS unscored,
+                           count(*) FILTER (WHERE score_band = 'SHORTLISTED')  AS shortlisted,
+                           count(*) FILTER (WHERE score_band = 'REVIEW')       AS review
+                    FROM offer
+                    WHERE status = 'PASSED' AND duplicate_of_id IS NULL AND archived_at IS NULL
+                    """;
 
     /**
      * The same row as {@link #DUE}, for one offer and without the staleness guard. It keeps
@@ -94,7 +94,7 @@ public class ScoringService {
      */
     private static final String ONE = "SELECT " + ScoreCandidate.COLUMNS
             + """
-
+            
             FROM offer
             WHERE id = ? AND status = 'PASSED' AND duplicate_of_id IS NULL AND archived_at IS NULL
             """;
@@ -129,7 +129,9 @@ public class ScoringService {
         judges.check(requestedModel);
     }
 
-    /** The configured default model. Keeps every caller that has no reason to choose one. */
+    /**
+     * The configured default model. Keeps every caller that has no reason to choose one.
+     */
     public ScoringReport run() {
         return run(null);
     }
@@ -257,7 +259,9 @@ public class ScoringService {
      * @throws NoJudge when nothing is configured to answer. The caller can say so; silently
      *     rewriting the deterministic half would look like the button did nothing.
      */
-    /** The configured default model, for a caller with no reason to choose one. */
+    /**
+     * The configured default model, for a caller with no reason to choose one.
+     */
     public Optional<Score> rescore(long offerId) {
         return rescore(offerId, null);
     }
@@ -303,14 +307,18 @@ public class ScoringService {
         return Optional.of(score);
     }
 
-    /** Nothing can answer. A reason rather than a stack trace, because it reaches a button. */
+    /**
+     * Nothing can answer. A reason rather than a stack trace, because it reaches a button.
+     */
     public static class NoJudge extends RuntimeException {
         NoJudge(String message) {
             super(message);
         }
     }
 
-    /** Everything but `scored` is counted from the table, so a quiet run still reports the list. */
+    /**
+     * Everything but `scored` is counted from the table, so a quiet run still reports the list.
+     */
     private ScoringReport standing(int judged, int unusable, int submitted) {
         return jdbc.sql(STANDING)
                 .query((rs, row) -> new ScoringReport(

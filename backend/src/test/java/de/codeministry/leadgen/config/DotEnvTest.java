@@ -8,13 +8,14 @@
  */
 package de.codeministry.leadgen.config;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 class DotEnvTest {
 
@@ -31,12 +32,12 @@ class DotEnvTest {
     void readsAssignments() throws IOException {
         DotEnv dotenv = write(
                 """
-                # a comment
-                IMAP_HOST=imap.example.org
-                IMAP_PORT=993   # a trailing comment is not part of the value
-                DIGEST_DIR="./with spaces"
-                EMPTY=
-                """);
+                        # a comment
+                        IMAP_HOST=imap.example.org
+                        IMAP_PORT=993   # a trailing comment is not part of the value
+                        DIGEST_DIR="./with spaces"
+                        EMPTY=
+                        """);
 
         assertThat(dotenv.values())
                 .containsEntry("IMAP_HOST", "imap.example.org")

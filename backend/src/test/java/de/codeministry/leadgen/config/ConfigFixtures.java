@@ -31,12 +31,17 @@ public final class ConfigFixtures {
     private static final List<String> FILES = List.of(
             ConfigLoader.PIPELINE_FILE, ConfigLoader.RULES_FILE, ConfigLoader.SOURCES_FILE, ConfigLoader.PROFILE_FILE);
 
-    /** Built once per JVM; see {@link #shippedDefaults()}. */
+    /**
+     * Built once per JVM; see {@link #shippedDefaults()}.
+     */
     private static Path shippedDefaults;
 
-    private ConfigFixtures() {}
+    private ConfigFixtures() {
+    }
 
-    /** The repository root, found by walking up rather than from a relative path. */
+    /**
+     * The repository root, found by walking up rather than from a relative path.
+     */
     public static Path repositoryRoot() {
         Path candidate = Path.of("").toAbsolutePath();
         while (candidate != null && !Files.isDirectory(candidate.resolve("backend/src/main/resources/leadgen"))) {

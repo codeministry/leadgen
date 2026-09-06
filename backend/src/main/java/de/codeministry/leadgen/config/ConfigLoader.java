@@ -19,18 +19,14 @@ import de.codeministry.leadgen.config.model.SkillProfile;
 import de.codeministry.leadgen.config.model.SourcesConfig;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
+import java.util.*;
 
 /**
  * Reads, resolves, binds and validates the configuration.
@@ -338,7 +334,9 @@ public class ConfigLoader {
         return cause.getMessage() == null ? cause.toString() : cause.getMessage();
     }
 
-    /** Only for the log line at startup: which of the files came from outside the jar. */
+    /**
+     * Only for the log line at startup: which of the files came from outside the jar.
+     */
     public List<String> overriddenFiles() {
         Path dir = properties.configDirectory();
         return List.of(PIPELINE_FILE, RULES_FILE, SOURCES_FILE, PROFILE_FILE).stream()

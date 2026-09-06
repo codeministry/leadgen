@@ -6,17 +6,17 @@
  * path looks wrong is a tool nobody keeps current.
  */
 export type ApplicationStatus =
-  | 'NEW'
-  | 'SHORTLISTED'
-  | 'PACKAGED'
-  | 'SENT'
-  | 'REPLIED'
-  | 'INTERVIEW'
-  | 'OFFER'
-  | 'WON'
-  | 'LOST'
-  | 'REJECTED'
-  | 'EXPIRED';
+    | 'NEW'
+    | 'SHORTLISTED'
+    | 'PACKAGED'
+    | 'SENT'
+    | 'REPLIED'
+    | 'INTERVIEW'
+    | 'OFFER'
+    | 'WON'
+    | 'LOST'
+    | 'REJECTED'
+    | 'EXPIRED';
 
 /**
  * A lane of the board, as `GET /api/applications/lanes` states it.
@@ -26,30 +26,30 @@ export type ApplicationStatus =
  * time a state is added — visibly on the board, invisibly in the code.
  */
 export interface PipelineLane {
-  readonly id: string;
-  readonly label: string;
-  readonly states: readonly ApplicationStatus[];
+    readonly id: string;
+    readonly label: string;
+    readonly states: readonly ApplicationStatus[];
 }
 
 /** Mirrors `ApplicationView`: the application plus enough of the offer to recognise it. */
 export interface ApplicationView {
-  readonly id: number;
-  readonly offerId: number;
-  readonly status: ApplicationStatus;
-  readonly title: string;
-  readonly agency: string | null;
-  readonly portal: string | null;
-  readonly url: string | null;
-  readonly scoreValue: number | null;
-  readonly rateEur: number | null;
-  readonly packageDir: string | null;
-  readonly sentOn: string | null;
-  readonly followUpOn: string | null;
-  /** Computed on the server, because "due" depends on its idea of today, not the browser's. */
-  readonly followUpDue: boolean;
-  readonly outcome: string | null;
-  readonly note: string | null;
-  readonly updatedAt: string;
+    readonly id: number;
+    readonly offerId: number;
+    readonly status: ApplicationStatus;
+    readonly title: string;
+    readonly agency: string | null;
+    readonly portal: string | null;
+    readonly url: string | null;
+    readonly scoreValue: number | null;
+    readonly rateEur: number | null;
+    readonly packageDir: string | null;
+    readonly sentOn: string | null;
+    readonly followUpOn: string | null;
+    /** Computed on the server, because "due" depends on its idea of today, not the browser's. */
+    readonly followUpDue: boolean;
+    readonly outcome: string | null;
+    readonly note: string | null;
+    readonly updatedAt: string;
 }
 
 /**
@@ -61,23 +61,23 @@ export interface ApplicationView {
  * cancelled fills up with dead reminders.
  */
 export interface ApplicationUpdate {
-  readonly status: ApplicationStatus;
-  readonly sentOn?: string | null;
-  readonly followUpOn?: string | null;
-  readonly clearFollowUp?: boolean;
-  readonly outcome?: string | null;
-  readonly note?: string | null;
+    readonly status: ApplicationStatus;
+    readonly sentOn?: string | null;
+    readonly followUpOn?: string | null;
+    readonly clearFollowUp?: boolean;
+    readonly outcome?: string | null;
+    readonly note?: string | null;
 }
 
 /** One recorded change. The history a single mutable row cannot answer for. */
 export interface ApplicationEvent {
-  readonly fromStatus: ApplicationStatus | null;
-  readonly toStatus: ApplicationStatus;
-  readonly note: string | null;
-  readonly recordedAt: string;
+    readonly fromStatus: ApplicationStatus | null;
+    readonly toStatus: ApplicationStatus;
+    readonly note: string | null;
+    readonly recordedAt: string;
 }
 
 /** `SHORTLISTED` on the wire, "Shortlisted" in a select. */
 export function statusLabel(status: ApplicationStatus): string {
-  return status.charAt(0) + status.slice(1).toLowerCase();
+    return status.charAt(0) + status.slice(1).toLowerCase();
 }

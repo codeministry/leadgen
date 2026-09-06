@@ -32,13 +32,19 @@ import java.util.regex.Pattern;
  */
 public final class Secrets {
 
-    /** What a masked value looks like, at a width that says nothing about the original. */
+    /**
+     * What a masked value looks like, at a width that says nothing about the original.
+     */
     public static final String MASK = "********";
 
-    /** How a value that is configured nowhere is printed. Distinct from a masked one. */
+    /**
+     * How a value that is configured nowhere is printed. Distinct from a masked one.
+     */
     public static final String UNSET = "(not set)";
 
-    /** How a key that is declared with no value is printed. Distinct from being absent. */
+    /**
+     * How a key that is declared with no value is printed. Distinct from being absent.
+     */
     public static final String EMPTY = "(empty)";
 
     private static final Set<String> SECRET_WORDS = Set.of(
@@ -68,16 +74,21 @@ public final class Secrets {
     // scheme://user:password@host — the password is group 1 and nothing else is touched.
     private static final Pattern URL_CREDENTIALS = Pattern.compile("(?<=://)([^/@:\\s]+):([^/@\\s]+)(?=@)");
 
-    private Secrets() {}
+    private Secrets() {
+    }
 
-    /** Whether a value under this key may be printed. Word-based, so `LLM_API_KEY` counts. */
+    /**
+     * Whether a value under this key may be printed. Word-based, so `LLM_API_KEY` counts.
+     */
     public static boolean isSecret(String name) {
         return Arrays.stream(SEGMENT.split(name.toLowerCase()))
                 .anyMatch(segment -> SECRET_WORDS.contains(segment)
                         || SECRET_SUFFIXES.stream().anyMatch(segment::endsWith));
     }
 
-    /** The value as it may appear in a log line: masked by key, and stripped of URL credentials. */
+    /**
+     * The value as it may appear in a log line: masked by key, and stripped of URL credentials.
+     */
     public static String mask(String name, String value) {
         if (value == null) {
             return UNSET;
@@ -88,7 +99,9 @@ public final class Secrets {
         return isSecret(name) ? MASK : maskUrlCredentials(value);
     }
 
-    /** Replaces the password in a {@code scheme://user:password@host} with the mask. */
+    /**
+     * Replaces the password in a {@code scheme://user:password@host} with the mask.
+     */
     public static String maskUrlCredentials(String value) {
         Matcher matcher = URL_CREDENTIALS.matcher(value);
         return matcher.replaceAll(match -> Matcher.quoteReplacement(match.group(1) + ":" + MASK));

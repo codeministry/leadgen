@@ -1,5 +1,5 @@
 .panel-note {
-  margin-bottom: 0.75rem;
+    margin-bottom: 0.75rem;
 }
 
 /*
@@ -10,17 +10,17 @@
   so the fixed value alone pushes the page sideways on a phone.
 */
 .form {
-  display: grid;
+    display: grid;
     grid-template-columns: repeat(auto-fit, minmax(min(13rem, 100%), 1fr));
     gap: 0.75rem 1rem;
     align-items: end;
 }
 
 .field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    min-width: 0;
 }
 
 /*
@@ -34,37 +34,37 @@
 }
 
 .field-wide {
-  grid-column: 1 / -1;
+    grid-column: 1 / -1;
 }
 
 .save {
-  margin-top: 0.75rem;
+    margin-top: 0.75rem;
 }
 
 .history-head {
-  margin-top: 1.25rem;
+    margin-top: 1.25rem;
 }
 
 .history {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  margin-top: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    margin-top: 0.5rem;
 }
 
 .history-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
 }
 
 .follow-up {
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
 }
 
 .follow-up input {
-  min-width: 0;
-  flex: 1;
+    min-width: 0;
+    flex: 1;
 }

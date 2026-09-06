@@ -12,21 +12,13 @@ import de.codeministry.leadgen.manual.ManualDocumentName;
 import de.codeministry.leadgen.manual.ManualOfferFields;
 import de.codeministry.leadgen.manual.ManualUploadService;
 import de.codeministry.leadgen.manual.PendingDocument;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.List;
-import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseStatus;
-import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.multipart.MultipartFile;
 
 /**
  * The first endpoint in this application that puts a file on disk.
@@ -68,7 +60,9 @@ class ManualSourceController {
         return uploads.find(name).orElseThrow(() -> new NotFound(name));
     }
 
-    /** Writes the corrected fields into the file and moves it where the source reads. */
+    /**
+     * Writes the corrected fields into the file and moves it where the source reads.
+     */
     @PostMapping("/pending/{name}/confirm")
     PendingDocument confirm(@PathVariable String name, @RequestBody ManualOfferFields fields) {
         return uploads.confirm(name, fields);
@@ -92,7 +86,9 @@ class ManualSourceController {
         return e.getMessage();
     }
 
-    /** Not configured is not the client's mistake, and not a 500 either. */
+    /**
+     * Not configured is not the client's mistake, and not a 500 either.
+     */
     @ExceptionHandler(ManualUploadService.NoInbox.class)
     @ResponseStatus(HttpStatus.CONFLICT)
     String noInbox(ManualUploadService.NoInbox e) {

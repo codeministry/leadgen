@@ -8,12 +8,15 @@
  */
 package de.codeministry.leadgen.ingest.store;
 
-import javax.sql.DataSource;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-/** Reads and writes the per-folder cursor. */
+import javax.sql.DataSource;
+
+/**
+ * Reads and writes the per-folder cursor.
+ */
 @Component
 public class IngestCursorStore {
 
@@ -35,13 +38,13 @@ public class IngestCursorStore {
     public void save(long sourceId, String folder, IngestCursor cursor) {
         jdbc.sql(
                         """
-                        INSERT INTO ingest_cursor (source_id, folder, uid_validity, last_uid)
-                        VALUES (?, ?, ?, ?)
-                        ON CONFLICT ON CONSTRAINT uq_ingest_cursor
-                        DO UPDATE SET uid_validity = EXCLUDED.uid_validity,
-                                      last_uid = EXCLUDED.last_uid,
-                                      updated_at = now()
-                        """)
+                                INSERT INTO ingest_cursor (source_id, folder, uid_validity, last_uid)
+                                VALUES (?, ?, ?, ?)
+                                ON CONFLICT ON CONSTRAINT uq_ingest_cursor
+                                DO UPDATE SET uid_validity = EXCLUDED.uid_validity,
+                                              last_uid = EXCLUDED.last_uid,
+                                              updated_at = now()
+                                """)
                 .params(sourceId, folder, cursor.uidValidity(), cursor.lastUid())
                 .update();
     }

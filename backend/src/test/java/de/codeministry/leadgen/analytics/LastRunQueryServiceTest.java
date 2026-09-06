@@ -187,16 +187,16 @@ class LastRunQueryServiceTest {
     private long run(Instant startedAt, Instant finishedAt, String status, String scoreModel) {
         return jdbc.queryForObject(
                 """
-                INSERT INTO pipeline_run (
-                    started_at, finished_at, ruleset_version, score_model, status,
-                    documents, extracted, written, merged,
-                    filter_considered, filter_passed,
-                    enrich_considered, enriched, incomplete, from_cache, requests,
-                    score_considered, scored, unscored, shortlisted, review, submitted,
-                    packaged, digest_written)
-                VALUES (?, ?, '1', ?, ?, 5, 169, 151, 18, 169, 73, 73, 0, 73, 0, 0, 67, 67, 0, 7, 13, 0, 7, true)
-                RETURNING id
-                """,
+                        INSERT INTO pipeline_run (
+                            started_at, finished_at, ruleset_version, score_model, status,
+                            documents, extracted, written, merged,
+                            filter_considered, filter_passed,
+                            enrich_considered, enriched, incomplete, from_cache, requests,
+                            score_considered, scored, unscored, shortlisted, review, submitted,
+                            packaged, digest_written)
+                        VALUES (?, ?, '1', ?, ?, 5, 169, 151, 18, 169, 73, 73, 0, 73, 0, 0, 67, 67, 0, 7, 13, 0, 7, true)
+                        RETURNING id
+                        """,
                 Long.class,
                 Timestamp.from(startedAt),
                 Timestamp.from(finishedAt),

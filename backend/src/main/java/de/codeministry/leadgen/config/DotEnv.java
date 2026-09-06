@@ -8,6 +8,8 @@
  */
 package de.codeministry.leadgen.config;
 
+import lombok.extern.slf4j.Slf4j;
+
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
@@ -16,7 +18,6 @@ import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
-import lombok.extern.slf4j.Slf4j;
 
 /**
  * The `.env` file: where it is and what it declares.
@@ -38,12 +39,16 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public record DotEnv(Optional<Path> file, Map<String, String> declared) {
 
-    /** The credentials file, and how far up it is looked for. */
+    /**
+     * The credentials file, and how far up it is looked for.
+     */
     public static final String FILE_NAME = ".env";
 
     private static final int SEARCH_DEPTH = 4;
 
-    /** Locates and reads the file, or reports that there is none. */
+    /**
+     * Locates and reads the file, or reports that there is none.
+     */
     public static DotEnv load() {
         Path base = Path.of("").toAbsolutePath();
         for (int i = 0; i <= SEARCH_DEPTH && base != null; i++) {
@@ -56,7 +61,9 @@ public record DotEnv(Optional<Path> file, Map<String, String> declared) {
         return new DotEnv(Optional.empty(), Map.of());
     }
 
-    /** The assignments that carry a value. This is what resolves a `${VAR}`. */
+    /**
+     * The assignments that carry a value. This is what resolves a `${VAR}`.
+     */
     public Map<String, String> values() {
         Map<String, String> values = new LinkedHashMap<>();
         declared.forEach((key, value) -> {
@@ -67,7 +74,9 @@ public record DotEnv(Optional<Path> file, Map<String, String> declared) {
         return values;
     }
 
-    /** Every assignment in the file, in file order, empty values included. */
+    /**
+     * Every assignment in the file, in file order, empty values included.
+     */
     static Map<String, String> parse(Path file) {
         Map<String, String> values = new LinkedHashMap<>();
         try {

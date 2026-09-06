@@ -10,6 +10,9 @@ package de.codeministry.leadgen.score;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.ai.chat.model.ChatModel;
+
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -20,8 +23,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.ai.chat.model.ChatModel;
 
 /**
  * The one provider whose <em>batch</em> endpoint is implemented, which is the only reason
@@ -59,7 +60,9 @@ public class AnthropicJudge extends ChatClientJudge implements BatchJudge {
      */
     static final int MAX_TOKENS = 4096;
 
-    /** Pinned rather than tracked: an unversioned request is refused outright. */
+    /**
+     * Pinned rather than tracked: an unversioned request is refused outright.
+     */
     private static final String API_VERSION = "2023-06-01";
 
     /**
@@ -118,7 +121,7 @@ public class AnthropicJudge extends ChatClientJudge implements BatchJudge {
         }
         try {
             List<Map<String, Object>> requests = offers.stream()
-                    .map(offer -> Map.<String, Object>of(
+                    .map(offer -> Map.of(
                             "custom_id",
                             CUSTOM_ID_PREFIX + offer.id(),
                             "params",
@@ -232,7 +235,9 @@ public class AnthropicJudge extends ChatClientJudge implements BatchJudge {
         return "";
     }
 
-    /** Null rather than an exception: one unrecognisable line must not discard the rest. */
+    /**
+     * Null rather than an exception: one unrecognisable line must not discard the rest.
+     */
     private static Long offerId(String customId) {
         if (!customId.startsWith(CUSTOM_ID_PREFIX)) {
             return null;
@@ -248,7 +253,9 @@ public class AnthropicJudge extends ChatClientJudge implements BatchJudge {
         return http.send(request, HttpResponse.BodyHandlers.ofString());
     }
 
-    /** 2xx. Anything else is an answer about the request rather than about the offer. */
+    /**
+     * 2xx. Anything else is an answer about the request rather than about the offer.
+     */
     private static boolean ok(HttpResponse<String> response) {
         return response.statusCode() >= 200 && response.statusCode() < 300;
     }

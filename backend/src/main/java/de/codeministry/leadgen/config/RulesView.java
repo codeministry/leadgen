@@ -9,6 +9,7 @@
 package de.codeministry.leadgen.config;
 
 import de.codeministry.leadgen.config.model.MatchingRules;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -21,10 +22,10 @@ import java.util.Map;
  * showing a weight the moment somebody added one.
  *
  * @param archiveAfterDays how old an advert may be before it leaves the working list, or
- *     null when nothing archives by age. It sits beside the knockouts and not among them:
- *     the same number used to reject an offer, and now it only decides whether the offer is
- *     on today's list. Somebody reading this screen to find out why an offer is missing
- *     needs to be able to tell those two apart.
+ *                         null when nothing archives by age. It sits beside the knockouts and not among them:
+ *                         the same number used to reject an offer, and now it only decides whether the offer is
+ *                         on today's list. Somebody reading this screen to find out why an offer is missing
+ *                         needs to be able to tell those two apart.
  */
 public record RulesView(
         String version,
@@ -35,9 +36,11 @@ public record RulesView(
         List<KnockoutRule> knockouts,
         List<String> antiSkills) {
 
-    public record RuleWeight(String key, int points) {}
+    public record RuleWeight(String key, int points) {
+    }
 
-    public record Thresholds(int autoShortlist, int review, int discard) {}
+    public record Thresholds(int autoShortlist, int review, int discard) {
+    }
 
     /**
      * One hard filter, as a sentence rather than as a nested object.
@@ -110,7 +113,9 @@ public record RulesView(
                 rules.antiSkills() == null ? List.of() : rules.antiSkills());
     }
 
-    /** Largest first, because the screen is read to find out what actually decides. */
+    /**
+     * Largest first, because the screen is read to find out what actually decides.
+     */
     private static List<RuleWeight> weights(Map<String, Integer> configured) {
         if (configured == null) {
             return List.of();

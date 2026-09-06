@@ -8,16 +8,18 @@
  */
 package de.codeministry.leadgen.score;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.BDDMockito.given;
-
 import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.config.ConfigSnapshot;
 import de.codeministry.leadgen.config.model.PipelineConfig;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
-/** Which judge a configuration asks for, and when the answer is none. */
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.BDDMockito.given;
+
+/**
+ * Which judge a configuration asks for, and when the answer is none.
+ */
 class JudgesTest {
 
     private static final PipelineConfig.Llm.Models SCORING =
@@ -77,12 +79,12 @@ class JudgesTest {
     @Test
     void refusesWhenNoScoringModelIsNamed() {
         assertThat(judge(new PipelineConfig.Llm(
-                        "anthropic",
-                        "https://gateway.invalid",
-                        "key",
-                        false,
-                        new PipelineConfig.Llm.Models(null, null, null, null, null),
-                        null)))
+                "anthropic",
+                "https://gateway.invalid",
+                "key",
+                false,
+                new PipelineConfig.Llm.Models(null, null, null, null, null),
+                null)))
                 .isEmpty();
     }
 

@@ -30,11 +30,13 @@ public interface BatchJudge extends Judge {
 
     /**
      * @return the provider's id for the batch, or empty when the submission did not happen.
-     *     Empty is not a failure worth stopping for: nothing was written, nothing is in
-     *     flight, and the offers are still due.
+     * Empty is not a failure worth stopping for: nothing was written, nothing is in
+     * flight, and the offers are still due.
      */
     Optional<String> submit(List<ScoreCandidate> offers);
 
-    /** Never blocks on the batch finishing. Ask again later is one of the three answers. */
+    /**
+     * Never blocks on the batch finishing. Ask again later is one of the three answers.
+     */
     BatchOutcome collect(String batchId);
 }

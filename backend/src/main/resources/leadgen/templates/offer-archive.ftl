@@ -15,11 +15,11 @@ URL:        ${offer.url!""}
 Archived:   ${archivedAt}
 
 <#if offer.description??>
-${offer.description}
+    ${offer.description}
 </#if>
 <#if offer.fullText??>
 
---- the original ad ---
+    --- the original ad ---
 
-${offer.fullText}
+    ${offer.fullText}
 </#if>

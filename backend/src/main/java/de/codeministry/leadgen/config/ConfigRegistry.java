@@ -8,9 +8,10 @@
  */
 package de.codeministry.leadgen.config;
 
-import java.util.concurrent.atomic.AtomicReference;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Holds the configuration the rest of the application reads. One snapshot at a time,

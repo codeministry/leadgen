@@ -8,11 +8,7 @@
  */
 package de.codeministry.leadgen.application;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
 import de.codeministry.leadgen.config.ConfigFixtures;
-import java.time.LocalDate;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,6 +20,11 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+
+import java.time.LocalDate;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * The half of the loop the system cannot observe: what happened after a package was
@@ -66,12 +67,12 @@ class ApplicationServiceTest {
                 jdbc.queryForObject("INSERT INTO source (name, kind) VALUES ('test', 'file') RETURNING id", Long.class);
         offerId = jdbc.queryForObject(
                 """
-                INSERT INTO offer (source_id, external_id, title, url, fingerprint, status,
-                                   score_value, score_band, agency, portal)
-                VALUES (?, 'ext-1', 'Senior Java Entwickler (m/w/d)', 'https://example.invalid/x', 'fp',
-                        'PASSED', 88, 'SHORTLISTED', 'Acme Consulting GmbH', 'portal-a')
-                RETURNING id
-                """,
+                        INSERT INTO offer (source_id, external_id, title, url, fingerprint, status,
+                                           score_value, score_band, agency, portal)
+                        VALUES (?, 'ext-1', 'Senior Java Entwickler (m/w/d)', 'https://example.invalid/x', 'fp',
+                                'PASSED', 88, 'SHORTLISTED', 'Acme Consulting GmbH', 'portal-a')
+                        RETURNING id
+                        """,
                 Long.class,
                 sourceId);
     }

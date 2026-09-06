@@ -17,8 +17,8 @@ import java.time.LocalDate;
  * recognise it without a second request.
  *
  * @param followUpDue whether the follow-up date has passed. Computed here rather than in
- *     the browser, because "due" depends on the server's idea of today and two clients in
- *     two time zones must not disagree about it.
+ *                    the browser, because "due" depends on the server's idea of today and two clients in
+ *                    two time zones must not disagree about it.
  */
 public record ApplicationView(
         long id,
@@ -36,4 +36,5 @@ public record ApplicationView(
         boolean followUpDue,
         String outcome,
         String note,
-        Instant updatedAt) {}
+        Instant updatedAt) {
+}

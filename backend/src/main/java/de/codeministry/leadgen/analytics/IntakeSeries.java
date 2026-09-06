@@ -22,19 +22,19 @@ import java.util.List;
  * about it. The screen has to say so, and the two halves of it sit under different
  * headings for that reason.
  *
- * @param byPublishedOn what the market advertised, clamped to a window — the date is parsed
- *     with a source-configured format, and one misparse in 1970 would otherwise stretch the
- *     axis over twenty thousand empty days.
- * @param withoutPublishedOn stated rather than dropped: a chart drawn from a field two
- *     thirds of the corpus does not carry has to say so.
- * @param byReceivedAt when the mail carrying the offer arrived. The axis that measures the
- *     market's own tempo: the ingest axis also counts how often the tool was run, and a
- *     truncated database moves every row to the moment it was refilled.
+ * @param byPublishedOn       what the market advertised, clamped to a window — the date is parsed
+ *                            with a source-configured format, and one misparse in 1970 would otherwise stretch the
+ *                            axis over twenty thousand empty days.
+ * @param withoutPublishedOn  stated rather than dropped: a chart drawn from a field two
+ *                            thirds of the corpus does not carry has to say so.
+ * @param byReceivedAt        when the mail carrying the offer arrived. The axis that measures the
+ *                            market's own tempo: the ingest axis also counts how often the tool was run, and a
+ *                            truncated database moves every row to the moment it was refilled.
  * @param publishedOutOfRange the rows the clamp excluded. A date format that has drifted
- *     becomes visible here, and nowhere else.
- * @param withoutReceivedAt offers whose source is not a mail — a file dropped in by hand
- *     has no arrival date, and inventing one from its mtime would be the run's date in
- *     disguise.
+ *                            becomes visible here, and nowhere else.
+ * @param withoutReceivedAt   offers whose source is not a mail — a file dropped in by hand
+ *                            has no arrival date, and inventing one from its mtime would be the run's date in
+ *                            disguise.
  */
 public record IntakeSeries(
         List<Day> byIngestedAt,
@@ -46,8 +46,8 @@ public record IntakeSeries(
 
     /**
      * @param duplicates the same project through a second portal. Carried beside the
-     *     primaries rather than left out, because how much of what arrives is a repeat is
-     *     itself a fact about the market.
+     *                   primaries rather than left out, because how much of what arrives is a repeat is
+     *                   itself a fact about the market.
      */
     public record Day(
             LocalDate day,
@@ -57,5 +57,6 @@ public record IntakeSeries(
             int shortlisted,
             int review,
             int discarded,
-            int unscored) {}
+            int unscored) {
+    }
 }

@@ -13,11 +13,12 @@ import de.codeministry.leadgen.digest.DigestService;
 import de.codeministry.leadgen.packaging.PackagingService;
 import de.codeministry.leadgen.score.ScoreBatchCollection;
 import de.codeministry.leadgen.score.ScoreBatchService;
-import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+
+import java.time.LocalDate;
 
 /**
  * The second half of a batched run, arriving minutes after the first.

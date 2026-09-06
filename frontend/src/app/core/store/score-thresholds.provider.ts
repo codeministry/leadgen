@@ -1,8 +1,8 @@
-import { Provider, Signal, computed, inject } from '@angular/core';
-import { Dispatcher } from '@ngrx/signals/events';
-import { SCORE_THRESHOLDS, ScoreThresholds } from '@shared/shared.ports';
-import { configEvents } from './config.events';
-import { ConfigStore } from './config.store';
+import {computed, inject, Provider, Signal} from '@angular/core';
+import {Dispatcher} from '@ngrx/signals/events';
+import {SCORE_THRESHOLDS, ScoreThresholds} from '@shared/shared.ports';
+import {configEvents} from './config.events';
+import {ConfigStore} from './config.store';
 
 /**
  * The configured thresholds, for the parts of `shared/` that need them.
@@ -16,18 +16,18 @@ import { ConfigStore } from './config.store';
  * this provider exists to remove — so it is here, once, and not in three components.
  */
 export function provideScoreThresholds(): Provider {
-  return {
-    provide: SCORE_THRESHOLDS,
-    useFactory: (): Signal<ScoreThresholds> => {
-      const store = inject(ConfigStore);
-      inject(Dispatcher).dispatch(configEvents.rulesOpened());
-      return computed<ScoreThresholds>(() => {
-        const thresholds = store.rules()?.thresholds;
-        return {
-          shortlistAt: thresholds?.autoShortlist ?? 70,
-          reviewAt: thresholds?.review ?? 50,
-        };
-      });
-    },
-  };
+    return {
+        provide: SCORE_THRESHOLDS,
+        useFactory: (): Signal<ScoreThresholds> => {
+            const store = inject(ConfigStore);
+            inject(Dispatcher).dispatch(configEvents.rulesOpened());
+            return computed<ScoreThresholds>(() => {
+                const thresholds = store.rules()?.thresholds;
+                return {
+                    shortlistAt: thresholds?.autoShortlist ?? 70,
+                    reviewAt: thresholds?.review ?? 50,
+                };
+            });
+        },
+    };
 }

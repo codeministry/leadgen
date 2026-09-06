@@ -12,15 +12,16 @@ import de.codeministry.leadgen.config.ConfigProperties;
 import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.config.Directories;
 import de.codeministry.leadgen.config.model.SourcesConfig.Source;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
+import org.springframework.stereotype.Component;
+
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.context.event.ApplicationReadyEvent;
-import org.springframework.context.event.EventListener;
-import org.springframework.stereotype.Component;
 
 /**
  * Where an offer found by hand waits.
@@ -39,7 +40,9 @@ import org.springframework.stereotype.Component;
 @Component
 public class ManualInbox {
 
-    /** The source whose path this is. Not configurable: the endpoint has to find it. */
+    /**
+     * The source whose path this is. Not configurable: the endpoint has to find it.
+     */
     public static final String SOURCE_ID = "manual-inbox";
 
     private static final String PENDING = "pending";
@@ -52,19 +55,25 @@ public class ManualInbox {
         this.configDirectory = properties.configDirectory();
     }
 
-    /** Empty when no `manual-inbox` source is configured or it is switched off. */
+    /**
+     * Empty when no `manual-inbox` source is configured or it is switched off.
+     */
     public Optional<Source> source() {
         return config.snapshot().sources().sources().stream()
                 .filter(source -> SOURCE_ID.equals(source.id()) && source.enabled())
                 .findFirst();
     }
 
-    /** The directory the source reads. Created if it is not there yet. */
+    /**
+     * The directory the source reads. Created if it is not there yet.
+     */
     public Optional<Path> inbox() {
         return source().map(source -> create(Directories.under(configDirectory, source.path())));
     }
 
-    /** Where an upload waits for review. Deliberately not inside the directory above. */
+    /**
+     * Where an upload waits for review. Deliberately not inside the directory above.
+     */
     public Optional<Path> pending() {
         return inbox().map(inbox -> create(inbox.resolve(PENDING)));
     }

@@ -1,7 +1,7 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
-import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
-import { ScoreDistribution } from '@core/model/analytics';
-import { HistogramChart, HistogramMarker } from '@shared/chart/histogram-chart';
+import {ChangeDetectionStrategy, Component, computed, inject, input} from '@angular/core';
+import {TranslocoPipe, TranslocoService} from '@jsverse/transloco';
+import {ScoreDistribution} from '@core/model/analytics';
+import {HistogramChart, HistogramMarker} from '@shared/chart/histogram-chart';
 
 /**
  * How the scores are spread, and where the two thresholds cut it.
@@ -17,28 +17,28 @@ import { HistogramChart, HistogramMarker } from '@shared/chart/histogram-chart';
  * nine.
  */
 @Component({
-  selector: 'lg-scores-panel',
-  imports: [HistogramChart, TranslocoPipe],
-  templateUrl: './scores-panel.html',
-  styleUrl: './scores-panel.css',
-  changeDetection: ChangeDetectionStrategy.OnPush,
+    selector: 'lg-scores-panel',
+    imports: [HistogramChart, TranslocoPipe],
+    templateUrl: './scores-panel.html',
+    styleUrl: './scores-panel.css',
+    changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ScoresPanel {
-  readonly scores = input.required<ScoreDistribution>();
+    readonly scores = input.required<ScoreDistribution>();
 
-  private readonly transloco = inject(TranslocoService);
+    private readonly transloco = inject(TranslocoService);
 
-  protected readonly scored = computed(() =>
-    this.scores().buckets.reduce((sum, bucket) => sum + bucket.count, 0),
-  );
+    protected readonly scored = computed(() =>
+        this.scores().buckets.reduce((sum, bucket) => sum + bucket.count, 0),
+    );
 
-  protected readonly markers = computed<readonly HistogramMarker[]>(() => [
-    { at: this.scores().reviewAt, label: this.transloco.translate('analytics.markerReview') },
-    { at: this.scores().shortlistAt, label: this.transloco.translate('analytics.markerShortlist') },
-  ]);
+    protected readonly markers = computed<readonly HistogramMarker[]>(() => [
+        {at: this.scores().reviewAt, label: this.transloco.translate('analytics.markerReview')},
+        {at: this.scores().shortlistAt, label: this.transloco.translate('analytics.markerShortlist')},
+    ]);
 
-  protected readonly labels = computed(() => ({
-    bucket: this.transloco.translate('analytics.colScore'),
-    count: this.transloco.translate('analytics.colOffers'),
-  }));
+    protected readonly labels = computed(() => ({
+        bucket: this.transloco.translate('analytics.colScore'),
+        count: this.transloco.translate('analytics.colOffers'),
+    }));
 }

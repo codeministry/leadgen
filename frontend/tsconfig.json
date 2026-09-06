@@ -6,11 +6,21 @@
     // No `baseUrl`: TypeScript 6 deprecates it, and without it the mappings
     // resolve relative to this file, which is what they already do.
     "paths": {
-      "@app/*": ["./src/app/*"],
-      "@core/*": ["./src/app/core/*"],
-      "@shared/*": ["./src/app/shared/*"],
-      "@features/*": ["./src/app/features/*"],
-      "@layout/*": ["./src/app/layout/*"]
+      "@app/*": [
+        "./src/app/*"
+      ],
+      "@core/*": [
+        "./src/app/core/*"
+      ],
+      "@shared/*": [
+        "./src/app/shared/*"
+      ],
+      "@features/*": [
+        "./src/app/features/*"
+      ],
+      "@layout/*": [
+        "./src/app/layout/*"
+      ]
     },
     "resolveJsonModule": true,
     "strict": true,

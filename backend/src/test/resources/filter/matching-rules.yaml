@@ -7,16 +7,16 @@ hard_filters:
   remote:
     min_remote_percent: 80
     accept_unknown: true
-    reject_keywords_de: []
+    reject_keywords_de: [ ]
     derive_from:
-      - { field: location, contains_any: [remote, homeoffice], set: 100 }
+      - { field: location, contains_any: [ remote, homeoffice ], set: 100 }
 
   location:
-    country_allowlist: [DE]
-    reject_keywords: [Auslandistan, Fernweh]
+    country_allowlist: [ DE ]
+    reject_keywords: [ Auslandistan, Fernweh ]
     onsite_home_base: "Musterstadt"
-    onsite_cities: [Musterstadt, Beispielheim, "Alt Musterstadt"]
-    onsite_exceptions: []
+    onsite_cities: [ Musterstadt, Beispielheim, "Alt Musterstadt" ]
+    onsite_exceptions: [ ]
 
   rate:
     min_hourly_eur: 60
@@ -26,15 +26,15 @@ hard_filters:
     reject_below_as: HARD_FAIL
 
   role:
-    rejected_title_keywords: [Kobolderei, ".net", "c#"]
+    rejected_title_keywords: [ Kobolderei, ".net", "c#" ]
 
   contract:
-    allowed: [freiberuflich]
-    rejected: [Festanstellung, ANÜ]
+    allowed: [ freiberuflich ]
+    rejected: [ Festanstellung, ANÜ ]
 
   language:
     preferred: de
-    accepted: [de, en]
+    accepted: [ de, en ]
     english_only_penalty: 15
 
   freshness:
@@ -45,10 +45,10 @@ scoring:
   penalties: { vague_description: -10 }
   thresholds: { auto_shortlist: 70, review: 50, discard: 0 }
 
-anti_skills: []
+anti_skills: [ ]
 
 deduplication:
-  fingerprint_fields: [normalized_title]
+  fingerprint_fields: [ normalized_title ]
   strategies:
     - { type: exact_fingerprint, action: merge }
   merge_policy: keep_first_seen_as_primary

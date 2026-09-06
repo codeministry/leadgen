@@ -5,29 +5,29 @@
    the type scale as utilities. Nothing here is a literal color. */
 
 :root {
-  /* A low score is not an error, it is noise that survived. Red on a shortlist
-     row trains the reader to distrust the list, so "out" is muted and the ochre
-     accent is reserved for the one thing it means: this cleared the threshold.
-     Review takes secondary rather than primary: since primary became the logo's
-     bright cyan it outshines the ochre, and the middle band must not be the
-     loudest thing on the screen. */
-  --score-strong: var(--color-accent);
-  --score-weak: var(--color-secondary);
-  --score-out: var(--lg-muted);
+    /* A low score is not an error, it is noise that survived. Red on a shortlist
+       row trains the reader to distrust the list, so "out" is muted and the ochre
+       accent is reserved for the one thing it means: this cleared the threshold.
+       Review takes secondary rather than primary: since primary became the logo's
+       bright cyan it outshines the ochre, and the middle band must not be the
+       loudest thing on the screen. */
+    --score-strong: var(--color-accent);
+    --score-weak: var(--color-secondary);
+    --score-out: var(--lg-muted);
 
-  /* The shell. The rail collapses to icons and expands to icons plus labels;
-     both widths are needed at once for the transition. */
-  --lg-header-h: 3.5rem;
-  --lg-rail-w: 4rem;
-  --lg-rail-w-open: 14.5rem;
+    /* The shell. The rail collapses to icons and expands to icons plus labels;
+       both widths are needed at once for the transition. */
+    --lg-header-h: 3.5rem;
+    --lg-rail-w: 4rem;
+    --lg-rail-w-open: 14.5rem;
 
-  /* Two content widths. The default is a reading measure: every screen in this app
-     is a list or a form and gets unreadable past it. The wide one is for a screen
-     whose content is columns rather than prose — the board, where the measure left
-     five lanes at 15rem each while the monitor had room for half again as much.
-     A route opts into it; nothing decides it per component. */
-  --lg-measure: 84rem;
-  --lg-measure-wide: 120rem;
+    /* Two content widths. The default is a reading measure: every screen in this app
+       is a list or a form and gets unreadable past it. The wide one is for a screen
+       whose content is columns rather than prose — the board, where the measure left
+       five lanes at 15rem each while the monitor had room for half again as much.
+       A route opts into it; nothing decides it per component. */
+    --lg-measure: 84rem;
+    --lg-measure-wide: 120rem;
 
     /* How much of an advert is shown before it is folded away. A portal ad runs to
        several thousand characters and the panels that say what the tool decided sit
@@ -58,9 +58,9 @@
     --lg-selected-surface: color-mix(in oklab, var(--color-primary) 10%, var(--color-base-100));
     --lg-selected-surface-hover: color-mix(in oklab, var(--color-primary) 14%, var(--color-base-100));
 
-  /* Tailwind spells this `--font-mono--font-feature-settings`, which stylelint's
-     custom-property-pattern rejects for the double dash. One name, ours. */
-  --lg-mono-features: 'tnum' 1, 'zero' 1, 'cv02' 1;
+    /* Tailwind spells this `--font-mono--font-feature-settings`, which stylelint's
+       custom-property-pattern rejects for the double dash. One name, ours. */
+    --lg-mono-features: 'tnum' 1, 'zero' 1, 'cv02' 1;
 }
 
 /* The type scale. Bricolage is a display face and stays one: it appears in
@@ -69,129 +69,124 @@
    family was chosen over a single-weight grotesk. */
 
 @utility type-display-xl {
-  font-family: var(--font-display);
-  font-size: var(--text-display-xl);
-  font-variant-numeric: tabular-nums;
-  font-variation-settings:
-    'opsz' 72,
+    font-family: var(--font-display);
+    font-size: var(--text-display-xl);
+    font-variant-numeric: tabular-nums;
+    font-variation-settings: 'opsz' 72,
     'wght' 700;
-  letter-spacing: -0.03em;
-  line-height: 1;
+    letter-spacing: -0.03em;
+    line-height: 1;
 }
 
 @utility type-display-l {
-  font-family: var(--font-display);
-  font-size: var(--text-display-l);
-  font-variant-numeric: tabular-nums;
-  font-variation-settings:
-    'opsz' 48,
+    font-family: var(--font-display);
+    font-size: var(--text-display-l);
+    font-variant-numeric: tabular-nums;
+    font-variation-settings: 'opsz' 48,
     'wght' 650;
-  letter-spacing: -0.025em;
-  line-height: 1.05;
+    letter-spacing: -0.025em;
+    line-height: 1.05;
 }
 
 @utility type-display-m {
-  font-family: var(--font-display);
-  font-size: var(--text-display-m);
-  font-variant-numeric: tabular-nums;
-  font-variation-settings:
-    'opsz' 32,
+    font-family: var(--font-display);
+    font-size: var(--text-display-m);
+    font-variant-numeric: tabular-nums;
+    font-variation-settings: 'opsz' 32,
     'wght' 600;
-  letter-spacing: -0.02em;
-  line-height: 1.15;
+    letter-spacing: -0.02em;
+    line-height: 1.15;
 }
 
 @utility type-h1 {
-  font-family: var(--font-display);
-  font-size: 2rem;
-  font-variation-settings:
-    'opsz' 36,
+    font-family: var(--font-display);
+    font-size: 2rem;
+    font-variation-settings: 'opsz' 36,
     'wght' 600;
-  letter-spacing: -0.02em;
-  line-height: 1.15;
+    letter-spacing: -0.02em;
+    line-height: 1.15;
 }
 
 @utility type-h2 {
-  font-family: var(--font-display);
-  font-size: 1.5rem;
-  font-variation-settings:
-    'opsz' 24,
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    font-variation-settings: 'opsz' 24,
     'wght' 600;
-  letter-spacing: -0.015em;
-  line-height: 1.2;
+    letter-spacing: -0.015em;
+    line-height: 1.2;
 }
 
 /* h3 and h4 drop to Manrope: they sit inside cards beside body text, and a
    second voice at that size reads as a second brand rather than as structure. */
 
 @utility type-h3 {
-  font-family: var(--font-sans);
-  font-size: 1.25rem;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  line-height: 1.3;
+    font-family: var(--font-sans);
+    font-size: 1.25rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    line-height: 1.3;
 }
 
 @utility type-h4 {
-  font-family: var(--font-sans);
-  font-size: 1.0625rem;
-  font-weight: 600;
-  letter-spacing: -0.005em;
-  line-height: 1.4;
+    font-family: var(--font-sans);
+    font-size: 1.0625rem;
+    font-weight: 600;
+    letter-spacing: -0.005em;
+    line-height: 1.4;
 }
 
 @utility type-body {
-  font-family: var(--font-sans);
-  font-size: 1rem;
-  font-weight: 400;
-  line-height: 1.6;
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    font-weight: 400;
+    line-height: 1.6;
 }
 
 @utility type-small {
-  font-family: var(--font-sans);
-  font-size: 0.875rem;
-  font-weight: 400;
-  line-height: 1.55;
+    font-family: var(--font-sans);
+    font-size: 0.875rem;
+    font-weight: 400;
+    line-height: 1.55;
 }
 
 @utility type-caption {
-  font-family: var(--font-sans);
-  font-size: 0.75rem;
-  font-weight: 500;
-  letter-spacing: 0.02em;
-  line-height: 1.4;
-  text-transform: uppercase;
+    font-family: var(--font-sans);
+    font-size: 0.75rem;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    line-height: 1.4;
+    text-transform: uppercase;
 }
 
 /* Anything read down a column is mono and tabular, so the digits line up and a
    changing value does not shift the ones beside it. */
 
 @utility type-mono-data {
-  font-family: var(--font-mono);
-  font-feature-settings: var(--lg-mono-features);
-  font-size: 0.875rem;
-  font-variant-numeric: tabular-nums;
-  font-weight: 500;
-  line-height: 1.4;
+    font-family: var(--font-mono);
+    font-feature-settings: var(--lg-mono-features);
+    font-size: 0.875rem;
+    font-variant-numeric: tabular-nums;
+    font-weight: 500;
+    line-height: 1.4;
 }
 
 @utility type-mono-score {
-  font-family: var(--font-mono);
-  font-feature-settings: var(--lg-mono-features);
-  font-size: 2rem;
-  font-variant-numeric: tabular-nums;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  line-height: 1;
+    font-family: var(--font-mono);
+    font-feature-settings: var(--lg-mono-features);
+    font-size: 2rem;
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    line-height: 1;
 }
 
 /* Muted text is its own token, not an opacity: `opacity-70` on ink over the sand
    page lands at 4.2:1 and fails AA, and the failure is invisible while reading. */
 
 @utility text-muted {
-  color: var(--lg-muted);
+    color: var(--lg-muted);
 }
 
 @utility text-signal {
-  color: var(--lg-accent-text);
+    color: var(--lg-accent-text);
 }

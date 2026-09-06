@@ -8,13 +8,7 @@
  */
 package de.codeministry.leadgen;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 import de.codeministry.leadgen.config.ConfigRegistry;
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -25,6 +19,13 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * The two things the skeleton owes: the context starts, and Flyway actually ran.
@@ -68,7 +69,9 @@ class LeadGenerationApplicationTests {
         assertThat(config.snapshot().sources().sources()).isNotEmpty();
     }
 
-    /** Empty: nothing overrides, so every file comes from the classpath. */
+    /**
+     * Empty: nothing overrides, so every file comes from the classpath.
+     */
     private static Path exampleConfigDirectory() {
         try {
             Path target = Files.createTempDirectory("leadgen-config");

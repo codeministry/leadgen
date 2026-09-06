@@ -14,6 +14,7 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+
 import java.util.List;
 import java.util.Map;
 
@@ -50,16 +51,18 @@ public record SkillProfile(
             String freelanceSince,
             String experienceSince,
             List<String> roles,
-            String seniority) {}
+            String seniority) {
+    }
 
     /**
      * @param aliases the spellings an ad uses for the same thing. The filter matches on
-     *     these as well as on the name, which is why "Spring", "Spring Data" and
-     *     "Springboot" all count as Spring Boot without three entries.
-     * @param since the year it was first used in earnest. Not read by the filter; scoring
-     *     turns it into depth.
+     *                these as well as on the name, which is why "Spring", "Spring Data" and
+     *                "Springboot" all count as Spring Boot without three entries.
+     * @param since   the year it was first used in earnest. Not read by the filter; scoring
+     *                turns it into depth.
      */
-    public record Skill(@NotBlank String skill, @Min(1) @Max(10) int weight, Integer since, List<String> aliases) {}
+    public record Skill(@NotBlank String skill, @Min(1) @Max(10) int weight, Integer since, List<String> aliases) {
+    }
 
     /**
      * @param match the words a job advert uses for this industry. The name is the
@@ -78,10 +81,15 @@ public record SkillProfile(
             String role,
             List<String> stack,
             String pitchDe,
-            String pitchEn) {}
+            String pitchEn) {
+    }
 
-    public record Language(@NotBlank String name, String level) {}
+    public record Language(@NotBlank String name, String level) {
+    }
 
-    /** A fixed PDF. There is no per-offer tailoring; the language of the ad picks the file. */
-    public record CvVariant(@NotBlank String file, @JsonProperty("default") boolean isDefault) {}
+    /**
+     * A fixed PDF. There is no per-offer tailoring; the language of the ad picks the file.
+     */
+    public record CvVariant(@NotBlank String file, @JsonProperty("default") boolean isDefault) {
+    }
 }

@@ -10,6 +10,7 @@ package de.codeministry.leadgen.filter;
 
 import de.codeministry.leadgen.config.model.MatchingRules;
 import de.codeministry.leadgen.config.model.SkillProfile;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -172,7 +173,9 @@ public final class HardFilter {
         return patterns.stream().anyMatch(p -> p.matcher(text).find());
     }
 
-    /** The matched text, so a rejection can say which word decided it. */
+    /**
+     * The matched text, so a rejection can say which word decided it.
+     */
     private static String firstMatch(List<Pattern> patterns, String text) {
         for (Pattern pattern : patterns) {
             Matcher matcher = pattern.matcher(text);

@@ -13,5 +13,5 @@ export const THEME_STORAGE_KEY = 'lg-theme';
 export const DATA_THEME_ATTR = 'data-theme';
 
 export function isThemePreference(value: unknown): value is ThemePreference {
-  return value === 'system' || value === 'light' || value === 'dark';
+    return value === 'system' || value === 'light' || value === 'dark';
 }

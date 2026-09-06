@@ -1,35 +1,35 @@
 .shell {
-  display: flex;
-  flex-direction: column;
+    display: flex;
+    flex-direction: column;
 
-  /* Not `100%`: the percentage chain breaks at <lg-root>, which has no height,
-     so the rail stopped at the last nav item instead of running the full page. */
-  min-height: 100dvh;
-  background-color: var(--color-base-200);
+    /* Not `100%`: the percentage chain breaks at <lg-root>, which has no height,
+       so the rail stopped at the last nav item instead of running the full page. */
+    min-height: 100dvh;
+    background-color: var(--color-base-200);
 }
 
 .body {
-  display: flex;
-  flex: 1;
-  min-height: 0;
+    display: flex;
+    flex: 1;
+    min-height: 0;
 }
 
 .content {
-  flex: 1;
-  min-width: 0;
-  padding: 1.5rem;
+    flex: 1;
+    min-width: 0;
+    padding: 1.5rem;
 }
 
 .measure {
-  max-width: var(--lg-measure);
-  margin-inline: auto;
+    max-width: var(--lg-measure);
+    margin-inline: auto;
 }
 
 /* Set from the route's own `data.wide`, so the decision sits beside the route and
    not inside a component that would then be centred differently depending on where
    it was rendered. */
 .measure.wide {
-  max-width: var(--lg-measure-wide);
+    max-width: var(--lg-measure-wide);
 }
 
 /* A screen that ends at the bottom of the window instead of growing the page, so its own
@@ -73,7 +73,7 @@
 
 /* Room for the bottom bar the rail turns into below md. */
 @media (width < 48rem) {
-  .content {
-    padding: 1rem 1rem 5rem;
-  }
+    .content {
+        padding: 1rem 1rem 5rem;
+    }
 }

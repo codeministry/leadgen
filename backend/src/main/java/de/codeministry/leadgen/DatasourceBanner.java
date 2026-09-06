@@ -8,13 +8,14 @@
  */
 package de.codeministry.leadgen;
 
-import java.sql.SQLException;
-import javax.sql.DataSource;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
+
+import javax.sql.DataSource;
+import java.sql.SQLException;
 
 /**
  * Prints which database the process actually reached.

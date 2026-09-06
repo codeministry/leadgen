@@ -9,26 +9,12 @@
 package de.codeministry.leadgen.web;
 
 import de.codeministry.leadgen.archive.ArchiveService;
-import de.codeministry.leadgen.offer.FunnelView;
-import de.codeministry.leadgen.offer.OfferPatch;
-import de.codeministry.leadgen.offer.OfferQueryService;
-import de.codeministry.leadgen.offer.ShortlistEntry;
-import de.codeministry.leadgen.offer.ShortlistPage;
-import de.codeministry.leadgen.offer.ShortlistQuery;
+import de.codeministry.leadgen.offer.*;
 import de.codeministry.leadgen.score.Judges;
 import de.codeministry.leadgen.score.ScoringService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PatchMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseStatus;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 /**
  * The shortlist and one offer of it.
@@ -134,7 +120,9 @@ class OfferController {
         return e.getMessage();
     }
 
-    /** Same sentence and the same reason as the one on the ingest endpoint. */
+    /**
+     * Same sentence and the same reason as the one on the ingest endpoint.
+     */
     @ExceptionHandler(Judges.UnknownModel.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     String unknownModel(Judges.UnknownModel e) {

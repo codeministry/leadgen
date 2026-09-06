@@ -1,85 +1,85 @@
 <article class="card" [class.is-selected]="selected()">
-  <lg-score [value]="entry().score.value" />
+    <lg-score [value]="entry().score.value"/>
 
-  <div class="main">
-    <h3 class="type-h4 title">
-        <!-- Into the split view, and `preserve` is not optional: navigating to a new URL
-             otherwise drops the query string, and the filters reset the moment an offer is
-             opened. `aria-current` says which of the set is on screen. -->
-        <a
-                [routerLink]="['/shortlist', entry().offer.id]"
-                queryParamsHandling="preserve"
-                [attr.aria-current]="selected() ? 'true' : null"
-        >{{ entry().offer.title }}</a
-        >
-    </h3>
+    <div class="main">
+        <h3 class="type-h4 title">
+            <!-- Into the split view, and `preserve` is not optional: navigating to a new URL
+                 otherwise drops the query string, and the filters reset the moment an offer is
+                 opened. `aria-current` says which of the set is on screen. -->
+            <a
+                    [routerLink]="['/shortlist', entry().offer.id]"
+                    queryParamsHandling="preserve"
+                    [attr.aria-current]="selected() ? 'true' : null"
+            >{{ entry().offer.title }}</a
+            >
+        </h3>
 
-    <p class="type-mono-data text-muted meta">
-      @if (entry().offer.rateEur; as rate) {
-        <span>{{ rate }} &euro;/h</span>
-      } @else {
-        <span class="unknown">{{ 'offer.rateUnknown' | transloco }}</span>
-      }
-      <span aria-hidden="true">·</span>
-      <span>{{ entry().offer.location ?? ('offer.locationUnknown' | transloco) }}</span>
-      <span aria-hidden="true">·</span>
-      <span>{{ entry().offer.duration ?? ('offer.durationUnknown' | transloco) }}</span>
-      <span aria-hidden="true">·</span>
-      <span>{{ entry().offer.publishedOn }}</span>
-    </p>
+        <p class="type-mono-data text-muted meta">
+            @if (entry().offer.rateEur; as rate) {
+                <span>{{ rate }} &euro;/h</span>
+            } @else {
+                <span class="unknown">{{ 'offer.rateUnknown' | transloco }}</span>
+            }
+            <span aria-hidden="true">·</span>
+            <span>{{ entry().offer.location ?? ('offer.locationUnknown' | transloco) }}</span>
+            <span aria-hidden="true">·</span>
+            <span>{{ entry().offer.duration ?? ('offer.durationUnknown' | transloco) }}</span>
+            <span aria-hidden="true">·</span>
+            <span>{{ entry().offer.publishedOn }}</span>
+        </p>
 
-    <p class="type-small text-muted description">{{ teaser() }}</p>
+        <p class="type-small text-muted description">{{ teaser() }}</p>
 
-    <ul class="reasons">
-      @for (reason of shownReasons(); track reason.factor) {
-        <li class="type-small reason" [class.penalty]="reason.points < 0">
+        <ul class="reasons">
+            @for (reason of shownReasons(); track reason.factor) {
+                <li class="type-small reason" [class.penalty]="reason.points < 0">
           <span class="type-mono-data points">
             {{ reason.points > 0 ? '+' : '' }}{{ reason.points }}
           </span>
-          {{ reason.label }}
-        </li>
-      } @empty {
-        <li class="type-small text-muted reason">
-          {{ 'offer.notScored' | transloco }}
-        </li>
-      }
-    </ul>
+                    {{ reason.label }}
+                </li>
+            } @empty {
+                <li class="type-small text-muted reason">
+                    {{ 'offer.notScored' | transloco }}
+                </li>
+            }
+        </ul>
 
-    <div class="badges">
-      @if (otherSources().length > 0) {
-        <lg-badge tone="primary" [outline]="true">
-          <lg-icon name="copy" [size]="12" />
-          {{ 'offer.alsoOn' | transloco: { count: otherSources().length } }}
-        </lg-badge>
-      }
-      @if (entry().flags.incomplete) {
-        <lg-badge tone="warning" [outline]="true">{{ 'offer.incomplete' | transloco }}</lg-badge>
-      }
-      @if (entry().flags.remoteUnknown) {
-        <lg-badge tone="ghost" [outline]="true">{{ 'offer.remoteUnknown' | transloco }}</lg-badge>
-      } @else {
-        <lg-badge tone="ghost" [outline]="true">
-          {{ 'offer.remoteShare' | transloco: { percent: entry().offer.remotePercent } }}
-        </lg-badge>
-      }
-      <lg-badge tone="ghost" [outline]="true">{{ entry().offer.portal }}</lg-badge>
-      @if (entry().offer.agency; as agency) {
-        <lg-badge tone="ghost" [outline]="true">{{ agency }}</lg-badge>
-      } @else {
-        <lg-badge tone="ghost" [outline]="true">{{ 'offer.noAgency' | transloco }}</lg-badge>
-      }
-    </div>
+        <div class="badges">
+            @if (otherSources().length > 0) {
+                <lg-badge tone="primary" [outline]="true">
+                    <lg-icon name="copy" [size]="12"/>
+                    {{ 'offer.alsoOn' | transloco: {count: otherSources().length} }}
+                </lg-badge>
+            }
+            @if (entry().flags.incomplete) {
+                <lg-badge tone="warning" [outline]="true">{{ 'offer.incomplete' | transloco }}</lg-badge>
+            }
+            @if (entry().flags.remoteUnknown) {
+                <lg-badge tone="ghost" [outline]="true">{{ 'offer.remoteUnknown' | transloco }}</lg-badge>
+            } @else {
+                <lg-badge tone="ghost" [outline]="true">
+                    {{ 'offer.remoteShare' | transloco: {percent: entry().offer.remotePercent} }}
+                </lg-badge>
+            }
+            <lg-badge tone="ghost" [outline]="true">{{ entry().offer.portal }}</lg-badge>
+            @if (entry().offer.agency; as agency) {
+                <lg-badge tone="ghost" [outline]="true">{{ agency }}</lg-badge>
+            } @else {
+                <lg-badge tone="ghost" [outline]="true">{{ 'offer.noAgency' | transloco }}</lg-badge>
+            }
+        </div>
 
-    <!-- One project, several portals. The names sit on their own wrapping line
-         rather than inside the badge: a badge does not wrap, and three agency
-         names made it wider than a phone. -->
-    @if (otherSources().length > 0) {
-      <p class="type-small text-muted also">
-        {{ 'offer.alsoAdvertisedBy' | transloco }}
-        @for (source of otherSources(); track source.url; let last = $last) {
-          {{ source.agency ?? source.portal }}{{ last ? '' : ', ' }}
+        <!-- One project, several portals. The names sit on their own wrapping line
+             rather than inside the badge: a badge does not wrap, and three agency
+             names made it wider than a phone. -->
+        @if (otherSources().length > 0) {
+            <p class="type-small text-muted also">
+                {{ 'offer.alsoAdvertisedBy' | transloco }}
+                @for (source of otherSources(); track source.url; let last = $last) {
+                    {{ source.agency ?? source.portal }}{{ last ? '' : ', ' }}
+                }
+            </p>
         }
-      </p>
-    }
-  </div>
+    </div>
 </article>

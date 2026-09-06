@@ -8,8 +8,6 @@
  */
 package de.codeministry.leadgen.filter;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 import de.codeministry.leadgen.config.ConfigFixtures;
 import de.codeministry.leadgen.config.ConfigProperties;
 import de.codeministry.leadgen.config.ConfigSource;
@@ -20,6 +18,11 @@ import de.codeministry.leadgen.ingest.extract.HtmlBlockExtractor;
 import de.codeministry.leadgen.ingest.extract.OfferMapper;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
+import org.junit.jupiter.api.Assumptions;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
@@ -29,10 +32,8 @@ import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
-import org.junit.jupiter.api.Assumptions;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * ISC-41 and ISC-42: the Java hard filter has to reproduce
@@ -65,7 +66,8 @@ class HardFilterCorpusTest {
      */
     private static Baseline baseline;
 
-    private record Baseline(int total, int passed, Map<FilterStage, Integer> removed) {}
+    private record Baseline(int total, int passed, Map<FilterStage, Integer> removed) {
+    }
 
     private static final Validator VALIDATOR =
             Validation.buildDefaultValidatorFactory().getValidator();

@@ -1,19 +1,19 @@
-import { DOCUMENT, Provider, Signal, effect, inject, signal } from '@angular/core';
-import { CHART_PALETTE, ChartPalette } from '@shared/shared.ports';
-import { ThemeStore } from './theme.store';
+import {DOCUMENT, effect, inject, Provider, Signal, signal} from '@angular/core';
+import {CHART_PALETTE, ChartPalette} from '@shared/shared.ports';
+import {ThemeStore} from './theme.store';
 
 /** Seven, because there are seven filter stages and each needs its own step. */
 const STAGE_STEPS = 7;
 
 const FALLBACK: ChartPalette = {
-  primary: '#0E6E6B',
-  secondary: '#0A4E4C',
-  accent: '#C2820B',
-  track: '#E7E2D8',
-  label: '#647470',
-  surface: '#FFFFFF',
-  ink: '#1A2422',
-  stages: Array.from({ length: STAGE_STEPS }, () => '#B9C2BF'),
+    primary: '#0E6E6B',
+    secondary: '#0A4E4C',
+    accent: '#C2820B',
+    track: '#E7E2D8',
+    label: '#647470',
+    surface: '#FFFFFF',
+    ink: '#1A2422',
+    stages: Array.from({length: STAGE_STEPS}, () => '#B9C2BF'),
 };
 
 /**
@@ -37,46 +37,46 @@ const FALLBACK: ChartPalette = {
  * chart from being drawn in `undefined`.
  */
 export function provideChartPalette(): Provider {
-  return {
-    provide: CHART_PALETTE,
-    useFactory: (): Signal<ChartPalette> => {
-      const document = inject(DOCUMENT);
-      const view = document.defaultView;
-      const theme = inject(ThemeStore);
-      const palette = signal<ChartPalette>(read(document, FALLBACK));
+    return {
+        provide: CHART_PALETTE,
+        useFactory: (): Signal<ChartPalette> => {
+            const document = inject(DOCUMENT);
+            const view = document.defaultView;
+            const theme = inject(ThemeStore);
+            const palette = signal<ChartPalette>(read(document, FALLBACK));
 
-      effect(() => {
-        // Depended on so the effect re-runs on a toggle; the value itself is not used,
-        // because the tokens are what actually carry the theme.
-        theme.theme();
-        const apply = () => palette.set(read(document, palette()));
-        if (typeof view?.requestAnimationFrame === 'function') {
-          view.requestAnimationFrame(apply);
-        } else {
-          apply();
-        }
-      });
+            effect(() => {
+                // Depended on so the effect re-runs on a toggle; the value itself is not used,
+                // because the tokens are what actually carry the theme.
+                theme.theme();
+                const apply = () => palette.set(read(document, palette()));
+                if (typeof view?.requestAnimationFrame === 'function') {
+                    view.requestAnimationFrame(apply);
+                } else {
+                    apply();
+                }
+            });
 
-      return palette.asReadonly();
-    },
-  };
+            return palette.asReadonly();
+        },
+    };
 }
 
 function read(document: Document, previous: ChartPalette): ChartPalette {
-  const style = document.defaultView?.getComputedStyle(document.documentElement);
-  const token = (name: string, fallback: string) =>
-    style?.getPropertyValue(name).trim() || fallback;
+    const style = document.defaultView?.getComputedStyle(document.documentElement);
+    const token = (name: string, fallback: string) =>
+        style?.getPropertyValue(name).trim() || fallback;
 
-  return {
-    primary: token('--color-primary', previous.primary),
-    secondary: token('--color-secondary', previous.secondary),
-    accent: token('--color-accent', previous.accent),
-    track: token('--color-base-300', previous.track),
-    label: token('--lg-muted', previous.label),
-    surface: token('--color-base-100', previous.surface),
-    ink: token('--color-base-content', previous.ink),
-    stages: previous.stages.map((fallback, index) =>
-      token(`--lg-chart-stage-${index + 1}`, fallback),
-    ),
-  };
+    return {
+        primary: token('--color-primary', previous.primary),
+        secondary: token('--color-secondary', previous.secondary),
+        accent: token('--color-accent', previous.accent),
+        track: token('--color-base-300', previous.track),
+        label: token('--lg-muted', previous.label),
+        surface: token('--color-base-100', previous.surface),
+        ink: token('--color-base-content', previous.ink),
+        stages: previous.stages.map((fallback, index) =>
+            token(`--lg-chart-stage-${index + 1}`, fallback),
+        ),
+    };
 }

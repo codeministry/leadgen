@@ -8,13 +8,14 @@
  */
 package de.codeministry.leadgen.config;
 
-import java.util.LinkedHashMap;
-import java.util.Map;
 import org.springframework.boot.EnvironmentPostProcessor;
 import org.springframework.boot.SpringApplication;
 import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.env.StandardEnvironment;
 import org.springframework.core.env.SystemEnvironmentPropertySource;
+
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 /**
  * Puts `.env` into Spring's environment, so the file means one thing everywhere.
