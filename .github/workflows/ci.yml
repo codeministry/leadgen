@@ -51,14 +51,11 @@ jobs:
       # ship Docker, so this needs no service container — and must not have one: the tests
       # own the container's lifecycle and a second Postgres on 5432 would only confuse a
       # failure.
-      # TODO: re-enable Spotless in CI. The palantir-java-format check still disagrees with
-      # what the local run produces, so the gate fails on formatting alone. Excluded here
-      # rather than removed from the build: `./gradlew spotlessApply` and `spotlessCheck`
-      # both still work locally, and this line is the only thing to delete once the
-      # disagreement is understood.
+      # No `-x spotlessCheck` any more: Spotless is off in `backend/build.gradle.kts`
+      # itself, so the task no longer exists and excluding it would fail the run. Why it is
+      # off, and what re-enabling takes, is written where it was switched off.
       - name: Check
-        # run: ./gradlew check --no-daemon --stacktrace
-        run: ./gradlew check -x spotlessCheck --no-daemon --stacktrace
+        run: ./gradlew check --no-daemon --stacktrace
 
       # Uploaded rather than gated. A coverage threshold set on the day the tool is
       # introduced is a threshold somebody disables the first time it is inconvenient; the

@@ -11,13 +11,24 @@
 .split {
     display: grid;
 
-    /* The board takes what is left and the reading column is fixed: the board is the thing
-       being worked through and it already scrolls sideways, so a proportional detail column
-       would re-wrap the lanes every time an offer is opened. */
-    grid-template-columns: minmax(0, 1fr) var(--lg-detail-w);
+    /* One column until something is being read. A permanently reserved reading column is
+       30rem the board does not have while nothing is in it, and the board is the one screen
+       that takes the whole window — at 1440px it sat in two thirds of the width, scrolling
+       its lanes sideways, with an empty panel beside it. */
+    grid-template-columns: minmax(0, 1fr);
     flex: 1;
     gap: var(--lg-split-gap);
     min-height: 0;
+}
+
+/* The board takes what is left and the reading column is fixed: the board is the thing being
+   worked through and it already scrolls sideways, so a proportional detail column would
+   re-wrap the lanes every time an offer is opened. Only above the breakpoint — below it the
+   detail replaces the board rather than sitting beside it. */
+@media (width >= 80rem) {
+    :host(.detail-open) .split {
+        grid-template-columns: minmax(0, 1fr) var(--lg-detail-w);
+    }
 }
 
 .board-col {
@@ -136,10 +147,6 @@
    splits on, and the same reason: two structural relayouts on one breakpoint make both
    harder to check. */
 @media (width < 80rem) {
-    .split {
-        grid-template-columns: minmax(0, 1fr);
-    }
-
     :host(.detail-open) .board-col {
         display: none;
     }

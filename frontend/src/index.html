@@ -23,8 +23,14 @@
                 var preference = localStorage.getItem('lg-theme');
                 if (preference === 'light' || preference === 'dark') {
                     document.documentElement.setAttribute('data-theme', 'lg-' + preference);
-                } else {
+                } else if (preference === 'system') {
                     document.documentElement.removeAttribute('data-theme');
+                } else {
+                    // Nothing stored: the app's default is light, not the operating
+                    // system. Written explicitly rather than left to the media query,
+                    // because the absence of the attribute IS "follow the OS" here.
+                    // Keep in step with DEFAULT_PREFERENCE in core/theme/theme.store.ts.
+                    document.documentElement.setAttribute('data-theme', 'lg-light');
                 }
             } catch (error) {
                 // Private mode or storage disabled. Fall through to the media query.

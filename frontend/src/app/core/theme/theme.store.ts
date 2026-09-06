@@ -9,7 +9,19 @@ interface ThemeState {
     systemPrefersDark: boolean;
 }
 
-const initialState: ThemeState = {preference: 'system', systemPrefersDark: false};
+/**
+ * The default is `light`, not `system`. `system` is still one of the three choices and
+ * still means "no `data-theme`, let the media query decide" — it is simply no longer what
+ * an unconfigured browser gets. The palette is designed light-first (petrol on sand, ochre
+ * for what survived the filter), and a reader arriving on a dark-set machine used to meet
+ * the dark variant before ever seeing the light one.
+ *
+ * Kept in step by hand with the inline script in `src/index.html`, which has to write the
+ * same default before first paint or the page paints dark and corrects itself.
+ */
+const DEFAULT_PREFERENCE: ThemePreference = 'light';
+
+const initialState: ThemeState = {preference: DEFAULT_PREFERENCE, systemPrefersDark: false};
 
 /**
  * Same triplet as `core/store/status.store.ts`: a `*.events.ts` beside a
@@ -81,9 +93,9 @@ export const ThemeStore = signalStore(
 function readPreference(view: Window | null): ThemePreference {
     try {
         const stored = view?.localStorage.getItem(THEME_STORAGE_KEY) ?? null;
-        return isThemePreference(stored) ? stored : 'system';
+        return isThemePreference(stored) ? stored : DEFAULT_PREFERENCE;
     } catch {
-        return 'system';
+        return DEFAULT_PREFERENCE;
     }
 }
 

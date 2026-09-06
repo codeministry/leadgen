@@ -21,7 +21,8 @@ reached. `DatasourceBanner` prints the effective JDBC URL at startup for the sam
 ./gradlew check                # both modules — the gate
 ./gradlew :backend:test        # Spring tests
 ./gradlew :backend:bootRun     # API on :8080, reads the untracked .env from the repo root
-./gradlew spotlessApply        # formatting and the SPDX header, applied
+# ./gradlew spotlessApply      # formatting and the SPDX header — Spotless is off,
+                               # see the note in backend/build.gradle.kts
 
 docker compose up postgres     # just the database a local run expects
 docker compose up --build      # the whole stack
@@ -34,7 +35,7 @@ bun run test                   # Vitest
 bun run test:coverage          # …with a v8 coverage report
 ```
 
-`./gradlew check` is the whole gate: Spotless, JaCoCo and the Spring tests for the backend,
+`./gradlew check` is the whole gate: JaCoCo and the Spring tests for the backend,
 lint and Vitest for the frontend. The frontend is bracketed with plain `Exec` tasks calling
 `bun` rather than with the Node Gradle plugin — the plugin does not speak bun, and this way
 `package.json` stays the single list of frontend commands and `bun run <script>` behaves

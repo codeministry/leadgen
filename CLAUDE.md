@@ -137,6 +137,13 @@ Carried over from a sibling Angular project, which is the house style:
   attribute *is* "follow the operating system". An inline script in `src/index.html`
   applies the stored preference before first paint and shares the `lg-theme` key with
   `core/theme/theme.model.ts`.
+- **The default is `light`, and it is written rather than implied.** `system` is still one of the three choices; it is
+  no longer what an unconfigured browser gets, because the palette is designed light-first and a reader on a dark-set
+  machine used to meet the dark variant before ever seeing the light one. Since the absence of the attribute *is*
+  "follow the OS", the default cannot be expressed by leaving it off: the inline script writes
+  `data-theme="lg-light"` when nothing is stored, and `DEFAULT_PREFERENCE` in
+  `core/theme/theme.store.ts` is the other half of the same decision. Two places, kept in step by hand, exactly like the
+  `lg-theme` key itself.
 - **Fonts are self-hosted through `@fontsource-variable`,** never a CDN: Bricolage
   Grotesque (display, `opsz.css` for the wght + opsz axes), Manrope (body), JetBrains Mono
   (anything compared down a column). The rule is: a number you compare is mono, a number
@@ -960,6 +967,12 @@ underneath all three. One list on the left, one thing being read on the right, a
   `min-height` alone is not a height, the flex chain resolves against it only while the content is shorter, and a long
   list simply grows the shell past the viewport — the page scrolls and the panes never do. Measured that way before the
   `height` was added.
+- **The board's reading column exists only while something is being read, and its lanes divide the pane at every
+  width.** Reserved, the column was 30rem the board did not have with nothing in it — at 1440px the board sat in two
+  thirds of the screen, scrolling its five lanes sideways, next to an empty panel. Measured after: 1178px of board and
+  225px lanes with nothing open, 709px and the sideways scroll once an offer is. The lanes were also pinned to 15rem
+  below the split's breakpoint, which made the board scroll at widths where five stretched lanes still fit; the 14rem
+  minimum in `minmax()` is what makes the pane scroll when they genuinely do not.
 - **Every screen sits against the nav rail; the measure caps the line length and never places the screen.** Centred, a
   wide monitor put each screen's content somewhere else — the board hard against the rail, the dashboard floating in the
   middle between two margins — so the left edge had to be found again on every navigation. Left-aligned, that edge is
@@ -1470,8 +1483,9 @@ code has to reproduce — the numbers in `docs/SAMPLE-ANALYSIS.md` are the targe
 
 ## Settled
 
-- **License: Apache-2.0.** `LICENSE` and `NOTICE` at the root, SPDX headers on the Java
-  sources enforced by Spotless rather than written by hand.
+- **License: Apache-2.0.** `LICENSE` and `NOTICE` at the root, SPDX headers on the Java sources. They used to be
+  enforced by Spotless; Spotless is off for now (the reason is in
+  `backend/build.gradle.kts`), so a new Java file needs its header copied by hand until it comes back.
 - **The repository is `codeministry/leadgen`**, which is why the Java package
   `de.codeministry.leadgen` stays as it is.
 - **No Helm chart in the repository.** Docker Compose is the supported way to run this;

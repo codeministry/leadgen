@@ -32,6 +32,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.*;
 import static org.assertj.core.api.Assertions.*;
@@ -358,19 +360,45 @@ class ScoringWithAModelTest {
             ConfigFixtures.materialize(dir);
 
             Path pipeline = dir.resolve("pipeline.yaml");
-            String text = Files.readString(pipeline, StandardCharsets.UTF_8)
-                    .replace("provider: ${LLM_PROVIDER:}", "provider: openai-compatible")
-                    .replace("base_url: ${LLM_BASE_URL:}", "base_url: " + MODEL.baseUrl())
-                    .replace("api_key: ${LLM_API_KEY}", "api_key: test-key")
-                    .replace("scoring:    ${LLM_MODEL_SCORING}", "scoring:    test-model")
-                    // Named rather than left as a placeholder for the same reason the four
-                    // above are: the resolver reads the developer's `.env`, so a list left
-                    // open here would make the allowlist below depend on whose machine ran it.
-                    .replace("scoring_options: ${LLM_MODEL_SCORING_OPTIONS:}", "scoring_options: other-model");
+            String text = Files.readString(pipeline, StandardCharsets.UTF_8);
+            // Named rather than left as placeholders: the resolver reads the process
+            // environment and then the developer's `.env`, so anything left open here
+            // would make this test depend on whose machine ran it.
+            text = set(text, "provider", "openai-compatible");
+            text = set(text, "base_url", MODEL.baseUrl());
+            text = set(text, "api_key", "test-key");
+            text = set(text, "scoring", "test-model");
+            text = set(text, "scoring_options", "other-model");
             Files.writeString(pipeline, text, StandardCharsets.UTF_8);
             return dir;
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
+    }
+
+    /**
+     * Rewrites one scalar in the shipped {@code pipeline.yaml}, addressed by its key.
+     *
+     * <p>This used to be a literal {@code String.replace} carrying the file's own alignment
+     * padding — {@code "scoring:    ${LLM_MODEL_SCORING}"} with four spaces. A reformat
+     * collapsed that padding to one space, the replacement silently matched nothing, and the
+     * placeholder survived into the run: locally the resolver then filled it from the
+     * developer's `.env` and the assertion read back their model name, in CI it filled it
+     * with nothing. Neither failure pointed anywhere near the whitespace that caused it.
+     *
+     * <p>So the key is matched by a pattern that does not care how the file is laid out, and
+     * a replacement that matches nothing throws here instead of being discovered three
+     * assertions later. The indentation is preserved because YAML nesting is indentation.
+     */
+    private static String set(String yaml, String key, String value) {
+        Matcher matcher =
+                Pattern.compile("(?m)^([ \\t]*)" + Pattern.quote(key) + ":.*$").matcher(yaml);
+        if (!matcher.find()) {
+            throw new IllegalStateException(
+                    "no `" + key + ":` in the shipped pipeline.yaml — the fixture and the file have drifted");
+        }
+        // `$1` keeps the line's own indentation; the value is quoted because a URL carries
+        // characters a replacement string would otherwise read as group references.
+        return matcher.replaceFirst("$1" + key + ": " + Matcher.quoteReplacement(value));
     }
 }
