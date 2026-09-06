@@ -1,25 +1,24 @@
-<nav
-        class="rail"
-        [class.rail-open]="shell.railOpen()"
-        [attr.aria-label]="'nav.sections' | transloco"
->
+<nav class="topnav" [attr.aria-label]="'nav.sections' | transloco">
     <ul>
         @for (item of items; track item.path) {
             @if (item.opensGroup) {
-                <!-- A separator rather than a heading: the rail collapses to icons, and there a
-                     heading has nothing to show. `role="separator"` so it is a break in the list
-                     for a screen reader too, rather than a stray empty item. -->
+              <!-- A separator rather than a heading: across a row a heading has nowhere to
+                   go, and `role="separator"` makes it a break in the list for a screen
+                   reader too rather than a stray empty item. -->
                 <li class="group-break" role="separator"></li>
             }
             <li>
+              <!-- `title` is set at every width rather than only where the label is hidden:
+                   which of the two is showing is a media query's answer, and asking it in
+                   TypeScript would be a second copy of a breakpoint the stylesheet owns. -->
                 <a
                         [routerLink]="item.path"
                         routerLinkActive="is-active"
-                        [attr.title]="shell.railOpen() ? null : (item.label | transloco)"
+                        [attr.title]="item.label | transloco"
                 >
                     <lg-icon [name]="item.icon" [size]="20"/>
-                    <!-- The label stays in the DOM when the rail is collapsed and is hidden
-                         visually, so the link keeps its accessible name either way. -->
+                  <!-- The label stays in the DOM where it is hidden visually, so the link
+                       keeps its accessible name at every width. -->
                     <span class="type-small nav-label">{{ item.label | transloco }}</span>
                 </a>
             </li>

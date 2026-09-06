@@ -18,11 +18,11 @@
     "analytics": "Analytics"
   },
   "shell": {
-    "toggleNavigation": "Toggle the navigation labels",
     "connecting": "connecting…",
     "ingest": "Run ingest",
     "ingestRunning": "Reading sources…",
-    "scoringModel": "Scoring model"
+    "scoringModel": "Scoring model",
+    "settings": "Settings and version"
   },
   "theme": {
     "legend": "Colour theme",

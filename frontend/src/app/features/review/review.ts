@@ -1,14 +1,13 @@
 import {
-    ChangeDetectionStrategy,
-    Component,
-    computed,
-    effect,
-    ElementRef,
-    inject,
-    input,
-    OnInit,
-    signal,
-    viewChild,
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  DOCUMENT,
+  effect,
+  inject,
+  input,
+  OnInit,
+  signal,
 } from '@angular/core';
 import {Router, RouterLink} from '@angular/router';
 import {injectDispatch} from '@ngrx/signals/events';
@@ -41,9 +40,9 @@ import {ReviewCard} from './review-card/review-card';
 export class Review implements OnInit {
     private readonly dispatch = injectDispatch(manualEvents);
     private readonly router = inject(Router);
+  private readonly document = inject(DOCUMENT);
     protected readonly store = inject(ManualStore);
 
-    private readonly detailPane = viewChild<ElementRef<HTMLElement>>('detailPane');
 
     /**
      * Which document is open, as a query parameter rather than the path segment the other two
@@ -94,12 +93,15 @@ export class Review implements OnInit {
 
     constructor() {
         // A different document starts at its own top, the same as the offer detail: the column
-        // survives the navigation and would otherwise open where the last one was left.
+      // survives the navigation and would otherwise open where the last one was left. What is
+      // reset is the document, because the column stopped having a scroller of its own. The
+      // guard is truthy and not `!== null`: jsdom has no `scrollingElement` at all, and typed
+      // `Element | null` it arrives `undefined` and walks straight through a null check.
         effect(() => {
             this.selectedName();
-            const pane = this.detailPane()?.nativeElement;
-            if (pane !== undefined) {
-                pane.scrollTop = 0;
+          const scroller = this.document.scrollingElement;
+          if (scroller) {
+            scroller.scrollTop = 0;
             }
         });
     }

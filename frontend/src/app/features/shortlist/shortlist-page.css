@@ -1,22 +1,19 @@
-/* The screen fills the window rather than growing the page, which is what lets the two
-   columns scroll on their own. The route asks for it with `data.fill`; the shell bounds
-   `.content` and `.measure`, and this is the last link in that chain. Every `min-height: 0`
-   below is load-bearing: a flex item's default is its content height, and that is exactly
-   how a "bounded" pane grows the page instead of scrolling.
+/* The advert scrolls with the page and the list pins itself beside it. This screen used to
+   be bounded to the viewport with `data.fill`, both columns scrolling inside it; the ad is
+   the one prose surface here and a document scroll is what a reader's hands already know,
+   so the reading column gives its scroller back and the list keeps one of its own.
 
-   The route also takes the wide measure so the columns have room, and the split caps itself
+   The route takes the wide measure so the columns have room, and the split caps itself
    inside it — ungapped, the advert would run 92rem wide on a large monitor. */
 :host {
-    display: flex;
-    flex: 1;
-    flex-direction: column;
+  display: block;
     width: 100%;
     max-width: var(--lg-split-max);
-    min-height: 0;
 
-    /* Against the nav rail like every other screen: the cap limits the advert's line length,
-       it does not place the screen. See the note on `.measure` in the shell. */
-    margin-inline: 0;
+  /* Centred inside the wide measure, like every other screen: the cap limits the advert's
+     line length, it does not place the screen. See the note on `.measure` in the shell for
+     why this stopped being left-aligned. */
+  margin-inline: auto;
 }
 
 .split {
@@ -25,39 +22,49 @@
     /* Fixed reading column and the rest. A proportional split re-wraps the card's four meta
        values on every monitor, and the card is the thing being scanned twenty at a time. */
     grid-template-columns: var(--lg-list-w) minmax(0, 1fr);
-    flex: 1;
     gap: var(--lg-split-gap);
-    min-height: 0;
+
+  /* Load-bearing, and it looks cosmetic: a grid item stretched to the row's height has no
+     room left to move in, and `position: sticky` on it then silently does nothing at all. */
+  align-items: start;
 }
 
-/* A column, not a pane: the heading and the filters live in it but outside the scroll
-   container. */
+/* Pinned under the header while the advert beside it runs on. `100svh` and not `100dvh`:
+   the dynamic unit changes as a mobile browser shows and hides its chrome, so a `dvh`
+   max-height here would reflow the column on every scroll gesture. */
 .list-col {
+  position: sticky;
+  top: var(--lg-sticky-top);
     display: flex;
     flex-direction: column;
+  max-height: calc(100svh - var(--lg-sticky-top) - var(--lg-gutter));
     min-height: 0;
 }
 
+/* A focus ring at `outline-offset: 2px` on a card at the pane's edge is otherwise clipped by
+   the scroll container. */
 .pane {
+  padding-inline: 0.25rem;
+}
+
+/* The list is the half that still scrolls on its own, inside the pinned column. */
+.list-pane {
+  flex: 1;
     min-height: 0;
     overflow-y: auto;
 
-    /* The advert's scroll does not chain to the page behind it. */
+  /* A flick through the list does not throw the advert behind it. */
     overscroll-behavior: contain;
 
-    /* No layout shift the first time a detail is long enough to scroll. */
+  /* No layout shift the first time the list is long enough to scroll. */
     scrollbar-gutter: stable;
-
-    /* A focus ring at `outline-offset: 2px` on a card at the pane's edge is otherwise
-       clipped by the scroll container. */
-    padding-inline: 0.25rem;
 }
 
-/* The query container for the detail's own panel grid. It sits here rather than on
-   `lg-offer-detail` because containment must not land on an element whose height has to
-   grow: unfolding an advert made the panel keep its folded height in Safari while the text
-   ran on behind the panels below it. This pane's height comes from the flex chain and never
-   from its content, so containing it cannot squeeze anything. */
+/* The query container for the detail's own panel grid, and it no longer scrolls: the
+   document does that for it. `inline-size` contains the inline axis only, so the block size
+   is free and the pane grows with the advert — which it now has to, and which is exactly the
+   case the Safari note in `offer-detail` was written about. Unfolding a long ad is therefore
+   the thing to re-check in Safari after this change, not something to assume. */
 .detail-pane {
     container-type: inline-size;
     container-name: detail;
@@ -87,8 +94,11 @@
     gap: 0.5rem;
 }
 
-.head-row .count {
-    margin-inline-start: auto;
+/* Projected into the page header's action group, so it needs nothing but its own line: the
+   number changes on every filter change and must not re-wrap the button beside it. */
+.count {
+  margin: 0;
+  white-space: nowrap;
 }
 
 /* Search and portal each take what is left of their row. `min-width: 0` is load-bearing: a
@@ -131,26 +141,43 @@
     display: none;
 }
 
-/* Below this the two columns do not both fit, and the number is measured with the nav rail
-   OPEN, because that is the worse of the two states and no media query can see which one is
-   showing: the rail goes from 4rem to 14.5rem on a click, with no breakpoint of its own.
-   Measured at the breakpoint itself: the reading column is 489px with the rail open and
-   647px with it collapsed. The old 64rem was measured against a narrower list and against
-   the collapsed rail alone, which is the state that was not the problem — at 1024px with the
-   rail open the advert was 233px wide and the title broke over four lines. 48rem is where the
-   rail becomes a bottom bar and stays its own number: two structural relayouts on one
-   breakpoint make both harder to check.
+/* Below this the two columns do not both fit. 80rem stood here before, and it was measured
+   with the nav rail OPEN — the worse of two states no media query could see, because the rail
+   went from 4rem to 14.5rem on a click with no breakpoint of its own. That rail is gone, so
+   there is one state left and the old number is measured against a layout that no longer
+   exists. The floor it defended is the reading column it produced in the bad state, 489px.
+
+   Without the rail the reading column is `min(V - 45, 1560) - 528.75`: 578px at 72rem, which
+   clears the floor, and 450px at 64rem, which does not. 48rem stays its own number, where the
+   navigation becomes a bottom bar — two structural relayouts on one breakpoint make both
+   harder to check.
 
    A `rem` here is not a `rem` in the rules below it: `html` is at 93.75%, so the layout's
-   own rem is 15px while a media query resolves against the initial 16px. 80rem is 1280px;
+   own rem is 15px while a media query resolves against the initial 16px. 72rem is 1152px;
    `--lg-list-w: 34rem` is 510px.
 
    Stated once here, once in `shortlist-page.ts` for the auto-selection, and once each in the
    two sibling split views. */
-@media (width < 80rem) {
+@media (width < 72rem) {
     .split {
         grid-template-columns: minmax(0, 1fr);
     }
+
+  /* One column, so there is nothing to pin beside and nothing to keep in view: the list
+     runs down the page like any other screen. The pane's own scroller has to go with it —
+     an `overflow` box that clips nothing is still a valid `IntersectionObserver` root, and
+     against an unclipped root the sentinel intersects on the first frame and pages the
+     whole archive without anybody scrolling. The other half of that is the `[root]`
+     binding in the template. */
+  .list-col {
+    position: static;
+    max-height: none;
+  }
+
+  .list-pane {
+    overflow: visible;
+    overscroll-behavior: auto;
+  }
 
     :host(.detail-open) .list-col {
         display: none;

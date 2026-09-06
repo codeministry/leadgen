@@ -1,78 +1,118 @@
-<!-- The header carries the dark theme in both modes. The logo asset has its own
-     bright cyan, which is 1.6:1 on white and cannot be a light-theme colour at
-     all; on the navy ground it is 10.5:1 and the lockup looks identical either
-     way. `data-theme` is attribute-scoped in daisyUI, so putting it here
-     re-declares every token for this subtree and the buttons, the muted version
-     string and the wordmark all follow without a single override. -->
-<header class="header" data-theme="lg-dark">
-    <!-- The name belongs on the button, not on the icon inside it: a control whose
-         accessible name comes from a nested role="img" is one refactor away from
-         having none at all. -->
-    <button
-            type="button"
-            class="btn btn-ghost btn-sm btn-square rail-button"
-            [attr.aria-label]="'shell.toggleNavigation' | transloco"
-            [attr.aria-expanded]="shell.railOpen()"
-            aria-controls="app-nav"
-            (click)="toggleRail()"
-    >
-        <lg-icon name="panel-left" [size]="18"/>
-    </button>
+<!-- The bar is full-bleed and the row inside it is capped, so the chrome's edge and the
+     content's edge are one line. An inset card would be wrong twice over: the page scrolls
+     *under* this bar, so a bar that stops short of the window lets content past it at the
+     ends, and below 48rem the navigation is a full-bleed fixed bottom bar — an inset top
+     bar over it is an inconsistency in the one place both are chrome.
 
+     The header follows the page theme and nothing in it re-scopes `data-theme` any more.
+     The mark used to sit on a dark plate because the asset carried its own bright cyan at
+     1.6:1 on white; it is a flat single-colour silhouette, so it takes `--color-primary`
+     through a mask instead and the plate has nothing left to do. -->
+<header class="header">
+  <div class="header-row">
     <a routerLink="/dashboard" class="brand-link">
-        <lg-brand-mark [size]="26"/>
+      <lg-brand-mark class="compact" [size]="26"/>
     </a>
 
-    <!-- The version is the honest health check: it is what the API answered with,
-         so a stale or silent backend shows up here rather than nowhere. -->
-    <span class="type-mono-data text-muted api-version">
-    @if (status.status(); as status) {
-        {{ status.application }} {{ status.version }}
-    } @else if (status.loading()) {
-        {{ 'shell.connecting' | transloco }}
-    } @else {
-        {{ status.error() | transloco }}
-    }
-  </span>
+    <lg-app-nav/>
 
-    <!--
-      One model is not a choice and no model at all means nothing is configured to judge,
-      so the select appears only when there is something to pick. The list comes from
-      `/api/scoring-models`, never from a constant here: a second copy disagrees with the
-      configuration the first time a model is added, and the server refuses what it does
-      not know.
+    <div class="ops">
+      <!-- The version is the honest health check, and the failure is the half that has to
+           be seen without a click: a backend that stopped answering shows up here, while
+           the digits of a healthy one live in the panel. -->
+      @if (!status.status()) {
+        <span class="type-mono-data text-muted api-state">
+            @if (status.loading()) {
+              {{ 'shell.connecting' | transloco }}
+            } @else {
+              {{ status.error() | transloco }}
+            }
+          </span>
+      }
 
-      The selection is bound per option rather than with `[value]` on the select, the same
-      trap `shared/status-picker` documents: `[value]` depends on the options existing when
-      it is written, and losing that race leaves the first one showing while the run uses
-      another.
-    -->
-    @if (models.selectable()) {
+      <!--
+        One model is not a choice and no model at all means nothing is configured to judge,
+        so the select appears only when there is something to pick. The list comes from
+        `/api/scoring-models`, never from a constant here: a second copy disagrees with the
+        configuration the first time a model is added, and the server refuses what it does
+        not know.
+
+        The selection is bound per option rather than with `[value]` on the select, the same
+        trap `shared/status-picker` documents: `[value]` depends on the options existing when
+        it is written, and losing that race leaves the first one showing while the run uses
+        another.
+      -->
+      @if (models.selectable()) {
         <label class="sr-only" for="scoring-model">{{ 'shell.scoringModel' | transloco }}</label>
         <select
-                id="scoring-model"
-                class="select select-xs type-mono-data model-select"
-                [disabled]="ingest.running()"
-                (change)="chooseModel($event)"
+          id="scoring-model"
+          class="select select-xs type-mono-data model-select"
+          [disabled]="ingest.running()"
+          (change)="chooseModel($event)"
         >
-            @for (model of models.available(); track model) {
-                <option [value]="model" [selected]="model === models.effective()">{{ model }}</option>
-            }
+          @for (model of models.available(); track model) {
+            <option [value]="model" [selected]="model === models.effective()">{{ model }}</option>
+          }
         </select>
-    }
+      }
 
-    <button
-            type="button"
-            class="btn btn-primary btn-sm ingest-button"
-            [disabled]="ingest.running()"
-            (click)="runIngest()"
-    >
+      <button
+        type="button"
+        class="btn btn-primary btn-sm ingest-button"
+        [disabled]="ingest.running()"
+        (click)="runIngest()"
+      >
         <lg-icon name="refresh" [size]="16"/>
         <span class="ingest-label">
-      {{ (ingest.running() ? 'shell.ingestRunning' : 'shell.ingest') | transloco }}
-    </span>
-    </button>
+            {{ (ingest.running() ? 'shell.ingestRunning' : 'shell.ingest') | transloco }}
+          </span>
+      </button>
 
-    <lg-language-toggle/>
-    <lg-theme-toggle/>
+      <!-- The name belongs on the button, not on the icon inside it: a control whose
+           accessible name comes from a nested role="img" is one refactor away from having
+           none at all. `popovertarget` yields an implicit expanded state in current
+           browsers and uneven support elsewhere, so `aria-expanded` is set explicitly from
+           the panel's own toggle event. -->
+      <button
+        type="button"
+        class="btn btn-ghost btn-sm btn-square settings-button"
+        popovertarget="app-settings"
+        aria-controls="app-settings"
+        [attr.aria-expanded]="settingsOpen()"
+        [attr.aria-label]="'shell.settings' | transloco"
+        [attr.title]="'shell.settings' | transloco"
+      >
+        <lg-icon name="ellipsis" [size]="18"/>
+      </button>
+
+      <!--
+        A popover rather than a menu or a dialog. The contents are two radiogroups, and
+        `role="menu"` would impose menuitem semantics and a roving tabindex that both
+        toggles violate; a modal dialog would trap focus for "switch to dark". The native
+        popover gives light dismiss, Escape and focus return with no script.
+
+        The panel's content is rendered whether it is open or not: a closed popover still
+        contributes its text, and hiding the version behind an `@if` would take it out of
+        the DOM and out of the shell's own spec, far from anything that names it.
+      -->
+      <div
+        id="app-settings"
+        popover
+        class="settings-panel"
+        (toggle)="onSettingsToggle($event)"
+      >
+        <p class="type-small text-muted panel-label">{{ 'theme.legend' | transloco }}</p>
+        <lg-theme-toggle/>
+
+        <p class="type-small text-muted panel-label">{{ 'language.legend' | transloco }}</p>
+        <lg-language-toggle/>
+
+        <p class="type-mono-data text-muted api-version">
+          @if (status.status(); as status) {
+            {{ status.application }} {{ status.version }}
+          }
+        </p>
+      </div>
+    </div>
+  </div>
 </header>

@@ -8,12 +8,34 @@
     gap: 0.5rem;
 }
 
-/* The asset carries its own cyan, so it does not follow the theme. It sits on
-   base-100 in both, where it stays legible; nothing else in the header depends
-   on it taking a palette colour. */
+/* A mask, not an image. The asset is a flat single-colour silhouette — the favicon
+   script already keys out the white and repaints from the alpha channel alone — so
+   the only thing in it worth keeping is the shape, and the fill can be the theme's.
+   Petrol is 6.15:1 on white and 5.80:1 on the sand page, well past the 3:1 a
+   graphical object needs; on the dark theme `--color-primary` is the logo's own cyan,
+   so nothing visibly changes there.
+
+   What it removes is the dark plate. `#161F22` on the white bar is 16.8:1 — the
+   highest-contrast object in the whole light theme, and the only one carrying no
+   information. The size is set on both axes because a mask has no intrinsic ratio.
+
+   `url()` is root-absolute, matching the `<base href="/">` the app is served under. No
+   `-webkit-` prefix by hand — stylelint forbids it and the build's autoprefixer adds
+   whatever the browserslist target still needs. */
 .mark {
     flex: none;
-    width: auto;
+  background-color: var(--color-primary);
+  mask: url('/logo-mark.png') center / contain no-repeat;
+}
+
+/* Forced colours drop background images and background colours alike, so a masked
+   element disappears entirely. The wordmark still names the link above 30rem; below it
+   the wordmark is sr-only, so the mark keeps a visible box rather than vanishing. */
+@media (forced-colors: active) {
+  .mark {
+    forced-color-adjust: none;
+    background-color: canvastext;
+  }
 }
 
 .wordmark {
@@ -53,4 +75,15 @@
         clip-path: inset(50%);
         white-space: nowrap;
     }
+}
+
+/* The wordmark is the first thing to give up when the header row gets tight: the mark alone
+   still says which application this is, and the seven navigation labels beside it are worth
+   more. The rule lives here rather than in the header's stylesheet because view
+   encapsulation puts `.wordmark` out of a parent's reach, and toggling the input by width
+   would mean `matchMedia` in TypeScript for a decision CSS already makes. */
+@media (width < 90rem) {
+  :host(.compact) .wordmark {
+    display: none;
+  }
 }

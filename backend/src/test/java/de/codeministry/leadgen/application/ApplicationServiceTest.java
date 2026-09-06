@@ -219,6 +219,23 @@ class ApplicationServiceTest {
     }
 
     @Test
+    void leavesAnArchivedOfferOffTheBoardButStillCorrectable() {
+        long id = applications.open(offerId, ApplicationStatus.SENT);
+        assertThat(applications.board()).extracting(ApplicationView::id).contains(id);
+
+        jdbc.update("UPDATE offer SET archived_at = now(), archive_source = 'MANUAL' WHERE id = ?", offerId);
+
+        // Off the working list, and off the dashboard's follow-up count with it.
+        assertThat(applications.board()).isEmpty();
+
+        // Still correctable: the offer detail is reachable for any offer, and an archived
+        // application whose status could no longer be moved would be a dead end.
+        assertThat(applications.find(id)).isPresent();
+        assertThat(applications.update(id, update(ApplicationStatus.LOST)).status())
+            .isEqualTo(ApplicationStatus.LOST);
+    }
+
+    @Test
     void namesTheIdItCannotFind() {
         assertThatThrownBy(() -> applications.update(999_999L, update(ApplicationStatus.SENT)))
                 .isInstanceOf(ApplicationService.ApplicationNotFound.class)

@@ -15,22 +15,38 @@
     --score-weak: var(--color-secondary);
     --score-out: var(--lg-muted);
 
-    /* The shell. The rail collapses to icons and expands to icons plus labels;
-       both widths are needed at once for the transition. */
+  /* The shell. The header is the only chrome left: the navigation is a row inside it
+     above 48rem and a fixed bottom bar below, so neither has a width to name. */
     --lg-header-h: 3.5rem;
-    --lg-rail-w: 4rem;
-    --lg-rail-w-open: 14.5rem;
 
-    /* Two content widths and a third state with no token. The default is a reading
-       measure: every screen in this app is a list or a form and gets unreadable past it.
-       The wide one is for a screen whose content is columns rather than prose — the two
-       split views, where the measure left the list and the advert fighting over one
-       screen. The board takes neither and runs to the window's own width, which is why
-       there is no `--lg-measure-full`: its lanes divide whatever is given them, so the
-       honest cap is none. A route opts in with `data.measure`; nothing decides it per
-       component. */
-    --lg-measure: 84rem;
-    --lg-measure-wide: 120rem;
+  /* The application's outer bound: the widest content edge that exists. The split views
+     cap themselves here and the header row does too, so on the shortlist the chrome's
+     edge and the content's edge are one line rather than two.
+
+     It used to be three widths — 84rem for prose, 120rem for the split views, none for
+     the board — and the middle one was unreachable: both split screens cap their own
+     host at 104rem, so above 1560px the child cap won and below it the window did.
+     Setting it changed nothing, which makes it the number the next person centres
+     something on. The board still takes no cap at all: its lanes divide whatever they
+     are given, so there is no `full` token either, only the absence of one. A route
+     opts out with `data.measure: 'full'`; nothing decides it per component. */
+  --lg-shell-max: 104rem;
+  --lg-measure: var(--lg-shell-max);
+
+  /* One gutter, for the content and for the header row alike. They used to be 1.5rem and
+     0.75rem, so at every width the brand mark began 12px left of the first thing on the
+     page — permanent, small, and impossible to point at. */
+  --lg-gutter: 1.5rem;
+
+  /* The gap between the chrome and the page. Against a 3.5rem bordered bar, 1.5rem is a
+     ratio of 0.43 and reads as content pressed against the header. */
+  --lg-content-gap: 2.5rem;
+
+  /* Where a column pinned under the sticky header begins. Derived from the gap rather
+     than written, so a column docks exactly where it already stood. The two used to be
+     header-h + 0.75rem against 1.5rem of padding, and the list jumped 0.75rem the moment
+     it pinned; at 2.5rem that jump would be 1.25rem and would look like a bug. */
+  --lg-sticky-top: calc(var(--lg-header-h) + var(--lg-content-gap));
 
     /* How much of an advert is shown before it is folded away. A portal ad runs to
        several thousand characters and the panels that say what the tool decided sit
@@ -40,9 +56,9 @@
 
     /* The two split views' list column. Fixed and the advert takes the rest: a proportional
        split re-wraps the card's four meta values on every monitor, and the card is the thing
-       being scanned twenty at a time. The route takes the wide measure so the columns have
-       room, and the split caps itself inside it — ungapped, the advert would run 92rem wide
-       on a large monitor, which is the one prose surface in the app.
+       being scanned twenty at a time. The split caps itself at the shell's own bound —
+       uncapped, the advert would run 92rem wide on a large monitor, and it is the one prose
+       surface in the app.
 
        It is the scanning column that the width is worth spending on, so it takes 34rem and
        the advert gives them up: the card carries a title, four meta values and a score, the
@@ -51,12 +67,19 @@
        are only ever set together are one number written twice. */
     --lg-list-w: 34rem;
     --lg-split-gap: 1.25rem;
-    --lg-split-max: 104rem;
+  --lg-split-max: var(--lg-shell-max);
 
     /* The board's detail column. Fixed, and the board takes the rest: the board is the thing
        being worked through and it already scrolls sideways, so giving the reading column a
-       stable width is what keeps the lanes from re-wrapping every time an offer is opened. */
-    --lg-detail-w: 30rem;
+       stable width is what keeps the lanes from re-wrapping every time an offer is opened.
+
+       40rem and not the 30rem it started at: at 30rem an advert's title wrapped to six lines
+       before a word of the ad was read, which is a reading column spending its first screen
+       on a heading. The board still fits five 14rem lanes without scrolling sideways at 1920
+       (1256px of pane against 1125px of lanes); below that it scrolls, which it already did
+       at the old width. Still under the 44rem the detail's own container query uses, so the
+       panels stay one column — beside a board that is the right shape for them. */
+  --lg-detail-w: 40rem;
 
     /* Selection in a list. Not the accent: ochre means "this survived the filter" and nothing
        else, so the one on screen takes the primary edge and wash the nav rail already uses
@@ -70,6 +93,21 @@
     /* Tailwind spells this `--font-mono--font-feature-settings`, which stylelint's
        custom-property-pattern rejects for the double dash. One name, ours. */
     --lg-mono-features: 'tnum' 1, 'zero' 1, 'cv02' 1;
+}
+
+/* 38px of air above the first thing on a phone is a lot, and the fixed bottom bar already
+   takes 5rem off the other end. The override lives here and not in the shell's stylesheet
+   because Angular's emulated encapsulation appends its attribute to every selector it is
+   given — `:root` included, which then matches nothing at all. */
+@media (width < 48rem) {
+  :root {
+    --lg-content-gap: 1.5rem;
+
+    /* Narrower on a phone, and it has to move for the header too, or the brand mark and
+       the page's first character stop lining up at exactly the widths where the margin
+       is worth the most. */
+    --lg-gutter: 1rem;
+  }
 }
 
 /* The type scale. Bricolage is a display face and stays one: it appears in

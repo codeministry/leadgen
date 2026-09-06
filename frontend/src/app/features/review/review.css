@@ -1,11 +1,17 @@
-/* The screen fills the window so the queue and the document scroll on their own. The route
-   asks for it with `data.fill`; every `min-height: 0` below is load-bearing, because a flex
-   item's default is its content height and that is how a bounded pane grows the page. */
+/* The document scrolls with the page and the queue pins itself beside it, the same model the
+   shortlist takes and for the same reason: the corrected document is prose, and a scroller
+   inside a column is a second thing to operate. `.page-head` therefore scrolls away with the
+   page, which is right — uploading is a one-off and correcting is per document. */
 :host {
-    display: flex;
-    flex: 1;
-    flex-direction: column;
-    min-height: 0;
+  display: block;
+  width: 100%;
+
+  /* The same cap the shortlist takes, and for the same reason: this screen has a prose
+     column too, and `--lg-split-max` is documented as serving both. Without it the route's
+     wide measure applied undivided, so at 1920 the document ran 240px wider here than the
+     advert does on the shortlist, in the same component shape. */
+  max-width: var(--lg-split-max);
+  margin-inline: auto;
 }
 
 .split {
@@ -13,23 +19,40 @@
 
     /* The queue is a column of file names, the document is what is read and corrected. */
     grid-template-columns: var(--lg-list-w) minmax(0, 1fr);
-    flex: 1;
     gap: var(--lg-split-gap);
-    min-height: 0;
+
+  /* Load-bearing: a grid item stretched to the row's height has nowhere to move, and
+     `position: sticky` on it then does nothing at all. */
+  align-items: start;
 }
 
+/* Pinned under the header once the page head has scrolled past it. `100svh` and not
+   `100dvh`, so a mobile browser showing and hiding its chrome does not reflow the column on
+   every gesture. */
 .queue-col {
+  position: sticky;
+  top: var(--lg-sticky-top);
     display: flex;
     flex-direction: column;
+  max-height: calc(100svh - var(--lg-sticky-top) - var(--lg-gutter));
     min-height: 0;
 }
 
+/* A focus ring at `outline-offset: 2px` on a row at the pane's edge is otherwise clipped by
+   the scroll container. */
 .pane {
+  padding-inline: 0.25rem;
+}
+
+/* The queue is the half that still scrolls on its own, inside the pinned column. */
+.queue-pane {
+  flex: 1;
     min-height: 0;
     overflow-y: auto;
+
+  /* A flick through the queue does not throw the document behind it. */
     overscroll-behavior: contain;
     scrollbar-gutter: stable;
-    padding-inline: 0.25rem;
 }
 
 .queue {
@@ -80,10 +103,22 @@
     display: none;
 }
 
-@media (width < 80rem) {
+@media (width < 72rem) {
     .split {
         grid-template-columns: minmax(0, 1fr);
     }
+
+  /* One column, so there is nothing to pin beside: the queue runs down the page like the
+     rest of the screen, and its own scroller goes with it. */
+  .queue-col {
+    position: static;
+    max-height: none;
+  }
+
+  .queue-pane {
+    overflow: visible;
+    overscroll-behavior: auto;
+  }
 
     :host(.detail-open) .page-head,
     :host(.detail-open) .queue-col {

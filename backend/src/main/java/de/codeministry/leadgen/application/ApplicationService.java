@@ -14,6 +14,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.sql.DataSource;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -31,13 +33,33 @@ import java.util.Optional;
 @Service
 public class ApplicationService {
 
-    private static final String BOARD = """
+    private static final String SELECT = """
         SELECT a.id, a.offer_id, a.status, a.sent_on, a.follow_up_on, a.outcome, a.note,
                a.updated_at, o.title, o.agency, o.portal, o.url, o.score_value, o.rate_eur,
                o.package_dir
         FROM application a
         JOIN offer o ON o.id = a.offer_id
+        """;
+
+    /**
+     * The board is the working list, and {@code o.archived_at IS NULL} is what makes it one.
+     * The query had no {@code WHERE} at all, so an offer taken off the list kept its card and
+     * kept counting towards the dashboard's follow-up tile. Age never puts a live application
+     * here — {@link ApplicationStatus#isLive()} exempts it — so what this hides is something a
+     * person archived by hand, which is the clearest statement available that it is done with.
+     */
+    private static final String BOARD = SELECT + """
+        WHERE o.archived_at IS NULL
         ORDER BY o.score_value DESC NULLS LAST, a.updated_at DESC
+        """;
+
+    /**
+     * One row, and deliberately without the archive predicate: this is what {@link #update}
+     * reads before and after a write, and the offer detail is reachable for any offer at all.
+     * Filtered here too, archiving an offer would make its own status uncorrectable.
+     */
+    private static final String BY_ID = SELECT + """
+        WHERE a.id = ?
         """;
 
     private final JdbcClient jdbc;
@@ -47,36 +69,40 @@ public class ApplicationService {
     }
 
     public List<ApplicationView> board() {
-        LocalDate today = LocalDate.now();
-        return jdbc.sql(BOARD)
-                .query((rs, row) -> {
-                    LocalDate followUp = rs.getObject("follow_up_on", LocalDate.class);
-                    var status = ApplicationStatus.valueOf(rs.getString("status"));
-                    return new ApplicationView(
-                            rs.getLong("id"),
-                            rs.getLong("offer_id"),
-                            status,
-                            rs.getString("title"),
-                            rs.getString("agency"),
-                            rs.getString("portal"),
-                            rs.getString("url"),
-                            rs.getObject("score_value", Integer.class),
-                            rs.getObject("rate_eur", java.math.BigDecimal.class),
-                            rs.getString("package_dir"),
-                            rs.getObject("sent_on", LocalDate.class),
-                            followUp,
-                            // Closed applications never chase: a lost project with a stale reminder
-                            // is how a follow-up list stops being read.
-                            followUp != null && !status.isClosed() && !followUp.isAfter(today),
-                            rs.getString("outcome"),
-                            rs.getString("note"),
-                            instant(rs, "updated_at"));
-                })
-                .list();
+        return jdbc.sql(BOARD).query(ApplicationService::view).list();
     }
 
+    /**
+     * One application by its own id, not a scan of the board. It used to filter
+     * {@code board()} in memory, which is why the archive predicate landing there would
+     * otherwise have taken the write path with it.
+     */
     public Optional<ApplicationView> find(long id) {
-        return board().stream().filter(view -> view.id() == id).findFirst();
+        return jdbc.sql(BY_ID).param(id).query(ApplicationService::view).optional();
+    }
+
+    private static ApplicationView view(ResultSet rs, int row) throws SQLException {
+        LocalDate followUp = rs.getObject("follow_up_on", LocalDate.class);
+        var status = ApplicationStatus.valueOf(rs.getString("status"));
+        return new ApplicationView(
+            rs.getLong("id"),
+            rs.getLong("offer_id"),
+            status,
+            rs.getString("title"),
+            rs.getString("agency"),
+            rs.getString("portal"),
+            rs.getString("url"),
+            rs.getObject("score_value", Integer.class),
+            rs.getObject("rate_eur", java.math.BigDecimal.class),
+            rs.getString("package_dir"),
+            rs.getObject("sent_on", LocalDate.class),
+            followUp,
+            // Closed applications never chase: a lost project with a stale reminder
+            // is how a follow-up list stops being read.
+            followUp != null && !status.isClosed() && !followUp.isAfter(LocalDate.now()),
+            rs.getString("outcome"),
+            rs.getString("note"),
+            instant(rs, "updated_at"));
     }
 
     /**

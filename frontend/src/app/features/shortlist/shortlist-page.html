@@ -1,45 +1,39 @@
+<!-- The heading sits above both columns, where every other screen in this app puts its own.
+     It used to live inside the left column, on the argument that it belongs to the list; it
+     read as a column label rather than as the name of the screen, and it was the one screen
+     whose title was somewhere else. The count and the archive toggle come with it: the count
+     is read on every filter change and the toggle decides which *set* the screen is showing,
+     which is a statement about the screen and not about the scroller.
+
+     What stays down in the column are the filters. They filter the list and nothing else; laid
+     across both columns they would read as filtering the detail too, and a search field
+     spanning the page while acting on a 34rem column is a false affordance. -->
+<lg-page-header [title]="'shortlist.title' | transloco">
+  <p class="type-small text-muted count">
+    {{
+      (archived() ? 'shortlist.countArchived' : 'shortlist.count')
+        | transloco: {matched: store.matched(), total: store.total()}
+    }}
+    @if (store.unscored() > 0) {
+      · {{ 'shortlist.unscored' | transloco: {count: store.unscored()} }}
+    }
+  </p>
+
+  <button
+    type="button"
+    class="btn btn-sm"
+    [class.btn-active]="archived()"
+    [attr.aria-pressed]="archived()"
+    (click)="toggleArchive()"
+  >
+    <lg-icon name="archive" [size]="14"/>
+    {{ 'shortlist.archive' | transloco }}
+  </button>
+</lg-page-header>
+
 <div class="split">
-    <!-- The screen's own heading lives in the left column rather than above both, because it
-         belongs to the list: it names the screen, says how much of it the filters matched, and
-         carries the side being read. Above the split it spanned the detail as well, and on a
-         screen bounded to the viewport the advert paid for those 81px in height.
-
-         The filters sit in the same block, above the scroller and outside it. They filter the
-         list and nothing else; laid across both columns they read as filtering the detail too,
-         and a search field spanning the page while acting on a 34rem column is a false
-         affordance. Outside the scroller is also why this screen needs no sticky. -->
-    <div class="list-col">
-        <div class="filters">
-            <div class="row head-row">
-                <h1 class="type-h3">{{ 'shortlist.title' | transloco }}</h1>
-
-                <!-- Where the subtitle used to be. One sentence is read once and then never
-                     again; this one is read on every filter change. -->
-                <p class="type-small text-muted count">
-                    {{
-                        (archived() ? 'shortlist.countArchived' : 'shortlist.count')
-                            | transloco: {matched: store.matched(), total: store.total()}
-                    }}
-                    @if (store.unscored() > 0) {
-                        · {{ 'shortlist.unscored' | transloco: {count: store.unscored()} }}
-                    }
-                </p>
-
-                <!-- A side, not a fourth band, and beside the heading because toggling it
-                     changes which set the screen is showing. Inside the control row the only
-                     thing saying so was a 0.5rem gap next to the band group. -->
-                <button
-                        type="button"
-                        class="btn btn-sm"
-                        [class.btn-active]="archived()"
-                        [attr.aria-pressed]="archived()"
-                        (click)="toggleArchive()"
-                >
-                    <lg-icon name="archive" [size]="14"/>
-                    {{ 'shortlist.archive' | transloco }}
-                </button>
-            </div>
-
+  <div class="list-col">
+    <div class="filters">
             <div class="row">
                 <label class="control">
                     <span class="sr-only">{{ 'shortlist.searchLabel' | transloco }}</span>
@@ -119,9 +113,18 @@
                     <!-- The sentinel, not a button: the list is read by scrolling and the next page
                          should arrive before the scrolling stops. It stays in the DOM only while there
                          is more, so reaching the end of the archive ends the loading rather than
-                         repeating it. `root` is the pane, because the list scrolls inside it now — the
-                         window as root would intersect on the first frame and never stop. -->
-                    <div class="sentinel" lgLoadMore [root]="listPane" (reached)="loadMore()">
+                         repeating it.
+
+                         `root` is the pane only while the pane is a scroller. Below the breakpoint the
+                         list runs in the document and the pane's `overflow` is `visible`; an unclipped
+                         root box always contains the sentinel, so it would intersect on the first frame
+                         and page the whole archive. `null` is the window, which is what scrolls there. -->
+                  <div
+                    class="sentinel"
+                    lgLoadMore
+                    [root]="bothColumns() ? listPane : null"
+                    (reached)="loadMore()"
+                  >
                         <span class="type-small text-muted">{{ 'shortlist.loadingMore' | transloco }}</span>
                     </div>
                 }
@@ -153,7 +156,6 @@
 
     <section
             class="pane detail-pane"
-            #detailPane
             [attr.aria-label]="'shortlist.detailLabel' | transloco"
     >
         @if (selectedId() !== null) {

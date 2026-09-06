@@ -1,15 +1,19 @@
 <span class="brand">
-  <!-- The real logo rather than a redraw: public/logo-1.png cut out, trimmed and
-       resized to 128px tall as logo-mark.png. The source PNG stays untouched. -->
-  <img
+  <!-- The real logo rather than a redraw, but as a mask rather than as a picture:
+       `public/logo-mark.png` is a flat single-colour silhouette (build-favicon.sh keys
+       out the white and repaints from the alpha channel alone), so there is nothing in
+       it to preserve but the shape. Masked, the mark takes `--color-primary` — petrol at
+       6.15:1 on the light theme, the logo's own cyan on the dark one — and the dark plate
+       it used to need is gone. It also puts the mark and the wordmark's "LEAD" on one
+       token; they were two different blues 20px apart. -->
+  <span
           class="mark"
-          src="logo-mark.png"
           [style.height.px]="size()"
-          [alt]="wordmark() ? '' : label()"
+          [style.width.px]="width()"
+          [attr.role]="wordmark() ? null : 'img'"
+          [attr.aria-label]="wordmark() ? null : label()"
           [attr.aria-hidden]="wordmark() ? 'true' : null"
-          width="116"
-          height="128"
-  />
+  ></span>
 
     <!-- Two halves, two CI colours: petrol carries the structure, ochre is what
          came through the funnel. Read as one word by sight, as the product name by

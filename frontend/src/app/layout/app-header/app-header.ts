@@ -1,14 +1,13 @@
-import {ChangeDetectionStrategy, Component, inject} from '@angular/core';
+import {ChangeDetectionStrategy, Component, inject, signal} from '@angular/core';
 import {RouterLink} from '@angular/router';
 import {injectDispatch} from '@ngrx/signals/events';
-import {shellEvents} from '@core/shell/shell.events';
-import {ShellStore} from '@core/shell/shell.store';
 import {ingestEvents} from '@core/store/ingest.events';
 import {IngestStore} from '@core/store/ingest.store';
 import {scoringModelEvents} from '@core/store/scoring-model.events';
 import {ScoringModelStore} from '@core/store/scoring-model.store';
 import {StatusStore} from '@core/store/status.store';
 import {BrandMark} from '@shared/brand-mark/brand-mark';
+import {AppNav} from '../app-nav/app-nav';
 import {Icon} from '@shared/icon/icon';
 import {TranslocoPipe} from '@jsverse/transloco';
 import {LanguageToggle} from '../language-toggle/language-toggle';
@@ -16,22 +15,26 @@ import {ThemeToggle} from '../theme-toggle/theme-toggle';
 
 @Component({
     selector: 'lg-app-header',
-    imports: [BrandMark, Icon, RouterLink, ThemeToggle, LanguageToggle, TranslocoPipe],
+  imports: [AppNav, BrandMark, Icon, RouterLink, ThemeToggle, LanguageToggle, TranslocoPipe],
     templateUrl: './app-header.html',
     styleUrl: './app-header.css',
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AppHeader {
     protected readonly status = inject(StatusStore);
-    protected readonly shell = inject(ShellStore);
     protected readonly ingest = inject(IngestStore);
     protected readonly models = inject(ScoringModelStore);
-    private readonly shellDispatch = injectDispatch(shellEvents);
     private readonly ingestDispatch = injectDispatch(ingestEvents);
     private readonly modelDispatch = injectDispatch(scoringModelEvents);
 
-    protected toggleRail(): void {
-        this.shellDispatch.railToggled();
+  /**
+   * Mirrored from the panel's own `toggle` event rather than tracked on the click, so a
+   * light dismiss and an Escape are as visible to a screen reader as the button is.
+   */
+  protected readonly settingsOpen = signal(false);
+
+  protected onSettingsToggle(event: Event): void {
+    this.settingsOpen.set((event as ToggleEvent).newState === 'open');
     }
 
     /** Reading the sources is a pipeline action, not a dashboard one, so it lives here. */

@@ -1,16 +1,16 @@
 import {
-    afterNextRender,
-    ChangeDetectionStrategy,
-    Component,
-    computed,
-    DOCUMENT,
-    effect,
-    ElementRef,
-    inject,
-    Injector,
-    input,
-    signal,
-    viewChild,
+  afterNextRender,
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  DOCUMENT,
+  effect,
+  ElementRef,
+  inject,
+  Injector,
+  input,
+  signal,
+  viewChild,
 } from '@angular/core';
 import {toSignal} from '@angular/core/rxjs-interop';
 import {ActivatedRoute, NavigationEnd, Router, RouterLink, RouterOutlet} from '@angular/router';
@@ -24,6 +24,7 @@ import {SCORE_THRESHOLDS} from '@shared/shared.ports';
 import {EmptyState} from '@shared/empty-state/empty-state';
 import {LoadMore} from '@shared/load-more/load-more';
 import {Icon} from '@shared/icon/icon';
+import {PageHeader} from '@shared/page-header/page-header';
 import {OfferCard} from './offer-card/offer-card';
 
 type BandFilter = 'all' | 'shortlist' | 'review';
@@ -35,6 +36,7 @@ type BandFilter = 'all' | 'shortlist' | 'review';
         Icon,
         LoadMore,
         OfferCard,
+      PageHeader,
         RouterLink,
         RouterOutlet,
         TranslocoPipe,
@@ -53,8 +55,8 @@ export class ShortlistPage {
     private readonly dispatch = injectDispatch(shortlistEvents);
     protected readonly store = inject(ShortlistStore);
 
-    private readonly detailPane = viewChild<ElementRef<HTMLElement>>('detailPane');
     private readonly listPane = viewChild<ElementRef<HTMLElement>>('listPane');
+  private readonly document = inject(DOCUMENT);
     private readonly injector = inject(Injector);
 
     /**
@@ -163,12 +165,13 @@ export class ShortlistPage {
      * `ResizeObserver`. Guarded because jsdom has neither it nor `addEventListener` on the
      * result, and a specs run must not depend on either.
      */
-    private static readonly BOTH_COLUMNS = '(width >= 80rem)';
+    private static readonly BOTH_COLUMNS = '(width >= 72rem)';
 
-    private readonly bothColumns = signal(false);
+  /** Read by the template as well: the sentinel's root depends on it. */
+  protected readonly bothColumns = signal(false);
 
     constructor() {
-        const view = inject(DOCUMENT).defaultView;
+      const view = this.document.defaultView;
         if (typeof view?.matchMedia === 'function') {
             const query = view.matchMedia(ShortlistPage.BOTH_COLUMNS);
             this.bothColumns.set(query.matches);
@@ -219,15 +222,20 @@ export class ShortlistPage {
         });
 
         // A new offer starts at its own top. The right column is one element that survives the
-        // navigation, so without this the second offer opens wherever the first one was left.
+      // navigation, so without this the second offer opens wherever the first one was left —
+      // and since that column stopped having a scroller of its own, what has to be reset is
+      // the document. The list column is pinned, so the reader keeps it either way.
         // `scrollTop` rather than `scrollTo`: jsdom implements the property and not the method,
         // and jumping is what is wanted here anyway — a smooth scroll through a whole advert
-        // between two clicks reads as lag.
+      // between two clicks reads as lag. The guard is truthy rather than `!== null` because
+      // jsdom has no `scrollingElement` at all: typed as `Element | null`, it arrives
+      // `undefined`, walks straight through a null check and takes all ten specs of this
+      // screen down with "Cannot set properties of undefined".
         effect(() => {
             this.selectedId();
-            const pane = this.detailPane()?.nativeElement;
-            if (pane !== undefined) {
-                pane.scrollTop = 0;
+          const scroller = this.document.scrollingElement;
+          if (scroller) {
+            scroller.scrollTop = 0;
             }
         });
     }

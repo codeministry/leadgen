@@ -18,11 +18,11 @@
     "analytics": "Auswertung"
   },
   "shell": {
-    "toggleNavigation": "Beschriftung der Navigation umschalten",
     "connecting": "verbinde…",
     "ingest": "Quellen einlesen",
     "ingestRunning": "Lese Quellen…",
-    "scoringModel": "Bewertungsmodell"
+    "scoringModel": "Bewertungsmodell",
+    "settings": "Einstellungen und Version"
   },
   "theme": {
     "legend": "Farbschema",

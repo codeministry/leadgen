@@ -6,9 +6,10 @@ describe('BrandMark', () => {
         const fixture = TestBed.createComponent(BrandMark);
         fixture.detectChanges();
 
-        const img: HTMLImageElement = fixture.nativeElement.querySelector('img.mark');
-        expect(img.getAttribute('alt')).toBe('');
-        expect(img.getAttribute('aria-hidden')).toBe('true');
+      const mark: HTMLElement = fixture.nativeElement.querySelector('.mark');
+      expect(mark.getAttribute('role')).toBeNull();
+      expect(mark.getAttribute('aria-label')).toBeNull();
+      expect(mark.getAttribute('aria-hidden')).toBe('true');
         expect(fixture.nativeElement.querySelector('.wordmark').getAttribute('aria-label')).toBe(
             'Lead Generation',
         );
@@ -19,9 +20,10 @@ describe('BrandMark', () => {
         fixture.componentRef.setInput('wordmark', false);
         fixture.detectChanges();
 
-        const img: HTMLImageElement = fixture.nativeElement.querySelector('img.mark');
-        expect(img.getAttribute('alt')).toBe('Lead Generation');
-        expect(img.getAttribute('aria-hidden')).toBeNull();
+      const mark: HTMLElement = fixture.nativeElement.querySelector('.mark');
+      expect(mark.getAttribute('role')).toBe('img');
+      expect(mark.getAttribute('aria-label')).toBe('Lead Generation');
+      expect(mark.getAttribute('aria-hidden')).toBeNull();
         expect(fixture.nativeElement.querySelector('.wordmark')).toBeNull();
     });
 
@@ -30,10 +32,10 @@ describe('BrandMark', () => {
         fixture.componentRef.setInput('size', 40);
         fixture.detectChanges();
 
-        const img: HTMLImageElement = fixture.nativeElement.querySelector('img.mark');
-        expect(img.style.height).toBe('40px');
-        // Intrinsic size stays on the element so the browser reserves the right box
-        // before the asset loads; CSS width:auto derives the rest.
-        expect(img.getAttribute('width')).toBe('116');
+      // A mask has no intrinsic size, so both axes are written on the element; the
+      // width is derived from the asset's own 116x128 box and nothing else.
+      const mark: HTMLElement = fixture.nativeElement.querySelector('.mark');
+      expect(mark.style.height).toBe('40px');
+      expect(mark.style.width).toBe('36px');
     });
 });

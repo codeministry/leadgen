@@ -5,11 +5,10 @@ import {filter, map} from 'rxjs';
 import {injectDispatch} from '@ngrx/signals/events';
 import {statusEvents} from '@core/store/status.events';
 import {AppHeader} from '../app-header/app-header';
-import {AppNav} from '../app-nav/app-nav';
 
 @Component({
     selector: 'lg-app-shell',
-    imports: [AppHeader, AppNav, RouterOutlet],
+  imports: [AppHeader, RouterOutlet],
     templateUrl: './app-shell.html',
     styleUrl: './app-shell.css',
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -47,28 +46,26 @@ export class AppShell implements OnInit {
     }
 
     /**
-     * Which measure the routed screen asked for: the reading default, the wide one, or the
-     * whole window.
+     * Which measure the routed screen asked for: the shell's own bound, or the whole window.
      *
      * From route data, not from the component: the element that caps the width is an
      * ancestor of the screen, so a custom property set on the child cannot reach it, and a
      * screen styling its own host would be centred differently depending on where it was
      * rendered. The decision belongs beside the route.
      *
-     * One string rather than a flag per width. Three states on one axis written as two
-     * booleans can be set to both at once, and then the stylesheet's order decides which
-     * width a screen gets — silently, and only on the screen that carries both.
+     * A string rather than a boolean, even at two states. There used to be a third, `wide`,
+     * and it was measured to change nothing — both screens that asked for it cap their own
+     * host lower. A name is what let that be found and removed; a `full` flag beside a
+     * `wide` flag is two booleans on one axis, and then the stylesheet's order decides.
      */
     private readonly measure = computed(() => this.leaf().data['measure'] as string | undefined);
-
-    protected readonly wide = computed(() => this.measure() === 'wide');
 
     protected readonly full = computed(() => this.measure() === 'full');
 
     /**
      * Whether the screen bounds itself to the viewport instead of growing the page.
      *
-     * Beside `wide` and for the same reason: the element that has to stop scrolling is an
+     * Beside `full` and for the same reason: the element that has to stop scrolling is an
      * ancestor of the screen, so the screen cannot set it on itself. `.shell` keeps its
      * `min-height`, so every screen without this flag scrolls the document exactly as before.
      */

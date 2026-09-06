@@ -125,13 +125,75 @@ Carried over from a sibling Angular project, which is the house style:
 - **`--color-accent` is a fill and a large-number colour, never body text.** It is 3.05:1
   on the sand page and fails AA below 24 px. `--lg-accent-text` is the text variant at
   4.68:1, and `--lg-muted` / `--lg-warning-text` exist for the same reason.
-- **The header carries `data-theme="lg-dark"` in both themes.** The logo asset has its own
-  bright cyan, which is 1.6:1 on white and cannot be a light-theme colour at any size, so
-  the lockup keeps a navy ground everywhere and stays identical in both modes. DaisyUI's
-  themes are attribute-scoped, so nesting `data-theme` on an element re-declares every
-  token for that subtree — the buttons, the muted version string and the two-tone wordmark
-  inside the header all follow with no override anywhere. The `--lg-*` corrective tokens
-  are declared on the same selectors and re-scope with it.
+- **The mark is a mask, and nothing in the header re-scopes `data-theme` any more.** The asset is a flat single-colour
+  silhouette — `tools/build-favicon.sh` already keys out the white and repaints from the alpha channel alone — so the
+  only thing in it worth keeping is the shape.
+  `.mark` fills it with `--color-primary`: petrol at 6.15:1 on white and 5.80:1 on the sand page, well past the 3:1 a
+  graphical object needs, and on the dark theme that token *is* the logo's own cyan, so nothing visibly changes there.
+  It also puts the mark and the wordmark's "LEAD" on one token; they used to be two different blues 20px apart. The dark
+  plate it replaces was scoped with `data-theme="lg-dark"` on the brand link, and before that on the whole `<header>` —
+  the navigation moving in ended the second one, because below 48rem that navigation is a fixed bottom bar and inside a
+  dark-scoped header it would be a dark bar under a light page. What ended the first is a measurement: `#161F22` on the
+  white bar is **16.8:1**, against 15.8:1 for body ink on the sand page. The plate was the highest-contrast object in
+  the entire light theme and the only one carrying no information, which is why it read as pasted on rather than as a
+  badge. The
+  `--lg-*` corrective tokens still re-scope with `data-theme` wherever it is nested; the brand zone simply no longer
+  needs it. A mask has no intrinsic ratio, so `BrandMark` writes both axes from the asset's own 116×128 box, and
+  `forced-colors` gets an explicit fallback because a masked element there disappears outright.
+- **The navigation is a row in the header, and it is the same seven links at every width.** It used to be a left rail
+  that collapsed to icons; the row keeps that collapsed presentation between 48rem and 90rem and drops the wordmark with
+  it, and below 48rem it becomes the fixed bottom bar the rail already turned into. Nothing hides behind a disclosure:
+  seven destinations are the application's map, and a map behind a click is a map nobody reads. What carried over is the
+  vocabulary of "you are here" — the primary colour, a 16 % wash and a 2px marker, rotated from the left edge onto the
+  bottom one. Ochre stays out of it; it means "this survived the filter" and nothing else.
+- **The bottom bar sizes its shares on the `<li>`, not on the link.** `ul` lays out the list items, so `flex: 1 1 0` on
+  the anchor inside one sizes nothing, and seven content-sized items run off a 375px screen. Measured: the seventh was
+  cut off by the screen edge while `scrollWidth` reported no overflow at all, because the bar is `position: fixed` and
+  clips instead of growing the page. At 320px two labels ellipsise, which is the accepted floor.
+- **The header is sticky, and that is what lets a screen hand its scroll to the document.** A header that scrolls away
+  takes the run button and the theme toggle with it, and on a long advert they are gone for the whole read.
+  `z-index: 30` is above the 20 the bottom bar takes; `position:
+  sticky` does not create a containing block, so the fixed bar still resolves against the viewport even though it now
+  lives inside the header. Sticky is inert on a `.shell.fill` screen, where nothing scrolls at all.
+- **The navigation is content-sized above 48rem, and that is what the empty bar was.** It used to claim `flex: 1` on the
+  host, on `.topnav` and on `ul` while the `<li>` stayed content-sized, so the row swallowed every spare pixel and
+  packed the links against the brand — a thousand pixels of nothing between the last link and the run button on a wide
+  monitor, which is what "unevenly distributed" was pointing at. `.ops` still pushes itself right with an auto margin,
+  so the space lands between the two groups instead of inside one. Below 48rem the growth is load-bearing and stays: the
+  fixed bar is the whole width and `flex: 1 1 0` on the `<li>` needs a growing `ul`.
+- **One gutter and one chrome gap, both tokens.** `--lg-gutter` is the inline padding of the content *and* of the header
+  row; they used to be 1.5rem and 0.75rem, so at every width the brand mark began 12px left of the first thing on the
+  page — permanent, small, and impossible to point at. `--lg-content-gap` is the vertical distance between the two:
+  1.5rem against a 3.5rem bordered bar is a ratio of 0.43 and reads as content pressed against chrome, so it is 2.5rem,
+  dropping back to 1.5rem below 48rem. **`--lg-sticky-top` is derived from it** rather than written, which removes a
+  jump that was already shipping: the offset was `header-h + 0.75rem` against 1.5rem of padding, so a pinned list column
+  moved 0.75rem the moment it docked, and at 2.5rem that jump would have been 1.25rem and looked like a bug. The
+  `100svh` subtraction in both split stylesheets reads `--lg-gutter` for the same reason. The `< 48rem` override lives
+  in
+  `tokens.css` and not in the shell's stylesheet, because Angular's emulated encapsulation appends its attribute to
+  every selector it is given — `:root` included, which then matches nothing. The gutter narrows to 1rem below 48rem and
+  the header follows it: a phone is where the margin is worth the most and where a 7px disagreement between chrome and
+  page is most visible.
+- **The brand link carries `margin-inline-end: 0.75rem` on top of the row's gap.** The lockup is an identity and the
+  seven links are a map; at the row gap alone they read as one group and the first destination looks like part of the
+  wordmark. It sits on the brand and not on the nav, so nothing moves below 48rem where the nav leaves the row entirely.
+- **The settings popover recomputes the row's right edge.** A popover is in the top layer, whose containing block is the
+  viewport whatever `position` says, so `absolute` inside the capped row would not follow it either. `inset-inline-end`
+  is
+  `max(var(--lg-gutter), calc((100vw - var(--lg-shell-max)) / 2))`. **`inset: auto` in front of it is load-bearing:**
+  the UA gives `[popover]` `inset: 0` with `margin: auto`, so an unset `left`
+  stays 0 and the panel pins itself to the *window's* left edge at every width — measured exactly that way once, left 0
+  and right 190 at 2560, while `:popover-open` and `aria-expanded` both reported the truth. `100vw` includes the
+  scrollbar, so this one is checked in a real browser rather than reasoned about.
+- **Theme, language and the version live in a popover, and the version is split in two.** They are three things read
+  once against two that are operated on every screen, and the two radiogroups cost 220px of a bar the navigation now
+  needs. A native `popover` rather than `role="menu"`, which would impose menuitem semantics and a roving tabindex both
+  toggles violate, and rather than a modal dialog, which would trap focus for "switch to dark"; `aria-expanded` is
+  mirrored from the panel's own `toggle` event, because `popovertarget`'s implicit state is not evenly supported. The
+  panel's content is rendered whether it is open or not — a closed popover still contributes its text, and an `@if`
+  around the version would take it out of the DOM and out of `app.spec`, far from anything that names it. The version's
+  *digits* moved in; `connecting` and the error stay in the bar, because a backend that stopped answering must not need
+  a click to be noticed.
 - **`system` is the absence of `data-theme`.** DaisyUI emits `lg-dark` under
   `:root:not([data-theme])` inside a `prefers-color-scheme` query, so removing the
   attribute *is* "follow the operating system". An inline script in `src/index.html`
@@ -888,6 +950,15 @@ offer a person owns.
   the bands apply to, so it composes with them and with the search. `total` and the portal
   dropdown are counted over the side being read, or the filter offers a portal that
   produces an empty list and no reason.
+- **The board shows the working list, not every application ever opened.** `ApplicationService.BOARD`
+  carried no `WHERE` at all, so an archived offer kept its card and kept counting towards the dashboard's follow-up
+  tile. Age never puts a live application there — `ApplicationStatus.isLive()`
+  exempts it — so what the predicate hides is something a person archived by hand, which is the clearest statement
+  available that they are done with it. **`find(id)` deliberately does not get the predicate:** it is what `update`
+  reads before and after a write and the offer detail is reachable for any offer, so filtered there too, archiving an
+  offer would make its own status uncorrectable. It also stopped scanning the whole board to find one row. The accepted
+  consequence is that an archived offer's detail shows no status panel, because the browser looks the application up in
+  the board list it already holds.
 - **A row archived from the list is dropped from it rather than replaced.** It is no longer
   part of the side being read, and leaving it there shows the working list carrying
   something that is not on it until somebody reloads.
@@ -960,37 +1031,78 @@ write endpoint in the application.
 `features/shortlist/`, `features/pipeline/` and `features/review/`, with `layout/app-shell/`
 underneath all three. One list on the left, one thing being read on the right, and neither column scrolls the other.
 
-- **The screen is bounded, not the page.** A route asks for it with `data: { fill: true }`
-  and `AppShell` reads that exactly where it reads `data.measure`, because the element that has to stop scrolling is an
-  ancestor
-  of the screen. `.shell.fill` takes a real `height: 100dvh`:
-  `min-height` alone is not a height, the flex chain resolves against it only while the content is shorter, and a long
-  list simply grows the shell past the viewport — the page scrolls and the panes never do. Measured that way before the
-  `height` was added.
+- **The board is bounded; the shortlist and the review hand their reading column to the document.** A route asks to be
+  bounded with
+  `data: { fill: true }` and `AppShell` reads that exactly where it reads `data.measure`, because the element that has
+  to stop scrolling is an ancestor of the screen. `.shell.fill` takes a real `height: 100dvh`: `min-height` alone is not
+  a height, the flex chain resolves against it only while the content is shorter, and a long list simply grows the shell
+  past the viewport, so the page scrolls and the panes never do. Measured that way before the `height` was added. The
+  board keeps it, because five lanes plus a reading column dividing a *growing* page is two gestures with two owners and
+  `.board-col` is deliberately one scroller for both axes. The other two gave it up: the advert and the uploaded
+  document are the prose surfaces here, a document scroll is what a reader's hands already know, and an inner scroller
+  on a phone buys nothing at all. On both the list column is `position: sticky` with a scroller of its own while the
+  reading column simply grows. On the review that also means `.page-head` — the title and the drop zone — scrolls away,
+  which is right: uploading is a one-off and correcting is per document. `align-items: start` on the grid is
+  load-bearing and looks cosmetic — a grid item stretched to the row height has no room to move in and
+  `position: sticky` on it silently does nothing. `100svh` and not `100dvh` for its max-height: the dynamic unit changes
+  as a mobile browser shows and hides its chrome, which would reflow the column on every gesture.
+- **The sentinel's root is conditional, and that is the regression this model can cause.** Above the breakpoint the root
+  is the list pane, which is a scroller. Below it the pane's `overflow` is `visible` and the root is `null`, the
+  window — an `overflow` box that clips nothing is still a valid `IntersectionObserver` root, and against an unclipped
+  root the sentinel intersects on the first frame and pages the whole archive without anybody scrolling. Measured on the
+  archive, 2,197 rows: at 1440 the document scrolled to its end leaves 50 entries and the list pane's own scroll brings
+  the next 50; at 1151 the document's scroll brings them. `bothColumns()` is the same `matchMedia` signal the
+  auto-selection reads, so the breakpoint is still stated once per side.
+- **The three claims that had no test now have one each, and one of them is only half testable.**
+  `pipeline.spec.ts` drives the real router: it opens `/pipeline`, navigates to `/pipeline/7` and asserts the board is
+  *not* fetched again, which is the child-route reuse the pattern exists for. The picker's is split by what jsdom can
+  answer — the CSS half (`position: relative; z-index: 1` above the stretched link) is asserted as the structure it
+  depends on, that the picker is not a descendant of the anchor, and the behavioural half by picking a status and
+  asserting a PATCH with the URL unchanged. `review.spec.ts` covers confirm and reject: both end the document, so both
+  have to drop the name from the query string, and the navigation settles a microtask after the call, which is why the
+  spec awaits `whenStable()` before it reads `router.url`. The shortlist's conditional sentinel root has no spec of its
+  own on purpose: jsdom has no `IntersectionObserver`, `LoadMore` guards on exactly that, and `load-more.spec.ts`
+  already covers the conditional-root shape.
+- **The detail's reset moved from the pane to the document.** The right column has no scroller left, so what has to go
+  back to the top when the next offer opens is `scrollingElement`. The list column is pinned, so the reader keeps it
+  while that happens — which is also why pressing `j` deep inside a long advert is not the yank it would otherwise be:
+  the list never left the screen, and the page returns to the top of the newly selected ad on purpose.
 - **The board's reading column exists only while something is being read, and its lanes divide the pane at every
   width.** Reserved, the column was 30rem the board did not have with nothing in it — at 1440px the board sat in two
   thirds of the screen, scrolling its five lanes sideways, next to an empty panel. Measured after: 1178px of board and
   225px lanes with nothing open, 709px and the sideways scroll once an offer is. The lanes were also pinned to 15rem
   below the split's breakpoint, which made the board scroll at widths where five stretched lanes still fit; the 14rem
   minimum in `minmax()` is what makes the pane scroll when they genuinely do not.
-- **Every screen sits against the nav rail; the measure caps the line length and never places the screen.** Centred, a
-  wide monitor put each screen's content somewhere else — the board hard against the rail, the dashboard floating in the
-  middle between two margins — so the left edge had to be found again on every navigation. Left-aligned, that edge is
-  the same on all seven screens and the width a screen does not need stays on the right. Two rules carried it:
-  `margin-inline` on `.measure` in the shell and on the shortlist's own host, which caps itself at `--lg-split-max`
-  inside the wide measure.
+- **One cap, `--lg-shell-max`, and the header row takes it too.** The measure used to be left-aligned against the nav
+  rail, which was the shared left edge every screen started at; with the rail gone there is no such edge, and
+  left-aligned the surplus on a wide monitor is simply ragged on the right of every screen. Centring it alone was not
+  enough, because the header stayed full-bleed: at 2560px its ink totalled about 1240px and the remaining ~1300px was
+  empty bar, next to content sitting in a centred column. Chrome and content were two layouts on one page. Now
+  `.header-row` caps and centres against the same bound, **plus both gutters** — the page's gutter lives on `.content`
+  and sits *outside* the capped `.measure`, while the row's lives inside it, so at the bare 104rem the two boxes
+  coincided and the ink did not: the brand mark began 22px right of the page's first character. Measured live and then
+  equal to the pixel at 2560, 1920, 1600, 1440, 1152, 768, 767 and 390, on both edges. The bar itself stays full-bleed —
+  the page scrolls *under* it, so a bar that stops short of the window lets content past it at the ends, and below 48rem
+  the navigation is a full-bleed fixed bottom bar an inset top bar would contradict. **`--lg-measure-wide` (120rem) was
+  deleted because it was unreachable:** both split screens cap their own host at `--lg-split-max`, so above 1560px the
+  child cap won and below it the window did, and `.measure.wide` was observationally identical to no cap at all. Same
+  class as `remote.accept_unknown` — read, applied, and changing nothing — and it is exactly the number someone would
+  have capped the header at. `--lg-measure` and `--lg-split-max` are now aliases of the one bound; `data.measure` has
+  two states left, `full` and absent.
 - **The list column takes 34rem and the advert gives them up.** The card is what is scanned twenty at a time and it
   carries a title, four meta values and a score; the advert is prose and was the wider of the two by a long way. It
   stays a fixed width — a proportional split re-wraps the card's meta row on every monitor. One token for the shortlist
   and the review both: the review's queue is the same card read the same way. The cost is at the bottom of the
   two-column range, where the reading column is 4rem narrower than it was; at 1024px with the nav rail open it is around
   15rem, which was already too narrow before this change.
-- **The board takes the whole window; the other two take the wide measure.** `data.measure` is one string with three
-  states, not a flag per width — two booleans on one axis can both be set and then the stylesheet's order silently
-  decides. The shortlist and the review each have a prose column, which is what a measure exists for. The board has five
-  lanes and a reading column dividing whatever width there is, so every rem a cap withholds is width taken off all five,
-  and `.measure.full` is `max-width: none` rather than a bigger number: a cap wide enough for today's monitor is wrong
-  on the next one. That is also why there is no `--lg-measure-full` token.
+- **The board takes the whole window; every other screen takes the shell's bound.** `data.measure` is a string and not a
+  boolean even at two states — a `full` flag beside the `wide` flag it used to have is two booleans on one axis, and
+  then the stylesheet's order silently decides; the name is also what let the dead third state be found and removed. The
+  board has five lanes and a reading column dividing whatever width there is, so every rem a cap withholds is width
+  taken off all five, and `.measure.full` is `max-width: none` rather than a bigger number: a cap wide enough for
+  today's monitor is wrong on the next one. That is also why there is no `full` token. The header row stays capped above
+  it, and that is deliberate: the board's outer edge is a scroll-container edge, not a text edge, so chrome over a
+  workspace is a different relationship than chrome over a reading column.
 - **Every `min-height: 0` down that chain is load-bearing.** A flex item's default is its content height, which is
   exactly how a "bounded" pane grows the page instead of scrolling, and it looks correct in a screenshot while doing it.
   The chain is
@@ -998,16 +1110,18 @@ underneath all three. One list on the left, one thing being read on the right, a
   `.split` → `.pane`.
 - **`<router-outlet>` gets `display: none` inside `.measure.fill`.** It is a comment anchor with no box; in a flex
   container it would still take a slot. The routed component is its next sibling and carries the height.
-- **The breakpoint is 80rem on all three, and below it the list is hidden rather than overlaid.** It is measured with
-  the nav rail **open**, because that is the worse of the two states and no media query can see which one is showing:
-  the rail goes from 4rem to 14.5rem on a click with no breakpoint of its own. Measured at the breakpoint: the reading
-  column is 489px with the rail open and 647px with it collapsed. The old 64rem was measured against a narrower list and
-  against the collapsed rail alone, and the state it left out was the bad one — at 1024px with the rail open the advert
-  was 233px wide and the title broke over four lines. 48rem is where the rail becomes a bottom bar and stays its own
-  number: stacking two structural relayouts on one makes both harder to check.
+- **The breakpoint is 72rem on all three, and below it the list is hidden rather than overlaid.** It was 80rem, measured
+  with the nav rail **open** — the worse of two states no media query could see, because the rail went from 4rem to
+  14.5rem on a click with no breakpoint of its own. That rail is gone, so there is one state left and the old number
+  defends a layout that no longer exists. The floor it defended is the reading column it produced in the bad state,
+  489px. Without the rail that column is `min(V - 45, 1560) - 528.75`, so 72rem yields 578px and 64rem would yield
+  450px. Measured after the change, on all three screens: two columns at 1152 and one at 1151, the shortlist and the
+  review at 578px of reading column and the board at 638px of lanes beside its fixed 30rem panel; 706px at 1280, where
+  the detail's panels now sit two-up. 48rem is where the navigation becomes a bottom bar and stays its own number:
+  stacking two structural relayouts on one makes both harder to check.
 - **A `rem` in a media query is not a `rem` in a rule, in this repository.** `html` sits at `font-size: 93.75%`, so the
-  layout's rem is 15px while a media query resolves against the initial 16px whatever the root says. `80rem` is
-  therefore 1280px, and `--lg-list-w: 34rem` is 510px. Comparing the two numbers as if they were the same unit is how a
+  layout's rem is 15px while a media query resolves against the initial 16px whatever the root says. `72rem` is
+  therefore 1152px, and `--lg-list-w: 34rem` is 510px. Comparing the two numbers as if they were the same unit is how a
   breakpoint gets picked for a column width it does not actually produce.
 - **The selection is a route, never local state.** The URL is what a deep link, the back button and a click all agree
   on, and a second copy in a signal disagrees with it the first time one of the three is used. Read from
@@ -1064,6 +1178,17 @@ underneath all three. One list on the left, one thing being read on the right, a
   segments, so old links and bookmarks keep working, and there is exactly one detail view in the code afterwards.
 - **`lg-page-header` takes a `heading` of `h1` or `h2`.** The detail column renders inside another screen; a second `h1`
   claimed to be the page while the screen's own title stood beside it, and shouted at 2rem next to a scan column.
+- **The shortlist's heading sits above both columns, like every other screen's.** It used to live inside the left
+  column, on the argument that it belongs to the list; it read as a column label rather than as the name of the screen,
+  and it was the one screen whose title was somewhere else. The count and the archive toggle came up with it — the count
+  is read on every filter change and the toggle decides which *set* the screen is showing, which is a statement about
+  the screen. The filters stayed down in the column: they filter the list and nothing else, and a search field spanning
+  the page while acting on a 34rem column is a false affordance.
+- **The offer card carries no description teaser.** Two clamped lines of somebody else's prose under a title that
+  already says what the offer is, on the one surface that is scanned twenty at a time — it cost about a third of a
+  card's height for a sentence the detail column renders properly a few hundred pixels to the right.
+  `shared/text/plain-text.ts` went with it: the card was its only consumer, and a tested util nothing calls is still
+  dead code.
 - **`lg-markdown` pushes every heading two levels down.** The advert's text is somebody else's and `#` renders an
   `<h1>`, so an ad that opened with its own title claimed the page's heading. Two levels and not one, because the text
   sits in a panel whose own heading is an
@@ -1110,7 +1235,7 @@ screen reads one of these, and none of them writes.
   second implementation this rule exists to prevent.
 - **The shortlist opens its first offer by itself, and only where both columns fit.** An empty right column beside a
   full list is a page waiting for a click it does not need: the first entry is the highest-scoring one the current
-  filters produced. Below the stylesheet's own `80rem` the detail *replaces* the list, so auto-selecting there would
+  filters produced. Below the stylesheet's own `72rem` the detail *replaces* the list, so auto-selecting there would
   answer "show me the shortlist" with a single offer — the condition is `matchMedia`, which is a media query and not a
   rendering-lifecycle API and therefore answers correctly in a backgrounded tab, unlike a `ResizeObserver`. The
   breakpoint is stated once on each side and tied together by a comment; jsdom has no `matchMedia` at all, so the guard
@@ -1463,6 +1588,17 @@ code has to reproduce — the numbers in `docs/SAMPLE-ANALYSIS.md` are the targe
   `redirectTo`, `children` nor `loadChildren` throws `NG04014`
   when the router config is validated — which happens when the `Router` is constructed, so every spec that merely
   injects it fails, far from the route that caused it.
+- **An author `display` on a popover keeps it open forever, and every API you would ask says it is closed.** What hides
+  a closed popover is the UA rule `[popover]:not(:popover-open) { display: none }`, which carries no `!important`, so a
+  `display: flex` on the panel's own class beats it. The panel then stands open on the page while `:popover-open`
+  reports `false`, `aria-expanded` reports `"false"` and the click still toggles the state correctly. Put `display` on
+  `:popover-open` and nowhere else. Shipped exactly that way once and found by a person looking at the screen: the
+  screenshots showed it open, the probe asked the API, and the screenshot was the one that got explained away as a
+  rendering artifact.
+- **jsdom has no `document.scrollingElement`, and it is typed `Element | null`.** It arrives `undefined`, walks straight
+  through a `!== null` guard and takes down every spec of the screen that reads it with "Cannot set properties of
+  undefined" — ten at once, from inside an effect, far from anything that names scrolling. The guard has to be truthy.
+  Same family as the next one, and found the same way.
 - **jsdom implements `scrollTop` but not `Element.scrollTo`.** A scroll reset written as
   `scrollTo({ top: 0 })` passes `tsc`, works in the browser, and takes down every spec that renders the component with
   `scrollTo is not a function` from inside an effect.
@@ -1482,12 +1618,10 @@ code has to reproduce — the numbers in `docs/SAMPLE-ANALYSIS.md` are the targe
   Stylelint), but no pipeline runs it yet.
 - Which folder in the IMAP mailbox the newsletter lands in — deployment detail, and it
   does not belong in a committed file.
-- **The board's and the review's split views have no specs.** The shortlist's has them — the store's two error pairs,
-  the sentinel's root, the card's link and the arrow keys. The three things untested on the other two are the ones that
-  have already gone wrong once elsewhere: that a card click does not re-open the list, that the status picker stays
-  clickable above the stretched link, and that confirming a document takes its name out of the URL.
-- **The advert's title in the board's reading column wraps to six lines at 30rem.** Fixing it properly means another
-  step on `lg-page-header`, because a parent's styles do not reach a component host the router created.
+- **`lg-page-header` has no step below `h2`.** The board's reading column made this visible — the advert's title wrapped
+  to six lines at 30rem — and `--lg-detail-w` going to 40rem bought enough width that it stopped being urgent rather
+  than fixing it. A parent's styles do not reach a component host the router created, so the fix is a third heading
+  level on the component itself.
 
 ## Settled
 

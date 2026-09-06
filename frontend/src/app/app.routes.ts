@@ -26,11 +26,10 @@ export const routes: Routes = [
     {
         path: 'shortlist',
         title: 'Shortlist · Lead Generation',
-        // Two columns rather than prose, so the same wide measure the board takes; `fill` is
-        // what bounds the screen to the viewport, so the two columns scroll and the page does
-        // not. Both are stated once: `paramsInheritanceStrategy` defaults to `'always'`, so the
-        // child the shell reads as the leaf inherits them.
-        data: {measure: 'wide', fill: true},
+      // No `measure` and no `fill`: the shell's own bound is what this screen wants, and the
+      // advert is what wants a page — the detail column scrolls with the document and the
+      // list column pins itself beside it. The board keeps `fill`, because five lanes
+      // dividing a growing page is two gestures with two owners.
         loadComponent: () => import('@features/shortlist/shortlist-page').then((m) => m.ShortlistPage),
         children: [
             {
@@ -55,9 +54,9 @@ export const routes: Routes = [
         title: 'Pipeline · Lead Generation',
         // The whole window, not a measure: five lanes and a reading column divide whatever
         // width there is, so a cap here is width taken off every lane. The other two split
-        // views keep the wide measure — they have one prose column, which does get unreadable.
-        // `fill` bounds the screen to the viewport so the board and the detail column scroll
-        // on their own.
+      // views take the shell's bound — they have one prose column, which does get
+      // unreadable. `fill` bounds the screen to the viewport so the board and the detail
+      // column scroll on their own.
         data: {measure: 'full', fill: true},
         loadComponent: () => import('@features/pipeline/pipeline').then((m) => m.Pipeline),
         children: [
@@ -77,8 +76,8 @@ export const routes: Routes = [
         path: 'review',
         title: 'Review · Lead Generation',
         // The queue beside the document, so correcting one extraction does not cost the place
-        // in the queue. `fill` bounds the screen so both columns scroll on their own.
-        data: {measure: 'wide', fill: true},
+      // in the queue. No `fill`, the same as the shortlist: the document is prose and scrolls
+      // with the page, and the queue pins itself beside it.
         loadComponent: () => import('@features/review/review').then((m) => m.Review),
     },
     {

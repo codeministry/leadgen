@@ -1,44 +1,50 @@
+/* The navigation is a row inside the header. It used to be a left rail, and what carried
+   over is the vocabulary of "you are here": the primary colour, a 16 % wash and a 2px
+   marker, rotated from the left edge onto the bottom one. Ochre is not available for this
+   and never will be — it means "this survived the filter" and nothing else here.
+
+   The header follows the page theme, so the marker is petrol on the light one and the
+   logo's cyan on the dark one. Nothing in the bar re-scopes `data-theme` any more.
+
+   Content-sized above 48rem, and that is the point: the row used to claim `flex: 1` on the
+   host, on `.topnav` and on `ul` while the items stayed content-sized, so it swallowed every
+   spare pixel and packed the links against the brand. On a wide monitor that produced a
+   thousand pixels of nothing between the last link and the run button — the gap that read as
+   the bar being unevenly distributed. `.ops` still pushes itself right with an auto margin,
+   so the space lands between the two groups instead of inside one of them. */
 :host {
     display: flex;
-    flex: none;
+  min-width: 0;
 }
 
-.rail {
+.topnav {
     display: flex;
-    flex: 1;
-    flex-direction: column;
-    width: var(--lg-rail-w);
-    padding: 0.75rem 0.5rem;
-    border-right: 1px solid var(--color-base-300);
-    background-color: var(--color-base-100);
-    transition: width 180ms ease;
-}
-
-.rail-open {
-    width: var(--lg-rail-w-open);
+  min-width: 0;
 }
 
 ul {
     display: flex;
-    flex-direction: column;
+  align-items: center;
     gap: 0.125rem;
+  min-width: 0;
 }
 
-/* A hairline, not a rule: it separates without becoming a third thing to look at. The
-   inset keeps it clear of the link's own rounded corners. */
+/* A hairline, not a rule: it separates without becoming a third thing to look at. Vertical
+   now, because the list runs across rather than down. */
 .group-break {
-    height: 1px;
-    margin-block: 0.5rem;
-    margin-inline: 0.75rem;
+  width: 1px;
+  height: 1.25rem;
+  margin-inline: 0.5rem;
     background-color: var(--color-base-300);
 }
 
 a {
+  position: relative;
     display: flex;
     align-items: center;
-    gap: 0.75rem;
-    height: 2.75rem;
-    padding-inline: 0.75rem;
+  gap: 0.5rem;
+  height: 2.25rem;
+  padding-inline: 0.625rem;
     border-radius: var(--radius-field);
     color: var(--lg-muted);
     white-space: nowrap;
@@ -52,95 +58,112 @@ a:hover {
 }
 
 a.is-active {
-    position: relative;
     font-weight: 600;
     color: var(--color-primary);
     background-color: color-mix(in oklab, var(--color-primary) 16%, transparent);
 }
 
-/* A left edge marker rather than more tint: at 64px the label is gone, and a
-   background wash alone does not read as "you are here" on an icon-only rail. */
+/* On the bottom edge and inset from the item's own rounded corners: down a column the left
+   edge said "you are here", across a row the bottom edge does, and a wash alone does not
+   say it at all once the label is gone. */
 a.is-active::before {
     content: '';
     position: absolute;
-    inset-block: 0.5rem;
-    inset-inline-start: -0.5rem;
-    width: 2px;
+  inset: auto 0.5rem -0.375rem;
+  height: 2px;
     border-radius: 1px;
     background-color: var(--color-primary);
 }
 
-@media (width < 48rem) {
-    /* Above the item, not below it: the bar's bottom padding is the safe-area
-       inset, so a marker hung underneath gets clipped on a notched phone. */
-    a.is-active::before {
-        inset: -0.375rem 30% auto;
-        width: auto;
-        height: 2px;
-    }
-}
-
-.nav-label {
-    overflow: hidden;
-    opacity: 1;
-    transition: opacity 140ms ease;
-}
-
-.rail:not(.rail-open) .nav-label {
+/* Icons only below 90rem: seven labels plus the brand and the two operational controls do
+   not fit, and this is the rail's collapsed presentation, moved. Measured in rule pixels,
+   not query ones — `html` sits at 93.75 %, so this query flips at 1440. */
+@media (width < 90rem) {
+  .nav-label {
     position: absolute;
     width: 1px;
     height: 1px;
     overflow: hidden;
     clip-path: inset(50%);
     white-space: nowrap;
+  }
 }
 
-/* Below md the rail is a bottom bar: a 64px column costs a third of a phone. */
+/* Below md the row leaves the header and becomes a bottom bar: seven destinations across
+   the top of a phone would take the whole width the ops group needs. `display: contents`
+   on the host is what lets the fixed bar out of the header's flex row. */
 @media (width < 48rem) {
     :host {
         display: contents;
     }
 
-    .rail,
-    .rail-open {
+  .topnav {
         position: fixed;
         inset: auto 0 0;
         z-index: 20;
-        flex-direction: row;
         width: 100%;
         padding: 0.375rem 0.5rem;
+    padding-bottom: max(0.375rem, env(safe-area-inset-bottom));
         border-top: 1px solid var(--color-base-300);
-        border-right: 0;
-        padding-bottom: max(0.375rem, env(safe-area-inset-bottom));
+    background-color: var(--color-base-100);
     }
 
+  /* Here the growth is load-bearing: the fixed bar is the whole width and the seven items
+     divide it, which is what `flex: 1 1 0` on the `<li>` below needs a growing `ul` for. */
     ul {
         flex: 1;
-        flex-direction: row;
         justify-content: space-around;
     }
+
+  /* Seven equal shares of the width rather than seven content-sized items: at 375px each
+     one gets about 53px, and left to their content the last of them is cut off by the
+     screen edge — the bar is fixed, so nothing scrolls to reveal it and the document
+     reports no overflow while a destination is simply missing. The share is taken by the
+     list item and not by the link: `ul`'s flex layout sizes the `<li>`, so `flex` on the
+     anchor inside one sizes nothing at all. `min-width: 0` is the other half, because a
+     flex item does not go below its content width without it. */
+  li {
+    flex: 1 1 0;
+    min-width: 0;
+  }
 
     a {
         flex-direction: column;
         gap: 0.125rem;
+      min-width: 0;
         height: auto;
-        padding: 0.375rem 0.5rem;
+      padding: 0.375rem 0.125rem;
     }
 
-    .rail .nav-label,
-    .rail:not(.rail-open) .nav-label {
+  /* Clipped with an ellipsis rather than wrapped: a label that breaks over two lines makes
+     the bar taller than the safe-area padding was measured for. The full name stays in the
+     accessible name either way. */
+  .nav-label {
         position: static;
-        width: auto;
+    width: 100%;
         height: auto;
+    overflow: hidden;
         clip-path: none;
-        font-size: 0.6875rem;
+    font-size: 0.625rem;
+    text-align: center;
+    text-overflow: ellipsis;
+  }
+
+  /* Above the item, not below it: the bar's bottom padding is the safe-area inset, so a
+     marker hung underneath gets clipped on a notched phone. */
+  a.is-active::before {
+    inset: -0.375rem 30% auto;
+  }
+
+  /* Seven items already divide a phone into slivers; a separator between them would take
+     width from the labels for a grouping nobody can read at that size. */
+  .group-break {
+    display: none;
     }
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .rail,
-    a,
-    .nav-label {
+  a {
         transition: none;
     }
 }

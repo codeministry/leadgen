@@ -2,8 +2,8 @@
     display: flex;
     flex-direction: column;
 
-    /* Not `100%`: the percentage chain breaks at <lg-root>, which has no height,
-       so the rail stopped at the last nav item instead of running the full page. */
+  /* Not `100%`: the percentage chain breaks at <lg-root>, which has no height, and a
+     shell that stops at its last child cannot bound anything below it. */
     min-height: 100dvh;
     background-color: var(--color-base-200);
 }
@@ -14,34 +14,55 @@
     min-height: 0;
 }
 
+/* The header is the horizontal anchor of every screen, so it stays put while the page
+   scrolls. It has to be pinned before the split views can hand their reading column to
+   the document scroll: a header that scrolls away takes the run button and the theme
+   toggle with it, and on a long advert they are gone for the whole read.
+
+   `z-index` is above the 20 the navigation takes below 48rem, where it is a fixed
+   bottom bar — which lives inside this header now, and `position: sticky` does not make a
+   containing block, so the bar still resolves against the viewport.
+   Sticky is inert on a `.shell.fill` screen, where nothing scrolls at all, and that is
+   what makes this step safe to ship before the panes change.
+
+   Sticky fails silently under any ancestor carrying `transform`, `filter`, `contain` or
+   `overflow: hidden`, so this belongs on the shell's own child and nowhere deeper. */
+.shell > lg-app-header {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+}
+
+/* The gap above is the chrome gap and the sides are the page gutter: two different jobs,
+   so two tokens rather than one shorthand value doing both. The bottom keeps the gutter,
+   which is the number the two split stylesheets subtract from `100svh`. */
 .content {
     flex: 1;
     min-width: 0;
-    padding: 1.5rem;
+  padding: var(--lg-content-gap) var(--lg-gutter) var(--lg-gutter);
 }
 
-/* Left-aligned, never centred: the measure is a cap on line length, not a position on the
-   screen. Centred, a wide screen put every screen's content in a different place — the board
-   against the nav rail, the dashboard floating in the middle with a margin on both sides —
-   and the eye has to find the left edge again on every navigation. Against the rail it is
-   the same edge everywhere and the space a screen does not need stays on the right, which
-   is also where a scrollbar and a second window live. */
+/* Centred, and that is a reversal: the measure used to be left-aligned because the nav rail
+   was the shared left edge every screen started at. With the rail gone there is no such edge
+   to sit against, and left-aligned the widest monitor would leave the whole surplus ragged on
+   the right of every screen.
+
+   There is one cap now, `--lg-shell-max`, and the header row takes it too — so the chrome's
+   edge and the content's edge are the same line on every screen but the board. That is what
+   replaced the old anchor argument: a full-bleed header cannot anchor anything when the
+   content it sits over is 650px narrower on each side. */
 .measure {
     max-width: var(--lg-measure);
-    margin-inline: 0;
-}
-
-/* Set from the route's own `data.measure`, so the decision sits beside the route and
-   not inside a component that would then be centred differently depending on where
-   it was rendered. */
-.measure.wide {
-    max-width: var(--lg-measure-wide);
+  margin-inline: auto;
 }
 
 /* No cap at all, for a screen whose content is lanes: the board's five columns divide
    whatever is there, so every rem the measure withholds is width taken off all five.
    `none` rather than a larger number — a cap wide enough for today's monitor is a
-   number that will be wrong on the next one, and there is nothing to read across here. */
+   number that will be wrong on the next one, and there is nothing to read across here.
+   The header row stays capped above it: the board's outer edge is a scroll-container
+   edge, not a text edge, and chrome over a workspace is a different relationship than
+   chrome over a reading column. */
 .measure.full {
     max-width: none;
 }
@@ -85,9 +106,10 @@
     display: none;
 }
 
-/* Room for the bottom bar the rail turns into below md. */
+/* Room for the bottom bar the navigation turns into below md. The gap itself drops with
+   `--lg-content-gap` in `tokens.css`; only the gutter and the bar's clearance are here. */
 @media (width < 48rem) {
     .content {
-        padding: 1rem 1rem 5rem;
+      padding: var(--lg-content-gap) var(--lg-gutter) 5rem;
     }
 }

@@ -25,7 +25,7 @@
    worked through and it already scrolls sideways, so a proportional detail column would
    re-wrap the lanes every time an offer is opened. Only above the breakpoint — below it the
    detail replaces the board rather than sitting beside it. */
-@media (width >= 80rem) {
+@media (width >= 72rem) {
     :host(.detail-open) .split {
         grid-template-columns: minmax(0, 1fr) var(--lg-detail-w);
     }
@@ -146,7 +146,7 @@
 /* Below this the board and a reading column do not both fit — the same number the shortlist
    splits on, and the same reason: two structural relayouts on one breakpoint make both
    harder to check. */
-@media (width < 80rem) {
+@media (width < 72rem) {
     :host(.detail-open) .board-col {
         display: none;
     }

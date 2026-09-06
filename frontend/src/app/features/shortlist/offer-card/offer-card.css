@@ -88,14 +88,6 @@
     font-style: italic;
 }
 
-.description {
-    display: -webkit-box;
-    overflow: hidden;
-    margin-top: 0.5rem;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-}
-
 .reasons {
     display: flex;
     flex-wrap: wrap;

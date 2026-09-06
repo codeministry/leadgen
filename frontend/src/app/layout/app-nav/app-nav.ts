@@ -1,7 +1,6 @@
-import {ChangeDetectionStrategy, Component, inject} from '@angular/core';
+import {ChangeDetectionStrategy, Component} from '@angular/core';
 import {RouterLink, RouterLinkActive} from '@angular/router';
 import {TranslocoPipe} from '@jsverse/transloco';
-import {ShellStore} from '@core/shell/shell.store';
 import {Icon} from '@shared/icon/icon';
 import {LgIconName} from '@shared/icon/lucide-icons';
 
@@ -15,9 +14,9 @@ interface NavItem {
 }
 
 /**
- * Seven destinations in three groups, separated by a hairline rather than by a heading: a
- * label per group would double the height of a rail that collapses to icons, and at that
- * width a heading has nothing to show.
+ * Seven destinations in three groups, separated by a hairline rather than by a heading: the
+ * row is icons only below 90rem and a bottom bar below 48rem, and at neither width does a
+ * group heading have anywhere to go.
  *
  * <p>The groups answer three different questions. <b>Today</b> is the morning's work in the
  * order it runs — what came in, what survived, and what is out with a client. <b>Over
@@ -35,8 +34,6 @@ interface NavItem {
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AppNav {
-    protected readonly shell = inject(ShellStore);
-
     protected readonly items: readonly NavItem[] = [
         {path: '/dashboard', label: 'nav.dashboard', icon: 'layout-dashboard'},
         {path: '/shortlist', label: 'nav.shortlist', icon: 'list-checks'},
