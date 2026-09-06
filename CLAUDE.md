@@ -948,6 +948,92 @@ write endpoint in the application.
   accessibility tree for state — `interceptor read` shows `combobox … value="SENT"` —
   and treat a capture as evidence about layout, not about widget state.
 
+## The split views
+
+`features/shortlist/`, `features/pipeline/` and `features/review/`, with `layout/app-shell/`
+underneath all three. One list on the left, one thing being read on the right, and neither column scrolls the other.
+
+- **The screen is bounded, not the page.** A route asks for it with `data: { fill: true }`
+  and `AppShell` reads that exactly where it reads `wide`, because the element that has to stop scrolling is an ancestor
+  of the screen. `.shell.fill` takes a real `height: 100dvh`:
+  `min-height` alone is not a height, the flex chain resolves against it only while the content is shorter, and a long
+  list simply grows the shell past the viewport — the page scrolls and the panes never do. Measured that way before the
+  `height` was added.
+- **Every `min-height: 0` down that chain is load-bearing.** A flex item's default is its content height, which is
+  exactly how a "bounded" pane grows the page instead of scrolling, and it looks correct in a screenshot while doing it.
+  The chain is
+  `.shell.fill` → `.body` → `.content.fill` → `.measure.fill` → the feature's `:host` →
+  `.split` → `.pane`.
+- **`<router-outlet>` gets `display: none` inside `.measure.fill`.** It is a comment anchor with no box; in a flex
+  container it would still take a slot. The routed component is its next sibling and carries the height.
+- **The breakpoint is 64rem on all three, and below it the list is hidden rather than overlaid.** At 1024px with the
+  rail collapsed the reading column is about 35.8rem, which is the floor at which the detail's own panels still sit two
+  per row. 60rem leaves 31.5rem; 48rem is where the nav rail becomes a bottom bar, and stacking two structural relayouts
+  on one number makes both harder to check. It is also the number the detail's grid already used.
+- **The selection is a route, never local state.** The URL is what a deep link, the back button and a click all agree
+  on, and a second copy in a signal disagrees with it the first time one of the three is used. Read from
+  `route.snapshot.firstChild` with `NavigationEnd`
+  as the reason to look again — the shape `AppShell` already uses.
+- **Two of the three use a child route; the review uses a query parameter, and that is not a style.** The shortlist and
+  the board have a real component on the right (`OfferDetail`), so a child route has something to render. The review's
+  document is already in the store the screen reads, so a child route would render a component whose only job is to look
+  up by name what the parent is holding — and Angular refuses a componentless leaf route outright with `NG04014`, which
+  is the framework making the same point.
+- **A child route and not a second flat route on the same component.** Two `Route` objects are two configurations, so
+  the default reuse strategy destroys the list on the first click:
+  it refetches, `entries` falls back to page one, and the scroll position is gone. A single route cannot express an
+  optional path parameter.
+- **`queryParamsHandling: 'preserve'` on every card link.** Without it the first click drops the query string, the list
+  reloads unfiltered, and it reads as a store bug rather than as a missing attribute.
+- **The whole card is the link, through one stretched anchor.** A click handler on the article would need its own
+  keyboard path to satisfy `click-events-have-key-events` and
+  `interactive-supports-focus`, and it would be a second way to the same route. Two costs come with it: text in the card
+  can no longer be selected with the mouse, and **any control on the card needs `position: relative; z-index: 1`** or it
+  stops being clickable — which is what the board's status picker carries.
+- **Selection is petrol, never the accent.** Ochre means one thing in this application: this survived the filter. The
+  selected row takes the primary border, `--lg-selected-surface` and a 3px edge marker, the same vocabulary the nav rail
+  uses for "you are here". Hover tints the border only, so hovering a selected card never reads as deselecting it.
+- **`ShortlistStore` keeps two loading/error pairs.** `listLoading`/`listError` and
+  `detailLoading`/`detailError`. They used to be one pair, the shortlist template branches on the error first, and a
+  single failed detail fetch therefore blanked the whole list beside it. The same reason `rescoreError` was already kept
+  apart.
+- **`LoadMore` takes a `root`.** Its `IntersectionObserver` measured against the window; in a pane that scrolls on its
+  own the sentinel then intersects on the first frame and on every frame after, and pages the entire archive without
+  anybody scrolling. `rootMargin` is the other half: with the window as root and a scroller in between, the margin
+  expands the window's rectangle while the pane still clips unmargined. The root is a template reference on the ancestor
+  `<section>`, not a `viewChild`, so it is a real element on the first pass.
+- **The fill layout applies at every width, which is what makes that root safe.** One scroll model everywhere, no
+  `matchMedia` in TypeScript duplicating a CSS breakpoint, and nothing that changes behaviour when a window is dragged
+  across 64rem.
+- **The detail's panel grid is a container query, and the container is the pane.**
+  `@container detail (width < 44rem)`. The viewport cannot answer for that column: the nav rail expands from 4rem to
+  14.5rem **with no media query at all**, so at 1280px the detail is 47.5rem collapsed and 37rem open and no viewport
+  number is right for both. The
+  `container-type` sits on `.detail-pane` and deliberately not on `lg-offer-detail`:
+  containment must not land on an element whose height has to grow, and the pane's height comes from the flex chain
+  rather than from its content.
+- **Keyboard navigation is bound to the list pane, not to the document.** `keydown` bubbles from the focused card link,
+  so the handler fires only while the focus is in the list — which is what lets `j` stay a letter in the search field
+  and leaves the arrow keys scrolling the advert while the reader is in the detail column, with no target sniffing
+  anywhere. The pane carries `tabindex="0"` because a scrollable region has to be reachable by keyboard at all. Past the
+  last loaded entry the key asks for the next page and stays put: the list is keyset-paged, so "next" beyond what is
+  loaded does not exist yet.
+- **`applicationEvents.opened()` stays in `OfferDetail.ngOnInit`, and the split made it cheaper.** The component is now
+  created once and reused across ids, so the whole board is fetched once per session instead of once per offer opened.
+  The accepted consequence: a status changed elsewhere mid-session is not picked up.
+- **`/offers/:id` is a redirect into `/shortlist/:id`.** A `:name` in `redirectTo` is substituted from the matched
+  segments, so old links and bookmarks keep working, and there is exactly one detail view in the code afterwards.
+- **`lg-page-header` takes a `heading` of `h1` or `h2`.** The detail column renders inside another screen; a second `h1`
+  claimed to be the page while the screen's own title stood beside it, and shouted at 2rem next to a scan column.
+- **`lg-markdown` pushes every heading two levels down.** The advert's text is somebody else's and `#` renders an
+  `<h1>`, so an ad that opened with its own title claimed the page's heading. Two levels and not one, because the text
+  sits in a panel whose own heading is an
+  `<h2>`.
+- **The summary panel above the advert is the source's own `description`, not a summary this tool writes.** It appears
+  only when the enriched `full_text` is on screen — without it the advert panel *is* that description, and the same
+  paragraph twice says nothing the second time. The caption says where it came from, because the field is easy to
+  mistake for something generated here.
+
 ## The read side
 
 `backend/…/offer/OfferQueryService` plus `config/SourceQueryService` and `RulesView`. Every
@@ -1002,11 +1088,11 @@ screen reads one of these, and none of them writes.
   does not mention one.
 
 - **Loading more is a sentinel, not a button**, because the list is read by scrolling; its
-  `IntersectionObserver` is attached in `afterNextRender`, since one attached before layout
-  fires immediately against a zero-sized box and asks for page two before page one is drawn.
-  **It cannot be verified in a backgrounded tab** — Chrome suspends the observer there, and
-  the measurement comes back as a confident "nothing loaded". Measured through the
-  Interceptor skill's `Tools/VerifyViewport.ts`: 50 offers, then 100 after scrolling.
+  `IntersectionObserver` is armed only after the first render, since one attached before layout fires immediately
+  against a zero-sized box and asks for page two before page one is drawn. It is measured against the pane it was given
+  rather than the window — see § *The split views*. **It cannot be verified in a backgrounded tab** — Chrome suspends
+  the observer there, and the measurement comes back as a confident "nothing loaded". Measured through the Interceptor
+  skill's `Tools/VerifyViewport.ts`: 50 offers, then 100 after scrolling.
 - **A run opens its `pipeline_run` row when it starts, not when it ends.** The row says
   `RUNNING` and carries zeros, so it claims nothing — which is what the old "written last"
   placement was protecting. What it buys: `source_run` has no run id, so its rows are addressed by time, and the
@@ -1158,7 +1244,8 @@ frontend/src/app/layout/          shell, header, nav rail, theme toggle
 frontend/src/app/shared/          icon, brand mark, score, funnel rail, badge, stat tile,
                                   empty state, page header
 frontend/src/app/features/        dashboard, shortlist (+ offer card), offer detail,
-                                  pipeline, review, sources, rules
+                                  pipeline, review, sources, rules. Shortlist, pipeline
+                                  and review are split views — § The split views
 frontend/tools/build-favicon.sh   renders favicon.ico, favicon-256.png and logo-mark.png
 ```
 
@@ -1246,6 +1333,13 @@ code has to reproduce — the numbers in `docs/SAMPLE-ANALYSIS.md` are the targe
     state, it is inspectable with `cat`, and a rejected upload is a file that was
     deleted rather than a row nobody will ever look at.
 
+13. ✅ **Split views** — reading an offer used to cost the list. The shortlist, the board and the review queue each keep
+    their list on the left and open what is selected on the right, in two independently scrolling columns under a screen
+    bounded to the viewport. The shortlist and the board open a child route on a real component; the review holds the
+    file name in a query parameter, because its document is already in the store the screen reads. `/offers/:id`
+    redirects into the shortlist's split view, so there is one detail view in the code. What that cost and what it
+    enforces is in § *The split views*.
+
 ## Traps that have already cost money
 
 - Search terms are wrapped in `<mark>` inside the title on some sources. Strip before any
@@ -1318,6 +1412,19 @@ code has to reproduce — the numbers in `docs/SAMPLE-ANALYSIS.md` are the targe
   `combobox … value="SENT"`), and confirm a suspected overlap in a real browser before
   changing CSS. The Angular dev server sets a CSP that blocks `interceptor eval`, so the
   geometry cannot be measured through it either.
+- **A componentless leaf route is refused outright.** `{ path: ':name' }` with neither component, `loadComponent`,
+  `redirectTo`, `children` nor `loadChildren` throws `NG04014`
+  when the router config is validated — which happens when the `Router` is constructed, so every spec that merely
+  injects it fails, far from the route that caused it.
+- **jsdom implements `scrollTop` but not `Element.scrollTo`.** A scroll reset written as
+  `scrollTo({ top: 0 })` passes `tsc`, works in the browser, and takes down every spec that renders the component with
+  `scrollTo is not a function` from inside an effect.
+- **Safari intermittently keeps the folded height of an unfolded advert.** Measured on the page: `max-height: none`,
+  `overflow: visible`, no mask, and the box still exactly 390px, the clamp's own value, with the text running on behind
+  the panels below it. Six isolated variants of the structure — scroll pane, grid, spanning panel, mask, the whole
+  height chain — were all correct in the same Safari, and the same page measured correctly a minute later.
+  `OfferDetail.relayoutAd` detaches the box and reads a metric off it after the toggle. It is a workaround on an
+  observation, not on a reproduced cause, and it says so.
 - **ImageMagick renders SVG with its own parser and drops paths containing arcs** unless
   `rsvg-convert` is on PATH as its delegate. The first favicon looked broken for that
   reason alone, with the geometry perfectly correct.
@@ -1328,6 +1435,12 @@ code has to reproduce — the numbers in `docs/SAMPLE-ANALYSIS.md` are the targe
   Stylelint), but no pipeline runs it yet.
 - Which folder in the IMAP mailbox the newsletter lands in — deployment detail, and it
   does not belong in a committed file.
+- **The board's and the review's split views have no specs.** The shortlist's has them — the store's two error pairs,
+  the sentinel's root, the card's link and the arrow keys. The three things untested on the other two are the ones that
+  have already gone wrong once elsewhere: that a card click does not re-open the list, that the status picker stays
+  clickable above the stretched link, and that confirming a document takes its name out of the URL.
+- **The advert's title in the board's reading column wraps to six lines at 30rem.** Fixing it properly means another
+  step on `lg-page-header`, because a parent's styles do not reach a component host the router created.
 
 ## Settled
 
