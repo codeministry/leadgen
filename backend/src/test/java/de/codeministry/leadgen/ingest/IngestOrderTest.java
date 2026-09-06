@@ -14,6 +14,8 @@ import de.codeministry.leadgen.archive.ArchiveService;
 import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.config.ConfigSnapshot;
 import de.codeministry.leadgen.config.model.SourcesConfig;
+import de.codeministry.leadgen.content.ContentReport;
+import de.codeministry.leadgen.content.ContentService;
 import de.codeministry.leadgen.dedupe.DeduplicationService;
 import de.codeministry.leadgen.digest.DigestService;
 import de.codeministry.leadgen.enrich.EnrichmentReport;
@@ -61,6 +63,7 @@ class IngestOrderTest {
     private final FilterService filter = mock(FilterService.class);
     private final ArchiveService archive = mock(ArchiveService.class);
     private final EnrichmentService enrich = mock(EnrichmentService.class);
+    private final ContentService content = mock(ContentService.class);
     private final ScoringService scoring = mock(ScoringService.class);
     private final PackagingService packaging = mock(PackagingService.class);
     private final DigestService digest = mock(DigestService.class);
@@ -83,6 +86,7 @@ class IngestOrderTest {
         when(filter.run()).thenReturn(new FilterReport(Map.of(), 0, 0));
         when(archive.run()).thenReturn(new ArchiveReport(0, 0, 0, 0));
         when(enrich.run()).thenReturn(new EnrichmentReport(0, 0, 0, 0, 0, 0));
+        when(content.run()).thenReturn(ContentReport.skipped());
         when(scoring.run(any())).thenReturn(new ScoringReport(0, 0, 0, 0, 0, 0, 0));
         when(packaging.run()).thenReturn(new PackageReport(0, 0, 0, List.of()));
         when(digest.render(any())).thenReturn(Optional.empty());
@@ -98,6 +102,7 @@ class IngestOrderTest {
                 filter,
                 archive,
                 enrich,
+            content,
                 scoring,
                 packaging,
                 digest,

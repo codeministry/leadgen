@@ -9,6 +9,7 @@
 package de.codeministry.leadgen.ingest;
 
 import de.codeministry.leadgen.archive.ArchiveReport;
+import de.codeministry.leadgen.content.ContentReport;
 import de.codeministry.leadgen.enrich.EnrichmentReport;
 import de.codeministry.leadgen.filter.FilterReport;
 import de.codeministry.leadgen.packaging.PackageReport;
@@ -30,6 +31,9 @@ import java.util.List;
  *                   between the filter and enrichment, so nothing archived is ever paid for.
  * @param enriched   what fetching the original ads did. The only stage that leaves the
  *                   machine, and the only one that can fail for reasons unrelated to the offer.
+ * @param segmented  what reading the fetched adverts into blocks did. `undecided` above
+ *                   zero is the signal worth watching: it counts blocks nobody had a label
+ *                   for, which is what a changed portal markup looks like from here.
  * @param scored     what the shortlist looks like afterwards. `unscored` above zero means no
  *                   language model was configured; the offers are there, only unranked.
  * @param digest     the file the run wrote, or null when the digest is switched off. A file,
@@ -48,6 +52,7 @@ public record IngestReport(
         FilterReport filtered,
         ArchiveReport archived,
         EnrichmentReport enriched,
+        ContentReport segmented,
         ScoringReport scored,
         Path digest,
         PackageReport packaged,

@@ -86,6 +86,58 @@ enrichment:
       full_text:
         css: 'article, main, .job-description, #content'
 
+# Which parts of a fetched advert are the advert.
+#
+# A portal's page carries the offer and also everything around it: a meta row, an apply
+# button, a report dialog with its radio labels, and a tag cloud taken from the site's own
+# taxonomy rather than from the client's requirements. Folded into the skill haystack that
+# last one inflates the overlap deciding the shortlist, so this is a fix to the score before
+# it is a fix to the screen.
+#
+# The model is the authority here and these rules are a cache in front of it. Every block is
+# hashed, a decision is remembered by that hash, and a portal's furniture is therefore paid
+# for once and free for every advert that repeats it. A header form nobody has seen is a hash
+# nobody has seen: one call, then free again — so new furniture is noticed by construction
+# rather than mislabelled in silence.
+#
+# Nothing is hidden without a positive decision. A block no rule matched, that the cache does
+# not know and that no model answered about stays visible.
+content:
+  enabled: true
+  # Free, deterministic, and deliberately conservative. They exist so a clone with no model
+  # configured still hides the obvious furniture — not to be the mechanism. A rule that stops
+  # matching costs the shortcut and nothing else: the block falls through to the cache and
+  # then to the model.
+  #
+  # Matched against the block's normalised text: link targets dropped, escapes and emphasis
+  # removed, whitespace collapsed, lowercased. So a pattern is written against the words a
+  # person reads, on one line, which is what a pattern is for.
+  #
+  # SINGLE QUOTES. A double-quoted YAML scalar allows only a fixed set of escapes, `\-` is
+  # not among them, and the file then fails to parse with nothing pointing at the regex.
+  #
+  # Every one of these is anchored or specific on purpose. A loose pattern here does not
+  # produce a wrong label, it hides a paragraph of somebody's advert — and an ad about data
+  # protection is exactly the ad a bare 'datenschutz' would delete.
+  rules:
+    # The pair and not either word. A block here is a whole paragraph read as one line —
+    # measured on the corpus, the company link, the contact, the meta row and both buttons
+    # arrive as a single block, so an anchored 'apply now' never fires and a bare one would
+    # match an advert that says "bitte jetzt bewerben". Two portal buttons in sequence are
+    # something no prose writes.
+    - kind: CHROME
+      matches: 'apply now\s+save to watchlist|jetzt bewerben\s+zur merkliste'
+    - kind: FORM
+      matches: 'reason for reporting this project|grund f(?:ü|u)r die meldung'
+    - kind: FORM
+      matches: 'after submitting, you will receive a confirmation email'
+    - kind: AGENCY
+      matches: 'amtsgericht\s+\S+,\s*hrb\s*\d'
+    - kind: AGENCY
+      matches: 'gesch(?:ä|a)ftsf(?:ü|u)hrer:\s'
+    - kind: LEGAL
+      matches: 'datenschutzerkl(?:ä|a)rung:\s*https?://'
+
 packaging:
   output_dir: ${PACKAGES_DIR:./packages}
   naming: "{date}_{company}_{slug}"

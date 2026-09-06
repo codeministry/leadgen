@@ -13,6 +13,7 @@ import de.codeministry.leadgen.analytics.StageLog;
 import de.codeministry.leadgen.archive.ArchiveService;
 import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.config.model.SourcesConfig.Source;
+import de.codeministry.leadgen.content.ContentService;
 import de.codeministry.leadgen.dedupe.DeduplicationService;
 import de.codeministry.leadgen.digest.DigestService;
 import de.codeministry.leadgen.enrich.EnrichmentService;
@@ -62,6 +63,7 @@ public class IngestService {
     private final FilterService filter;
     private final ArchiveService archive;
     private final EnrichmentService enrich;
+    private final ContentService content;
     private final ScoringService scoring;
     private final PackagingService packaging;
     private final DigestService digest;
@@ -78,6 +80,7 @@ public class IngestService {
             FilterService filter,
             ArchiveService archive,
             EnrichmentService enrich,
+            ContentService content,
             ScoringService scoring,
             PackagingService packaging,
             DigestService digest,
@@ -92,6 +95,7 @@ public class IngestService {
         this.filter = filter;
         this.archive = archive;
         this.enrich = enrich;
+        this.content = content;
         this.scoring = scoring;
         this.packaging = packaging;
         this.digest = digest;
@@ -207,6 +211,11 @@ public class IngestService {
         // neither.
         var archived = stages.time("ARCHIVE", archive::run);
         var enriched = stages.time("ENRICH", enrich::run);
+        // Between the two on purpose. After enrichment because it reads `full_text`, and
+        // before scoring because scoring has to judge the advert rather than the portal's
+        // furniture around it — a tag cloud of sixty technology names the client never asked
+        // for otherwise counts as skill overlap.
+        var segmented = stages.time("CONTENT", content::run);
         var scored = stages.time("SCORE", () -> scoring.run(scoringModel));
         // Packaging before the digest, so the digest can say which offers already have a
         // folder. Both write files and neither sends anything.
@@ -221,6 +230,7 @@ public class IngestService {
                 filtered,
                 archived,
                 enriched,
+            segmented,
                 scored,
                 written,
                 packages,

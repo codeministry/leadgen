@@ -35,6 +35,7 @@ public record PipelineConfig(
         @Valid @NotNull Rules rules,
         @Valid Sources sources,
         @Valid @NotNull Enrichment enrichment,
+        @Valid Content content,
         @Valid @NotNull Packaging packaging,
         @Valid Digest digest,
         @Valid Security security) {
@@ -105,6 +106,35 @@ public record PipelineConfig(
         }
 
         public record Budget(@Min(0) int maxCallsPerDay, boolean cacheByMessageId) {}
+    }
+
+    /**
+     * Which parts of a fetched advert are the advert.
+     *
+     * <p>Optional, and absent means the stage does not run: an advert is then shown exactly
+     * as the portal wrapped it, which is what every version before this did.
+     *
+     * @param rules patterns that decide a block for free, before anything is asked of a
+     *              model. An <b>optimisation and not the mechanism</b> — they exist so a
+     *              fresh clone with no key still hides the obvious furniture, and when one
+     *              stops matching the block falls through to the cache and then to the
+     *              model rather than being silently mislabelled.
+     */
+    public record Content(boolean enabled, List<@Valid Rule> rules) {
+
+        /**
+         * @param kind    one of the content kinds, as a string. Deliberately not the enum:
+         *                the configuration model is read by everything and depends on no
+         *                stage, exactly as a source's `type` is a string here and an
+         *                implementation elsewhere. A name nothing knows is logged and
+         *                dropped where the rules are compiled.
+         * @param matches a regular expression, matched against the block's normalised text.
+         *                <b>Single quotes in YAML</b> — a double-quoted scalar only allows a
+         *                fixed set of escapes, and the file then fails to parse with nothing
+         *                pointing at the pattern.
+         */
+        public record Rule(@NotBlank String kind, @NotBlank String matches) {
+        }
     }
 
     public record Profile(@NotBlank String path) {}

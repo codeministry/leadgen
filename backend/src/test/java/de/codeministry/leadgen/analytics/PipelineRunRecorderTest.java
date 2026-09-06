@@ -10,6 +10,7 @@ package de.codeministry.leadgen.analytics;
 
 import de.codeministry.leadgen.archive.ArchiveReport;
 import de.codeministry.leadgen.config.ConfigRegistry;
+import de.codeministry.leadgen.content.ContentReport;
 import de.codeministry.leadgen.enrich.EnrichmentReport;
 import de.codeministry.leadgen.filter.FilterReport;
 import de.codeministry.leadgen.ingest.IngestReport;
@@ -48,6 +49,7 @@ class PipelineRunRecorderTest {
             new FilterReport(Map.of(), 0, 0),
             new ArchiveReport(0, 0, 0, 0),
             new EnrichmentReport(0, 0, 0, 0, 0, 0),
+        ContentReport.skipped(),
             new ScoringReport(0, 0, 0, 0, 0, 0, 0),
             null,
             new PackageReport(0, 0, 0, List.of()),
