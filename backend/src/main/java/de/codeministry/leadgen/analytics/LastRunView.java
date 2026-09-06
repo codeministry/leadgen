@@ -65,5 +65,4 @@ public record LastRunView(
         int review,
         int packaged,
         boolean digestWritten,
-        List<LastRunSource> sources) {
-}
+        List<LastRunSource> sources) {}

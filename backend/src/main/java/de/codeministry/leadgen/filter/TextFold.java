@@ -40,8 +40,7 @@ public final class TextFold {
     private static final Pattern NON_WORD = Pattern.compile("[^a-z0-9%]+");
     private static final Pattern WHITESPACE = Pattern.compile("\\s+");
 
-    private TextFold() {
-    }
+    private TextFold() {}
 
     /**
      * Lowercase ASCII words: diacritics removed, ß to ss, everything else to spaces.

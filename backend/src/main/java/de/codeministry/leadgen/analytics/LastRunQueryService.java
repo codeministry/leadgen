@@ -46,17 +46,16 @@ public class LastRunQueryService {
      * <p>{@code id} breaks the tie, because nothing in the schema stops two rows sharing a
      * start instant and "the newest run" has to be one row.
      */
-    private static final String LAST_RUN =
-            """
-                    SELECT id, started_at, finished_at, status, score_model,
-                           extracted, written, merged,
-                           filter_considered, filter_passed,
-                           scored, shortlisted, review, packaged, digest_written
-                    FROM pipeline_run
-                            WHERE finished_at IS NOT NULL
-                    ORDER BY started_at DESC, id DESC
-                    LIMIT 1
-                    """;
+    private static final String LAST_RUN = """
+        SELECT id, started_at, finished_at, status, score_model,
+               extracted, written, merged,
+               filter_considered, filter_passed,
+               scored, shortlisted, review, packaged, digest_written
+        FROM pipeline_run
+                WHERE finished_at IS NOT NULL
+        ORDER BY started_at DESC, id DESC
+        LIMIT 1
+        """;
 
     private static final String STAGES =
             "SELECT stage, removed FROM pipeline_run_stage WHERE run_id = :id ORDER BY stage";
@@ -80,17 +79,16 @@ public class LastRunQueryService {
      * <p>Joined to {@code source} for the name, which is the id the report and the screens
      * speak in. The numeric key is the database's business.
      */
-    private static final String SOURCES =
-            """
-                    SELECT s.name AS source_id, r.documents, r.extracted, r.written, r.announced
-                    FROM source_run r
-                    JOIN source s ON s.id = r.source_id
-                    WHERE r.ran_at >= :startedAt
-                              AND r.ran_at < COALESCE(
-                                    (SELECT min(started_at) FROM pipeline_run WHERE started_at > :startedAt),
-                                    'infinity'::timestamptz)
-                    ORDER BY s.name
-                    """;
+    private static final String SOURCES = """
+        SELECT s.name AS source_id, r.documents, r.extracted, r.written, r.announced
+        FROM source_run r
+        JOIN source s ON s.id = r.source_id
+        WHERE r.ran_at >= :startedAt
+                  AND r.ran_at < COALESCE(
+                        (SELECT min(started_at) FROM pipeline_run WHERE started_at > :startedAt),
+                        'infinity'::timestamptz)
+        ORDER BY s.name
+        """;
 
     private final JdbcClient jdbc;
 
@@ -165,8 +163,7 @@ public class LastRunQueryService {
             int shortlisted,
             int review,
             int packaged,
-            boolean digestWritten) {
-    }
+            boolean digestWritten) {}
 
     /**
      * Insertion-ordered, so the stages arrive in the order the SQL sorted them.

@@ -35,17 +35,15 @@ public class FilterService {
     /**
      * An offer that has never been judged, or was judged under rules that have since changed.
      */
-    private static final String SELECT_ALL =
-            """
-                    SELECT id, title, description, location, tags, published_on
-                    FROM offer
-                    ORDER BY id
-                    """;
+    private static final String SELECT_ALL = """
+        SELECT id, title, description, location, tags, published_on
+        FROM offer
+        ORDER BY id
+        """;
 
-    private static final String RECORD_VERDICT =
-            """
-                    UPDATE offer SET status = ?, filter_stage = ?, filter_reason = ? WHERE id = ?
-                    """;
+    private static final String RECORD_VERDICT = """
+        UPDATE offer SET status = ?, filter_stage = ?, filter_reason = ? WHERE id = ?
+        """;
 
     private final ConfigRegistry config;
     private final JdbcClient jdbc;
@@ -87,10 +85,10 @@ public class FilterService {
             FilterVerdict verdict = filter.judge(candidate);
             if (verdict.passed()) {
                 passed++;
-                updates.add(new Object[]{"PASSED", null, null, candidate.id()});
+                updates.add(new Object[] {"PASSED", null, null, candidate.id()});
             } else {
                 removed.merge(verdict.stage(), 1, Integer::sum);
-                updates.add(new Object[]{"FILTERED_OUT", verdict.stage().name(), verdict.reason(), candidate.id()});
+                updates.add(new Object[] {"FILTERED_OUT", verdict.stage().name(), verdict.reason(), candidate.id()});
             }
         }
 

@@ -165,19 +165,21 @@ public class Judges {
             // Ollama serves the same chat-completions shape under /v1, so it is the same
             // judge with a different address. It is listed separately because it is the
             // one provider that needs no key, and that is a rule about the value.
-            case OPENAI_COMPATIBLE, OLLAMA -> Optional.of(
-                    new ChatClientJudge(openAi(llm.baseUrl(), key(llm), model), model, json, bounds(), profile()));
+            case OPENAI_COMPATIBLE, OLLAMA ->
+                Optional.of(
+                        new ChatClientJudge(openAi(llm.baseUrl(), key(llm), model), model, json, bounds(), profile()));
             // The only provider with a batch endpoint, which is why it is the only one that
             // gets a judge of its own. Its base URL and key are handed over twice: once to
             // the chat model, and once to the batch half, which is still hand-rolled HTTP.
-            case ANTHROPIC -> Optional.of(new AnthropicJudge(
-                    anthropic(llm.baseUrl(), key(llm), model),
-                    llm.baseUrl(),
-                    key(llm),
-                    model,
-                    json,
-                    bounds(),
-                    profile()));
+            case ANTHROPIC ->
+                Optional.of(new AnthropicJudge(
+                        anthropic(llm.baseUrl(), key(llm), model),
+                        llm.baseUrl(),
+                        key(llm),
+                        model,
+                        json,
+                        bounds(),
+                        profile()));
             default -> {
                 log.warn(
                         "llm.provider is '{}'; implemented are '{}', '{}' and '{}'",
@@ -211,7 +213,8 @@ public class Judges {
      */
     private ChatModel openAi(String baseUrl, String apiKey, String model) {
         return models.computeIfAbsent(
-                cacheKey(OPENAI_COMPATIBLE, baseUrl, apiKey, model), ignored -> OpenAiChatModel.builder()
+                cacheKey(OPENAI_COMPATIBLE, baseUrl, apiKey, model),
+                ignored -> OpenAiChatModel.builder()
                         .openAiClient(OpenAiSetup.setupSyncClient(
                                 baseUrl,
                                 apiKey,
@@ -264,7 +267,8 @@ public class Judges {
      */
     private ChatModel anthropic(String baseUrl, String apiKey, String model) {
         return models.computeIfAbsent(
-                cacheKey(ANTHROPIC, baseUrl, apiKey, model), ignored -> AnthropicChatModel.builder()
+                cacheKey(ANTHROPIC, baseUrl, apiKey, model),
+                ignored -> AnthropicChatModel.builder()
                         .anthropicClient(AnthropicSetup.setupSyncClient(baseUrl, apiKey, TIMEOUT, 0, null, null))
                         // Same reason as the OpenAI pair above: the builder would otherwise
                         // construct an asynchronous client from nothing.

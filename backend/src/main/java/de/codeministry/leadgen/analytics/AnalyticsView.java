@@ -48,5 +48,4 @@ public record AnalyticsView(
         ScoreDistribution scores,
         ApplicationAnalytics applications,
         RunSeries runs,
-        List<ScaleInUse> scales) {
-}
+        List<ScaleInUse> scales) {}

@@ -29,6 +29,5 @@ import java.util.List;
  */
 public record FunnelView(int total, List<Stage> stages, int survived, int archived) {
 
-    public record Stage(String id, String label, int removed) {
-    }
+    public record Stage(String id, String label, int removed) {}
 }

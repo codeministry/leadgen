@@ -45,5 +45,4 @@ public record OfferView(
         String fullText,
         String packageDir,
         Instant archivedAt,
-        String archiveSource) {
-}
+        String archiveSource) {}

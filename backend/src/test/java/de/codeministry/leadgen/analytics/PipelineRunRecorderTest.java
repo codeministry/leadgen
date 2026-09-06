@@ -61,7 +61,7 @@ class PipelineRunRecorderTest {
         var recorder = new PipelineRunRecorder(broken, mock(ConfigRegistry.class), mock(Judges.class));
 
         assertThatCode(() ->
-                recorder.record(java.util.OptionalLong.empty(), REPORT, Instant.now(), "some-model", List.of()))
+                        recorder.record(java.util.OptionalLong.empty(), REPORT, Instant.now(), "some-model", List.of()))
                 .doesNotThrowAnyException();
     }
 }

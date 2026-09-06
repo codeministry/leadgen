@@ -156,11 +156,11 @@ class OfferQueryServiceTest {
         passed("Schwach", 10);
 
         assertThat(offers.shortlist(new ShortlistQuery(null, "shortlist", null, false, null, 0))
-                .entries())
+                        .entries())
                 .extracting(entry -> entry.offer().title())
                 .containsExactly("Stark");
         assertThat(offers.shortlist(new ShortlistQuery(null, "review", null, false, null, 0))
-                .entries())
+                        .entries())
                 .extracting(entry -> entry.offer().title())
                 .containsExactly("Mittel");
     }
@@ -176,7 +176,7 @@ class OfferQueryServiceTest {
 
         assertThat(page.portals()).contains("portal-c");
         assertThat(offers.shortlist(new ShortlistQuery(null, null, "portal-c", false, null, 0))
-                .entries())
+                        .entries())
                 .extracting(entry -> entry.offer().id())
                 .containsExactly(primary);
     }
@@ -319,22 +319,19 @@ class OfferQueryServiceTest {
         // The dropdown built from the working list must not offer a portal that only ever
         // appears in the archive: choosing it would produce an empty list and no reason.
         passed("Aktuell", 88);
-        long archived = jdbc.queryForObject(
-                """
-                        INSERT INTO offer (source_id, external_id, title, url, fingerprint, status, portal,
-                                           archived_at, archive_source)
-                        VALUES (?, 'a', 'Archiviert', 'https://example.invalid/a', 'archiviert', 'PASSED', 'portal-c',
-                                now(), 'AGE')
-                        RETURNING id
-                        """,
-                Long.class,
-                sourceId);
+        long archived = jdbc.queryForObject("""
+            INSERT INTO offer (source_id, external_id, title, url, fingerprint, status, portal,
+                               archived_at, archive_source)
+            VALUES (?, 'a', 'Archiviert', 'https://example.invalid/a', 'archiviert', 'PASSED', 'portal-c',
+                    now(), 'AGE')
+            RETURNING id
+            """, Long.class, sourceId);
 
         assertThat(offers.shortlist(new ShortlistQuery(null, null, null, false, null, 0))
-                .portals())
+                        .portals())
                 .containsExactly("portal-a");
         assertThat(offers.shortlist(new ShortlistQuery(null, null, null, true, null, 0))
-                .portals())
+                        .portals())
                 .containsExactly("portal-c");
         assertThat(archived).isPositive();
     }
@@ -384,12 +381,12 @@ class OfferQueryServiceTest {
     private long passed(String title, Integer score) {
         return jdbc.queryForObject(
                 """
-                        INSERT INTO offer (source_id, external_id, title, description, url, fingerprint, status,
-                                           score_value, portal, agency, tags)
-                        VALUES (?, ?, ?, 'Ablösung eines Monolithen.', ?, ?, 'PASSED', ?, 'portal-a', 'Acme Consulting GmbH',
-                                ARRAY['Java','Spring Boot'])
-                        RETURNING id
-                        """,
+                INSERT INTO offer (source_id, external_id, title, description, url, fingerprint, status,
+                                   score_value, portal, agency, tags)
+                VALUES (?, ?, ?, 'Ablösung eines Monolithen.', ?, ?, 'PASSED', ?, 'portal-a', 'Acme Consulting GmbH',
+                        ARRAY['Java','Spring Boot'])
+                RETURNING id
+                """,
                 Long.class,
                 sourceId,
                 title,
@@ -400,32 +397,19 @@ class OfferQueryServiceTest {
     }
 
     private long rejected(String title) {
-        return jdbc.queryForObject(
-                """
-                        INSERT INTO offer (source_id, external_id, title, url, fingerprint, status, filter_stage)
-                        VALUES (?, ?, ?, 'https://example.invalid/x', ?, 'REJECTED', 'ABROAD')
-                        RETURNING id
-                        """,
-                Long.class,
-                sourceId,
-                title,
-                title,
-                title.toLowerCase());
+        return jdbc.queryForObject("""
+            INSERT INTO offer (source_id, external_id, title, url, fingerprint, status, filter_stage)
+            VALUES (?, ?, ?, 'https://example.invalid/x', ?, 'REJECTED', 'ABROAD')
+            RETURNING id
+            """, Long.class, sourceId, title, title, title.toLowerCase());
     }
 
     private void duplicateOf(long primary, String portal, String agency) {
-        jdbc.update(
-                """
-                        INSERT INTO offer (source_id, external_id, title, url, fingerprint, status, portal, agency,
-                                           duplicate_of_id)
-                        VALUES (?, ?, 'Senior Java Entwickler', ?, 'senior java entwickler', 'PASSED', ?, ?, ?)
-                        """,
-                sourceId,
-                portal + primary,
-                "https://" + portal + "/x",
-                portal,
-                agency,
-                primary);
+        jdbc.update("""
+            INSERT INTO offer (source_id, external_id, title, url, fingerprint, status, portal, agency,
+                               duplicate_of_id)
+            VALUES (?, ?, 'Senior Java Entwickler', ?, 'senior java entwickler', 'PASSED', ?, ?, ?)
+            """, sourceId, portal + primary, "https://" + portal + "/x", portal, agency, primary);
     }
 
     private void reason(long offerId, String factor, String label, int points, int position) {

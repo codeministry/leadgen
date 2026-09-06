@@ -53,26 +53,24 @@ public class ArchiveService {
      * the list whatever its date says, because the board is the only place that state
      * exists and archiving it away would make it invisible on the one screen that reads it.
      */
-    private static final String ARCHIVE_AGED_OUT =
-            """
-                    UPDATE offer SET archived_at = now(), archive_source = 'AGE'
-                    WHERE archived_at IS NULL
-                      AND archive_source IS NULL
-                      AND published_on IS NOT NULL
-                      AND published_on < :cutoff
-                      AND NOT EXISTS (SELECT 1 FROM application a
-                                       WHERE a.offer_id = offer.id AND a.status IN (:live))
-                    """;
+    private static final String ARCHIVE_AGED_OUT = """
+        UPDATE offer SET archived_at = now(), archive_source = 'AGE'
+        WHERE archived_at IS NULL
+          AND archive_source IS NULL
+          AND published_on IS NOT NULL
+          AND published_on < :cutoff
+          AND NOT EXISTS (SELECT 1 FROM application a
+                           WHERE a.offer_id = offer.id AND a.status IN (:live))
+        """;
 
     /**
      * Inside the window again, because the operator widened it. Only what the pass owns.
      */
-    private static final String RESTORE_INSIDE_WINDOW =
-            """
-                    UPDATE offer SET archived_at = NULL, archive_source = NULL
-                    WHERE archive_source = 'AGE'
-                      AND (:cutoff IS NULL OR published_on >= :cutoff)
-                    """;
+    private static final String RESTORE_INSIDE_WINDOW = """
+        UPDATE offer SET archived_at = NULL, archive_source = NULL
+        WHERE archive_source = 'AGE'
+          AND (:cutoff IS NULL OR published_on >= :cutoff)
+        """;
 
     /**
      * A person's decision, in both directions.
@@ -81,13 +79,12 @@ public class ArchiveService {
      * meaning of `RESTORED` has to be written in exactly one place: it is what stops the
      * age pass archiving the row again on the very next run.
      */
-    private static final String SET_BY_HAND =
-            """
-                    UPDATE offer
-                    SET archived_at    = CASE WHEN :archived THEN now() ELSE NULL END,
-                        archive_source = CASE WHEN :archived THEN 'MANUAL' ELSE 'RESTORED' END
-                    WHERE id = :id
-                    """;
+    private static final String SET_BY_HAND = """
+        UPDATE offer
+        SET archived_at    = CASE WHEN :archived THEN now() ELSE NULL END,
+            archive_source = CASE WHEN :archived THEN 'MANUAL' ELSE 'RESTORED' END
+        WHERE id = :id
+        """;
 
     /**
      * Primaries, like every other number an operator reads: a duplicate is not an entry.
@@ -98,11 +95,10 @@ public class ArchiveService {
     /**
      * No date, no age. These stay on the list for as long as they exist.
      */
-    private static final String UNDATED =
-            """
-                    SELECT count(*) FROM offer
-                    WHERE published_on IS NULL AND archived_at IS NULL AND duplicate_of_id IS NULL
-                    """;
+    private static final String UNDATED = """
+        SELECT count(*) FROM offer
+        WHERE published_on IS NULL AND archived_at IS NULL AND duplicate_of_id IS NULL
+        """;
 
     /**
      * The states that mean a person has taken an offer up; decided by the enum, not here.
@@ -165,9 +161,9 @@ public class ArchiveService {
         int archived = cutoff == null
                 ? 0
                 : jdbc.sql(ARCHIVE_AGED_OUT)
-                .param("cutoff", cutoff)
-                .param("live", LIVE)
-                .update();
+                        .param("cutoff", cutoff)
+                        .param("live", LIVE)
+                        .update();
         int restored = jdbc.sql(RESTORE_INSIDE_WINDOW).param("cutoff", cutoff).update();
 
         var report = new ArchiveReport(

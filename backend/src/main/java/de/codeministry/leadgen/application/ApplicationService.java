@@ -31,15 +31,14 @@ import java.util.Optional;
 @Service
 public class ApplicationService {
 
-    private static final String BOARD =
-            """
-                    SELECT a.id, a.offer_id, a.status, a.sent_on, a.follow_up_on, a.outcome, a.note,
-                           a.updated_at, o.title, o.agency, o.portal, o.url, o.score_value, o.rate_eur,
-                           o.package_dir
-                    FROM application a
-                    JOIN offer o ON o.id = a.offer_id
-                    ORDER BY o.score_value DESC NULLS LAST, a.updated_at DESC
-                    """;
+    private static final String BOARD = """
+        SELECT a.id, a.offer_id, a.status, a.sent_on, a.follow_up_on, a.outcome, a.note,
+               a.updated_at, o.title, o.agency, o.portal, o.url, o.score_value, o.rate_eur,
+               o.package_dir
+        FROM application a
+        JOIN offer o ON o.id = a.offer_id
+        ORDER BY o.score_value DESC NULLS LAST, a.updated_at DESC
+        """;
 
     private final JdbcClient jdbc;
 
@@ -131,12 +130,11 @@ public class ApplicationService {
             followUp = null;
         }
 
-        jdbc.sql(
-                        """
-                                UPDATE application
-                                SET status = ?, sent_on = ?, follow_up_on = ?, outcome = ?, note = ?, updated_at = now()
-                                WHERE id = ?
-                                """)
+        jdbc.sql("""
+            UPDATE application
+            SET status = ?, sent_on = ?, follow_up_on = ?, outcome = ?, note = ?, updated_at = now()
+            WHERE id = ?
+            """)
                 .params(
                         update.status().name(),
                         sentOn,
@@ -154,11 +152,10 @@ public class ApplicationService {
     }
 
     public List<ApplicationEvent> history(long id) {
-        return jdbc.sql(
-                        """
-                                SELECT from_status, to_status, note, recorded_at
-                                FROM application_event WHERE application_id = ? ORDER BY recorded_at DESC
-                                """)
+        return jdbc.sql("""
+            SELECT from_status, to_status, note, recorded_at
+            FROM application_event WHERE application_id = ? ORDER BY recorded_at DESC
+            """)
                 .param(id)
                 .query((rs, row) -> new ApplicationEvent(
                         rs.getString("from_status") == null
@@ -188,11 +185,10 @@ public class ApplicationService {
     }
 
     private void record(long applicationId, ApplicationStatus from, ApplicationStatus to, String note) {
-        jdbc.sql(
-                        """
-                                INSERT INTO application_event (application_id, from_status, to_status, note)
-                                VALUES (?, ?, ?, ?)
-                                """)
+        jdbc.sql("""
+            INSERT INTO application_event (application_id, from_status, to_status, note)
+            VALUES (?, ?, ?, ?)
+            """)
                 .params(applicationId, from == null ? null : from.name(), to.name(), note)
                 .update();
     }

@@ -38,18 +38,17 @@ class IngestServiceTest {
     @ServiceConnection
     static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:17-alpine");
 
-    private static final String MANUAL_OFFER =
-            """
-                    ---
-                    title: Senior Java Entwickler, gefunden auf LinkedIn
-                    url: https://portal.example/p/98765
-                    location: Köln
-                    agency: Beispiel GmbH
-                    published: 2026-09-01
-                    tags: [Java, Spring Boot]
-                    ---
-                    Ablösung eines Monolithen.
-                    """;
+    private static final String MANUAL_OFFER = """
+        ---
+        title: Senior Java Entwickler, gefunden auf LinkedIn
+        url: https://portal.example/p/98765
+        location: Köln
+        agency: Beispiel GmbH
+        published: 2026-09-01
+        tags: [Java, Spring Boot]
+        ---
+        Ablösung eines Monolithen.
+        """;
 
     @Autowired
     private IngestService ingest;
@@ -94,8 +93,8 @@ class IngestServiceTest {
                     assertThat(source.written()).isEqualTo(1);
                 });
         assertThat(jdbc.queryForObject(
-                "SELECT title FROM offer o JOIN source s ON s.id = o.source_id WHERE s.name = 'manual-inbox'",
-                String.class))
+                        "SELECT title FROM offer o JOIN source s ON s.id = o.source_id WHERE s.name = 'manual-inbox'",
+                        String.class))
                 .isEqualTo("Senior Java Entwickler, gefunden auf LinkedIn");
     }
 

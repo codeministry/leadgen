@@ -55,18 +55,17 @@ class EnrichmentServiceTest {
     private static final WireMockServer PORTAL =
             new WireMockServer(WireMockConfiguration.options().dynamicPort());
 
-    private static final String AD_HTML =
-            """
-                    <html><body>
-                      <h1>Senior Java Entwickler (m/w/d)</h1>
-                      <article>
-                        Für ein Logistikunternehmen suchen wir Verstärkung.
-                        Stundensatz 95 EUR/h, Laufzeit 12 Monate, 4 Tage / Woche,
-                        80 % remote, Start ab 01.10.2026.
-                        Ansprechpartnerin Frau Meier | Telefon 0221 1234567
-                      </article>
-                    </body></html>
-                    """;
+    private static final String AD_HTML = """
+        <html><body>
+          <h1>Senior Java Entwickler (m/w/d)</h1>
+          <article>
+            Für ein Logistikunternehmen suchen wir Verstärkung.
+            Stundensatz 95 EUR/h, Laufzeit 12 Monate, 4 Tage / Woche,
+            80 % remote, Start ab 01.10.2026.
+            Ansprechpartnerin Frau Meier | Telefon 0221 1234567
+          </article>
+        </body></html>
+        """;
 
     @Autowired
     private EnrichmentService enrichment;
@@ -126,10 +125,10 @@ class EnrichmentServiceTest {
         assertThat(report.deferred()).isEqualTo(5);
         // Nothing was written for the five, which is the whole point: they are due again.
         assertThat(jdbc.queryForObject(
-                "SELECT count(*) FROM offer WHERE enriched_at IS NULL AND status = 'PASSED'", Integer.class))
+                        "SELECT count(*) FROM offer WHERE enriched_at IS NULL AND status = 'PASSED'", Integer.class))
                 .isEqualTo(5);
         assertThat(jdbc.queryForObject(
-                "SELECT count(*) FROM offer WHERE enrichment_note LIKE '%budget%'", Integer.class))
+                        "SELECT count(*) FROM offer WHERE enrichment_note LIKE '%budget%'", Integer.class))
                 .isZero();
     }
 
@@ -242,17 +241,11 @@ class EnrichmentServiceTest {
     }
 
     private long offer(String path, String status) {
-        return jdbc.queryForObject(
-                """
-                        INSERT INTO offer (source_id, external_id, title, url, fingerprint, status)
-                        VALUES (?, ?, 'Senior Java Entwickler (m/w/d)', ?, 'senior java entwickler', ?)
-                        RETURNING id
-                        """,
-                Long.class,
-                sourceId,
-                path,
-                PORTAL.baseUrl() + path,
-                status);
+        return jdbc.queryForObject("""
+            INSERT INTO offer (source_id, external_id, title, url, fingerprint, status)
+            VALUES (?, ?, 'Senior Java Entwickler (m/w/d)', ?, 'senior java entwickler', ?)
+            RETURNING id
+            """, Long.class, sourceId, path, PORTAL.baseUrl() + path, status);
     }
 
     /**

@@ -187,21 +187,16 @@ class LastRunQueryServiceTest {
     private long run(Instant startedAt, Instant finishedAt, String status, String scoreModel) {
         return jdbc.queryForObject(
                 """
-                        INSERT INTO pipeline_run (
-                            started_at, finished_at, ruleset_version, score_model, status,
-                            documents, extracted, written, merged,
-                            filter_considered, filter_passed,
-                            enrich_considered, enriched, incomplete, from_cache, requests,
-                            score_considered, scored, unscored, shortlisted, review, submitted,
-                            packaged, digest_written)
-                        VALUES (?, ?, '1', ?, ?, 5, 169, 151, 18, 169, 73, 73, 0, 73, 0, 0, 67, 67, 0, 7, 13, 0, 7, true)
-                        RETURNING id
-                        """,
-                Long.class,
-                Timestamp.from(startedAt),
-                Timestamp.from(finishedAt),
-                scoreModel,
-                status);
+                INSERT INTO pipeline_run (
+                    started_at, finished_at, ruleset_version, score_model, status,
+                    documents, extracted, written, merged,
+                    filter_considered, filter_passed,
+                    enrich_considered, enriched, incomplete, from_cache, requests,
+                    score_considered, scored, unscored, shortlisted, review, submitted,
+                    packaged, digest_written)
+                VALUES (?, ?, '1', ?, ?, 5, 169, 151, 18, 169, 73, 73, 0, 73, 0, 0, 67, 67, 0, 7, 13, 0, 7, true)
+                RETURNING id
+                """, Long.class, Timestamp.from(startedAt), Timestamp.from(finishedAt), scoreModel, status);
     }
 
     private void stage(long runId, String stage, int removed) {
@@ -212,18 +207,16 @@ class LastRunQueryServiceTest {
      * The row a run opens with: RUNNING, zeros, and no finished_at. See V15.
      */
     private void open(Instant startedAt) {
-        jdbc.update(
-                """
-                        INSERT INTO pipeline_run (
-                            started_at, ruleset_version, score_model, status,
-                            documents, extracted, written, merged,
-                            filter_considered, filter_passed,
-                            enrich_considered, enriched, incomplete, from_cache, requests,
-                            score_considered, scored, unscored, shortlisted, review, submitted,
-                            packaged, digest_written)
-                        VALUES (?, '1', 'in-flight', 'RUNNING', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, false)
-                        """,
-                Timestamp.from(startedAt));
+        jdbc.update("""
+            INSERT INTO pipeline_run (
+                started_at, ruleset_version, score_model, status,
+                documents, extracted, written, merged,
+                filter_considered, filter_passed,
+                enrich_considered, enriched, incomplete, from_cache, requests,
+                score_considered, scored, unscored, shortlisted, review, submitted,
+                packaged, digest_written)
+            VALUES (?, '1', 'in-flight', 'RUNNING', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, false)
+            """, Timestamp.from(startedAt));
     }
 
     private void sourceRun(long source, Instant ranAt, int documents, int extracted, int written, Integer announced) {

@@ -339,8 +339,8 @@ public class ImapSourceConnector implements SourceConnector {
         if (selector.sinceDays() != null
                 && message.getReceivedDate() != null
                 && message.getReceivedDate()
-                .toInstant()
-                .isBefore(Instant.now().minus(selector.sinceDays(), ChronoUnit.DAYS))) {
+                        .toInstant()
+                        .isBefore(Instant.now().minus(selector.sinceDays(), ChronoUnit.DAYS))) {
             log.debug("Skipping '{}': older than the configured window", message.getSubject());
             return false;
         }
@@ -362,8 +362,8 @@ public class ImapSourceConnector implements SourceConnector {
         }
         boolean subjectMatches = message.getSubject() != null
                 && Pattern.compile(selector.subjectMatches())
-                .matcher(message.getSubject())
-                .find();
+                        .matcher(message.getSubject())
+                        .find();
         if (!subjectMatches) {
             log.debug("Skipping '{}': the subject does not match {}", message.getSubject(), selector.subjectMatches());
         }
@@ -386,8 +386,8 @@ public class ImapSourceConnector implements SourceConnector {
     private static boolean contains(List<String> configured, List<String> senders) {
         return configured != null
                 && configured.stream()
-                .map(value -> value.toLowerCase(Locale.ROOT))
-                .anyMatch(senders::contains);
+                        .map(value -> value.toLowerCase(Locale.ROOT))
+                        .anyMatch(senders::contains);
     }
 
     /**

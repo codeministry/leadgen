@@ -65,16 +65,13 @@ class ApplicationServiceTest {
         jdbc.update("DELETE FROM source");
         long sourceId =
                 jdbc.queryForObject("INSERT INTO source (name, kind) VALUES ('test', 'file') RETURNING id", Long.class);
-        offerId = jdbc.queryForObject(
-                """
-                        INSERT INTO offer (source_id, external_id, title, url, fingerprint, status,
-                                           score_value, score_band, agency, portal)
-                        VALUES (?, 'ext-1', 'Senior Java Entwickler (m/w/d)', 'https://example.invalid/x', 'fp',
-                                'PASSED', 88, 'SHORTLISTED', 'Acme Consulting GmbH', 'portal-a')
-                        RETURNING id
-                        """,
-                Long.class,
-                sourceId);
+        offerId = jdbc.queryForObject("""
+            INSERT INTO offer (source_id, external_id, title, url, fingerprint, status,
+                               score_value, score_band, agency, portal)
+            VALUES (?, 'ext-1', 'Senior Java Entwickler (m/w/d)', 'https://example.invalid/x', 'fp',
+                    'PASSED', 88, 'SHORTLISTED', 'Acme Consulting GmbH', 'portal-a')
+            RETURNING id
+            """, Long.class, sourceId);
     }
 
     @Test

@@ -40,15 +40,14 @@ public class OfferQueryService {
      * unscored have a value the cursor can compare, and `id` last so two offers with the
      * same score and second cannot straddle a page boundary.
      */
-    private static final String SHORTLIST =
-            """
-                    SELECT o.*
-                    FROM offer o
-                    WHERE o.status = 'PASSED' AND o.duplicate_of_id IS NULL
-                    %s
-                    ORDER BY coalesce(o.score_value, -1) DESC, o.ingested_at DESC, o.id DESC
-                    LIMIT :limit
-                    """;
+    private static final String SHORTLIST = """
+        SELECT o.*
+        FROM offer o
+        WHERE o.status = 'PASSED' AND o.duplicate_of_id IS NULL
+        %s
+        ORDER BY coalesce(o.score_value, -1) DESC, o.ingested_at DESC, o.id DESC
+        LIMIT :limit
+        """;
 
     /**
      * The same predicate without the page, so the counts describe what the filters matched
@@ -59,41 +58,38 @@ public class OfferQueryService {
      * statement about the whole list and shrinks as you scroll — the same defect the portal
      * dropdown had.
      */
-    private static final String MATCHED =
-            """
-                    SELECT count(*) AS matched,
-                           count(*) FILTER (WHERE o.score_value IS NULL) AS unscored
-                    FROM offer o
-                    WHERE o.status = 'PASSED' AND o.duplicate_of_id IS NULL
-                    %s
-                    """;
+    private static final String MATCHED = """
+        SELECT count(*) AS matched,
+               count(*) FILTER (WHERE o.score_value IS NULL) AS unscored
+        FROM offer o
+        WHERE o.status = 'PASSED' AND o.duplicate_of_id IS NULL
+        %s
+        """;
 
     /**
      * What the match was narrowed from — the working list, or the archive when that is what
      * is on screen. It carries the archive clause and none of the filters, so the sentence
      * beside the list reads "12 of 2219" and not "12 of 12".
      */
-    private static final String TOTAL =
-            """
-                    SELECT count(*) FROM offer o
-                    WHERE o.status = 'PASSED' AND o.duplicate_of_id IS NULL
-                    %s
-                    """;
+    private static final String TOTAL = """
+        SELECT count(*) FROM offer o
+        WHERE o.status = 'PASSED' AND o.duplicate_of_id IS NULL
+        %s
+        """;
 
     /**
      * Every portal the shortlist knows, including the ones only a duplicate was seen on —
      * the filter matches those too, so offering fewer choices than it accepts would be a
      * filter that finds things it never listed.
      */
-    private static final String PORTALS =
-            """
-                    SELECT DISTINCT p.portal
-                    FROM offer o
-                    JOIN offer p ON p.id = o.id OR p.duplicate_of_id = o.id
-                    WHERE o.status = 'PASSED' AND o.duplicate_of_id IS NULL AND p.portal IS NOT NULL
-                    %s
-                    ORDER BY 1
-                    """;
+    private static final String PORTALS = """
+        SELECT DISTINCT p.portal
+        FROM offer o
+        JOIN offer p ON p.id = o.id OR p.duplicate_of_id = o.id
+        WHERE o.status = 'PASSED' AND o.duplicate_of_id IS NULL AND p.portal IS NOT NULL
+        %s
+        ORDER BY 1
+        """;
 
     private final JdbcClient jdbc;
     private final ConfigRegistry config;
@@ -121,7 +117,7 @@ public class OfferQueryService {
                 .query(OfferQueryService::row)
                 .list();
         var counts = bind(jdbc.sql(MATCHED.formatted(filters.sql())), filters)
-                .query((rs, n) -> new int[]{rs.getInt("matched"), rs.getInt("unscored")})
+                .query((rs, n) -> new int[] {rs.getInt("matched"), rs.getInt("unscored")})
                 .single();
         // The archive clause alone, and none of the filters: these two describe the set the
         // filters are being applied to, not the match.
@@ -189,8 +185,7 @@ public class OfferQueryService {
      * @param sql     the archive clause and every filter, which is what the page and the match
      *                count are read with.
      */
-    private record Filters(String archive, String sql, Map<String, Object> params) {
-    }
+    private record Filters(String archive, String sql, Map<String, Object> params) {}
 
     private static JdbcClient.StatementSpec bind(JdbcClient.StatementSpec statement, Filters filters) {
         var bound = statement;
@@ -217,11 +212,10 @@ public class OfferQueryService {
         Map<String, Object> params = new LinkedHashMap<>();
 
         if (query.q() != null && !query.q().isBlank()) {
-            sql.append(
-                    """
-                            AND (o.title ILIKE :q OR o.description ILIKE :q
-                                 OR EXISTS (SELECT 1 FROM unnest(o.tags) AS tag WHERE tag ILIKE :q))
-                            """);
+            sql.append("""
+                AND (o.title ILIKE :q OR o.description ILIKE :q
+                     OR EXISTS (SELECT 1 FROM unnest(o.tags) AS tag WHERE tag ILIKE :q))
+                """);
             params.put("q", "%" + query.q().trim() + "%");
         }
         if ("shortlist".equals(query.band())) {
@@ -233,11 +227,10 @@ public class OfferQueryService {
             params.put("shortlistAt", thresholds.autoShortlist());
         }
         if (query.portal() != null && !query.portal().isBlank()) {
-            sql.append(
-                    """
-                            AND EXISTS (SELECT 1 FROM offer p
-                                        WHERE (p.id = o.id OR p.duplicate_of_id = o.id) AND p.portal = :portal)
-                            """);
+            sql.append("""
+                AND EXISTS (SELECT 1 FROM offer p
+                            WHERE (p.id = o.id OR p.duplicate_of_id = o.id) AND p.portal = :portal)
+                """);
             params.put("portal", query.portal());
         }
         if (query.cursor() != null && !query.cursor().isBlank()) {
@@ -270,13 +263,12 @@ public class OfferQueryService {
         // visibly wrong, which is the only reason it was caught. The archive is the same
         // trap a second time, and it is the larger of the two: after a week it holds most
         // of the table.
-        jdbc.sql(
-                        """
-                                SELECT filter_stage, count(*) AS removed FROM offer
-                                WHERE filter_stage IS NOT NULL AND duplicate_of_id IS NULL
-                                  AND archived_at IS NULL
-                                GROUP BY 1
-                                """)
+        jdbc.sql("""
+            SELECT filter_stage, count(*) AS removed FROM offer
+            WHERE filter_stage IS NOT NULL AND duplicate_of_id IS NULL
+              AND archived_at IS NULL
+            GROUP BY 1
+            """)
                 .query((rs, index) -> removed.put(rs.getString("filter_stage"), rs.getInt("removed")))
                 .list();
 
@@ -333,11 +325,10 @@ public class OfferQueryService {
 
     private Map<Long, List<ScoreReason>> reasonsFor(List<Long> ids) {
         Map<Long, List<ScoreReason>> byOffer = new LinkedHashMap<>();
-        jdbc.sql(
-                        """
-                                        SELECT offer_id, factor, label, points, max_points FROM offer_score_reason
-                                WHERE offer_id = ANY (?) ORDER BY offer_id, position
-                                """)
+        jdbc.sql("""
+                    SELECT offer_id, factor, label, points, max_points FROM offer_score_reason
+            WHERE offer_id = ANY (?) ORDER BY offer_id, position
+            """)
                 .param(ids.toArray(Long[]::new))
                 .query((rs, index) -> {
                     byOffer.computeIfAbsent(rs.getLong("offer_id"), key -> new ArrayList<>())
@@ -359,11 +350,10 @@ public class OfferQueryService {
      */
     private Map<Long, List<OfferSourceRef>> clustersFor(List<Long> ids) {
         Map<Long, List<OfferSourceRef>> byPrimary = new LinkedHashMap<>();
-        jdbc.sql(
-                        """
-                                SELECT duplicate_of_id, portal, agency, url FROM offer
-                                WHERE duplicate_of_id = ANY (?) ORDER BY duplicate_of_id, id
-                                """)
+        jdbc.sql("""
+            SELECT duplicate_of_id, portal, agency, url FROM offer
+            WHERE duplicate_of_id = ANY (?) ORDER BY duplicate_of_id, id
+            """)
                 .param(ids.toArray(Long[]::new))
                 .query((rs, index) -> {
                     byPrimary
@@ -393,8 +383,7 @@ public class OfferQueryService {
             java.time.Instant enrichedAt,
             String enrichmentNote,
             /** Carried only so the cursor can name the row it stopped at. */
-            java.time.Instant ingestedAt) {
-    }
+            java.time.Instant ingestedAt) {}
 
     private static Row row(ResultSet rs, int index) throws SQLException {
         long id = rs.getLong("id");

@@ -68,6 +68,5 @@ public enum ApplicationStatus {
         return this == SENT || this == REPLIED || this == INTERVIEW || this == OFFER;
     }
 
-    public record Lane(String id, String label, List<ApplicationStatus> states) {
-    }
+    public record Lane(String id, String label, List<ApplicationStatus> states) {}
 }

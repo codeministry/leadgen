@@ -25,8 +25,7 @@ import java.util.Optional;
  */
 public final class ProxyLink {
 
-    private ProxyLink() {
-    }
+    private ProxyLink() {}
 
     /**
      * Returns the value of {@code parameter} if the URL carries it, otherwise the URL

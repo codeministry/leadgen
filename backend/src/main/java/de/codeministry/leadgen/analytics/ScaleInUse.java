@@ -21,5 +21,4 @@ import java.time.Instant;
  * number read against both.
  */
 public record ScaleInUse(
-        String rulesetVersion, String scoreModel, int offers, Instant firstScoredAt, Instant lastScoredAt) {
-}
+        String rulesetVersion, String scoreModel, int offers, Instant firstScoredAt, Instant lastScoredAt) {}

@@ -23,5 +23,4 @@ import jakarta.validation.constraints.NotNull;
  * what is missing — which is exactly what happened to `clearFollowUp` on the application
  * endpoint. Here the field is required, so validation says so instead.
  */
-public record OfferPatch(@NotNull Boolean archived) {
-}
+public record OfferPatch(@NotNull Boolean archived) {}

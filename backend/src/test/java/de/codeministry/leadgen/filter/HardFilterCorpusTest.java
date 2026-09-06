@@ -66,8 +66,7 @@ class HardFilterCorpusTest {
      */
     private static Baseline baseline;
 
-    private record Baseline(int total, int passed, Map<FilterStage, Integer> removed) {
-    }
+    private record Baseline(int total, int passed, Map<FilterStage, Integer> removed) {}
 
     private static final Validator VALIDATOR =
             Validation.buildDefaultValidatorFactory().getValidator();

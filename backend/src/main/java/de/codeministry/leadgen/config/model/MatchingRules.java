@@ -52,8 +52,7 @@ public record MatchingRules(
                     List<String> containsAny,
                     String regex,
                     @NotBlank String set,
-                    String confidence) {
-            }
+                    String confidence) {}
         }
 
         /**
@@ -75,8 +74,7 @@ public record MatchingRules(
             /**
              * A city outside the usual range that is acceptable anyway, with the reason.
              */
-            public record OnsiteWaiver(@NotBlank String city, String reason) {
-            }
+            public record OnsiteWaiver(@NotBlank String city, String reason) {}
         }
 
         /**
@@ -86,8 +84,7 @@ public record MatchingRules(
          *                              mean anyone tuning the score silently changes what reaches the shortlist.
          *                              The lists also differ — this one rejects roles, not only stacks.
          */
-        public record Role(List<String> rejectedTitleKeywords) {
-        }
+        public record Role(List<String> rejectedTitleKeywords) {}
 
         /**
          * {@code applyAfter} exists because the newsletter carries a rate in 0.0 % of
@@ -100,17 +97,13 @@ public record MatchingRules(
                 @NotBlank String currency,
                 boolean acceptUnknown,
                 @NotBlank String applyAfter,
-                String rejectBelowAs) {
-        }
+                String rejectBelowAs) {}
 
-        public record Contract(List<String> allowed, List<String> rejected) {
-        }
+        public record Contract(List<String> allowed, List<String> rejected) {}
 
-        public record Language(String preferred, List<String> accepted, int englishOnlyPenalty) {
-        }
+        public record Language(String preferred, List<String> accepted, int englishOnlyPenalty) {}
 
-        public record Freshness(@Min(1) int maxAgeDays) {
-        }
+        public record Freshness(@Min(1) int maxAgeDays) {}
     }
 
     /**
@@ -137,20 +130,28 @@ public record MatchingRules(
          *                      of the two.
          */
         public record Thresholds(
-                @Min(0) @Max(100) int autoShortlist, @Min(0) @Max(100) int review, @Min(0) int discard) {
-        }
+                @Min(0) @Max(100) int autoShortlist,
+                @Min(0) @Max(100) int review,
+                @Min(0) int discard) {}
     }
 
     public record Deduplication(
-            List<String> fingerprintFields, List<@Valid Strategy> strategies, String mergePolicy, @Min(1) int ttlDays) {
+            List<String> fingerprintFields,
+            List<@Valid Strategy> strategies,
+            String mergePolicy,
+            @Min(1) int ttlDays) {
 
         /**
          * {@code threshold} applies to the embedding strategies only.
          */
-        public record Strategy(@NotBlank String type, Double threshold, @NotBlank String action) {
-        }
+        public record Strategy(
+                @NotBlank String type,
+                Double threshold,
+                @NotBlank String action) {}
     }
 
-    public record FollowUp(@Min(1) int afterDays, @Min(0) int maxReminders, @Min(1) int autoExpireDays) {
-    }
+    public record FollowUp(
+            @Min(1) int afterDays,
+            @Min(0) int maxReminders,
+            @Min(1) int autoExpireDays) {}
 }

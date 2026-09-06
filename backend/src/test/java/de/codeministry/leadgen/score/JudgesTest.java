@@ -79,12 +79,12 @@ class JudgesTest {
     @Test
     void refusesWhenNoScoringModelIsNamed() {
         assertThat(judge(new PipelineConfig.Llm(
-                "anthropic",
-                "https://gateway.invalid",
-                "key",
-                false,
-                new PipelineConfig.Llm.Models(null, null, null, null, null),
-                null)))
+                        "anthropic",
+                        "https://gateway.invalid",
+                        "key",
+                        false,
+                        new PipelineConfig.Llm.Models(null, null, null, null, null),
+                        null)))
                 .isEmpty();
     }
 

@@ -36,15 +36,14 @@ public class IngestCursorStore {
 
     @Transactional
     public void save(long sourceId, String folder, IngestCursor cursor) {
-        jdbc.sql(
-                        """
-                                INSERT INTO ingest_cursor (source_id, folder, uid_validity, last_uid)
-                                VALUES (?, ?, ?, ?)
-                                ON CONFLICT ON CONSTRAINT uq_ingest_cursor
-                                DO UPDATE SET uid_validity = EXCLUDED.uid_validity,
-                                              last_uid = EXCLUDED.last_uid,
-                                              updated_at = now()
-                                """)
+        jdbc.sql("""
+            INSERT INTO ingest_cursor (source_id, folder, uid_validity, last_uid)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT ON CONSTRAINT uq_ingest_cursor
+            DO UPDATE SET uid_validity = EXCLUDED.uid_validity,
+                          last_uid = EXCLUDED.last_uid,
+                          updated_at = now()
+            """)
                 .params(sourceId, folder, cursor.uidValidity(), cursor.lastUid())
                 .update();
     }

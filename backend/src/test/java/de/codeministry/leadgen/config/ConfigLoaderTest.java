@@ -109,10 +109,10 @@ class ConfigLoaderTest {
         rewrite("pipeline.yaml", "provider: ${LLM_PROVIDER:}", "provider: anthropic");
 
         assertThat(ConfigFixtures.loaderFor(configDir, VALIDATOR)
-                .load()
-                .application()
-                .llm()
-                .batch())
+                        .load()
+                        .application()
+                        .llm()
+                        .batch())
                 .isTrue();
     }
 
@@ -146,9 +146,9 @@ class ConfigLoaderTest {
         var env = Map.of("IMAP_HOST", "imap.example.org", "IMAP_USER", "someone", "IMAP_PASSWORD", "secret");
 
         assertThat(ConfigFixtures.loaderFor(configDir, VALIDATOR, env)
-                .load()
-                .sources()
-                .sources())
+                        .load()
+                        .sources()
+                        .sources())
                 .filteredOn("enabled", true)
                 .extracting("id")
                 .contains("sample-newsletter");
@@ -162,9 +162,9 @@ class ConfigLoaderTest {
         Files.delete(configDir.resolve("sources.yaml"));
 
         assertThat(ConfigFixtures.loaderFor(configDir, VALIDATOR)
-                .load()
-                .sources()
-                .sources())
+                        .load()
+                        .sources()
+                        .sources())
                 .isNotEmpty();
     }
 
@@ -173,11 +173,11 @@ class ConfigLoaderTest {
         rewrite("matching-rules.yaml", "min_remote_percent: 80", "min_remote_percent: 55");
 
         assertThat(ConfigFixtures.loaderFor(configDir, VALIDATOR)
-                .load()
-                .rules()
-                .hardFilters()
-                .remote()
-                .minRemotePercent())
+                        .load()
+                        .rules()
+                        .hardFilters()
+                        .remote()
+                        .minRemotePercent())
                 .isEqualTo(55);
     }
 

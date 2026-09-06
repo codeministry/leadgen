@@ -36,8 +36,7 @@ public final class ConfigFixtures {
      */
     private static Path shippedDefaults;
 
-    private ConfigFixtures() {
-    }
+    private ConfigFixtures() {}
 
     /**
      * The repository root, found by walking up rather than from a relative path.

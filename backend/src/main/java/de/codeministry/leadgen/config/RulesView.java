@@ -36,11 +36,9 @@ public record RulesView(
         List<KnockoutRule> knockouts,
         List<String> antiSkills) {
 
-    public record RuleWeight(String key, int points) {
-    }
+    public record RuleWeight(String key, int points) {}
 
-    public record Thresholds(int autoShortlist, int review, int discard) {
-    }
+    public record Thresholds(int autoShortlist, int review, int discard) {}
 
     /**
      * One hard filter, as a sentence rather than as a nested object.

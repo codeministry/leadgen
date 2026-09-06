@@ -57,6 +57,5 @@ public record IntakeSeries(
             int shortlisted,
             int review,
             int discarded,
-            int unscored) {
-    }
+            int unscored) {}
 }

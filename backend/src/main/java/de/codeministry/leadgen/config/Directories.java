@@ -26,8 +26,7 @@ public final class Directories {
      */
     private static final int SEARCH_DEPTH = 4;
 
-    private Directories() {
-    }
+    private Directories() {}
 
     /**
      * An absolute path is taken as given, and so is a relative one that already exists

@@ -291,30 +291,29 @@ class ImapSourceConnectorTest {
             Path sources = dir.resolve("sources.yaml");
             String extraction = extractionBlockOfSampleNewsletter(Files.readString(sources));
             Files.writeString(
-                    sources,
-                    """
-                            version: 1
-                            connections:
-                              - id: local-imap
-                                type: imap
-                                host: 127.0.0.1
-                                port: %d
-                                ssl: false
-                                username: %s
-                                password: %s
-                            sources:
-                              - id: imap-newsletter
-                                enabled: true
-                                type: imap
-                                connection: local-imap
-                                selector:
-                                  folder: INBOX
-                                  from: ["%s"]
-                                  subject_matches: "^\\\\d+ neue Projekte sind da!$"
-                                  mark_seen: false
-                                  state: uid
-                            %s"""
-                            .formatted(ServerSetupTest.IMAP.getPort(), USER, PASSWORD, NEWSLETTER, extraction));
+                    sources, """
+                        version: 1
+                        connections:
+                          - id: local-imap
+                            type: imap
+                            host: 127.0.0.1
+                            port: %d
+                            ssl: false
+                            username: %s
+                            password: %s
+                        sources:
+                          - id: imap-newsletter
+                            enabled: true
+                            type: imap
+                            connection: local-imap
+                            selector:
+                              folder: INBOX
+                              from: ["%s"]
+                              subject_matches: "^\\\\d+ neue Projekte sind da!$"
+                              mark_seen: false
+                              state: uid
+                        %s\
+                        """.formatted(ServerSetupTest.IMAP.getPort(), USER, PASSWORD, NEWSLETTER, extraction));
             return dir;
         } catch (IOException e) {
             throw new UncheckedIOException(e);

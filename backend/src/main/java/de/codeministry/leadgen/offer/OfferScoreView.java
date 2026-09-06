@@ -20,5 +20,4 @@ import java.util.List;
  *              weights is not comparable to one computed from all nine.
  */
 public record OfferScoreView(
-        Integer value, boolean hardPass, List<ScoreReason> reasons, String model, String rulesetVersion) {
-}
+        Integer value, boolean hardPass, List<ScoreReason> reasons, String model, String rulesetVersion) {}

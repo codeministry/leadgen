@@ -74,8 +74,7 @@ public final class Secrets {
     // scheme://user:password@host — the password is group 1 and nothing else is touched.
     private static final Pattern URL_CREDENTIALS = Pattern.compile("(?<=://)([^/@:\\s]+):([^/@\\s]+)(?=@)");
 
-    private Secrets() {
-    }
+    private Secrets() {}
 
     /**
      * Whether a value under this key may be printed. Word-based, so `LLM_API_KEY` counts.

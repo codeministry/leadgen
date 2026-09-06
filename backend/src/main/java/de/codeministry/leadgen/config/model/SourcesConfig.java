@@ -22,7 +22,9 @@ import java.util.Map;
  * why the extraction rules are data down to the CSS selector.
  */
 public record SourcesConfig(
-        @Min(1) int version, List<@Valid Connection> connections, @NotNull List<@Valid Source> sources) {
+        @Min(1) int version,
+        List<@Valid Connection> connections,
+        @NotNull List<@Valid Source> sources) {
 
     /**
      * A missing `connections:` block is an empty one, not an error.
@@ -52,8 +54,7 @@ public record SourcesConfig(
             String username,
             String password,
             String mode,
-            Duration pollInterval) {
-    }
+            Duration pollInterval) {}
 
     public record Source(
             @NotBlank String id,
@@ -66,8 +67,7 @@ public record SourcesConfig(
             Duration schedule,
             @Valid Selector selector,
             @Valid @NotNull Extraction extraction,
-            Map<String, String> defaults) {
-    }
+            Map<String, String> defaults) {}
 
     /**
      * Which messages of a folder belong to this source.
@@ -87,8 +87,7 @@ public record SourcesConfig(
             Integer sinceDays,
             boolean matchAll,
             boolean markSeen,
-            String state) {
-    }
+            String state) {}
 
     /**
      * {@code fallback} names what happens to the fields the deterministic rules did
@@ -157,7 +156,6 @@ public record SourcesConfig(
                 boolean list,
                 String split,
                 String unwrapQueryParam,
-                String format) {
-        }
+                String format) {}
     }
 }

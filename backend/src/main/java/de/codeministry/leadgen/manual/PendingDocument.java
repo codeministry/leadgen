@@ -29,5 +29,4 @@ public record PendingDocument(
         String text,
         ExtractedOffer offer,
         Long duplicateOfId,
-        String duplicateOfTitle) {
-}
+        String duplicateOfTitle) {}

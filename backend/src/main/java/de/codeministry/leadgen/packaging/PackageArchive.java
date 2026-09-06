@@ -35,8 +35,7 @@ import java.util.zip.ZipOutputStream;
  */
 public final class PackageArchive {
 
-    private PackageArchive() {
-    }
+    private PackageArchive() {}
 
     /**
      * Thrown when a stored value names no package this application is allowed to read.
@@ -92,7 +91,7 @@ public final class PackageArchive {
      */
     public static void writeZip(Path folder, OutputStream out) throws IOException {
         try (ZipOutputStream zip = new ZipOutputStream(out, StandardCharsets.UTF_8);
-             Stream<Path> walk = Files.walk(folder)) {
+                Stream<Path> walk = Files.walk(folder)) {
             List<Path> files = walk.filter(file -> Files.isRegularFile(file, LinkOption.NOFOLLOW_LINKS))
                     .sorted()
                     .toList();

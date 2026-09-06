@@ -79,9 +79,9 @@ class ManualSourceControllerTest {
         given(uploads.confirm(anyString(), any())).willReturn(document());
 
         assertThat(mvc.post()
-                .uri("/api/sources/manual/pending/offer.md/confirm")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"title\":\"Senior Java Entwickler (m/w/d)\",\"tags\":[\"Java\"]}"))
+                        .uri("/api/sources/manual/pending/offer.md/confirm")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":\"Senior Java Entwickler (m/w/d)\",\"tags\":[\"Java\"]}"))
                 .hasStatusOk();
     }
 

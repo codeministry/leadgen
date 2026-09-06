@@ -28,12 +28,11 @@ import java.util.Map;
 @Service
 public class SourceQueryService {
 
-    private static final String LAST_RUN =
-            """
-                    SELECT DISTINCT ON (s.name) s.name, r.ran_at, r.documents, r.extracted, r.announced
-                    FROM source s JOIN source_run r ON r.source_id = s.id
-                    ORDER BY s.name, r.ran_at DESC
-                    """;
+    private static final String LAST_RUN = """
+        SELECT DISTINCT ON (s.name) s.name, r.ran_at, r.documents, r.extracted, r.announced
+        FROM source s JOIN source_run r ON r.source_id = s.id
+        ORDER BY s.name, r.ran_at DESC
+        """;
 
     /**
      * Primaries only and not archived: the same set the shortlist and the funnel count.
@@ -42,15 +41,14 @@ public class SourceQueryService {
      * archive is the same argument a second time: this column answers "how many of this
      * source's offers are on my list", and an archived offer is not.
      */
-    private static final String SURVIVORS =
-            """
-                    SELECT s.name,
-                           count(*) FILTER (WHERE o.status = 'PASSED'
-                                              AND o.duplicate_of_id IS NULL
-                                              AND o.archived_at IS NULL) AS survived
-                    FROM source s LEFT JOIN offer o ON o.source_id = s.id
-                    GROUP BY s.name
-                    """;
+    private static final String SURVIVORS = """
+        SELECT s.name,
+               count(*) FILTER (WHERE o.status = 'PASSED'
+                                  AND o.duplicate_of_id IS NULL
+                                  AND o.archived_at IS NULL) AS survived
+        FROM source s LEFT JOIN offer o ON o.source_id = s.id
+        GROUP BY s.name
+        """;
 
     private final ConfigRegistry config;
     private final ConfigProperties properties;
@@ -110,6 +108,5 @@ public class SourceQueryService {
         return byName;
     }
 
-    private record Run(Instant ranAt, int documents, int extracted, Integer announced) {
-    }
+    private record Run(Instant ranAt, int documents, int extracted, Integer announced) {}
 }

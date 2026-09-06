@@ -49,12 +49,11 @@ class ScoreWriter {
      */
     @Transactional
     void write(long offerId, Score score, int autoShortlist, int review) {
-        jdbc.sql(
-                        """
-                                UPDATE offer
-                                SET score_value = ?, score_band = ?, score_model = ?, ruleset_version = ?, scored_at = now()
-                                WHERE id = ?
-                                """)
+        jdbc.sql("""
+            UPDATE offer
+            SET score_value = ?, score_band = ?, score_model = ?, ruleset_version = ?, scored_at = now()
+            WHERE id = ?
+            """)
                 .params(
                         score.value(),
                         score.band(autoShortlist, review),
@@ -69,11 +68,10 @@ class ScoreWriter {
         List<ScoreReason> reasons = score.reasons();
         for (int position = 0; position < reasons.size(); position++) {
             ScoreReason reason = reasons.get(position);
-            jdbc.sql(
-                            """
-                                            INSERT INTO offer_score_reason (offer_id, factor, label, points, max_points, position)
-                                            VALUES (?, ?, ?, ?, ?, ?)
-                                    """)
+            jdbc.sql("""
+                        INSERT INTO offer_score_reason (offer_id, factor, label, points, max_points, position)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                """)
                     .params(offerId, reason.factor(), reason.label(), reason.points(), reason.maxPoints(), position)
                     .update();
         }

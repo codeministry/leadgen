@@ -79,39 +79,38 @@ public class AnalyticsQueryService {
      * a gap claims a quiet market on a day when nothing ran, and filling them in SQL keeps
      * the browser's week aggregation a plain sum with no gap logic in it.
      */
-    private static final String INTAKE_BY_INGESTED =
-            """
-                    WITH bounds AS (
-                        SELECT min((ingested_at AT TIME ZONE :zone)::date) AS lo,
-                               max((ingested_at AT TIME ZONE :zone)::date) AS hi
-                        FROM offer
-                    ),
-                    days AS (
-                        SELECT generate_series(lo, hi, INTERVAL '1 day')::date AS day FROM bounds WHERE lo IS NOT NULL
-                    ),
-                    counted AS (
-                        SELECT (o.ingested_at AT TIME ZONE :zone)::date AS day,
-                               count(*) FILTER (WHERE o.duplicate_of_id IS NULL)     AS primaries,
-                               count(*) FILTER (WHERE o.duplicate_of_id IS NOT NULL) AS duplicates,
-                               count(*) FILTER (WHERE o.duplicate_of_id IS NULL AND o.status = 'PASSED')            AS passed,
-                               count(*) FILTER (WHERE o.duplicate_of_id IS NULL AND o.score_band = 'SHORTLISTED')   AS shortlisted,
-                               count(*) FILTER (WHERE o.duplicate_of_id IS NULL AND o.score_band = 'REVIEW')        AS review,
-                               count(*) FILTER (WHERE o.duplicate_of_id IS NULL AND o.score_band = 'DISCARDED')     AS discarded,
-                               count(*) FILTER (WHERE o.duplicate_of_id IS NULL AND o.score_band = 'UNSCORED')      AS unscored
-                        FROM offer o
-                        GROUP BY 1
-                    )
-                    SELECT d.day,
-                           coalesce(c.primaries, 0)   AS primaries,
-                           coalesce(c.duplicates, 0)  AS duplicates,
-                           coalesce(c.passed, 0)      AS passed,
-                           coalesce(c.shortlisted, 0) AS shortlisted,
-                           coalesce(c.review, 0)      AS review,
-                           coalesce(c.discarded, 0)   AS discarded,
-                           coalesce(c.unscored, 0)    AS unscored
-                    FROM days d LEFT JOIN counted c USING (day)
-                    ORDER BY d.day
-                    """;
+    private static final String INTAKE_BY_INGESTED = """
+        WITH bounds AS (
+            SELECT min((ingested_at AT TIME ZONE :zone)::date) AS lo,
+                   max((ingested_at AT TIME ZONE :zone)::date) AS hi
+            FROM offer
+        ),
+        days AS (
+            SELECT generate_series(lo, hi, INTERVAL '1 day')::date AS day FROM bounds WHERE lo IS NOT NULL
+        ),
+        counted AS (
+            SELECT (o.ingested_at AT TIME ZONE :zone)::date AS day,
+                   count(*) FILTER (WHERE o.duplicate_of_id IS NULL)     AS primaries,
+                   count(*) FILTER (WHERE o.duplicate_of_id IS NOT NULL) AS duplicates,
+                   count(*) FILTER (WHERE o.duplicate_of_id IS NULL AND o.status = 'PASSED')            AS passed,
+                   count(*) FILTER (WHERE o.duplicate_of_id IS NULL AND o.score_band = 'SHORTLISTED')   AS shortlisted,
+                   count(*) FILTER (WHERE o.duplicate_of_id IS NULL AND o.score_band = 'REVIEW')        AS review,
+                   count(*) FILTER (WHERE o.duplicate_of_id IS NULL AND o.score_band = 'DISCARDED')     AS discarded,
+                   count(*) FILTER (WHERE o.duplicate_of_id IS NULL AND o.score_band = 'UNSCORED')      AS unscored
+            FROM offer o
+            GROUP BY 1
+        )
+        SELECT d.day,
+               coalesce(c.primaries, 0)   AS primaries,
+               coalesce(c.duplicates, 0)  AS duplicates,
+               coalesce(c.passed, 0)      AS passed,
+               coalesce(c.shortlisted, 0) AS shortlisted,
+               coalesce(c.review, 0)      AS review,
+               coalesce(c.discarded, 0)   AS discarded,
+               coalesce(c.unscored, 0)    AS unscored
+        FROM days d LEFT JOIN counted c USING (day)
+        ORDER BY d.day
+        """;
 
     /**
      * The same shape on the date the advert states.
@@ -122,39 +121,38 @@ public class AnalyticsQueryService {
      * days. A drifted format has to be visible, and so does an offer the window left out —
      * "nine offers outside the window" is how both become so.
      */
-    private static final String INTAKE_BY_PUBLISHED =
-            """
-                    WITH windowed AS (
-                        SELECT * FROM offer
-                        WHERE published_on BETWEEN (CURRENT_DATE - make_interval(days => :days))::date AND CURRENT_DATE
-                    ),
-                    bounds AS (SELECT min(published_on) AS lo, max(published_on) AS hi FROM windowed),
-                    days AS (
-                        SELECT generate_series(lo, hi, INTERVAL '1 day')::date AS day FROM bounds WHERE lo IS NOT NULL
-                    ),
-                    counted AS (
-                        SELECT o.published_on AS day,
-                               count(*) FILTER (WHERE o.duplicate_of_id IS NULL)     AS primaries,
-                               count(*) FILTER (WHERE o.duplicate_of_id IS NOT NULL) AS duplicates,
-                               count(*) FILTER (WHERE o.duplicate_of_id IS NULL AND o.status = 'PASSED')          AS passed,
-                               count(*) FILTER (WHERE o.duplicate_of_id IS NULL AND o.score_band = 'SHORTLISTED') AS shortlisted,
-                               count(*) FILTER (WHERE o.duplicate_of_id IS NULL AND o.score_band = 'REVIEW')      AS review,
-                               count(*) FILTER (WHERE o.duplicate_of_id IS NULL AND o.score_band = 'DISCARDED')   AS discarded,
-                               count(*) FILTER (WHERE o.duplicate_of_id IS NULL AND o.score_band = 'UNSCORED')    AS unscored
-                        FROM windowed o
-                        GROUP BY 1
-                    )
-                    SELECT d.day,
-                           coalesce(c.primaries, 0)   AS primaries,
-                           coalesce(c.duplicates, 0)  AS duplicates,
-                           coalesce(c.passed, 0)      AS passed,
-                           coalesce(c.shortlisted, 0) AS shortlisted,
-                           coalesce(c.review, 0)      AS review,
-                           coalesce(c.discarded, 0)   AS discarded,
-                           coalesce(c.unscored, 0)    AS unscored
-                    FROM days d LEFT JOIN counted c USING (day)
-                    ORDER BY d.day
-                    """;
+    private static final String INTAKE_BY_PUBLISHED = """
+        WITH windowed AS (
+            SELECT * FROM offer
+            WHERE published_on BETWEEN (CURRENT_DATE - make_interval(days => :days))::date AND CURRENT_DATE
+        ),
+        bounds AS (SELECT min(published_on) AS lo, max(published_on) AS hi FROM windowed),
+        days AS (
+            SELECT generate_series(lo, hi, INTERVAL '1 day')::date AS day FROM bounds WHERE lo IS NOT NULL
+        ),
+        counted AS (
+            SELECT o.published_on AS day,
+                   count(*) FILTER (WHERE o.duplicate_of_id IS NULL)     AS primaries,
+                   count(*) FILTER (WHERE o.duplicate_of_id IS NOT NULL) AS duplicates,
+                   count(*) FILTER (WHERE o.duplicate_of_id IS NULL AND o.status = 'PASSED')          AS passed,
+                   count(*) FILTER (WHERE o.duplicate_of_id IS NULL AND o.score_band = 'SHORTLISTED') AS shortlisted,
+                   count(*) FILTER (WHERE o.duplicate_of_id IS NULL AND o.score_band = 'REVIEW')      AS review,
+                   count(*) FILTER (WHERE o.duplicate_of_id IS NULL AND o.score_band = 'DISCARDED')   AS discarded,
+                   count(*) FILTER (WHERE o.duplicate_of_id IS NULL AND o.score_band = 'UNSCORED')    AS unscored
+            FROM windowed o
+            GROUP BY 1
+        )
+        SELECT d.day,
+               coalesce(c.primaries, 0)   AS primaries,
+               coalesce(c.duplicates, 0)  AS duplicates,
+               coalesce(c.passed, 0)      AS passed,
+               coalesce(c.shortlisted, 0) AS shortlisted,
+               coalesce(c.review, 0)      AS review,
+               coalesce(c.discarded, 0)   AS discarded,
+               coalesce(c.unscored, 0)    AS unscored
+        FROM days d LEFT JOIN counted c USING (day)
+        ORDER BY d.day
+        """;
 
     /**
      * The same shape on the date the document carrying the offer arrived.
@@ -167,56 +165,54 @@ public class AnalyticsQueryService {
      * <p>Not clamped: a mail is as old as it is, there is no format to misparse, and the
      * mailbox is not going to hand over a message from 1970.
      */
-    private static final String INTAKE_BY_RECEIVED =
-            """
-                    WITH dated AS (SELECT * FROM offer WHERE received_at IS NOT NULL),
-                    bounds AS (
-                        SELECT min((received_at AT TIME ZONE :zone)::date) AS lo,
-                               max((received_at AT TIME ZONE :zone)::date) AS hi
-                        FROM dated
-                    ),
-                    days AS (
-                        SELECT generate_series(lo, hi, INTERVAL '1 day')::date AS day FROM bounds WHERE lo IS NOT NULL
-                    ),
-                    counted AS (
-                        SELECT (o.received_at AT TIME ZONE :zone)::date AS day,
-                               count(*) FILTER (WHERE o.duplicate_of_id IS NULL)     AS primaries,
-                               count(*) FILTER (WHERE o.duplicate_of_id IS NOT NULL) AS duplicates,
-                               count(*) FILTER (WHERE o.duplicate_of_id IS NULL AND o.status = 'PASSED')          AS passed,
-                               count(*) FILTER (WHERE o.duplicate_of_id IS NULL AND o.score_band = 'SHORTLISTED') AS shortlisted,
-                               count(*) FILTER (WHERE o.duplicate_of_id IS NULL AND o.score_band = 'REVIEW')      AS review,
-                               count(*) FILTER (WHERE o.duplicate_of_id IS NULL AND o.score_band = 'DISCARDED')   AS discarded,
-                               count(*) FILTER (WHERE o.duplicate_of_id IS NULL AND o.score_band = 'UNSCORED')    AS unscored
-                        FROM dated o
-                        GROUP BY 1
-                    )
-                    SELECT d.day,
-                           coalesce(c.primaries, 0)   AS primaries,
-                           coalesce(c.duplicates, 0)  AS duplicates,
-                           coalesce(c.passed, 0)      AS passed,
-                           coalesce(c.shortlisted, 0) AS shortlisted,
-                           coalesce(c.review, 0)      AS review,
-                           coalesce(c.discarded, 0)   AS discarded,
-                           coalesce(c.unscored, 0)    AS unscored
-                    FROM days d LEFT JOIN counted c USING (day)
-                    ORDER BY d.day
-                    """;
+    private static final String INTAKE_BY_RECEIVED = """
+        WITH dated AS (SELECT * FROM offer WHERE received_at IS NOT NULL),
+        bounds AS (
+            SELECT min((received_at AT TIME ZONE :zone)::date) AS lo,
+                   max((received_at AT TIME ZONE :zone)::date) AS hi
+            FROM dated
+        ),
+        days AS (
+            SELECT generate_series(lo, hi, INTERVAL '1 day')::date AS day FROM bounds WHERE lo IS NOT NULL
+        ),
+        counted AS (
+            SELECT (o.received_at AT TIME ZONE :zone)::date AS day,
+                   count(*) FILTER (WHERE o.duplicate_of_id IS NULL)     AS primaries,
+                   count(*) FILTER (WHERE o.duplicate_of_id IS NOT NULL) AS duplicates,
+                   count(*) FILTER (WHERE o.duplicate_of_id IS NULL AND o.status = 'PASSED')          AS passed,
+                   count(*) FILTER (WHERE o.duplicate_of_id IS NULL AND o.score_band = 'SHORTLISTED') AS shortlisted,
+                   count(*) FILTER (WHERE o.duplicate_of_id IS NULL AND o.score_band = 'REVIEW')      AS review,
+                   count(*) FILTER (WHERE o.duplicate_of_id IS NULL AND o.score_band = 'DISCARDED')   AS discarded,
+                   count(*) FILTER (WHERE o.duplicate_of_id IS NULL AND o.score_band = 'UNSCORED')    AS unscored
+            FROM dated o
+            GROUP BY 1
+        )
+        SELECT d.day,
+               coalesce(c.primaries, 0)   AS primaries,
+               coalesce(c.duplicates, 0)  AS duplicates,
+               coalesce(c.passed, 0)      AS passed,
+               coalesce(c.shortlisted, 0) AS shortlisted,
+               coalesce(c.review, 0)      AS review,
+               coalesce(c.discarded, 0)   AS discarded,
+               coalesce(c.unscored, 0)    AS unscored
+        FROM days d LEFT JOIN counted c USING (day)
+        ORDER BY d.day
+        """;
 
     /**
      * What the published axis cannot show, stated rather than silently missing.
      */
-    private static final String PUBLISHED_COVERAGE =
-            """
-                    SELECT count(*) FILTER (WHERE published_on IS NULL) AS without_published,
-                           count(*) FILTER (WHERE received_at IS NULL) AS without_received,
-                           count(*) FILTER (
-                               WHERE published_on IS NOT NULL
-                                 AND (published_on < (CURRENT_DATE - make_interval(days => :days))::date
-                                      OR published_on > CURRENT_DATE)
-                           ) AS out_of_range
-                    FROM offer
-                    WHERE duplicate_of_id IS NULL
-                    """;
+    private static final String PUBLISHED_COVERAGE = """
+        SELECT count(*) FILTER (WHERE published_on IS NULL) AS without_published,
+               count(*) FILTER (WHERE received_at IS NULL) AS without_received,
+               count(*) FILTER (
+                   WHERE published_on IS NOT NULL
+                     AND (published_on < (CURRENT_DATE - make_interval(days => :days))::date
+                          OR published_on > CURRENT_DATE)
+               ) AS out_of_range
+        FROM offer
+        WHERE duplicate_of_id IS NULL
+        """;
 
     /**
      * Portals by what they published and by what they brought in.
@@ -229,36 +225,34 @@ public class AnalyticsQueryService {
      * it brought in, and the survival rate is computed on `projects` because that is the set
      * the funnel and the shortlist count.
      */
-    private static final String PORTALS =
-            """
-                    SELECT o.portal,
-                           count(*)                                                                           AS listings,
-                           count(*) FILTER (WHERE o.duplicate_of_id IS NULL)                                  AS projects,
-                           count(*) FILTER (WHERE o.duplicate_of_id IS NULL AND o.status = 'PASSED')          AS passed,
-                           count(*) FILTER (WHERE o.duplicate_of_id IS NULL AND o.score_band = 'SHORTLISTED') AS shortlisted
-                    FROM offer o
-                    WHERE o.portal IS NOT NULL
-                    GROUP BY 1
-                    ORDER BY listings DESC, o.portal
-                    LIMIT 15
-                    """;
+    private static final String PORTALS = """
+        SELECT o.portal,
+               count(*)                                                                           AS listings,
+               count(*) FILTER (WHERE o.duplicate_of_id IS NULL)                                  AS projects,
+               count(*) FILTER (WHERE o.duplicate_of_id IS NULL AND o.status = 'PASSED')          AS passed,
+               count(*) FILTER (WHERE o.duplicate_of_id IS NULL AND o.score_band = 'SHORTLISTED') AS shortlisted
+        FROM offer o
+        WHERE o.portal IS NOT NULL
+        GROUP BY 1
+        ORDER BY listings DESC, o.portal
+        LIMIT 15
+        """;
 
     /**
      * The tags the aggregator files its offers under — not skills read out of the advert.
      * Primaries only: one project filed under "Java" by three portals is one project's worth
      * of demand.
      */
-    private static final String TAGS =
-            """
-                    SELECT tag,
-                           count(*)                                    AS projects,
-                           count(*) FILTER (WHERE o.status = 'PASSED') AS passed
-                    FROM offer o, unnest(o.tags) AS tag
-                    WHERE o.duplicate_of_id IS NULL
-                    GROUP BY 1
-                    ORDER BY projects DESC, tag
-                    LIMIT 20
-                    """;
+    private static final String TAGS = """
+        SELECT tag,
+               count(*)                                    AS projects,
+               count(*) FILTER (WHERE o.status = 'PASSED') AS passed
+        FROM offer o, unnest(o.tags) AS tag
+        WHERE o.duplicate_of_id IS NULL
+        GROUP BY 1
+        ORDER BY projects DESC, tag
+        LIMIT 20
+        """;
 
     /**
      * The location exactly as the advert stated it. Not normalised, and not grouped by any
@@ -266,29 +260,27 @@ public class AnalyticsQueryService {
      * before it can be compared, and half a normalisation inside a chart query is worse than
      * none.
      */
-    private static final String LOCATIONS =
-            """
-                    SELECT o.location,
-                           count(*)                                    AS projects,
-                           count(*) FILTER (WHERE o.status = 'PASSED') AS passed
-                    FROM offer o
-                    WHERE o.duplicate_of_id IS NULL AND o.location IS NOT NULL AND o.location <> ''
-                    GROUP BY 1
-                    ORDER BY projects DESC, o.location
-                    LIMIT 15
-                    """;
+    private static final String LOCATIONS = """
+        SELECT o.location,
+               count(*)                                    AS projects,
+               count(*) FILTER (WHERE o.status = 'PASSED') AS passed
+        FROM offer o
+        WHERE o.duplicate_of_id IS NULL AND o.location IS NOT NULL AND o.location <> ''
+        GROUP BY 1
+        ORDER BY projects DESC, o.location
+        LIMIT 15
+        """;
 
     /**
      * The location question that is decided rather than guessed.
      */
-    private static final String REACH =
-            """
-                    SELECT count(*) FILTER (WHERE filter_stage = 'OUT_OF_REACH') AS out_of_reach,
-                           count(*) FILTER (WHERE filter_stage = 'ABROAD')       AS abroad,
-                           count(*) FILTER (WHERE filter_stage = 'REMOTE_SHARE') AS remote_share
-                    FROM offer
-                    WHERE duplicate_of_id IS NULL
-                    """;
+    private static final String REACH = """
+        SELECT count(*) FILTER (WHERE filter_stage = 'OUT_OF_REACH') AS out_of_reach,
+               count(*) FILTER (WHERE filter_stage = 'ABROAD')       AS abroad,
+               count(*) FILTER (WHERE filter_stage = 'REMOTE_SHARE') AS remote_share
+        FROM offer
+        WHERE duplicate_of_id IS NULL
+        """;
 
     /**
      * Rejections per day and stage.
@@ -302,16 +294,15 @@ public class AnalyticsQueryService {
      * written on duplicates too, and counting them against a primaries-only total once made
      * the rail claim minus forty-five survivors.
      */
-    private static final String STAGE_MIX =
-            """
-                    SELECT (o.ingested_at AT TIME ZONE :zone)::date AS day,
-                           o.filter_stage,
-                           count(*) AS removed
-                    FROM offer o
-                    WHERE o.filter_stage IS NOT NULL AND o.duplicate_of_id IS NULL
-                    GROUP BY 1, 2
-                    ORDER BY 1, 2
-                    """;
+    private static final String STAGE_MIX = """
+        SELECT (o.ingested_at AT TIME ZONE :zone)::date AS day,
+               o.filter_stage,
+               count(*) AS removed
+        FROM offer o
+        WHERE o.filter_stage IS NOT NULL AND o.duplicate_of_id IS NULL
+        GROUP BY 1, 2
+        ORDER BY 1, 2
+        """;
 
     /**
      * Ten buckets of ten.
@@ -320,14 +311,13 @@ public class AnalyticsQueryService {
      * exactly 100, so a perfect score would land in an eleventh bucket nothing draws and
      * would disappear without a trace.
      */
-    private static final String SCORES =
-            """
-                    SELECT LEAST(width_bucket(o.score_value, 0, 100, 10), 10) AS bucket, count(*) AS offers
-                    FROM offer o
-                    WHERE o.duplicate_of_id IS NULL AND o.score_value IS NOT NULL
-                    GROUP BY 1
-                    ORDER BY 1
-                    """;
+    private static final String SCORES = """
+        SELECT LEAST(width_bucket(o.score_value, 0, 100, 10), 10) AS bucket, count(*) AS offers
+        FROM offer o
+        WHERE o.duplicate_of_id IS NULL AND o.score_value IS NOT NULL
+        GROUP BY 1
+        ORDER BY 1
+        """;
 
     /**
      * Counted from the band, not from a null score. The scorer writes the literal
@@ -340,13 +330,12 @@ public class AnalyticsQueryService {
     private static final String APPLICATIONS_BY_STATUS =
             "SELECT status, count(*) AS applications FROM application GROUP BY 1";
 
-    private static final String TRANSITIONS =
-            """
-                    SELECT (e.recorded_at AT TIME ZONE :zone)::date AS day, e.to_status, count(*) AS moves
-                    FROM application_event e
-                    GROUP BY 1, 2
-                    ORDER BY 1, 2
-                    """;
+    private static final String TRANSITIONS = """
+        SELECT (e.recorded_at AT TIME ZONE :zone)::date AS day, e.to_status, count(*) AS moves
+        FROM application_event e
+        GROUP BY 1, 2
+        ORDER BY 1, 2
+        """;
 
     /**
      * How often an application is answered, and how long it takes.
@@ -362,66 +351,64 @@ public class AnalyticsQueryService {
      * application must count neither as zero days nor as infinity, so it counts as nothing
      * and `answered` says how many the median was computed over.
      */
-    private static final String RESPONSE =
-            """
-                    WITH first_reply AS (
-                        SELECT e.application_id,
-                               min(e.recorded_at) FILTER (
-                                   WHERE e.to_status IN ('REPLIED', 'INTERVIEW', 'OFFER', 'WON', 'REJECTED')
-                               ) AS replied_at
-                        FROM application_event e
-                        GROUP BY 1
-                    ),
-                    paired AS (
-                        SELECT a.id,
-                               a.status,
-                               (f.replied_at AT TIME ZONE :zone)::date - a.sent_on AS days
-                        FROM application a LEFT JOIN first_reply f ON f.application_id = a.id
-                        WHERE a.sent_on IS NOT NULL
-                    )
-                    SELECT count(*)                                                                   AS sent,
-                           count(*) FILTER (WHERE days IS NOT NULL AND days >= 0)                     AS answered,
-                           count(*) FILTER (WHERE days < 0)                                           AS backdated,
-                           percentile_cont(0.5) WITHIN GROUP (ORDER BY days) FILTER (WHERE days >= 0) AS median_days,
-                           percentile_cont(0.9) WITHIN GROUP (ORDER BY days) FILTER (WHERE days >= 0) AS p90_days,
-                           count(*) FILTER (WHERE status = 'WON')                                     AS won,
-                           count(*) FILTER (WHERE status = 'LOST')                                    AS lost,
-                           count(*) FILTER (WHERE status = 'REJECTED')                                AS rejected
-                    FROM paired
-                    """;
+    private static final String RESPONSE = """
+        WITH first_reply AS (
+            SELECT e.application_id,
+                   min(e.recorded_at) FILTER (
+                       WHERE e.to_status IN ('REPLIED', 'INTERVIEW', 'OFFER', 'WON', 'REJECTED')
+                   ) AS replied_at
+            FROM application_event e
+            GROUP BY 1
+        ),
+        paired AS (
+            SELECT a.id,
+                   a.status,
+                   (f.replied_at AT TIME ZONE :zone)::date - a.sent_on AS days
+            FROM application a LEFT JOIN first_reply f ON f.application_id = a.id
+            WHERE a.sent_on IS NOT NULL
+        )
+        SELECT count(*)                                                                   AS sent,
+               count(*) FILTER (WHERE days IS NOT NULL AND days >= 0)                     AS answered,
+               count(*) FILTER (WHERE days < 0)                                           AS backdated,
+               percentile_cont(0.5) WITHIN GROUP (ORDER BY days) FILTER (WHERE days >= 0) AS median_days,
+               percentile_cont(0.9) WITHIN GROUP (ORDER BY days) FILTER (WHERE days >= 0) AS p90_days,
+               count(*) FILTER (WHERE status = 'WON')                                     AS won,
+               count(*) FILTER (WHERE status = 'LOST')                                    AS lost,
+               count(*) FILTER (WHERE status = 'REJECTED')                                AS rejected
+        FROM paired
+        """;
 
     /**
      * The one series on this screen that nothing recomputes.
      */
-    private static final String RUNS =
-            """
-                    WITH bounds AS (
-                        SELECT min((ran_at AT TIME ZONE :zone)::date) AS lo,
-                               max((ran_at AT TIME ZONE :zone)::date) AS hi
-                        FROM source_run
-                    ),
-                    days AS (
-                        SELECT generate_series(lo, hi, INTERVAL '1 day')::date AS day FROM bounds WHERE lo IS NOT NULL
-                    ),
-                    counted AS (
-                        SELECT (r.ran_at AT TIME ZONE :zone)::date AS day,
-                               count(*)         AS runs,
-                               sum(r.documents) AS documents,
-                               sum(r.extracted) AS extracted,
-                               sum(r.written)   AS written,
-                               sum(r.announced) AS announced
-                        FROM source_run r
-                        GROUP BY 1
-                    )
-                    SELECT d.day,
-                           coalesce(c.runs, 0)      AS runs,
-                           coalesce(c.documents, 0) AS documents,
-                           coalesce(c.extracted, 0) AS extracted,
-                           coalesce(c.written, 0)   AS written,
-                           c.announced              AS announced
-                    FROM days d LEFT JOIN counted c USING (day)
-                    ORDER BY d.day
-                    """;
+    private static final String RUNS = """
+        WITH bounds AS (
+            SELECT min((ran_at AT TIME ZONE :zone)::date) AS lo,
+                   max((ran_at AT TIME ZONE :zone)::date) AS hi
+            FROM source_run
+        ),
+        days AS (
+            SELECT generate_series(lo, hi, INTERVAL '1 day')::date AS day FROM bounds WHERE lo IS NOT NULL
+        ),
+        counted AS (
+            SELECT (r.ran_at AT TIME ZONE :zone)::date AS day,
+                   count(*)         AS runs,
+                   sum(r.documents) AS documents,
+                   sum(r.extracted) AS extracted,
+                   sum(r.written)   AS written,
+                   sum(r.announced) AS announced
+            FROM source_run r
+            GROUP BY 1
+        )
+        SELECT d.day,
+               coalesce(c.runs, 0)      AS runs,
+               coalesce(c.documents, 0) AS documents,
+               coalesce(c.extracted, 0) AS extracted,
+               coalesce(c.written, 0)   AS written,
+               c.announced              AS announced
+        FROM days d LEFT JOIN counted c USING (day)
+        ORDER BY d.day
+        """;
 
     /**
      * The runs themselves, newest last so a chart reads left to right.
@@ -430,30 +417,28 @@ public class AnalyticsQueryService {
      * a month of daily use. The cap is here rather than in the browser because the payload
      * would otherwise grow without limit for a chart that cannot draw it.
      */
-    private static final String PASSES =
-            """
-                    SELECT finished_at, status, ruleset_version, score_model,
-                           extracted, written, filter_considered, filter_passed,
-                           scored, shortlisted, packaged
-                    FROM pipeline_run
-                    ORDER BY finished_at DESC
-                    LIMIT 30
-                    """;
+    private static final String PASSES = """
+        SELECT finished_at, status, ruleset_version, score_model,
+               extracted, written, filter_considered, filter_passed,
+               scored, shortlisted, packaged
+        FROM pipeline_run
+        ORDER BY finished_at DESC
+        LIMIT 30
+        """;
 
     /**
      * When this table started recording. Null means it never has, which is worth saying.
      */
     private static final String HISTORY_SINCE = "SELECT min(finished_at) FROM pipeline_run";
 
-    private static final String SCALES =
-            """
-                    SELECT ruleset_version, score_model, count(*) AS offers,
-                           min(scored_at) AS first_scored_at, max(scored_at) AS last_scored_at
-                    FROM offer
-                    WHERE duplicate_of_id IS NULL AND score_value IS NOT NULL
-                    GROUP BY 1, 2
-                    ORDER BY offers DESC
-                    """;
+    private static final String SCALES = """
+        SELECT ruleset_version, score_model, count(*) AS offers,
+               min(scored_at) AS first_scored_at, max(scored_at) AS last_scored_at
+        FROM offer
+        WHERE duplicate_of_id IS NULL AND score_value IS NOT NULL
+        GROUP BY 1, 2
+        ORDER BY offers DESC
+        """;
 
     private final JdbcClient jdbc;
     private final OfferQueryService offers;
@@ -473,8 +458,8 @@ public class AnalyticsQueryService {
         List<IntakeSeries.Day> byReceived = byReceivedAt(zone);
         var coverage = jdbc.sql(PUBLISHED_COVERAGE)
                 .param("days", PUBLISHED_WINDOW_DAYS)
-                .query((rs, index) -> new int[]{
-                        rs.getInt("without_published"), rs.getInt("out_of_range"), rs.getInt("without_received")
+                .query((rs, index) -> new int[] {
+                    rs.getInt("without_published"), rs.getInt("out_of_range"), rs.getInt("without_received")
                 })
                 .single();
 

@@ -58,25 +58,24 @@ public class DeduplicationService {
      * <p>The final predicate restricts the write to rows whose assignment actually
      * changes, which is what makes the returned count mean "moved" rather than "seen".
      */
-    private static final String CLUSTER =
-            """
-                    WITH ranked AS (
-                        SELECT id,
-                               first_value(id) OVER (
-                                   PARTITION BY fingerprint
-                                   ORDER BY ingested_at, id
-                               ) AS primary_id
-                        FROM offer
-                        WHERE fingerprint <> ''
-                          AND ingested_at >= now() - make_interval(days => :ttl)
-                    )
-                    UPDATE offer o
-                    SET duplicate_of_id = CASE WHEN r.primary_id = o.id THEN NULL ELSE r.primary_id END
-                    FROM ranked r
-                    WHERE o.id = r.id
-                      AND o.duplicate_of_id IS DISTINCT FROM
-                          (CASE WHEN r.primary_id = o.id THEN NULL ELSE r.primary_id END)
-                    """;
+    private static final String CLUSTER = """
+        WITH ranked AS (
+            SELECT id,
+                   first_value(id) OVER (
+                       PARTITION BY fingerprint
+                       ORDER BY ingested_at, id
+                   ) AS primary_id
+            FROM offer
+            WHERE fingerprint <> ''
+              AND ingested_at >= now() - make_interval(days => :ttl)
+        )
+        UPDATE offer o
+        SET duplicate_of_id = CASE WHEN r.primary_id = o.id THEN NULL ELSE r.primary_id END
+        FROM ranked r
+        WHERE o.id = r.id
+          AND o.duplicate_of_id IS DISTINCT FROM
+              (CASE WHEN r.primary_id = o.id THEN NULL ELSE r.primary_id END)
+        """;
 
     private final ConfigRegistry config;
     private final JdbcClient jdbc;
@@ -115,15 +114,11 @@ public class DeduplicationService {
     }
 
     private int attached(int ttlDays) {
-        return jdbc.sql(
-                        """
-                                SELECT count(*) FROM offer
-                                WHERE duplicate_of_id IS NOT NULL
-                                  AND ingested_at >= now() - make_interval(days => :ttl)
-                                """)
-                .param("ttl", ttlDays)
-                .query(Integer.class)
-                .single();
+        return jdbc.sql("""
+            SELECT count(*) FROM offer
+            WHERE duplicate_of_id IS NOT NULL
+              AND ingested_at >= now() - make_interval(days => :ttl)
+            """).param("ttl", ttlDays).query(Integer.class).single();
     }
 
     private boolean mergesOnExactFingerprint(List<Strategy> strategies) {

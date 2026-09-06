@@ -196,18 +196,11 @@ class ArchiveServiceTest {
     }
 
     private long offer(String title, LocalDate publishedOn) {
-        return jdbc.queryForObject(
-                """
-                        INSERT INTO offer (source_id, external_id, title, url, fingerprint, status, published_on)
-                        VALUES (?, ?, ?, 'https://example.invalid/x', ?, 'PASSED', ?)
-                        RETURNING id
-                        """,
-                Long.class,
-                sourceId,
-                title,
-                title,
-                title.toLowerCase(),
-                publishedOn);
+        return jdbc.queryForObject("""
+            INSERT INTO offer (source_id, external_id, title, url, fingerprint, status, published_on)
+            VALUES (?, ?, ?, 'https://example.invalid/x', ?, 'PASSED', ?)
+            RETURNING id
+            """, Long.class, sourceId, title, title, title.toLowerCase(), publishedOn);
     }
 
     private void application(long offerId, String status) {

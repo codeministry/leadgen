@@ -131,10 +131,11 @@ class SampleCorpusAcceptanceTest {
         // The invariant with the sharpest consequence: every link in the corpus is a
         // tracking proxy carrying the address, and anything derived from an unwrapped
         // link would carry it into the database and into every exported package.
-        assertThat(offers).allSatisfy(offer -> assertThat(offer.url())
-                .doesNotContain("email=")
-                .doesNotContain("@")
-                .doesNotContain("%40"));
+        assertThat(offers)
+                .allSatisfy(offer -> assertThat(offer.url())
+                        .doesNotContain("email=")
+                        .doesNotContain("@")
+                        .doesNotContain("%40"));
     }
 
     @Test
@@ -152,7 +153,7 @@ class SampleCorpusAcceptanceTest {
         // enforced at config load, measured here.
         Pattern rate = Pattern.compile("(\\d{2,4})\\s*(?:[,.]\\d{2})?\\s*(?:€|EUR|Euro)", Pattern.CASE_INSENSITIVE);
         assertThat(count(o ->
-                o.description() != null && rate.matcher(o.description()).find()))
+                        o.description() != null && rate.matcher(o.description()).find()))
                 .isZero();
     }
 

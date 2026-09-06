@@ -45,14 +45,13 @@ class RobotsPolicyTest {
 
     @Test
     void prefersTheGroupThatNamesUsOverTheWildcard() {
-        var policy = serving(
-                """
-                        User-agent: *
-                        Disallow: /
-                        
-                        User-agent: lead-generation
-                        Disallow: /intern/
-                        """);
+        var policy = serving("""
+            User-agent: *
+            Disallow: /
+
+            User-agent: lead-generation
+            Disallow: /intern/
+            """);
 
         assertThat(policy.allows(URI.create("https://portal.example/projekt/1"), "lead-generation/0.1"))
                 .isTrue();

@@ -219,8 +219,7 @@ public class ManualUploadService {
                 .optional();
     }
 
-    private record Existing(long id, String title) {
-    }
+    private record Existing(long id, String title) {}
 
     private Path pendingDirectory() {
         return inbox.pending().orElseThrow(NoInbox::new);

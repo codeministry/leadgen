@@ -213,13 +213,11 @@ class ScoringWithoutAModelTest {
         long id = offer("Senior Java Entwickler (m/w/d)", "Spring Boot");
         scoring.run();
         var first = scoredAt(id);
-        long batch = jdbc.queryForObject(
-                """
-                        INSERT INTO score_batch (provider_id, model, ruleset_version, offers)
-                        VALUES ('msgbatch_test', 'some-model', 'an older ruleset', 1)
-                        RETURNING id
-                        """,
-                Long.class);
+        long batch = jdbc.queryForObject("""
+            INSERT INTO score_batch (provider_id, model, ruleset_version, offers)
+            VALUES ('msgbatch_test', 'some-model', 'an older ruleset', 1)
+            RETURNING id
+            """, Long.class);
         // Stale by the ruleset as well, so what is being tested is the pointer and not the
         // absence of a reason to look again.
         jdbc.update(
@@ -287,17 +285,11 @@ class ScoringWithoutAModelTest {
     }
 
     private long offer(String title, String description) {
-        return jdbc.queryForObject(
-                """
-                        INSERT INTO offer (source_id, external_id, title, description, url, fingerprint, status)
-                        VALUES (?, ?, ?, ?, 'https://example.invalid/x', 'fp', 'PASSED')
-                        RETURNING id
-                        """,
-                Long.class,
-                sourceId,
-                "ext-" + System.nanoTime(),
-                title,
-                description);
+        return jdbc.queryForObject("""
+            INSERT INTO offer (source_id, external_id, title, description, url, fingerprint, status)
+            VALUES (?, ?, ?, ?, 'https://example.invalid/x', 'fp', 'PASSED')
+            RETURNING id
+            """, Long.class, sourceId, "ext-" + System.nanoTime(), title, description);
     }
 
     private static Path shippedDefaults() {

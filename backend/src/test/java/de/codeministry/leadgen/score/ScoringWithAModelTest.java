@@ -99,13 +99,12 @@ class ScoringWithAModelTest {
 
     @Test
     void scoresWithTheConfiguredWeightsAndStatesAReasonPerFactor() {
-        answers(
-                """
-                        {"reasons":[
-                          {"factor":"role_fit","label":"backend engagement, the target role","points":15},
-                          {"factor":"vague_description","label":"team size and scope are left open","points":-10}
-                        ]}
-                        """);
+        answers("""
+            {"reasons":[
+              {"factor":"role_fit","label":"backend engagement, the target role","points":15},
+              {"factor":"vague_description","label":"team size and scope are left open","points":-10}
+            ]}
+            """);
         long id = offer("Senior Java Entwickler (m/w/d)", "Java 21 und Spring Boot, 12 Monate");
 
         var report = scoring.run();
@@ -136,13 +135,12 @@ class ScoringWithAModelTest {
     void dropsAFactorTheModelInvented() {
         // The weight table decides, not the answer. A factor nobody asked about is an
         // answer to a different question.
-        answers(
-                """
-                        {"reasons":[
-                          {"factor":"role_fit","label":"fits","points":15},
-                          {"factor":"vibes","label":"feels right","points":40}
-                        ]}
-                        """);
+        answers("""
+            {"reasons":[
+              {"factor":"role_fit","label":"fits","points":15},
+              {"factor":"vibes","label":"feels right","points":40}
+            ]}
+            """);
         long id = offer("Senior Java Entwickler (m/w/d)", "Spring Boot");
 
         scoring.run();
@@ -152,10 +150,9 @@ class ScoringWithAModelTest {
 
     @Test
     void clampsAModelToWhatTheConfiguredWeightTableSays() {
-        answers(
-                """
-                        {"reasons":[{"factor":"role_fit","label":"perfect","points":900}]}
-                        """);
+        answers("""
+            {"reasons":[{"factor":"role_fit","label":"perfect","points":900}]}
+            """);
         long id = offer("Senior Java Entwickler (m/w/d)", "Spring Boot");
 
         scoring.run();
@@ -166,9 +163,9 @@ class ScoringWithAModelTest {
         // clamp where it was, and a test asserting the literal would have stayed green.
         int roleFit = config.snapshot().rules().scoring().weights().get("role_fit");
         assertThat(jdbc.queryForObject(
-                "SELECT points FROM offer_score_reason WHERE offer_id = ? AND factor = 'role_fit'",
-                Integer.class,
-                id))
+                        "SELECT points FROM offer_score_reason WHERE offer_id = ? AND factor = 'role_fit'",
+                        Integer.class,
+                        id))
                 .isEqualTo(roleFit);
         assertThat(jdbc.queryForObject("SELECT score_value FROM offer WHERE id = ?", Integer.class, id))
                 .isLessThanOrEqualTo(100);
@@ -214,12 +211,11 @@ class ScoringWithAModelTest {
         // absence is not an opinion — it is a model that did not follow the instruction.
         // Measured before this rule existed: 63 of 101 scored offers had no judged factor
         // at all and every one of them still carried a number.
-        answers(
-                """
-                        {"reasons":[
-                          {"factor":"vague_description","label":"says almost nothing","points":-10}
-                        ]}
-                        """);
+        answers("""
+            {"reasons":[
+              {"factor":"vague_description","label":"says almost nothing","points":-10}
+            ]}
+            """);
         long id = offer("Senior Java Entwickler (m/w/d)", "Spring Boot");
 
         var report = scoring.run();
@@ -234,12 +230,11 @@ class ScoringWithAModelTest {
         // A weight is a share of what was attainable, so a role that genuinely does not fit
         // has to stay in the denominator. Dropped, the offer would be scored as though role
         // fit had never been asked about, and a bad match would read as a good one.
-        answers(
-                """
-                        {"reasons":[
-                          {"factor":"role_fit","label":"a QA role, not an engineering one","points":0}
-                        ]}
-                        """);
+        answers("""
+            {"reasons":[
+              {"factor":"role_fit","label":"a QA role, not an engineering one","points":0}
+            ]}
+            """);
         long id = offer("Senior Java Entwickler (m/w/d)", "Spring Boot");
 
         scoring.run();
@@ -256,10 +251,9 @@ class ScoringWithAModelTest {
      */
     @Test
     void judgesWithTheModelTheRunNames() {
-        answers(
-                """
-                        {"reasons":[{"factor":"role_fit","label":"backend engagement","points":15}]}
-                        """);
+        answers("""
+            {"reasons":[{"factor":"role_fit","label":"backend engagement","points":15}]}
+            """);
         long id = offer("Senior Java Entwickler (m/w/d)", "Java 21 und Spring Boot");
 
         assertThat(scoring.run("other-model").scored()).isEqualTo(1);
@@ -347,17 +341,11 @@ class ScoringWithAModelTest {
     }
 
     private long offer(String title, String description) {
-        return jdbc.queryForObject(
-                """
-                        INSERT INTO offer (source_id, external_id, title, description, url, fingerprint, status)
-                        VALUES (?, ?, ?, ?, 'https://example.invalid/x', 'fp', 'PASSED')
-                        RETURNING id
-                        """,
-                Long.class,
-                sourceId,
-                "ext-" + System.nanoTime(),
-                title,
-                description);
+        return jdbc.queryForObject("""
+            INSERT INTO offer (source_id, external_id, title, description, url, fingerprint, status)
+            VALUES (?, ?, ?, ?, 'https://example.invalid/x', 'fp', 'PASSED')
+            RETURNING id
+            """, Long.class, sourceId, "ext-" + System.nanoTime(), title, description);
     }
 
     /**

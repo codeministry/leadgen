@@ -33,5 +33,4 @@ public record SourceSummary(
         int documents,
         int extracted,
         Integer announced,
-        int survived) {
-}
+        int survived) {}

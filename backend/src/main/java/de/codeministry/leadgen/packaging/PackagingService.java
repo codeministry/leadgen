@@ -54,16 +54,15 @@ import java.util.regex.Pattern;
 @Service
 public class PackagingService {
 
-    private static final String DUE =
-            """
-                    SELECT id, title, description, full_text, url, location, portal, agency, tags,
-                           published_on, rate_eur, duration, workload, remote_percent, starts_on, contact,
-                           score_value, score_band, score_model, enrichment_note
-                    FROM offer
-                    WHERE status = 'PASSED' AND duplicate_of_id IS NULL AND archived_at IS NULL
-                      AND score_band = 'SHORTLISTED' AND packaged_at IS NULL
-                    ORDER BY score_value DESC, id
-                    """;
+    private static final String DUE = """
+        SELECT id, title, description, full_text, url, location, portal, agency, tags,
+               published_on, rate_eur, duration, workload, remote_percent, starts_on, contact,
+               score_value, score_band, score_model, enrichment_note
+        FROM offer
+        WHERE status = 'PASSED' AND duplicate_of_id IS NULL AND archived_at IS NULL
+          AND score_band = 'SHORTLISTED' AND packaged_at IS NULL
+        ORDER BY score_value DESC, id
+        """;
 
     /**
      * The heuristic that picks the cover letter and the CV. Measured over the sample
@@ -316,16 +315,15 @@ public class PackagingService {
             return List.of();
         }
         String haystack = haystack(row);
-        record Scored(SkillProfile.ReferenceProject project, long overlap) {
-        }
+        record Scored(SkillProfile.ReferenceProject project, long overlap) {}
         return profile.referenceProjects().stream()
                 .map(project -> new Scored(
                         project,
                         project.stack() == null
                                 ? 0
                                 : project.stack().stream()
-                                .filter(s -> names(haystack, s))
-                                .count()))
+                                        .filter(s -> names(haystack, s))
+                                        .count()))
                 .filter(scored -> scored.overlap() > 0)
                 .sorted((a, b) -> Long.compare(b.overlap(), a.overlap()))
                 .limit(2)

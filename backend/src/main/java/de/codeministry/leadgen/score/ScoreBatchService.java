@@ -38,13 +38,12 @@ import java.util.Optional;
 @Service
 public class ScoreBatchService {
 
-    private static final String OPEN =
-            """
-                    SELECT id, provider_id, model, ruleset_version, offers
-                    FROM score_batch
-                    WHERE status = 'SUBMITTED'
-                    ORDER BY id
-                    """;
+    private static final String OPEN = """
+        SELECT id, provider_id, model, ruleset_version, offers
+        FROM score_batch
+        WHERE status = 'SUBMITTED'
+        ORDER BY id
+        """;
 
     private static final String WAITING =
             "SELECT " + ScoreCandidate.COLUMNS + " FROM offer WHERE score_batch_id = ? ORDER BY id";
@@ -83,12 +82,11 @@ public class ScoreBatchService {
         int autoShortlist = rules.scoring().thresholds().autoShortlist();
         int review = rules.scoring().thresholds().review();
 
-        Long batchId = jdbc.sql(
-                        """
-                                INSERT INTO score_batch (provider_id, model, ruleset_version, offers)
-                                VALUES (?, ?, ?, ?)
-                                RETURNING id
-                                """)
+        Long batchId = jdbc.sql("""
+            INSERT INTO score_batch (provider_id, model, ruleset_version, offers)
+            VALUES (?, ?, ?, ?)
+            RETURNING id
+            """)
                 .params(providerId.get(), judge.model(), rulesetVersion, due.size())
                 .query(Long.class)
                 .single();
@@ -212,6 +210,5 @@ public class ScoreBatchService {
                 .update();
     }
 
-    private record OpenBatch(long id, String providerId, String model, int offers) {
-    }
+    private record OpenBatch(long id, String providerId, String model, int offers) {}
 }

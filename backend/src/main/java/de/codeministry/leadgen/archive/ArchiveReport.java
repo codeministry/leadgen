@@ -21,5 +21,4 @@ package de.codeministry.leadgen.archive;
  * @param undated  offers with no publication date, which no age rule can judge. They stay
  *                 on the working list forever, and that is worth a number rather than a silence.
  */
-public record ArchiveReport(int archived, int restored, int standing, int undated) {
-}
+public record ArchiveReport(int archived, int restored, int standing, int undated) {}

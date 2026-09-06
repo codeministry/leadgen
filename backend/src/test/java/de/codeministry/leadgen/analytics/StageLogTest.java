@@ -50,8 +50,8 @@ class StageLogTest {
         log.time("DEDUPE", () -> 1);
 
         assertThatThrownBy(() -> log.time("FILTER", () -> {
-            throw new IllegalStateException("the rules did not load");
-        }))
+                    throw new IllegalStateException("the rules did not load");
+                }))
                 .isInstanceOf(IllegalStateException.class);
 
         assertThat(log.timings()).hasSize(2);

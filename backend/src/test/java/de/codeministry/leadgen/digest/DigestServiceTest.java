@@ -114,9 +114,9 @@ class DigestServiceTest {
         offer("Senior Java Entwickler (m/w/d)", 88, "SHORTLISTED");
 
         assertThat(digest.render(LocalDate.of(2026, 9, 1))
-                .orElseThrow()
-                .getFileName()
-                .toString())
+                        .orElseThrow()
+                        .getFileName()
+                        .toString())
                 .isEqualTo("digest-2026-09-01.txt");
     }
 
@@ -129,20 +129,13 @@ class DigestServiceTest {
     }
 
     private long offer(String title, Integer score, String band) {
-        return jdbc.queryForObject(
-                """
-                        INSERT INTO offer (source_id, external_id, title, description, url, fingerprint,
-                                           status, score_value, score_band, location, portal, agency)
-                        VALUES (?, ?, ?, 'egal', 'https://example.invalid/x', 'fp', 'PASSED', ?, ?,
-                                'Köln', 'portal-a', 'Acme Consulting GmbH')
-                        RETURNING id
-                        """,
-                Long.class,
-                sourceId,
-                "ext-" + System.nanoTime(),
-                title,
-                score,
-                band);
+        return jdbc.queryForObject("""
+            INSERT INTO offer (source_id, external_id, title, description, url, fingerprint,
+                               status, score_value, score_band, location, portal, agency)
+            VALUES (?, ?, ?, 'egal', 'https://example.invalid/x', 'fp', 'PASSED', ?, ?,
+                    'Köln', 'portal-a', 'Acme Consulting GmbH')
+            RETURNING id
+            """, Long.class, sourceId, "ext-" + System.nanoTime(), title, score, band);
     }
 
     private void reason(long offerId, String factor, String label, int points) {

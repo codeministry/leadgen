@@ -22,11 +22,9 @@ import java.util.List;
 public record ApplicationAnalytics(
         List<StatusCount> byStatus, List<TransitionDay> transitions, ResponseMetrics response) {
 
-    public record StatusCount(ApplicationStatus status, int applications) {
-    }
+    public record StatusCount(ApplicationStatus status, int applications) {}
 
-    public record TransitionDay(LocalDate day, ApplicationStatus toStatus, int moves) {
-    }
+    public record TransitionDay(LocalDate day, ApplicationStatus toStatus, int moves) {}
 
     /**
      * @param answered               what the medians were computed over. Shipped beside them on purpose:
@@ -46,6 +44,5 @@ public record ApplicationAnalytics(
             Double p90DaysToFirstReply,
             int won,
             int lost,
-            int rejected) {
-    }
+            int rejected) {}
 }

@@ -310,15 +310,15 @@ class AnalyticsQueryServiceTest {
     private void pass(String finishedAt, int extracted, int passed) {
         jdbc.update(
                 """
-                        INSERT INTO pipeline_run (
-                            started_at, finished_at, ruleset_version, score_model, status,
-                            documents, extracted, written, merged,
-                            filter_considered, filter_passed,
-                            enrich_considered, enriched, incomplete, from_cache, requests,
-                            score_considered, scored, unscored, shortlisted, review, submitted,
-                            packaged, digest_written)
-                        VALUES (?, ?, '1', 'a-model', 'COMPLETE', 1, ?, ?, 0, ?, ?, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, true)
-                        """,
+                INSERT INTO pipeline_run (
+                    started_at, finished_at, ruleset_version, score_model, status,
+                    documents, extracted, written, merged,
+                    filter_considered, filter_passed,
+                    enrich_considered, enriched, incomplete, from_cache, requests,
+                    score_considered, scored, unscored, shortlisted, review, submitted,
+                    packaged, digest_written)
+                VALUES (?, ?, '1', 'a-model', 'COMPLETE', 1, ?, ?, 0, ?, ?, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, true)
+                """,
                 java.sql.Timestamp.from(java.time.Instant.parse(finishedAt)),
                 java.sql.Timestamp.from(java.time.Instant.parse(finishedAt)),
                 extracted,
@@ -371,10 +371,10 @@ class AnalyticsQueryServiceTest {
     private long arrived(LocalDate day, String portal) {
         Long id = jdbc.queryForObject(
                 """
-                        INSERT INTO offer (source_id, external_id, title, url, portal, fingerprint, status, ingested_at)
-                        VALUES (?, ?, 'Java Entwickler', 'https://example.invalid/x', ?, 'fp', 'PASSED', ?)
-                        RETURNING id
-                        """,
+                INSERT INTO offer (source_id, external_id, title, url, portal, fingerprint, status, ingested_at)
+                VALUES (?, ?, 'Java Entwickler', 'https://example.invalid/x', ?, 'fp', 'PASSED', ?)
+                RETURNING id
+                """,
                 Long.class,
                 sourceId,
                 "ext-" + System.nanoTime(),
@@ -416,13 +416,9 @@ class AnalyticsQueryServiceTest {
     }
 
     private void movedOn(long applicationId, ApplicationStatus to, LocalDate day) {
-        jdbc.update(
-                """
-                        INSERT INTO application_event (application_id, from_status, to_status, recorded_at)
-                        VALUES (?, 'SENT', ?, ?)
-                        """,
-                applicationId,
-                to.name(),
-                java.sql.Timestamp.valueOf(day.atTime(12, 0)));
+        jdbc.update("""
+            INSERT INTO application_event (application_id, from_status, to_status, recorded_at)
+            VALUES (?, 'SENT', ?, ?)
+            """, applicationId, to.name(), java.sql.Timestamp.valueOf(day.atTime(12, 0)));
     }
 }

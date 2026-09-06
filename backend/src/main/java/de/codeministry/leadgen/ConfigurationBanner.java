@@ -91,8 +91,7 @@ public class ConfigurationBanner {
         }
     }
 
-    private record Entry(String key, String value, Origin origin) {
-    }
+    private record Entry(String key, String value, Origin origin) {}
 
     /**
      * A heading with the keys that belong under it. <b>First match wins</b>, so the order is

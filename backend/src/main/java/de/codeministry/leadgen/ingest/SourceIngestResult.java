@@ -17,5 +17,4 @@ import java.util.List;
  *                Re-reading the same mail writes every offer again and adds none.
  */
 public record SourceIngestResult(
-        String sourceId, int documents, int extracted, int written, List<DocumentIngestResult> details) {
-}
+        String sourceId, int documents, int extracted, int written, List<DocumentIngestResult> details) {}

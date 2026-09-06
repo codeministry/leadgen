@@ -215,19 +215,13 @@ class PackagingServiceTest {
     }
 
     private long shortlisted(String title, String description) {
-        return jdbc.queryForObject(
-                """
-                        INSERT INTO offer (source_id, external_id, title, description, url, fingerprint, status,
-                                           score_value, score_band, location, portal, agency, published_on)
-                        VALUES (?, ?, ?, ?, 'https://example.invalid/projekt/1', 'fp', 'PASSED', 88, 'SHORTLISTED',
-                                'Köln', 'portal-a', 'Acme Consulting GmbH', DATE '2026-08-31')
-                        RETURNING id
-                        """,
-                Long.class,
-                sourceId,
-                "ext-" + System.nanoTime(),
-                title,
-                description);
+        return jdbc.queryForObject("""
+            INSERT INTO offer (source_id, external_id, title, description, url, fingerprint, status,
+                               score_value, score_band, location, portal, agency, published_on)
+            VALUES (?, ?, ?, ?, 'https://example.invalid/projekt/1', 'fp', 'PASSED', 88, 'SHORTLISTED',
+                    'Köln', 'portal-a', 'Acme Consulting GmbH', DATE '2026-08-31')
+            RETURNING id
+            """, Long.class, sourceId, "ext-" + System.nanoTime(), title, description);
     }
 
     private void reason(long offerId, String factor, String label, int points) {

@@ -47,20 +47,16 @@ public class PageCache {
 
     @Transactional
     public void store(String url, int status, String body) {
-        jdbc.sql(
-                        """
-                                INSERT INTO fetched_page (url, status, body, fetched_at)
-                                VALUES (?, ?, ?, now())
-                                ON CONFLICT (url) DO UPDATE
-                                SET status = EXCLUDED.status, body = EXCLUDED.body, fetched_at = now()
-                                """)
-                .params(url, status, body)
-                .update();
+        jdbc.sql("""
+            INSERT INTO fetched_page (url, status, body, fetched_at)
+            VALUES (?, ?, ?, now())
+            ON CONFLICT (url) DO UPDATE
+            SET status = EXCLUDED.status, body = EXCLUDED.body, fetched_at = now()
+            """).params(url, status, body).update();
     }
 
     /**
      * @param body null when the page could not be read; the status says why.
      */
-    public record Entry(int status, String body) {
-    }
+    public record Entry(int status, String body) {}
 }

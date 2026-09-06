@@ -17,5 +17,4 @@ import java.util.List;
  * % of the measured corpus reaches the pipeline more than once, and a shortlist that shows
  * the same project three times is a shortlist nobody finishes reading.
  */
-public record ShortlistEntry(OfferView offer, OfferScoreView score, OfferFlags flags, List<OfferSourceRef> sources) {
-}
+public record ShortlistEntry(OfferView offer, OfferScoreView score, OfferFlags flags, List<OfferSourceRef> sources) {}

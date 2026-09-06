@@ -29,5 +29,4 @@ public record ConfigSnapshot(
         MatchingRules rules,
         SourcesConfig sources,
         SkillProfile profile,
-        Instant loadedAt) {
-}
+        Instant loadedAt) {}

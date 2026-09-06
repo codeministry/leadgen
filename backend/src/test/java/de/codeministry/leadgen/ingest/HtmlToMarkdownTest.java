@@ -26,15 +26,13 @@ class HtmlToMarkdownTest {
 
     @Test
     void keepsHeadingsListsAndEmphasis() {
-        String markdown = HtmlToMarkdown.of(Jsoup.parseBodyFragment(
-                        """
-                                <div>
-                                  <h2>Ihre Aufgaben</h2>
-                                  <p>Wir suchen einen <strong>Java-Entwickler</strong>.</p>
-                                  <ul><li>Spring Boot</li><li>Kubernetes</li></ul>
-                                </div>
-                                """)
-                .body());
+        String markdown = HtmlToMarkdown.of(Jsoup.parseBodyFragment("""
+            <div>
+              <h2>Ihre Aufgaben</h2>
+              <p>Wir suchen einen <strong>Java-Entwickler</strong>.</p>
+              <ul><li>Spring Boot</li><li>Kubernetes</li></ul>
+            </div>
+            """).body());
 
         assertThat(markdown).contains("## Ihre Aufgaben");
         assertThat(markdown).contains("**Java-Entwickler**");

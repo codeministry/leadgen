@@ -47,13 +47,10 @@ public class OfferStore {
      */
     @Transactional
     public void recordRun(long sourceId, int documents, int extracted, int written, Integer announced) {
-        jdbc.sql(
-                        """
-                                INSERT INTO source_run (source_id, documents, extracted, written, announced)
-                                VALUES (?, ?, ?, ?, ?)
-                                """)
-                .params(sourceId, documents, extracted, written, announced)
-                .update();
+        jdbc.sql("""
+            INSERT INTO source_run (source_id, documents, extracted, written, announced)
+            VALUES (?, ?, ?, ?, ?)
+            """).params(sourceId, documents, extracted, written, announced).update();
     }
 
     /**
@@ -61,15 +58,11 @@ public class OfferStore {
      */
     @Transactional
     public long sourceId(String name, String kind) {
-        return jdbc.sql(
-                        """
-                                INSERT INTO source (name, kind) VALUES (?, ?)
-                                ON CONFLICT (name) DO UPDATE SET kind = EXCLUDED.kind
-                                RETURNING id
-                                """)
-                .params(name, kind)
-                .query(Long.class)
-                .single();
+        return jdbc.sql("""
+            INSERT INTO source (name, kind) VALUES (?, ?)
+            ON CONFLICT (name) DO UPDATE SET kind = EXCLUDED.kind
+            RETURNING id
+            """).params(name, kind).query(Long.class).single();
     }
 
     /**
@@ -80,58 +73,52 @@ public class OfferStore {
         if (offers.isEmpty()) {
             return 0;
         }
-        int[][] affected = template.batchUpdate(
-                """
-                        INSERT INTO offer (source_id, external_id, title, description, url, location,
-                                           portal, agency, published_on, fingerprint, tags, received_at)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                        ON CONFLICT (source_id, external_id) WHERE external_id IS NOT NULL
-                        DO UPDATE SET title = EXCLUDED.title,
-                                      description = EXCLUDED.description,
-                                      location = EXCLUDED.location,
-                                      portal = EXCLUDED.portal,
-                                      agency = EXCLUDED.agency,
-                                      published_on = EXCLUDED.published_on,
-                                      fingerprint = EXCLUDED.fingerprint,
-                                      tags = EXCLUDED.tags,
-                                      -- The earlier of the two, and never overwritten by a later
-                                      -- mail. Nine of the measured listings appear in two mails,
-                                      -- and the question this column answers is when the offer
-                                      -- first reached the mailbox. LEAST ignores a null, so a row
-                                      -- imported before this column existed is backfilled by the
-                                      -- next re-read rather than staying empty.
-                                      received_at = LEAST(offer.received_at, EXCLUDED.received_at)
-                        """,
-                offers,
-                offers.size(),
-                (statement, offer) -> {
-                    statement.setLong(1, sourceId);
-                    statement.setString(2, offer.externalId());
-                    statement.setString(3, offer.title());
-                    statement.setString(4, offer.description());
-                    statement.setString(5, offer.url());
-                    statement.setString(6, offer.location());
-                    statement.setString(7, offer.portal());
-                    statement.setString(8, offer.agency());
-                    if (offer.publishedOn() == null) {
-                        statement.setNull(9, Types.DATE);
-                    } else {
-                        statement.setObject(9, offer.publishedOn());
-                    }
-                    statement.setString(10, offer.fingerprint());
-                    statement.setArray(
-                            11,
-                            statement
-                                    .getConnection()
-                                    .createArrayOf("text", offer.tags().toArray()));
-                    // Null rather than now(): a source that is not a mail has no arrival
-                    // date, and the file's own timestamp would be the run's, dressed up.
-                    if (offer.receivedAt() == null) {
-                        statement.setNull(12, Types.TIMESTAMP_WITH_TIMEZONE);
-                    } else {
-                        statement.setTimestamp(12, java.sql.Timestamp.from(offer.receivedAt()));
-                    }
-                });
+        int[][] affected = template.batchUpdate("""
+            INSERT INTO offer (source_id, external_id, title, description, url, location,
+                               portal, agency, published_on, fingerprint, tags, received_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT (source_id, external_id) WHERE external_id IS NOT NULL
+            DO UPDATE SET title = EXCLUDED.title,
+                          description = EXCLUDED.description,
+                          location = EXCLUDED.location,
+                          portal = EXCLUDED.portal,
+                          agency = EXCLUDED.agency,
+                          published_on = EXCLUDED.published_on,
+                          fingerprint = EXCLUDED.fingerprint,
+                          tags = EXCLUDED.tags,
+                          -- The earlier of the two, and never overwritten by a later
+                          -- mail. Nine of the measured listings appear in two mails,
+                          -- and the question this column answers is when the offer
+                          -- first reached the mailbox. LEAST ignores a null, so a row
+                          -- imported before this column existed is backfilled by the
+                          -- next re-read rather than staying empty.
+                          received_at = LEAST(offer.received_at, EXCLUDED.received_at)
+            """, offers, offers.size(), (statement, offer) -> {
+            statement.setLong(1, sourceId);
+            statement.setString(2, offer.externalId());
+            statement.setString(3, offer.title());
+            statement.setString(4, offer.description());
+            statement.setString(5, offer.url());
+            statement.setString(6, offer.location());
+            statement.setString(7, offer.portal());
+            statement.setString(8, offer.agency());
+            if (offer.publishedOn() == null) {
+                statement.setNull(9, Types.DATE);
+            } else {
+                statement.setObject(9, offer.publishedOn());
+            }
+            statement.setString(10, offer.fingerprint());
+            statement.setArray(
+                    11,
+                    statement.getConnection().createArrayOf("text", offer.tags().toArray()));
+            // Null rather than now(): a source that is not a mail has no arrival
+            // date, and the file's own timestamp would be the run's, dressed up.
+            if (offer.receivedAt() == null) {
+                statement.setNull(12, Types.TIMESTAMP_WITH_TIMEZONE);
+            } else {
+                statement.setTimestamp(12, java.sql.Timestamp.from(offer.receivedAt()));
+            }
+        });
 
         return java.util.Arrays.stream(affected)
                 .flatMapToInt(java.util.Arrays::stream)

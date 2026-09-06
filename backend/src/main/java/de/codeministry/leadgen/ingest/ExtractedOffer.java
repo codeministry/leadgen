@@ -41,5 +41,4 @@ public record ExtractedOffer(
          * out of the block: it is a property of the document, and every offer in one
          * document shares it.
          */
-        Instant receivedAt) {
-}
+        Instant receivedAt) {}

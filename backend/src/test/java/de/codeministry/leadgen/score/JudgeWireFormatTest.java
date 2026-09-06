@@ -66,12 +66,11 @@ class JudgeWireFormatTest {
         MODEL.start();
     }
 
-    private static final String ANSWER =
-            """
-                    {"reasons":[{"factor":"role_fit","label":"Backend engagement on Spring Boot","points":15},
-                                {"factor":"role_mismatch","label":"nope","points":-900},
-                                {"factor":"invented","label":"nope","points":50}]}
-                    """;
+    private static final String ANSWER = """
+        {"reasons":[{"factor":"role_fit","label":"Backend engagement on Spring Boot","points":15},
+                    {"factor":"role_mismatch","label":"nope","points":-900},
+                    {"factor":"invented","label":"nope","points":50}]}
+        """;
 
     private static final ScoreCandidate OFFER = new ScoreCandidate(
             1L,

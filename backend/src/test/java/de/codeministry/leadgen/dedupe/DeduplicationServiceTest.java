@@ -166,10 +166,10 @@ class DeduplicationServiceTest {
     private long insert(String title, String portal, String agency, Instant ingestedAt) {
         return jdbc.queryForObject(
                 """
-                        INSERT INTO offer (source_id, external_id, title, url, portal, agency, fingerprint, ingested_at)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                        RETURNING id
-                        """,
+                INSERT INTO offer (source_id, external_id, title, url, portal, agency, fingerprint, ingested_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                RETURNING id
+                """,
                 Long.class,
                 sourceId,
                 "ext-" + portal + "-" + title.hashCode(),

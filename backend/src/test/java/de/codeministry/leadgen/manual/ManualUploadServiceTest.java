@@ -40,15 +40,14 @@ class ManualUploadServiceTest {
     @ServiceConnection
     static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:17-alpine");
 
-    private static final String DOCUMENT =
-            """
-                    ---
-                    title: Senior Java Entwickler (m/w/d)
-                    url: https://portal.example/p/12345
-                    location: Köln
-                    ---
-                    Ablösung eines Monolithen.
-                    """;
+    private static final String DOCUMENT = """
+        ---
+        title: Senior Java Entwickler (m/w/d)
+        url: https://portal.example/p/12345
+        location: Köln
+        ---
+        Ablösung eines Monolithen.
+        """;
 
     static Path configDirectory;
 
@@ -102,12 +101,10 @@ class ManualUploadServiceTest {
     void namesTheOfferAlreadyInThePipelineBeforeTheConfirmAndNotAfter() {
         long sourceId = jdbc.queryForObject(
                 "INSERT INTO source (name, kind) VALUES ('portal-a', 'rss') RETURNING id", Long.class);
-        jdbc.update(
-                """
-                        INSERT INTO offer (source_id, external_id, title, fingerprint, status)
-                        VALUES (?, 'x', 'Senior Java Entwickler (m/w/d)', 'senior java entwickler', 'INGESTED')
-                        """,
-                sourceId);
+        jdbc.update("""
+            INSERT INTO offer (source_id, external_id, title, fingerprint, status)
+            VALUES (?, 'x', 'Senior Java Entwickler (m/w/d)', 'senior java entwickler', 'INGESTED')
+            """, sourceId);
 
         var stored = uploads.store("offer.md", DOCUMENT.getBytes(StandardCharsets.UTF_8));
 

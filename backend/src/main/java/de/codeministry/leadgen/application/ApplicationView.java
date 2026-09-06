@@ -36,5 +36,4 @@ public record ApplicationView(
         boolean followUpDue,
         String outcome,
         String note,
-        Instant updatedAt) {
-}
+        Instant updatedAt) {}

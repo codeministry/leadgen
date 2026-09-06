@@ -25,6 +25,5 @@ public record ScoreDistribution(int bucketSize, List<Bucket> buckets, int unscor
     /**
      * @param floor the inclusive lower bound; the top bucket also holds an exact 100.
      */
-    public record Bucket(int floor, int count) {
-    }
+    public record Bucket(int floor, int count) {}
 }

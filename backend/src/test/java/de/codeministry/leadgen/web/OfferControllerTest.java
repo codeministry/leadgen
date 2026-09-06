@@ -54,9 +54,9 @@ class OfferControllerTest {
         given(offers.find(1L)).willReturn(Optional.of(entry(Instant.parse("2026-09-02T08:00:00Z"), "MANUAL")));
 
         assertThat(mvc.patch()
-                .uri("/api/offers/1")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"archived\":true}"))
+                        .uri("/api/offers/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"archived\":true}"))
                 .hasStatusOk()
                 .bodyJson()
                 .extractingPath("$.offer.archiveSource")
@@ -69,9 +69,9 @@ class OfferControllerTest {
         given(offers.find(1L)).willReturn(Optional.of(entry(null, "RESTORED")));
 
         assertThat(mvc.patch()
-                .uri("/api/offers/1")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"archived\":false}"))
+                        .uri("/api/offers/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"archived\":false}"))
                 .hasStatusOk();
 
         then(archive).should().setArchived(1L, false);
@@ -82,9 +82,9 @@ class OfferControllerTest {
         given(archive.setArchived(anyLong(), anyBoolean())).willReturn(false);
 
         assertThat(mvc.patch()
-                .uri("/api/offers/999")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"archived\":true}"))
+                        .uri("/api/offers/999")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"archived\":true}"))
                 .hasStatus(404);
     }
 
@@ -93,9 +93,9 @@ class OfferControllerTest {
         // `Boolean` rather than `boolean`, so an absent field is a validation failure
         // naming the field instead of a Jackson error naming the type.
         assertThat(mvc.patch()
-                .uri("/api/offers/1")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{}"))
+                        .uri("/api/offers/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
                 .hasStatus4xxClientError();
     }
 

@@ -43,19 +43,18 @@ class MarkdownExtractionTest {
     private static final ValidatorFactory FACTORY = Validation.buildDefaultValidatorFactory();
     private static final Validator VALIDATOR = FACTORY.getValidator();
 
-    private static final String COMPLETE =
-            """
-                    ---
-                    title: Senior Java Entwickler Spring Boot (m/w/d)
-                    url: https://tracking.example.com/proxy?target=https%3A%2F%2Fportal.example%2Fp%2F12345&email=someone%40example.com
-                    location: Köln
-                    portal: portal-a
-                    agency: Acme Consulting GmbH
-                    published: 2026-09-01
-                    tags: [Java, Spring Boot, Kafka]
-                    ---
-                    Ablösung eines Monolithen, Java 21, Spring Boot, Kafka.
-                    """;
+    private static final String COMPLETE = """
+        ---
+        title: Senior Java Entwickler Spring Boot (m/w/d)
+        url: https://tracking.example.com/proxy?target=https%3A%2F%2Fportal.example%2Fp%2F12345&email=someone%40example.com
+        location: Köln
+        portal: portal-a
+        agency: Acme Consulting GmbH
+        published: 2026-09-01
+        tags: [Java, Spring Boot, Kafka]
+        ---
+        Ablösung eines Monolithen, Java 21, Spring Boot, Kafka.
+        """;
 
     @TempDir
     Path configDir;
@@ -93,14 +92,13 @@ class MarkdownExtractionTest {
 
     @Test
     void acceptsTagsAsTheCommaSeparatedLineSomeoneTypedInstead() {
-        var offer = only(
-                """
-                        ---
-                        title: Angular Entwickler
-                        tags: Angular, TypeScript , RxJS
-                        ---
-                        Frontend für ein Versicherungsportal.
-                        """);
+        var offer = only("""
+            ---
+            title: Angular Entwickler
+            tags: Angular, TypeScript , RxJS
+            ---
+            Frontend für ein Versicherungsportal.
+            """);
 
         assertThat(offer.tags()).containsExactly("Angular", "TypeScript", "RxJS");
     }
@@ -109,13 +107,12 @@ class MarkdownExtractionTest {
     void identifiesAnOfferWithoutAUrlByItsContent() {
         // The upsert is on (source_id, external_id). Without this the same ad uploaded
         // twice is two offers, and deduplication would have to clean up after it.
-        String ad =
-                """
-                        ---
-                        title: Kubernetes Platform Engineer
-                        ---
-                        k3s, ArgoCD, Traefik.
-                        """;
+        String ad = """
+            ---
+            title: Kubernetes Platform Engineer
+            ---
+            k3s, ArgoCD, Traefik.
+            """;
 
         var first = only(ad);
         var second = only(ad);
@@ -135,17 +132,16 @@ class MarkdownExtractionTest {
 
     @Test
     void ignoresAThematicBreakInTheBody() {
-        var offer = only(
-                """
-                        ---
-                        title: Java Entwickler
-                        ---
-                        Erste Zeile.
-                        
-                        ---
-                        
-                        Zweite Zeile.
-                        """);
+        var offer = only("""
+            ---
+            title: Java Entwickler
+            ---
+            Erste Zeile.
+
+            ---
+
+            Zweite Zeile.
+            """);
 
         assertThat(offer.title()).isEqualTo("Java Entwickler");
         assertThat(offer.description()).contains("Erste Zeile.").contains("Zweite Zeile.");

@@ -121,10 +121,9 @@ class JudgeIsBuiltPerRunTest {
         assertThat(reasonsOf(id)).isPositive();
 
         pointConfigAtTheStub();
-        answers(
-                """
-                        {"reasons":[{"factor":"role_fit","label":"backend engagement, the target role","points":15}]}
-                        """);
+        answers("""
+            {"reasons":[{"factor":"role_fit","label":"backend engagement, the target role","points":15}]}
+            """);
 
         assertThat(config.reload()).isTrue();
         assertThat(config.snapshot().application().llm().models().scoring()).isEqualTo("test-model");
@@ -135,9 +134,9 @@ class JudgeIsBuiltPerRunTest {
         assertThat(scoreOf(id)).isNotNull();
         assertThat(modelOf(id)).isEqualTo("test-model");
         assertThat(jdbc.queryForObject(
-                "SELECT count(*) FROM offer_score_reason WHERE offer_id = ? AND factor = 'role_fit'",
-                Integer.class,
-                id))
+                        "SELECT count(*) FROM offer_score_reason WHERE offer_id = ? AND factor = 'role_fit'",
+                        Integer.class,
+                        id))
                 .isEqualTo(1);
     }
 
@@ -186,17 +185,11 @@ class JudgeIsBuiltPerRunTest {
     }
 
     private long offer(String title, String description) {
-        return jdbc.queryForObject(
-                """
-                        INSERT INTO offer (source_id, external_id, title, description, url, fingerprint, status)
-                        VALUES (?, ?, ?, ?, 'https://example.invalid/x', 'fp', 'PASSED')
-                        RETURNING id
-                        """,
-                Long.class,
-                sourceId,
-                "ext-" + System.nanoTime(),
-                title,
-                description);
+        return jdbc.queryForObject("""
+            INSERT INTO offer (source_id, external_id, title, description, url, fingerprint, status)
+            VALUES (?, ?, ?, ?, 'https://example.invalid/x', 'fp', 'PASSED')
+            RETURNING id
+            """, Long.class, sourceId, "ext-" + System.nanoTime(), title, description);
     }
 
     /**

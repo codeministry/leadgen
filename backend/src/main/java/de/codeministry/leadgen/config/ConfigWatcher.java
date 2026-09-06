@@ -45,8 +45,7 @@ public class ConfigWatcher {
     /**
      * Size as well as timestamp: a file saved twice within one filesystem tick differs only in size.
      */
-    private record Stamp(long lastModified, long size) {
-    }
+    private record Stamp(long lastModified, long size) {}
 
     ConfigWatcher(ConfigRegistry registry, ConfigLoader loader) {
         this.registry = registry;

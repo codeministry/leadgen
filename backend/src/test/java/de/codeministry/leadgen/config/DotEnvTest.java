@@ -30,14 +30,13 @@ class DotEnvTest {
 
     @Test
     void readsAssignments() throws IOException {
-        DotEnv dotenv = write(
-                """
-                        # a comment
-                        IMAP_HOST=imap.example.org
-                        IMAP_PORT=993   # a trailing comment is not part of the value
-                        DIGEST_DIR="./with spaces"
-                        EMPTY=
-                        """);
+        DotEnv dotenv = write("""
+            # a comment
+            IMAP_HOST=imap.example.org
+            IMAP_PORT=993   # a trailing comment is not part of the value
+            DIGEST_DIR="./with spaces"
+            EMPTY=
+            """);
 
         assertThat(dotenv.values())
                 .containsEntry("IMAP_HOST", "imap.example.org")

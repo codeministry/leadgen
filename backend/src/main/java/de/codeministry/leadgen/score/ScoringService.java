@@ -57,19 +57,18 @@ public class ScoringService {
      * job of `score_batch_id`: its answer is bought and on its way, so asking again would
      * be paying twice for it.
      */
-    private static final String DUE = "SELECT " + ScoreCandidate.COLUMNS
-            + """
-            
-            FROM offer
-            WHERE status = 'PASSED'
-              AND duplicate_of_id IS NULL
-              AND archived_at IS NULL
-              AND score_batch_id IS NULL
-              AND (scored_at IS NULL
-                   OR ruleset_version IS DISTINCT FROM CAST(? AS TEXT)
-                   OR score_model IS DISTINCT FROM CAST(? AS TEXT))
-            ORDER BY id
-            """;
+    private static final String DUE = "SELECT " + ScoreCandidate.COLUMNS + """
+
+        FROM offer
+        WHERE status = 'PASSED'
+          AND duplicate_of_id IS NULL
+          AND archived_at IS NULL
+          AND score_batch_id IS NULL
+          AND (scored_at IS NULL
+               OR ruleset_version IS DISTINCT FROM CAST(? AS TEXT)
+               OR score_model IS DISTINCT FROM CAST(? AS TEXT))
+        ORDER BY id
+        """;
 
     /**
      * <b>The counts are standing totals, and only `scored` is this run's.</b> The same
@@ -77,27 +76,25 @@ public class ScoringService {
      * run legitimately judges nothing, and a report of "0 shortlisted" reads as scoring
      * having stopped working rather than as there being nothing new to do.
      */
-    private static final String STANDING =
-            """
-                    SELECT count(*)                                            AS considered,
-                           count(*) FILTER (WHERE score_value IS NULL)         AS unscored,
-                           count(*) FILTER (WHERE score_band = 'SHORTLISTED')  AS shortlisted,
-                           count(*) FILTER (WHERE score_band = 'REVIEW')       AS review
-                    FROM offer
-                    WHERE status = 'PASSED' AND duplicate_of_id IS NULL AND archived_at IS NULL
-                    """;
+    private static final String STANDING = """
+        SELECT count(*)                                            AS considered,
+               count(*) FILTER (WHERE score_value IS NULL)         AS unscored,
+               count(*) FILTER (WHERE score_band = 'SHORTLISTED')  AS shortlisted,
+               count(*) FILTER (WHERE score_band = 'REVIEW')       AS review
+        FROM offer
+        WHERE status = 'PASSED' AND duplicate_of_id IS NULL AND archived_at IS NULL
+        """;
 
     /**
      * The same row as {@link #DUE}, for one offer and without the staleness guard. It keeps
      * the shortlist's own two conditions: a rejected offer never entered scoring, and a
      * duplicate is judged through its primary.
      */
-    private static final String ONE = "SELECT " + ScoreCandidate.COLUMNS
-            + """
-            
-            FROM offer
-            WHERE id = ? AND status = 'PASSED' AND duplicate_of_id IS NULL AND archived_at IS NULL
-            """;
+    private static final String ONE = "SELECT " + ScoreCandidate.COLUMNS + """
+
+        FROM offer
+        WHERE id = ? AND status = 'PASSED' AND duplicate_of_id IS NULL AND archived_at IS NULL
+        """;
 
     private final ConfigRegistry config;
     private final Judges judges;
@@ -229,7 +226,8 @@ public class ScoringService {
 
         var report = standing(judged, unusable, 0);
         log.info(
-                "Scoring: {} due, {} judged, {} without a usable answer; standing: {} considered, {} unscored, {} shortlisted, {} for review",
+                "Scoring: {} due, {} judged, {} without a usable answer; standing: {} considered, {} unscored, {}"
+                        + " shortlisted, {} for review",
                 due.size(),
                 judged,
                 unusable,
@@ -275,9 +273,9 @@ public class ScoringService {
             throw new NoJudge("no scoring section is configured, so there are no weights to score against");
         }
         Judge judge = judges.current(requestedModel)
-                .orElseThrow(
-                        () -> new NoJudge(
-                                "no language model is configured, so there is nothing to ask; the deterministic reasons are already written"));
+                .orElseThrow(() ->
+                        new NoJudge("no language model is configured, so there is nothing to ask; the deterministic"
+                                + " reasons are already written"));
 
         List<ScoreCandidate> found =
                 jdbc.sql(ONE).param(offerId).query(ScoreCandidate::of).list();

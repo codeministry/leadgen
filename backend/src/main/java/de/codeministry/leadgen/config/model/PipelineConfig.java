@@ -104,24 +104,23 @@ public record PipelineConfig(
             }
         }
 
-        public record Budget(@Min(0) int maxCallsPerDay, boolean cacheByMessageId) {
-        }
+        public record Budget(@Min(0) int maxCallsPerDay, boolean cacheByMessageId) {}
     }
 
-    public record Profile(@NotBlank String path) {
-    }
+    public record Profile(@NotBlank String path) {}
 
-    public record Rules(@NotBlank String path, boolean hotReload) {
-    }
+    public record Rules(@NotBlank String path, boolean hotReload) {}
 
     /**
      * Optional: without it `sources.yaml` in the configuration directory applies.
      */
-    public record Sources(String path) {
-    }
+    public record Sources(String path) {}
 
     public record Enrichment(
-            boolean enabled, @NotBlank String after, @Valid @NotNull Fetch fetch, @Valid Extract extract) {
+            boolean enabled,
+            @NotBlank String after,
+            @Valid @NotNull Fetch fetch,
+            @Valid Extract extract) {
 
         /**
          * @param maxPerRun how many ads one pass is willing to wait for. The limiter
@@ -176,7 +175,8 @@ public record PipelineConfig(
         }
     }
 
-    public record Packaging(@NotBlank String outputDir, @NotBlank String naming, List<@Valid Document> documents) {
+    public record Packaging(
+            @NotBlank String outputDir, @NotBlank String naming, List<@Valid Document> documents) {
 
         /**
          * One entry per file in an application package. The fields are mutually
@@ -191,8 +191,7 @@ public record PipelineConfig(
                 String template,
                 boolean generated,
                 String format,
-                String mode) {
-        }
+                String mode) {}
     }
 
     /**
@@ -200,9 +199,7 @@ public record PipelineConfig(
      * no recipient and no channel: the application has no send path, and a configuration
      * that modelled one would be an invitation to add it.
      */
-    public record Digest(boolean enabled, String format, String outputDir, List<String> include) {
-    }
+    public record Digest(boolean enabled, String format, String outputDir, List<String> include) {}
 
-    public record Security(@NotBlank String auth, Map<String, String> oidc) {
-    }
+    public record Security(@NotBlank String auth, Map<String, String> oidc) {}
 }

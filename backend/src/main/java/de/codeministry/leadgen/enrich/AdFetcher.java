@@ -181,8 +181,7 @@ public class AdFetcher {
                 .header("User-Agent", settings.userAgent())
                 .header("Accept", "text/html,application/xhtml+xml")
                 .retrieve()
-                .onStatus(status -> true, (request, response) -> {
-                })
+                .onStatus(status -> true, (request, response) -> {})
                 .toEntity(String.class);
     }
 
@@ -309,8 +308,7 @@ public class AdFetcher {
                     .uri(robotsUri)
                     .header("User-Agent", settings.userAgent())
                     .retrieve()
-                    .onStatus(status -> true, (request, response2) -> {
-                    })
+                    .onStatus(status -> true, (request, response2) -> {})
                     .toEntity(String.class);
             return response.getStatusCode().value() == 200 ? response.getBody() : null;
         } catch (RuntimeException e) {

@@ -30,5 +30,4 @@ import java.util.List;
  *                   page it would be a filter that offers fewer choices the further you scroll.
  */
 public record ShortlistPage(
-        List<ShortlistEntry> entries, String nextCursor, int matched, int unscored, int total, List<String> portals) {
-}
+        List<ShortlistEntry> entries, String nextCursor, int matched, int unscored, int total, List<String> portals) {}

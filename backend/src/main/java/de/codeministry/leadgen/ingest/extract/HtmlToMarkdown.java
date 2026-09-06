@@ -47,8 +47,7 @@ public final class HtmlToMarkdown {
                     .set(FlexmarkHtmlConverter.BR_AS_EXTRA_BLANK_LINES, false))
             .build();
 
-    private HtmlToMarkdown() {
-    }
+    private HtmlToMarkdown() {}
 
     /**
      * The element's content as Markdown, or an empty string when there is nothing in it.

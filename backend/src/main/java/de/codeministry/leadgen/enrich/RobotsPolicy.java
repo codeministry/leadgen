@@ -53,7 +53,7 @@ public final class RobotsPolicy {
         for (Rule rule : rules) {
             if (path.startsWith(rule.prefix())
                     && (longest == null
-                    || rule.prefix().length() > longest.prefix().length())) {
+                            || rule.prefix().length() > longest.prefix().length())) {
                 longest = rule;
             }
         }
@@ -122,6 +122,5 @@ public final class RobotsPolicy {
         return forAgent.isEmpty() ? forEveryone : forAgent;
     }
 
-    record Rule(String prefix, boolean allowed) {
-    }
+    record Rule(String prefix, boolean allowed) {}
 }

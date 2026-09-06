@@ -93,8 +93,7 @@ public class MarkdownExtractor {
 
     private Map<String, Object> parse(String frontmatter) {
         try {
-            Map<String, Object> parsed = yaml.readValue(frontmatter, new TypeReference<>() {
-            });
+            Map<String, Object> parsed = yaml.readValue(frontmatter, new TypeReference<>() {});
             return parsed == null ? Map.of() : parsed;
         } catch (IOException e) {
             // Not fatal, and not silent: the file stays on disk and the operator is told

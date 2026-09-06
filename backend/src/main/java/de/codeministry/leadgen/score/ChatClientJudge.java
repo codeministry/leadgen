@@ -62,26 +62,25 @@ public class ChatClientJudge implements Judge {
      * application read `skill-profile.yaml`. Role fit was therefore judged against a
      * description of somebody else, and editing the profile could not move it.
      */
-    private static final String INSTRUCTIONS =
-            """
-                            You assess freelance project offers for one specific developer.
-                    
-                            %s
-                    
-                    Answer only with JSON of this shape, and nothing else:
-                    {"reasons":[{"factor":"role_fit","label":"...","points":0}]}
-                    
-                    Use only these factors, each at most once:
-                              role_fit                  0 to %d, how well the described role matches this
-                                                        developer's own roles and stack
-                      stack_mismatch_dominant   %d to 0, if the dominant stack is something else
-                      role_mismatch             %d to 0, if the role is QA, PO, scrum master or support
-                      vague_description         %d to 0, if the text says too little to judge
-                    
-                            Always answer role_fit, even when it is 0. Omit the other three entirely rather
-                            than scoring them zero. Every label must name something the offer actually says,
-                            in one short sentence, in English.
-                    """;
+    private static final String INSTRUCTIONS = """
+                You assess freelance project offers for one specific developer.
+
+                %s
+
+        Answer only with JSON of this shape, and nothing else:
+        {"reasons":[{"factor":"role_fit","label":"...","points":0}]}
+
+        Use only these factors, each at most once:
+                  role_fit                  0 to %d, how well the described role matches this
+                                            developer's own roles and stack
+          stack_mismatch_dominant   %d to 0, if the dominant stack is something else
+          role_mismatch             %d to 0, if the role is QA, PO, scrum master or support
+          vague_description         %d to 0, if the text says too little to judge
+
+                Always answer role_fit, even when it is 0. Omit the other three entirely rather
+                than scoring them zero. Every label must name something the offer actually says,
+                in one short sentence, in English.
+        """;
 
     private final ChatModel chatModel;
     protected final String model;

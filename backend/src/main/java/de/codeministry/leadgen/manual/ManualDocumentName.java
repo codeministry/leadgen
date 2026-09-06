@@ -29,8 +29,7 @@ public final class ManualDocumentName {
     private static final int MAX_LENGTH = 96;
     private static final String FALLBACK = "offer";
 
-    private ManualDocumentName() {
-    }
+    private ManualDocumentName() {}
 
     /**
      * Thrown when a name cannot be made safe, or names a file the source would not read.
