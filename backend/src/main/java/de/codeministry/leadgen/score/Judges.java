@@ -11,22 +11,14 @@ package de.codeministry.leadgen.score;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.config.model.PipelineConfig;
-import io.micrometer.observation.ObservationRegistry;
+import de.codeministry.leadgen.llm.ChatModels;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.ai.anthropic.AnthropicChatModel;
-import org.springframework.ai.anthropic.AnthropicChatOptions;
-import org.springframework.ai.anthropic.AnthropicSetup;
 import org.springframework.ai.chat.model.ChatModel;
-import org.springframework.ai.openai.OpenAiChatModel;
-import org.springframework.ai.openai.OpenAiChatOptions;
-import org.springframework.ai.openai.setup.OpenAiSetup;
 import org.springframework.stereotype.Component;
 
-import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Builds the judge the current configuration asks for, or none.
@@ -35,20 +27,15 @@ import java.util.concurrent.ConcurrentHashMap;
  * key added to `.env` and a reload should start producing scores without a restart, and a
  * key removed should stop.
  *
- * <p><b>`provider` is a kind, never a default.</b> It names a wire format and nothing
- * else: two are implemented, and the base URL still decides who answers. No committed file
- * names a vendor's address, and neither does this class — a provider it does not know is
- * refused loudly rather than approximated, because a request in the wrong shape does not
- * fail cleanly. It is answered with a 400, or worse, parsed out of the wrong field into an
- * offer that looks judged and is not.
+ * <p><b>What this decides is which judge, not which client.</b> Building the client is
+ * {@link ChatModels}, shared with the content classifier, because getting it wrong fails in
+ * ways that name something other than the cause. What is left here is the part that is about
+ * judging: the allowlist, the weight table, the profile, and the one provider that has a
+ * batch endpoint.
  */
 @Slf4j
 @Component
 public class Judges {
-
-    private static final String OPENAI_COMPATIBLE = "openai-compatible";
-    private static final String OLLAMA = "ollama";
-    private static final String ANTHROPIC = "anthropic";
 
     /**
      * Its own mapper, not the web one. This reads a model's answer, which is plain JSON
@@ -58,30 +45,12 @@ public class Judges {
      */
     private final ObjectMapper json = new ObjectMapper();
 
-    /**
-     * The same ceiling the batched request carries, for the same reason it does.
-     */
-    private static final Duration TIMEOUT = Duration.ofSeconds(30);
-
-    /**
-     * One built model per distinct configuration, and it is the price of the hot-reload
-     * requirement.
-     *
-     * <p>The judge is a parameter of the run, so `current()` is called once per run and would
-     * otherwise build a fresh HTTP client — connection pool, dispatcher threads and all —
-     * every time. Keyed on everything that changes who answers and how, so a key added to
-     * `.env` at five in the afternoon still produces a new client on the next run rather
-     * than a cached one pointed at the old address.
-     *
-     * <p>Unbounded on purpose: the keys come from a configuration file, so the set is as
-     * large as the number of models somebody has configured, which is single digits.
-     */
-    private final Map<String, ChatModel> models = new ConcurrentHashMap<>();
-
     private final ConfigRegistry config;
+    private final ChatModels chatModels;
 
-    Judges(ConfigRegistry config) {
+    Judges(ConfigRegistry config, ChatModels chatModels) {
         this.config = config;
+        this.chatModels = chatModels;
     }
 
     /**
@@ -141,7 +110,7 @@ public class Judges {
         // A key is what a hosted provider needs and a local one does not. Requiring it
         // everywhere made `provider: ollama` unusable: a local server wants no key, so
         // there was nothing to write in `.env`, and the judge was silently never built.
-        if (blank(llm.apiKey()) && !OLLAMA.equals(llm.provider())) {
+        if (blank(llm.apiKey()) && !ChatModels.OLLAMA.equals(llm.provider())) {
             return Optional.empty();
         }
         List<String> choices = llm.models() == null ? List.of() : llm.models().scoringChoices();
@@ -155,41 +124,20 @@ public class Judges {
         if (!choices.contains(model)) {
             throw new UnknownModel(model, choices);
         }
-        if (blank(llm.baseUrl())) {
-            // Required even for a hosted provider whose address never changes: a URL in
-            // the code is a vendor in the code, and this repository has none.
-            log.warn("llm.base_url is not set; there is nowhere to send a scoring request");
+        // Whether the configuration can reach a model at all is ChatModels' question, and it
+        // is the one that warns about a missing base URL or an unimplemented provider.
+        Optional<ChatModel> chatModel = chatModels.of(llm, model);
+        if (chatModel.isEmpty()) {
             return Optional.empty();
         }
-        return switch (llm.provider()) {
-            // Ollama serves the same chat-completions shape under /v1, so it is the same
-            // judge with a different address. It is listed separately because it is the
-            // one provider that needs no key, and that is a rule about the value.
-            case OPENAI_COMPATIBLE, OLLAMA ->
-                Optional.of(
-                        new ChatClientJudge(openAi(llm.baseUrl(), key(llm), model), model, json, bounds(), profile()));
-            // The only provider with a batch endpoint, which is why it is the only one that
-            // gets a judge of its own. Its base URL and key are handed over twice: once to
-            // the chat model, and once to the batch half, which is still hand-rolled HTTP.
-            case ANTHROPIC ->
-                Optional.of(new AnthropicJudge(
-                        anthropic(llm.baseUrl(), key(llm), model),
-                        llm.baseUrl(),
-                        key(llm),
-                        model,
-                        json,
-                        bounds(),
-                        profile()));
-            default -> {
-                log.warn(
-                        "llm.provider is '{}'; implemented are '{}', '{}' and '{}'",
-                        llm.provider(),
-                        OPENAI_COMPATIBLE,
-                        OLLAMA,
-                        ANTHROPIC);
-                yield Optional.empty();
-            }
-        };
+        // The only provider with a batch endpoint, which is why it is the only one that gets
+        // a judge of its own. Its base URL and key are handed over a second time, because the
+        // batch half is still hand-rolled HTTP.
+        if (ChatModels.ANTHROPIC.equals(llm.provider())) {
+            return Optional.of(new AnthropicJudge(
+                chatModel.get(), llm.baseUrl(), ChatModels.key(llm), model, json, bounds(), profile()));
+        }
+        return Optional.of(new ChatClientJudge(chatModel.get(), model, json, bounds(), profile()));
     }
 
     /**
@@ -202,89 +150,6 @@ public class Judges {
             super("'%s' is not a configured scoring model; configured are %s"
                     .formatted(requested, String.join(", ", choices)));
         }
-    }
-
-    /**
-     * The chat model for the OpenAI-compatible wire format.
-     *
-     * <p>An <em>empty</em> key rather than a null one is what puts the client into its
-     * no-auth mode, which is what a local server wants — the same rule `key` already
-     * encodes, now with a second reader.
-     */
-    private ChatModel openAi(String baseUrl, String apiKey, String model) {
-        return models.computeIfAbsent(
-                cacheKey(OPENAI_COMPATIBLE, baseUrl, apiKey, model),
-                ignored -> OpenAiChatModel.builder()
-                        .openAiClient(OpenAiSetup.setupSyncClient(
-                                baseUrl,
-                                apiKey,
-                                null,
-                                null,
-                                null,
-                                null,
-                                false,
-                                false,
-                                model,
-                                TIMEOUT,
-                                0,
-                                null,
-                                null,
-                                ObservationRegistry.NOOP,
-                                null,
-                                List.of()))
-                        // Both clients, and the asynchronous one is not optional: left unset, the
-                        // builder makes its own from its own empty fields and fails with "at least
-                        // one credential source must be specified" — a credential error naming a key
-                        // that was in fact supplied, for a client nothing here ever calls.
-                        .openAiClientAsync(OpenAiSetup.setupAsyncClient(
-                                baseUrl,
-                                apiKey,
-                                null,
-                                null,
-                                null,
-                                null,
-                                false,
-                                false,
-                                model,
-                                TIMEOUT,
-                                0,
-                                null,
-                                null,
-                                ObservationRegistry.NOOP,
-                                null,
-                                List.of()))
-                        .options(OpenAiChatOptions.builder().model(model).build())
-                        .build());
-    }
-
-    /**
-     * The chat model for the Messages API.
-     *
-     * <p>`maxTokens` is set here and not left to a default because on the current models
-     * reasoning is counted against it before the text begins: a ceiling sized to the few
-     * lines of JSON this asks for truncates the answer before the answer starts, and a
-     * truncated body parses to no reasons at all.
-     */
-    private ChatModel anthropic(String baseUrl, String apiKey, String model) {
-        return models.computeIfAbsent(
-                cacheKey(ANTHROPIC, baseUrl, apiKey, model),
-                ignored -> AnthropicChatModel.builder()
-                        .anthropicClient(AnthropicSetup.setupSyncClient(baseUrl, apiKey, TIMEOUT, 0, null, null))
-                        // Same reason as the OpenAI pair above: the builder would otherwise
-                        // construct an asynchronous client from nothing.
-                        .anthropicClientAsync(AnthropicSetup.setupAsyncClient(baseUrl, apiKey, TIMEOUT, 0, null, null))
-                        .options(AnthropicChatOptions.builder()
-                                .model(model)
-                                .maxTokens(AnthropicJudge.MAX_TOKENS)
-                                .build())
-                        .build());
-    }
-
-    /**
-     * The key is hashed rather than kept, so a heap dump does not hand out the API key.
-     */
-    private static String cacheKey(String provider, String baseUrl, String apiKey, String model) {
-        return provider + '\u0000' + baseUrl + '\u0000' + Integer.toHexString(apiKey.hashCode()) + '\u0000' + model;
     }
 
     /**
@@ -302,13 +167,6 @@ public class Judges {
      */
     private de.codeministry.leadgen.config.model.SkillProfile profile() {
         return config.snapshot().profile();
-    }
-
-    /**
-     * Empty rather than null, so a local server gets a harmless header instead of "null".
-     */
-    private static String key(PipelineConfig.Llm llm) {
-        return llm.apiKey() == null ? "" : llm.apiKey();
     }
 
     private static boolean blank(String value) {

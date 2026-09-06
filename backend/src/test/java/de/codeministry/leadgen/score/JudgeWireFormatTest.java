@@ -12,6 +12,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.client.ResponseDefinitionBuilder;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
+import de.codeministry.leadgen.llm.Answers;
 import io.micrometer.observation.ObservationRegistry;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -85,7 +86,7 @@ class JudgeWireFormatTest {
             false);
 
     private static final ScoreCandidate OTHER = new ScoreCandidate(
-            2L, "Scrum Master (m/w/d)", "Kein Code.", null, List.of(), null, null, null, null, false);
+        2L, "Scrum Master (m/w/d)", "Kein Code.", null, List.of(), null, null, null, null, false);
 
     @AfterAll
     static void stop() {
@@ -293,9 +294,9 @@ class JudgeWireFormatTest {
     void stillFailsOnAnAnswerThatIsNotAnObjectAtAll() {
         // Nothing is repaired: a truncated object or plain prose has to keep failing, or
         // the next silent under-scoring has no signal left at all.
-        assertThat(ChatClientJudge.objectIn("I cannot assess this offer.")).isEqualTo("I cannot assess this offer.");
-        assertThat(ChatClientJudge.objectIn("")).isEmpty();
-        assertThat(ChatClientJudge.objectIn(null)).isEmpty();
+        assertThat(Answers.objectIn("I cannot assess this offer.")).isEqualTo("I cannot assess this offer.");
+        assertThat(Answers.objectIn("")).isEmpty();
+        assertThat(Answers.objectIn(null)).isEmpty();
     }
 
     /**

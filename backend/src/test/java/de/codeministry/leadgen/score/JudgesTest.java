@@ -99,6 +99,6 @@ class JudgesTest {
         given(registry.snapshot()).willReturn(snapshot);
         given(snapshot.application()).willReturn(pipeline);
         given(pipeline.llm()).willReturn(llm);
-        return new Judges(registry).current();
+        return new Judges(registry, new de.codeministry.leadgen.llm.ChatModels()).current();
     }
 }

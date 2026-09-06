@@ -10,6 +10,7 @@ package de.codeministry.leadgen.score;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import de.codeministry.leadgen.llm.ChatModels;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.model.ChatModel;
 
@@ -58,7 +59,7 @@ public class AnthropicJudge extends ChatClientJudge implements BatchJudge {
      * cap sized to the answer truncates the response before the answer begins. A truncated
      * body parses to no reasons, which is the same silent under-scoring as a failed call.
      */
-    static final int MAX_TOKENS = 4096;
+    static final int MAX_TOKENS = ChatModels.MAX_TOKENS;
 
     /**
      * Pinned rather than tracked: an unversioned request is refused outright.

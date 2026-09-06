@@ -12,6 +12,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import de.codeministry.leadgen.config.model.MatchingRules;
 import de.codeministry.leadgen.config.model.SkillProfile;
+import de.codeministry.leadgen.llm.Answers;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatModel;
@@ -171,28 +172,11 @@ public class ChatClientJudge implements Judge {
                     .user(describe(offer))
                     .call()
                     .chatResponse();
-            return reasonsOf(textOf(response), offer.id());
+            return reasonsOf(Answers.textOf(response), offer.id());
         } catch (RuntimeException e) {
             log.warn("Scoring model failed for offer {}: {}", offer.id(), e.getMessage());
             return List.of();
         }
-    }
-
-    /**
-     * Every generation's text, joined. Which block the object arrived in is not something
-     * this has to know — the braces decide, exactly as they do for a fenced or introduced
-     * reply, and a provider that answers with one generation is unaffected.
-     */
-    private static String textOf(ChatResponse response) {
-        if (response == null || response.getResults() == null) {
-            return "";
-        }
-        return response.getResults().stream()
-                .map(generation -> generation.getOutput() == null
-                        ? ""
-                        : generation.getOutput().getText())
-                .filter(text -> text != null && !text.isBlank())
-                .collect(java.util.stream.Collectors.joining("\n"));
     }
 
     String instructions() {
@@ -283,7 +267,7 @@ public class ChatClientJudge implements Judge {
     protected List<ScoreReason> reasonsOf(String content, long offerId) {
         List<ScoreReason> reasons = new ArrayList<>();
         try {
-            JsonNode parsed = json.readTree(objectIn(content));
+            JsonNode parsed = json.readTree(Answers.objectIn(content));
 
             for (JsonNode node : parsed.path("reasons")) {
                 String factor = node.path("factor").asText("");
@@ -316,44 +300,10 @@ public class ChatClientJudge implements Judge {
             log.warn(
                     "Offer {}: the scoring model did not answer with usable JSON. It said: {}",
                     offerId,
-                    abbreviate(content));
+                Answers.abbreviate(content));
             return List.of();
         }
         return reasons;
-    }
-
-    /**
-     * The JSON object inside whatever the model actually sent.
-     *
-     * <p>"Answer only with JSON, and nothing else" is an instruction, not a guarantee. Every
-     * model that follows it most of the time still wraps the object in a ```json fence or
-     * introduces it with a sentence, and both parse to nothing — which lands as four missing
-     * factors on an offer that looks judged. Measured against a real endpoint: fenced output
-     * cost every offer its role fit and all three penalties, and the only sign was one WARN
-     * per offer saying the answer was unusable.
-     *
-     * <p>Kept rather than delegated to the framework's own cleaner, which strips a fence and
-     * nothing else: prose <em>outside</em> a fence is the half that was actually measured
-     * here, and the braces catch both.
-     *
-     * <p>So the braces decide, not the surrounding text. Nothing is repaired here — a
-     * genuinely truncated object still fails to parse, and it should.
-     */
-    static String objectIn(String content) {
-        if (content == null) {
-            return "";
-        }
-        int start = content.indexOf('{');
-        int end = content.lastIndexOf('}');
-        return start >= 0 && end > start ? content.substring(start, end + 1) : content;
-    }
-
-    private static String abbreviate(String content) {
-        if (content == null || content.isBlank()) {
-            return "<nothing>";
-        }
-        String flattened = content.strip().replaceAll("\\s+", " ");
-        return flattened.length() <= 300 ? flattened : flattened.substring(0, 300) + "…";
     }
 
     /**
