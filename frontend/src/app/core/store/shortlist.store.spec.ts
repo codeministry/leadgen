@@ -34,6 +34,7 @@ function entry(id: number): ShortlistEntry {
         score: {value: 88, hardPass: true, reasons: [], model: null, rulesetVersion: '1'},
         flags: {incomplete: false, remoteUnknown: true},
         sources: [{portal: 'portal-a', agency: null, url: `https://example.invalid/${id}`}],
+      content: [],
     };
 }
 

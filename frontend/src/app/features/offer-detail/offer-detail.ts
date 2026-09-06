@@ -1,22 +1,22 @@
 import {DatePipe} from '@angular/common';
 import {
-    afterNextRender,
-    ChangeDetectionStrategy,
-    Component,
-    computed,
-    effect,
-    ElementRef,
-    inject,
-    Injector,
-    input,
-    OnInit,
-    signal,
-    viewChild,
+  afterNextRender,
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  ElementRef,
+  inject,
+  Injector,
+  input,
+  OnInit,
+  signal,
+  viewChild,
 } from '@angular/core';
 import {injectDispatch} from '@ngrx/signals/events';
-import {TranslocoPipe} from '@jsverse/transloco';
+import {TranslocoPipe, TranslocoService} from '@jsverse/transloco';
 import {ApplicationUpdate} from '@core/model/application';
-import {Offer} from '@core/model/offer';
+import {ContentBlock, Offer} from '@core/model/offer';
 import {ScoreReason} from '@core/model/score';
 import {applicationEvents} from '@core/store/applications.events';
 import {ApplicationsStore} from '@core/store/applications.store';
@@ -42,6 +42,31 @@ import {Score} from '@shared/score/score';
  * for that reason.
  */
 const AD_FOLD_CHARS = 1200;
+
+/**
+ * The kinds this screen has a name for. A lookup and never a decision: the server owns the
+ * taxonomy, so a kind that is not in here is still hidden and still revealable — it is
+ * labelled by its own name instead of a translated one. That is the same reason nothing in
+ * this browser types a weight or a filter stage as a union.
+ */
+const NAMED_KINDS = ['CHROME', 'FORM', 'TAXONOMY', 'AGENCY', 'LEGAL'];
+
+/**
+ * A stretch of the advert that is shown, or a stretch that is not.
+ *
+ * <p>Consecutive blocks of the same visibility collapse into one run, so three hidden
+ * paragraphs in a row are one line to click and not three.
+ */
+interface AdRun {
+  readonly index: number;
+  readonly hidden: boolean;
+  readonly text: string;
+  readonly count: number;
+  /** Distinct kinds in this run, in the order they appeared. */
+  readonly kinds: readonly string[];
+  /** The server's own sentences about why, one per block that carried one. */
+  readonly reasons: readonly string[];
+}
 
 interface Field {
     /** A catalog key, not a sentence. */
@@ -71,6 +96,7 @@ interface Field {
 export class OfferDetail implements OnInit {
     private readonly dispatch = injectDispatch(shortlistEvents);
     private readonly applicationDispatch = injectDispatch(applicationEvents);
+  private readonly transloco = inject(TranslocoService);
     protected readonly store = inject(ShortlistStore);
     protected readonly applications = inject(ApplicationsStore);
 
@@ -98,10 +124,47 @@ export class OfferDetail implements OnInit {
         return offer?.fullText ?? offer?.description ?? '';
     });
 
+  /**
+   * Which hidden runs the reader has opened, as `<offer id>:<run index>`.
+   *
+   * <p>The offer id is in the key for the same reason `unfolded` holds one: a decision
+   * about one advert must not carry to the next, and putting the id in the key makes the
+   * reset fall out of the comparison instead of needing an effect to undo it.
+   */
+  private readonly revealed = signal<readonly string[]>([]);
+
+  /**
+   * The advert as a sequence of shown and hidden stretches.
+   *
+   * <p>With no blocks — the list's own entry, or an advert nothing has read that way — this
+   * is one visible run holding the whole text, which is exactly what the screen did before
+   * any of this existed.
+   */
+  protected readonly adRuns = computed<readonly AdRun[]>(() => {
+    const blocks = this.entry()?.content ?? [];
+    if (blocks.length === 0) {
+      const text = this.adText();
+      return text === '' ? [] : [{index: 0, hidden: false, text, count: 1, kinds: [], reasons: []}];
+    }
+    return runs(blocks);
+  });
+
+  /**
+   * What is actually on the screen. The fold has to measure this and not the whole advert:
+   * measured against the raw text, an ad that is mostly portal furniture offers a "show the
+   * whole ad" button for content that is no longer there.
+   */
+  private readonly adVisibleText = computed(() =>
+    this.adRuns()
+      .filter((run) => !run.hidden)
+      .map((run) => run.text)
+      .join('\n\n'),
+  );
+
     private readonly ad = viewChild<ElementRef<HTMLElement>>('ad');
     private readonly injector = inject(Injector);
 
-    protected readonly adIsLong = computed(() => this.adText().length > AD_FOLD_CHARS);
+  protected readonly adIsLong = computed(() => this.adVisibleText().length > AD_FOLD_CHARS);
 
     protected readonly adFolded = computed(
         () => this.adIsLong() && this.unfolded() !== this.entry()?.offer.id,
@@ -111,6 +174,25 @@ export class OfferDetail implements OnInit {
         this.unfolded.update((open) => (open === offerId ? null : offerId));
         this.relayoutAd();
     }
+
+  protected isRevealed(offerId: number, run: number): boolean {
+    return this.revealed().includes(key(offerId, run));
+  }
+
+  /** Show a hidden stretch where it stood, or put it back. */
+  protected toggleRun(offerId: number, run: number): void {
+    const id = key(offerId, run);
+    this.revealed.update((open) => (open.includes(id) ? open.filter((k) => k !== id) : [...open, id]));
+    this.relayoutAd();
+  }
+
+  /**
+   * The kinds of a hidden run, ready to read: a translated name where this screen has one,
+   * the server's own word where it does not.
+   */
+  protected kinds(run: AdRun): string {
+    return run.kinds.map((kind) => (NAMED_KINDS.includes(kind) ? this.transloco.translate(`detail.kind.${kind}`) : kind)).join(', ');
+  }
 
     /**
      * Forces the advert's box to be measured again after the fold has been toggled.
@@ -298,4 +380,42 @@ export class OfferDetail implements OnInit {
     ngOnInit(): void {
         this.applicationDispatch.opened();
     }
+}
+
+function key(offerId: number, run: number): string {
+  return `${offerId}:${run}`;
+}
+
+/**
+ * Consecutive blocks of the same visibility, collapsed into runs.
+ *
+ * <p>A block is only hidden when something positively decided it is not the advert. That is
+ * the whole safety property of this feature, and it is one comparison: everything else —
+ * a kind nobody recognised, a block no rule matched and no model answered about — is shown.
+ */
+function runs(blocks: readonly ContentBlock[]): readonly AdRun[] {
+  const out: AdRun[] = [];
+  for (const block of blocks) {
+    const hidden = block.kind !== 'CONTENT';
+    const last = out.at(-1);
+    if (last === undefined || last.hidden !== hidden) {
+      out.push({
+        index: out.length,
+        hidden,
+        text: block.text,
+        count: 1,
+        kinds: hidden ? [block.kind] : [],
+        reasons: block.reason === null ? [] : [block.reason],
+      });
+      continue;
+    }
+    out[out.length - 1] = {
+      ...last,
+      text: `${last.text}\n\n${block.text}`,
+      count: last.count + 1,
+      kinds: hidden && !last.kinds.includes(block.kind) ? [...last.kinds, block.kind] : last.kinds,
+      reasons: block.reason === null || last.reasons.includes(block.reason) ? last.reasons : [...last.reasons, block.reason],
+    };
+  }
+  return out;
 }

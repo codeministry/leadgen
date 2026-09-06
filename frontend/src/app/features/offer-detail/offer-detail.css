@@ -216,6 +216,31 @@
     margin-top: 0.25rem;
 }
 
+/* A stretch of the advert that was decided not to be the advert.
+ *
+ * Muted and set in from the left, so it reads as an aside in the ad rather than as part of
+ * it — and so a reader scanning past it does not have to decide anything. Deliberately not
+ * the accent: ochre means "this survived the filter" in this application and nothing else,
+ * and hidden furniture is the opposite of that.
+ */
+.ad-hidden {
+  margin: 0.5rem 0;
+  border-left: 2px solid var(--color-base-300);
+  padding-left: 0.75rem;
+}
+
+.ad-reveal {
+  color: var(--lg-muted);
+  font-weight: 400;
+}
+
+/* Opened in place. Still muted: what is on screen is the portal's furniture, and it must not
+   compete with the advert above and below it for the same reader's attention. */
+.ad-hidden-body {
+  margin-top: 0.5rem;
+  color: var(--lg-muted);
+}
+
 /* A failed fetch, in the same red the shortlist uses for the same thing. */
 .error {
     color: var(--color-error);

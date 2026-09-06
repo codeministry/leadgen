@@ -35,6 +35,7 @@ function entry(id: number, title: string, value: number | null, portal: string):
         score: {value, hardPass: true, reasons: [], model: null, rulesetVersion: '1'},
         flags: {incomplete: false, remoteUnknown: true},
         sources: [{portal, agency: null, url: `https://example.invalid/${id}`}],
+      content: [],
     };
 }
 

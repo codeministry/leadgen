@@ -9,6 +9,27 @@
  * date is the normal case, and a non-nullable type here would be a lie the first time the
  * screen renders one.
  */
+/**
+ * One block of an advert, with what the pipeline decided it is.
+ *
+ * `kind` is a plain string and deliberately not a union. Nothing in this browser names a
+ * weight, a filter stage or a source type either: a union here disagrees with the server the
+ * first time a kind is added, and the symptom is a compile error in a component that has no
+ * business knowing the taxonomy. `CONTENT` is the one value the screen acts on, and an
+ * unknown kind is simply a section that is hidden and labelled by its own name.
+ *
+ * `reason` is the server's own prose and stays English in both languages, exactly like a
+ * score reason.
+ */
+export interface ContentBlock {
+  readonly index: number;
+  readonly text: string;
+  readonly kind: string;
+  readonly reason: string | null;
+  /** RULE, CACHE, MODEL or DEFAULT — who decided. DEFAULT means nobody did. */
+  readonly by: string;
+}
+
 export interface Offer {
     readonly id: number;
     readonly externalId: string | null;

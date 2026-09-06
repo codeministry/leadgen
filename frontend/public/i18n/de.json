@@ -159,7 +159,15 @@
     "archivedOn": "Seit {date} nicht mehr auf der Arbeitsliste.",
     "archivedByAge": "Älter als das Frischefenster.",
     "summary": "Zusammenfassung",
-    "summaryNote": "So fasst die Quelle die Anzeige zusammen. Nicht hier geschrieben."
+    "summaryNote": "So fasst die Quelle die Anzeige zusammen. Nicht hier geschrieben.",
+    "sectionsHidden": "{count, plural, =1 {1 Abschnitt ausgeblendet} other {# Abschnitte ausgeblendet}}: {kinds}",
+    "kind": {
+      "CHROME": "Portal-Bedienelemente",
+      "FORM": "ein Formular",
+      "TAXONOMY": "Portal-Schlagworte",
+      "AGENCY": "Agentur-Signatur",
+      "LEGAL": "Rechtliches"
+    }
   },
   "application": {
     "title": "Wie es hier steht",

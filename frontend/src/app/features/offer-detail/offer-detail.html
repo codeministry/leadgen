@@ -61,8 +61,48 @@
               one pulled off a portal carries the paragraph breaks `PlainText` kept. Plain text
               is valid Markdown, so nothing has to decide which of the two this is.
             -->
+          <!--
+            The advert as shown and hidden stretches. A stretch is hidden only where
+            something positively decided it is not the advert: portal furniture, a report
+            dialog, the site's own tag cloud, the recruiter's standing signature. Anything
+            nobody decided about stays here, which is the safety property this whole feature
+            rests on.
+
+            The hidden stretch is not removed. Its line stands exactly where it stood, says
+            how much and of what kind, and opens in place — so over-hiding is visible and
+            one click away from being undone rather than something to take on trust.
+          -->
             <div class="ad" #ad [class.folded]="adFolded()">
-                <lg-markdown [text]="entry.offer.fullText ?? entry.offer.description"/>
+              @for (run of adRuns(); track run.index) {
+                @if (run.hidden) {
+                  <div class="ad-hidden">
+                    <button
+                      type="button"
+                      class="btn btn-xs btn-ghost ad-reveal"
+                      (click)="toggleRun(entry.offer.id, run.index)"
+                    >
+                      <lg-icon
+                        [name]="isRevealed(entry.offer.id, run.index) ? 'eye-off' : 'eye'"
+                        [size]="14"
+                      />
+                      {{
+                        'detail.sectionsHidden'
+                          | transloco: {count: run.count, kinds: kinds(run)}
+                      }}
+                    </button>
+                    @if (isRevealed(entry.offer.id, run.index)) {
+                      <div class="ad-hidden-body">
+                        <lg-markdown [text]="run.text"/>
+                        @for (reason of run.reasons; track $index) {
+                          <p class="type-caption text-muted">{{ reason }}</p>
+                        }
+                      </div>
+                    }
+                  </div>
+                } @else {
+                  <lg-markdown [text]="run.text"/>
+                }
+              }
             </div>
             @if (adIsLong()) {
                 <button type="button" class="btn btn-sm btn-ghost ad-toggle" (click)="toggleAd(entry.offer.id)">

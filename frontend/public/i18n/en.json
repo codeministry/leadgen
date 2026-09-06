@@ -159,7 +159,15 @@
     "archivedOn": "Off the working list since {date}.",
     "archivedByAge": "It aged past the freshness window.",
     "summary": "Summary",
-    "summaryNote": "As the source summarised the ad. Not written here."
+    "summaryNote": "As the source summarised the ad. Not written here.",
+    "sectionsHidden": "{count, plural, =1 {1 section hidden} other {# sections hidden}}: {kinds}",
+    "kind": {
+      "CHROME": "portal controls",
+      "FORM": "a form",
+      "TAXONOMY": "portal tags",
+      "AGENCY": "agency signature",
+      "LEGAL": "legal notice"
+    }
   },
   "application": {
     "title": "Where this stands",

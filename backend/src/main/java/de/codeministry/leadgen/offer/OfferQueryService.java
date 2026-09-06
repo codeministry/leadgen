@@ -10,6 +10,7 @@ package de.codeministry.leadgen.offer;
 
 import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.config.model.MatchingRules;
+import de.codeministry.leadgen.content.ContentText;
 import de.codeministry.leadgen.score.ScoreReason;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
@@ -304,11 +305,24 @@ public class OfferQueryService {
                 .param(id)
                 .query(OfferQueryService::row)
                 .optional()
-                .map(row -> entry(row, reasonsFor(List.of(id)), clustersFor(List.of(id))));
+            .map(row -> entry(row, reasonsFor(List.of(id)), clustersFor(List.of(id)), true));
     }
 
     private ShortlistEntry entry(
             Row row, Map<Long, List<ScoreReason>> reasons, Map<Long, List<OfferSourceRef>> clusters) {
+        return entry(row, reasons, clusters, false);
+    }
+
+    /**
+     * @param withContent whether to parse the advert's blocks. Only the detail asks for them:
+     *                    the list shares this mapper and would otherwise carry a second copy
+     *                    of every advert for a column no card renders.
+     */
+    private ShortlistEntry entry(
+        Row row,
+        Map<Long, List<ScoreReason>> reasons,
+        Map<Long, List<OfferSourceRef>> clusters,
+        boolean withContent) {
         var sources = new ArrayList<>(List.of(new OfferSourceRef(row.portal, row.agency, row.url)));
         sources.addAll(clusters.getOrDefault(row.id, List.of()));
         return new ShortlistEntry(
@@ -320,7 +334,8 @@ public class OfferQueryService {
                         row.scoreModel,
                         row.rulesetVersion),
                 new OfferFlags(row.enrichedAt == null || row.enrichmentNote != null, row.remotePercent == null),
-                sources);
+            sources,
+            withContent ? ContentText.parse(row.contentBlocks) : List.of());
     }
 
     private Map<Long, List<ScoreReason>> reasonsFor(List<Long> ids) {
@@ -382,6 +397,8 @@ public class OfferQueryService {
             Integer remotePercent,
             java.time.Instant enrichedAt,
             String enrichmentNote,
+            /** The raw JSON. Parsed only for the detail — see {@code entry(..., withContent)}. */
+            String contentBlocks,
             /** Carried only so the cursor can name the row it stopped at. */
             java.time.Instant ingestedAt) {}
 
@@ -423,6 +440,7 @@ public class OfferQueryService {
                 rs.getObject("remote_percent", Integer.class),
                 instant(rs),
                 rs.getString("enrichment_note"),
+            rs.getString("content_blocks"),
                 rs.getTimestamp("ingested_at").toInstant());
     }
 

@@ -122,6 +122,10 @@ class OfferControllerTest {
                 archivedAt,
                 source);
         return new ShortlistEntry(
-                offer, new OfferScoreView(88, true, List.of(), null, null), new OfferFlags(false, true), List.of());
+            offer,
+            new OfferScoreView(88, true, List.of(), null, null),
+            new OfferFlags(false, true),
+            List.of(),
+            List.of());
     }
 }
