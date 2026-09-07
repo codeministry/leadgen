@@ -74,4 +74,4 @@ body:
     id: environment
     attributes:
       label: How you run it
-      placeholder: Docker Compose on macOS 15 / bootRun on Linux, JDK 21
+      placeholder: Docker Compose on macOS 15 / bootRun on Linux, JDK 25

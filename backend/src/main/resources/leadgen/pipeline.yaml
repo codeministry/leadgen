@@ -131,6 +131,15 @@ content:
       matches: 'reason for reporting this project|grund f(?:ü|u)r die meldung'
     - kind: FORM
       matches: 'after submitting, you will receive a confirmation email'
+    # The portal's two row actions, rendered as a two-item list, so the block arrives as
+    # exactly "Print Report". Anchored to the whole block on purpose: a bare 'report' would
+    # match an advert asking for reporting experience, and 'print' one about print media.
+    - kind: CHROME
+      matches: '^print\s+report$'
+    # The report dialog's heading and its submit button. Each is a block of its own and is
+    # nothing but these two words, which no sentence in an advert is.
+    - kind: CHROME
+      matches: '^report project$'
     - kind: AGENCY
       matches: 'amtsgericht\s+\S+,\s*hrb\s*\d'
     - kind: AGENCY

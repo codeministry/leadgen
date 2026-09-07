@@ -30,7 +30,9 @@ spotless = "7.0.4"
 # small diff. The version is pinned because a formatter bump rewrites every file it
 # touches, and that has to be a deliberate commit rather than a surprise in CI.
 palantirJavaFormat = "2.68.0"
-# 0.8.12 is the first release that reads Java 21 class files without a warning.
+# 0.8.13 is the current release and reads Java 25 class files without a warning —
+# checked on the toolchain bump, because a JaCoCo that cannot read the class file
+# version reports coverage of nothing rather than failing.
 jacoco = "0.8.13"
 
 [libraries]

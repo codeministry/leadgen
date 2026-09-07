@@ -11,7 +11,7 @@ arranged for somebody reading the repository for the first time.
 A modular monolith, one database, two deployables.
 
 ```
-backend/    Spring Boot 4.1 · Java 21 · Gradle · JDBC + Flyway · PostgreSQL 17
+backend/    Spring Boot 4.1 · Java 25 · Gradle · JDBC + Flyway · PostgreSQL 17
 frontend/   Angular 22 zoneless · @ngrx/signals · Tailwind 4 / DaisyUI · Transloco · bun
 demo/       an invented dataset, so a fresh clone opens on a populated application
 config/     yours — overrides the shipped defaults file by file (gitignored)

@@ -12,13 +12,18 @@ group = "de.codeministry"
 version = "0.2.0"
 
 /**
- * Java 21 through the toolchain rather than the ambient JDK: Gradle runs on
+ * Java 25 through the toolchain rather than the ambient JDK: Gradle runs on
  * whatever JVM launched it, and pinning the toolchain is what makes this build
  * produce the same bytecode here and in CI.
+ *
+ * 25 and not 26: it is the current LTS and the version Spring Boot 4.1 states support
+ * for. There is also no toolchain resolver in `settings.gradle.kts`, so the pinned
+ * version has to be a JDK that is actually installed — Gradle cannot download one, and
+ * the failure is "No matching toolchains found" rather than anything about a version.
  */
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(21)
+        languageVersion = JavaLanguageVersion.of(25)
     }
 }
 

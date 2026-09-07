@@ -31,12 +31,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Pinned to 21 to match the Gradle toolchain. The toolchain would download a JDK on
-      # its own, but doing it here means the cache is warm and a mismatch is loud.
+      # Pinned to 25 to match the Gradle toolchain. There is no toolchain resolver in
+      # `settings.gradle.kts`, so Gradle cannot download a JDK of its own: this step is
+      # what puts the toolchain's version on the runner, and a mismatch is loud.
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '21'
+          java-version: '25'
 
       - uses: gradle/actions/setup-gradle@v4
 

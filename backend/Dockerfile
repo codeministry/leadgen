@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM gradle:9.4.1-jdk21 AS build
+FROM gradle:9.4.1-jdk25 AS build
 WORKDIR /workspace
 COPY settings.gradle.kts build.gradle.kts gradle.properties ./
 COPY gradle ./gradle
@@ -11,7 +11,7 @@ RUN gradle :backend:dependencies --no-daemon --quiet || true
 COPY backend/src ./backend/src
 RUN gradle :backend:bootJar --no-daemon -x test
 
-FROM eclipse-temurin:21-jre-alpine
+FROM eclipse-temurin:25-jre-alpine
 WORKDIR /app
 RUN addgroup -S app && adduser -S -G app app
 COPY --from=build /workspace/backend/build/libs/*.jar app.jar

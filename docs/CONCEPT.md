@@ -15,17 +15,17 @@ individual lives in `config/` and in environment variables.
 
 ## 1. Decisions
 
-| Topic | Decision |
-|---|---|
-| Repository | monorepo: `backend/`, `frontend/`, `config/`, `docs/` |
-| Backend | Spring Boot (modular monolith), Java 21, Gradle |
-| Frontend | Angular + NGRX + DaisyUI |
-| Persistence | PostgreSQL |
-| Sources | declaratively configured: IMAP, RSS/Atom, HTTP, file drop |
-| Scoring | deterministic hard rules first, then an LLM (provider interchangeable) |
-| Operation | Docker Compose; a Helm chart is a later phase and not in the repo |
-| Sending | draft only, the user sends |
-| Language | repository is English throughout; the target market is German, which is content |
+| Topic       | Decision                                                                        |
+|-------------|---------------------------------------------------------------------------------|
+| Repository  | monorepo: `backend/`, `frontend/`, `config/`, `docs/`                           |
+| Backend     | Spring Boot (modular monolith), Java 25, Gradle                                 |
+| Frontend    | Angular + NGRX + DaisyUI                                                        |
+| Persistence | PostgreSQL                                                                      |
+| Sources     | declaratively configured: IMAP, RSS/Atom, HTTP, file drop                       |
+| Scoring     | deterministic hard rules first, then an LLM (provider interchangeable)          |
+| Operation   | Docker Compose; a Helm chart is a later phase and not in the repo               |
+| Sending     | draft only, the user sends                                                      |
+| Language    | repository is English throughout; the target market is German, which is content |
 
 ## 2. Monorepo layout
 

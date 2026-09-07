@@ -2,13 +2,13 @@
 
 ## Prerequisites
 
-| Thing | Version | Note |
-|---|---|---|
-| JDK | **21** | Pinned through the Gradle toolchain, not taken from the ambient JDK — that is what makes the build produce the same bytecode here and in CI. |
-| Gradle | — | Use the wrapper (`./gradlew`). |
-| bun | **1.3+** | The package manager for the frontend. Never npm or npx. |
-| Docker | any recent | Required for `docker compose`, **and for `./gradlew :backend:test`** — the backend tests use Testcontainers. |
-| Postgres | 17 | Supplied by Compose. Published on host port **55432**, not 5432. |
+| Thing    | Version    | Note                                                                                                                                         |
+|----------|------------|----------------------------------------------------------------------------------------------------------------------------------------------|
+| JDK      | **25**     | Pinned through the Gradle toolchain, not taken from the ambient JDK — that is what makes the build produce the same bytecode here and in CI. |
+| Gradle   | —          | Use the wrapper (`./gradlew`).                                                                                                               |
+| bun      | **1.3+**   | The package manager for the frontend. Never npm or npx.                                                                                      |
+| Docker   | any recent | Required for `docker compose`, **and for `./gradlew :backend:test`** — the backend tests use Testcontainers.                                 |
+| Postgres | 17         | Supplied by Compose. Published on host port **55432**, not 5432.                                                                             |
 
 The host port is 55432 on purpose: a developer machine usually already has a Postgres on
 5432, and connecting to the wrong one fails as `password authentication failed for user

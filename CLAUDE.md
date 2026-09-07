@@ -55,7 +55,7 @@ Violating one of these is expensive, and most of them fail silently.
 
 ## Monorepo
 
-`backend/` (Spring Boot 4.1, Java 21, Gradle) · `frontend/` (Angular 22 zoneless +
+`backend/` (Spring Boot 4.1, Java 25, Gradle) · `frontend/` (Angular 22 zoneless +
 `@ngrx/signals` + Tailwind 4/DaisyUI) · `charts/` (Helm) · `config/` · `docs/`.
 The root Gradle build brackets both: `./gradlew check` runs the Spring tests and the
 frontend's lint + tests in one call.
