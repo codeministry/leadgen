@@ -9,6 +9,50 @@ may change in any release. See the status note in the README.
 
 ## [Unreleased]
 
+## [0.2.1] — 2026-09-07
+
+### Added
+
+- **Archiving in bulk, from the shortlist.** Taking twenty offers off the working list cost twenty round trips and
+  twenty confirmations. A card now carries a checkbox — the first control it has ever had — a Shift-click spans a range,
+  and one action archives the selection behind a native `<dialog>`. `POST /api/offers/archive` is the endpoint, and it
+  is the one place in this application where the plural breaks the singular's rule: `PATCH /api/offers/{id}` answers
+  with the whole `ShortlistEntry` because the browser replaces its row with what the server stored, and the list does
+  not replace an archived row, it drops it. Entries would be fetched for the sole purpose of being discarded, at roughly
+  1.4 KB each. So the answer is a report — `requested`, `archived`, `unscored` — and the endpoint answers `200` where
+  the single `PATCH` answers `404`: refusing fifty decisions because one id named no offer loses forty-nine for a reason
+  nobody can act on.
+
+  The selection lives in `ShortlistStore` and not in the query string, unlike every filter. Fifty ids in a URL is not a
+  link anybody sends, and it would make the back button undo a checkbox. It clears on `opened`, which already fires on
+  every filter change, so the picks cannot drift from the list they point into; `moreLoaded` deliberately writes
+  nothing, which is what keeps a selection across paging and lets a Shift-range cross a page boundary. The anchor is an
+  **id** rather than an index, because an index points at a different offer after every load-more.
+
+  There is no bulk restore, which is why `ArchiveRequest` names no direction. A `boolean` with exactly one legal value
+  is the class of thing this repository already removed twice — after `remote.accept_unknown` and the `onsite_max_km`
+  key nothing read.
+
+- **Two more content rules in the shipped `pipeline.yaml`**, both anchored to a whole block: the portal's two row
+  actions, which arrive as exactly `Print Report`, and the report dialog's heading. Neither word is safe on its own — a
+  bare `report` matches an advert asking for reporting experience, and `print` one about print media.
+
+### Changed
+
+- **The build is on Java 25.** It is the current LTS and the version Spring Boot 4.1 states support for. JaCoCo moved to
+  0.8.13 with it, because a JaCoCo that cannot read the class-file version reports coverage of nothing rather than
+  failing. See **Upgrading** — this one is not free for anybody building from source.
+
+### Upgrading
+
+**Building from source now needs a JDK 25 on the machine.** `settings.gradle.kts` has no toolchain resolver, so Gradle
+cannot download one, and the failure is `No matching toolchains found` rather than anything naming a version. The
+published images already carry it; nothing about a running deployment changes, and there is no migration.
+
+The two new content rules ship in the classpath `pipeline.yaml`. The two configuration layers override **file by file**,
+so a `pipeline.yaml` of your own does not receive them — copy the two `content.rules` entries across, or the portal's
+report dialog stays in the advert and stays in what the judge is asked about.
+
 ## [0.2.0] — 2026-09-06
 
 The scoring half changed shape here: a total is a share of what an advert made attainable rather than a sum over every
@@ -226,7 +270,8 @@ Found while building the demo, all of them in paths only a container exercises:
   left six.
 - The shortlist card printed the description's Markdown syntax in its teaser.
 
-[Unreleased]: https://github.com/codeministry/leadgen/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/codeministry/leadgen/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/codeministry/leadgen/releases/tag/v0.2.1
 [0.2.0]: https://github.com/codeministry/leadgen/releases/tag/v0.2.0
 [0.1.1]: https://github.com/codeministry/leadgen/releases/tag/v0.1.1
 [0.1.0]: https://github.com/codeministry/leadgen/releases/tag/v0.1.0
