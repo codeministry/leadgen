@@ -23,6 +23,7 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.time.LocalDate;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -195,6 +196,107 @@ class ArchiveServiceTest {
         assertThat(second.standing()).isEqualTo(1);
     }
 
+    @Test
+    void archivesEveryOfferInOneStatement() {
+        // Against a real Postgres because this is the only place the binding can be proved:
+        // `= ANY (?)` needs a positional array, and a named parameter holding one would be
+        // expanded into a `?, ?, ?` placeholder list and fail as a syntax error. A mock
+        // cannot answer that question.
+        long first = offer("Erstes", TODAY);
+        long second = offer("Zweites", TODAY);
+        long untouched = offer("Drittes", TODAY);
+
+        var result = archive.setArchived(List.of(first, second), true);
+
+        assertThat(result).isEqualTo(new ArchiveResult(2, 2, 2));
+        assertThat(archivedAt(first)).isNotNull();
+        assertThat(archivedAt(second)).isNotNull();
+        assertThat(archivedAt(untouched)).isNull();
+        assertThat(archiveSource(first)).isEqualTo("MANUAL");
+    }
+
+    @Test
+    void countsRowsWrittenRatherThanIdsAsked() {
+        // A stale id costs a number and nothing else. Refusing the whole request because one
+        // member has gone would lose every other decision in it.
+        long real = offer("Da", TODAY);
+
+        var result = archive.setArchived(List.of(real, 999_999L), true);
+
+        assertThat(result.requested()).isEqualTo(2);
+        assertThat(result.archived()).isEqualTo(1);
+        assertThat(archivedAt(real)).isNotNull();
+    }
+
+    @Test
+    void countsTheUnscoredAmongThem() {
+        // `matched`, `total` and `unscored` are one sentence beside the list. Without this
+        // number the third one keeps standing after the offers behind it are gone.
+        long scored = offer("Bewertet", TODAY);
+        long unscored = offer("Unbewertet", TODAY);
+        jdbc.update("UPDATE offer SET score_value = 72 WHERE id = ?", scored);
+
+        var result = archive.setArchived(List.of(scored, unscored), true);
+
+        assertThat(result.archived()).isEqualTo(2);
+        assertThat(result.unscored()).isEqualTo(1);
+    }
+
+    @Test
+    void theAgePassNeverTakesBackWhatWasArchivedInBulk() {
+        // The reason there is no lock against a running pass. A row stamped MANUAL is outside
+        // both of the age pass's predicates, so a concurrent pass cannot undo this write —
+        // the four-state design doing its job rather than a guard doing it.
+        long fresh = offer("Frisch und von Hand raus", TODAY);
+
+        archive.setArchived(List.of(fresh), true);
+        var report = archive.run(TODAY);
+
+        assertThat(archivedAt(fresh)).isNotNull();
+        assertThat(report.restored()).isZero();
+    }
+
+    @Test
+    void theSingleOfferPathWritesWhatItAlwaysDid() {
+        // Collapsing both methods onto one statement must not move the single path's meaning.
+        long one = offer("Einzeln", TODAY);
+
+        assertThat(archive.setArchived(one, true)).isTrue();
+        assertThat(archiveSource(one)).isEqualTo("MANUAL");
+
+        assertThat(archive.setArchived(one, false)).isTrue();
+        assertThat(archivedAt(one)).isNull();
+        assertThat(archiveSource(one)).isEqualTo("RESTORED");
+    }
+
+    @Test
+    void answersFalseForAnOfferThatIsNotThere() {
+        assertThat(archive.setArchived(999_999L, true)).isFalse();
+    }
+
+    @Test
+    void archivingTwiceIsNotAnError() {
+        // A person clicking twice, which a bulk request makes considerably more likely.
+        long twice = offer("Zweimal", TODAY);
+
+        archive.setArchived(List.of(twice), true);
+        var again = archive.setArchived(List.of(twice), true);
+
+        assertThat(again.archived()).isEqualTo(1);
+        assertThat(archivedAt(twice)).isNotNull();
+    }
+
+    @Test
+    void collapsesADuplicateIdBeforeItReachesTheStatement() {
+        // `= ANY` touches a row once whatever the array says, so counting the ids asked for
+        // would report an offer that got away.
+        long once = offer("Einmal", TODAY);
+
+        var result = archive.setArchived(List.of(once, once), true);
+
+        assertThat(result).isEqualTo(new ArchiveResult(1, 1, 1));
+    }
+
     private long offer(String title, LocalDate publishedOn) {
         return jdbc.queryForObject("""
             INSERT INTO offer (source_id, external_id, title, url, fingerprint, status, published_on)
@@ -209,5 +311,9 @@ class ArchiveServiceTest {
 
     private Object archivedAt(long id) {
         return jdbc.queryForObject("SELECT archived_at FROM offer WHERE id = ?", Object.class, id);
+    }
+
+    private String archiveSource(long id) {
+        return jdbc.queryForObject("SELECT archive_source FROM offer WHERE id = ?", String.class, id);
     }
 }

@@ -1,4 +1,4 @@
-import {ChangeDetectionStrategy, Component, computed, input} from '@angular/core';
+import {ChangeDetectionStrategy, Component, computed, input, output} from '@angular/core';
 import {RouterLink} from '@angular/router';
 import {TranslocoPipe} from '@jsverse/transloco';
 import {ShortlistEntry} from '@core/model/shortlist-entry';
@@ -22,6 +22,41 @@ export class OfferCard {
      * all agree on, and a second copy would disagree with it the first time one is used.
      */
     readonly selected = input(false);
+
+  /**
+   * Whether this list offers a selection at all. False on the archive side, where there is
+   * no bulk restore — the card is told, it never learns what an archive is.
+   */
+  readonly pickable = input(false);
+
+  /** Whether this offer is one of the ticked ones. Owned by the store, never by the card. */
+  readonly picked = input(false);
+
+  /** While a bulk request is out. One list waits, and the rest of the page stays usable. */
+  readonly pickDisabled = input(false);
+
+  /**
+   * `output()` and not `model()`: a two-way binding would make the card the writer, and a
+   * Shift-range writes cards other than the clicked one.
+   */
+  readonly pickToggled = output<{ id: number; range: boolean }>();
+
+  /**
+   * `(click)` and not `(change)`, because `Event` has no `shiftKey` and `MouseEvent` does —
+   * and a keyboard Space on a focused checkbox dispatches a click too, so one handler covers
+   * both paths.
+   *
+   * **`preventDefault()` on every click, so the store stays the only writer of `checked`.**
+   * `[checked]` writes only when the bound value changes, and the browser has already
+   * flipped the DOM by the time this runs. A Shift-click on an already-ticked card is where
+   * the two part company: the browser unticks it, the range logic keeps it ticked, the
+   * binding sees `true → true` and has nothing to reconcile, and the box then shows the
+   * opposite of the truth.
+   */
+  protected onPick(event: MouseEvent): void {
+    event.preventDefault();
+    this.pickToggled.emit({id: this.entry().offer.id, range: event.shiftKey});
+  }
 
     /**
      * The three factors that moved the score most, plus every penalty. A penalty is

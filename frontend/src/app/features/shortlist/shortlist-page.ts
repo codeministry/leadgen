@@ -56,6 +56,8 @@ export class ShortlistPage {
     protected readonly store = inject(ShortlistStore);
 
     private readonly listPane = viewChild<ElementRef<HTMLElement>>('listPane');
+
+  private readonly confirmArchive = viewChild<ElementRef<HTMLDialogElement>>('confirmArchive');
   private readonly document = inject(DOCUMENT);
     private readonly injector = inject(Injector);
 
@@ -265,6 +267,64 @@ export class ShortlistPage {
             queryParamsHandling: 'merge',
         });
     }
+
+  /**
+   * A card's checkbox, with the Shift state the click carried.
+   *
+   * The range is resolved against `entries` — the loaded list in the order the server sent
+   * it, which is the same list the arrow keys walk — and never against the DOM. Both ends
+   * are inclusive. An anchor that is no longer in the list, because its row was archived,
+   * falls back to a plain toggle rather than guessing at what was meant.
+   *
+   * A range can therefore span a page boundary, which is most of what makes the gesture
+   * worth having. That works only because the selection survives paging *and* the anchor is
+   * an id: as an index it would point at a different offer after every load-more, silently.
+   */
+  protected onPick(id: number, range: boolean): void {
+    const entries = this.visible();
+    const anchor = this.store.pickAnchor();
+    if (range && anchor !== null) {
+      const from = entries.findIndex((entry) => entry.offer.id === anchor);
+      const to = entries.findIndex((entry) => entry.offer.id === id);
+      if (from !== -1 && to !== -1) {
+        const [lo, hi] = from <= to ? [from, to] : [to, from];
+        this.dispatch.rangePicked(entries.slice(lo, hi + 1).map((entry) => entry.offer.id));
+        return;
+      }
+    }
+    this.dispatch.offerPicked({id, picked: !this.store.pickedIds().has(id)});
+  }
+
+  protected clearPicks(): void {
+    this.dispatch.picksCleared();
+  }
+
+  /**
+   * Archiving is reversible, but it is still a write over a set somebody assembled by hand,
+   * so the count is read back before it goes out.
+   *
+   * Optional-called throughout: jsdom implements `HTMLDialogElement` as a bare `HTMLElement`
+   * carrying an `open` attribute and nothing else — no `showModal`, no `close` — exactly like
+   * `Element.scrollTo` and `document.scrollingElement`. An unguarded call takes down every
+   * spec of this screen from inside a handler, far from anything that names a dialog.
+   */
+  protected askToArchivePicked(): void {
+    this.confirmArchive()?.nativeElement.showModal?.();
+  }
+
+  protected confirmArchivePicked(): void {
+    this.dispatch.bulkArchiveRequested(this.store.picked());
+    this.confirmArchive()?.nativeElement.close?.();
+    // The bar is destroyed the moment the selection empties, so focus would fall to the
+    // body and the keyboard path would be lost mid-triage — the one thing the split view
+    // was rebuilt to protect. The pane carries `tabindex="0"` precisely so it can hold it.
+    this.listPane()?.nativeElement.focus?.();
+  }
+
+  /** A cancelled confirmation is not a cleared selection. */
+  protected cancelArchivePicked(): void {
+    this.confirmArchive()?.nativeElement.close?.();
+  }
 
     protected setFilter(key: 'q' | 'band' | 'portal', value: string): void {
         void this.router.navigate([], {

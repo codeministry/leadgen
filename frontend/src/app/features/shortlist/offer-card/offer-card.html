@@ -1,4 +1,4 @@
-<article class="card" [class.is-selected]="selected()">
+<article class="offer" [class.is-selected]="selected()">
     <lg-score [value]="entry().score.value"/>
 
     <div class="main">
@@ -80,4 +80,26 @@
             </p>
         }
     </div>
+
+  <!-- A third column of the card, pinned to the top so it reads on one row with the score
+       ring and the title's first line. It costs the body 38px of width, and the column is
+       36rem rather than 34 for exactly that reason: paid for once in the layout instead of
+       taken out of the title on every card.
+
+       Never a descendant of the title anchor: that anchor is stretched across the whole
+       card, so anything inside it would be part of the link rather than a control on top of
+       it. The name carries the title because fifty identical checkboxes are fifty unlabelled
+       controls. -->
+  @if (pickable()) {
+    <div class="pick">
+      <input
+        type="checkbox"
+        class="checkbox checkbox-sm"
+        [checked]="picked()"
+        [disabled]="pickDisabled()"
+        [attr.aria-label]="'shortlist.pickOffer' | transloco: {title: entry().offer.title}"
+        (click)="onPick($event)"
+      />
+    </div>
+  }
 </article>

@@ -60,12 +60,22 @@
        uncapped, the advert would run 92rem wide on a large monitor, and it is the one prose
        surface in the app.
 
-       It is the scanning column that the width is worth spending on, so it takes 34rem and
+       It is the scanning column that the width is worth spending on, so it takes 36rem and
        the advert gives them up: the card carries a title, four meta values and a score, the
        advert is prose and was the wider of the two by a long way. One token for both screens
        — the review's queue is the same card being scanned the same way, and two numbers that
-       are only ever set together are one number written twice. */
-    --lg-list-w: 34rem;
+       are only ever set together are one number written twice.
+
+       36rem and not the 34 it started at, and the two extra rem are the selection checkbox.
+       It is a third column of the card, on one row with the score ring and the title, and it
+       costs the body 34px — a 19px box plus the card's own 1rem gap — which is what pushed
+       long titles onto an extra line, a width problem arriving as a complaint about height.
+       Widening pays that once in the layout instead of out of every title. Measured at 1440:
+       the body is 388px here, against the 358px it would have at 34rem with the checkbox, so
+       the two rem buy back 30 of the 34. The reading column gives them up, and at the split's
+       own 72rem breakpoint that leaves it 548px, clear of the 489px this layout was designed
+       against. */
+  --lg-list-w: 36rem;
     --lg-split-gap: 1.25rem;
   --lg-split-max: var(--lg-shell-max);
 

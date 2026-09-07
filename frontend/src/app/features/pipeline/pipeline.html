@@ -24,7 +24,7 @@
                         <ul class="cards">
                             @for (application of column.applications; track application.id) {
                                 <li
-                                        class="card"
+                                  class="lane-card"
                                         [class.saving]="store.saving() === application.id"
                                         [class.is-selected]="application.offerId === selectedId()"
                                 >

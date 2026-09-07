@@ -8,6 +8,8 @@
  */
 package de.codeministry.leadgen.web;
 
+import de.codeministry.leadgen.archive.ArchiveRequest;
+import de.codeministry.leadgen.archive.ArchiveResult;
 import de.codeministry.leadgen.archive.ArchiveService;
 import de.codeministry.leadgen.offer.*;
 import de.codeministry.leadgen.score.ScoringService;
@@ -21,12 +23,14 @@ import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
+import java.util.stream.LongStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.Mockito.never;
 
 /**
  * The archive endpoint: the one thing about an offer a person owns.
@@ -97,6 +101,104 @@ class OfferControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
                 .hasStatus4xxClientError();
+    }
+
+    @Test
+    void archivesEveryIdInOneRequestRatherThanOnePerOffer() {
+        given(archive.setArchived(anyCollection(), anyBoolean())).willReturn(new ArchiveResult(3, 3, 0));
+
+        assertThat(mvc.post()
+            .uri("/api/offers/archive")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("{\"ids\":[1,2,3]}"))
+            .hasStatusOk();
+
+        then(archive).should().setArchived(List.of(1L, 2L, 3L), true);
+    }
+
+    @Test
+    void answersWithACountRatherThanWithTheRows() {
+        // The list drops an archived row instead of replacing it, so entries here would be
+        // fetched only to be discarded — and a page of them is measured in megabytes.
+        given(archive.setArchived(anyCollection(), anyBoolean())).willReturn(new ArchiveResult(2, 2, 1));
+
+        assertThat(mvc.post()
+            .uri("/api/offers/archive")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("{\"ids\":[1,2]}"))
+            .hasStatusOk()
+            .bodyJson()
+            .extractingPath("$.archived")
+            .isEqualTo(2);
+
+        then(offers).should(never()).find(anyLong());
+    }
+
+    @Test
+    void doesNotAnswer404ForAnIdThatNamesNoOffer() {
+        // The counterpart to `answers404ForAnOfferThatIsNotThere`, and the pair is the point:
+        // one offer asked about is a question with an honest "no such offer"; a set operation
+        // must not lose forty-nine decisions because one member has gone.
+        given(archive.setArchived(anyCollection(), anyBoolean())).willReturn(new ArchiveResult(3, 2, 0));
+
+        assertThat(mvc.post()
+            .uri("/api/offers/archive")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("{\"ids\":[1,2,999]}"))
+            .hasStatusOk()
+            .bodyJson()
+            .extractingPath("$.requested")
+            .isEqualTo(3);
+    }
+
+    @Test
+    void refusesARequestThatNamesNoOffer() {
+        // A write that asks for nothing is a question, not a success. Both shapes: an empty
+        // list, and a body with no list at all — the second one reaches the compact
+        // constructor with null before `@NotEmpty` ever runs.
+        assertThat(mvc.post()
+            .uri("/api/offers/archive")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("{\"ids\":[]}"))
+            .hasStatus4xxClientError();
+
+        assertThat(mvc.post()
+            .uri("/api/offers/archive")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("{}"))
+            .hasStatus4xxClientError();
+
+        then(archive).should(never()).setArchived(anyCollection(), anyBoolean());
+    }
+
+    @Test
+    void refusesMoreOffersThanTheCeiling() {
+        // Refused and never narrowed: silently archiving the first 500 of 501 is a wrong
+        // write with no symptom.
+        String ids = LongStream.rangeClosed(1, ArchiveRequest.MAX_IDS + 1)
+            .mapToObj(Long::toString)
+            .collect(Collectors.joining(","));
+
+        assertThat(mvc.post()
+            .uri("/api/offers/archive")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("{\"ids\":[" + ids + "]}"))
+            .hasStatus4xxClientError();
+
+        then(archive).should(never()).setArchived(anyCollection(), anyBoolean());
+    }
+
+    @Test
+    void collapsesADuplicateIdBeforeItReachesTheService() {
+        given(archive.setArchived(anyCollection(), anyBoolean())).willReturn(new ArchiveResult(2, 2, 0));
+
+        assertThat(mvc.post()
+            .uri("/api/offers/archive")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("{\"ids\":[1,1,2]}"))
+            .hasStatusOk();
+
+        then(archive).should().setArchived(List.of(1L, 2L), true);
     }
 
     private static ShortlistEntry entry(Instant archivedAt, String source) {

@@ -99,7 +99,7 @@ describe('Pipeline', () => {
     // descendant of it, because a `<select>` inside an anchor is unreachable whatever the
     // stacking order says.
     const harness = await openBoard();
-    const card: HTMLElement = harness.routeNativeElement!.querySelector('.card')!;
+    const card: HTMLElement = harness.routeNativeElement!.querySelector('.lane-card')!;
     const link: HTMLAnchorElement = card.querySelector('a')!;
     const picker: HTMLElement = card.querySelector('lg-status-picker')!;
 

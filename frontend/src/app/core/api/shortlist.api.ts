@@ -1,6 +1,7 @@
 import {HttpClient, HttpParams} from '@angular/common/http';
 import {inject, Injectable} from '@angular/core';
 import {Observable} from 'rxjs';
+import {ArchiveResult} from '@core/model/archive-result';
 import {FunnelView} from '@core/model/funnel';
 import {ShortlistEntry} from '@core/model/shortlist-entry';
 import {ShortlistFilters, ShortlistPage} from '@core/model/shortlist-page';
@@ -67,6 +68,18 @@ export class ShortlistApi {
     setArchived(id: number, archived: boolean): Observable<ShortlistEntry> {
         return this.http.patch<ShortlistEntry>(`/api/offers/${id}`, {archived});
     }
+
+  /**
+   * Take a set of offers off the working list in one request.
+   *
+   * A POST on the collection, because the shortlist is a query result and not a resource,
+   * and it names no direction: there is no bulk restore. It answers two counts rather than
+   * the entries, unlike the single PATCH above — the store drops these rows instead of
+   * replacing them, so the representation would be fetched only to be thrown away.
+   */
+  archiveAll(ids: readonly number[]): Observable<ArchiveResult> {
+    return this.http.post<ArchiveResult>('/api/offers/archive', {ids});
+  }
 
     /**
      * Judge this one offer again. A POST because it spends a language-model call and

@@ -8,6 +8,8 @@
  */
 package de.codeministry.leadgen.web;
 
+import de.codeministry.leadgen.archive.ArchiveRequest;
+import de.codeministry.leadgen.archive.ArchiveResult;
 import de.codeministry.leadgen.archive.ArchiveService;
 import de.codeministry.leadgen.offer.*;
 import de.codeministry.leadgen.score.Judges;
@@ -108,6 +110,31 @@ class OfferController {
             throw new NotFound(id);
         }
         return offers.find(id).orElseThrow(() -> new NotFound(id));
+    }
+
+    /**
+     * Take a set of offers off the working list in one request.
+     *
+     * <p>A POST on the collection and not a PATCH: the shortlist is a query result, not a
+     * resource, so this is a named action of the kind {@code /{id}/score} already is. The
+     * literal {@code /archive} wins over any future {@code /{id}} POST by specificity, the
+     * same way {@code /funnel} does on the read side.
+     *
+     * <p>It answers a report rather than the rows, and the reason is written on
+     * {@link ArchiveResult}: the list drops what it archives instead of replacing it, so
+     * entries here would be fetched only to be discarded.
+     *
+     * <p><b>No 404, and that is the decision.</b> The single PATCH answers 404 because a
+     * person asked a question about one offer and "there is no such offer" is the honest
+     * reply. This is a set operation: refusing fifty decisions because one member has gone
+     * loses forty-nine of them for a reason nobody can act on. The difference between
+     * {@code requested} and {@code archived} is what makes the discrepancy visible instead —
+     * the shape {@code expect_count_from_subject} uses, where a mismatch is reported loudly
+     * and nothing that did come through is thrown away.
+     */
+    @PostMapping("/archive")
+    ArchiveResult archiveAll(@Valid @RequestBody ArchiveRequest request) {
+        return archive.setArchived(request.ids(), true);
     }
 
     /**

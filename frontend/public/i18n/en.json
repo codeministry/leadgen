@@ -5,7 +5,8 @@
     "saving": "Saving…",
     "unknown": "unknown",
     "none": "none",
-    "notKnown": "not known"
+    "notKnown": "not known",
+    "cancel": "Cancel"
   },
   "nav": {
     "sections": "Sections",
@@ -117,7 +118,14 @@
     "emptyArchiveHint": "Offers leave the working list when they age past the freshness window, or when you take them off it yourself.",
     "backToList": "Back to the list",
     "listLabel": "Offers",
-    "detailLabel": "Selected offer"
+    "detailLabel": "Selected offer",
+    "pickOffer": "Select {title}",
+    "selected": "{count, plural, one {# offer selected} other {# offers selected}}",
+    "archiveSelected": "Archive",
+    "clearSelection": "Clear selection",
+    "confirmArchiveTitle": "Archive these offers?",
+    "confirmArchiveBody": "{count, plural, one {# offer leaves the working list. You can put it back from the archive at any time.} other {# offers leave the working list. You can put them back from the archive at any time.}}",
+    "confirmArchiveConfirm": "{count, plural, one {Archive # offer} other {Archive # offers}}"
   },
   "offer": {
     "rateUnknown": "rate unknown",
@@ -368,6 +376,7 @@
     "analyticsLoad": "The analytics did not load.",
     "scoringModelsLoad": "The scoring models did not load.",
     "archive": "The archive could not be changed.",
-    "promptsLoad": "The prompts could not be loaded."
+    "promptsLoad": "The prompts could not be loaded.",
+    "bulkArchive": "The selected offers were not archived."
   }
 }

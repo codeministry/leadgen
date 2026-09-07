@@ -1,4 +1,12 @@
-.card {
+/* Not `.card`, and this is the whole reason the card is a row at all: daisyUI ships a `.card`
+   component that sets `flex-direction: column`, this rule set `display: flex` and never a
+   direction, and daisyUI's therefore won. The score sat above the title rather than beside it
+   for as long as the class was called `card` — measured in the built stylesheet, which carries
+   `.card{position:relative;display:flex;flex-direction:column;`. The same trap `.status`
+   sprang in the header and `.offer-list` was renamed to avoid, and it cost three rounds of
+   moving a checkbox that was never in the wrong place. Check a new class name against
+   daisyUI's component list, or prefix it. */
+.offer {
     position: relative;
     display: flex;
     gap: 1rem;
@@ -10,7 +18,7 @@
     background-color 140ms ease;
 }
 
-.card:hover {
+.offer:hover {
     border-color: color-mix(in oklab, var(--color-primary) 45%, var(--color-base-300));
 }
 
@@ -19,12 +27,12 @@
    rail uses for "you are here", because it is the same statement — 3px rather than the
    rail's 2, the card being four times the height of a nav item. No elevation: both themes
    ship `--depth: 0` and this design system has no shadows. */
-.card.is-selected {
+.offer.is-selected {
     border-color: var(--color-primary);
     background-color: var(--lg-selected-surface);
 }
 
-.card.is-selected::before {
+.offer.is-selected::before {
     content: '';
     position: absolute;
     inset-block: 0.75rem;
@@ -36,7 +44,7 @@
 
 /* Selected keeps the border; hover on it raises the wash instead of weakening the border,
    so hovering a selected card never reads as deselecting it. */
-.card.is-selected:hover {
+.offer.is-selected:hover {
     background-color: var(--lg-selected-surface-hover);
 }
 
@@ -67,12 +75,48 @@
     border-radius: inherit;
 }
 
+/* The first control this card has, and the comment above is the whole specification for it:
+   `position` and `z-index` are not cosmetic here. Without them the stretched anchor lies on
+   top of the box, a click opens the offer instead of ticking it, and nothing reports a
+   problem. The one other implementation of the same rule is `.card-status` on the board.
+
+   Not `.checkbox` on this wrapper — daisyUI ships a component under that name, the trap
+   `.status` sprang in the header and `.offer-list` was renamed to avoid. The input itself
+   takes daisyUI's `checkbox`, which is what it is for. */
+.pick {
+  /* `flex-start` and not the flex default: stretched, the box would centre itself down a
+     card that is four rows tall and stop reading as one row with the score and the title.
+     The score is a fixed 56px square, so pinning both to the top is what puts the ring, the
+     title's first line and the checkbox on one line.
+
+     Three placements were measured before this one. As a *left* column it cost the body
+     38px on every line — a tenth of the width a card has — and that is what pushed long
+     titles onto an extra line, so the height complaint was a width problem. Floated inside
+     the body it cost only the line it occupied, but it sat below the score rather than
+     beside it. On the right it costs the same 38px as on the left, which is why
+     `--lg-list-w` went from 34rem to 36rem: the width is paid once in the layout instead of
+     being taken out of every title. */
+  align-self: flex-start;
+
+  /* `position` and `z-index` are not cosmetic: the title link is stretched across the whole
+     card, so a control on the card has to lift itself above it or it stops being clickable.
+     The one other implementation of the same rule is `.card-status` on the board. */
+  position: relative;
+  z-index: 1;
+
+  /* The hit target around a 1rem box. It sits on this element rather than on the input
+     because this is the one lifted above the anchor, and the negative margin keeps it from
+     adding to the card's height. */
+  padding-block: 0.25rem;
+  margin-block: -0.25rem;
+}
+
 /* The ring belongs on the card, not on the title text, now that the anchor covers it. */
 .title a:focus-visible {
     outline: none;
 }
 
-.card:has(.title a:focus-visible) {
+.offer:has(.title a:focus-visible) {
     outline: 2px solid var(--color-primary);
     outline-offset: 2px;
 }
@@ -121,7 +165,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .card,
+  .offer,
     .title a {
         transition: none;
     }

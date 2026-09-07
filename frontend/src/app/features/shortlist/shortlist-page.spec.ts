@@ -3,6 +3,8 @@ import {HttpTestingController, provideHttpClientTesting} from '@angular/common/h
 import {ComponentFixture, TestBed} from '@angular/core/testing';
 import {provideRouter, Router} from '@angular/router';
 import {signal} from '@angular/core';
+import {injectDispatch} from '@ngrx/signals/events';
+import {shortlistEvents} from '@core/store/shortlist.events';
 import {ShortlistEntry} from '@core/model/shortlist-entry';
 import {ShortlistPage as ShortlistPayload} from '@core/model/shortlist-page';
 import {SCORE_THRESHOLDS} from '@shared/shared.ports';
@@ -195,11 +197,35 @@ describe('ShortlistPage', () => {
     }
 
     /** The pane is where the handler lives, and a card link's keydown bubbles up to it. */
-    function press(fixture: ComponentFixture<ShortlistPage>, key: string): void {
+    function press(
+      fixture: ComponentFixture<ShortlistPage>,
+      key: string,
+      modifiers: KeyboardEventInit = {},
+    ): void {
         const pane = fixture.nativeElement.querySelector('.list-pane') as HTMLElement;
-        pane.dispatchEvent(new KeyboardEvent('keydown', {key, bubbles: true}));
+      pane.dispatchEvent(new KeyboardEvent('keydown', {key, bubbles: true, ...modifiers}));
+      fixture.detectChanges();
+    }
+
+  /** Ticks the nth card's checkbox, optionally with Shift held. */
+  function pick(fixture: ComponentFixture<ShortlistPage>, index: number, shift = false): void {
+    const boxes: HTMLInputElement[] = Array.from(
+      fixture.nativeElement.querySelectorAll('lg-offer-card input[type="checkbox"]'),
+    );
+    boxes[index]!.dispatchEvent(
+      new MouseEvent('click', {bubbles: true, cancelable: true, shiftKey: shift}),
+    );
         fixture.detectChanges();
     }
+
+  function selectionCount(fixture: ComponentFixture<ShortlistPage>): number {
+    return fixture.componentInstance['store'].pickedCount();
+  }
+
+  /** The store's own events, for the state a screen cannot reach through the DOM. */
+  function dispatch(): ReturnType<typeof injectDispatch<typeof shortlistEvents>> {
+    return TestBed.runInInjectionContext(() => injectDispatch(shortlistEvents));
+  }
 
     it('opens the first offer by itself when both columns fit', () => {
         // An empty right column beside a full list is a page waiting for a click it does not
@@ -259,6 +285,160 @@ describe('ShortlistPage', () => {
         const navigate = vi.spyOn(router, 'navigate').mockResolvedValue(true);
 
         render();
+
+      expect(navigate).not.toHaveBeenCalled();
+    });
+
+  it('keeps the selection while paging and drops it when a filter changes', () => {
+    // Both halves of one rule, read from two sides: a longer list is the same list, and a
+    // filtered list is a different one whose ids the reader can no longer see.
+    const fixture = render(page({entries: [ENTRIES[0]!, ENTRIES[1]!], nextCursor: '88|1|1'}));
+
+    pick(fixture, 0);
+    expect(selectionCount(fixture)).toBe(1);
+
+    fixture.componentInstance['loadMore']();
+    expectPage().flush(page({entries: [ENTRIES[2]!], nextCursor: null}));
+    fixture.detectChanges();
+    expect(selectionCount(fixture)).toBe(1);
+
+    fixture.componentRef.setInput('band', 'shortlist');
+    fixture.detectChanges();
+    expectPage().flush(page());
+    fixture.detectChanges();
+    expect(selectionCount(fixture)).toBe(0);
+  });
+
+  it('selects the range between the last toggled card and the shift-clicked one', () => {
+    const fixture = render();
+
+    pick(fixture, 0);
+    pick(fixture, 2, true);
+
+    expect(selectionCount(fixture)).toBe(3);
+  });
+
+  it('measures a range from an id and not from a position', () => {
+    // The test that fails the day the anchor becomes an index: the second page shifts
+    // every position, and a range across the boundary would then select the wrong offers.
+    const fixture = render(page({entries: [ENTRIES[0]!], nextCursor: '88|1|1'}));
+
+    pick(fixture, 0);
+    fixture.componentInstance['loadMore']();
+    expectPage().flush(page({entries: [ENTRIES[1]!, ENTRIES[2]!], nextCursor: null}));
+    fixture.detectChanges();
+
+    pick(fixture, 2, true);
+
+    expect(selectionCount(fixture)).toBe(3);
+  });
+
+  it('falls back to a plain toggle when the anchor is no longer in the list', () => {
+    const fixture = render();
+
+    pick(fixture, 0);
+    // The anchored row leaves the list, which is what an archive does to it.
+    dispatch().bulkArchived({ids: [1], archived: 1, unscored: 0});
+    fixture.detectChanges();
+
+    pick(fixture, 1, true);
+
+    expect(selectionCount(fixture)).toBe(1);
+  });
+
+  it('does not archive until the dialog is confirmed', () => {
+    // The confirmation is the whole safety here, and asserting it needs no dialog at all —
+    // which is what lets this run in jsdom, where `showModal` does not exist.
+    const fixture = render();
+
+    pick(fixture, 0);
+    (fixture.nativeElement.querySelector('.bulk-bar .btn-primary') as HTMLButtonElement).click();
+    fixture.detectChanges();
+
+    http.expectNone('/api/offers/archive');
+    expect(selectionCount(fixture)).toBe(1);
+  });
+
+  it('keeps the selection when the confirmation is cancelled', () => {
+    const fixture = render();
+
+    pick(fixture, 0);
+    fixture.componentInstance['cancelArchivePicked']();
+    fixture.detectChanges();
+
+    expect(selectionCount(fixture)).toBe(1);
+  });
+
+  it('archives every selected offer in one request', () => {
+    const fixture = render();
+
+    pick(fixture, 0);
+    pick(fixture, 1);
+    fixture.componentInstance['confirmArchivePicked']();
+    fixture.detectChanges();
+
+    const request = http.expectOne('/api/offers/archive');
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body).toEqual({ids: [1, 2]});
+    request.flush({requested: 2, archived: 2, unscored: 0});
+    fixture.detectChanges();
+
+    expect(cards(fixture)).toBe(1);
+    expect(selectionCount(fixture)).toBe(0);
+  });
+
+  it('decrements the count by what the server wrote and not by what was asked', () => {
+    // An id that named no row was not archived. Both counters are clamped at zero, so the
+    // error would hide itself and only on the day an id was stale.
+    const fixture = render();
+    const store = fixture.componentInstance['store'];
+
+    pick(fixture, 0);
+    pick(fixture, 1);
+    fixture.componentInstance['confirmArchivePicked']();
+    fixture.detectChanges();
+    http.expectOne('/api/offers/archive').flush({requested: 2, archived: 1, unscored: 0});
+    fixture.detectChanges();
+
+    expect(store.matched()).toBe(2);
+    expect(store.total()).toBe(2);
+  });
+
+  it('asks for the open offer again when it was one of the archived', () => {
+    // Without this the detail goes on offering to archive an offer that is already
+    // archived — a button that lies, because the bulk answer carries no entries.
+    const fixture = render();
+    dispatch().offerLoaded(ENTRIES[0]!);
+
+    pick(fixture, 0);
+    fixture.componentInstance['confirmArchivePicked']();
+    fixture.detectChanges();
+    http.expectOne('/api/offers/archive').flush({requested: 1, archived: 1, unscored: 0});
+    fixture.detectChanges();
+
+    http.expectOne('/api/offers/1');
+  });
+
+  it('offers no selection on the archive side', () => {
+    const fixture = TestBed.createComponent(ShortlistPage);
+    fixture.componentRef.setInput('archived', '1');
+    fixture.detectChanges();
+    expectPage().flush(page());
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('lg-offer-card input[type="checkbox"]')).toBeNull();
+    expect(fixture.nativeElement.querySelector('.bulk-bar')).toBeNull();
+  });
+
+  it('leaves a Shift-modified key press alone', () => {
+    // The range gesture is a Shift-click and never a Shift-keypress, so the bail on every
+    // modifier stays — and it is load-bearing for a second reason now.
+    widthAllowsBothColumns(false);
+    const router = TestBed.inject(Router);
+    const navigate = vi.spyOn(router, 'navigate').mockResolvedValue(true);
+    const fixture = render();
+
+    press(fixture, 'j', {shiftKey: true});
 
         expect(navigate).not.toHaveBeenCalled();
     });

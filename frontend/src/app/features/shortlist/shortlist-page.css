@@ -76,7 +76,7 @@
    same false affordance the template comment argues against. `--lg-list-w` and not a token
    of its own: two numbers that are only ever set together are one number written twice.
 
-   Three rows and not four. All four controls in one row wanted 558px of the 510px this
+   Three rows and not four. All four controls in one row wanted 558px of the 540px this
    column has — in English as well as in German, so shorter labels alone would only have
    moved the wrap rather than removed it. */
 .filters {
@@ -92,6 +92,34 @@
     flex-wrap: wrap;
     align-items: center;
     gap: 0.5rem;
+}
+
+/* Capped like the filter block above it and for the same reason: it belongs to the list
+   column, not to the page. Not sticky inside the pane — above the breakpoint the whole
+   column is already sticky, and below it this scrolls away with the filters, which is what
+   the filters already do there. A sticky child inside the pane would also sit inside the
+   scroller the sentinel's observer root reasons about. */
+.bulk-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  max-width: var(--lg-list-w);
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.bulk-bar p {
+  margin: 0;
+}
+
+.bulk-error {
+  max-width: var(--lg-list-w);
+  margin: 0 0 0.75rem;
+  color: var(--color-error);
+}
+
+.confirm-body {
+  margin: 0.5rem 0 0;
 }
 
 /* Projected into the page header's action group, so it needs nothing but its own line: the
@@ -147,14 +175,14 @@
    there is one state left and the old number is measured against a layout that no longer
    exists. The floor it defended is the reading column it produced in the bad state, 489px.
 
-   Without the rail the reading column is `min(V - 45, 1560) - 528.75`: 578px at 72rem, which
-   clears the floor, and 450px at 64rem, which does not. 48rem stays its own number, where the
+   Without the rail the reading column is `min(V - 45, 1560) - 558.75`: 548px at 72rem, which
+   clears the floor, and 420px at 64rem, which does not. 48rem stays its own number, where the
    navigation becomes a bottom bar — two structural relayouts on one breakpoint make both
    harder to check.
 
    A `rem` here is not a `rem` in the rules below it: `html` is at 93.75%, so the layout's
    own rem is 15px while a media query resolves against the initial 16px. 72rem is 1152px;
-   `--lg-list-w: 34rem` is 510px.
+   `--lg-list-w: 36rem` is 540px.
 
    Stated once here, once in `shortlist-page.ts` for the auto-selection, and once each in the
    two sibling split views. */

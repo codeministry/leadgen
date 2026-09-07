@@ -89,8 +89,19 @@
     gap: 0.5rem;
 }
 
-.card {
+/* Not `.card`: daisyUI ships a component under that name, and this rule set no `display` at
+   all — so the column these children stack in was daisyUI's, not ours. Invisible here because
+   a board card wants a column anyway; on the shortlist the same collision turned a row into a
+   column and cost three rounds of moving a checkbox that was never in the wrong place. Both
+   lines below are therefore load-bearing: they are what daisyUI was contributing.
+
+   `.card-top`, `.card-title`, `.card-foot` and `.card-status` are the same family and are
+   left standing — daisyUI's versions of those set typography this file already overrides, and
+   renaming them would touch the one documented precedent for the z-index rule. */
+.lane-card {
     position: relative;
+  display: flex;
+  flex-direction: column;
     padding: 0.625rem 0.75rem;
     border: 1px solid var(--color-base-300);
     border-radius: var(--radius-field);
@@ -112,19 +123,19 @@
     outline: none;
 }
 
-.card:has(.card-title a:focus-visible) {
+.lane-card:has(.card-title a:focus-visible) {
     outline: 2px solid var(--color-primary);
     outline-offset: 2px;
 }
 
 /* Which offer the reading column is showing, in petrol — never the ochre accent, which
    means one thing only. The same edge marker the shortlist's cards carry. */
-.card.is-selected {
+.lane-card.is-selected {
     border-color: var(--color-primary);
     background-color: var(--lg-selected-surface);
 }
 
-.card.is-selected::before {
+.lane-card.is-selected::before {
     content: '';
     position: absolute;
     inset-block: 0.5rem;
@@ -134,7 +145,7 @@
     background-color: var(--color-primary);
 }
 
-.card.is-selected:hover {
+.lane-card.is-selected:hover {
     background-color: var(--lg-selected-surface-hover);
 }
 

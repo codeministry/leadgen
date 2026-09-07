@@ -7,7 +7,7 @@
 
      What stays down in the column are the filters. They filter the list and nothing else; laid
      across both columns they would read as filtering the detail too, and a search field
-     spanning the page while acting on a 34rem column is a false affordance. -->
+     spanning the page while acting on a 36rem column is a false affordance. -->
 <lg-page-header [title]="'shortlist.title' | transloco">
   <p class="type-small text-muted count">
     {{
@@ -89,6 +89,36 @@
             </div>
         </div>
 
+    <!-- In the column and not in the header, for the reason the filters are: it acts on
+         rows of this list, not on the screen. And below the split's breakpoint the column
+         is hidden while an offer is open, so in the header the bar would stand above a
+         detail view with no list, offering to archive a selection nobody can see. -->
+    @if (!archived() && store.pickedCount() > 0) {
+      <div class="bulk-bar">
+        <p class="type-small" role="status">
+          {{ 'shortlist.selected' | transloco: {count: store.pickedCount()} }}
+        </p>
+        <!-- Petrol, never the accent and never error red: ochre means "this survived
+             the filter" and nothing else, and archiving is a reversible decision the
+             operator owns rather than a failure. -->
+        <button
+          type="button"
+          class="btn btn-sm btn-primary"
+          [disabled]="store.bulkArchiving()"
+          (click)="askToArchivePicked()"
+        >
+          <lg-icon name="archive" [size]="14"/>
+          {{ 'shortlist.archiveSelected' | transloco }}
+        </button>
+        <button type="button" class="btn btn-sm btn-ghost" (click)="clearPicks()">
+          {{ 'shortlist.clearSelection' | transloco }}
+        </button>
+      </div>
+      @if (store.bulkArchiveError(); as error) {
+        <p class="type-small bulk-error" role="alert">{{ error | transloco }}</p>
+      }
+    }
+
         <!-- `tabindex` because a scrollable region has to be reachable by keyboard at all, and
          because it is what gives the arrow keys and j/k a home before any card is clicked. -->
         <section
@@ -104,7 +134,14 @@
                 <ul class="offer-list">
                     @for (entry of visible(); track entry.offer.id) {
                         <li>
-                            <lg-offer-card [entry]="entry" [selected]="entry.offer.id === selectedId()"/>
+                          <lg-offer-card
+                            [entry]="entry"
+                            [selected]="entry.offer.id === selectedId()"
+                            [pickable]="!archived()"
+                            [picked]="store.pickedIds().has(entry.offer.id)"
+                            [pickDisabled]="store.bulkArchiving()"
+                            (pickToggled)="onPick($event.id, $event.range)"
+                          />
                         </li>
                     }
                 </ul>
@@ -172,3 +209,51 @@
 
     </section>
 </div>
+
+<!-- Outside `.split`, so no ancestor's `overflow` or `container-type` has to be reasoned
+     about at all. Inline rather than a shared component: there is one caller and its prose is
+     `shortlist.*`, and a generic version would need four inputs and two outputs to wrap a
+     `<dialog>`, a `viewChild` and three methods.
+
+     Opened with `showModal()` and never with `show()` or `[open]`. Only `showModal()` puts the
+     element in the top layer, paints `::backdrop`, makes the rest of the page inert, traps Tab
+     and hands focus back to the invoker on close — which is why there is no roving tabindex
+     and no hand-written focus trap here. With daisyUI's `.modal` classes the three are
+     visually identical, because daisyUI keys its own visibility off `[open]`, which `show()`
+     sets too; a screenshot cannot tell you which one shipped.
+
+     daisyUI's own classes and no local `.modal` or `.dialog`: an author `display` on the
+     dialog beats the UA's unimportant `dialog:not([open]) { display: none }` and the panel
+     then stands open forever while `open` and every API you would ask report it closed —
+     the same trap the header's popover sprang. daisyUI overrides that rule deliberately and
+     pairs it with `visibility`, which is the half a hand-rolled class leaves out.
+
+     `(cancel)` only, not `(close)` as well: Escape fires cancel and then close, so a confirm
+     would otherwise run its cleanup twice. And no `<form method="dialog">`, because the
+     confirm has to dispatch before the dialog goes away. -->
+<dialog
+  #confirmArchive
+  class="modal"
+  aria-labelledby="lg-confirm-archive-title"
+  aria-describedby="lg-confirm-archive-body"
+  (cancel)="cancelArchivePicked()"
+>
+  <div class="modal-box" role="document">
+    <h2 class="type-h3" id="lg-confirm-archive-title">
+      {{ 'shortlist.confirmArchiveTitle' | transloco }}
+    </h2>
+    <p class="type-small confirm-body" id="lg-confirm-archive-body">
+      {{ 'shortlist.confirmArchiveBody' | transloco: {count: store.pickedCount()} }}
+    </p>
+    <div class="modal-action">
+      <!-- `autofocus` on Cancel and stated rather than left to the browser's "first
+           focusable descendant", so the write stays one deliberate Tab away from Enter. -->
+      <button type="button" class="btn btn-sm btn-ghost" autofocus (click)="cancelArchivePicked()">
+        {{ 'common.cancel' | transloco }}
+      </button>
+      <button type="button" class="btn btn-sm btn-primary" (click)="confirmArchivePicked()">
+        {{ 'shortlist.confirmArchiveConfirm' | transloco: {count: store.pickedCount()} }}
+      </button>
+    </div>
+  </div>
+</dialog>

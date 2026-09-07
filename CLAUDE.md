@@ -1042,6 +1042,66 @@ offer a person owns.
 - **A row archived from the list is dropped from it rather than replaced.** It is no longer
   part of the side being read, and leaving it there shows the working list carrying
   something that is not on it until somebody reloads.
+- **The bulk endpoint answers a report, and that is the one place the plural breaks the singular's rule.**
+  `PATCH /api/offers/{id}` returns the whole `ShortlistEntry` because the browser replaces its row with what the server
+  stored. `POST /api/offers/archive` cannot:
+  the reducer drops those rows rather than replacing them, so entries would be fetched only to be discarded — measured
+  here at ~1.4 KB each, so 200 offers is ~280 KB of representation nobody reads. `requested` against `archived` is what
+  an id that named no offer costs, and it is why the endpoint answers 200 where the single PATCH answers 404: refusing
+  fifty decisions because one member vanished loses forty-nine for a reason nobody can act on.
+- **No lock against a running pass, and the data is the reason.** `ARCHIVE_AGED_OUT` requires
+  `archive_source IS NULL` and `RESTORE_INSIDE_WINDOW` requires `archive_source = 'AGE'`, so a row stamped `MANUAL` is
+  outside both predicates and a concurrent pass cannot undo the write. That is the four-state design earning its keep
+  rather than a guard doing it. `IngestService`'s
+  `tryLock` exists because a second *pass* is the same work twice; one statement over at most 500 rows is not that, and
+  a 409 here would refuse the operator's own decision because a machine is busy.
+- **`SET_BY_HAND` binds positionally, and it must stay that way.** `JdbcClient` is named or positional per statement,
+  never both, and a *named* parameter holding a `Long[]` is expanded into a `?, ?, ?` list — which turns `= ANY (:ids)`
+  into `= ANY (?, ?, ?)`, a syntax error only a real Postgres reports. The two other array bindings,
+  `OfferQueryService.reasonsFor`
+  and `clustersFor`, are positional for the same reason. Tidying this back into named parameters "like the rest of the
+  file" is the edit that breaks it.
+- **The multi-selection lives in the store while the routed selection is a route, and the two rules do not contradict
+  each other.** Which offer is *open* is the URL, because a deep link, the back button and a click all have to agree on
+  it. Which offers are *ticked* is transient:
+  fifty ids in a query string is not a link anybody sends, and it would make the back button undo a checkbox. It sits in
+  `ShortlistStore` because `opened` already fires on every filter change and already clears `entries` — so the picks
+  clear in the one place they cannot drift from the list they point into. `moreLoaded` deliberately writes nothing,
+  which is what keeps a selection across paging and lets a Shift-range span a page boundary; the anchor is an **id**
+  for the same reason, since an index points at a different offer after every load-more.
+- **The archive side has no special case, and a reader will look for one.** `archived` is one of the four filters, so
+  crossing to it dispatches `opened` and empties the selection through the mechanism that already exists. The card takes
+  `pickable` and is simply told; it never learns what an archive is. Only the endpoint is indifferent — it archives what
+  it is given, because the scope is a screen decision and not a data one.
+- **The checkbox is the first control this card has ever carried, and the column got wider to hold it.** It is a third
+  flex column with `align-self: flex-start`, so the score ring, the title's first line and the box read as one row —
+  stretched, it would centre itself down a four-row card and stop reading as a row at all. Three placements were
+  measured on the way there, and the complaint that started it ("it takes height") was a width problem: on either side
+  the box costs the body 34px on every line — a 19px box plus the card's 1rem gap — which is what pushed long titles
+  onto an extra line. Floated inside the body it cost only the line it occupied but then sat below the score rather than
+  beside it; absolutely positioned it costs nothing and lets a long title run underneath it, and the only fix for *that*
+  is an inline padding on the title, which is the 34px back on every line of it. So the width is paid once, in
+  `--lg-list-w`: 34rem → 36rem. Measured at 1440 after the change: score 56px at x=46, body 388px at x=117, checkbox at
+  x=520 — against 358px of body had the column stayed at 34rem, so the two rem buy back 30 of the 34, and the reading
+  column is 548px.
+- **`.pick` still carries `position: relative; z-index: 1`,** or `.title a::after { inset: 0 }`
+  lies on top of it and a click opens the offer instead of ticking it, silently — the rule
+  `offer-card.css` had already written down for the day a control arrived, and which
+  `.card-status` on the board implements. A float is still in flow, so the lift works there exactly as it does on a flex
+  child. The wrapper is not called `.checkbox`: DaisyUI ships a component under that name, the trap
+  `.status` sprang in the header. The input's own `preventDefault` is the other half — `[checked]`
+  writes only on a change, the browser has already flipped the DOM, and a Shift-click on a ticked card would otherwise
+  show the opposite of the truth.
+- **The confirmation is a native `<dialog>` opened with `showModal()`, never `show()` and never
+  `[open]`.** Only `showModal()` gives the top layer, the backdrop, the inert page and the focus trap, which is why
+  there is no roving tabindex and no hand-written trap here — the mirror image of the header's popover, which chose a
+  popover *because* a modal traps focus. With DaisyUI's `.modal` the three are visually identical, since DaisyUI keys
+  its visibility off
+  `[open]` that `show()` also sets, so a screenshot cannot tell you which one shipped. No local
+  `.modal` or `.dialog` class either: an author `display` beats the UA's unimportant
+  `dialog:not([open]) { display: none }` and the panel then stands open forever while every API reports it closed. jsdom
+  implements `HTMLDialogElement` as a bare `HTMLElement` with `open`
+  and nothing else, so every call is optional-chained and no spec opens the dialog.
 
 ## Manual status capture
 
@@ -1169,7 +1229,7 @@ underneath all three. One list on the left, one thing being read on the right, a
   class as `remote.accept_unknown` — read, applied, and changing nothing — and it is exactly the number someone would
   have capped the header at. `--lg-measure` and `--lg-split-max` are now aliases of the one bound; `data.measure` has
   two states left, `full` and absent.
-- **The list column takes 34rem and the advert gives them up.** The card is what is scanned twenty at a time and it
+- **The list column takes 36rem and the advert gives them up.** The card is what is scanned twenty at a time and it
   carries a title, four meta values and a score; the advert is prose and was the wider of the two by a long way. It
   stays a fixed width — a proportional split re-wraps the card's meta row on every monitor. One token for the shortlist
   and the review both: the review's queue is the same card read the same way. The cost is at the bottom of the
@@ -1194,14 +1254,14 @@ underneath all three. One list on the left, one thing being read on the right, a
   with the nav rail **open** — the worse of two states no media query could see, because the rail went from 4rem to
   14.5rem on a click with no breakpoint of its own. That rail is gone, so there is one state left and the old number
   defends a layout that no longer exists. The floor it defended is the reading column it produced in the bad state,
-  489px. Without the rail that column is `min(V - 45, 1560) - 528.75`, so 72rem yields 578px and 64rem would yield
-  450px. Measured after the change, on all three screens: two columns at 1152 and one at 1151, the shortlist and the
-  review at 578px of reading column and the board at 638px of lanes beside its fixed 30rem panel; 706px at 1280, where
+  489px. Without the rail that column is `min(V - 45, 1560) - 558.75`, so 72rem yields 548px and 64rem would yield
+  420px. Measured after the change, on all three screens: two columns at 1152 and one at 1151, the shortlist and the
+  review at 548px of reading column and the board at 638px of lanes beside its fixed 30rem panel; 706px at 1280, where
   the detail's panels now sit two-up. 48rem is where the navigation becomes a bottom bar and stays its own number:
   stacking two structural relayouts on one makes both harder to check.
 - **A `rem` in a media query is not a `rem` in a rule, in this repository.** `html` sits at `font-size: 93.75%`, so the
   layout's rem is 15px while a media query resolves against the initial 16px whatever the root says. `72rem` is
-  therefore 1152px, and `--lg-list-w: 34rem` is 510px. Comparing the two numbers as if they were the same unit is how a
+  therefore 1152px, and `--lg-list-w: 36rem` is 540px. Comparing the two numbers as if they were the same unit is how a
   breakpoint gets picked for a column width it does not actually produce.
 - **The selection is a route, never local state.** The URL is what a deep link, the back button and a click all agree
   on, and a second copy in a signal disagrees with it the first time one of the three is used. Read from
@@ -1263,7 +1323,7 @@ underneath all three. One list on the left, one thing being read on the right, a
   and it was the one screen whose title was somewhere else. The count and the archive toggle came up with it — the count
   is read on every filter change and the toggle decides which *set* the screen is showing, which is a statement about
   the screen. The filters stayed down in the column: they filter the list and nothing else, and a search field spanning
-  the page while acting on a 34rem column is a false affordance.
+  the page while acting on a 36rem column is a false affordance.
 - **The offer card carries no description teaser.** Two clamped lines of somebody else's prose under a title that
   already says what the offer is, on the one surface that is scanned twenty at a time — it cost about a third of a
   card's height for a sentence the detail column renders properly a few hundred pixels to the right.

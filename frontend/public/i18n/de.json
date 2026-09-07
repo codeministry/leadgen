@@ -5,7 +5,8 @@
     "saving": "Speichert…",
     "unknown": "unbekannt",
     "none": "keins",
-    "notKnown": "nicht bekannt"
+    "notKnown": "nicht bekannt",
+    "cancel": "Abbrechen"
   },
   "nav": {
     "sections": "Bereiche",
@@ -117,7 +118,14 @@
     "emptyArchiveHint": "Angebote verlassen die Arbeitsliste, wenn sie älter als das Frischefenster werden oder wenn du sie selbst herausnimmst.",
     "backToList": "Zurück zur Liste",
     "listLabel": "Angebote",
-    "detailLabel": "Ausgewähltes Angebot"
+    "detailLabel": "Ausgewähltes Angebot",
+    "pickOffer": "{title} auswählen",
+    "selected": "{count, plural, one {# Angebot ausgewählt} other {# Angebote ausgewählt}}",
+    "archiveSelected": "Archivieren",
+    "clearSelection": "Auswahl aufheben",
+    "confirmArchiveTitle": "Diese Angebote archivieren?",
+    "confirmArchiveBody": "{count, plural, one {# Angebot verlässt die Arbeitsliste. Du kannst es jederzeit aus dem Archiv zurückholen.} other {# Angebote verlassen die Arbeitsliste. Du kannst sie jederzeit aus dem Archiv zurückholen.}}",
+    "confirmArchiveConfirm": "{count, plural, one {# Angebot archivieren} other {# Angebote archivieren}}"
   },
   "offer": {
     "rateUnknown": "Satz unbekannt",
@@ -368,6 +376,7 @@
     "analyticsLoad": "Die Auswertung konnte nicht geladen werden.",
     "scoringModelsLoad": "Die Bewertungsmodelle wurden nicht geladen.",
     "archive": "Das Archiv konnte nicht geändert werden.",
-    "promptsLoad": "Die Prompts konnten nicht geladen werden."
+    "promptsLoad": "Die Prompts konnten nicht geladen werden.",
+    "bulkArchive": "Die ausgewählten Angebote wurden nicht archiviert."
   }
 }
