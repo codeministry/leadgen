@@ -88,7 +88,8 @@ covers the same mechanics against a fixture that ships, and the two must stay in
 
 ## Traps that have already cost time
 
-The full list lives in [`CLAUDE.md`](../CLAUDE.md); these are the ones a newcomer hits first.
+The full list lives beside the code it is about, in [`backend/CLAUDE.md`](../backend/CLAUDE.md)
+and [`frontend/CLAUDE.md`](../frontend/CLAUDE.md); these are the ones a newcomer hits first.
 
 - **`bun run check:static` says nothing about the templates.** `tsc -p tsconfig.app.json`
   does not run the Angular template compiler, so a template type error only surfaces in

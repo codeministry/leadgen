@@ -2,7 +2,8 @@ import {type} from '@ngrx/signals';
 import {eventGroup} from '@ngrx/signals/events';
 import {PromptView} from '@core/model/prompt-view';
 import {RulesView} from '@core/model/rules-view';
-import {SourceSummary} from '@core/model/source-summary';
+import {SourceDetail} from '@core/model/source-detail';
+import {SourcesView} from '@core/model/source-summary';
 
 /**
  * Two screens, one store, and therefore two `*Opened` events: the sources list and the rules
@@ -12,10 +13,23 @@ export const configEvents = eventGroup({
     source: 'Config',
     events: {
         sourcesOpened: type<void>(),
-        sourcesLoaded: type<readonly SourceSummary[]>(),
+      sourcesLoaded: type<SourcesView>(),
+      /** One source was opened, by a click or by a link somebody pasted. */
+      sourceOpened: type<string>(),
+      sourceLoaded: type<SourceDetail>(),
+      /** The panel alone failed. Kept apart from `failed`, which is about the list. */
+      sourceFailed: type<string>(),
+      /** The panel was closed, which is a navigation back to `/sources`. */
+      sourceClosed: type<void>(),
         rulesOpened: type<void>(),
         rulesLoaded: type<RulesView>(),
         promptsLoaded: type<readonly PromptView[]>(),
-        failed: type<string>(),
+      /**
+       * One per screen, because the state they write is one per screen. A single `failed`
+       * meant an error raised while the rules loaded turned up on the sources screen after
+       * a navigation.
+       */
+      sourcesFailed: type<string>(),
+      rulesFailed: type<string>(),
     },
 });

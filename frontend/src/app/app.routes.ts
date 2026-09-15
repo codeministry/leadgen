@@ -91,6 +91,17 @@ export const routes: Routes = [
         path: 'sources',
         title: 'Sources · Lead Generation',
         loadComponent: () => import('@features/sources/sources').then((m) => m.Sources),
+      children: [
+        {
+          // A child route on a real component, so the table stays mounted and its numbers
+          // are not refetched on every click. A componentless leaf is refused outright
+          // with NG04014, and that failure surfaces when the Router is constructed — in
+          // every spec that merely injects it, far from the route that caused it.
+          path: ':id',
+          loadComponent: () =>
+            import('@features/sources/source-panel/source-panel').then((m) => m.SourcePanel),
+        },
+      ],
     },
     {
         path: 'rules',

@@ -2,9 +2,12 @@
 
 What this is, stage by stage, and the reasoning behind the parts that are not obvious.
 
-[`CLAUDE.md`](../CLAUDE.md) is the exhaustive version — every invariant with the measurement
-behind it, written for an agent working in the tree. This document is the same material
-arranged for somebody reading the repository for the first time.
+[`CLAUDE.md`](../CLAUDE.md) carries the invariants, with the conventions and the traps in
+[`backend/CLAUDE.md`](../backend/CLAUDE.md) and [`frontend/CLAUDE.md`](../frontend/CLAUDE.md),
+and [`docs/decisions/`](decisions/)
+holds the reasoning stage by stage — every rule with the measurement behind it, written for an
+agent working in the tree. This document is the same material arranged for somebody reading
+the repository for the first time.
 
 ## Shape
 

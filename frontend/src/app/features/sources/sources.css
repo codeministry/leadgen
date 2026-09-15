@@ -5,10 +5,36 @@
     background-color: var(--color-base-100);
 }
 
+/* The file that defines every row below it. Between the subtitle and the table, close
+   enough to the table to read as being about it. */
+.file-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.75rem;
+}
+
 .id {
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
+}
+
+/* Selection in a list: the primary edge and the wash the nav and the selected card already
+   use for "you are here". Never the accent — ochre means "this survived the filter", and
+   nothing on this screen survived anything. */
+.open {
+  background-color: var(--lg-selected-surface);
+  box-shadow: inset 3px 0 0 0 var(--color-primary);
+}
+
+.source-link {
+  color: inherit;
+}
+
+.source-link:hover {
+  text-decoration: underline;
 }
 
 .num {
@@ -26,11 +52,11 @@
     color: var(--color-success);
 }
 
-.note {
-    margin-top: 1rem;
+.sources-error {
+  margin: 0 0 1rem;
+  color: var(--color-error);
 }
 
-code {
-    font-family: var(--font-mono);
-    font-size: 0.8125rem;
+.note {
+    margin-top: 1rem;
 }

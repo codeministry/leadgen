@@ -60,11 +60,11 @@ public class SourceQueryService {
         this.jdbc = JdbcClient.create(dataSource);
     }
 
-    public List<SourceSummary> summaries() {
+    public SourcesView summaries() {
         Map<String, Run> runs = runs();
         Map<String, Integer> survivors = survivors();
-        // One lookup for the whole file: every source in it came from the same layer,
-        // because the two layers override each other file by file and never key by key.
+        // One lookup for the whole file, and now reported at that scope. It used to be stamped
+        // onto every row, where a badge asserted per source what is only ever true per file.
         String layer = ConfigSource.resolve(properties.configDirectory(), ConfigLoader.SOURCES_FILE)
                 .map(source -> source.isDefault() ? "default" : "config-dir")
                 .orElse("default");
@@ -76,14 +76,13 @@ public class SourceQueryService {
                     source.id(),
                     source.type(),
                     source.enabled(),
-                    layer,
                     run == null ? null : run.ranAt,
                     run == null ? 0 : run.documents,
                     run == null ? 0 : run.extracted,
                     run == null ? null : run.announced,
                     survivors.getOrDefault(source.id(), 0)));
         }
-        return summaries;
+        return new SourcesView(ConfigLoader.SOURCES_FILE, layer, summaries);
     }
 
     private Map<String, Run> runs() {

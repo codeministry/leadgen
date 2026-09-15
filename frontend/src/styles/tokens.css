@@ -103,6 +103,14 @@
   --lg-menu-w: 15rem;
   --lg-panel-w: 22rem;
 
+  /* The sources panel: a fixed column for a source's run history, and how far its YAML block
+     is folded. The history is fixed for the reason `--lg-list-w` is — five numeric columns
+     that would otherwise re-wrap on every monitor — and the clamp decides only *how far*, never
+     *whether*: that is a line count the server sends, because a measured height is suspended in
+     a backgrounded tab. */
+  --lg-runs-w: 30rem;
+  --lg-yaml-clamp: 24rem;
+
     /* Selection in a list. Not the accent: ochre means "this survived the filter" and nothing
        else, so the one on screen takes the primary edge and wash the nav rail already uses
        for "you are here". Ten per cent lands one step below `--color-base-300` in the light

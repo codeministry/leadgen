@@ -305,7 +305,6 @@
     "title": "Sources",
     "subtitle": "Where offers come from, how much each one yields, and which configuration layer defined it.",
     "colSource": "Source",
-    "colLayer": "Layer",
     "colLastRun": "Last run",
     "colDocuments": "Documents",
     "colExtracted": "Extracted",
@@ -320,7 +319,29 @@
     "missing": "{count} missing",
     "emptyTitle": "No sources configured",
     "emptyHint": "Every source is a block in sources.yaml. Without an external file the shipped defaults apply, and those are all switched off except the manual inbox.",
-    "note": "Adding a source is a YAML block in sources.yaml, not a deploy. The file is hot-reloaded, so this screen reads and does not edit."
+    "note": "Adding a source is a YAML block in sources.yaml, not a deploy. The file is hot-reloaded, so this screen reads and does not edit.",
+    "fileLabel": "Configuration file",
+    "readsOnly": "reads, never edits",
+    "close": "Close",
+    "runsTitle": "Recent runs",
+    "runsCaption": "{count, plural, one {# run, newest first} other {# runs, newest first}}",
+    "neverRan": "This source has not run yet.",
+    "colRan": "Day",
+    "colWritten": "Written",
+    "trendSince": "Extracted has been {count} since {date}, and was {before} before that.",
+    "trendFlat": "Extracted has been {count} on every one of these runs.",
+    "announcedNone": "This source states no count to check against.",
+    "announcedMatches": "The announced count has matched on every one of these runs.",
+    "announcedDiverged": "{count, plural, one {The announced count last disagreed on {date}, by one offer.} other {The announced count last disagreed on {date}, by # offers.}}",
+    "yamlTitle": "Block in sources.yaml",
+    "yamlLines": "lines {from}–{to}",
+    "yamlCaption": "The file as written: placeholders unresolved, secrets masked.",
+    "yamlLabel": "The block defining {id}, secrets masked",
+    "connectionTitle": "The connection it names",
+    "connectionLabel": "The connection block, secrets masked",
+    "showAll": "Show all {count} lines",
+    "showLess": "Show less",
+    "gone": "This source is no longer in sources.yaml."
   },
   "rules": {
     "title": "Rules",
@@ -452,6 +473,7 @@
     "scoringModelsLoad": "The scoring models did not load.",
     "archive": "The archive could not be changed.",
     "promptsLoad": "The prompts could not be loaded.",
-    "bulkArchive": "The selected offers were not archived."
+    "bulkArchive": "The selected offers were not archived.",
+    "sourceLoad": "The source could not be read."
   }
 }

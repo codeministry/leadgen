@@ -1,12 +1,29 @@
 <lg-page-header [title]="'sources.title' | transloco" [subtitle]="'sources.subtitle' | transloco"/>
 
+<!-- The file, once. It used to be a badge in every row, and it is one probe for the whole
+     file: the two configuration layers override each other file by file and never key by key,
+     so no two rows could ever disagree about it. Stated here it is simply true, and the table
+     is one column narrower — the only structural relief it has on a phone.
+
+     The file's path is not here. It is a personal datum and this line is in every screenshot
+     of this screen; it lives in the panel a click opens. -->
+@if (store.sourcesFile()) {
+  <p class="type-small file-line">
+    <lg-icon name="file-text" [size]="16"/>
+    <span class="sr-only">{{ 'sources.fileLabel' | transloco }}</span>
+    <span class="type-mono-data">{{ store.sourcesFile() }}</span>
+    <lg-badge [tone]="store.sourcesLayer() === 'default' ? 'ghost' : 'primary'" [outline]="true">
+      {{ (store.sourcesLayer() === 'default' ? 'sources.layerDefault' : 'sources.layerConfig') | transloco }}
+    </lg-badge>
+  </p>
+}
+
 @if (store.sources().length > 0) {
     <div class="table-scroll">
         <table class="table">
             <thead>
             <tr>
                 <th scope="col">{{ 'sources.colSource' | transloco }}</th>
-                <th scope="col">{{ 'sources.colLayer' | transloco }}</th>
                 <th scope="col">{{ 'sources.colLastRun' | transloco }}</th>
                 <th scope="col" class="num">{{ 'sources.colDocuments' | transloco }}</th>
                 <th scope="col" class="num">{{ 'sources.colExtracted' | transloco }}</th>
@@ -17,11 +34,21 @@
             </thead>
             <tbody>
                 @for (source of store.sources(); track source.id) {
-                    <tr [class.off]="!source.enabled">
+                  <tr [class.off]="!source.enabled" [class.open]="source.id === openId()">
                         <th scope="row">
               <span class="id">
                 <lg-icon [name]="iconFor(source.kind)" [size]="16"/>
-                <span class="type-small">{{ source.id }}</span>
+                <!-- The id is the trigger, and a link rather than a handler: the selection is
+                     the route, so `/sources/demo-newsletter` is a sentence somebody can paste
+                     into an issue. Not a stretched anchor over the whole row — that shape does
+                     not survive a table's own semantics, and at six rows it buys nothing. -->
+                <a
+                  class="type-small source-link"
+                  [routerLink]="['/sources', source.id]"
+                  aria-controls="lg-source-panel"
+                  [attr.aria-expanded]="source.id === openId()"
+                  [attr.aria-current]="source.id === openId() ? 'true' : null"
+                >{{ source.id }}</a>
                   @if (!source.enabled) {
                       <lg-badge tone="ghost" [outline]="true">{{
                               'sources.disabled' | transloco
@@ -29,22 +56,11 @@
                   }
               </span>
                         </th>
-                        <td>
-                            <!-- Which layer won is what explains a surprising run: the jar's
-                               defaults, or a file in the config directory that overrode them. -->
-                            @if (source.layer === 'default') {
-                                <lg-badge tone="ghost" [outline]="true">{{
-                                        'sources.layerDefault' | transloco
-                                    }}
-                                </lg-badge>
-                            } @else {
-                                <lg-badge tone="primary" [outline]="true">{{
-                                        'sources.layerConfig' | transloco
-                                    }}
-                                </lg-badge>
-                            }
-                        </td>
-                        <td class="type-mono-data">{{ day(source.lastRunAt) }}</td>
+                    <!-- The shared pipe, not a local slice of the ISO string: that one
+                         printed `2026-09-15` to both languages, beside a column of prose,
+                         while a pipe that writes the day the way the chosen language writes
+                         it sat in `shared/`. An em dash where a source has never run. -->
+                    <td class="type-mono-data">{{ (source.lastRunAt | lgDay) ?? '—' }}</td>
                         <td class="type-mono-data num">{{ source.documents }}</td>
                         <td class="type-mono-data num">{{ source.extracted }}</td>
                         <td class="type-mono-data num">{{ source.survived }}</td>
@@ -71,7 +87,12 @@
     </div>
 }
 
-@if (store.sources().length === 0 && !store.loading()) {
+<!-- The error, which this screen used to swallow. A failed request left the table hidden and
+     the empty state showing, so a network fault read as "no sources configured" — on the one
+     screen whose whole job is to make a misconfigured source visible. -->
+@if (store.sourcesError(); as error) {
+  <p class="type-small sources-error" role="alert">{{ error | transloco }}</p>
+} @else if (store.sources().length === 0 && !store.sourcesLoading()) {
     <lg-empty-state
             icon="database"
             [title]="'sources.emptyTitle' | transloco"
@@ -82,3 +103,8 @@
 <p class="type-small text-muted note">
     {{ 'sources.note' | transloco }}
 </p>
+
+<!-- The panel lives under the table, in the ~565px this screen has been leaving empty: full
+     content width, directly under the row that was clicked, which is the shape a 59-line block
+     and a 30-row history needs. -->
+<router-outlet/>

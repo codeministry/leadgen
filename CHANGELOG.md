@@ -9,6 +9,65 @@ may change in any release. See the status note in the README.
 
 ## [Unreleased]
 
+### Added
+
+- **A source can be opened, and it shows the block of `sources.yaml` that defines it.** The
+  screen was a table and a footnote: it answered "what is configured and what did it last
+  yield" and stopped there, so the question somebody arrives with — *why does this source
+  behave like that, and since when* — had no answer on the screen that exists for it.
+  `GET /api/sources/{id}` serves that block beside the connection it names and the runs it has
+  had, and `/sources/:id` is a link somebody can paste into an issue.
+
+  **The file's own bytes, never the bound configuration.** The snapshot has every
+  `${IMAP_PASSWORD}` already resolved, and this endpoint stands behind nothing. It has also
+  dropped every comment, and in the shipped file the newsletter block is 59 lines of which most
+  are the comments that explain why progress is never read off seen/unseen — the best thing
+  the panel has to show.
+
+  **Masked anyway, by key name, through the `Secrets` the startup banner already uses**, with
+  four rules that only matter when the subject is a file: only the mask and never the "(not
+  set)" and "(empty)" renderings, because *a file view must not contain text the file does not
+  contain*; a bare `${VAR}` survives while `${VAR:literal}` does not; flow mappings and block
+  scalars are covered, because the shipped file's whole `fields:` section is written as flow
+  mappings; and `username` is masked in the view but not in `Secrets`, whose job is "is it set"
+  on the operator's own terminal.
+
+  Masking protects credentials, not identity. A real block still names the operator's portal,
+  their mailbox folder and their paths, so a published screenshot of this screen is taken
+  against **no** `config/sources.yaml`, where the classpath defaults are already the demo
+  fixture.
+
+- **Every run a source has had, and when its numbers last moved.** `source_run` has been
+  append-only since `V9` with an index on `(source_id, ran_at DESC)` and a migration comment
+  saying the interesting question is when the number changed. Nothing asked it until now. The
+  comparison is a `lag()` window on the server; the panel receives data and the catalog picks
+  the sentence. **`written` reaches a screen for the first time** — the gap between extracted
+  and written is what re-reading a newsletter looks like, measured here at 1289 extracted
+  against 1280 rows.
+
+### Changed
+
+- **`GET /api/sources` answers an envelope, and this is a breaking change.**
+  `{file, layer, sources}` instead of a bare array, and `layer` is gone from the row. It was
+  one probe for the whole file — the two configuration layers override each other file by file
+  and never key by key — stamped onto every row, where a badge asserted per source what cannot
+  differ between two rows. Same class as `remote.accept_unknown`: rendered, validated, and
+  changing nothing. The table lost a column with it, which is the only structural relief a
+  seven-column table has on a phone.
+- **The date on the sources table follows the chosen language.** It was a slice of the ISO
+  string, so `2026-09-15` was printed to both, beside a column of prose, while a pipe that
+  writes a day the way a language writes it sat in `shared/`.
+
+### Fixed
+
+- **A failed `GET /api/sources` said "No sources configured".** The table was hidden and the
+  empty state shown, so a network fault wore the face of an empty configuration — on the one
+  screen whose whole job is to make a misconfigured source visible. The error is rendered now,
+  and Sources and Rules no longer share one `loading`/`error` pair: an error raised on one used
+  to appear on the other after a navigation.
+- **The docs placed the Markdown upload on the Sources screen.** It moved to Review with the
+  split views and the endpoint kept its path, which is what let the two sentences drift apart.
+
 ## [0.3.0] — 2026-09-15
 
 A release about the three facts a person actually sorts adverts by, about the bar that asks

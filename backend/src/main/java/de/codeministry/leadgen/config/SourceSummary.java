@@ -13,10 +13,11 @@ import java.time.Instant;
 /**
  * One row on the sources screen.
  *
- * @param layer     which of the two configuration layers this source's definition came from.
- *                  It is the thing that explains a surprising run: a source behaving unexpectedly is
- *                  usually one whose external file is overriding the shipped default, or one whose
- *                  external file is missing so the default applies.
+ * <p><b>It no longer carries which layer defined it.</b> That value is computed once for the
+ * whole file — the two layers override each other file by file and never key by key — and was
+ * then stamped onto every row, where it asserted a per-row fact that cannot vary. It sits on
+ * {@link SourcesView} now, which is the scope it is true at.
+ *
  * @param announced what the documents of the last run stated about themselves, or null
  *                  when none of them says. A mismatch with {@code extracted} means the selectors have
  *                  drifted, which is the one failure that otherwise looks exactly like a quiet market.
@@ -28,7 +29,6 @@ public record SourceSummary(
         String id,
         String kind,
         boolean enabled,
-        String layer,
         Instant lastRunAt,
         int documents,
         int extracted,

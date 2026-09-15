@@ -1,10 +1,11 @@
-import {HttpClient} from '@angular/common/http';
+import {HttpClient, HttpParams} from '@angular/common/http';
 import {inject, Injectable} from '@angular/core';
 import {Observable} from 'rxjs';
 import {PromptView} from '@core/model/prompt-view';
 import {RulesView} from '@core/model/rules-view';
 import {ScoringModels} from '@core/model/scoring-models';
-import {SourceSummary} from '@core/model/source-summary';
+import {SourceDetail} from '@core/model/source-detail';
+import {SourcesView} from '@core/model/source-summary';
 
 /**
  * `/api/sources`, `/api/rules` and `/api/prompts` — the configuration as the screens read it.
@@ -16,8 +17,24 @@ import {SourceSummary} from '@core/model/source-summary';
 export class ConfigApi {
     private readonly http = inject(HttpClient);
 
-    sources(): Observable<readonly SourceSummary[]> {
-        return this.http.get<readonly SourceSummary[]>('/api/sources');
+  sources(): Observable<SourcesView> {
+    return this.http.get<SourcesView>('/api/sources');
+  }
+
+  /**
+   * One source, opened: the block that defines it and the runs it has had.
+   *
+   * A request of its own rather than a fatter list. `/api/sources` is refetched whenever a
+   * run finishes and whenever the tab comes back to the front, and file text has no business
+   * on that path for a panel most readers never open.
+   *
+   * The text arrives masked. Masking happens on the server, or the unmasked file would be in
+   * the network tab, in the dev server's proxy log and in any reverse proxy in front of it.
+   */
+  source(id: string, runs: number): Observable<SourceDetail> {
+    return this.http.get<SourceDetail>(`/api/sources/${encodeURIComponent(id)}`, {
+      params: new HttpParams().set('runs', runs),
+    });
     }
 
     rules(): Observable<RulesView> {

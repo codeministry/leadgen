@@ -1,0 +1,116 @@
+# CLAUDE.md — backend
+
+Spring Boot 4.1, Java 25, Gradle. The repo-wide rules and the invariants are in the root
+`CLAUDE.md`; this file holds what applies only here, and Claude Code loads it when it reads a
+file in this tree.
+
+The reasoning stage by stage lives in `docs/decisions/pipeline-ingest.md`,
+`docs/decisions/pipeline-dedupe-filter.md`, `docs/decisions/pipeline-enrich-content.md`,
+`docs/decisions/pipeline-scoring.md`, `docs/decisions/read-side.md`,
+`docs/decisions/configuration.md` and `docs/decisions/manual-status.md`.
+
+## Backend conventions
+
+- **Lombok for the boilerplate, records for the data.** `@Slf4j` instead of a hand-written
+  logger, `@RequiredArgsConstructor` where the constructor is nothing but assignments. Not
+  where it does work (`ConfigRegistry` loads, `IngestService` builds a map) and not where
+  the parameters carry annotations (`@Value` in `StatusController`) — Lombok would generate
+  a constructor without them.
+- **API types are records, each in its own file.** `AppStatus`, `IngestReport`,
+  `SourceIngestResult`, `DocumentIngestResult`. No response type nested inside its
+  controller or service. The configuration model is the exception: those records mirror the
+  nesting of a YAML file, and flattening them would lose exactly the structure they exist to
+  describe.
+- **`@Valid` goes on the type argument, never on the container.** `List<@Valid Skill>`
+  validates the elements; `@Valid List<Skill>` is deprecated in Hibernate Validator 9 and
+  logs a `HV000271` per component at every start. The configuration model is almost
+  entirely lists of validated records, so getting it wrong once fills the startup log.
+
+- **JDBC, not JPA.** The pipeline writes offers in batches and upserts them with
+  `ON CONFLICT`, which is one statement of plain SQL against a schema Flyway owns. An ORM
+  would add a mapping layer over Postgres arrays for no gain. Flyway is therefore the only
+  thing that touches the schema at all.
+- **Boot 4 split the integrations into their own modules.** Without
+  `spring-boot-flyway` the migrations sit on the classpath and never run, and the only
+  symptom is Hibernate complaining about missing tables. `@WebMvcTest` likewise moved
+  from `…test.autoconfigure.web.servlet` into `spring-boot-webmvc-test`.
+- **The credentials file is `.env` and cannot be called anything else without a cost.**
+  Compose substitutes the `${...}` in `docker-compose.yml` from `.env` and nothing else:
+  not from `env_file:`, which only injects into a container, and not from
+  `COMPOSE_ENV_FILES` set inside a file (measured — real environment variable or
+  `--env-file` only). Another name needs a flag on every call or a symlink, and forgetting
+  either silently applies the compose defaults, so the stack listens where the application
+  is not looking.
+- **A published port's container side is fixed at 5432.** Postgres binds that port inside
+  the container whatever the host side is; making both sides variable publishes a host port
+  forwarding to a port nobody listens on, which looks exactly like no port at all.
+- **The database host port defaults to 55432, not 5432.** A developer machine usually
+  already has a Postgres on 5432, and connecting to the wrong one fails as
+  `password authentication failed for user "leadgen"` — a message naming the user and
+  neither the host nor the database it actually reached. `DatasourceBanner` prints the
+  effective JDBC URL at startup for the same reason the frontend prints its proxy target.
+- **`.env` is read by the application, not by the build.** It used to be a `bootRun` hook, so
+  launching the very same configuration from an IDE silently saw none of it: the value was in
+  the file and the service said it was missing. The file is searched upwards from the working
+  directory and real environment variables win, so every start path behaves identically.
+  Compose reads the same file.
+- **`.env` reaches Spring too, and it has to.** `DotEnvEnvironmentPostProcessor` registers it
+  as a property source directly below `systemEnvironment`, so a real exported variable still
+  wins and `application.yaml` now loses to the file. Without it the file meant two different
+  things depending on which of the two readers a variable happened to be used by:
+  `LEADGEN_CONFIG_DIR`, `POSTGRES_PASSWORD` and `SERVER_PORT` could be written there, be
+  visibly present, and have no effect whatsoever — while Compose, which passes those same
+  names as real environment variables, behaved exactly as written. It is a
+  `SystemEnvironmentPropertySource`, so `SPRING_DATASOURCE_URL` maps the way an exported
+  variable would, and it is registered in `META-INF/spring.factories` rather than as a bean
+  because it has to run before the environment is bound.
+- **`leadgen.packages-dir` and `leadgen.inbox-dir` are gone, and were read by nothing.** The
+  packages directory is `packaging.output_dir` in `pipeline.yaml`, the inbox is a source's
+  `path` in `sources.yaml`, and both are read by the tool itself. Their only effect was to make
+  `PACKAGES_DIR` and `INBOX_DIR` look as though they meant something on the Spring side as
+  well, which is how a value ends up written in the one place that is not read.
+
+## Traps that have already cost money
+
+- **`listOfRows()` hands the driver's own types straight on, and a cast is how that becomes a
+  500.** A `jsonb` column arrives as a `PGobject` and a `TEXT[]` as a `PgArray`, so
+  `(String) row.get("content_blocks")` threw a `ClassCastException` for every advert that had
+  been segmented. `PackagingService`'s per-offer catch turned that into a counter,
+  `package_dir` was never written, and the screen said every offer above the threshold had no
+  package — for nine days, with a green suite, because every fixture set `full_text` alone.
+  The `tags` array beside it never threw at all; it simply reached Freemarker as a wrapper
+  around a JDBC array. **Read a row with a `RowMapper` and `rs.getString(...)`**, which is
+  where the driver renders jsonb as text and where the other three readers of that column
+  already are.
+
+- **Masking a YAML document before parsing it breaks the parse, and silently.** The mask is
+  `********`; a plain scalar beginning with `*` is a YAML *alias*, so a masked file stops
+  composing and every block lookup after it comes back empty — no exception, just nothing
+  found. `SourceDetailService` therefore cuts the block out of the file's own bytes first and
+  masks what it is about to show. Found only by the fixture that writes a literal password into
+  a `sources.yaml`; the shipped file is all `${PLACEHOLDER}`s and can never reproduce it.
+- **SnakeYAML's `getEndMark()` is not the node's last line.** It points at the first token of
+  whatever follows, which in a sequence of blocks is the next item — measured on the shipped
+  `sources.yaml`, the newsletter block reported its end on the line reading
+  `- id: sample-portal-feed`, swallowing the comment that belongs to that one. Checking for
+  column zero does not save it, because that token begins at the dash's column. Bound a block
+  by the *next* item's start mark instead.
+- Search terms are wrapped in `<mark>` inside the title on some sources. Strip before any
+  title comparison, or deduplication trips over `<mark>DevOps</mark>`. Not present in the
+  current sample corpus; jsoup's `text()` handles it either way.
+- Strip `(m/w/d)`, `(w/m/d)`, `(m/f/d)` before normalizing. Every title comparison goes
+  through `TitleNormalizer`, so two of them cannot disagree.
+- The location sits behind a `📍` prefix in one of four `span`s in `div.job-meta` —
+  address it by the prefix, never by position.
+- **A test that proves the keyless path must not read the developer's `.env`.** Placeholder
+  resolution reads the process environment and then `.env`, whichever test is running, so
+  `ScoringWithoutAModelTest` started scoring against a real endpoint the moment a key was
+  filled in — and the test that exists to prove the tool works *without* a model failed for
+  the one person who had finished configuring it. It empties the `${LLM_*}` placeholders in
+  the materialised copy: what is under test is the code path, not whose machine it runs on.
+- **A comma in a jsoup selector is a union, and `selectFirst` answers in document order.**
+  Adding a narrower class to `article, main, .job-description, #content` therefore changes nothing whenever a `<main>`
+  wraps the page — which is every page that has one. The selector list reads like a priority order and is not one.
+- **Two methods called `kindOf(String)` that differ only in return type do not overload.**
+  Same erasure, so the compiler refuses the second — and because annotation processing then does not run, the error it
+  prints is 70 lines of "cannot find symbol: log" in files nobody touched. Read the *last* error, not the first.

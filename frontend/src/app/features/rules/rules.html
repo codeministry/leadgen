@@ -149,7 +149,7 @@
         <lg-icon name="ban" [size]="14"/>
         {{ 'rules.readOnly' | transloco }}
     </p>
-} @else if (store.error(); as error) {
+} @else if (store.rulesError(); as error) {
     <p class="type-small rules-error" role="alert">{{ error | transloco }}</p>
 } @else {
     <p class="type-small text-muted">{{ 'common.loading' | transloco }}</p>

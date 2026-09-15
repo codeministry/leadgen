@@ -1,0 +1,184 @@
+<!-- `role="region"` labelled by its own heading, so a screen reader's region list reads
+     "region, manual-inbox". It stays in the DOM while the route is open even before the answer
+     arrives, or the `aria-controls` on the row that opened it would point at nothing. -->
+<section class="source-panel" role="region" [attr.aria-labelledby]="'lg-source-panel-title'">
+  @if (store.detailError(); as error) {
+    <p class="type-small panel-error" role="alert">{{ error | transloco }}</p>
+  } @else if (ready() && detail(); as source) {
+    <div class="panel-head">
+      <h2 class="type-h3" id="lg-source-panel-title">{{ source.id }}</h2>
+      <span class="type-small text-muted">{{ source.kind }}</span>
+      @if (!source.enabled) {
+        <lg-badge tone="ghost" [outline]="true">{{ 'sources.disabled' | transloco }}</lg-badge>
+      }
+      <!-- The same vocabulary the rules screen uses for its own read-only note, so "this
+           reads and does not edit" is said in the panel in the language the sibling screen
+           already speaks. -->
+      <span class="type-caption text-muted reads-only">
+        <lg-icon name="ban" [size]="14"/>
+        {{ 'sources.readsOnly' | transloco }}
+      </span>
+      <a class="btn btn-sm btn-ghost close" routerLink="/sources">
+        <lg-icon name="x" [size]="16"/>
+        {{ 'sources.close' | transloco }}
+      </a>
+    </div>
+
+    <div class="panel-grid">
+      <!-- The history first: the row just clicked is five numbers from the last run, and this
+           is that row through time, so it continues the sentence. The block is the reference
+           document and goes last, where it can run long. -->
+      <section class="runs-pane">
+        <h3 class="type-h4">{{ 'sources.runsTitle' | transloco }}</h3>
+
+        @if (source.runs.length === 0) {
+          <p class="type-small text-muted">{{ 'sources.neverRan' | transloco }}</p>
+        } @else {
+          <!-- The question `source_run` exists to answer, in words, computed on the server:
+               "the interesting question is when the number changed, not what it is now". -->
+          <p class="type-small trend">
+            @if (source.trend.extractedChangedOn) {
+              {{
+                'sources.trendSince'
+                  | transloco
+                  : {
+                    count: source.trend.extractedNow,
+                    date: source.trend.extractedChangedOn | lgDay,
+                    before: source.trend.extractedBefore,
+                  }
+              }}
+            } @else {
+              {{ 'sources.trendFlat' | transloco: {count: source.trend.extractedNow} }}
+            }
+          </p>
+          <p class="type-small trend">
+            @if (!source.trend.announcedStated) {
+              {{ 'sources.announcedNone' | transloco }}
+            } @else if (source.trend.divergedOn) {
+              {{
+                'sources.announcedDiverged'
+                  | transloco: {count: source.trend.missing, date: source.trend.divergedOn | lgDay}
+              }}
+            } @else {
+              {{ 'sources.announcedMatches' | transloco }}
+            }
+          </p>
+
+          <div class="table-scroll">
+            <table class="table runs">
+              <thead>
+              <tr>
+                <th scope="col">{{ 'sources.colRan' | transloco }}</th>
+                <th scope="col" class="num">{{ 'sources.colDocuments' | transloco }}</th>
+                <th scope="col" class="num">{{ 'sources.colExtracted' | transloco }}</th>
+                <th scope="col" class="num">{{ 'sources.colWritten' | transloco }}</th>
+                <th scope="col">{{ 'sources.colAnnounced' | transloco }}</th>
+              </tr>
+              </thead>
+              <tbody>
+              <!-- Ink only where something moved: a count identical to the run before it is
+                   muted, one that changed takes body ink and a signed delta beside it. The
+                   sign is what keeps the difference off colour alone. -->
+                @for (row of rows(); track row.run.ranOn + '-' + $index) {
+                  <tr [class.diverged]="row.run.missing !== null && row.run.missing !== 0">
+                    <th scope="row" class="type-mono-data">{{ row.run.ranOn | lgDay }}</th>
+                    <td class="type-mono-data num text-muted">{{ row.run.documents }}</td>
+                    <td class="type-mono-data num" [class.text-muted]="row.extractedDelta === 0">
+                      {{ row.run.extracted }}
+                      @if (row.extractedDelta !== null && row.extractedDelta !== 0) {
+                        <span class="run-delta">{{ delta(row.extractedDelta) }}</span>
+                      }
+                    </td>
+                    <td class="type-mono-data num" [class.text-muted]="row.writtenDelta === 0">
+                      {{ row.run.written }}
+                      @if (row.writtenDelta !== null && row.writtenDelta !== 0) {
+                        <span class="run-delta">{{ delta(row.writtenDelta) }}</span>
+                      }
+                    </td>
+                    <td>
+                      @if (row.run.announced === null) {
+                        <span class="type-small text-muted">{{ 'sources.noCount' | transloco }}</span>
+                      } @else if (row.run.missing === 0) {
+                        <span class="type-small text-muted">{{ row.run.announced }}</span>
+                      } @else {
+                        <!-- The same component and the same key the table row above uses, so
+                             the badge here and the badge there are visibly one fact. -->
+                        <lg-badge tone="warning">{{
+                            'sources.missing' | transloco: {count: row.run.missing}
+                          }}
+                        </lg-badge>
+                      }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+          <p class="type-caption text-muted">
+            {{ 'sources.runsCaption' | transloco: {count: source.runs.length} }}
+          </p>
+        }
+      </section>
+
+      <section class="yaml-pane">
+        <h3 class="type-h4">{{ 'sources.yamlTitle' | transloco }}</h3>
+
+        @if (source.block; as block) {
+          <!-- Two sentences that stop two opposite misreadings: an unresolved `${…}` is not a
+               bug, and a masked line is not an unset value. People paste this panel into issue
+               trackers, which is the other half of the reason it is written down. -->
+          <p class="type-caption text-muted yaml-caption">
+            <lg-icon name="ban" [size]="14"/>
+            {{ source.file.origin ?? source.file.name }} ·
+            {{ 'sources.yamlLines' | transloco: {from: block.firstLine, to: block.lastLine} }}
+            <br/>
+            {{ 'sources.yamlCaption' | transloco }}
+          </p>
+
+          <!-- Scrollable, so it has to be reachable by keyboard and has to say what it is.
+               It scrolls inside itself and never widens the page. -->
+          <pre
+            class="yaml-text type-mono-data"
+            [class.folded]="foldable() && !unfolded()"
+            tabindex="0"
+            role="region"
+            [attr.aria-label]="'sources.yamlLabel' | transloco: {id: source.id}"
+            [innerHTML]="blockHtml()"
+          ></pre>
+
+          @if (foldable()) {
+            <button type="button" class="btn btn-sm btn-ghost" (click)="toggleFold()">
+              {{ (unfolded() ? 'sources.showLess' : 'sources.showAll') | transloco: {count: lineCount()} }}
+            </button>
+          }
+        } @else {
+          <!-- A real state rather than an error: the file is hot-reloadable, so between the
+               table load and this click the source may have been taken out of it. -->
+          <p class="type-small text-muted">{{ 'sources.gone' | transloco }}</p>
+        }
+
+        @if (source.connection; as connection) {
+          <h3 class="type-h4 connection-title">{{ 'sources.connectionTitle' | transloco }}</h3>
+          <p class="type-caption text-muted yaml-caption">
+            {{ 'sources.yamlLines' | transloco: {from: connection.firstLine, to: connection.lastLine} }}
+          </p>
+          <pre
+            class="yaml-text type-mono-data"
+            tabindex="0"
+            role="region"
+            [attr.aria-label]="'sources.connectionLabel' | transloco"
+            [innerHTML]="connectionHtml()"
+          ></pre>
+        }
+      </section>
+    </div>
+
+    <!-- Twice, so a keyboard user leaving a long block does not have to tab back up through
+         it to get out. -->
+    <a class="btn btn-sm btn-ghost close-bottom" routerLink="/sources">
+      {{ 'sources.close' | transloco }}
+    </a>
+  } @else {
+    <p class="type-small text-muted">{{ 'common.loading' | transloco }}</p>
+  }
+</section>

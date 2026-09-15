@@ -80,6 +80,10 @@ dependencies {
     // The three config files in config/local are read by this application, not by
     // Spring: they are data with their own schema, not Spring properties.
     implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml")
+    // Declared although Jackson already drags it in: `YamlBlocks` uses SnakeYAML's own
+    // `compose` to read a block's line marks, and an API used directly is a dependency
+    // this build owns rather than one that happens to be on the path today.
+    implementation("org.yaml:snakeyaml")
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
 
     // Boot 4 split the integrations into their own modules. Without
@@ -106,6 +110,24 @@ dependencies {
 
 tasks.withType<Test>().configureEach {
     useJUnitPlatform()
+
+    /*
+     * `WorkingNotesStaySmallTest` reads the working notes and the documents behind them,
+     * none of which are on the test classpath. Without declaring them, editing `CLAUDE.md`
+     * alone leaves the task UP-TO-DATE and the guard reports nothing — measured exactly
+     * that way: 5,000 characters appended past the budget, `BUILD SUCCESSFUL` in 572ms.
+     */
+    inputs.files(
+        rootProject.file("CLAUDE.md"),
+        rootProject.file("README.md"),
+        rootProject.file("backend/CLAUDE.md"),
+        rootProject.file("frontend/CLAUDE.md"),
+    )
+        .withPropertyName("workingNotes")
+        .withPathSensitivity(PathSensitivity.RELATIVE)
+    inputs.files(rootProject.fileTree("docs") { include("**/*.md") })
+        .withPropertyName("documentation")
+        .withPathSensitivity(PathSensitivity.RELATIVE)
 }
 
 /*
