@@ -23,7 +23,11 @@
     "ingest": "Quellen einlesen",
     "ingestRunning": "Lese Quellen…",
     "scoringModel": "Bewertungsmodell",
-    "settings": "Einstellungen und Version"
+    "settings": "Einstellungen und Version",
+    "runStage": "{stage} · Stufe {position} von {total}",
+    "runStageUnknown": "startet…",
+    "runSince": "Ein Lauf läuft seit {time}",
+    "runSinceStage": "Ein Lauf läuft seit {time} — {stage}"
   },
   "theme": {
     "legend": "Farbschema",
@@ -93,7 +97,8 @@
     "colWritten": "Geschrieben",
     "colAnnounced": "Angekündigt",
     "ofAnnounced": "{extracted} von {announced}",
-    "archivedNote": "{count, plural, one {# Angebot ist} other {# Angebote sind}} archiviert und in diesen Zahlen nicht enthalten."
+    "archivedNote": "{count, plural, one {# Angebot ist} other {# Angebote sind}} archiviert und in diesen Zahlen nicht enthalten.",
+    "runningSince": "Ein Lauf läuft seit {time}"
   },
   "shortlist": {
     "title": "Auswahl",

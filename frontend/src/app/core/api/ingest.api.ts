@@ -1,6 +1,7 @@
 import {HttpClient} from '@angular/common/http';
 import {inject, Injectable} from '@angular/core';
 import {Observable} from 'rxjs';
+import {CurrentRunView} from '@core/model/current-run';
 import {LastRunView} from '@core/model/last-run';
 import {scoringModelParams} from './scoring-model-param';
 
@@ -128,6 +129,18 @@ export class IngestApi {
     run(model: string | null): Observable<IngestReport> {
         return this.http.post<IngestReport>('/api/ingest', {}, {params: scoringModelParams(model)});
     }
+
+  /**
+   * The pass going on right now, or null when none is.
+   *
+   * Polled, so it reads one indexed row and joins nothing. The server answers 204 for "no
+   * run in flight", which Angular hands over as a null body — the same distinction
+   * `last()` relies on, and for the same reason: "nothing is running" is not "a run with no
+   * stage yet".
+   */
+  current(): Observable<CurrentRunView | null> {
+    return this.http.get<CurrentRunView | null>('/api/ingest/current');
+  }
 
     /**
      * What the last run did, whoever started it. Null when nothing ever has — the server

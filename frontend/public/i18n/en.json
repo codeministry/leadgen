@@ -23,7 +23,11 @@
     "ingest": "Run ingest",
     "ingestRunning": "Reading sources…",
     "scoringModel": "Scoring model",
-    "settings": "Settings and version"
+    "settings": "Settings and version",
+    "runStage": "{stage} · step {position} of {total}",
+    "runStageUnknown": "starting…",
+    "runSince": "A run has been going since {time}",
+    "runSinceStage": "A run has been going since {time} — {stage}"
   },
   "theme": {
     "legend": "Colour theme",
@@ -93,7 +97,8 @@
     "colWritten": "Written",
     "colAnnounced": "Announced",
     "ofAnnounced": "{extracted} of {announced}",
-    "archivedNote": "{count, plural, one {# offer is} other {# offers are}} archived and outside these numbers."
+    "archivedNote": "{count, plural, one {# offer is} other {# offers are}} archived and outside these numbers.",
+    "runningSince": "A run has been going since {time}"
   },
   "shortlist": {
     "title": "Shortlist",

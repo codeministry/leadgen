@@ -32,7 +32,41 @@ import java.util.function.Supplier;
  */
 public final class StageLog {
 
+    /**
+     * Told which stage is starting, so a run in flight can say where it has got to.
+     *
+     * <p>Separate from the collecting this class otherwise does, and that separation is the
+     * point: the per-stage table is written after the work because the run it references must
+     * be over before it can claim anything, while "the stage happening right now" is only
+     * worth anything before that. One overwrites itself on the open run row; the other is the
+     * record.
+     */
+    @FunctionalInterface
+    public interface Marker {
+
+        /**
+         * @param position 1-based, counting the stages this run has entered.
+         */
+        void entering(int position, String stage);
+
+        /**
+         * For a run nobody is watching — the tests, and any caller that has no open row.
+         */
+        Marker NONE = (position, stage) -> {
+        };
+    }
+
     private final List<StageTiming> timings = new ArrayList<>();
+
+    private final Marker marker;
+
+    public StageLog() {
+        this(Marker.NONE);
+    }
+
+    public StageLog(Marker marker) {
+        this.marker = marker;
+    }
 
     /**
      * Times one stage.
@@ -44,6 +78,10 @@ public final class StageLog {
      */
     public <T> T time(String stage, Supplier<T> body) {
         Instant startedAt = Instant.now();
+        // Before the work and outside the try, because it is not part of it: a marker that
+        // threw would fail the stage it was only supposed to describe, and the whole point of
+        // writing progress is that nobody is watching when it goes wrong.
+        marker.entering(timings.size() + 1, stage);
         try {
             T result = body.get();
             timings.add(new StageTiming(timings.size(), stage, startedAt, Instant.now(), StageTiming.OK, null));

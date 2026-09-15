@@ -47,7 +47,7 @@
         <select
           id="scoring-model"
           class="select select-xs type-mono-data model-select"
-          [disabled]="ingest.running()"
+          [disabled]="ingest.busy()"
           (change)="chooseModel($event)"
         >
           @for (model of models.available(); track model) {
@@ -56,17 +56,35 @@
         </select>
       }
 
+      <!--
+        Disabled on `busy` and not on `running`: `running` says only whether *this* browser is
+        waiting on its own request, so during a nightly pass the button stayed enabled, the
+        click went out, and the answer was a 409 whose sentence nobody saw. The title carries
+        the stage, because a disabled control with no reason is worse than one that refuses.
+      -->
       <button
         type="button"
         class="btn btn-primary btn-sm ingest-button"
-        [disabled]="ingest.running()"
+        [disabled]="ingest.busy()"
+        [attr.title]="runTitle()"
         (click)="runIngest()"
       >
         <lg-icon name="refresh" [size]="16"/>
         <span class="ingest-label">
-            {{ (ingest.running() ? 'shell.ingestRunning' : 'shell.ingest') | transloco }}
+            {{ (ingest.busy() ? 'shell.ingestRunning' : 'shell.ingest') | transloco }}
           </span>
       </button>
+
+      <!--
+        The stage, beside the button, only while a pass is going. The server's own stage name
+        stays English like every other sentence it writes; what is translated around it is the
+        counting. Hidden below 64rem, where the row is already the tightest thing on screen.
+      -->
+      @if (ingest.current(); as run) {
+        <span class="type-caption text-muted run-stage" role="status">
+          {{ runStage() }}
+        </span>
+      }
 
       <!-- The name belongs on the button, not on the icon inside it: a control whose
            accessible name comes from a nested role="img" is one refactor away from having

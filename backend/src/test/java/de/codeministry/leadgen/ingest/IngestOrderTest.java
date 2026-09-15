@@ -41,8 +41,8 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
 /**
@@ -170,6 +170,31 @@ class IngestOrderTest {
     }
 
     @Test
+    void marksEveryStageOnTheOpenRowAsItEntersIt() {
+        // A run takes eleven minutes on the deployed corpus, and until this existed nothing on
+        // any screen said what it was doing. The marker writes the open row as each stage
+        // starts; the per-stage table is still written after the work, because that one is the
+        // record and this one is only worth something while the run is still going.
+        given(history.start(any(), any(), anyInt())).willReturn(java.util.OptionalLong.of(77L));
+
+        service.run(null);
+
+        var positions = org.mockito.ArgumentCaptor.forClass(Integer.class);
+        var names = org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(history, atLeastOnce()).mark(org.mockito.ArgumentMatchers.eq(77L), positions.capture(), names.capture());
+
+        // No sources are configured here, so what is left is exactly the global stages — and
+        // the count `IngestService` writes into the row has to be that same number, or the
+        // progress stops one short of the end for a month before anybody notices.
+        assertThat(names.getAllValues())
+            .containsExactly(
+                "DEDUPE", "FILTER", "ARCHIVE", "ENRICH", "CONTENT", "FIELDS", "SCORE", "PACKAGE", "DIGEST");
+        assertThat(names.getAllValues()).hasSize(IngestService.GLOBAL_STAGES);
+        assertThat(positions.getAllValues()).containsExactly(1, 2, 3, 4, 5, 6, 7, 8, 9);
+        verify(history).start(any(), any(), org.mockito.ArgumentMatchers.eq(IngestService.GLOBAL_STAGES));
+    }
+
+    @Test
     void refusesAnUnknownModelBeforeReadingASingleSource() {
         doThrow(new IllegalArgumentException("unknown model")).when(scoring).checkModel("nonsense");
 
@@ -182,6 +207,6 @@ class IngestOrderTest {
         verify(history, never()).record(any(), any(), any(), anyString(), any());
         // Not even opened: the model check is the first statement in the run, before the
         // row that would otherwise sit there saying RUNNING for a pass that never began.
-        verify(history, never()).start(any(), anyString());
+        verify(history, never()).start(any(), anyString(), anyInt());
     }
 }

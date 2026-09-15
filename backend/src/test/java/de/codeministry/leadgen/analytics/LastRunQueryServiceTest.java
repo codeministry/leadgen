@@ -26,6 +26,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 
 /**
  * What the dashboard reads when nobody has pressed the button in this browser.
@@ -57,6 +58,9 @@ class LastRunQueryServiceTest {
     private LastRunQueryService runs;
 
     @Autowired
+    private PipelineRunRecorder recorder;
+
+    @Autowired
     private JdbcTemplate jdbc;
 
     private long sourceId;
@@ -79,6 +83,71 @@ class LastRunQueryServiceTest {
         // The distinction the endpoint's 204 exists for: a run with every count at zero is
         // a different fact from no run at all, and a caller must not have to tell them
         // apart by inspecting the numbers.
+        assertThat(runs.lastRun()).isEmpty();
+    }
+
+    @Test
+    void saysNothingIsRunningWhenNothingIs() {
+        // The 204 the endpoint answers with. "Nothing is running" has to stay tellable from
+        // "a run with no stage yet", and a body that must be inspected to tell them apart is
+        // a body that eventually gets inspected wrongly.
+        assertThat(runs.currentRun()).isEmpty();
+    }
+
+    @Test
+    void readsThePassThatIsStillGoingAndWhereItHasGotTo() {
+        Instant startedAt = Instant.now().minus(3, ChronoUnit.MINUTES);
+        open(startedAt);
+        mark("ENRICH", 4, 9);
+
+        var current = runs.currentRun().orElseThrow();
+
+        assertThat(current.stage()).isEqualTo("ENRICH");
+        assertThat(current.stagePosition()).isEqualTo(4);
+        assertThat(current.stageTotal()).isEqualTo(9);
+        assertThat(current.scoreModel()).isEqualTo("in-flight");
+        assertThat(current.startedAt()).isCloseTo(startedAt, within(1, ChronoUnit.SECONDS));
+    }
+
+    @Test
+    void leavesABatchedRunOutOfWhatIsRunning() {
+        // `finished_at IS NULL` and not `status = 'RUNNING'`, because the two are different
+        // questions: a batched run is left AWAITING_BATCH with a finished_at already set, and
+        // it is not running — the collector is.
+        Instant startedAt = Instant.now().minus(20, ChronoUnit.MINUTES);
+        run(startedAt, startedAt.plusSeconds(60), "AWAITING_BATCH", "claude-haiku-4-5");
+
+        assertThat(runs.currentRun()).isEmpty();
+    }
+
+    @Test
+    void readsTheOpenRunEvenBeforeItHasEnteredAStage() {
+        // The moment between opening the row and entering the first stage. Short, and real:
+        // a reader who catches it should be told a run is going, not told nothing.
+        open(Instant.now());
+
+        var current = runs.currentRun().orElseThrow();
+
+        assertThat(current.stage()).isNull();
+        assertThat(current.stagePosition()).isNull();
+    }
+
+    @Test
+    void stopsCallingARunWhoseProcessIsGoneARunningOne() {
+        // A pass killed mid-flight — a restart, a crash, a rolled deployment — leaves its row
+        // open forever, and from here that is indistinguishable from one still going. Measured
+        // on the developer database: a row from 2026-09-06 still said RUNNING nine days later,
+        // so the endpoint reported a run in flight and the button would have refused every
+        // click from then on. Startup is the exact moment to say so: this process is the only
+        // thing that runs a pass, so a row still open when it starts belongs to nobody.
+        open(Instant.now().minus(9, ChronoUnit.DAYS));
+        assertThat(runs.currentRun()).isPresent();
+
+        recorder.abandonOpenRuns();
+
+        assertThat(runs.currentRun()).isEmpty();
+        // And it does not become "the last run" either: the row carries zeros, and under that
+        // heading it would claim a pass that found nothing.
         assertThat(runs.lastRun()).isEmpty();
     }
 
@@ -217,6 +286,15 @@ class LastRunQueryServiceTest {
                 packaged, digest_written)
             VALUES (?, '1', 'in-flight', 'RUNNING', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, false)
             """, Timestamp.from(startedAt));
+    }
+
+    private void mark(String stage, int position, int total) {
+        jdbc.update(
+            "UPDATE pipeline_run SET stage = ?, stage_position = ?, stage_total = ?, stage_started_at = now()"
+                + " WHERE finished_at IS NULL",
+            stage,
+            position,
+            total);
     }
 
     private void sourceRun(long source, Instant ranAt, int documents, int extracted, int written, Integer announced) {

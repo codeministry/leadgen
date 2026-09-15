@@ -178,3 +178,16 @@
         white-space: nowrap;
     }
 }
+
+/* Beside the button and only while a pass is going. Hidden below 64rem, where the header row
+   is already the tightest thing on the screen and the stage is a nicety — the disabled button
+   and its title still say a run is in flight. */
+.run-stage {
+  white-space: nowrap;
+}
+
+@media (width < 64rem) {
+  .run-stage {
+    display: none;
+  }
+}

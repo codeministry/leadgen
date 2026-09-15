@@ -32,6 +32,7 @@ describe('App', () => {
         // button lives in the header, so the store is created with the shell rather than with
         // the dashboard. 204 is the shipped answer on a database nobody has run against.
         httpMock.expectOne('/api/ingest/last').flush(null, {status: 204, statusText: 'No Content'});
+      httpMock.expectOne('/api/ingest/current').flush(null, {status: 204, statusText: 'No Content'});
         await fixture.whenStable();
         fixture.detectChanges();
 

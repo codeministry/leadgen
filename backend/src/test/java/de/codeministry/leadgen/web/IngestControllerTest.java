@@ -137,4 +137,33 @@ class IngestControllerTest {
                 .bodyText()
                 .contains("already in progress");
     }
+
+    @Test
+    void answersNoContentWhenNothingIsRunning() {
+        // The same distinction `/ingest/last` makes: "nothing is running" is a state the
+        // caller has to tell from "a run with no stage yet", and a body it must inspect to
+        // tell them apart is a body that eventually gets inspected wrongly.
+        given(lastRun.currentRun()).willReturn(java.util.Optional.empty());
+
+        assertThat(mvc.get().uri("/api/ingest/current")).hasStatus(org.springframework.http.HttpStatus.NO_CONTENT);
+    }
+
+    @Test
+    void answersTheStageOfAPassThatIsGoing() {
+        given(lastRun.currentRun())
+            .willReturn(java.util.Optional.of(new de.codeministry.leadgen.analytics.CurrentRunView(
+                31L,
+                Instant.parse("2026-09-15T07:17:35Z"),
+                "gpt-oss:20b",
+                "ENRICH",
+                4,
+                9,
+                Instant.parse("2026-09-15T07:20:00Z"))));
+
+        assertThat(mvc.get().uri("/api/ingest/current"))
+            .hasStatusOk()
+            .bodyJson()
+            .extractingPath("$.stage")
+            .isEqualTo("ENRICH");
+    }
 }

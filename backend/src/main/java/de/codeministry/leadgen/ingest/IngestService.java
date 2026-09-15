@@ -159,6 +159,17 @@ public class IngestService {
         }
     }
 
+    /**
+     * The stages every run has, whatever its sources are: dedupe, filter, archive, enrich,
+     * content, fields, score, package, digest.
+     *
+     * <p>A constant because the sequence below is written out rather than driven by a list,
+     * and it is pinned by {@code IngestOrderTest}, which verifies both the order and that
+     * there are this many of them. Without that test it is the kind of number that is wrong
+     * for a month before anybody notices the progress bar stopping at eight of nine.
+     */
+    static final int GLOBAL_STAGES = 9;
+
     private IngestReport runOnce(String scoringModel) {
         // Before anything else, because scoring is the last stage: checked only there, a
         // name nobody configured is refused after the sources have been read, the
@@ -172,23 +183,37 @@ public class IngestService {
         // old placement survives: it says RUNNING and carries zeros, so it claims nothing.
         // What it buys is that a run in flight is visible to the next one — without it the
         // dashboard's source window has no upper bound and lists every source twice.
-        var runId = history.start(startedAt, scoringModel);
+        // Decided before the row is opened, because the row states it: one stage per source
+        // that will actually run plus the fixed ones. Resolved into a list first rather than
+        // skipped inside the loop, so "which sources count" is decided once — counted one way
+        // and iterated another, the progress would say 6 of 8 and then stop at 7.
+        var runnable = config.snapshot().sources().sources().stream()
+            .filter(Source::enabled)
+            .filter(source -> {
+                if (connectors.containsKey(source.type())) {
+                    return true;
+                }
+                // Not fatal: a config may declare a source type a later step implements.
+                log.warn("Source '{}' has type '{}', for which no connector exists yet", source.id(), source.type());
+                return false;
+            })
+            .toList();
+        var runId = history.start(startedAt, scoringModel, runnable.size() + GLOBAL_STAGES);
         // Where the time went, collected as the run goes and written with the history row at
         // the end. A run whose counts look ordinary can still have spent four minutes in
         // enrichment because one portal was slow, and nothing in the counts says so.
-        var stages = new StageLog();
+        //
+        // The marker is the other half and a different question: not where the time went, but
+        // where the run is right now. It overwrites the open row, so it is worth something
+        // only while the run is going — which is exactly when the per-stage table has nothing
+        // to say, because that one is written after the work.
+        var stages = new StageLog(runId.isPresent()
+            ? (position, stage) -> history.mark(runId.getAsLong(), position, stage)
+            : StageLog.Marker.NONE);
         List<SourceIngestResult> results = new ArrayList<>();
 
-        for (Source source : config.snapshot().sources().sources()) {
-            if (!source.enabled()) {
-                continue;
-            }
+        for (Source source : runnable) {
             SourceConnector connector = connectors.get(source.type());
-            if (connector == null) {
-                // Not fatal: a config may declare a source type a later step implements.
-                log.warn("Source '{}' has type '{}', for which no connector exists yet", source.id(), source.type());
-                continue;
-            }
             try {
                 // Timed per source rather than as one block: "ingest took four minutes" is
                 // not actionable, "the mailbox took four minutes and the two file sources

@@ -61,13 +61,13 @@ public class PipelineRunRecorder {
      */
     private static final String OPEN = """
         INSERT INTO pipeline_run (
-            started_at, ruleset_version, score_model, status,
+            started_at, ruleset_version, score_model, status, stage_total,
             documents, extracted, written, merged,
             filter_considered, filter_passed,
             enrich_considered, enriched, incomplete, from_cache, requests,
             score_considered, scored, unscored, shortlisted, review, submitted,
             packaged, digest_written)
-        VALUES (?, ?, ?, 'RUNNING', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, false)
+        VALUES (?, ?, ?, 'RUNNING', ?, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, false)
         RETURNING id
         """;
 
@@ -145,26 +145,92 @@ public class PipelineRunRecorder {
         return choices.isEmpty() ? null : choices.getFirst();
     }
 
+    private static final String ABANDON = """
+        UPDATE pipeline_run
+        SET status = 'ABANDONED', finished_at = now()
+        WHERE finished_at IS NULL
+        """;
+
+    /**
+     * Closes the rows of runs whose process is gone.
+     *
+     * <p>A pass that is killed mid-flight — a restart, a crash, a rolled deployment — leaves
+     * its row open forever, and from the read side that is indistinguishable from a pass that
+     * is still going. Measured on the developer database: a row from 2026-09-06 still said
+     * RUNNING nine days later, so {@code /api/ingest/current} reported a run in flight and
+     * the button would have refused every click from then on.
+     *
+     * <p>Startup is the exact moment to say so, and no heuristic is needed for it: this
+     * process is the only thing that runs a pass — {@code IngestService} holds an in-process
+     * lock and the chart runs one replica — so a row still open when it starts belongs to a
+     * process that no longer exists. A stale-after-N-hours rule would have been a guess; this
+     * is a fact.
+     *
+     * <p>{@code ABANDONED} rather than {@code COMPLETE}, and {@link #lastRun()}'s reader
+     * excludes it: the row carries zeros, and shown under "last run" it would claim a pass
+     * that found nothing.
+     */
+    @org.springframework.context.event.EventListener(org.springframework.boot.context.event.ApplicationReadyEvent.class)
+    public void abandonOpenRuns() {
+        try {
+            int closed = jdbc.sql(ABANDON).update();
+            if (closed > 0) {
+                log.warn("{} run(s) were still open from a process that is gone; closed as ABANDONED", closed);
+            }
+        } catch (RuntimeException e) {
+            log.error("Open runs could not be closed: {}", e.getMessage(), e);
+        }
+    }
+
     /**
      * Opens the row for a run that is starting.
      *
      * <p>Returns empty when the row could not be written, and the run goes on without one:
      * a history row is worth less than the run that produced it. {@link #record} then has
      * nothing to complete and says so once, rather than inventing a second row.
+     *
+     * @param stageTotal how many stages this run will time. Written now because it is a
+     *                   property of the configuration the run started under — one stage per enabled
+     *                   source plus the fixed ones — and nothing later can recover it.
      */
-    public OptionalLong start(Instant startedAt, String scoreModel) {
+    public OptionalLong start(Instant startedAt, String scoreModel, int stageTotal) {
         try {
             Long id = jdbc.sql(OPEN)
                     .params(
                             java.sql.Timestamp.from(startedAt),
                             String.valueOf(config.snapshot().rules().version()),
-                            effectiveModel(scoreModel))
+                        effectiveModel(scoreModel),
+                        stageTotal)
                     .query(Long.class)
                     .single();
             return OptionalLong.of(id);
         } catch (RuntimeException e) {
             log.error("The run was not opened in the history: {}", e.getMessage(), e);
             return OptionalLong.empty();
+        }
+    }
+
+    private static final String MARK = """
+        UPDATE pipeline_run
+        SET stage = ?, stage_position = ?, stage_started_at = now()
+        WHERE id = ? AND finished_at IS NULL
+        """;
+
+    /**
+     * Says which stage the open row is in, overwriting whatever it said before.
+     *
+     * <p>{@code finished_at IS NULL} in the predicate rather than a status check, and it is
+     * the same guard the read side uses: a late marker from a run that has already been
+     * closed must not reopen the question of where it is.
+     *
+     * <p>Swallows everything, like every other write in this class. Progress nobody can read
+     * is a worse outcome than a run that ends because its own progress note failed.
+     */
+    public void mark(long runId, int position, String stage) {
+        try {
+            jdbc.sql(MARK).params(stage, position, runId).update();
+        } catch (RuntimeException e) {
+            log.warn("The run's current stage was not recorded: {}", e.getMessage());
         }
     }
 

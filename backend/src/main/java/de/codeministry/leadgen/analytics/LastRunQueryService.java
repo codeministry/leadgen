@@ -45,6 +45,11 @@ public class LastRunQueryService {
      *
      * <p>{@code id} breaks the tie, because nothing in the schema stops two rows sharing a
      * start instant and "the newest run" has to be one row.
+     *
+     * <p>{@code ABANDONED} is excluded. Such a row was closed at startup on behalf of a
+     * process that is gone, so it carries zeros, and under the heading "last run" it would
+     * claim a pass that found nothing — the same reason a {@code RUNNING} row is not reported
+     * here either.
      */
     private static final String LAST_RUN = """
         SELECT id, started_at, finished_at, status, score_model,
@@ -52,7 +57,28 @@ public class LastRunQueryService {
                filter_considered, filter_passed,
                scored, shortlisted, review, packaged, digest_written
         FROM pipeline_run
-                WHERE finished_at IS NOT NULL
+                WHERE finished_at IS NOT NULL AND status <> 'ABANDONED'
+        ORDER BY started_at DESC, id DESC
+        LIMIT 1
+        """;
+
+    /**
+     * The pass that is still going, if one is.
+     *
+     * <p>{@code finished_at IS NULL} and not {@code status = 'RUNNING'}, because the two are
+     * not the same question: a batched run is left {@code AWAITING_BATCH} with a
+     * {@code finished_at} already set, and it is not running — the collector is. The same
+     * predicate the marker writes under, so the row that answers here is the row that is
+     * being marked.
+     *
+     * <p>Ordered and limited although at most one should ever match: `IngestService` holds a
+     * lock and answers 409 to a second pass, but a process killed mid-run leaves its row open
+     * forever, and the honest thing for a reader is the newest one rather than an error.
+     */
+    private static final String CURRENT_RUN = """
+        SELECT id, started_at, score_model, stage, stage_position, stage_total, stage_started_at
+        FROM pipeline_run
+        WHERE finished_at IS NULL
         ORDER BY started_at DESC, id DESC
         LIMIT 1
         """;
@@ -195,5 +221,27 @@ public class LastRunQueryService {
                     return new LastRunSource(sourceId, documents, extracted, written, rs.wasNull() ? null : announced);
                 })
                 .list();
+    }
+
+    /**
+     * What is happening right now, or nothing.
+     *
+     * <p>Empty is a working answer and the usual one. The caller turns it into a 204, which
+     * is the same distinction {@link #lastRun()} already makes: "nothing is running" is not
+     * "a run with no stage".
+     */
+    public Optional<CurrentRunView> currentRun() {
+        return jdbc.sql(CURRENT_RUN)
+            .query((rs, row) -> new CurrentRunView(
+                rs.getLong("id"),
+                rs.getTimestamp("started_at").toInstant(),
+                rs.getString("score_model"),
+                rs.getString("stage"),
+                (Integer) rs.getObject("stage_position"),
+                (Integer) rs.getObject("stage_total"),
+                rs.getTimestamp("stage_started_at") == null
+                    ? null
+                    : rs.getTimestamp("stage_started_at").toInstant()))
+            .optional();
     }
 }

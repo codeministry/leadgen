@@ -82,6 +82,10 @@ describe('IngestStore', () => {
         http
             .expectOne('/api/scoring-models')
             .flush({available: ['claude-haiku-4-5'], preferred: 'claude-haiku-4-5'});
+      // The heartbeat asks once the store exists. Answered here rather than per test: no
+      // case below is about a run in flight, and `verify` counts it either way. The next
+      // beat is thirty seconds out, so nothing fires again inside a test.
+      http.expectOne('/api/ingest/current').flush(null, {status: 204, statusText: 'No Content'});
     });
 
     afterEach(() => http.verify());
@@ -121,6 +125,84 @@ describe('IngestStore', () => {
         expect(store.mismatches()).toHaveLength(1);
         expect(store.mismatches()[0]?.document.documentId).toBe('2026-09-02-27.eml');
     });
+
+  it('shows the refusal the server wrote rather than one of its own', () => {
+    // The store asks this on creation, and `verify` counts it. Answered first so the
+    // spec speaks only about the run it is actually about.
+    http.expectOne('/api/ingest/last').flush(null);
+    // `exhaustMap` stops a second click from this browser and nothing else. A scheduled
+    // pass, another tab or a second machine all answer 409 with a sentence saying what
+    // happened and what it did not do, and "The ingest run did not answer" said neither.
+    dispatch.requested();
+    http
+      .expectOne((request) => request.url === '/api/ingest')
+      .flush('an ingest run is already in progress; this one was not started', {
+        status: 409,
+        statusText: 'Conflict',
+      });
+
+    expect(store.error()).toBe('an ingest run is already in progress; this one was not started');
+    expect(store.running()).toBe(false);
+  });
+
+  it('falls back to the catalog when the server said nothing at all', () => {
+    // The store asks this on creation, and `verify` counts it. Answered first so the
+    // spec speaks only about the run it is actually about.
+    http.expectOne('/api/ingest/last').flush(null);
+    // A network failure carries no sentence, and a raw `null` on screen is worse than a
+    // generic line. The same pair `serverMessage` is written for.
+    dispatch.requested();
+    http
+      .expectOne((request) => request.url === '/api/ingest')
+      .error(new ProgressEvent('network'));
+
+    expect(store.error()).toBe('error.ingestRun');
+  });
+
+  it('knows about a pass nobody in this browser started', () => {
+    // `running` says only whether this browser is waiting on its own request, so a
+    // nightly pass, another tab or a second machine left the button enabled and the
+    // screen silent. `busy` is what the button reads instead.
+    http.expectOne('/api/ingest/last').flush(null, {status: 204, statusText: 'No Content'});
+    expect(store.busy()).toBe(false);
+
+    dispatch.currentLoaded({
+      id: 31,
+      startedAt: '2026-09-15T07:17:35Z',
+      scoreModel: 'gpt-oss:20b',
+      stage: 'ENRICH',
+      stagePosition: 4,
+      stageTotal: 9,
+      stageStartedAt: '2026-09-15T07:20:00Z',
+    });
+
+    expect(store.busy()).toBe(true);
+    expect(store.current()?.stage).toBe('ENRICH');
+  });
+
+  it('reads what a pass left behind once it is over', () => {
+    // Without this the dashboard shows last night's numbers until somebody reloads —
+    // the same defect `/api/ingest/last` was added for, one level up.
+    http.expectOne('/api/ingest/last').flush(null, {status: 204, statusText: 'No Content'});
+
+    dispatch.currentLoaded({
+      id: 31,
+      startedAt: '2026-09-15T07:17:35Z',
+      scoreModel: null,
+      stage: 'SCORE',
+      stagePosition: 7,
+      stageTotal: 9,
+      stageStartedAt: null,
+    });
+    // Nothing asked for yet: the run is still going.
+    http.expectNone('/api/ingest/last');
+
+    dispatch.currentLoaded(null);
+
+    http.expectOne('/api/ingest/last').flush(lastRun());
+    expect(store.busy()).toBe(false);
+    expect(store.lastRun()).not.toBeNull();
+  });
 
     it('does not blank the screen when the history cannot be read', () => {
         // Deliberately not written into `error`: that one blanks the run panel, and a

@@ -8,6 +8,7 @@
  */
 package de.codeministry.leadgen.web;
 
+import de.codeministry.leadgen.analytics.CurrentRunView;
 import de.codeministry.leadgen.analytics.LastRunQueryService;
 import de.codeministry.leadgen.analytics.LastRunView;
 import de.codeministry.leadgen.ingest.IngestReport;
@@ -62,6 +63,28 @@ public class IngestController {
         return lastRun.lastRun()
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.noContent().build());
+    }
+
+    /**
+     * The pass that is going on right now, or 204.
+     *
+     * <p>Separate from {@code /ingest/last} because it answers a different question and must
+     * not be mistaken for it: that one reports finished runs only, deliberately, since a
+     * {@code RUNNING} row carries zeros and would read as a pass that found nothing. This one
+     * carries no counts at all — a start time, a model and the stage — so there is nothing
+     * on it to mistake for a result.
+     *
+     * <p>204 for the same reason as the other one: "nothing is running" is a state the caller
+     * has to be able to tell from "a run with no stage yet", and a body that has to be
+     * inspected to tell them apart is a body that eventually gets inspected wrongly.
+     *
+     * <p>Polled, so it reads one indexed row and joins nothing.
+     */
+    @GetMapping("/ingest/current")
+    ResponseEntity<CurrentRunView> current() {
+        return lastRun.currentRun()
+            .map(ResponseEntity::ok)
+            .orElseGet(() -> ResponseEntity.noContent().build());
     }
 
     /**

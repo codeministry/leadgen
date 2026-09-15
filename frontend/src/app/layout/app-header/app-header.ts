@@ -1,4 +1,4 @@
-import {ChangeDetectionStrategy, Component, inject, signal} from '@angular/core';
+import {ChangeDetectionStrategy, Component, computed, inject, signal} from '@angular/core';
 import {RouterLink} from '@angular/router';
 import {injectDispatch} from '@ngrx/signals/events';
 import {ingestEvents} from '@core/store/ingest.events';
@@ -9,7 +9,7 @@ import {StatusStore} from '@core/store/status.store';
 import {BrandMark} from '@shared/brand-mark/brand-mark';
 import {AppNav} from '../app-nav/app-nav';
 import {Icon} from '@shared/icon/icon';
-import {TranslocoPipe} from '@jsverse/transloco';
+import {TranslocoPipe, TranslocoService} from '@jsverse/transloco';
 import {LanguageToggle} from '../language-toggle/language-toggle';
 import {ThemeToggle} from '../theme-toggle/theme-toggle';
 
@@ -36,6 +36,49 @@ export class AppHeader {
   protected onSettingsToggle(event: Event): void {
     this.settingsOpen.set((event as ToggleEvent).newState === 'open');
     }
+
+  private readonly transloco = inject(TranslocoService);
+
+  /**
+   * What the run is doing, beside the button.
+   *
+   * <p>Assembled here and not in the template, because the number sits in a different place
+   * in every language and the catalog is where that belongs. The stage name itself is the
+   * server's and stays English, exactly like a score reason or a filter-stage label.
+   */
+  protected readonly runStage = computed(() => {
+    const run = this.ingest.current();
+    if (run === null) {
+      return '';
+    }
+    if (run.stage === null || run.stagePosition === null || run.stageTotal === null) {
+      // The moment between opening the row and entering the first stage. Short, and
+      // real: a reader who catches it should see something rather than an empty gap.
+      return this.transloco.translate('shell.runStageUnknown');
+    }
+    return this.transloco.translate('shell.runStage', {
+      stage: run.stage,
+      position: run.stagePosition,
+      total: run.stageTotal,
+    });
+  });
+
+  /**
+   * Why the button is refusing. A disabled control with no reason is worse than one that
+   * says no, and this is the sentence that used to arrive as a 409 nobody opened.
+   */
+  protected readonly runTitle = computed(() => {
+    const run = this.ingest.current();
+    if (run === null) {
+      return null;
+    }
+    const time = new Intl.DateTimeFormat(this.transloco.getActiveLang(), {timeStyle: 'short'}).format(
+      new Date(run.startedAt),
+    );
+    return run.stage === null
+      ? this.transloco.translate('shell.runSince', {time})
+      : this.transloco.translate('shell.runSinceStage', {time, stage: run.stage});
+  });
 
     /** Reading the sources is a pipeline action, not a dashboard one, so it lives here. */
     protected runIngest(): void {

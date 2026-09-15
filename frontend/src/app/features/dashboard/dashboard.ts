@@ -158,6 +158,41 @@ export class Dashboard implements OnInit {
             : null;
     });
 
+  /**
+   * When the pass now going started, on the reader's clock.
+   *
+   * <p>A time and not a date: a run that has been going since yesterday is a run that is
+   * stuck, and the missing date is what makes that obvious rather than reassuring.
+   */
+  protected readonly runStartedAt = computed<string>(() => {
+    const startedAt = this.ingest.current()?.startedAt;
+    return startedAt
+      ? new Intl.DateTimeFormat(this.transloco.getActiveLang(), {timeStyle: 'short'}).format(
+        new Date(startedAt),
+      )
+      : '';
+  });
+
+  /**
+   * Where the pass has got to, as one string. Assembled here rather than in the template,
+   * because the number sits in a different place in every language; the stage name itself
+   * is the server's and stays English, like every score reason on this screen.
+   */
+  protected readonly runStage = computed<string | null>(() => {
+    const run = this.ingest.current();
+    if (run === null) {
+      return null;
+    }
+    if (run.stage === null || run.stagePosition === null || run.stageTotal === null) {
+      return this.transloco.translate('shell.runStageUnknown');
+    }
+    return this.transloco.translate('shell.runStage', {
+      stage: run.stage,
+      position: run.stagePosition,
+      total: run.stageTotal,
+    });
+  });
+
     /**
      * Whether that run is one this browser watched. Only the sentence changes: a recorded run
      * additionally says nothing was started here, which is what explains the missing

@@ -65,7 +65,29 @@
         </p>
     }
 
-    @if (hasRun()) {
+  <!--
+    Above the last run and not instead of it: the two answer different questions, and the
+    numbers below stay the last finished pass's while this one is still going. Without it
+    the screen showed last night's figures as though today's click had done nothing, for
+    the eleven minutes a pass takes.
+
+    `role="status"` so the stage change is announced rather than only painted. The stage
+    name is the server's and stays English, like every score reason on this screen.
+  -->
+  @if (ingest.current(); as run) {
+    <p class="type-small running-run" role="status">
+      <lg-icon name="refresh" [size]="16"/>
+      {{ 'dashboard.runningSince' | transloco: {time: runStartedAt()} }}
+      @if (runStage(); as stage) {
+        <span class="type-mono-data running-stage">{{ stage }}</span>
+      }
+      @if (run.scoreModel; as model) {
+        <span class="type-mono-data text-muted">{{ model }}</span>
+      }
+    </p>
+  }
+
+  @if (hasRun()) {
         <!-- When this run finished, always. A recorded one additionally says that nothing was
              started here, which is what explains the missing per-document detail below. -->
         @if (finishedAt(); as when) {
