@@ -1,0 +1,94 @@
+<button
+  #trigger
+  type="button"
+  class="btn btn-sm"
+  [lgAnchorFor]="panel"
+  [attr.popovertarget]="panelId"
+  [attr.aria-controls]="panelId"
+  [attr.aria-expanded]="open()"
+>
+  <lg-icon name="bookmark" [size]="14"/>
+  {{ 'shortlist.views.label' | transloco }}
+</button>
+
+<div #panel [id]="panelId" popover class="views-panel" (toggle)="onToggle($event)">
+  <p class="type-caption text-muted panel-legend">{{ 'shortlist.views.legend' | transloco }}</p>
+
+  @if (store.views().length === 0) {
+    <p class="type-small text-muted empty-note">{{ 'shortlist.views.none' | transloco }}</p>
+  } @else {
+    <ul class="views">
+      @for (view of store.views(); track view.id) {
+        <li>
+          <!-- The name applies it, the bin deletes it, and they are two buttons rather than
+               one row with a nested control: a row that both navigates and deletes is a row
+               where the wrong 12px costs a saved view. -->
+          <button
+            type="button"
+            class="btn btn-ghost btn-sm view"
+            [attr.aria-label]="'shortlist.views.apply' | transloco: {name: view.name}"
+            (click)="apply(view, panel)"
+          >
+            <span class="view-name">{{ view.name }}</span>
+          </button>
+          <button
+            type="button"
+            class="btn btn-ghost btn-sm btn-square"
+            [attr.aria-label]="'shortlist.views.remove' | transloco: {name: view.name}"
+            [attr.title]="'shortlist.views.remove' | transloco: {name: view.name}"
+            (click)="remove(view)"
+          >
+            <lg-icon name="trash-2" [size]="14"/>
+          </button>
+        </li>
+      }
+    </ul>
+  }
+
+  <!-- Nothing set is nothing to save: an unnamed view of the unfiltered list is a bookmark
+       for the screen somebody is already on. -->
+  <button
+    type="button"
+    class="btn btn-sm btn-primary save"
+    [disabled]="current() === ''"
+    [attr.title]="current() === '' ? ('shortlist.views.nothingToSave' | transloco) : null"
+    (click)="askForName(panel)"
+  >
+    {{ 'shortlist.views.save' | transloco }}
+  </button>
+</div>
+
+<!-- daisyUI's own `.modal` classes and no local `display`: an author `display` beats the UA's
+     unimportant `dialog:not([open]) { display: none }` and the panel then stands open forever
+     while every API reports it closed. `showModal()` and never `show()`, for the top layer,
+     the backdrop, the inert page and the focus trap — the same reasoning the shortlist's
+     archive confirmation carries, and `(cancel)` only, because Escape fires cancel and then
+     close and a two-step cleanup would run twice. -->
+<dialog #naming class="modal" aria-labelledby="lg-view-name-title" (cancel)="close()">
+  <div class="modal-box" role="document">
+    <h2 class="type-h3" id="lg-view-name-title">{{ 'shortlist.views.saveTitle' | transloco }}</h2>
+    <p class="type-small dialog-body">{{ 'shortlist.views.saveBody' | transloco }}</p>
+
+    <label class="dialog-field">
+      <span class="type-caption text-muted">{{ 'shortlist.views.nameLabel' | transloco }}</span>
+      <input
+        #nameField
+        type="text"
+        class="input input-sm"
+        autofocus
+        [attr.maxlength]="nameMax"
+        [placeholder]="'shortlist.views.namePlaceholder' | transloco"
+        (keydown.enter)="save()"
+      />
+    </label>
+
+    <div class="modal-action">
+      <button type="button" class="btn btn-sm btn-ghost" (click)="close()">
+        {{ 'common.cancel' | transloco }}
+      </button>
+      <button type="button" class="btn btn-sm btn-primary" (click)="save()">
+        {{ 'common.save' | transloco }}
+      </button>
+    </div>
+  </div>
+</dialog>

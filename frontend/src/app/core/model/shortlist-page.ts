@@ -22,8 +22,23 @@ export interface ShortlistPage {
 /** What the screen is asking for. The query string holds it, so a view stays a link. */
 export interface ShortlistFilters {
     readonly q: string;
+  /**
+   * One of the three spellings of the score axis, and the server refuses two at once. A
+   * band is a range whose boundaries are the configured thresholds; `minScore`/`maxScore`
+   * are the same shape with the numbers in the request; `scoreState` asks whether there is
+   * a score at all. The screen never produces two, because the three are one control group.
+   */
     readonly band: string;
-    readonly portal: string;
+  /** Inclusive, and null rather than 0: zero is a score an offer can actually have. */
+  readonly minScore: number | null;
+  readonly maxScore: number | null;
+  /** `any`, `scored` or `unscored`. The figure beside the list, as a filter. */
+  readonly scoreState: string;
+  /**
+   * Every portal to include, empty for all of them. An offer matches on its own portal or
+   * on any of its duplicates', which is why the dropdown lists those too.
+   */
+  readonly portals: readonly string[];
     /**
      * Which side of the archive to read. Not a band: a band is a range of scores, and this
      * decides which set the bands are applied to. The server counts `total` and the portal

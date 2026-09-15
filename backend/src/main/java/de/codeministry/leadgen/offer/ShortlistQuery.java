@@ -8,24 +8,30 @@
  */
 package de.codeministry.leadgen.offer;
 
+import java.util.List;
+
 /**
  * What the shortlist screen is asking for.
  *
  * <p>A record rather than ten parameters on a method, because the same ten travel from
  * the controller to the query and back out as the next cursor.
  *
- * <p><b>The sort and the start window are enums, the band is still a string.</b> That is not
- * an inconsistency left lying around: the type is the allowlist, so an enum means nothing
- * unvetted can reach the SQL, and both of the new ones compose SQL. The band names a range
- * whose boundaries the server reads from the configuration either way, and an unrecognised
- * band quietly meaning "all" is a defensible reading of a range where an unrecognised window
- * quietly breaks a partition.
+ * <p><b>The sort, the start window and the score state are enums; the band is still a
+ * string.</b> That is not an inconsistency left lying around: the type is the allowlist, so an
+ * enum means nothing unvetted can reach the SQL, and each of those composes SQL. The band
+ * names a range whose boundaries the server reads from the configuration either way, and an
+ * unrecognised band quietly meaning "all" is a defensible reading of a range where an
+ * unrecognised window quietly breaks a partition.
  *
  * @param q            free text over title, description and tags. Null or blank means no search.
- * @param band         `shortlist`, `review`, or anything else for all of them. The two boundaries
- *                     are the configured thresholds and are not stated here: naming them in a request would
- *                     be the browser deciding what a band is, which is what moved this to the server.
- * @param portal       a portal the offer or one of its duplicates was advertised on.
+ * @param score        the score axis, as one thing: a band, a range, or a state. See
+ *                     {@link ScoreFilter}, which is also where the rule that only one of the three may be
+ *                     asked for lives.
+ * @param portals      the portals to include. An offer matches when it or any of its duplicates
+ *                     was advertised on one of them, because a project reaching the shortlist through
+ *                     portal-c is on portal-c even when portal-a holds the primary. Empty means every
+ *                     portal; a single-element list is what one name in the query string becomes, so every
+ *                     link written before this was a list keeps working.
  * @param archived     which side of the archive to show. False is the working list, which is
  *                     what every other screen means by "the shortlist"; true is what has been taken off it,
  *                     by age or by hand. Not a band: a band is a range of scores, and this decides which set
@@ -45,8 +51,8 @@ package de.codeministry.leadgen.offer;
  */
 public record ShortlistQuery(
     String q,
-    String band,
-    String portal,
+    ScoreFilter score,
+    List<String> portals,
     boolean archived,
     ShortlistSort sort,
     StartWindow startWindow,
@@ -73,6 +79,18 @@ public record ShortlistQuery(
         minMonths = minMonths == null || minMonths <= 0 ? null : minMonths;
         sort = sort == null ? ShortlistSort.SCORE : sort;
         startWindow = startWindow == null ? StartWindow.ANY : startWindow;
+        score = score == null ? ScoreFilter.ANY : score;
+        // Blanks dropped and the list made immutable here rather than at the edge, because a
+        // repeated query parameter arrives as `?portal=a&portal=` from any form that renders
+        // an empty option — and one blank name in the IN list matches nothing, so the filter
+        // would silently return an empty page for a choice nobody made.
+        portals = portals == null
+            ? List.of()
+            : portals.stream()
+            .filter(name -> name != null && !name.isBlank())
+            .map(String::trim)
+            .distinct()
+            .toList();
     }
 
     /**
@@ -84,14 +102,27 @@ public record ShortlistQuery(
     }
 
     public ShortlistQuery withCursor(String next) {
-        return new ShortlistQuery(q, band, portal, archived, sort, startWindow, minMonths, deadlineOpen, next, limit);
+        return new ShortlistQuery(
+            q, score, portals, archived, sort, startWindow, minMonths, deadlineOpen, next, limit);
     }
 
     public ShortlistQuery withLimit(int rows) {
-        return new ShortlistQuery(q, band, portal, archived, sort, startWindow, minMonths, deadlineOpen, cursor, rows);
+        return new ShortlistQuery(
+            q, score, portals, archived, sort, startWindow, minMonths, deadlineOpen, cursor, rows);
     }
 
     public ShortlistQuery withSort(ShortlistSort order) {
-        return new ShortlistQuery(q, band, portal, archived, order, startWindow, minMonths, deadlineOpen, cursor, limit);
+        return new ShortlistQuery(
+            q, score, portals, archived, order, startWindow, minMonths, deadlineOpen, cursor, limit);
+    }
+
+    public ShortlistQuery withScore(ScoreFilter filter) {
+        return new ShortlistQuery(
+            q, filter, portals, archived, sort, startWindow, minMonths, deadlineOpen, cursor, limit);
+    }
+
+    public ShortlistQuery withPortals(List<String> names) {
+        return new ShortlistQuery(
+            q, score, names, archived, sort, startWindow, minMonths, deadlineOpen, cursor, limit);
     }
 }

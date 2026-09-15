@@ -9,7 +9,10 @@
      across both columns they would read as filtering the detail too, and a search field
      spanning the page while acting on a 36rem column is a false affordance. -->
 <lg-page-header [title]="'shortlist.title' | transloco">
-  <p class="type-small text-muted count">
+  <!-- The one live region on this screen: a filter change is otherwise a number that
+       silently becomes a different number. It is possible at all because the search is
+       debounced — announced per keystroke it would chatter over the typing. -->
+  <p class="type-small text-muted count" role="status">
     {{
       (archived() ? 'shortlist.countArchived' : 'shortlist.count')
         | transloco: {matched: store.matched(), total: store.total()}
@@ -18,6 +21,11 @@
       · {{ 'shortlist.unscored' | transloco: {count: store.unscored()} }}
     }
   </p>
+
+  <!-- Beside the count and the archive toggle rather than down in the filter column: a view
+       carries the order and which set is being read as well, so it is a statement about this
+       screen and not about the list. It is also what keeps the filter row from wrapping. -->
+  <lg-saved-views [current]="currentQuery()" (applied)="applyView($event)"/>
 
   <button
     type="button"
@@ -33,120 +41,130 @@
 
 <div class="split">
   <div class="list-col">
+    <!-- Three kinds of control and three treatments, which is the whole of this bar. A
+         *query* takes its own row. An *order* is not a filter at all and says so by being a
+         trigger of its own rather than the third select in a row of them. Five *facets* live
+         behind one trigger and show as chips when they are on, so the bar costs two rows at
+         rest and grows only when something is actually set — and every row of filters is a
+         row of list, because this column is sticky with a scroller of its own.
+
+         `archived` is none of the three: it is which *set* is on screen, and it is up in the
+         page header with the count. -->
     <div class="filters">
-            <div class="row">
-                <label class="control">
-                    <span class="sr-only">{{ 'shortlist.searchLabel' | transloco }}</span>
-                    <input
-                            type="search"
-                            class="input input-sm"
-                            [placeholder]="'shortlist.searchPlaceholder' | transloco"
-                            [value]="q()"
-                            (input)="onInput($event)"
-                    />
-                </label>
-
-                <!-- Always rendered and disabled while there is nothing to reset: an `@if`
-                     here re-widens the search field on the first keystroke. The accessible
-                     name is on the button and never on the icon, and `title` hands the mouse
-                     the same sentence. -->
-                <button
-                        type="button"
-                        class="btn btn-sm btn-square btn-ghost"
-                        [disabled]="!filtered()"
-                        [attr.aria-label]="'shortlist.clearFilters' | transloco"
-                        [attr.title]="'shortlist.clearFilters' | transloco"
-                        (click)="clear()"
-                >
-                    <lg-icon name="x" [size]="16"/>
-                </button>
-            </div>
-
-            <div class="row">
-                <div class="join" role="group" [attr.aria-label]="'shortlist.scoreBand' | transloco">
-                    @for (option of bandOptions(); track option.id) {
-                        <button
-                                type="button"
-                                class="btn btn-sm join-item"
-                                [class.btn-active]="band() === option.id"
-                                [attr.aria-pressed]="band() === option.id"
-                                (click)="setFilter('band', option.id)"
-                        >
-                            {{ option.label | transloco: option.params }}
-                        </button>
-                    }
-                </div>
-
-                <label class="control">
-                    <span class="sr-only">{{ 'shortlist.portal' | transloco }}</span>
-                  <select class="select select-sm portal" [value]="portal()" (change)="onPortal($event)">
-                        <option value="">{{ 'shortlist.everyPortal' | transloco }}</option>
-                        @for (name of store.portals(); track name) {
-                            <option [value]="name">{{ name }}</option>
-                        }
-                    </select>
-                </label>
-            </div>
-
-      <!-- Two more rows and not one. All four of the controls above wanted 558px of the
-           540px this column has, in English and in German alike, so a row holds two.
-           Selects rather than a join group: four sort keys and five windows are past
-           what a segmented control holds at this width in either language.
-
-           Each option's text is a catalog key. `[selected]` on the option and never
-           `[value]` on the select — `[value]` depends on the options existing when it
-           is written, and losing that race leaves the first option showing while the
-           URL says something else. -->
-      <div class="row">
+      <div class="filters-row">
         <label class="control">
-          <span class="sr-only">{{ 'shortlist.sortBy' | transloco }}</span>
-          <select class="select select-sm" (change)="onSelect('sort', $event)">
-            @for (option of sortOptions; track option) {
-              <option [value]="option" [selected]="sort() === option">
-                {{ 'shortlist.sort.' + option | transloco }}
-              </option>
-            }
-          </select>
+          <span class="sr-only">{{ 'shortlist.searchLabel' | transloco }}</span>
+          <input
+            type="search"
+            class="input input-sm"
+            [placeholder]="'shortlist.searchPlaceholder' | transloco"
+            [value]="q()"
+            (input)="onInput($event)"
+          />
         </label>
 
-        <label class="control">
-          <span class="sr-only">{{ 'shortlist.startWindow' | transloco }}</span>
-          <select class="select select-sm" (change)="onSelect('startWindow', $event)">
-            @for (option of startWindowOptions; track option) {
-              <option [value]="option" [selected]="startWindow() === option">
-                {{ 'shortlist.start.' + option | transloco }}
-              </option>
-            }
-          </select>
-        </label>
-      </div>
+        <!-- The search and nothing else, which is what it says now. It used to clear the
+             whole query string, `archived` included, so pressing it while reading the
+             archive returned the reader to the working list. Everything else is cleared
+             from the chip row, where what is being cleared can be seen.
 
-      <div class="row">
-        <label class="control half">
-          <span class="sr-only">{{ 'shortlist.minDuration' | transloco }}</span>
-          <select class="select select-sm" (change)="onSelect('minMonths', $event)">
-            @for (months of minMonthsOptions; track months) {
-              <option [value]="months" [selected]="minMonths() === months">
-                {{
-                  (months === 0 ? 'shortlist.anyDuration' : 'shortlist.fromMonths')
-                    | transloco: {months: months}
-                }}
-              </option>
-            }
-          </select>
-        </label>
-
+             Always rendered and merely disabled: an `@if` here re-widens the field on the
+             first keystroke. The name is on the button and never on the icon. -->
         <button
           type="button"
-          class="btn btn-sm"
-          [class.btn-active]="deadlineOpen()"
-          [attr.aria-pressed]="deadlineOpen()"
-          (click)="toggleDeadlineOpen()"
+          class="btn btn-sm btn-square btn-ghost"
+          [disabled]="q() === ''"
+          [attr.aria-label]="'shortlist.clearSearch' | transloco"
+          [attr.title]="'shortlist.clearSearch' | transloco"
+          (click)="clearSearch()"
         >
-          {{ 'shortlist.deadlineOpen' | transloco }}
+          <lg-icon name="x" [size]="16"/>
         </button>
       </div>
+
+      <div class="filters-row">
+        <!-- Native radio semantics rather than three `aria-pressed` buttons: exactly one of
+             the three is always on, and `aria-pressed` states that they are independent
+             toggles. `role="radio"` on the buttons is what the theme toggle in the header
+             already does, arrow keys included. -->
+        <div
+          class="join band-group"
+          role="radiogroup"
+          [attr.aria-label]="'shortlist.scoreBand' | transloco"
+        >
+          @for (option of bandOptions(); track option.id) {
+            <button
+              type="button"
+              role="radio"
+              class="btn btn-sm join-item"
+              [class.btn-active]="band() === option.id"
+              [attr.aria-checked]="band() === option.id"
+              (click)="setBand(option.id)"
+            >
+              {{ option.label | transloco: option.params }}
+            </button>
+          }
         </div>
+
+        <lg-sort-menu
+          [value]="sort()"
+          [options]="sortOptions"
+          (picked)="setFilter('sort', $event)"
+        />
+
+        <lg-facet-panel
+          [portals]="store.portals()"
+          [selectedPortals]="portal()"
+          [minScore]="minScore()"
+          [maxScore]="maxScore()"
+          [scoreState]="scoreState()"
+          [startWindow]="startWindow()"
+          [startWindowOptions]="startWindowOptions"
+          [minMonths]="minMonths()"
+          [minMonthsOptions]="minMonthsOptions"
+          [deadlineOpen]="deadlineOpen()"
+          [activeCount]="facetChips().length"
+          (portalToggled)="togglePortal($event)"
+          (scoreRangeChanged)="setScoreRange($event)"
+          (scoreStateChanged)="setScoreState($event)"
+          (startWindowChanged)="setFilter('startWindow', $event)"
+          (minMonthsChanged)="setMinMonths($event)"
+          (deadlineToggled)="toggleDeadlineOpen()"
+        />
+      </div>
+
+      <!-- One chip per filter the panel hides, and nothing for the two that are already
+           showing their own state a few pixels above. The whole chip is the button, with the
+           ✕ as a decorative glyph: a 12px icon inside a chip cannot be a 24×24 target and a
+           chip trivially is. Petrol and the selection wash, never ochre — ochre means "this
+           survived the filter", not "a filter is on". -->
+      @if (facetChips().length > 0) {
+        <div class="filters-row facets">
+          @for (chip of facetChips(); track chip.id) {
+            @let text =
+              chip.valueKey !== null
+                ? (chip.label | transloco: {value: chip.valueKey | transloco})
+                : (chip.label | transloco: chip.params);
+            <button
+              type="button"
+              class="facet type-small"
+              [attr.title]="text"
+              [attr.aria-label]="'shortlist.facetRemove' | transloco: {label: text}"
+              (click)="removeFacet(chip)"
+            >
+              <span class="facet-text">{{ text }}</span>
+              <lg-icon name="x" [size]="12"/>
+            </button>
+          }
+
+          <!-- Last in the row and not beside the search: it appears only when the row does,
+               and it sits with the display of what is on. -->
+          <button type="button" class="btn btn-xs btn-ghost facet-clear" (click)="clearAll()">
+            {{ 'shortlist.clearAll' | transloco }}
+          </button>
+        </div>
+      }
+    </div>
 
     <!--
       Something happened that this list has not read — a nightly pass, another tab, a machine

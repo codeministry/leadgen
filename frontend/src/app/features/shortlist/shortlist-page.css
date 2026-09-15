@@ -70,21 +70,17 @@
     container-name: detail;
 }
 
-/* Heading, count and the three controls as one block, capped at the column they describe —
-   at every width, not only inside the split. Below the breakpoint the list runs to the whole
-   measure, and a search field spanning 1100px while acting on the column under it is the
-   same false affordance the template comment argues against. `--lg-list-w` and not a token
-   of its own: two numbers that are only ever set together are one number written twice.
-
-   Two controls to a row, never four. All four of the original ones in one row wanted 558px
-   of the 540px this column has — in English as well as in German, so shorter labels alone
-   would only have moved the wrap rather than removed it. The sort, the start window, the
-   minimum duration and the deadline toggle follow the same rule, which is why they are two
-   more rows and not one.
+/* Two rows at rest, and a third only while something is on.
 
    Every row of filters is a row of list: above the breakpoint this column is sticky with a
-   scroller of its own, so the height spent here comes straight off what is scannable. That
-   is the budget to weigh a sixth control against. */
+   scroller of its own, so the height spent here comes straight off what is scannable. Ten
+   controls in four equal rows spent about two thirds of a card permanently while showing
+   nothing — which is what "overloaded" was pointing at, as much as the lack of structure was.
+
+   Capped at the column it describes while there are two of them, and not below: there the
+   list runs the whole measure and the cards under this block are 1100px wide, so a 540px bar
+   over them is the cap defending a layout that no longer exists. What is capped there instead
+   is the search field alone, which is the only control that would read as a runway. */
 .filters {
     display: flex;
     flex-direction: column;
@@ -93,11 +89,53 @@
     margin-bottom: 0.75rem;
 }
 
-.filters .row {
+.filters-row {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: 0.5rem;
+}
+
+/* Three buttons of their own content, never stretched: the row's remaining width belongs to
+   the two triggers beside them, and a stretched band group pushes the filter trigger onto a
+   line of its own at 540px. */
+.band-group {
+  flex: none;
+}
+
+/* One chip per filter the panel hides. The whole chip is the button — a 12px glyph inside it
+   could not be a 24×24 target and the chip trivially is — and the value truncates rather than
+   wrapping, so no chip is ever two lines tall.
+
+   Petrol on the selection wash, the same vocabulary the selected card and the stale hint
+   already speak. Never ochre: ochre means "this survived the filter" and nothing else. */
+.facet {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  min-height: 1.75rem;
+  gap: 0.375rem;
+  padding: 0.125rem 0.5rem;
+  border: 1px solid var(--color-primary);
+  border-radius: 999px;
+  background-color: var(--lg-selected-surface);
+  cursor: pointer;
+}
+
+.facet:hover {
+  background-color: var(--lg-selected-surface-hover);
+}
+
+.facet-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Last in the chip row, so it appears only when the row does and sits with the display of
+   what is actually on. */
+.facet-clear {
+  flex: none;
 }
 
 /* Something happened that this list has not read.
@@ -170,11 +208,12 @@
     width: 100%;
 }
 
-/* The last filter row holds one select and a content-sized toggle, so `flex: 1` alone
-   stretches the select across the whole column and the row stops lining up with the two
-   even halves above it. Capped at a half, minus half the row gap. */
-.control.half {
-  max-width: calc(50% - 0.25rem);
+/* Chrome and Safari render their own ✕ inside a search field, directly beside the button
+   that clears it — two adjacent controls, one glyph, two meanings, and Firefox renders only
+   one of them. The explicit button stays, because it is the one that exists everywhere and
+   carries a name. */
+.control input[type='search']::-webkit-search-cancel-button {
+  display: none;
 }
 
 /* Not `.list`: daisyUI ships a component under that name, and a class that happens to agree
@@ -224,6 +263,17 @@
     .split {
         grid-template-columns: minmax(0, 1fr);
     }
+
+  /* The cards below this block are the whole measure here, so a bar capped to 540px over
+     them is a cap defending a column that no longer exists. The search field keeps a cap of its own —
+     it is the one control that would read as a runway across 1100px. */
+  .filters {
+    max-width: none;
+  }
+
+  .filters-row .control {
+    max-width: 32rem;
+  }
 
   /* One column, so there is nothing to pin beside and nothing to keep in view: the list
      runs down the page like any other screen. The pane's own scroller has to go with it —

@@ -1388,6 +1388,56 @@ underneath all three. One list on the left, one thing being read on the right, a
   is read on every filter change and the toggle decides which *set* the screen is showing, which is a statement about
   the screen. The filters stayed down in the column: they filter the list and nothing else, and a search field spanning
   the page while acting on a 36rem column is a false affordance.
+- **The filter bar is three kinds of control and three treatments.** A *query* takes its own
+  row; an *order* is not a filter at all and says so by being a trigger of its own rather than
+  the third select in a row of them; five *facets* live behind one trigger and show as chips
+  when they are on. `archived` is none of the three — it is which *set* is on screen, and it
+  is up in the header with the count. It replaces ten controls in four equal rows, which
+  spent about two thirds of a card permanently while displaying nothing: every row of filters
+  is a row of list, because this column is sticky with a scroller of its own. Two rows at
+  rest, a third only while something is set.
+- **Chips exist for exactly what the popover hides, and that is what keeps the badge honest.**
+  The search text is in its own field and the band is lit in its own group three centimetres
+  above; a chip for a control that is already showing its state is a second copy of it. The
+  count on the trigger is the chip list's own length, so the two can never disagree. A portal
+  is one chip each rather than one saying "3 portals", because the point of a chip is that it
+  can be removed on its own — and the whole chip is the button, with the ✕ as a decorative
+  glyph: a 12px icon inside a 28px chip cannot be a 24×24 target and the chip trivially is.
+  Petrol on the selection wash, never ochre; ochre means "this survived the filter", not "a
+  filter is on".
+- **The two popovers are placed from the trigger's own rect, not from arithmetic.** A popover
+  is in the top layer, whose containing block is the viewport whatever `position` says. The
+  header's settings panel can compute its offset because its trigger is pinned to the shell's
+  right edge; a filter trigger sits in a column whose position depends on the width, on the
+  language and on what wrapped. `shared/popover/anchor-for.ts` writes two custom properties
+  from a measured rect on `click` — before the activation behaviour opens the panel — and the
+  stylesheets clamp with `min()` against their own width. **Custom properties and not
+  `left`/`top`**, because below 48rem both panels are bottom sheets and a real property
+  written inline would beat the media query that makes them one. Both stylesheets carry the
+  `display`-on-`:popover-open` and `inset: auto` traps the header already shipped once.
+- **Saved views sit in the header, not in the filter column.** A view is a name and a query
+  string, so it carries the order and which set is being read as well — a statement about the
+  screen rather than about the list. It is also what keeps the filter row from wrapping: the
+  band group, the sort trigger and the facet trigger already want about 500 of the column's
+  540px. The URL stays the truth: applying one replaces the query string and nothing records
+  "which view is showing", because the reader changes a filter a second later and any such
+  flag would then be a lie. `core/filter-views/` is the theme store's shape for the theme
+  store's reason — the I/O is localStorage, so it is `withHooks` plus an `effect`, every
+  access wrapped, and one corrupt entry costs one view rather than the list.
+- **Four defects went with the rebuild, and each was visible only in the bar.** `onInput`
+  wrote the URL on every keystroke, so a typed word was ten navigations, ten requests and ten
+  history entries — 250ms and `replaceUrl` now, which is also the precondition for the count
+  becoming this screen's one `role="status"`: announced per keystroke it would chatter over
+  the typing it reports on. The band group's three `aria-pressed` buttons became native
+  radios, because exactly one is always on and `aria-pressed` states that they are
+  independent. And the ✕ beside the search cleared the whole query string, `archived`
+  included, so it took a reader out of the archive; it clears the search alone, and *Clear
+  all* is the last chip — where what is being cleared can be seen — and leaves `sort` and
+  `archived` standing, because an order is not a filter and a set is not one either.
+- **The bar is capped to the column only while there are two of them.** Below 72rem the cards
+  under it run the whole measure, so a 540px bar over 1100px cards is a cap defending a layout
+  that no longer exists. What keeps its cap there is the search field alone, at 32rem: it is
+  the one control that would read as a runway.
 - **The offer card carries no description teaser.** Two clamped lines of somebody else's prose under a title that
   already says what the offer is, on the one surface that is scanned twenty at a time — it cost about a third of a
   card's height for a sentence the detail column renders properly a few hundred pixels to the right.
@@ -1455,7 +1505,7 @@ screen reads one of these, and none of them writes.
   Two catalog keys rather than one sentence with an optional tail, because "· model null" is worse than a sentence that
   does not mention one.
 
-- **Sorting is four keys, and the order *is* the cursor.** `ShortlistSort` owns one SQL
+- **Sorting is six keys, and the order *is* the cursor.** `ShortlistSort` owns one SQL
   expression per key and derives both the `ORDER BY` and the page clause from it, so the two
   cannot disagree. An enum and never a validated string: the type is the allowlist, so
   nothing a caller sends reaches a statement — the same argument that keeps the band
@@ -1467,12 +1517,34 @@ screen reads one of these, and none of them writes.
   general form is that the sentinel is whatever value puts "not stated" last under that
   key's direction. `keepsTheUnstatedAtTheEndOfEverySortAndNeverDropsIt` is what fails the
   day somebody replaces it.
+- **The sentinel sits on the sort constant and not on the kind, and `duration-asc` is why.**
+  The two duration sorts read one column in two directions, so a `-1` held on `Key.NUMBER`
+  puts the unstated last under DESC and *first* under ASC. Held there, adding the reverse
+  would have silently inverted exactly the rows the sentinel design exists to protect, and
+  each sort looks correct on its own — which is the shape in which that mistake is invisible.
+  What stays on `Key` is how a carried value binds back, because that follows the column's
+  type and never its direction. `putsTheShortestDurationFirstAndStillKeepsTheUnstatedLast`
+  fails the day it moves back.
+- **`fresh` is the one key with nothing to fold to the end.** `ingested_at` is NOT NULL from
+  the baseline and the upsert writes it, so there is no `coalesce` and no sentinel; it is also
+  already the tiebreaker of every other tuple, so this sort names the column twice.
+  `(ingested_at, ingested_at, id)` compares exactly as the two-element tuple would, and
+  keeping it three wide keeps one shape for the clause, the `ORDER BY` and the cursor instead
+  of a special case in all three. It is excluded by name from the `@EnumSource` guard above —
+  by name, so a nullable key added later is still in that test by default.
 - **One direction per key, fixed, and no `dir` parameter.** A row comparison is a legal
   keyset walk only while the whole tuple moves one way, so the direction belongs to the
   tuple — which means **under an ascending key the tiebreaker is oldest-ingested first**.
   Direction and sentinel are also one decision: `coalesce(duration_months, -1)` puts "not
   stated" last under DESC and *first* under ASC, so a direction parameter would change two
-  things while naming one. A reverse, if ever wanted, is a fifth named key.
+  things while naming one. A reverse is a named key of its own, and **`duration-asc` is the
+  only one that earned it**: `minMonths` is a floor with no matching ceiling, so "which of
+  these fills a gap" is the question no other control can ask. Lowest score first answers
+  nothing a shortlist asks — the band filter says "show me the weak ones" far more precisely —
+  and latest start is what `startWindow=later` already partitions, inside which you still want
+  soonest first. That is also why the browser offers no direction toggle: over the wire a
+  direction is not a modifier, so a toggle would work on one of six orders and be a control
+  that lies at rest.
 - **The cursor names its sort, and a mismatch is a 400.** Without the name, a cursor minted
   under `score` with a leading 88 replayed under `start` reads as epoch day 88 and returns
   an arbitrary slice with no error anywhere. The filters need no such guard: they narrow the
@@ -1497,6 +1569,24 @@ screen reads one of these, and none of them writes.
   `remote.accept_unknown` in another costume. Selectable, it is assertable: the four counts
   sum to the unfiltered match. The thirty days are a literal in the clause and the wire value
   is `soon`, so the window can be retuned without invalidating every saved link.
+- **The score axis has three spellings and a request may carry one.** A band is a range
+  whose boundaries are the configured thresholds, `minScore`/`maxScore` are the same shape
+  with the numbers in the request, and `scoreState` asks whether there is a score at all.
+  Carried together they do not contradict each other loudly: `band=shortlist` with
+  `scoreState=unscored` is simply always empty, and a band inside a range is simply the
+  narrower of the two. Both read as a quiet market from the screen, which is the failure this
+  repository keeps finding. So `ScoreFilter`'s compact constructor refuses the pair with a
+  sentence naming both, and the screen never produces one — the three are one control group
+  with three modes, and each writer clears the other two.
+- **A score range excludes what states nothing; `scoreState=unscored` is how that set is
+  asked for.** The same null treatment `minMonths` has, one axis over, and it is what turns
+  the `{count} unscored` figure beside the list from a number into an entry point.
+- **`portal` repeats rather than becoming `portals`.** `?portal=a&portal=b` binds to a
+  `List<String>`, and a link written while the filter took one still means what it meant. The
+  clause is `p.portal IN (:portals)` and deliberately not `= ANY (:portals)`: a *named*
+  JdbcClient parameter holding a collection is expanded into a `?, ?, ?` list, which turns
+  `ANY` into a syntax error only a real Postgres reports. The two positional array bindings in
+  that file are positional for exactly that reason and cannot be tidied into this one.
 - **`minMonths` excludes what states nothing; `deadlineOpen` includes it.** Opposite null
   treatments one clause apart, on purpose: "at least six months" is a claim about the offer
   and an offer that says nothing does not make it, while "still open" is the absence of proof
@@ -1676,9 +1766,12 @@ frontend/src/app/core/            api seams, stores, models, theme, shell
 frontend/src/app/layout/          shell, header, nav rail, theme toggle
 frontend/src/app/shared/          icon, brand mark, score, funnel rail, badge, stat tile,
                                   empty state, page header, the day pipe
-frontend/src/app/features/        dashboard, shortlist (+ offer card), offer detail,
-                                  pipeline, review, sources, rules. Shortlist, pipeline
-                                  and review are split views — § The split views
+frontend/src/app/features/        dashboard, shortlist (+ offer card, sort menu, facet
+                                  panel, saved views), offer detail, pipeline, review,
+                                  sources, rules. Shortlist, pipeline and review are split
+                                  views — § The split views
+frontend/src/app/core/filter-views/  saved views: a name and a query string, in this
+                                  browser's localStorage — § The split views
 frontend/tools/build-favicon.sh   renders favicon.ico, favicon-256.png and logo-mark.png
 ```
 
@@ -1795,6 +1888,15 @@ code has to reproduce — the numbers in `docs/SAMPLE-ANALYSIS.md` are the targe
     the keyset intact — the cursor now names its own sort, because the order decides what its
     leading value means. What that costs and what it enforces is in § *Start, duration and
     deadline* and § *The read side*.
+
+16. ✅ **The shortlist's filters** — ten controls in four equal rows, at one visual weight,
+    spending two thirds of a card to display nothing. Three kinds of control got three
+    treatments, the order became six named keys behind a trigger of its own (`duration-asc`
+    and `fresh` are the two new ones, and the sentinel moved onto the sort constant to make
+    the reverse possible at all), and four facets moved into a popover that shows as removable
+    chips. The filter gained what it could not express: several portals at once, a free score
+    range, "unscored only", and saved views. What that costs and what it enforces is in
+    § *The split views* and § *The read side*.
 
 ## Traps that have already cost money
 

@@ -9,6 +9,218 @@ may change in any release. See the status note in the README.
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-09-15
+
+A release about the three facts a person actually sorts adverts by, about the bar that asks
+for them, and about an application that stops pretending nothing is happening while it works.
+
+### Added
+
+- **Start, duration and application deadline, read out of the advert by a model.** The three
+  regexes that were supposed to cover this fail silently: `start_date` is one pattern for one
+  German date format, so "ab sofort", "Q4/2026" and "Start: KW 42" all yield nothing;
+  `duration` captures the bare number, so the `TEXT` column held `"6"` rather than what the
+  advert said; and nothing covered a deadline at all. An unmatched pattern is
+  indistinguishable from an advert that said nothing, which is the failure this ends.
+
+  A new stage between `CONTENT` and `SCORE` — after content because it reads the advert the
+  content stage left rather than the page around it, before scoring because what it writes
+  feeds `project_setup` and the judge's description of an offer. It reuses
+  `llm.models.scoring`, the third stage to do so, for the reason `Classifiers` already gives:
+  a `models.fields` key would be a third allowlist for a bounded question answered in three
+  lines of JSON.
+
+  **Each fact is a pair** — the phrase the advert used and a normalised value. `start_text`
+  beside `starts_on`, `duration` beside `duration_months`, `apply_by_text` beside `apply_by`.
+  The phrase is what a person reads and is often the whole truth; the normalised value is
+  what a sort key and a filter can compare. Measured on the deployed corpus after the first
+  pass: **19 of 21 offers stated at least one of the three, 9 of them a deadline** — dates
+  from 08.09. to 30.09., one already expired. A start is stated as a phrase far more often
+  than as a day: 18 phrases, 4 resolvable to a calendar day, because "Oktober 2026" is a
+  month and a month is not a day.
+
+  The sample corpus under `docs/samples/` states no deadline at all, and that is a property
+  of the newsletter rather than of the market — the deadline only appears in the ad the
+  enrichment stage fetches.
+
+- **Six sort keys on the shortlist, with the keyset intact.** Score (unchanged, and byte for
+  byte what shipped before), newest first, earliest start, nearest deadline, longest duration
+  and shortest duration. `ShortlistSort` owns one SQL expression per key and derives both the
+  `ORDER BY` and the page clause from it, so the two cannot disagree; an enum and never a
+  validated string, because the type is the allowlist.
+
+  Every key is wrapped in a `coalesce` whose sentinel puts "not stated" last, and **not
+  `NULLS LAST`**: SQL row comparison yields NULL the moment any element is NULL, so a nullable
+  key walked with `NULLS LAST` shows its unstated offers at the end of page one and loses
+  every one of them on page two, while the match count still counts them.
+
+  **The sentinel moved from the kind onto the sort constant, and `duration-asc` is why.** The
+  two duration sorts read one column in two directions, so a `-1` held on `Key.NUMBER` puts
+  the unstated last under DESC and *first* under ASC — a silent inversion of exactly the rows
+  the sentinel design exists to protect, and each sort looks correct on its own. `fresh` is
+  the other new key and the only one with nothing to fold to the end: `ingested_at` is
+  NOT NULL and is already the tiebreaker of every tuple, so it names the column twice.
+  Measured on the demo corpus: `duration-asc` walks 6, 6, 6, 9 | 12, 12, 12, not-stated across
+  a page boundary, and there is still no `dir` parameter — a reverse is a named key, because
+  over the wire the direction belongs to the whole tuple.
+
+- **Three filters**: a start window of four values that partition the working set, a minimum
+  duration in months, and "deadline still open". `unknown` is one of the four windows on
+  purpose — the three dated ones all carry `IS NOT NULL`, and `starts_on` is set only where a
+  day could be resolved, so a window without it would hide most of the shortlist while
+  looking exactly like a filter that worked.
+
+- **Several portals at once, a free score range, and "unscored only".** `portal` keeps its
+  singular name and repeats — `?portal=a&portal=b` — so every link written while it took one
+  still means what it meant; the clause is `IN (:portals)` and deliberately not
+  `= ANY (:portals)`, which a named JdbcClient parameter expands into a syntax error only a
+  real Postgres reports. `minScore`/`maxScore` are the band's shape with the numbers in the
+  request, and they **exclude offers nobody judged**, the same null treatment `minMonths` has
+  and for the same reason. `scoreState` is how that excluded set is asked for instead, which
+  turns the `{count} unscored` figure beside the list from a number into an entry point.
+
+  **The three are one axis and a request may carry one of them.** A band inside a range is
+  simply the narrower of the two, and `band=shortlist` with `scoreState=unscored` is simply
+  always empty — both read as a quiet market from the screen, which is the failure this
+  repository keeps finding. So the combination is refused with a sentence naming both
+  spellings, and the screen never produces one.
+
+- **Saved views.** A view is a name and a query string, kept in this browser. The URL stays
+  the truth: applying one replaces the query string, and nothing records "which view is
+  showing", because the reader changes a filter a second later and any such flag would then
+  be a lie. Every storage access is wrapped, and one corrupt entry costs one view rather than
+  the list.
+
+- **A pass in flight is visible.** `GET /api/ingest/current` answers the open `pipeline_run`
+  row or `204`, carrying the start time, the model and the stage — and no counts at all, so
+  there is nothing on it to mistake for a result. The header shows `ENRICH · step 4 of 11`
+  beside a run button that now refuses with a reason instead of a 409 nobody saw, and the
+  dashboard carries the same line above last night's numbers. A pass takes eleven minutes on
+  the deployed corpus, which is long enough for "is anything happening at all" to be the only
+  question worth answering.
+
+- **The application notices that its data has changed.** One signal, two triggers: a pass
+  ending anywhere, and the tab coming back to the front after half a minute away. Five stores
+  already reloaded on a run finishing and the machinery was never the problem — that event
+  fires only for a pass *this browser* started, so a nightly CronJob, another tab or a second
+  machine left every screen showing what it had read once.
+
+  The shortlist is the one screen that is **flagged rather than reloaded**: it is keyset-paged,
+  so re-reading it starts again at page one, and a reader forty offers down would be returned
+  to the top for news they did not ask about. A line above the list says so and a click does
+  the rest.
+
+- **The board's reading column can be closed.** A close control on the offer's own title line
+  and `Escape` from anywhere on the screen, both the same navigation — the selection is the
+  URL. Measured at 1440px: the lanes go from 769px back to 1388px. Which detail is closable is
+  route data, because the shortlist opens its first entry by itself and a close there would be
+  undone on the next tick.
+
+### Changed
+
+- **The shortlist's filter bar is three kinds of control instead of ten controls in four equal
+  rows.** Nothing in it said which control did what kind of thing: a *query*, an *order* — not
+  a filter at all — and five *facets*, all at one visual weight. The query takes its own row,
+  the order became a trigger showing the order it is in, and four facets moved behind one
+  trigger and show as removable chips when they are on. Every row of filters is a row of list,
+  because that column is sticky with a scroller of its own: measured at 1440, the bar is 68px
+  at rest against four rows before, and 105px at 390 with two chips, with no horizontal page
+  scroll at either width.
+
+  Chips exist for exactly what the popover hides, which is what keeps the badge honest — the
+  count on the trigger is the chip list's own length. Both popovers are placed from the
+  trigger's measured rect rather than from arithmetic, because a popover resolves against the
+  viewport whatever `position` says; below 48rem both become bottom sheets. Nothing in any of
+  it is ochre: ochre means "this survived the filter", not "a filter is on".
+
+- **Typing in the search box is one navigation per word, not one per keystroke.** Every
+  character used to be a navigation, a request and a history entry, nine in ten thrown away by
+  the `switchMap` behind them, and the back button then walked back through the word one letter
+  at a time. 250ms and `replaceUrl` — which is also what makes the result count a live region
+  at all, since announced per keystroke it would chatter over the typing it reports on.
+
+- **The band buttons are radios.** Exactly one of the three is always on, and `aria-pressed`
+  states that they are independent toggles; native radios bring arrow-key selection and a
+  roving tabindex with them. The appearance is unchanged.
+
+- **`offer.duration` means the advert's phrase now, not the regex's digits.** Every row comes
+  due on the first pass of the new stage, so the two spellings coexist only until then.
+
+- **The shortlist cursor changed shape and is not compatible with the old one.** It is now
+  `sort|key|ingested_at|id` and names the sort it was minted under, because without that a
+  cursor minted under `score` with a leading value of 88 replayed under `start` reads as epoch
+  day 88 and returns an arbitrary slice with no error anywhere. A cursor of the old three-part
+  form is refused with `400` and a sentence — which is also two shapes that used to be `500`s.
+
+- **The run button shows the sentence the server wrote.** A refused pass answered "The ingest
+  run did not answer", while the server had written "an ingest run is already in progress;
+  this one was not started" — the one message a reader could act on, replaced by one they
+  could not.
+
+- **The field extractor is asked for the value, not the row.** An advert writes "Start:
+  01.10.2026" and "Laufzeit: 12 Monate", and the card prints its own label in front of
+  whatever it is given, so the screen read "Start Start: 01.10.2026". Measured: 4 of 12
+  phrases carried the advert's own label before the rule and 1 of 14 after, and that one
+  advert puts the label in its headline.
+
+- **`field.published` and the two new date rows are written the way the chosen language writes
+  a date**, through one pipe rather than three ad-hoc approaches.
+
+### Fixed
+
+- **The ✕ beside the search took a reader out of the archive.** It cleared the whole query
+  string, `archived` included, so pressing it while reading the archive answered with the
+  working list. It clears the search alone now, and *Clear all* sits with the chips — where
+  what is being cleared can be seen — and leaves the sort and the archive side standing,
+  because an order is not a filter and a set is not one either. The browser's own clear ✕ on
+  the search field, which sat directly beside it, is suppressed: two adjacent controls, one
+  glyph, two meanings.
+
+- **Nothing above the shortlist threshold was being packaged, and the screen said so
+  politely.** `PackagingService` was the only one of the four `content_blocks` readers that
+  loaded its rows with `listOfRows()` instead of a `RowMapper`, so the driver handed it a
+  `PGobject` and the cast threw for every advert that had been segmented. The per-offer catch
+  turned that into a counter, `package_dir` was never written, and every offer reported "a
+  package is built for everything above the shortlist threshold; this offer has none yet".
+  Ten packages were built on the first pass after the fix. The `tags` array beside it was the
+  same defect one column over and never threw at all — it simply reached Freemarker as a
+  wrapper around a JDBC array.
+
+- **The count beside the shortlist shrank as the reader scrolled.** The cursor clause was
+  appended into the same clause the match count was read with, so on page two `matched` and
+  `unscored` counted the rows *after* the cursor. Precisely the defect that moved this count
+  to the server in the first place, reappearing on the other side of the wire.
+
+- **A board card stayed put after its offer was archived.** The server already leaves an
+  archived offer off the board; the archive button writes through `ShortlistStore` and the
+  board lives in `ApplicationsStore`, which never heard about it — so the card stood there,
+  and kept counting towards the dashboard's follow-up tile, until somebody reloaded.
+
+- **A run whose process was killed left its row open forever.** From the read side that is
+  indistinguishable from a pass still going, so the button would have refused every click from
+  then on. Startup is the exact moment to say so and needs no heuristic: this process is the
+  only thing that runs a pass, so a row still open when it starts belongs to a process that no
+  longer exists. Two such rows were found and closed on the deployed instance the first time
+  this shipped.
+
+### Upgrade notes
+
+- **Add a `fields:` block to your own `pipeline.yaml`.** The configuration directory overrides
+  the shipped file *file by file*, so an existing `pipeline.yaml` without one means the stage
+  never runs — and the symptom is empty start, duration and deadline values, which looks
+  exactly like adverts that state nothing. `fields: { enabled: true }` is the whole of it.
+
+- **Old shortlist links carrying a `cursor` parameter stop working** and answer `400` with a
+  sentence. Links carrying only filters are unaffected.
+
+- **A shortlist link carrying `portal` keeps working**, because the parameter kept its name
+  and only learned to repeat. A hand-written request carrying a band *and* a score range, or
+  either with `scoreState`, is refused with `400` and a sentence.
+
+- Three migrations, `V18`, `V19` and `V20`. None rewrites existing data — `V20` adds the two
+  indexes the new sort keys read — and `offer.duration` changes meaning as the new stage
+  reaches each row.
+
 ## [0.2.1] — 2026-09-07
 
 ### Added
@@ -270,7 +482,8 @@ Found while building the demo, all of them in paths only a container exercises:
   left six.
 - The shortlist card printed the description's Markdown syntax in its teaser.
 
-[Unreleased]: https://github.com/codeministry/leadgen/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/codeministry/leadgen/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/codeministry/leadgen/releases/tag/v0.3.0
 [0.2.1]: https://github.com/codeministry/leadgen/releases/tag/v0.2.1
 [0.2.0]: https://github.com/codeministry/leadgen/releases/tag/v0.2.0
 [0.1.1]: https://github.com/codeministry/leadgen/releases/tag/v0.1.1

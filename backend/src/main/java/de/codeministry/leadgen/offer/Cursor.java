@@ -64,7 +64,7 @@ record Cursor(ShortlistSort sort, long key, Instant at, long id) {
             return new Cursor(
                 minted,
                 Long.parseLong(parts[1]),
-                Instant.EPOCH.plus(Long.parseLong(parts[2]), ChronoUnit.MICROS),
+                instantOf(Long.parseLong(parts[2])),
                 Long.parseLong(parts[3]));
         } catch (NumberFormatException e) {
             throw new BadShortlistRequest("this cursor is not one this shortlist wrote; ask for the first page instead");
@@ -73,8 +73,21 @@ record Cursor(ShortlistSort sort, long key, Instant at, long id) {
 
     /**
      * Lossless for anything Postgres can store; {@code toEpochMilli} is not.
+     *
+     * <p>Package-private rather than private because {@link ShortlistSort#FRESH} keys on the
+     * very column this tiebreaker reads, so its key and this component are the same number.
+     * A second conversion beside this one would be two roundings of one instant, and they
+     * disagree exactly at a batch boundary — which is the failure this microsecond resolution
+     * exists to prevent in the first place.
      */
-    private static long micros(Instant instant) {
+    static long micros(Instant instant) {
         return instant.getEpochSecond() * 1_000_000L + instant.getNano() / 1_000L;
+    }
+
+    /**
+     * The inverse, for binding a carried key back to a {@code timestamptz}.
+     */
+    static Instant instantOf(long micros) {
+        return Instant.EPOCH.plus(micros, ChronoUnit.MICROS);
     }
 }

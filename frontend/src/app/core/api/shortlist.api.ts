@@ -32,8 +32,20 @@ export class ShortlistApi {
         if (filters.band !== '' && filters.band !== 'all') {
             params = params.set('band', filters.band);
         }
-        if (filters.portal !== '') {
-            params = params.set('portal', filters.portal);
+      if (filters.minScore !== null) {
+        params = params.set('minScore', String(filters.minScore));
+      }
+      if (filters.maxScore !== null) {
+        params = params.set('maxScore', String(filters.maxScore));
+      }
+      if (filters.scoreState !== '' && filters.scoreState !== 'any') {
+        params = params.set('scoreState', filters.scoreState);
+      }
+      // `append`, not `set`: the parameter keeps its singular name and repeats, which is
+      // what `?portal=a&portal=b` is and what binds to the server's `List<String>`. `set`
+      // would replace, so a two-portal filter would silently be a one-portal filter.
+      for (const name of filters.portals) {
+        params = params.append('portal', name);
         }
         if (filters.archived) {
             params = params.set('archived', 'true');

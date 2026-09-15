@@ -91,6 +91,18 @@
        panels stay one column — beside a board that is the right shape for them. */
   --lg-detail-w: 40rem;
 
+  /* The two popovers the shortlist's filter bar opens. Written here and not in the two
+     component stylesheets because each of them clamps itself against the window with
+     `min(--lg-anchor-x, 100vw - <width> - gutter)`, and a clamp that disagrees with the
+     element's own width is a panel that hangs off the edge on one screen size only.
+
+     The menu is a column of six sentences; the panel holds five labelled facets and is the
+     width the labels were the argument for — a 36rem column could not carry them, a 22rem
+     panel can. Both stop mattering below 48rem, where each becomes a full-width bottom
+     sheet. */
+  --lg-menu-w: 15rem;
+  --lg-panel-w: 22rem;
+
     /* Selection in a list. Not the accent: ochre means "this survived the filter" and nothing
        else, so the one on screen takes the primary edge and wash the nav rail already uses
        for "you are here". Ten per cent lands one step below `--color-base-300` in the light

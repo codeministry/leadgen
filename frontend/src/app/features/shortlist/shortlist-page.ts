@@ -12,9 +12,9 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
-import {toSignal} from '@angular/core/rxjs-interop';
-import {ActivatedRoute, NavigationEnd, Router, RouterLink, RouterOutlet} from '@angular/router';
-import {filter, map} from 'rxjs';
+import {takeUntilDestroyed, toSignal} from '@angular/core/rxjs-interop';
+import {ActivatedRoute, NavigationEnd, Params, Router, RouterLink, RouterOutlet} from '@angular/router';
+import {debounceTime, filter, map, Subject} from 'rxjs';
 import {injectDispatch} from '@ngrx/signals/events';
 import {TranslocoPipe} from '@jsverse/transloco';
 import {shortlistEvents} from '@core/store/shortlist.events';
@@ -26,8 +26,27 @@ import {LoadMore} from '@shared/load-more/load-more';
 import {Icon} from '@shared/icon/icon';
 import {PageHeader} from '@shared/page-header/page-header';
 import {OfferCard} from './offer-card/offer-card';
+import {FacetPanel} from './facet-panel/facet-panel';
+import {SavedViews} from './saved-views/saved-views';
+import {SortMenu} from './sort-menu/sort-menu';
 
 type BandFilter = 'all' | 'shortlist' | 'review';
+
+/**
+ * One filter the panel hides, as the bar displays it.
+ *
+ * <p>Data and not a sentence: `label` and `valueKey` are catalog keys and the template pipes
+ * them, because the value sits in a different place in every language. `clear` is what
+ * removing this chip writes to the query string — by name, so a chip removes its own filter
+ * and nothing else.
+ */
+interface FacetChip {
+  readonly id: string;
+  readonly label: string;
+  readonly valueKey: string | null;
+  readonly params: Record<string, string | number>;
+  readonly clear: Params;
+}
 
 @Component({
     selector: 'lg-shortlist-page',
@@ -35,8 +54,11 @@ type BandFilter = 'all' | 'shortlist' | 'review';
         EmptyState,
         Icon,
         LoadMore,
+      FacetPanel,
         OfferCard,
       PageHeader,
+      SavedViews,
+      SortMenu,
         RouterLink,
         RouterOutlet,
         TranslocoPipe,
@@ -110,7 +132,37 @@ export class ShortlistPage {
     readonly band = input<BandFilter, BandFilter | undefined>('all', {
         transform: (value) => value ?? 'all',
     });
-    readonly portal = input('', {transform: (value: string | undefined) => value ?? ''});
+  /**
+   * Every portal the list is narrowed to, empty for all of them.
+   *
+   * <p>Singular, and holding a list: the name is the query parameter's, and router input
+   * binding matches on it. Renaming it to `portals` would need an alias, which the lint
+   * rule refuses and which would be the wrong trade anyway — the wire name is what every
+   * existing link carries.
+   *
+   * <p>The parameter keeps its singular name and repeats — `?portal=a&portal=b` — so every
+   * link written while it took one still means what it meant, on this side and on the
+   * server's. Router input binding hands over a string for one value and an array for
+   * several, which is what the transform is flattening; the same `undefined` trap as every
+   * other input is why it has one at all.
+   */
+  readonly portal = input<readonly string[], string | readonly string[] | undefined>([], {
+    transform: (value) => (value === undefined ? [] : typeof value === 'string' ? [value] : value),
+  });
+
+  /**
+   * The other two spellings of the score axis. Null and not zero, because zero is a score
+   * an offer can actually have — a `0` dropped as "the default" would be a filter that
+   * cannot be expressed. The server refuses a band and a range together; nothing here ever
+   * produces the pair, which is what the writers below are for.
+   */
+  readonly minScore = input<number | null, string | undefined>(null, {
+    transform: (value) => ShortlistPage.score(value),
+  });
+  readonly maxScore = input<number | null, string | undefined>(null, {
+    transform: (value) => ShortlistPage.score(value),
+  });
+  readonly scoreState = input('any', {transform: (value: string | undefined) => value ?? 'any'});
     /**
      * Which side of the archive is on screen. A query parameter like the rest, so a link to
      * the archive is a link; and a string in the URL rather than a boolean, because that is
@@ -150,11 +202,23 @@ export class ShortlistPage {
   readonly deadlineOpen = input(false, {transform: (value: string | undefined) => value === '1'});
 
   /**
-   * The four sort keys the server offers, in the order they are worth trying. The names are
+   * The six sort keys the server offers, in the order they are worth trying. The names are
    * the server's; a union type here would disagree with it the first time one is added, the
    * same reason nothing in this browser names a weight or a filter stage.
+   *
+   * <p>`duration-asc` is the one reverse the server has, and the reason there is no direction
+   * toggle beside this list: over there a direction is not a modifier but part of the keyset
+   * tuple, along with the sentinel that keeps "not stated" at the end. A toggle would work on
+   * one of six orders, which is a control that lies at rest.
    */
-  protected readonly sortOptions = ['score', 'start', 'deadline', 'duration'] as const;
+  protected readonly sortOptions = [
+    'score',
+    'fresh',
+    'start',
+    'deadline',
+    'duration',
+    'duration-asc',
+  ] as const;
 
   protected readonly startWindowOptions = ['any', 'now', 'soon', 'later', 'unknown'] as const;
 
@@ -192,7 +256,10 @@ export class ShortlistPage {
     private readonly filters = computed<ShortlistFilters>(() => ({
         q: this.q(),
         band: this.band(),
-        portal: this.portal(),
+      minScore: this.minScore(),
+      maxScore: this.maxScore(),
+      scoreState: this.scoreState(),
+      portals: this.portal(),
         archived: this.archived(),
       sort: this.sort(),
       startWindow: this.startWindow(),
@@ -228,6 +295,10 @@ export class ShortlistPage {
         }
 
         effect(() => this.dispatch.opened(this.filters()));
+
+      this.typed
+        .pipe(debounceTime(250), takeUntilDestroyed())
+        .subscribe((value) => this.write({q: value.trim() === '' ? null : value}, true));
 
         /*
          * An empty right column beside a full list is a page waiting for a click it does not
@@ -292,17 +363,134 @@ export class ShortlistPage {
     /** What the server sent for these filters. The browser no longer decides what is shown. */
     protected readonly visible = computed(() => this.store.entries());
 
+  /**
+   * The query string as it stands, which is the whole of what a saved view holds.
+   *
+   * <p>Read off the router's own URL rather than assembled from the eight inputs: what is
+   * saved has to be exactly what would be restored, and an assembled copy disagrees with
+   * the URL the first time a filter is added. `navigated()` is the reason to look again,
+   * the same shape `selectedId` uses.
+   */
+  protected readonly currentQuery = computed(() => {
+    this.navigated();
+    return this.router.url.split('?')[1] ?? '';
+  });
+
+  /**
+   * A saved view, applied.
+   *
+   * <p>It replaces the query string rather than merging into it — no `queryParamsHandling`
+   * — because a view is the screen as it was saved, and merged it would be that view plus
+   * whatever the reader happened to have set. The selected offer is a path segment and
+   * survives, which is right: the list changes underneath it, as on any filter change.
+   */
+  protected applyView(query: string): void {
+    const params: Params = {};
+    new URLSearchParams(query).forEach((value, key) => {
+      const seen = params[key] as string | string[] | undefined;
+      // A repeated parameter is a list — `portal` is one — and `URLSearchParams` hands
+      // the pairs over one at a time, so the second `portal=` would otherwise replace
+      // the first and a two-portal view would restore as a one-portal view.
+      params[key] =
+        seen === undefined ? value : Array.isArray(seen) ? [...seen, value] : [seen, value];
+    });
+    void this.router.navigate([], {queryParams: params});
+  }
+
     protected readonly filtered = computed(
       () =>
         this.q() !== '' ||
         this.band() !== 'all' ||
-        this.portal() !== '' ||
         this.archived() ||
         this.sort() !== 'score' ||
-        this.startWindow() !== 'any' ||
-        this.minMonths() > 0 ||
-        this.deadlineOpen(),
+        this.facetChips().length > 0,
     );
+
+  /**
+   * What the panel is hiding, one chip per filter.
+   *
+   * <p>Chips for exactly what is behind the trigger and nothing else: the search text is in
+   * its own field and the band is lit in its own group, three centimetres above, and a chip
+   * for a control that is already showing its state is a second copy of it. That is also
+   * what keeps the badge honest — the count on the trigger is this list's length, so the
+   * two can never disagree.
+   *
+   * <p>A portal is one chip each rather than one chip saying "3 portals": the point of a
+   * chip is that it can be removed on its own.
+   */
+  protected readonly facetChips = computed<readonly FacetChip[]>(() => {
+    const chips: FacetChip[] = [];
+
+    for (const name of this.portal()) {
+      const rest = this.portal().filter((other) => other !== name);
+      chips.push({
+        id: `portal:${name}`,
+        label: 'shortlist.facet.portal',
+        valueKey: null,
+        params: {value: name},
+        clear: {portal: rest.length > 0 ? [...rest] : null},
+      });
+    }
+
+    const min = this.minScore();
+    const max = this.maxScore();
+    if (min !== null || max !== null) {
+      chips.push({
+        id: 'score-range',
+        label:
+          min !== null && max !== null
+            ? 'shortlist.facet.scoreBetween'
+            : min !== null
+              ? 'shortlist.facet.scoreFrom'
+              : 'shortlist.facet.scoreTo',
+        valueKey: null,
+        params: {from: min ?? 0, to: max ?? 0},
+        clear: {minScore: null, maxScore: null},
+      });
+    }
+
+    if (this.scoreState() !== 'any') {
+      chips.push({
+        id: 'score-state',
+        label: 'shortlist.facet.scoreState',
+        valueKey: `shortlist.scoreStates.${this.scoreState()}`,
+        params: {},
+        clear: {scoreState: null},
+      });
+    }
+
+    if (this.startWindow() !== 'any') {
+      chips.push({
+        id: 'start',
+        label: 'shortlist.facet.start',
+        valueKey: `shortlist.start.${this.startWindow()}`,
+        params: {},
+        clear: {startWindow: null},
+      });
+    }
+
+    if (this.minMonths() > 0) {
+      chips.push({
+        id: 'duration',
+        label: 'shortlist.facet.durationMonths',
+        valueKey: null,
+        params: {months: this.minMonths()},
+        clear: {minMonths: null},
+      });
+    }
+
+    if (this.deadlineOpen()) {
+      chips.push({
+        id: 'deadline',
+        label: 'shortlist.facet.deadline',
+        valueKey: null,
+        params: {},
+        clear: {deadlineOpen: null},
+      });
+    }
+
+    return chips;
+  });
 
     /** Asked for when the reader reaches the end of what is loaded. */
     protected loadMore(): void {
@@ -382,20 +570,105 @@ export class ShortlistPage {
   }
 
   /**
+   * A bound as the query string carries it. Null for absent, for anything that is not a
+   * number, and never for `0`: a hand-edited link must not be able to empty the list for a
+   * reason nobody can see, and zero is a score an offer can have.
+   */
+  private static score(value: string | undefined): number | null {
+    if (value === undefined || value.trim() === '') {
+      return null;
+    }
+    const score = Number(value);
+    return Number.isFinite(score) ? score : null;
+  }
+
+  /**
    * `''`, `'all'`, `'score'`, `'any'` and `'0'` are the defaults, and a default is dropped
    * from the URL rather than written into it: a link should say what is unusual about the
    * view and nothing else.
+   *
+   * <p>Only the stringy filters go through it. A score bound must not: `'0'` is in this set,
+   * and `minScore=0` is a filter somebody asked for.
    */
   private static readonly DEFAULTS = new Set(['', 'all', 'score', 'any', '0']);
 
+  /**
+   * The one writer of the query string.
+   *
+   * <p>`merge`, so a write names only what it changes and every other filter, the sort and
+   * the archive side all stay where they were. A null drops the parameter.
+   *
+   * <p>`replaceUrl` for the search alone: a debounced keystroke is still one navigation, and
+   * pushed it makes the back button walk back through a word letter by letter instead of
+   * leaving the screen.
+   */
+  private write(queryParams: Params, replaceUrl = false): void {
+    void this.router.navigate([], {queryParams, queryParamsHandling: 'merge', replaceUrl});
+  }
+
   protected setFilter(
-    key: 'q' | 'band' | 'portal' | 'sort' | 'startWindow' | 'minMonths',
+    key: 'q' | 'band' | 'sort' | 'startWindow' | 'minMonths',
     value: string,
   ): void {
-    void this.router.navigate([], {
-      queryParams: {[key]: ShortlistPage.DEFAULTS.has(value) ? null : value},
-      queryParamsHandling: 'merge',
+    this.write({[key]: ShortlistPage.DEFAULTS.has(value) ? null : value});
+  }
+
+  /** The panel emits a number; the query string carries a string. Zero is no minimum. */
+  protected setMinMonths(months: number): void {
+    this.setFilter('minMonths', String(months));
+  }
+
+  /**
+   * The three spellings of the score axis, and each writer clears the other two.
+   *
+   * <p>The server refuses two at once with a sentence naming both, because intersected they
+   * return rows and a short list after filtering is indistinguishable from a quiet market.
+   * This is the half that makes sure nobody ever sees that sentence: the band group, the
+   * state group and the range are one control group with three modes, so choosing one mode
+   * is choosing against the others.
+   */
+  protected setBand(band: BandFilter): void {
+    this.write({
+      band: band === 'all' ? null : band,
+      minScore: null,
+      maxScore: null,
+      scoreState: null,
     });
+  }
+
+  protected setScoreState(state: string): void {
+    this.write({
+      scoreState: state === 'any' ? null : state,
+      band: null,
+      minScore: null,
+      maxScore: null,
+    });
+  }
+
+  protected setScoreRange(range: { readonly min: number | null; readonly max: number | null }): void {
+    this.write({
+      minScore: range.min,
+      maxScore: range.max,
+      band: null,
+      scoreState: null,
+    });
+  }
+
+  /**
+   * One portal in or out, the rest untouched. An empty selection drops the parameter rather
+   * than writing an empty one, which is what keeps "every portal" the absence of a filter.
+   */
+  protected togglePortal(name: string): void {
+    const picked = this.portal();
+    const next = picked.includes(name)
+      ? picked.filter((other) => other !== name)
+      : [...picked, name];
+    this.write({portal: next.length > 0 ? next : null});
+  }
+
+  /** What one chip removes: its own parameters, by name, and nothing else. */
+  protected removeFacet(chip: FacetChip): void {
+    this.write(chip.clear);
   }
 
   /**
@@ -460,12 +733,22 @@ export class ShortlistPage {
         void this.router.navigate(['/shortlist', id], {queryParamsHandling: 'preserve'});
     }
 
-    protected onInput(event: Event): void {
-        this.setFilter('q', (event.target as HTMLInputElement).value);
-    }
+  /**
+   * Typing, debounced.
+   *
+   * <p>Every keystroke used to be a navigation, a request and a history entry: "kubernetes"
+   * was ten of each, nine of them thrown away by the `switchMap` behind them, and the back
+   * button then walked back through the word one letter at a time. It is also what makes a
+   * live region on the result count possible at all — announced per keystroke it would
+   * chatter over the typing it is reporting on.
+   *
+   * <p>RxJS because this is the I/O boundary, which is the only place this repository uses
+   * it; `takeUntilDestroyed` because the subject outlives nothing else.
+   */
+  private readonly typed = new Subject<string>();
 
-    protected onPortal(event: Event): void {
-        this.setFilter('portal', (event.target as HTMLSelectElement).value);
+    protected onInput(event: Event): void {
+      this.typed.next((event.target as HTMLInputElement).value);
     }
 
   protected onSelect(
@@ -475,7 +758,36 @@ export class ShortlistPage {
     this.setFilter(key, (event.target as HTMLSelectElement).value);
   }
 
-    protected clear(): void {
-        void this.router.navigate([], {queryParams: {}});
+  /**
+   * The search only, which is the whole point of it sitting in the field.
+   *
+   * <p>It used to be `navigate([], {queryParams: {}})` — the whole query string, including
+   * `archived`, so the ✕ beside the search took a reader out of the archive and back onto
+   * the working list. Everything else is cleared from the chip row, where what is being
+   * cleared can be seen.
+   */
+  protected clearSearch(): void {
+    this.write({q: null});
+  }
+
+  /**
+   * Every filter off, by name.
+   *
+   * <p>The sort stays: an order is not a filter, and a reader who chose one did not ask for
+   * it to be forgotten. So does `archived`: a set is not a filter either, and dropping it
+   * would answer "clear the filters" by leaving the archive.
+   */
+  protected clearAll(): void {
+    this.write({
+      q: null,
+      band: null,
+      portal: null,
+      minScore: null,
+      maxScore: null,
+      scoreState: null,
+      startWindow: null,
+      minMonths: null,
+      deadlineOpen: null,
+    });
     }
 }

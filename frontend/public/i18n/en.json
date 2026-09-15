@@ -6,7 +6,8 @@
     "unknown": "unknown",
     "none": "none",
     "notKnown": "not known",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "save": "Save"
   },
   "nav": {
     "sections": "Sections",
@@ -103,7 +104,7 @@
   "shortlist": {
     "title": "Shortlist",
     "searchLabel": "Search titles, descriptions and tags",
-    "searchPlaceholder": "Search titles, descriptions, tags",
+    "searchPlaceholder": "Search offers",
     "scoreBand": "Score band",
     "bandAll": "All",
     "bandAbove": "{score}+",
@@ -137,7 +138,9 @@
       "score": "Highest score",
       "start": "Starts soonest",
       "deadline": "Deadline nearest",
-      "duration": "Longest duration"
+      "duration": "Longest duration",
+      "fresh": "Newest first",
+      "duration-asc": "Shortest duration"
     },
     "startWindow": "Start",
     "start": {
@@ -152,7 +155,49 @@
     "fromMonths": "{months} months or more",
     "deadlineOpen": "Deadline open",
     "stale": "A run has finished since this list was read.",
-    "reload": "Reload"
+    "reload": "Reload",
+    "sortTrigger": "Sort: {order}",
+    "sortUnstated": "Offers that state nothing come last in every order.",
+    "filters": "Filters",
+    "filtersActive": "{count, plural, =0 {Filters} other {Filters, # active}}",
+    "clearAll": "Clear all",
+    "clearSearch": "Clear the search",
+    "facetRemove": "Remove filter {label}",
+    "facet": {
+      "portal": "Portal: {value}",
+      "start": "Start: {value}",
+      "deadline": "Deadline open",
+      "scoreBetween": "Score: {from}–{to}",
+      "scoreFrom": "Score: {from} and up",
+      "scoreTo": "Score: up to {to}",
+      "scoreState": "Score: {value}",
+      "durationMonths": "Duration: {months} months or more"
+    },
+    "scoreSection": "Score",
+    "scoreStateLabel": "Judged",
+    "scoreStates": {
+      "any": "Any",
+      "scored": "Scored",
+      "unscored": "Unscored"
+    },
+    "minScore": "From",
+    "maxScore": "To",
+    "portalsLabel": "Portals",
+    "portalsAll": "Every portal",
+    "noPortalsYet": "No portal has been seen yet.",
+    "views": {
+      "label": "Views",
+      "legend": "Saved views",
+      "none": "No saved views yet.",
+      "save": "Save this view",
+      "saveTitle": "Name this view",
+      "saveBody": "It is this screen as it stands: the filters, the order and which set you are reading. Applying it later is a navigation, nothing more.",
+      "nameLabel": "Name",
+      "namePlaceholder": "Remote, six months or more",
+      "apply": "Apply {name}",
+      "remove": "Delete {name}",
+      "nothingToSave": "Set a filter first."
+    }
   },
   "offer": {
     "rateUnknown": "rate unknown",

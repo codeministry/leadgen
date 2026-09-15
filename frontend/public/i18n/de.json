@@ -6,7 +6,8 @@
     "unknown": "unbekannt",
     "none": "keins",
     "notKnown": "nicht bekannt",
-    "cancel": "Abbrechen"
+    "cancel": "Abbrechen",
+    "save": "Speichern"
   },
   "nav": {
     "sections": "Bereiche",
@@ -103,7 +104,7 @@
   "shortlist": {
     "title": "Auswahl",
     "searchLabel": "Titel, Beschreibungen und Schlagworte durchsuchen",
-    "searchPlaceholder": "Titel, Beschreibungen, Schlagworte",
+    "searchPlaceholder": "Angebote suchen",
     "scoreBand": "Punktebereich",
     "bandAll": "Alle",
     "bandAbove": "ab {score}",
@@ -137,7 +138,9 @@
       "score": "Höchste Punktzahl",
       "start": "Frühester Start",
       "deadline": "Nächste Frist",
-      "duration": "Längste Dauer"
+      "duration": "Längste Dauer",
+      "fresh": "Neueste zuerst",
+      "duration-asc": "Kürzeste Dauer"
     },
     "startWindow": "Start",
     "start": {
@@ -152,7 +155,49 @@
     "fromMonths": "ab {months} Monaten",
     "deadlineOpen": "Frist offen",
     "stale": "Seit dem Laden dieser Liste ist ein Lauf durchgelaufen.",
-    "reload": "Neu laden"
+    "reload": "Neu laden",
+    "sortTrigger": "Sortierung: {order}",
+    "sortUnstated": "Angebote ohne Angabe stehen in jeder Ordnung hinten.",
+    "filters": "Filter",
+    "filtersActive": "{count, plural, =0 {Filter} other {Filter, # aktiv}}",
+    "clearAll": "Alles zurücksetzen",
+    "clearSearch": "Suche zurücksetzen",
+    "facetRemove": "Filter {label} entfernen",
+    "facet": {
+      "portal": "Portal: {value}",
+      "start": "Start: {value}",
+      "deadline": "Frist offen",
+      "scoreBetween": "Punktzahl: {from}–{to}",
+      "scoreFrom": "Punktzahl: ab {from}",
+      "scoreTo": "Punktzahl: bis {to}",
+      "scoreState": "Punktzahl: {value}",
+      "durationMonths": "Dauer: ab {months} Monaten"
+    },
+    "scoreSection": "Punktzahl",
+    "scoreStateLabel": "Bewertet",
+    "scoreStates": {
+      "any": "Egal",
+      "scored": "Bewertet",
+      "unscored": "Ohne Bewertung"
+    },
+    "minScore": "Von",
+    "maxScore": "Bis",
+    "portalsLabel": "Portale",
+    "portalsAll": "Alle Portale",
+    "noPortalsYet": "Es wurde noch kein Portal gesehen.",
+    "views": {
+      "label": "Sichten",
+      "legend": "Gespeicherte Sichten",
+      "none": "Noch keine Sicht gespeichert.",
+      "save": "Diese Sicht speichern",
+      "saveTitle": "Sicht benennen",
+      "saveBody": "Gespeichert wird dieser Bildschirm, wie er steht: die Filter, die Sortierung und welche Menge du liest. Später anzuwenden ist nur eine Navigation.",
+      "nameLabel": "Name",
+      "namePlaceholder": "Remote, ab sechs Monaten",
+      "apply": "{name} anwenden",
+      "remove": "{name} löschen",
+      "nothingToSave": "Setze zuerst einen Filter."
+    }
   },
   "offer": {
     "rateUnknown": "Satz unbekannt",

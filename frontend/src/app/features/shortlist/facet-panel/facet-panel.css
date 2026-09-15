@@ -1,0 +1,121 @@
+:host {
+  display: contents;
+}
+
+.facet-button {
+  flex: none;
+}
+
+/* Not `.badge`: daisyUI ships a component under that name, and a class that happens to agree
+   with it today is the trap `.status` sprang in the header. Petrol and never ochre — ochre
+   means "this survived the filter" and nothing else, and a filter being on is not that. */
+.active-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding-inline: 0.25rem;
+  border-radius: 999px;
+  background-color: var(--color-primary);
+  color: var(--color-primary-content);
+  font-size: 0.6875rem;
+  line-height: 1;
+}
+
+/* See the note in `sort-menu.css`: `inset: auto` first, the position from the trigger's own
+   rect, and the clamp stated here because the width is this stylesheet's own number. */
+.facet-panel {
+  position: fixed;
+  inset: auto;
+  top: var(--lg-anchor-y, var(--lg-header-h));
+  left: min(var(--lg-anchor-x, 0px), 100vw - var(--lg-panel-w) - var(--lg-gutter));
+  width: var(--lg-panel-w);
+  max-width: calc(100vw - 2 * var(--lg-gutter));
+  max-height: 70svh;
+  overflow-y: auto;
+  gap: 0.875rem;
+  margin: 0;
+  padding: 0.875rem;
+  border: 1px solid var(--color-base-300);
+  border-radius: var(--radius-box);
+  background-color: var(--color-base-100);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 18%);
+}
+
+/* `display` on `:popover-open` and nowhere else — the UA's own hiding rule carries no
+   `!important`, so an author `display` on the panel leaves it open forever while every API
+   reports it closed. */
+.facet-panel:popover-open {
+  display: flex;
+  flex-direction: column;
+}
+
+.panel-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.panel-row legend {
+  padding: 0;
+}
+
+.empty-note {
+  margin: 0;
+}
+
+/* Capped rather than free: a tool reading six sources would otherwise push the score, the
+   start and the duration below the fold of the panel. */
+.portal-list {
+  display: flex;
+  flex-direction: column;
+  max-height: 9rem;
+  overflow-y: auto;
+  gap: 0.25rem;
+}
+
+.portal-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+.range {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.range-field {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  min-width: 0;
+  gap: 0.375rem;
+}
+
+.range-field input {
+  width: 100%;
+  min-width: 0;
+}
+
+.deadline {
+  align-self: flex-start;
+}
+
+/* A phone: a bottom sheet rather than a panel hanging off a trigger, thumb-reachable, and
+   above the fixed bottom navigation because the top layer beats a z-index. */
+@media (width < 48rem) {
+  .facet-panel {
+    /* One shorthand rather than four longhands, which is what stylelint asks for and what
+       reads correctly anyway: top auto, the other three flush. */
+    inset: auto 0 0;
+    width: auto;
+    max-width: none;
+    border-radius: var(--radius-box) var(--radius-box) 0 0;
+  }
+}

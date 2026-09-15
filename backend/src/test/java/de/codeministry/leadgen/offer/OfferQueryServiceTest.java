@@ -160,11 +160,11 @@ class OfferQueryServiceTest {
         passed("Mittel", 55);
         passed("Schwach", 10);
 
-        assertThat(offers.shortlist(new ShortlistQuery(null, "shortlist", null, false, null, null, null, false, null, 0))
+        assertThat(offers.shortlist(ShortlistQuery.first().withScore(band("shortlist")))
                         .entries())
                 .extracting(entry -> entry.offer().title())
                 .containsExactly("Stark");
-        assertThat(offers.shortlist(new ShortlistQuery(null, "review", null, false, null, null, null, false, null, 0))
+        assertThat(offers.shortlist(ShortlistQuery.first().withScore(band("review")))
                         .entries())
                 .extracting(entry -> entry.offer().title())
                 .containsExactly("Mittel");
@@ -180,7 +180,7 @@ class OfferQueryServiceTest {
         var page = offers.shortlist(ShortlistQuery.first().withLimit(1));
 
         assertThat(page.portals()).contains("portal-c");
-        assertThat(offers.shortlist(new ShortlistQuery(null, null, "portal-c", false, null, null, null, false, null, 0))
+        assertThat(offers.shortlist(ShortlistQuery.first().withPortals(List.of("portal-c")))
                         .entries())
                 .extracting(entry -> entry.offer().id())
                 .containsExactly(primary);
@@ -447,9 +447,52 @@ class OfferQueryServiceTest {
             .containsExactlyInAnyOrderElementsOf(all);
     }
 
+    @Test
+    void putsTheShortestDurationFirstAndStillKeepsTheUnstatedLast() {
+        // The sentinel that moved, and the reason it had to. Both duration sorts read one
+        // column, so held on the kind the reverse would have inherited -1 — which puts "not
+        // stated" last under DESC and *first* under ASC. Two directions over one column is the
+        // only shape in which that mistake is invisible, because each sort looks right on its
+        // own. This is what fails the day the sentinel moves back onto `Key`.
+        long year = passed("Zwölf Monate", 50);
+        long quarter = passed("Drei Monate", 50);
+        long half = passed("Sechs Monate", 50);
+        durationMonths(year, 12);
+        durationMonths(quarter, 3);
+        durationMonths(half, 6);
+        long unstated = passed("Keine Dauer genannt", 50);
+
+        assertThat(walk(ShortlistQuery.first().withSort(ShortlistSort.DURATION_SHORT).withLimit(2)))
+            .containsExactly(quarter, half, year, unstated);
+        assertThat(walk(ShortlistQuery.first().withSort(ShortlistSort.DURATION).withLimit(2)))
+            .containsExactly(year, half, quarter, unstated);
+    }
+
+    @Test
+    void walksNewestFirstAndNeedsNoSentinelToDoIt() {
+        // The one key that cannot be unstated: `ingested_at` is NOT NULL from the baseline and
+        // the upsert writes it, so `fresh` is the only sort whose expression is the bare column
+        // with no coalesce around it. It is also already every other tuple's tiebreaker, which
+        // is why its walk compares the same column twice — and why a page boundary here is
+        // still the thing worth pinning.
+        var inserted = new ArrayList<Long>();
+        for (int i = 0; i < 5; i++) {
+            inserted.add(passed("Reingekommen " + i, 90 - i));
+        }
+
+        assertThat(walk(ShortlistQuery.first().withSort(ShortlistSort.FRESH).withLimit(2)))
+            .containsExactlyElementsOf(inserted.reversed());
+    }
+
     @ParameterizedTest
-    @EnumSource(ShortlistSort.class)
+    @EnumSource(value = ShortlistSort.class, names = "FRESH", mode = EnumSource.Mode.EXCLUDE)
     void keepsTheUnstatedAtTheEndOfEverySortAndNeverDropsIt(ShortlistSort sort) {
+        // Excluded by name and not by a predicate, so a sort added later is in this test until
+        // somebody deliberately takes it out. FRESH is out because its key is NOT NULL by
+        // construction: there is nothing to fold to the end, and the fixture's "states nothing"
+        // offers are simply the newest rows. `walksNewestFirstAndNeedsNoSentinelToDoIt` covers
+        // it instead.
+
         // The centrepiece. SQL row comparison yields NULL the moment any element is NULL, so
         // a nullable sort column walked with `NULLS LAST` shows its unstated offers at the
         // end of page one and then loses every one of them on page two — while the match
@@ -560,6 +603,82 @@ class OfferQueryServiceTest {
     }
 
     @Test
+    void matchesAnyOfSeveralPortalsAndStillReachesThroughADuplicate() {
+        // One portal or all of them was the whole choice before this, which on a tool that is
+        // meant to read several sources is a filter that can only ever answer about one of
+        // them. The reach through a duplicate is the part that has to survive the plural: a
+        // project on portal-c is on portal-c even when portal-a holds the primary.
+        long onA = passed("Nur auf A", 80);
+        long viaC = passed("Primär auf A, auch auf C", 70);
+        duplicateOf(viaC, "portal-c", "Zweite Agentur");
+        passed("Auch nur auf A", 60);
+        jdbc.update("UPDATE offer SET portal = 'portal-b' WHERE id = ?", onA);
+
+        var page = offers.shortlist(ShortlistQuery.first().withPortals(List.of("portal-b", "portal-c")));
+
+        assertThat(ids(page)).containsExactlyInAnyOrder(onA, viaC);
+        assertThat(page.matched()).isEqualTo(2);
+    }
+
+    @Test
+    void takesOnePortalAsAListOfOneSoEveryOlderLinkStillMeansWhatItMeant() {
+        long primary = passed("Senior Java Entwickler", 88);
+        duplicateOf(primary, "portal-c", "Zweite Agentur");
+        passed("Woanders", 70);
+
+        assertThat(ids(offers.shortlist(ShortlistQuery.first().withPortals(List.of("portal-c")))))
+            .containsExactly(primary);
+    }
+
+    @Test
+    void excludesAnOfferNobodyJudgedFromAScoreRange() {
+        // The same null treatment `minMonths` has, one axis over: "at least sixty" is a claim
+        // about the offer, and an offer nobody judged does not make it. `scoreState=unscored`
+        // is how that set is asked for instead, which is the next test.
+        long strong = passed("Stark", 88);
+        passed("Mittel", 55);
+        long unjudged = bare("Nie bewertet");
+
+        var page = offers.shortlist(ShortlistQuery.first().withScore(new ScoreFilter(null, 60, null, null)));
+
+        assertThat(ids(page)).containsExactly(strong).doesNotContain(unjudged);
+        assertThat(page.matched()).isEqualTo(1);
+    }
+
+    @Test
+    void closesTheRangeAtBothEndsInclusively() {
+        long low = passed("Genau vierzig", 40);
+        long high = passed("Genau achtzig", 80);
+        passed("Darüber", 81);
+        passed("Darunter", 39);
+
+        assertThat(ids(offers.shortlist(ShortlistQuery.first().withScore(new ScoreFilter(null, 40, 80, null)))))
+            .containsExactlyInAnyOrder(low, high);
+    }
+
+    @Test
+    void returnsExactlyTheOffersTheUnscoredCountHasAlwaysBeenNaming() {
+        // The number rode along with every match count and was the one figure beside the list
+        // nobody could click. The assertion is that the two agree: the count of the unfiltered
+        // match and the size of the filtered one are the same set, or the figure is pointing
+        // somewhere else.
+        passed("Stark", 88);
+        long first = bare("Nie bewertet");
+        long second = bare("Auch nie bewertet");
+
+        int unscored = offers.shortlist(ShortlistQuery.first()).unscored();
+        var page = offers.shortlist(
+            ShortlistQuery.first().withScore(new ScoreFilter(null, null, null, ScoreState.UNSCORED)));
+
+        assertThat(unscored).isEqualTo(2);
+        assertThat(ids(page)).containsExactlyInAnyOrder(first, second);
+        assertThat(page.matched()).isEqualTo(unscored);
+        assertThat(ids(offers.shortlist(
+            ShortlistQuery.first().withScore(new ScoreFilter(null, null, null, ScoreState.SCORED)))))
+            .doesNotContain(first, second);
+    }
+
+    @Test
     void countsTheMatchAgainstTheFiltersAndNotAgainstThePage() {
         // The defect this change sits on top of: the cursor clause used to be formatted into
         // MATCHED as well, so `matched` counted the rows *after* the cursor and the number
@@ -587,6 +706,10 @@ class OfferQueryServiceTest {
 
     private static ShortlistQuery inWindow(StartWindow window) {
         return new ShortlistQuery(null, null, null, false, null, window, null, false, null, 0);
+    }
+
+    private static ScoreFilter band(String name) {
+        return new ScoreFilter(name, null, null, null);
     }
 
     private static List<Long> concat(List<Long> a, List<Long> b) {

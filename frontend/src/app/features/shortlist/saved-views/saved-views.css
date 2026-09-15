@@ -1,0 +1,88 @@
+:host {
+  display: contents;
+}
+
+/* See `sort-menu.css`: `inset: auto` first, the position written by `lgAnchorFor` from the
+   trigger's own rect, and the clamp stated here because the width is this stylesheet's. */
+.views-panel {
+  position: fixed;
+  inset: auto;
+  top: var(--lg-anchor-y, var(--lg-header-h));
+  left: min(var(--lg-anchor-x, 0px), 100vw - var(--lg-panel-w) - var(--lg-gutter));
+  width: var(--lg-panel-w);
+  max-width: calc(100vw - 2 * var(--lg-gutter));
+  max-height: 70svh;
+  overflow-y: auto;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0.75rem;
+  border: 1px solid var(--color-base-300);
+  border-radius: var(--radius-box);
+  background-color: var(--color-base-100);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 18%);
+}
+
+/* `display` on `:popover-open` and nowhere else — the UA's hiding rule carries no
+   `!important`, so an author `display` leaves the panel open forever. */
+.views-panel:popover-open {
+  display: flex;
+  flex-direction: column;
+}
+
+.panel-legend,
+.empty-note {
+  margin: 0;
+}
+
+/* Not `.list`: daisyUI ships a component under that name, the trap `.status` sprang in the
+   header. */
+.views {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  list-style: none;
+}
+
+.views li {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.view {
+  flex: 1;
+  justify-content: flex-start;
+  min-width: 0;
+  font-weight: 400;
+}
+
+.view-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.save {
+  margin-top: 0.25rem;
+}
+
+.dialog-body {
+  margin: 0.5rem 0 0;
+}
+
+.dialog-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-top: 0.75rem;
+}
+
+@media (width < 48rem) {
+  .views-panel {
+    /* One shorthand rather than four longhands: top auto, the other three flush. */
+    inset: auto 0 0;
+    width: auto;
+    max-width: none;
+    border-radius: var(--radius-box) var(--radius-box) 0 0;
+  }
+}

@@ -12,7 +12,10 @@ import {ShortlistStore} from './shortlist.store';
 const NO_FILTERS: ShortlistFilters = {
   q: '',
   band: 'all',
-  portal: '',
+  minScore: null,
+  maxScore: null,
+  scoreState: 'any',
+  portals: [],
   archived: false,
   sort: 'score',
   startWindow: 'any',

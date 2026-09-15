@@ -1,0 +1,153 @@
+<!-- The count is a badge beside the word and the same number the chips below the bar add up
+     to, so a reader never has to decide which of the two is telling the truth. It also rides
+     in the accessible name through an ICU plural, because a coloured pill is not a name. -->
+<button
+  #trigger
+  type="button"
+  class="btn btn-sm facet-button"
+  [class.btn-outline]="activeCount() > 0"
+  [lgAnchorFor]="panel"
+  [attr.popovertarget]="panelId"
+  [attr.aria-controls]="panelId"
+  [attr.aria-expanded]="open()"
+  [attr.aria-label]="'shortlist.filtersActive' | transloco: {count: activeCount()}"
+>
+  <lg-icon name="sliders-horizontal" [size]="14"/>
+  <span class="facet-label">{{ 'shortlist.filters' | transloco }}</span>
+  @if (activeCount() > 0) {
+    <span class="active-count" aria-hidden="true">{{ activeCount() }}</span>
+  }
+</button>
+
+<div
+  #panel
+  [id]="panelId"
+  popover
+  class="facet-panel"
+  (toggle)="onToggle($event)"
+>
+  <!-- Portals. Checkboxes and not a select, because the filter takes several now and a
+       multiple select is the control nobody knows how to operate with a mouse. The list is
+       the server's, which is what lets it offer a portal only a duplicate was seen on. -->
+  <fieldset class="panel-row">
+    <legend class="type-caption text-muted">{{ 'shortlist.portalsLabel' | transloco }}</legend>
+    @if (portals().length === 0) {
+      <p class="type-small text-muted empty-note">{{ 'shortlist.noPortalsYet' | transloco }}</p>
+    } @else {
+      <div class="portal-list">
+        @for (name of portals(); track name) {
+          <label class="portal-option type-small">
+            <input
+              type="checkbox"
+              [checked]="isPicked(name)"
+              (change)="portalToggled.emit(name)"
+            />
+            <span>{{ name }}</span>
+          </label>
+        }
+      </div>
+    }
+  </fieldset>
+
+  <!-- The score, all three spellings of it in one section because they are one filter. The
+       server refuses two at once with a sentence; this is the half that makes sure nobody
+       ever sees that sentence — picking a state clears a range and vice versa, and the band
+       group up in the bar is cleared by either. -->
+  <fieldset class="panel-row">
+    <legend class="type-caption text-muted">{{ 'shortlist.scoreSection' | transloco }}</legend>
+
+    <div class="join" role="radiogroup" [attr.aria-label]="'shortlist.scoreStateLabel' | transloco">
+      @for (state of scoreStates; track state) {
+        <button
+          type="button"
+          role="radio"
+          class="btn btn-ghost btn-xs join-item"
+          [class.btn-active]="scoreState() === state"
+          [attr.aria-checked]="scoreState() === state"
+          (click)="scoreStateChanged.emit(state)"
+        >
+          {{ 'shortlist.scoreStates.' + state | transloco }}
+        </button>
+      }
+    </div>
+
+    <div class="range">
+      <label class="range-field type-small">
+        <span class="text-muted">{{ 'shortlist.minScore' | transloco }}</span>
+        <input
+          type="number"
+          class="input input-xs type-mono-data"
+          min="0"
+          max="100"
+          step="5"
+          [value]="minScore()"
+          (change)="onMin($event)"
+        />
+      </label>
+      <label class="range-field type-small">
+        <span class="text-muted">{{ 'shortlist.maxScore' | transloco }}</span>
+        <input
+          type="number"
+          class="input input-xs type-mono-data"
+          min="0"
+          max="100"
+          step="5"
+          [value]="maxScore()"
+          (change)="onMax($event)"
+        />
+      </label>
+    </div>
+  </fieldset>
+
+  <!-- Each option's text is a catalog key, and `[selected]` on the option rather than
+       `[value]` on the select: `[value]` depends on the options existing when it is written,
+       and losing that race leaves the first one showing while the URL says something else. -->
+  <div class="panel-row">
+    <label class="type-caption text-muted" [attr.for]="panelId + '-start'">
+      {{ 'shortlist.startWindow' | transloco }}
+    </label>
+    <select
+      class="select select-sm"
+      [id]="panelId + '-start'"
+      (change)="onStartWindow($event)"
+    >
+      @for (option of startWindowOptions(); track option) {
+        <option [value]="option" [selected]="startWindow() === option">
+          {{ 'shortlist.start.' + option | transloco }}
+        </option>
+      }
+    </select>
+  </div>
+
+  <div class="panel-row">
+    <label class="type-caption text-muted" [attr.for]="panelId + '-duration'">
+      {{ 'shortlist.minDuration' | transloco }}
+    </label>
+    <select
+      class="select select-sm"
+      [id]="panelId + '-duration'"
+      (change)="onMinMonths($event)"
+    >
+      @for (months of minMonthsOptions(); track months) {
+        <option [value]="months" [selected]="minMonths() === months">
+          {{
+            (months === 0 ? 'shortlist.anyDuration' : 'shortlist.fromMonths')
+              | transloco: {months: months}
+          }}
+        </option>
+      }
+    </select>
+  </div>
+
+  <div class="panel-row">
+    <button
+      type="button"
+      class="btn btn-sm deadline"
+      [class.btn-active]="deadlineOpen()"
+      [attr.aria-pressed]="deadlineOpen()"
+      (click)="deadlineToggled.emit()"
+    >
+      {{ 'shortlist.deadlineOpen' | transloco }}
+    </button>
+  </div>
+</div>

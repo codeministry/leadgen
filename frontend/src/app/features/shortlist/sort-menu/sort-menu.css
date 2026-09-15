@@ -1,0 +1,99 @@
+:host {
+  display: contents;
+}
+
+/* The sentence can be long in German, and the row it sits in holds three controls at 540px.
+   `min-width: 0` is what actually lets a flex item shrink below its content; without it the
+   trigger pushes the filter button onto its own line at every width. */
+.sort-button {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.sort-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A popover is in the top layer, where the UA's own `inset: 0; margin: auto` would centre it
+   on the screen. `inset: auto` first and it is load-bearing: an unset `left` otherwise stays
+   0 and the panel pins itself to the window's left edge at every width.
+
+   The two custom properties are written by `lgAnchorFor` from the trigger's own rect. `min()`
+   is what keeps the panel inside the window without measuring the panel itself — the width is
+   this stylesheet's own number, so the clamp can be stated here rather than computed. */
+.sort-panel {
+  position: fixed;
+  inset: auto;
+  top: var(--lg-anchor-y, var(--lg-header-h));
+  left: min(var(--lg-anchor-x, 0px), 100vw - var(--lg-menu-w) - var(--lg-gutter));
+  width: var(--lg-menu-w);
+  max-width: calc(100vw - 2 * var(--lg-gutter));
+  gap: 0.125rem;
+  margin: 0;
+  padding: 0.5rem;
+  border: 1px solid var(--color-base-300);
+  border-radius: var(--radius-box);
+  background-color: var(--color-base-100);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 18%);
+}
+
+/* `display` on `:popover-open` and nowhere else. What hides a closed popover is the UA rule
+   `[popover]:not(:popover-open) { display: none }`, which carries no `!important` — so any
+   author `display` on the panel itself beats it and the thing stands open forever, with
+   `:popover-open` still reporting false and `aria-expanded` still reporting "false". Shipped
+   exactly that way once, in the header. */
+.sort-panel:popover-open {
+  display: flex;
+  flex-direction: column;
+}
+
+.panel-legend,
+.panel-note {
+  margin: 0;
+  padding-inline: 0.5rem;
+}
+
+.panel-note {
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--color-base-300);
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.sort-panel [role='radiogroup'] {
+  display: flex;
+  flex-direction: column;
+  margin-top: 0.25rem;
+}
+
+/* The sentence left, the arrow right, so the six of them read as a column of orders rather
+   than as six buttons of different widths. */
+.order {
+  justify-content: space-between;
+  width: 100%;
+  font-weight: 400;
+}
+
+.order-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A phone, where an anchored panel would open under a trigger a thumb cannot reach past. It
+   is still a popover, so the top layer puts it above the fixed bottom navigation. */
+@media (width < 48rem) {
+  .sort-panel {
+    /* One shorthand rather than four longhands, which is what stylelint asks for and what
+       reads correctly anyway: top auto, the other three flush. */
+    inset: auto 0 0;
+    width: auto;
+    max-width: none;
+    max-height: 70svh;
+    overflow-y: auto;
+    border-radius: var(--radius-box) var(--radius-box) 0 0;
+  }
+}

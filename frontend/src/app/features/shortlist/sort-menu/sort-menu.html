@@ -1,0 +1,59 @@
+<!-- The arrow is decoration on top of a sentence that already carries the direction, which
+     is what makes a missing entry in the icon map harmless. `aria-expanded` is set from the
+     panel's own toggle event, because `popovertarget`'s implicit expanded state is not
+     evenly supported; `aria-controls` names the panel. -->
+<button
+  #trigger
+  type="button"
+  class="btn btn-sm sort-button"
+  [class.btn-outline]="value() !== 'score'"
+  [lgAnchorFor]="panel"
+  [attr.popovertarget]="panelId"
+  [attr.aria-controls]="panelId"
+  [attr.aria-expanded]="open()"
+  [attr.aria-label]="'shortlist.sortTrigger' | transloco: {order: 'shortlist.sort.' + value() | transloco}"
+>
+  @if (arrow(value()); as icon) {
+    <lg-icon [name]="icon" [size]="14"/>
+  }
+  <span class="sort-label">{{ 'shortlist.sort.' + value() | transloco }}</span>
+</button>
+
+<!-- `display` belongs on `:popover-open` and nowhere else — see the stylesheet. The content
+     is rendered whether the panel is open or not: a closed popover still contributes its
+     text, and an `@if` around it would take the orders out of the DOM and out of the spec
+     that names them. -->
+<div
+  #panel
+  [id]="panelId"
+  popover
+  class="sort-panel"
+  (toggle)="onToggle($event)"
+>
+  <p class="type-caption text-muted panel-legend" [id]="panelId + '-legend'">
+    {{ 'shortlist.sortBy' | transloco }}
+  </p>
+
+  <div role="radiogroup" [attr.aria-labelledby]="panelId + '-legend'">
+    @for (option of options(); track option) {
+      <button
+        type="button"
+        role="radio"
+        class="btn btn-ghost btn-sm order"
+        [class.btn-active]="value() === option"
+        [attr.aria-checked]="value() === option"
+        (click)="choose(option, panel)"
+      >
+        <span class="order-label">{{ 'shortlist.sort.' + option | transloco }}</span>
+        @if (arrow(option); as icon) {
+          <lg-icon class="text-muted" [name]="icon" [size]="14"/>
+        }
+      </button>
+    }
+  </div>
+
+  <!-- The only place the sentinel design is visible instead of surprising, and it is true of
+       every order by construction: each key's coalesce folds "not stated" to the end of its
+       own direction. -->
+  <p class="type-caption text-muted panel-note">{{ 'shortlist.sortUnstated' | transloco }}</p>
+</div>

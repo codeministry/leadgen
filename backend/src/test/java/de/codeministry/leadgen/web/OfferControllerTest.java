@@ -241,6 +241,56 @@ class OfferControllerTest {
     }
 
     @Test
+    void refusesAScoreStateNobodyDefined() {
+        assertThat(mvc.get().uri("/api/offers").param("scoreState", "pending"))
+            .hasStatus(org.springframework.http.HttpStatus.BAD_REQUEST);
+
+        then(offers).should(never()).shortlist(any());
+    }
+
+    @Test
+    void refusesTwoSpellingsOfTheScoreAxisWithoutEverReachingTheQuery() {
+        // Intersected instead of refused this returns rows, and a short list after filtering
+        // is indistinguishable from a quiet day on the market. The edge is where it has to be
+        // caught, because nothing further in reads the request as a request.
+        assertThat(mvc.get().uri("/api/offers").param("band", "shortlist").param("minScore", "60"))
+            .hasStatus(org.springframework.http.HttpStatus.BAD_REQUEST);
+
+        then(offers).should(never()).shortlist(any());
+    }
+
+    @Test
+    void passesTheScoreAxisAndEveryNamedPortalThroughAsTheTypesTheyAre() {
+        given(offers.shortlist(any())).willReturn(new ShortlistPage(List.of(), null, 0, 0, 0, List.of()));
+
+        assertThat(mvc.get()
+            .uri("/api/offers")
+            .param("minScore", "40")
+            .param("maxScore", "80")
+            .param("portal", "portal-b", "portal-c"))
+            .hasStatusOk();
+
+        var captured = org.mockito.ArgumentCaptor.forClass(ShortlistQuery.class);
+        then(offers).should().shortlist(captured.capture());
+        assertThat(captured.getValue().score().min()).isEqualTo(40);
+        assertThat(captured.getValue().score().max()).isEqualTo(80);
+        assertThat(captured.getValue().portals()).containsExactly("portal-b", "portal-c");
+    }
+
+    @Test
+    void readsOnePortalAsAListOfOne() {
+        // The parameter kept its singular name, so a link written before the filter took more
+        // than one still binds — this is what says so.
+        given(offers.shortlist(any())).willReturn(new ShortlistPage(List.of(), null, 0, 0, 0, List.of()));
+
+        assertThat(mvc.get().uri("/api/offers").param("portal", "portal-c")).hasStatusOk();
+
+        var captured = org.mockito.ArgumentCaptor.forClass(ShortlistQuery.class);
+        then(offers).should().shortlist(captured.capture());
+        assertThat(captured.getValue().portals()).containsExactly("portal-c");
+    }
+
+    @Test
     void defaultsToTheScoreOrderWhenNothingAsksForAnything() {
         given(offers.shortlist(any())).willReturn(new ShortlistPage(List.of(), null, 0, 0, 0, List.of()));
 

@@ -130,16 +130,116 @@ describe('ShortlistPage', () => {
     });
 
     it('offers every portal on the shortlist, not only those on this page', () => {
-        // Derived from the loaded entries, the dropdown offered fewer choices the further you
+      // Derived from the loaded entries, the list offered fewer choices the further you
         // scrolled — so the server sends the whole set beside the page.
+      //
+      // In the facet panel and no longer in a select: the filter takes several portals now,
+      // and a multiple select is the control nobody knows how to operate. The panel's
+      // content is in the DOM whether the popover is open or not, which is what makes it
+      // readable here at all — an `@if` around it would take the choices out of the DOM and
+      // out of this spec.
         const fixture = render(page({entries: [ENTRIES[0]!], matched: 3}));
 
-      // Scoped to the portal select: the filter block holds four of them, and the other
-      // three carry fixed option lists that have nothing to do with what the server sent.
-        const options: HTMLOptionElement[] = Array.from(
-          fixture.nativeElement.querySelectorAll('select.portal option'),
+      const boxes: HTMLLabelElement[] = Array.from(
+        fixture.nativeElement.querySelectorAll('lg-facet-panel .portal-option'),
+      );
+      expect(boxes.map((box) => box.textContent?.trim())).toEqual(['portal-a', 'portal-b']);
+    });
+
+  it('writes one chip per hidden filter and removes exactly that one', () => {
+    // The chips are the display of what the panel is hiding, so the badge on the trigger
+    // is their count — one number, not two that can disagree. Removing one has to write
+    // its own parameter and leave the others standing, which is the whole difference from
+    // the ✕ this replaced: that one cleared the query string, `archived` included.
+    const fixture = render();
+    fixture.componentRef.setInput('portal', ['portal-a', 'portal-b']);
+    fixture.componentRef.setInput('deadlineOpen', '1');
+    fixture.detectChanges();
+
+    const chips = (): HTMLButtonElement[] =>
+      Array.from(fixture.nativeElement.querySelectorAll('.facets .facet'));
+    expect(chips()).toHaveLength(3);
+
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate');
+    chips()[0]!.click();
+
+    expect(navigate).toHaveBeenCalledWith(
+      [],
+      expect.objectContaining({queryParams: {portal: ['portal-b']}}),
         );
-        expect(options.map((option) => option.value)).toEqual(['', 'portal-a', 'portal-b']);
+  });
+
+  it('keeps the sort and the archive side when every filter is cleared', () => {
+    // An order is not a filter and a set is not a filter either: clearing the filters must
+    // not answer with a different ordering, and must not take a reader out of the archive.
+    const fixture = render();
+    fixture.componentRef.setInput('deadlineOpen', '1');
+    fixture.detectChanges();
+
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate');
+    const clear: HTMLButtonElement = fixture.nativeElement.querySelector('.facet-clear');
+    clear.click();
+
+    const written = navigate.mock.calls[0]![1]!.queryParams as Record<string, unknown>;
+    expect(written).not.toHaveProperty('sort');
+    expect(written).not.toHaveProperty('archived');
+    expect(written['deadlineOpen']).toBeNull();
+  });
+
+  it('has a catalog sentence for every sort key it offers', () => {
+    // Transloco's missing handler returns the key, which is what lets a server sentence
+    // pass through the pipe unharmed — and what makes a missing key of our own silent.
+    // It shipped exactly once: the wire key is `duration-asc` and the catalog said
+    // `durationShort`, so the menu offered a working order labelled
+    // "shortlist.sort.duration-asc". Found in a browser, not here, which is why this
+    // exists now: the specs run against the real English catalog.
+    const fixture = render();
+
+    const orders: HTMLButtonElement[] = Array.from(
+      fixture.nativeElement.querySelectorAll('lg-sort-menu [role="radio"]'),
+    );
+    expect(orders.length).toBeGreaterThan(0);
+    for (const order of orders) {
+      expect(order.textContent?.trim()).not.toMatch(/^shortlist\./);
+    }
+  });
+
+  it('applies a saved view by replacing the query string, repeated parameters included', () => {
+    // A view is the screen as it was saved, so it replaces rather than merges: merged it
+    // would be that view plus whatever the reader happened to have set. And a repeated
+    // parameter has to survive the round trip — `URLSearchParams` hands the pairs over one
+    // at a time, so a two-portal view would otherwise come back as a one-portal view.
+    const fixture = render();
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate');
+
+    fixture.componentInstance['applyView']('band=shortlist&portal=portal-a&portal=portal-b');
+
+    expect(navigate).toHaveBeenCalledWith([], {
+      queryParams: {band: 'shortlist', portal: ['portal-a', 'portal-b']},
+    });
+  });
+
+  it('navigates once for a typed word rather than once per keystroke', async () => {
+    // Every character used to be a navigation, a request and a history entry, nine of the
+    // ten thrown away by the switchMap behind them — and it is what would make a live
+    // region on the count chatter over the typing it reports on.
+    const fixture = render();
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate');
+    const field: HTMLInputElement = fixture.nativeElement.querySelector('input[type="search"]');
+
+    for (const value of ['j', 'ja', 'jav', 'java']) {
+      field.value = value;
+      field.dispatchEvent(new Event('input'));
+    }
+    expect(navigate).not.toHaveBeenCalled();
+
+    await new Promise((resolve) => setTimeout(resolve, 300));
+
+    expect(navigate).toHaveBeenCalledTimes(1);
+    expect(navigate).toHaveBeenCalledWith(
+      [],
+      expect.objectContaining({queryParams: {q: 'java'}, replaceUrl: true}),
+    );
     });
 
     it('appends the next page and stops when the cursor runs out', () => {

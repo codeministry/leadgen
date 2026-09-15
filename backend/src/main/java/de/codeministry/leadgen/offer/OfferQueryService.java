@@ -156,14 +156,16 @@ public class OfferQueryService {
         }
         Row last = rows.getLast();
         // Exhaustive on purpose, and this is the only reason it is a switch rather than a
-        // method on the enum: a fifth sort key added without deciding what its cursor carries
-        // fails the build here, at the one place that has to change, instead of failing on a
-        // Tuesday at a page boundary.
+        // method on the enum: a sort key added without deciding what its cursor carries fails
+        // the build here, at the one place that has to change, instead of failing on a Tuesday
+        // at a page boundary. It has already earned that twice — the two duration sorts share
+        // an arm because they read one column, and FRESH needed one of its own.
         long key = switch (sort) {
-            case SCORE -> ShortlistSort.Key.NUMBER.of(last.scoreValue());
-            case START -> ShortlistSort.Key.DAY.of(last.offer().startsOn());
-            case DEADLINE -> ShortlistSort.Key.DAY.of(last.offer().applyBy());
-            case DURATION -> ShortlistSort.Key.NUMBER.of(last.offer().durationMonths());
+            case SCORE -> sort.carried(last.scoreValue());
+            case START -> sort.carried(last.offer().startsOn());
+            case DEADLINE -> sort.carried(last.offer().applyBy());
+            case DURATION, DURATION_SHORT -> sort.carried(last.offer().durationMonths());
+            case FRESH -> sort.carried(last.ingestedAt());
         };
         return new Cursor(sort, key, last.ingestedAt(), last.id()).encoded();
     }
@@ -235,20 +237,44 @@ public class OfferQueryService {
                 """);
             params.put("q", "%" + query.q().trim() + "%");
         }
-        if ("shortlist".equals(query.band())) {
+        // The score axis, all three spellings of it in one block because they are one filter.
+        // Which of them may be asked for at a time is decided in `ScoreFilter`, before any of
+        // this runs, so nothing here has to reason about a band inside a range.
+        ScoreFilter score = query.score();
+        if ("shortlist".equals(score.band())) {
             sql.append(" AND o.score_value >= :shortlistAt\n");
             params.put("shortlistAt", thresholds.autoShortlist());
-        } else if ("review".equals(query.band())) {
+        } else if ("review".equals(score.band())) {
             sql.append(" AND o.score_value >= :reviewAt AND o.score_value < :shortlistAt\n");
             params.put("reviewAt", thresholds.review());
             params.put("shortlistAt", thresholds.autoShortlist());
         }
-        if (query.portal() != null && !query.portal().isBlank()) {
+        if (score.min() != null) {
+            // `NULL >= 60` already drops an unjudged offer; the IS NOT NULL is written because
+            // the exclusion is a decision and not a property of three-valued logic somebody
+            // has to know. The same sentence stands over `minMonths` twenty lines down, and
+            // `ScoreState.UNSCORED` is how the excluded set is asked for instead.
+            sql.append(" AND o.score_value IS NOT NULL AND o.score_value >= :minScore\n");
+            params.put("minScore", score.min());
+        }
+        if (score.max() != null) {
+            sql.append(" AND o.score_value IS NOT NULL AND o.score_value <= :maxScore\n");
+            params.put("maxScore", score.max());
+        }
+        sql.append(score.state().clause());
+
+        if (!query.portals().isEmpty()) {
+            // `IN (:portals)` and deliberately not `= ANY (:portals)`. JdbcClient is named or
+            // positional per statement, and a *named* parameter holding a collection is
+            // expanded into a `?, ?, ?` list — which turns `= ANY (:portals)` into
+            // `= ANY (?, ?, ?)`, a syntax error only a real Postgres reports. The two array
+            // bindings in this file that do use ANY are positional for exactly that reason,
+            // and this one cannot be: the rest of the clause is named.
             sql.append("""
                 AND EXISTS (SELECT 1 FROM offer p
-                            WHERE (p.id = o.id OR p.duplicate_of_id = o.id) AND p.portal = :portal)
+                            WHERE (p.id = o.id OR p.duplicate_of_id = o.id) AND p.portal IN (:portals))
                 """);
-            params.put("portal", query.portal());
+            params.put("portals", query.portals());
         }
         // The window's four values partition the set, which is why "unknown" is one of them
         // rather than an absence: the three dated clauses all carry IS NOT NULL, so without

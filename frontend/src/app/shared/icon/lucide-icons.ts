@@ -1,8 +1,11 @@
 import {
   Archive,
   ArchiveRestore,
+  ArrowDown,
   ArrowLeft,
+  ArrowUp,
   Ban,
+  Bookmark,
   Building2,
   CalendarDays,
   ChartLine,
@@ -32,6 +35,7 @@ import {
   Search,
   SlidersHorizontal,
   Sun,
+  Trash2,
   TriangleAlert,
   X,
 } from 'lucide';
@@ -52,9 +56,12 @@ export type IconNode = readonly IconPart[];
  */
 export const LG_ICONS = {
     archive: Archive,
+  'arrow-down': ArrowDown,
     'arrow-left': ArrowLeft,
+  'arrow-up': ArrowUp,
     'archive-restore': ArchiveRestore,
     ban: Ban,
+  bookmark: Bookmark,
     'building-2': Building2,
     'calendar-days': CalendarDays,
     'chart-line': ChartLine,
@@ -84,6 +91,7 @@ export const LG_ICONS = {
     search: Search,
     'sliders-horizontal': SlidersHorizontal,
     sun: Sun,
+  'trash-2': Trash2,
     'triangle-alert': TriangleAlert,
     x: X,
 } as const satisfies Record<string, IconNode>;

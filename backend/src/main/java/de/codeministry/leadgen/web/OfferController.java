@@ -18,6 +18,8 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 /**
  * The shortlist and one offer of it.
  *
@@ -54,7 +56,13 @@ class OfferController {
     ShortlistPage shortlist(
             @RequestParam(required = false) String q,
             @RequestParam(required = false) String band,
-            @RequestParam(required = false) String portal,
+            @RequestParam(required = false) Integer minScore,
+            @RequestParam(required = false) Integer maxScore,
+            @RequestParam(required = false) String scoreState,
+            // Repeatable, and it keeps the singular name it had: `?portal=a` binds to a
+            // one-element list, so every link and every bookmark written before the filter
+            // took more than one still means what it meant.
+            @RequestParam(required = false) List<String> portal,
             @RequestParam(required = false, defaultValue = "false") boolean archived,
             @RequestParam(required = false) String sort,
             @RequestParam(required = false) String startWindow,
@@ -64,10 +72,12 @@ class OfferController {
             @RequestParam(required = false, defaultValue = "0") int limit) {
         // Resolved here and not inside the query, because this is where a string stops being
         // a string: the enums are the allowlist, so a name nobody defined is refused at the
-        // edge with a sentence and never reaches a statement.
+        // edge with a sentence and never reaches a statement. `ScoreFilter` is built here for
+        // the same reason one step further on — it refuses two spellings of the score axis
+        // before anything has been read.
         return offers.shortlist(new ShortlistQuery(
             q,
-            band,
+            new ScoreFilter(band, minScore, maxScore, ScoreState.of(scoreState)),
             portal,
             archived,
             ShortlistSort.of(sort),
