@@ -1,11 +1,12 @@
 import {computed, inject} from '@angular/core';
 import {signalStore, withComputed, withHooks, withState} from '@ngrx/signals';
 import {Dispatcher, Events, on, withEventHandlers, withReducer} from '@ngrx/signals/events';
-import {catchError, exhaustMap, filter, map, of, pairwise, switchMap, timer} from 'rxjs';
+import {catchError, exhaustMap, map, of, switchMap, timer} from 'rxjs';
 import {IngestApi, IngestReport} from '@core/api/ingest.api';
 import {serverMessage} from '@core/api/server-message';
 import {CurrentRunView} from '@core/model/current-run';
 import {LastRunView} from '@core/model/last-run';
+import {refreshEvents} from '@core/refresh/refresh.events';
 import {ingestEvents} from './ingest.events';
 import {ScoringModelStore} from './scoring-model.store';
 
@@ -148,20 +149,12 @@ export const IngestStore = signalStore(
             ),
           ),
           /*
-           * A pass that was going and now is not: read what it left behind. Without this the
-           * dashboard shows last night's numbers until somebody reloads, which is the defect
-           * `/api/ingest/last` was added for, one level up — there it was a run this browser
-           * never saw, here it is a run this browser watched end.
-           *
-           * `pairwise` rather than a look at the store, because the order in which a reducer
-           * and a handler see the same event is not something to depend on.
+           * Read back what a pass left behind. The transition that says one ended is noticed
+           * by `RefreshStore` and raised there, because it is news to more than this store —
+           * a signal several stores act on should be raised once, for all of them, rather
+           * than as a side effect inside whichever store happened to see it.
            */
-          events.on(ingestEvents.currentLoaded).pipe(
-            map(({payload}) => payload !== null),
-            pairwise(),
-            filter(([was, is]) => was && !is),
-            map(() => ingestEvents.lastRunRequested()),
-            ),
+          events.on(refreshEvents.requested).pipe(map(() => ingestEvents.lastRunRequested())),
             events.on(ingestEvents.lastRunRequested).pipe(
                 switchMap(() =>
                     api.last().pipe(

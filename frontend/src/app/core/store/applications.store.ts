@@ -12,6 +12,7 @@ import {
 } from '@core/model/application';
 import {applicationEvents} from './applications.events';
 import {ingestEvents} from './ingest.events';
+import {refreshEvents} from '@core/refresh/refresh.events';
 import {shortlistEvents} from './shortlist.events';
 
 export interface BoardColumn {
@@ -134,6 +135,10 @@ export const ApplicationsStore = signalStore(
             // The last thing a run does is build a package, and an application opens with it.
             // The board would otherwise not show the work the run just created until a reload.
             events.on(ingestEvents.finished).pipe(map(() => applicationEvents.opened())),
+          // And on anything else that says the data moved. The board is a small list and
+          // re-reading it costs nothing a reader can feel — unlike the shortlist, which is
+          // paged and would lose the reader's place.
+          events.on(refreshEvents.requested).pipe(map(() => applicationEvents.opened())),
           /*
            * A restore is the one case the reducer above cannot answer: the card belongs
            * back on the board and this store has no row to put there, because dropping it

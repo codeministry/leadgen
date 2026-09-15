@@ -4,6 +4,7 @@ import {Events, on, withEventHandlers, withReducer} from '@ngrx/signals/events';
 import {catchError, exhaustMap, map, of} from 'rxjs';
 import {AppStatus, StatusApi} from '@core/api/status.api';
 import {statusEvents} from './status.events';
+import {refreshEvents} from '@core/refresh/refresh.events';
 
 interface StatusState {
     status: AppStatus | null;
@@ -32,6 +33,10 @@ export const StatusStore = signalStore(
         const api = inject(StatusApi);
 
         return [
+          // The version and the connection, re-read whenever anything says the data moved.
+          // One tiny request, and a header claiming a version the server no longer runs is
+          // the kind of wrong that survives a deployment.
+          events.on(refreshEvents.requested).pipe(map(() => statusEvents.opened())),
             events.on(statusEvents.opened).pipe(
                 exhaustMap(() =>
                     api.load().pipe(

@@ -398,6 +398,14 @@ export class ShortlistPage {
     });
   }
 
+  /**
+   * Read the list again, now that the reader has said so. The same event a filter change
+   * raises, so there is one path that fetches a page and the hint knows nothing about it.
+   */
+  protected reload(): void {
+    this.dispatch.opened(this.filters());
+  }
+
   protected toggleDeadlineOpen(): void {
         void this.router.navigate([], {
           queryParams: {deadlineOpen: this.deadlineOpen() ? null : '1'},

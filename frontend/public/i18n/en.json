@@ -150,7 +150,9 @@
     "minDuration": "Minimum duration",
     "anyDuration": "Any duration",
     "fromMonths": "{months} months or more",
-    "deadlineOpen": "Deadline open"
+    "deadlineOpen": "Deadline open",
+    "stale": "A run has finished since this list was read.",
+    "reload": "Reload"
   },
   "offer": {
     "rateUnknown": "rate unknown",

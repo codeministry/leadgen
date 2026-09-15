@@ -14,6 +14,12 @@ export const shortlistEvents = eventGroup({
     moreRequested: type<void>(),
     moreLoaded: type<ShortlistPage>(),
     failed: type<string>(),
+    /**
+     * Something happened that this list has not read. A flag rather than a reload, because
+     * re-reading a keyset-paged list empties `entries` and starts again at page one — a
+     * reader forty offers down would be returned to the top for news they did not ask about.
+     */
+    wentStale: type<void>(),
     /** One offer by id, for the detail — which also has to open a rejected one. */
     offerRequested: type<number>(),
     offerLoaded: type<ShortlistEntry>(),

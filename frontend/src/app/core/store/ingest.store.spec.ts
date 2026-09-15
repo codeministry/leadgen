@@ -4,6 +4,7 @@ import {TestBed} from '@angular/core/testing';
 import {injectDispatch} from '@ngrx/signals/events';
 import {IngestReport} from '@core/api/ingest.api';
 import {LastRunView} from '@core/model/last-run';
+import {refreshEvents} from '@core/refresh/refresh.events';
 import {ingestEvents} from './ingest.events';
 import {IngestStore} from './ingest.store';
 
@@ -67,6 +68,7 @@ describe('IngestStore', () => {
     let store: InstanceType<typeof IngestStore>;
     let http: HttpTestingController;
     let dispatch: ReturnType<typeof injectDispatch<typeof ingestEvents>>;
+  let refresh: ReturnType<typeof injectDispatch<typeof refreshEvents>>;
 
     beforeEach(() => {
         TestBed.configureTestingModule({
@@ -76,6 +78,7 @@ describe('IngestStore', () => {
         store = TestBed.inject(IngestStore);
         http = TestBed.inject(HttpTestingController);
         dispatch = TestBed.runInInjectionContext(() => injectDispatch(ingestEvents));
+      refresh = TestBed.runInInjectionContext(() => injectDispatch(refreshEvents));
         // Not this store's request: its event handlers inject `ScoringModelStore`, which loads
         // its own list the moment it is created. Answered here so `verify` speaks only about
         // the requests this spec is actually about.
@@ -180,27 +183,16 @@ describe('IngestStore', () => {
     expect(store.current()?.stage).toBe('ENRICH');
   });
 
-  it('reads what a pass left behind once it is over', () => {
-    // Without this the dashboard shows last night's numbers until somebody reloads —
-    // the same defect `/api/ingest/last` was added for, one level up.
+  it('reads what a pass left behind when something says the data moved', () => {
+    // The transition that says a pass ended is noticed by `RefreshStore` — it is news to
+    // more than this store — and raised there as one signal. This store's part is the
+    // consequence: read the history back, or the dashboard shows last night's numbers
+    // until somebody reloads.
     http.expectOne('/api/ingest/last').flush(null, {status: 204, statusText: 'No Content'});
 
-    dispatch.currentLoaded({
-      id: 31,
-      startedAt: '2026-09-15T07:17:35Z',
-      scoreModel: null,
-      stage: 'SCORE',
-      stagePosition: 7,
-      stageTotal: 9,
-      stageStartedAt: null,
-    });
-    // Nothing asked for yet: the run is still going.
-    http.expectNone('/api/ingest/last');
-
-    dispatch.currentLoaded(null);
+    refresh.requested('run-ended');
 
     http.expectOne('/api/ingest/last').flush(lastRun());
-    expect(store.busy()).toBe(false);
     expect(store.lastRun()).not.toBeNull();
   });
 

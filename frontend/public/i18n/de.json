@@ -150,7 +150,9 @@
     "minDuration": "Mindestdauer",
     "anyDuration": "Beliebige Dauer",
     "fromMonths": "ab {months} Monaten",
-    "deadlineOpen": "Frist offen"
+    "deadlineOpen": "Frist offen",
+    "stale": "Seit dem Laden dieser Liste ist ein Lauf durchgelaufen.",
+    "reload": "Neu laden"
   },
   "offer": {
     "rateUnknown": "Satz unbekannt",

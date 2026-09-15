@@ -4,6 +4,7 @@ import {Events, on, withEventHandlers, withReducer} from '@ngrx/signals/events';
 import {catchError, exhaustMap, filter, map, of, switchMap} from 'rxjs';
 import {ShortlistApi} from '@core/api/shortlist.api';
 import {serverMessage} from '@core/api/server-message';
+import {refreshEvents} from '@core/refresh/refresh.events';
 import {ingestEvents} from './ingest.events';
 import {FunnelView} from '@core/model/funnel';
 import {ShortlistEntry} from '@core/model/shortlist-entry';
@@ -73,6 +74,15 @@ interface ShortlistState {
    * one belongs beside the action bar in the list column, not beside the detail's buttons.
    */
   bulkArchiveError: string | null;
+  /**
+   * Whether something happened that this list has not read yet.
+   *
+   * <p>A flag and not a reload, and this is the one screen where the difference matters. The
+   * list is keyset-paged, so re-reading it means `opened`, which empties `entries` and starts
+   * again at page one — a reader forty offers down is returned to the top for news they did
+   * not ask about. Every other screen re-reads silently because nothing there is lost.
+   */
+  stale: boolean;
 }
 
 const NO_FILTERS: ShortlistFilters = {
@@ -108,6 +118,7 @@ const initialState: ShortlistState = {
   pickAnchor: null,
   bulkArchiving: false,
   bulkArchiveError: null,
+  stale: false,
 };
 
 export const ShortlistStore = signalStore(
@@ -141,7 +152,11 @@ export const ShortlistStore = signalStore(
           pickAnchor: null,
           bulkArchiveError: null,
         })),
+      // `stale` is cleared by a page arriving, whatever asked for it. Self-correcting, and
+      // it is what stops the reader's own run from leaving the hint behind: the reload that
+      // `ingestEvents.finished` starts clears it without anyone having to sequence the two.
         on(shortlistEvents.loaded, ({payload}) => ({
+          stale: false,
             entries: payload.entries,
             cursor: payload.nextCursor,
             matched: payload.matched,
@@ -164,6 +179,7 @@ export const ShortlistStore = signalStore(
             loadingMore: false,
         })),
         on(shortlistEvents.failed, ({payload}) => ({listError: payload, listLoading: false})),
+      on(shortlistEvents.wentStale, () => ({stale: true})),
         // Cleared on request, not on arrival: leaving the previous offer on screen while the
         // next one loads shows the wrong ad under the right title.
         on(shortlistEvents.offerRequested, () => ({
@@ -302,6 +318,12 @@ export const ShortlistStore = signalStore(
             // there is one path that fetches and `ingest` knows nothing about who listens.
             events.on(ingestEvents.finished).pipe(map(() => shortlistEvents.opened(store.filters()))),
             events.on(ingestEvents.finished).pipe(map(() => shortlistEvents.funnelOpened())),
+          // Anything else that says the data moved only *flags* this list. The funnel is
+          // re-read either way: it is four numbers above the column and nothing about it is
+          // lost by reading it again, while the list underneath would lose the reader's
+          // place. The hint says so and a click does the rest.
+          events.on(refreshEvents.requested).pipe(map(() => shortlistEvents.wentStale())),
+          events.on(refreshEvents.requested).pipe(map(() => shortlistEvents.funnelOpened())),
             // Switched, not exhausted: clicking through two offers quickly must end on the
             // second one, and the first answer is then worth nothing.
             events.on(shortlistEvents.offerRequested).pipe(

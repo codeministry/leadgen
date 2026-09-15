@@ -148,6 +148,23 @@
       </div>
         </div>
 
+    <!--
+      Something happened that this list has not read — a nightly pass, another tab, a machine
+      elsewhere. A hint and not a reload: the list is keyset-paged, so re-reading it starts
+      again at page one, and a reader forty offers down would be returned to the top for news
+      they did not ask about. The click is the consent. `role="status"` so it is announced
+      rather than only painted, and `polite` because it interrupts nothing.
+    -->
+    @if (store.stale()) {
+      <p class="type-small stale-hint" role="status">
+        <lg-icon name="refresh" [size]="16"/>
+        {{ 'shortlist.stale' | transloco }}
+        <button type="button" class="btn btn-xs btn-primary" (click)="reload()">
+          {{ 'shortlist.reload' | transloco }}
+        </button>
+      </p>
+    }
+
     <!-- In the column and not in the header, for the reason the filters are: it acts on
          rows of this list, not on the screen. And below the split's breakpoint the column
          is hidden while an offer is open, so in the header the bar would stand above a

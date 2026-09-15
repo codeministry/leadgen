@@ -6,6 +6,7 @@ import {AnalyticsApi} from '@core/api/analytics.api';
 import {AnalyticsView} from '@core/model/analytics';
 import {analyticsEvents} from './analytics.events';
 import {ingestEvents} from './ingest.events';
+import {refreshEvents} from '@core/refresh/refresh.events';
 
 interface AnalyticsState {
     view: AnalyticsView | null;
@@ -47,6 +48,9 @@ export const AnalyticsStore = signalStore(
             // event, so there is one path that fetches and `ingest` knows nothing about who
             // listens — the same wiring the shortlist, the board and the sources screen use.
             events.on(ingestEvents.finished).pipe(map(() => analyticsEvents.opened())),
+          // And whenever anything else says the data moved — a nightly pass, another tab,
+          // a tab coming back after a while. Nothing is lost by re-reading a chart.
+          events.on(refreshEvents.requested).pipe(map(() => analyticsEvents.opened())),
         ];
     }),
 );

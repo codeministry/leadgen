@@ -4,6 +4,7 @@ import {TestBed} from '@angular/core/testing';
 import {injectDispatch} from '@ngrx/signals/events';
 import {ShortlistEntry} from '@core/model/shortlist-entry';
 import {ShortlistFilters, ShortlistPage} from '@core/model/shortlist-page';
+import {refreshEvents} from '@core/refresh/refresh.events';
 import {shortlistEvents} from './shortlist.events';
 import {ShortlistStore} from './shortlist.store';
 
@@ -73,6 +74,7 @@ describe('ShortlistStore', () => {
     let store: InstanceType<typeof ShortlistStore>;
     let http: HttpTestingController;
     let dispatch: ReturnType<typeof injectDispatch<typeof shortlistEvents>>;
+  let refresh: ReturnType<typeof injectDispatch<typeof refreshEvents>>;
 
     beforeEach(() => {
         TestBed.configureTestingModule({
@@ -81,6 +83,7 @@ describe('ShortlistStore', () => {
         store = TestBed.inject(ShortlistStore);
         http = TestBed.inject(HttpTestingController);
         dispatch = TestBed.runInInjectionContext(() => injectDispatch(shortlistEvents));
+      refresh = TestBed.runInInjectionContext(() => injectDispatch(refreshEvents));
 
         // The store injects `ScoringModelStore`, which asks the server which judges it may
         // offer as soon as it exists. Nothing here is about that, but it is a real request and
@@ -134,6 +137,42 @@ describe('ShortlistStore', () => {
     expect(store.entries().length).toBe(2);
     expect(store.matched()).toBe(120);
     expect(store.unscored()).toBe(7);
+  });
+
+  it('flags the list rather than yanking the reader back to page one', () => {
+    // Every other screen re-reads silently because nothing there is lost. This list is
+    // keyset-paged, so re-reading it means `opened`, which empties the entries and starts
+    // again at the top — news the reader did not ask about, delivered by moving them.
+    dispatch.opened(NO_FILTERS);
+    http
+      .expectOne((request) => request.url === '/api/offers')
+      .flush({...page([entry(1), entry(2)]), nextCursor: 'score|88|1|1'});
+    expect(store.stale()).toBe(false);
+
+    refresh.requested('run-ended');
+
+    expect(store.stale()).toBe(true);
+    expect(store.entries().length).toBe(2);
+    expect(store.cursor()).toBe('score|88|1|1');
+    // The funnel is read again either way: four numbers above the column, and nothing
+    // about them is lost by reading them twice.
+    http.expectOne('/api/offers/funnel').flush({stages: [], survived: 2, considered: 2});
+  });
+
+  it('clears the flag when a page actually arrives, whoever asked for it', () => {
+    // Self-correcting, and it is what stops this browser's own run from leaving the hint
+    // behind: the reload `ingestEvents.finished` starts clears it with no sequencing.
+    dispatch.opened(NO_FILTERS);
+    http.expectOne((request) => request.url === '/api/offers').flush(page([entry(1)]));
+
+    refresh.requested('tab-focused');
+    http.expectOne('/api/offers/funnel').flush({stages: [], survived: 1, considered: 1});
+    expect(store.stale()).toBe(true);
+
+    dispatch.opened(NO_FILTERS);
+    http.expectOne((request) => request.url === '/api/offers').flush(page([entry(1), entry(2)]));
+
+    expect(store.stale()).toBe(false);
   });
 
     it('keeps the list on screen when a detail fetch fails', () => {

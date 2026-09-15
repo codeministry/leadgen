@@ -8,6 +8,7 @@ import {RulesView} from '@core/model/rules-view';
 import {SourceSummary} from '@core/model/source-summary';
 import {configEvents} from './config.events';
 import {ingestEvents} from './ingest.events';
+import {refreshEvents} from '@core/refresh/refresh.events';
 
 interface ConfigState {
     sources: readonly SourceSummary[];
@@ -67,6 +68,7 @@ export const ConfigStore = signalStore(
             // run changes every number on it. The rules come from a YAML file and a run does not
             // touch them.
             events.on(ingestEvents.finished).pipe(map(() => configEvents.sourcesOpened())),
+          events.on(refreshEvents.requested).pipe(map(() => configEvents.sourcesOpened())),
             events.on(configEvents.rulesOpened).pipe(
                 exhaustMap(() =>
                     api.rules().pipe(
