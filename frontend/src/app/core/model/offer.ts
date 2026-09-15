@@ -44,8 +44,17 @@ export interface Offer {
 
     readonly rateEur: number | null;
     readonly remotePercent: number | null;
+  /**
+   * Three pairs, each a phrase and a normalised value: what the advert said, and what a
+   * sort key can compare. Either half may be null on its own — "ab sofort" is a phrase with
+   * no resolvable day, and that is the ordinary case rather than a gap.
+   */
     readonly startsOn: string | null;
+  readonly startText: string | null;
     readonly duration: string | null;
+  readonly durationMonths: number | null;
+  readonly applyBy: string | null;
+  readonly applyByText: string | null;
     readonly workload: string | null;
     readonly language: string | null;
     /** The original ad as enrichment fetched it. Null when the fetch never succeeded. */

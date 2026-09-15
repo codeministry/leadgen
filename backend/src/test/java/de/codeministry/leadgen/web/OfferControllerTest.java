@@ -201,6 +201,58 @@ class OfferControllerTest {
         then(archive).should().setArchived(List.of(1L, 2L), true);
     }
 
+    @Test
+    void refusesASortNobodyDefinedWithoutEverReachingTheQuery() {
+        // The injection test belongs here, at the edge, because this is where a string stops
+        // being a string: the enum is the allowlist, so a name nobody defined never composes
+        // an ORDER BY.
+        assertThat(mvc.get().uri("/api/offers").param("sort", "score; DROP TABLE offer"))
+            .hasStatus(org.springframework.http.HttpStatus.BAD_REQUEST);
+
+        then(offers).should(never()).shortlist(any());
+    }
+
+    @Test
+    void refusesAStartWindowNobodyDefined() {
+        assertThat(mvc.get().uri("/api/offers").param("startWindow", "yesterday"))
+            .hasStatus(org.springframework.http.HttpStatus.BAD_REQUEST);
+
+        then(offers).should(never()).shortlist(any());
+    }
+
+    @Test
+    void passesTheNewFiltersThroughToTheQueryAsTheTypesTheyAre() {
+        given(offers.shortlist(any())).willReturn(new ShortlistPage(List.of(), null, 0, 0, 0, List.of()));
+
+        assertThat(mvc.get()
+            .uri("/api/offers")
+            .param("sort", "deadline")
+            .param("startWindow", "soon")
+            .param("minMonths", "6")
+            .param("deadlineOpen", "true"))
+            .hasStatusOk();
+
+        var captured = org.mockito.ArgumentCaptor.forClass(ShortlistQuery.class);
+        then(offers).should().shortlist(captured.capture());
+        assertThat(captured.getValue().sort()).isEqualTo(ShortlistSort.DEADLINE);
+        assertThat(captured.getValue().startWindow()).isEqualTo(StartWindow.SOON);
+        assertThat(captured.getValue().minMonths()).isEqualTo(6);
+        assertThat(captured.getValue().deadlineOpen()).isTrue();
+    }
+
+    @Test
+    void defaultsToTheScoreOrderWhenNothingAsksForAnything() {
+        given(offers.shortlist(any())).willReturn(new ShortlistPage(List.of(), null, 0, 0, 0, List.of()));
+
+        assertThat(mvc.get().uri("/api/offers")).hasStatusOk();
+
+        var captured = org.mockito.ArgumentCaptor.forClass(ShortlistQuery.class);
+        then(offers).should().shortlist(captured.capture());
+        assertThat(captured.getValue().sort()).isEqualTo(ShortlistSort.SCORE);
+        assertThat(captured.getValue().startWindow()).isEqualTo(StartWindow.ANY);
+        assertThat(captured.getValue().minMonths()).isNull();
+    }
+
     private static ShortlistEntry entry(Instant archivedAt, String source) {
         var offer = new OfferView(
                 1L,
@@ -218,6 +270,10 @@ class OfferControllerTest {
                 null,
                 null,
                 null,
+            null,
+            null,
+            null,
+            null,
                 "de",
                 null,
                 null,

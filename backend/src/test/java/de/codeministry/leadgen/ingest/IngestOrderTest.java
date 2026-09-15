@@ -20,6 +20,8 @@ import de.codeministry.leadgen.dedupe.DeduplicationService;
 import de.codeministry.leadgen.digest.DigestService;
 import de.codeministry.leadgen.enrich.EnrichmentReport;
 import de.codeministry.leadgen.enrich.EnrichmentService;
+import de.codeministry.leadgen.fields.FieldsReport;
+import de.codeministry.leadgen.fields.FieldsService;
 import de.codeministry.leadgen.filter.FilterReport;
 import de.codeministry.leadgen.filter.FilterService;
 import de.codeministry.leadgen.ingest.connector.SourceConnector;
@@ -64,6 +66,7 @@ class IngestOrderTest {
     private final ArchiveService archive = mock(ArchiveService.class);
     private final EnrichmentService enrich = mock(EnrichmentService.class);
     private final ContentService content = mock(ContentService.class);
+    private final FieldsService fields = mock(FieldsService.class);
     private final ScoringService scoring = mock(ScoringService.class);
     private final PackagingService packaging = mock(PackagingService.class);
     private final DigestService digest = mock(DigestService.class);
@@ -74,7 +77,7 @@ class IngestOrderTest {
 
     @BeforeEach
     void wire() {
-        // No sources at all: this test is about the seven global stages, and a source would
+        // No sources at all: this test is about the global stages, and a source would
         // only add a second reason for a call to happen.
         var snapshot = mock(ConfigSnapshot.class);
         var sources = mock(SourcesConfig.class);
@@ -87,6 +90,7 @@ class IngestOrderTest {
         when(archive.run()).thenReturn(new ArchiveReport(0, 0, 0, 0));
         when(enrich.run()).thenReturn(new EnrichmentReport(0, 0, 0, 0, 0, 0));
         when(content.run()).thenReturn(ContentReport.skipped());
+        when(fields.run()).thenReturn(FieldsReport.skipped());
         when(scoring.run(any())).thenReturn(new ScoringReport(0, 0, 0, 0, 0, 0, 0));
         when(packaging.run()).thenReturn(new PackageReport(0, 0, 0, List.of()));
         when(digest.render(any())).thenReturn(Optional.empty());
@@ -103,6 +107,7 @@ class IngestOrderTest {
                 archive,
                 enrich,
             content,
+            fields,
                 scoring,
                 packaging,
                 digest,
@@ -144,7 +149,7 @@ class IngestOrderTest {
     void runsTheStagesInTheOrderTheirPlacementIsArguedFor() {
         service.run("some-model");
 
-        var order = inOrder(scoring, dedupe, filter, archive, enrich, packaging, digest, history);
+        var order = inOrder(scoring, dedupe, filter, archive, enrich, content, fields, packaging, digest, history);
         // The model check is first because scoring is last: checked only where it is used,
         // an unknown name is refused after a whole pass has already been paid for.
         order.verify(scoring).checkModel("some-model");
@@ -152,6 +157,11 @@ class IngestOrderTest {
         order.verify(filter).run();
         order.verify(archive).run();
         order.verify(enrich).run();
+        order.verify(content).run();
+        // Between the two, and both halves matter: after content because it reads the advert
+        // the content stage left rather than the page around it, and before scoring because
+        // what it writes feeds `project_setup` and the judge's description of an offer.
+        order.verify(fields).run();
         order.verify(scoring).run("some-model");
         order.verify(packaging).run();
         order.verify(digest).render(any());

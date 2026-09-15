@@ -1,4 +1,3 @@
-import {DatePipe} from '@angular/common';
 import {
   afterNextRender,
   ChangeDetectionStrategy,
@@ -29,6 +28,7 @@ import {Icon} from '@shared/icon/icon';
 import {PageHeader} from '@shared/page-header/page-header';
 import {Markdown} from '@shared/markdown/markdown';
 import {Score} from '@shared/score/score';
+import {DayPipe} from '@shared/date/day.pipe';
 
 /**
  * How much advert is worth showing before it is folded away.
@@ -81,7 +81,7 @@ interface Field {
     imports: [
         ApplicationPanel,
         Badge,
-        DatePipe,
+      DayPipe,
         EmptyState,
         Icon,
         Markdown,
@@ -91,12 +91,17 @@ interface Field {
     ],
     templateUrl: './offer-detail.html',
     styleUrl: './offer-detail.css',
+  // Provided as well as imported, because the field rows are data: `fields()` builds
+  // strings and a template pipe cannot reach into a computed. One implementation either
+  // way, which is the point of having the pipe at all.
+  providers: [DayPipe],
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class OfferDetail implements OnInit {
     private readonly dispatch = injectDispatch(shortlistEvents);
     private readonly applicationDispatch = injectDispatch(applicationEvents);
   private readonly transloco = inject(TranslocoService);
+  private readonly dayPipe = inject(DayPipe);
     protected readonly store = inject(ShortlistStore);
     protected readonly applications = inject(ApplicationsStore);
 
@@ -313,6 +318,11 @@ export class OfferDetail implements OnInit {
      * rate is information — it means enrichment did not reach the original ad —
      * and hiding the row would make the gap invisible.
      */
+  /** A stored day as the chosen language writes one, or null when there is none. */
+  private day(value: string | null): string | null {
+    return this.dayPipe.transform(value);
+  }
+
     protected readonly fields = computed<readonly Field[]>(() => {
         const offer = this.entry()?.offer;
         if (offer === undefined) {
@@ -327,10 +337,18 @@ export class OfferDetail implements OnInit {
                 value: offer.remotePercent === null ? null : `${offer.remotePercent} %`,
             },
             {label: 'field.rate', value: offer.rateEur === null ? null : `${offer.rateEur} €/h`},
-            {label: 'field.start', value: offer.startsOn},
+          // The phrase first, the resolved value only when there is no phrase. "ab sofort"
+          // is what the advert said and is often the whole truth; a day nobody can quote it
+          // for would be the one line on this panel that cannot be checked against the ad
+          // beside it. The server already refuses such a value, so this is the reading order
+          // and not a second guard.
+          {label: 'field.start', value: offer.startText ?? this.day(offer.startsOn)},
             {label: 'field.duration', value: offer.duration},
+          {label: 'field.deadline', value: offer.applyByText ?? this.day(offer.applyBy)},
             {label: 'field.workload', value: offer.workload},
-            {label: 'field.published', value: offer.publishedOn},
+          // Formatted like the two rows above it. It was the server's `YYYY-MM-DD`, which
+          // sat on the same panel as a start the reader can actually read.
+          {label: 'field.published', value: this.day(offer.publishedOn)},
             {label: 'field.language', value: offer.language},
             this.externalId(offer),
         ];

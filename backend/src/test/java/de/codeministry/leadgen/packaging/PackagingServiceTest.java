@@ -125,6 +125,44 @@ class PackagingServiceTest {
     }
 
     @Test
+    void readsASegmentedAdvertThroughTheBlocksAndNotThroughTheRawRow() throws IOException {
+        // The regression this test exists for: `content_blocks` is `jsonb` and `tags` is
+        // `TEXT[]`, so a row read with `listOfRows()` hands the driver's `PGobject` and
+        // `PgArray` straight on. The cast on the first threw for every advert that had been
+        // segmented, the per-offer catch turned that into a counter, and `package_dir` was
+        // never written — which on screen is every offer above the threshold reporting that
+        // it has no package. Every fixture before this one set `full_text` alone, which is
+        // why the suite stayed green.
+        long id = shortlisted("Senior Entwickler (m/w/d)", "Kurzbeschreibung aus dem Newsletter.");
+        jdbc.update(
+            """
+                UPDATE offer
+                SET full_text = ?, tags = ?::text[], content_blocks = ?::jsonb
+                WHERE id = ?
+                """,
+            "Wir suchen fuer unseren Kunden einen Entwickler mit Erfahrung in Spring Boot.\n\nJava",
+            "{Java,Angular}",
+            """
+                [{"index":0,
+                  "text":"Wir suchen fuer unseren Kunden einen Entwickler mit Erfahrung in Spring Boot.",
+                  "kind":"CONTENT","reason":null,"by":"MODEL"},
+                 {"index":1,"text":"Java","kind":"TAXONOMY",
+                  "reason":"the portal's own tag cloud","by":"MODEL"}]
+                """,
+            id);
+
+        var report = packaging.run();
+
+        assertThat(report.built()).isEqualTo(1);
+        JsonNode meta = JSON.readTree(read(folderOf(id).resolve("meta.json")));
+        assertThat(meta.path("language").asText()).isEqualTo("de");
+        // Spring Boot is in the advert, Java is only in the block the model called a tag
+        // cloud. Read through `full_text` both would match, which is the defect segmentation
+        // exists to fix and which packaging has to honour too.
+        assertThat(meta.path("matchedSkills").toString()).contains("Spring Boot").doesNotContain("Java");
+    }
+
+    @Test
     void writesTheScoreAndItsReasonsIntoMetaJson() throws IOException {
         long id = shortlisted("Senior Java Entwickler (m/w/d)", "Spring Boot, für unseren Kunden.");
         reason(id, "core_skill_overlap", "2 of 2 core skills named: Java, Spring Boot", 45);

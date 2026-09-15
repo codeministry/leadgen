@@ -17,6 +17,7 @@ import de.codeministry.leadgen.content.ContentService;
 import de.codeministry.leadgen.dedupe.DeduplicationService;
 import de.codeministry.leadgen.digest.DigestService;
 import de.codeministry.leadgen.enrich.EnrichmentService;
+import de.codeministry.leadgen.fields.FieldsService;
 import de.codeministry.leadgen.filter.FilterService;
 import de.codeministry.leadgen.ingest.connector.SourceConnector;
 import de.codeministry.leadgen.ingest.extract.HtmlBlockExtractor;
@@ -64,6 +65,7 @@ public class IngestService {
     private final ArchiveService archive;
     private final EnrichmentService enrich;
     private final ContentService content;
+    private final FieldsService fields;
     private final ScoringService scoring;
     private final PackagingService packaging;
     private final DigestService digest;
@@ -81,6 +83,7 @@ public class IngestService {
             ArchiveService archive,
             EnrichmentService enrich,
             ContentService content,
+            FieldsService fields,
             ScoringService scoring,
             PackagingService packaging,
             DigestService digest,
@@ -96,6 +99,7 @@ public class IngestService {
         this.archive = archive;
         this.enrich = enrich;
         this.content = content;
+        this.fields = fields;
         this.scoring = scoring;
         this.packaging = packaging;
         this.digest = digest;
@@ -216,6 +220,12 @@ public class IngestService {
         // furniture around it — a tag cloud of sixty technology names the client never asked
         // for otherwise counts as skill overlap.
         var segmented = stages.time("CONTENT", content::run);
+        // After content because it reads the advert the content stage left, not the page the
+        // portal wrapped it in — a deadline found in a footer is the same class of error as a
+        // tag cloud counted as skill overlap. Before scoring because what it writes feeds
+        // `project_setup` and the judge's description of an offer, and because it nulls
+        // `score_model` on the offers whose values actually moved.
+        var extractedFields = stages.time("FIELDS", fields::run);
         var scored = stages.time("SCORE", () -> scoring.run(scoringModel));
         // Packaging before the digest, so the digest can say which offers already have a
         // folder. Both write files and neither sends anything.
@@ -231,6 +241,7 @@ public class IngestService {
                 archived,
                 enriched,
             segmented,
+            extractedFields,
                 scored,
                 written,
                 packages,

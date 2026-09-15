@@ -14,6 +14,7 @@ import de.codeministry.leadgen.analytics.LastRunView;
 import de.codeministry.leadgen.archive.ArchiveReport;
 import de.codeministry.leadgen.content.ContentReport;
 import de.codeministry.leadgen.enrich.EnrichmentReport;
+import de.codeministry.leadgen.fields.FieldsReport;
 import de.codeministry.leadgen.filter.FilterReport;
 import de.codeministry.leadgen.ingest.DocumentIngestResult;
 import de.codeministry.leadgen.ingest.IngestReport;
@@ -110,6 +111,7 @@ class IngestControllerTest {
                         new ArchiveReport(0, 0, 0, 0),
                         new EnrichmentReport(12, 0, 12, 0, 0, 0),
                     new ContentReport(12, 12, 96, 84, 12, 0),
+                    new FieldsReport(12, 12, 12, 9, 4),
                         new ScoringReport(12, 12, 0, 2, 3, 0, 0),
                         null,
                         new PackageReport(2, 2, 0, List.of()),

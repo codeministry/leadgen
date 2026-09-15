@@ -56,7 +56,8 @@
     "language": "Language",
     "externalId": "External id",
     "tags": "Tags",
-    "description": "Description"
+    "description": "Description",
+    "deadline": "Application deadline"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -125,7 +126,26 @@
     "clearSelection": "Clear selection",
     "confirmArchiveTitle": "Archive these offers?",
     "confirmArchiveBody": "{count, plural, one {# offer leaves the working list. You can put it back from the archive at any time.} other {# offers leave the working list. You can put them back from the archive at any time.}}",
-    "confirmArchiveConfirm": "{count, plural, one {Archive # offer} other {Archive # offers}}"
+    "confirmArchiveConfirm": "{count, plural, one {Archive # offer} other {Archive # offers}}",
+    "sortBy": "Sort by",
+    "sort": {
+      "score": "Highest score",
+      "start": "Starts soonest",
+      "deadline": "Deadline nearest",
+      "duration": "Longest duration"
+    },
+    "startWindow": "Start",
+    "start": {
+      "any": "Any start",
+      "now": "Starting now",
+      "soon": "Within 30 days",
+      "later": "Later than 30 days",
+      "unknown": "Start not stated"
+    },
+    "minDuration": "Minimum duration",
+    "anyDuration": "Any duration",
+    "fromMonths": "{months} months or more",
+    "deadlineOpen": "Deadline open"
   },
   "offer": {
     "rateUnknown": "rate unknown",
@@ -137,7 +157,9 @@
     "incomplete": "incomplete",
     "remoteUnknown": "remote share unknown",
     "remoteShare": "{percent} % remote",
-    "noAgency": "no agency stated"
+    "noAgency": "no agency stated",
+    "startsAt": "starts {when}",
+    "applyBy": "apply by {when}"
   },
   "detail": {
     "originalAd": "Original ad",

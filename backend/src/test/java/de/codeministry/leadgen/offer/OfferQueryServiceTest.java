@@ -11,6 +11,8 @@ package de.codeministry.leadgen.offer;
 import de.codeministry.leadgen.config.ConfigFixtures;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
@@ -21,9 +23,12 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * What the shortlist screen reads: survivors, their reasons, and their duplicate cluster.
@@ -63,9 +68,9 @@ class OfferQueryServiceTest {
             passed("Java Entwickler " + i, 90 - i);
         }
 
-        var first = offers.shortlist(new ShortlistQuery(null, null, null, false, null, 3));
-        var second = offers.shortlist(new ShortlistQuery(null, null, null, false, first.nextCursor(), 3));
-        var third = offers.shortlist(new ShortlistQuery(null, null, null, false, second.nextCursor(), 3));
+        var first = offers.shortlist(ShortlistQuery.first().withLimit(3));
+        var second = offers.shortlist(ShortlistQuery.first().withLimit(3).withCursor(first.nextCursor()));
+        var third = offers.shortlist(ShortlistQuery.first().withLimit(3).withCursor(second.nextCursor()));
 
         assertThat(first.entries()).hasSize(3);
         assertThat(second.entries()).hasSize(3);
@@ -84,8 +89,8 @@ class OfferQueryServiceTest {
             passed("Gleichstand " + i, 80);
         }
 
-        var first = offers.shortlist(new ShortlistQuery(null, null, null, false, null, 2));
-        var second = offers.shortlist(new ShortlistQuery(null, null, null, false, first.nextCursor(), 2));
+        var first = offers.shortlist(ShortlistQuery.first().withLimit(2));
+        var second = offers.shortlist(ShortlistQuery.first().withLimit(2).withCursor(first.nextCursor()));
 
         assertThat(ids(first)).doesNotContainAnyElementsOf(ids(second));
         assertThat(second.entries()).hasSize(2);
@@ -102,8 +107,8 @@ class OfferQueryServiceTest {
         }
         jdbc.update("UPDATE offer SET ingested_at = timestamptz '2026-09-02 08:00:00.123456+02'");
 
-        var first = offers.shortlist(new ShortlistQuery(null, null, null, false, null, 2));
-        var second = offers.shortlist(new ShortlistQuery(null, null, null, false, first.nextCursor(), 2));
+        var first = offers.shortlist(ShortlistQuery.first().withLimit(2));
+        var second = offers.shortlist(ShortlistQuery.first().withLimit(2).withCursor(first.nextCursor()));
 
         assertThat(first.entries()).hasSize(2);
         assertThat(second.entries()).hasSize(2);
@@ -116,7 +121,7 @@ class OfferQueryServiceTest {
         passed("Angular Entwickler", 40);
         rejected("Java Entwickler in Zürich");
 
-        var page = offers.shortlist(new ShortlistQuery("angular", null, null, false, null, 0));
+        var page = offers.shortlist(new ShortlistQuery("angular", null, null, false, null, null, null, false, null, 0));
 
         assertThat(page.matched()).isEqualTo(1);
         assertThat(page.total()).isEqualTo(2);
@@ -130,7 +135,7 @@ class OfferQueryServiceTest {
         passed("Java Entwickler", null);
         passed("Angular Entwickler", null);
 
-        var page = offers.shortlist(new ShortlistQuery(null, null, null, false, null, 1));
+        var page = offers.shortlist(ShortlistQuery.first().withLimit(1));
 
         assertThat(page.entries()).hasSize(1);
         assertThat(page.unscored()).isEqualTo(2);
@@ -142,7 +147,7 @@ class OfferQueryServiceTest {
         jdbc.update("UPDATE offer SET tags = ARRAY['Kubernetes'] WHERE id = ?", tagged);
         passed("Anderer Entwickler", 60);
 
-        var page = offers.shortlist(new ShortlistQuery("kubernetes", null, null, false, null, 0));
+        var page = offers.shortlist(new ShortlistQuery("kubernetes", null, null, false, null, null, null, false, null, 0));
 
         assertThat(page.entries()).extracting(entry -> entry.offer().id()).containsExactly(tagged);
     }
@@ -155,11 +160,11 @@ class OfferQueryServiceTest {
         passed("Mittel", 55);
         passed("Schwach", 10);
 
-        assertThat(offers.shortlist(new ShortlistQuery(null, "shortlist", null, false, null, 0))
+        assertThat(offers.shortlist(new ShortlistQuery(null, "shortlist", null, false, null, null, null, false, null, 0))
                         .entries())
                 .extracting(entry -> entry.offer().title())
                 .containsExactly("Stark");
-        assertThat(offers.shortlist(new ShortlistQuery(null, "review", null, false, null, 0))
+        assertThat(offers.shortlist(new ShortlistQuery(null, "review", null, false, null, null, null, false, null, 0))
                         .entries())
                 .extracting(entry -> entry.offer().title())
                 .containsExactly("Mittel");
@@ -172,10 +177,10 @@ class OfferQueryServiceTest {
         long primary = passed("Senior Java Entwickler", 88);
         duplicateOf(primary, "portal-c", "Zweite Agentur");
 
-        var page = offers.shortlist(new ShortlistQuery(null, null, null, false, null, 1));
+        var page = offers.shortlist(ShortlistQuery.first().withLimit(1));
 
         assertThat(page.portals()).contains("portal-c");
-        assertThat(offers.shortlist(new ShortlistQuery(null, null, "portal-c", false, null, 0))
+        assertThat(offers.shortlist(new ShortlistQuery(null, null, "portal-c", false, null, null, null, false, null, 0))
                         .entries())
                 .extracting(entry -> entry.offer().id())
                 .containsExactly(primary);
@@ -189,7 +194,7 @@ class OfferQueryServiceTest {
      * The unfiltered first page, which is what every case here was written against.
      */
     private List<ShortlistEntry> shortlist() {
-        return offers.shortlist(new ShortlistQuery(null, null, null, false, null, 0))
+        return offers.shortlist(ShortlistQuery.first())
                 .entries();
     }
 
@@ -302,8 +307,8 @@ class OfferQueryServiceTest {
         long archived = passed("Archiviert", 90);
         jdbc.update("UPDATE offer SET archived_at = now(), archive_source = 'AGE' WHERE id = ?", archived);
 
-        var list = offers.shortlist(new ShortlistQuery(null, null, null, false, null, 0));
-        var archive = offers.shortlist(new ShortlistQuery(null, null, null, true, null, 0));
+        var list = offers.shortlist(ShortlistQuery.first());
+        var archive = offers.shortlist(new ShortlistQuery(null, null, null, true, null, null, null, false, null, 0));
 
         assertThat(ids(list)).containsExactly(working);
         assertThat(list.matched()).isEqualTo(1);
@@ -327,10 +332,10 @@ class OfferQueryServiceTest {
             RETURNING id
             """, Long.class, sourceId);
 
-        assertThat(offers.shortlist(new ShortlistQuery(null, null, null, false, null, 0))
+        assertThat(offers.shortlist(ShortlistQuery.first())
                         .portals())
                 .containsExactly("portal-a");
-        assertThat(offers.shortlist(new ShortlistQuery(null, null, null, true, null, 0))
+        assertThat(offers.shortlist(new ShortlistQuery(null, null, null, true, null, null, null, false, null, 0))
                         .portals())
                 .containsExactly("portal-c");
         assertThat(archived).isPositive();
@@ -353,7 +358,7 @@ class OfferQueryServiceTest {
         assertThat(funnel.total()).isEqualTo(1);
         // The invariant worth checking whenever either number looks wrong.
         assertThat(funnel.survived())
-                .isEqualTo(offers.shortlist(new ShortlistQuery(null, null, null, false, null, 0))
+            .isEqualTo(offers.shortlist(ShortlistQuery.first())
                         .total());
     }
 
@@ -376,6 +381,255 @@ class OfferQueryServiceTest {
         assertThat(offers.find(id)).isPresent();
         assertThat(offers.find(id).orElseThrow().score().hardPass()).isFalse();
         assertThat(offers.find(999_999L)).isEmpty();
+    }
+
+    // ---- sorting -------------------------------------------------------------------
+
+    @Test
+    void sortsTheShortlistByTheKeyTheRequestNames() {
+        long soon = passed("Startet bald", 40);
+        long later = passed("Startet später", 90);
+        starts(soon, LocalDate.now().plusDays(3));
+        starts(later, LocalDate.now().plusDays(300));
+
+        assertThat(ids(offers.shortlist(ShortlistQuery.first()))).containsExactly(later, soon);
+        assertThat(ids(offers.shortlist(ShortlistQuery.first().withSort(ShortlistSort.START))))
+            .containsExactly(soon, later);
+    }
+
+    @Test
+    void keepsTwoOffersWithTheSameStartDateOnEitherSideOfABoundary() {
+        // The same tie the score test pins, one key over. With a uniform direction the
+        // tuple is the only thing keeping the boundary honest: a `<` where a `>` belongs
+        // gives an empty second page, which is loud, while an ORDER BY that descends against
+        // a comparison that ascends repeats page one, which is not.
+        var all = new ArrayList<Long>();
+        for (int i = 0; i < 4; i++) {
+            long id = passed("Gleicher Start " + i, 50);
+            starts(id, LocalDate.of(2026, 11, 1));
+            all.add(id);
+        }
+
+        var query = ShortlistQuery.first().withSort(ShortlistSort.START).withLimit(2);
+        var first = offers.shortlist(query);
+        var second = offers.shortlist(query.withCursor(first.nextCursor()));
+
+        assertThat(first.entries()).hasSize(2);
+        assertThat(second.entries()).hasSize(2);
+        assertThat(ids(first)).doesNotContainAnyElementsOf(ids(second));
+        assertThat(ids(first)).containsAll(List.of()).hasSize(2);
+        assertThat(walk(query)).containsExactlyInAnyOrderElementsOf(all);
+    }
+
+    @Test
+    void keepsTwoOffersWithTheSameDeadlineOnEitherSideOfABoundary() {
+        var all = new ArrayList<Long>();
+        for (int i = 0; i < 4; i++) {
+            long id = passed("Gleiche Frist " + i, 50);
+            applyBy(id, LocalDate.now().plusDays(20));
+            all.add(id);
+        }
+
+        assertThat(walk(ShortlistQuery.first().withSort(ShortlistSort.DEADLINE).withLimit(2)))
+            .containsExactlyInAnyOrderElementsOf(all);
+    }
+
+    @Test
+    void keepsTwoOffersWithTheSameDurationOnEitherSideOfABoundary() {
+        var all = new ArrayList<Long>();
+        for (int i = 0; i < 4; i++) {
+            long id = passed("Gleiche Dauer " + i, 50);
+            durationMonths(id, 6);
+            all.add(id);
+        }
+
+        assertThat(walk(ShortlistQuery.first().withSort(ShortlistSort.DURATION).withLimit(2)))
+            .containsExactlyInAnyOrderElementsOf(all);
+    }
+
+    @ParameterizedTest
+    @EnumSource(ShortlistSort.class)
+    void keepsTheUnstatedAtTheEndOfEverySortAndNeverDropsIt(ShortlistSort sort) {
+        // The centrepiece. SQL row comparison yields NULL the moment any element is NULL, so
+        // a nullable sort column walked with `NULLS LAST` shows its unstated offers at the
+        // end of page one and then loses every one of them on page two — while the match
+        // count still counts them. The coalesce sentinel is what stops that, and this is what
+        // fails the day somebody replaces it.
+        var stated = new ArrayList<Long>();
+        var unstated = new ArrayList<Long>();
+        for (int i = 0; i < 3; i++) {
+            long id = passed("Vollständig " + i, 80 - i);
+            starts(id, LocalDate.now().plusDays(10L + i));
+            applyBy(id, LocalDate.now().plusDays(5L + i));
+            durationMonths(id, 3 + i);
+            stated.add(id);
+            // Nothing but a title: no score, no start, no deadline, no duration.
+            unstated.add(bare("Nichts gesagt " + i));
+        }
+
+        var walked = walk(ShortlistQuery.first().withSort(sort).withLimit(2));
+
+        assertThat(walked).containsExactlyInAnyOrderElementsOf(concat(stated, unstated));
+        assertThat(walked.subList(walked.size() - 3, walked.size()))
+            .containsExactlyInAnyOrderElementsOf(unstated);
+    }
+
+    @Test
+    void refusesACursorMintedUnderADifferentSort() {
+        // Identical bytes, different meaning: a score of 88 read as an epoch day is March
+        // 1970, and the row comparison then answers with an arbitrary slice and no error.
+        for (int i = 0; i < 4; i++) {
+            passed("Java Entwickler " + i, 90 - i);
+        }
+        String cursor = offers.shortlist(ShortlistQuery.first().withLimit(2)).nextCursor();
+
+        assertThatThrownBy(() -> offers.shortlist(
+            ShortlistQuery.first().withSort(ShortlistSort.START).withLimit(2).withCursor(cursor)))
+            .isInstanceOf(BadShortlistRequest.class)
+            .hasMessageContaining("sort=score")
+            .hasMessageContaining("sort=start");
+    }
+
+    @Test
+    void treatsACursorFromTheOldThreePartFormAsABadRequest() {
+        // A link somebody shared yesterday carries one. It used to be an
+        // ArrayIndexOutOfBoundsException, which is a 500.
+        assertThatThrownBy(() -> offers.shortlist(
+            ShortlistQuery.first().withCursor("88|1756800000123456|4211")))
+            .isInstanceOf(BadShortlistRequest.class);
+        assertThatThrownBy(() -> offers.shortlist(ShortlistQuery.first().withCursor("score|x|y|z")))
+            .isInstanceOf(BadShortlistRequest.class);
+    }
+
+    // ---- the three filters ---------------------------------------------------------
+
+    @Test
+    void partitionsTheShortlistIntoFourStartWindowsThatAddUpToIt() {
+        starts(passed("Läuft schon", 50), LocalDate.now().minusDays(4));
+        starts(passed("In einer Woche", 50), LocalDate.now().plusDays(7));
+        starts(passed("Am Rand", 50), LocalDate.now().plusDays(30));
+        starts(passed("Irgendwann", 50), LocalDate.now().plusDays(90));
+        passed("Kein Datum", 50);
+
+        int whole = offers.shortlist(ShortlistQuery.first()).matched();
+        int sum = 0;
+        for (StartWindow window : List.of(StartWindow.NOW, StartWindow.SOON, StartWindow.LATER, StartWindow.UNKNOWN)) {
+            sum += offers.shortlist(inWindow(window)).matched();
+        }
+
+        assertThat(sum).isEqualTo(whole);
+        assertThat(offers.shortlist(inWindow(StartWindow.UNKNOWN)).matched()).isEqualTo(1);
+        assertThat(offers.shortlist(inWindow(StartWindow.NOW)).matched()).isEqualTo(1);
+    }
+
+    @Test
+    void keepsTheBoundaryDayInsideTheNearWindow() {
+        starts(passed("Genau dreißig Tage", 50), LocalDate.now().plusDays(30));
+
+        assertThat(offers.shortlist(inWindow(StartWindow.SOON)).matched()).isEqualTo(1);
+        assertThat(offers.shortlist(inWindow(StartWindow.LATER)).matched()).isZero();
+    }
+
+    @Test
+    void excludesAnOfferWhoseDurationNobodyStatedFromAMinimum() {
+        // The opposite null treatment from the deadline filter below, and the pair is pinned
+        // together on purpose: "at least six months" is a claim about the offer, and an offer
+        // that says nothing does not make it.
+        durationMonths(passed("Zwölf Monate", 50), 12);
+        durationMonths(passed("Drei Monate", 50), 3);
+        passed("Keine Dauer genannt", 50);
+
+        var page = offers.shortlist(new ShortlistQuery(null, null, null, false, null, null, 6, false, null, 0));
+
+        assertThat(page.matched()).isEqualTo(1);
+        assertThat(page.entries().getFirst().offer().durationMonths()).isEqualTo(12);
+    }
+
+    @Test
+    void keepsAnOfferWithNoDeadlineOnTheOpenListAndDropsOneThatHasPassed() {
+        // "Still open" is the absence of proof that it closed, so an advert that states no
+        // deadline has not missed one.
+        applyBy(passed("Frist nächste Woche", 50), LocalDate.now().plusDays(7));
+        applyBy(passed("Frist vorbei", 50), LocalDate.now().minusDays(1));
+        long unstated = passed("Keine Frist genannt", 50);
+
+        var page = offers.shortlist(new ShortlistQuery(null, null, null, false, null, null, null, true, null, 0));
+
+        assertThat(page.matched()).isEqualTo(2);
+        assertThat(ids(page)).contains(unstated);
+    }
+
+    @Test
+    void countsTheMatchAgainstTheFiltersAndNotAgainstThePage() {
+        // The defect this change sits on top of: the cursor clause used to be formatted into
+        // MATCHED as well, so `matched` counted the rows *after* the cursor and the number
+        // beside the list shrank as the reader scrolled — which is exactly why the count was
+        // moved to the server in the first place.
+        for (int i = 0; i < 5; i++) {
+            starts(passed("Java Entwickler " + i, 90 - i), LocalDate.now().plusDays(3));
+        }
+
+        var query = ShortlistQuery.first().withLimit(2);
+        var first = offers.shortlist(query);
+        var second = offers.shortlist(query.withCursor(first.nextCursor()));
+
+        assertThat(second.matched()).isEqualTo(first.matched()).isEqualTo(5);
+        assertThat(second.total()).isEqualTo(first.total());
+
+        // And a filter moves the match without moving what it was narrowed from.
+        var narrowed = offers.shortlist(inWindow(StartWindow.LATER));
+        assertThat(narrowed.matched()).isZero();
+        assertThat(narrowed.total()).isEqualTo(first.total());
+        assertThat(narrowed.portals()).isEqualTo(first.portals());
+    }
+
+    // ---- fixtures ------------------------------------------------------------------
+
+    private static ShortlistQuery inWindow(StartWindow window) {
+        return new ShortlistQuery(null, null, null, false, null, window, null, false, null, 0);
+    }
+
+    private static List<Long> concat(List<Long> a, List<Long> b) {
+        var all = new ArrayList<>(a);
+        all.addAll(b);
+        return all;
+    }
+
+    /**
+     * Every page of a query, in order. What a reader scrolling to the end actually gets, and
+     * the only way to see a row the second page dropped.
+     */
+    private List<Long> walk(ShortlistQuery query) {
+        var all = new ArrayList<Long>();
+        String cursor = null;
+        for (int guard = 0; guard < 20; guard++) {
+            var page = offers.shortlist(query.withCursor(cursor));
+            all.addAll(ids(page));
+            cursor = page.nextCursor();
+            if (cursor == null) {
+                return all;
+            }
+        }
+        throw new IllegalStateException("the walk did not end; the cursor is not advancing");
+    }
+
+    private void starts(long id, LocalDate day) {
+        jdbc.update("UPDATE offer SET starts_on = ? WHERE id = ?", day, id);
+    }
+
+    private void applyBy(long id, LocalDate day) {
+        jdbc.update("UPDATE offer SET apply_by = ? WHERE id = ?", day, id);
+    }
+
+    private void durationMonths(long id, int months) {
+        jdbc.update("UPDATE offer SET duration_months = ? WHERE id = ?", months, id);
+    }
+
+    /**
+     * A survivor that states nothing at all: no score, no start, no deadline, no duration.
+     */
+    private long bare(String title) {
+        return passed(title, null);
     }
 
     private long passed(String title, Integer score) {

@@ -28,7 +28,26 @@
             <span>{{ entry().offer.publishedOn }}</span>
         </p>
 
-        <ul class="reasons">
+      <!-- A second line, and only when there is something on it. Six items on the first row
+           wrap to three lines on every card at this column width, and this is the surface
+           that is scanned twenty at a time. The phrase before the day, the same reading
+           order the detail panel uses: "ab sofort" is what the advert said — and `lgDay`
+           hands a phrase straight back, so one pipe covers both halves of the pair. -->
+      @if (startLabel() || deadlineLabel()) {
+        <p class="type-mono-data text-muted meta">
+          @if (startLabel(); as start) {
+            <span>{{ 'offer.startsAt' | transloco: {when: start | lgDay} }}</span>
+          }
+          @if (startLabel() && deadlineLabel()) {
+            <span aria-hidden="true">·</span>
+          }
+          @if (deadlineLabel(); as deadline) {
+            <span>{{ 'offer.applyBy' | transloco: {when: deadline | lgDay} }}</span>
+          }
+        </p>
+      }
+
+      <ul class="reasons">
             @for (reason of shownReasons(); track reason.factor) {
                 <li class="type-small reason" [class.penalty]="reason.points < 0">
           <span class="type-mono-data points">

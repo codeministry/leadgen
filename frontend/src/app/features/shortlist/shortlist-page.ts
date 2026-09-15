@@ -118,6 +118,49 @@ export class ShortlistPage {
      */
     readonly archived = input(false, {transform: (value: string | undefined) => value === '1'});
 
+  /**
+   * Which order, and therefore which cursor. The server composes the ORDER BY and the
+   * keyset comparison from one expression and refuses a cursor minted under another sort,
+   * so this has to travel with the filters rather than beside them — `opened` already
+   * clears `entries` and `cursor` on any change here, which is exactly what a sort change
+   * needs and what stops a mismatched cursor ever being sent.
+   */
+  readonly sort = input('score', {transform: (value: string | undefined) => value ?? 'score'});
+
+  /**
+   * When the engagement starts. Four values that partition the set, `unknown` included:
+   * most adverts name no resolvable day, so a window without it would hide most of the
+   * list while looking exactly like a filter that worked.
+   */
+  readonly startWindow = input('any', {transform: (value: string | undefined) => value ?? 'any'});
+
+  /**
+   * The committed minimum in months, as the query string carries it. Zero is no minimum,
+   * and so is anything that is not a number: a hand-edited link must not be able to empty
+   * the list for a reason nobody can see.
+   */
+  readonly minMonths = input(0, {
+    transform: (value: string | undefined) => {
+      const months = Number(value ?? 0);
+      return Number.isFinite(months) && months > 0 ? months : 0;
+    },
+  });
+
+  /** Only offers whose deadline has not passed, plus every offer that stated none. */
+  readonly deadlineOpen = input(false, {transform: (value: string | undefined) => value === '1'});
+
+  /**
+   * The four sort keys the server offers, in the order they are worth trying. The names are
+   * the server's; a union type here would disagree with it the first time one is added, the
+   * same reason nothing in this browser names a weight or a filter stage.
+   */
+  protected readonly sortOptions = ['score', 'start', 'deadline', 'duration'] as const;
+
+  protected readonly startWindowOptions = ['any', 'now', 'soon', 'later', 'unknown'] as const;
+
+  /** Three steps and off. Finer than this is a number nobody has an opinion about. */
+  protected readonly minMonthsOptions = [0, 3, 6, 12] as const;
+
     /**
      * The same two numbers the rings band on and the rules screen prints, from one source.
      * They were literals here, and they decided which offers the band buttons showed — so a
@@ -151,6 +194,10 @@ export class ShortlistPage {
         band: this.band(),
         portal: this.portal(),
         archived: this.archived(),
+      sort: this.sort(),
+      startWindow: this.startWindow(),
+      minMonths: this.minMonths(),
+      deadlineOpen: this.deadlineOpen(),
     }));
 
     /**
@@ -246,7 +293,15 @@ export class ShortlistPage {
     protected readonly visible = computed(() => this.store.entries());
 
     protected readonly filtered = computed(
-        () => this.q() !== '' || this.band() !== 'all' || this.portal() !== '' || this.archived(),
+      () =>
+        this.q() !== '' ||
+        this.band() !== 'all' ||
+        this.portal() !== '' ||
+        this.archived() ||
+        this.sort() !== 'score' ||
+        this.startWindow() !== 'any' ||
+        this.minMonths() > 0 ||
+        this.deadlineOpen(),
     );
 
     /** Asked for when the reader reaches the end of what is loaded. */
@@ -326,9 +381,26 @@ export class ShortlistPage {
     this.confirmArchive()?.nativeElement.close?.();
   }
 
-    protected setFilter(key: 'q' | 'band' | 'portal', value: string): void {
+  /**
+   * `''`, `'all'`, `'score'`, `'any'` and `'0'` are the defaults, and a default is dropped
+   * from the URL rather than written into it: a link should say what is unusual about the
+   * view and nothing else.
+   */
+  private static readonly DEFAULTS = new Set(['', 'all', 'score', 'any', '0']);
+
+  protected setFilter(
+    key: 'q' | 'band' | 'portal' | 'sort' | 'startWindow' | 'minMonths',
+    value: string,
+  ): void {
+    void this.router.navigate([], {
+      queryParams: {[key]: ShortlistPage.DEFAULTS.has(value) ? null : value},
+      queryParamsHandling: 'merge',
+    });
+  }
+
+  protected toggleDeadlineOpen(): void {
         void this.router.navigate([], {
-            queryParams: {[key]: value === '' || value === 'all' ? null : value},
+          queryParams: {deadlineOpen: this.deadlineOpen() ? null : '1'},
             queryParamsHandling: 'merge',
         });
     }
@@ -387,6 +459,13 @@ export class ShortlistPage {
     protected onPortal(event: Event): void {
         this.setFilter('portal', (event.target as HTMLSelectElement).value);
     }
+
+  protected onSelect(
+    key: 'sort' | 'startWindow' | 'minMonths',
+    event: Event,
+  ): void {
+    this.setFilter(key, (event.target as HTMLSelectElement).value);
+  }
 
     protected clear(): void {
         void this.router.navigate([], {queryParams: {}});

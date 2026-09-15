@@ -26,6 +26,10 @@ function entry(id: number, title: string, value: number | null, portal: string):
             rateEur: null,
             remotePercent: null,
             startsOn: null,
+          startText: null,
+          durationMonths: null,
+          applyBy: null,
+          applyByText: null,
             duration: null,
             workload: null,
             language: 'de',
@@ -130,18 +134,20 @@ describe('ShortlistPage', () => {
         // scrolled — so the server sends the whole set beside the page.
         const fixture = render(page({entries: [ENTRIES[0]!], matched: 3}));
 
+      // Scoped to the portal select: the filter block holds four of them, and the other
+      // three carry fixed option lists that have nothing to do with what the server sent.
         const options: HTMLOptionElement[] = Array.from(
-            fixture.nativeElement.querySelectorAll('select option'),
+          fixture.nativeElement.querySelectorAll('select.portal option'),
         );
         expect(options.map((option) => option.value)).toEqual(['', 'portal-a', 'portal-b']);
     });
 
     it('appends the next page and stops when the cursor runs out', () => {
-        const fixture = render(page({entries: [ENTRIES[0]!], nextCursor: '88|1|1', matched: 3}));
+      const fixture = render(page({entries: [ENTRIES[0]!], nextCursor: 'score|88|1|1', matched: 3}));
 
         fixture.componentInstance['loadMore']();
         const request = expectPage();
-        expect(request.request.params.get('cursor')).toBe('88|1|1');
+      expect(request.request.params.get('cursor')).toBe('score|88|1|1');
         request.flush(page({entries: [ENTRIES[1]!, ENTRIES[2]!], nextCursor: null, matched: 3}));
         fixture.detectChanges();
 
@@ -292,7 +298,7 @@ describe('ShortlistPage', () => {
   it('keeps the selection while paging and drops it when a filter changes', () => {
     // Both halves of one rule, read from two sides: a longer list is the same list, and a
     // filtered list is a different one whose ids the reader can no longer see.
-    const fixture = render(page({entries: [ENTRIES[0]!, ENTRIES[1]!], nextCursor: '88|1|1'}));
+    const fixture = render(page({entries: [ENTRIES[0]!, ENTRIES[1]!], nextCursor: 'score|88|1|1'}));
 
     pick(fixture, 0);
     expect(selectionCount(fixture)).toBe(1);
@@ -321,7 +327,7 @@ describe('ShortlistPage', () => {
   it('measures a range from an id and not from a position', () => {
     // The test that fails the day the anchor becomes an index: the second page shifts
     // every position, and a range across the boundary would then select the wrong offers.
-    const fixture = render(page({entries: [ENTRIES[0]!], nextCursor: '88|1|1'}));
+    const fixture = render(page({entries: [ENTRIES[0]!], nextCursor: 'score|88|1|1'}));
 
     pick(fixture, 0);
     fixture.componentInstance['loadMore']();

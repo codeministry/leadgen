@@ -29,10 +29,13 @@ import javax.sql.DataSource;
 import java.io.IOException;
 import java.io.StringReader;
 import java.io.StringWriter;
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.*;
@@ -100,6 +103,112 @@ public class PackagingService {
         this.freemarker.setLogTemplateExceptions(false);
     }
 
+    /**
+     * One shortlisted offer, read through a {@link ResultSet} and not through
+     * {@code listOfRows()}.
+     *
+     * <p>That is the whole of the fix this record exists for, and it is worth naming: a
+     * {@code jsonb} column arrives from the driver as a {@code PGobject} and a {@code TEXT[]}
+     * as a {@code PgArray}, so a map of {@code Object} hands both straight on. The cast on
+     * {@code content_blocks} threw a {@link ClassCastException} for every advert that had been
+     * segmented, the per-offer catch in {@link #run()} turned that into a counter, and
+     * {@code package_dir} was therefore never written — which on screen is every offer above
+     * the threshold reporting that it has no package. The {@code tags} array never threw at
+     * all; it simply reached Freemarker as a wrapper around a JDBC array.
+     *
+     * <p>The three other readers of {@code content_blocks} — {@code ScoreCandidate.of},
+     * {@code OfferQueryService.row} and {@code ContentService}'s own mapper — all call
+     * {@code rs.getString(...)}, which is where the driver renders the JSON as text. This is
+     * the fourth, and now it is the same one.
+     */
+    private record Due(
+        long id,
+        String title,
+        String description,
+        String fullText,
+        String url,
+        String location,
+        String portal,
+        String agency,
+        List<String> tags,
+        LocalDate publishedOn,
+        BigDecimal rateEur,
+        String duration,
+        String workload,
+        Integer remotePercent,
+        LocalDate startsOn,
+        String contact,
+        Integer scoreValue,
+        String scoreBand,
+        String scoreModel,
+        String enrichmentNote,
+        String contentBlocks) {
+
+        static Due of(ResultSet rs, int row) throws SQLException {
+            return new Due(
+                rs.getLong("id"),
+                rs.getString("title"),
+                rs.getString("description"),
+                rs.getString("full_text"),
+                rs.getString("url"),
+                rs.getString("location"),
+                rs.getString("portal"),
+                rs.getString("agency"),
+                tags(rs),
+                rs.getObject("published_on", LocalDate.class),
+                rs.getBigDecimal("rate_eur"),
+                rs.getString("duration"),
+                rs.getString("workload"),
+                (Integer) rs.getObject("remote_percent"),
+                rs.getObject("starts_on", LocalDate.class),
+                rs.getString("contact"),
+                (Integer) rs.getObject("score_value"),
+                rs.getString("score_band"),
+                rs.getString("score_model"),
+                rs.getString("enrichment_note"),
+                rs.getString("content_blocks"));
+        }
+
+        private static List<String> tags(ResultSet rs) throws SQLException {
+            var array = rs.getArray("tags");
+            return array == null ? List.of() : List.of((String[]) array.getArray());
+        }
+
+        /**
+         * What a template sees. camelCase, not the database's snake_case: {@code offer.fullText}
+         * is what a template author writes, and {@code offer.full_text} silently resolves to
+         * nothing in Freemarker rather than failing.
+         *
+         * <p>Written out rather than derived from the column names, because the record's
+         * components are already the camelCase spelling and a second mechanism converting them
+         * back and forth is one more thing that can disagree with the templates.
+         */
+        Map<String, Object> model() {
+            Map<String, Object> out = new LinkedHashMap<>();
+            out.put("id", id);
+            out.put("title", title);
+            out.put("description", description);
+            out.put("fullText", fullText);
+            out.put("url", url);
+            out.put("location", location);
+            out.put("portal", portal);
+            out.put("agency", agency);
+            out.put("tags", tags);
+            out.put("publishedOn", publishedOn);
+            out.put("rateEur", rateEur);
+            out.put("duration", duration);
+            out.put("workload", workload);
+            out.put("remotePercent", remotePercent);
+            out.put("startsOn", startsOn);
+            out.put("contact", contact);
+            out.put("scoreValue", scoreValue);
+            out.put("scoreBand", scoreBand);
+            out.put("scoreModel", scoreModel);
+            out.put("enrichmentNote", enrichmentNote);
+            return out;
+        }
+    }
+
     @Transactional
     public PackageReport run() {
         ConfigSnapshot snapshot = config.snapshot();
@@ -108,12 +217,12 @@ public class PackagingService {
             return PackageReport.nothing();
         }
 
-        List<Map<String, Object>> due = jdbc.sql(DUE).query().listOfRows();
+        List<Due> due = jdbc.sql(DUE).query(Due::of).list();
         int built = 0;
         int failed = 0;
         List<Path> folders = new ArrayList<>();
 
-        for (Map<String, Object> row : due) {
+        for (Due row : due) {
             try {
                 Path folder = build(snapshot, settings, row);
                 folders.add(folder);
@@ -121,7 +230,7 @@ public class PackagingService {
             } catch (IOException | TemplateException | RuntimeException e) {
                 // One unbuildable package must not stop the rest, and the offer stays
                 // shortlisted so the next run tries again.
-                log.error("Offer {} could not be packaged: {}", row.get("id"), e.getMessage(), e);
+                log.error("Offer {} could not be packaged: {}", row.id(), e.getMessage(), e);
                 failed++;
             }
         }
@@ -130,7 +239,7 @@ public class PackagingService {
         return new PackageReport(due.size(), built, failed, folders);
     }
 
-    private Path build(ConfigSnapshot snapshot, PipelineConfig.Packaging settings, Map<String, Object> row)
+    private Path build(ConfigSnapshot snapshot, PipelineConfig.Packaging settings, Due row)
             throws IOException, TemplateException {
         SkillProfile profile = snapshot.profile();
         String language = languageOf(row, profile);
@@ -141,10 +250,7 @@ public class PackagingService {
         Files.createDirectories(folder);
 
         Map<String, Object> model = new LinkedHashMap<>();
-        // Templates see camelCase, not the database's snake_case: `offer.fullText` is
-        // what a template author writes, and `offer.full_text` silently resolves to
-        // nothing in Freemarker rather than failing.
-        model.put("offer", camelCased(row));
+        model.put("offer", row.model());
         model.put("profile", profile);
         model.put("projects", projects);
         model.put("matchedSkills", matchedSkills);
@@ -161,14 +267,14 @@ public class PackagingService {
         }
 
         jdbc.sql("UPDATE offer SET package_dir = ?, packaged_at = now(), language = ? WHERE id = ?")
-                .params(folder.toString(), language, row.get("id"))
+            .params(folder.toString(), language, row.id())
                 .update();
 
         // The first moment there is something for a person to act on, so this is where
         // the application opens. Idempotent: a second packaging run must not reset a
         // status the operator has already moved on.
-        applications.open(((Number) row.get("id")).longValue(), ApplicationStatus.PACKAGED);
-        log.info("Offer {} packaged into {} ({})", row.get("id"), folder, String.join(", ", written));
+        applications.open(row.id(), ApplicationStatus.PACKAGED);
+        log.info("Offer {} packaged into {} ({})", row.id(), folder, String.join(", ", written));
         return folder;
     }
 
@@ -238,34 +344,34 @@ public class PackagingService {
      */
     private String writeMeta(
             Path folder,
-            Map<String, Object> row,
+            Due row,
             String language,
             List<SkillProfile.ReferenceProject> projects,
             List<String> matchedSkills)
             throws IOException {
         Map<String, Object> meta = new LinkedHashMap<>();
-        meta.put("offerId", row.get("id"));
-        meta.put("title", row.get("title"));
-        meta.put("url", row.get("url"));
-        meta.put("portal", row.get("portal"));
-        meta.put("agency", row.get("agency"));
-        meta.put("location", row.get("location"));
-        meta.put("rateEur", row.get("rate_eur"));
-        meta.put("duration", row.get("duration"));
-        meta.put("workload", row.get("workload"));
-        meta.put("startsOn", row.get("starts_on"));
-        meta.put("contact", row.get("contact"));
-        meta.put("publishedOn", row.get("published_on"));
+        meta.put("offerId", row.id());
+        meta.put("title", row.title());
+        meta.put("url", row.url());
+        meta.put("portal", row.portal());
+        meta.put("agency", row.agency());
+        meta.put("location", row.location());
+        meta.put("rateEur", row.rateEur());
+        meta.put("duration", row.duration());
+        meta.put("workload", row.workload());
+        meta.put("startsOn", row.startsOn());
+        meta.put("contact", row.contact());
+        meta.put("publishedOn", row.publishedOn());
         meta.put("language", language);
-        meta.put("incomplete", row.get("enrichment_note") != null);
-        meta.put("enrichmentNote", row.get("enrichment_note"));
-        meta.put("score", row.get("score_value"));
-        meta.put("band", row.get("score_band"));
-        meta.put("model", row.get("score_model"));
+        meta.put("incomplete", row.enrichmentNote() != null);
+        meta.put("enrichmentNote", row.enrichmentNote());
+        meta.put("score", row.scoreValue());
+        meta.put("band", row.scoreBand());
+        meta.put("model", row.scoreModel());
         meta.put(
                 "reasons",
                 jdbc.sql("SELECT factor, label, points FROM offer_score_reason WHERE offer_id = ? ORDER BY position")
-                        .param(row.get("id"))
+                    .param(row.id())
                         .query()
                         .listOfRows());
         meta.put("matchedSkills", matchedSkills);
@@ -277,7 +383,7 @@ public class PackagingService {
         meta.put(
                 "sources",
                 jdbc.sql("SELECT portal, agency, url FROM offer WHERE id = ? OR duplicate_of_id = ?")
-                        .params(row.get("id"), row.get("id"))
+                    .params(row.id(), row.id())
                         .query()
                         .listOfRows());
 
@@ -288,30 +394,10 @@ public class PackagingService {
         return "meta.json";
     }
 
-    private static Map<String, Object> camelCased(Map<String, Object> row) {
-        Map<String, Object> out = new LinkedHashMap<>();
-        row.forEach((key, value) -> out.put(camel(key), value));
-        return out;
-    }
-
-    private static String camel(String snake) {
-        StringBuilder out = new StringBuilder(snake.length());
-        boolean upper = false;
-        for (char c : snake.toCharArray()) {
-            if (c == '_') {
-                upper = true;
-            } else {
-                out.append(upper ? Character.toUpperCase(c) : c);
-                upper = false;
-            }
-        }
-        return out.toString();
-    }
-
     /**
      * The reference projects whose stack the offer actually asks for, strongest first.
      */
-    private static List<SkillProfile.ReferenceProject> referencesFor(Map<String, Object> row, SkillProfile profile) {
+    private static List<SkillProfile.ReferenceProject> referencesFor(Due row, SkillProfile profile) {
         if (profile == null || profile.referenceProjects() == null) {
             return List.of();
         }
@@ -332,7 +418,7 @@ public class PackagingService {
                 .toList();
     }
 
-    private static List<String> matchedSkills(Map<String, Object> row, SkillProfile profile) {
+    private static List<String> matchedSkills(Due row, SkillProfile profile) {
         if (profile == null || profile.core() == null) {
             return List.of();
         }
@@ -349,11 +435,10 @@ public class PackagingService {
      * when the advert has been read that way, `full_text` when it has not. A portal's own tag
      * cloud otherwise decides which reference projects a cover letter pitches.
      */
-    private static String haystack(Map<String, Object> row) {
-        String advert = ContentText.of(
-            (String) row.get("content_blocks"),
-            (String) row.getOrDefault("full_text", ""));
-        return TextFold.fold("%s %s %s".formatted(row.get("title"), row.getOrDefault("description", ""), advert));
+    private static String haystack(Due row) {
+        String advert = ContentText.of(row.contentBlocks(), row.fullText() == null ? "" : row.fullText());
+        return TextFold.fold("%s %s %s"
+            .formatted(row.title(), row.description() == null ? "" : row.description(), advert));
     }
 
     private static boolean names(String haystack, String keyword) {
@@ -370,7 +455,7 @@ public class PackagingService {
      * 0 of 1289 descriptions lack a German function word, so English really is the
      * exception this exists to catch and not the default it should collapse into.
      */
-    private static String languageOf(Map<String, Object> row, SkillProfile profile) {
+    private static String languageOf(Due row, SkillProfile profile) {
         String folded = haystack(row);
         if (GERMAN.matcher(folded).find()) {
             return "de";
@@ -384,15 +469,14 @@ public class PackagingService {
     /**
      * `{date}_{company}_{slug}`, with everything reduced to what a file system likes.
      */
-    private static String folderName(String naming, Map<String, Object> row) {
-        Object published = row.get("published_on");
-        String date = published instanceof LocalDate day
-                ? day.toString()
-                : LocalDate.now().toString();
+    private static String folderName(String naming, Due row) {
+        String date = row.publishedOn() == null
+            ? LocalDate.now().toString()
+            : row.publishedOn().toString();
         return naming.replace("{date}", date)
-                .replace("{company}", safe(String.valueOf(row.getOrDefault("agency", "unknown"))))
-                .replace("{slug}", safe(String.valueOf(row.get("title"))))
-                .replace("{id}", String.valueOf(row.get("id")));
+            .replace("{company}", safe(row.agency() == null ? "unknown" : row.agency()))
+            .replace("{slug}", safe(String.valueOf(row.title())))
+            .replace("{id}", String.valueOf(row.id()));
     }
 
     private static String safe(String value) {

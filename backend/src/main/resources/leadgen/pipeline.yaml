@@ -18,13 +18,19 @@ llm:
   # once the nightly pass is large.
   batch: ${LLM_BATCH:false}
   models:
-    # Only `scoring` is read today. The other three name stages that are deterministic or
-    # not implemented: extraction has no LLM fallback, the cover letter is a Freemarker
-    # template, and the two embedding-based deduplication strategies are logged and
-    # skipped. They stay here because the stages exist in the concept, but a value in any
-    # of them changes nothing.
+    # Only `scoring` is read today, and three stages read it: the scoring judge, the
+    # content classifier and the field extractor. One key rather than three, because a
+    # `models.content` or `models.fields` key would mean a second and third allowlist, a
+    # second and third entry in the run history and a second and third select in the
+    # header — for two bounded classifiers that answer in three lines of JSON.
+    #
+    # The other three name stages that are deterministic or not implemented: extraction
+    # has no LLM fallback in the ingest sense, the cover letter is a Freemarker template,
+    # and the two embedding-based deduplication strategies are logged and skipped. They
+    # stay here because the stages exist in the concept, but a value in any of them
+    # changes nothing.
     extraction: ${LLM_MODEL_EXTRACTION}  # not read yet
-    scoring: ${LLM_MODEL_SCORING}     # the judge, and the default of the list below
+    scoring: ${LLM_MODEL_SCORING}     # the judge, the classifier, the field extractor
     # The alternatives offered in the select beside the run button, comma separated.
     # An allowlist, not a suggestion: the chosen model travels as a request parameter,
     # and a name passed through unchecked is an arbitrary string deciding what gets
@@ -146,6 +152,20 @@ content:
       matches: 'gesch(?:ä|a)ftsf(?:ü|u)hrer:\s'
     - kind: LEGAL
       matches: 'datenschutzerkl(?:ä|a)rung:\s*https?://'
+
+# When an engagement starts, how long it runs, and by when it has to be answered — read out
+# of the advert by a model rather than by a pattern. The three facts a person sorts adverts
+# by, and the three the patterns above are worst at: `start_date` is one German date format,
+# `duration` captures a bare number rather than what the advert said, and no pattern covers a
+# deadline at all because the newsletter never states one.
+#
+# Nothing to configure but the switch. No selectors, because this reads the advert the
+# content stage already cleaned rather than the page; no patterns, because a pattern table is
+# what it replaces; and no model key, because it reads `llm.models.scoring` like the content
+# classifier does. Without a model the stage is skipped and the two enriched columns keep
+# whatever the patterns captured.
+fields:
+  enabled: true
 
 packaging:
   output_dir: ${PACKAGES_DIR:./packages}

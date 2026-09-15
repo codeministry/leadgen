@@ -19,6 +19,12 @@ import java.util.List;
  * <p>Every enriched field is nullable and null means "not stated", never zero: the
  * newsletter states a rate in 0.0 % of offers, so an unfetched ad is the normal case.
  *
+ * <p>Three of the fields come in pairs — {@code startsOn}/{@code startText},
+ * {@code duration}/{@code durationMonths}, {@code applyBy}/{@code applyByText}. The phrase is
+ * what a person reads and is often the whole truth ("ab sofort", "zunächst 6 Monate mit
+ * Option"); the normalised half is what a sort key and a filter can compare. Either may be
+ * null on its own: a phrase with no resolvable date is the ordinary case.
+ *
  * @param archivedAt    when this left the working list, or null while it is still on it.
  * @param archiveSource who took it off, or why it is exempt from the age rule. Carried
  *                      beside the timestamp because the two together are four states and not two, and a
@@ -39,7 +45,11 @@ public record OfferView(
         BigDecimal rateEur,
         Integer remotePercent,
         LocalDate startsOn,
+        String startText,
         String duration,
+        Integer durationMonths,
+        LocalDate applyBy,
+        String applyByText,
         String workload,
         String language,
         String fullText,

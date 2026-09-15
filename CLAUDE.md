@@ -953,6 +953,60 @@ be rude to the portals and slow for nothing.
   is per-offer queryable; three parameter lists in `PipelineRunRecorder` plus a migration for a number no screen yet
   reads was the first thing on the cut list.
 
+## Start, duration and deadline
+
+`backend/…/fields/`, between content segmentation and scoring. The three facts a person
+actually sorts adverts by.
+
+- **It replaces three regexes that fail silently.** `start_date` in
+  `enrichment.extract.fields` is one pattern for one German date format, so "ab sofort",
+  "Q4/2026" and "Start: KW 42" all yield nothing; `duration` captures the bare number, so
+  the `TEXT` column holds `"6"` rather than what the advert said; and no pattern covers a
+  deadline at all, because the newsletter never states one and every agency phrases it
+  differently in the fetched ad. An unmatched pattern is indistinguishable from an advert
+  that said nothing, which is the failure this stage exists to end.
+- **Each fact is a pair, and that is the design.** `start_text` beside `starts_on`,
+  `duration` beside `duration_months`, `apply_by_text` beside `apply_by`. The phrase is what
+  a person reads and is often the whole truth; the normalised value is what a sort key and a
+  filter can compare. Keeping only one loses either the reading or the ordering.
+- **It runs after `CONTENT` and before `SCORE`.** After content because it reads the advert
+  through `ContentText` — a deadline found in a portal footer is the same class of error as
+  a tag cloud counted as skill overlap. Before scoring because what it writes feeds
+  `RuleScorer`'s `project_setup` and `ChatClientJudge.describe`, and because it nulls
+  `score_model` on the offers whose values actually moved. `IngestOrderTest` pins both
+  halves.
+- **The prompt carries what the application already knows**, exactly as the judge's does:
+  the regex findings are in the message, and the model is asked to confirm or correct them.
+  A model told an ad is vague while the row beside it states a date knows less than the
+  application does.
+- **Every bound is on this side.** A phrase is cut to 200 characters, a date has to be ISO
+  and inside 2000–2100, and a month count outside 1–120 is dropped. `9999-12-31` is inside
+  no window on purpose: it is `ShortlistSort`'s "not stated" sentinel, and a stored one
+  would sort among the offers that said nothing.
+- **A value it cannot quote the advert for is discarded.** A date with no phrase is a date
+  the model inferred, and kept it would be the one line on the panel nobody can check
+  against the ad beside it.
+- **`months` is the committed minimum, never the optimistic maximum.** "6 Monate mit Option
+  auf Verlängerung" is 6 and the phrase carries the rest. Written into the prompt, because
+  it is the rule a model otherwise decides differently every run.
+- **`fields_at` is stamped only when the pass is settled and `fields_model IS NULL` is the
+  second half of the due query** — the self-healing shape `content_model IS NULL` already
+  has. An empty `Optional` from the extractor means "did not answer", which is a different
+  thing from "the advert states none of the three"; one leaves the offer due, the other is a
+  finished decision.
+- **No model configured means the stage is skipped**, and the columns keep whatever the
+  regexes wrote. *Rules before model* held: there is no deterministic half here that could
+  decide anything for free, unlike content where a pattern can label a block.
+- **It reads `llm.models.scoring`, the third stage to do so.** A `models.fields` key would
+  be a third allowlist, a third entry in the run history and a third select in the header,
+  for a bounded question answered in three lines of JSON. Which extractor answers is not a
+  parameter of the run, for the classifier's reason: a fact about an advert is not a scale.
+- **Deliberately not `@Transactional`**, the shape `EnrichmentService`, `ContentService` and
+  `ScoringService` all document.
+- **One meaning changed under an existing column.** `duration` held the regex's capture
+  group — digits — and now holds the sentence. Every row comes due on the first pass, so the
+  two spellings coexist only until then.
+
 ## The application package
 
 `backend/…/packaging/`. One folder per offer above the shortlist threshold, built at the
@@ -1391,6 +1445,54 @@ screen reads one of these, and none of them writes.
   Two catalog keys rather than one sentence with an optional tail, because "· model null" is worse than a sentence that
   does not mention one.
 
+- **Sorting is four keys, and the order *is* the cursor.** `ShortlistSort` owns one SQL
+  expression per key and derives both the `ORDER BY` and the page clause from it, so the two
+  cannot disagree. An enum and never a validated string: the type is the allowlist, so
+  nothing a caller sends reaches a statement — the same argument that keeps the band
+  boundaries on the server.
+- **A sentinel, not `NULLS LAST`, and this is not a style choice.** SQL row comparison
+  yields NULL the moment any element is NULL, so a nullable key walked with `NULLS LAST`
+  shows its unstated offers at the end of page one and loses every one of them on page two,
+  while `matched` still counts them. `coalesce(score_value, -1)` was already this rule; the
+  general form is that the sentinel is whatever value puts "not stated" last under that
+  key's direction. `keepsTheUnstatedAtTheEndOfEverySortAndNeverDropsIt` is what fails the
+  day somebody replaces it.
+- **One direction per key, fixed, and no `dir` parameter.** A row comparison is a legal
+  keyset walk only while the whole tuple moves one way, so the direction belongs to the
+  tuple — which means **under an ascending key the tiebreaker is oldest-ingested first**.
+  Direction and sentinel are also one decision: `coalesce(duration_months, -1)` puts "not
+  stated" last under DESC and *first* under ASC, so a direction parameter would change two
+  things while naming one. A reverse, if ever wanted, is a fifth named key.
+- **The cursor names its sort, and a mismatch is a 400.** Without the name, a cursor minted
+  under `score` with a leading 88 replayed under `start` reads as epoch day 88 and returns
+  an arbitrary slice with no error anywhere. The filters need no such guard: they narrow the
+  set without redefining the key. Not a silent fall back to page one either — the loader is
+  an `IntersectionObserver` sentinel, so that appends page one underneath page one. The same
+  guard turns two 500s into answers: a cursor from the old three-part form that a shared
+  link still carries, and a component that is not a number. `cursorAfter` picks its key with
+  an **exhaustive switch**, so a fifth sort added without a cursor component fails the build
+  rather than a page boundary.
+- **The page clause is kept apart from the filters, and that was a live defect.** `where()`
+  appended the cursor into the same clause `MATCHED` was formatted with, so on page two
+  `matched` and `unscored` counted the rows *after* the cursor and the number beside the list
+  shrank as the reader scrolled — precisely the defect that moved this count to the server.
+  `Filters` therefore carries `page` and `pageParams` of its own, and the store's
+  `moreLoaded` reducer no longer writes `matched`/`unscored` at all: a longer list is the
+  same match.
+- **The start window is four values that partition the set, and `unknown` is one of them.**
+  The three dated clauses all carry `IS NOT NULL`, so without it their union is not the
+  unfiltered list — and `starts_on` is set only where the advert named a resolvable day,
+  which is a minority. Any window would then hide most of the shortlist invisibly, because a
+  short list after filtering looks exactly like a filter that worked. It is
+  `remote.accept_unknown` in another costume. Selectable, it is assertable: the four counts
+  sum to the unfiltered match. The thirty days are a literal in the clause and the wire value
+  is `soon`, so the window can be retuned without invalidating every saved link.
+- **`minMonths` excludes what states nothing; `deadlineOpen` includes it.** Opposite null
+  treatments one clause apart, on purpose: "at least six months" is a claim about the offer
+  and an offer that says nothing does not make it, while "still open" is the absence of proof
+  that it closed. Exactly the pair a later tidy-up harmonises into a bug, which is why both
+  carry the reason and both are pinned by a test. `current_date` is the server's, never a
+  date the browser sends: two readers in two timezones must not get two lists.
 - **Loading more is a sentinel, not a button**, because the list is read by scrolling; its
   `IntersectionObserver` is armed only after the first render, since one attached before layout fires immediately
   against a zero-sized box and asks for page two before page one is drawn. It is measured against the pane it was given
@@ -1553,6 +1655,8 @@ docs/samples/simulate_filter.py   simulation of the hard filters
 
 backend/…/content/                block splitting, the digest, the label cache, the
                                   classifier — § Content segmentation
+backend/…/fields/                 start, duration and deadline, read out of the advert —
+                                  § Start, duration and deadline
 backend/…/llm/                    ChatModels and Answers, shared by the judge and the
                                   classifier
 frontend/src/styles.css           both DaisyUI themes, the fonts, the @theme block —
@@ -1561,7 +1665,7 @@ frontend/src/styles/tokens.css    semantic aliases, layout constants, the type s
 frontend/src/app/core/            api seams, stores, models, theme, shell
 frontend/src/app/layout/          shell, header, nav rail, theme toggle
 frontend/src/app/shared/          icon, brand mark, score, funnel rail, badge, stat tile,
-                                  empty state, page header
+                                  empty state, page header, the day pipe
 frontend/src/app/features/        dashboard, shortlist (+ offer card), offer detail,
                                   pipeline, review, sources, rules. Shortlist, pipeline
                                   and review are split views — § The split views
@@ -1665,7 +1769,26 @@ code has to reproduce — the numbers in `docs/SAMPLE-ANALYSIS.md` are the targe
     at all as the safe default. Scoring reads what is left, the detail hides the rest behind a line that says how much
     and of what kind, and re-opens it in place. What that costs and what it enforces is in § *Content segmentation*.
 
+15. ✅ **Start, duration and deadline** — the three facts a person sorts adverts by, read out
+    of the cleaned advert by a model instead of by three regexes that fail silently. Each is
+    stored as a pair: the phrase the advert used and a normalised value a sort key can
+    compare. The shortlist gained four sort keys and three filters on the back of it, with
+    the keyset intact — the cursor now names its own sort, because the order decides what its
+    leading value means. What that costs and what it enforces is in § *Start, duration and
+    deadline* and § *The read side*.
+
 ## Traps that have already cost money
+
+- **`listOfRows()` hands the driver's own types straight on, and a cast is how that becomes a
+  500.** A `jsonb` column arrives as a `PGobject` and a `TEXT[]` as a `PgArray`, so
+  `(String) row.get("content_blocks")` threw a `ClassCastException` for every advert that had
+  been segmented. `PackagingService`'s per-offer catch turned that into a counter,
+  `package_dir` was never written, and the screen said every offer above the threshold had no
+  package — for nine days, with a green suite, because every fixture set `full_text` alone.
+  The `tags` array beside it never threw at all; it simply reached Freemarker as a wrapper
+  around a JDBC array. **Read a row with a `RowMapper` and `rs.getString(...)`**, which is
+  where the driver renders jsonb as text and where the other three readers of that column
+  already are.
 
 - **Reformatting an applied migration takes every deployed database down.** Flyway hashes the file's bytes, so
   realigning a column list or moving a `(` to its own line changes the checksum of a migration that ran months ago, and

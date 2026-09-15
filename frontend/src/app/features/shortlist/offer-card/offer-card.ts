@@ -5,16 +5,34 @@ import {ShortlistEntry} from '@core/model/shortlist-entry';
 import {Badge} from '@shared/badge/badge';
 import {Icon} from '@shared/icon/icon';
 import {Score} from '@shared/score/score';
+import {DayPipe} from '@shared/date/day.pipe';
 
 @Component({
     selector: 'lg-offer-card',
-    imports: [Badge, Icon, RouterLink, Score, TranslocoPipe],
+  imports: [Badge, DayPipe, Icon, RouterLink, Score, TranslocoPipe],
     templateUrl: './offer-card.html',
     styleUrl: './offer-card.css',
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class OfferCard {
     readonly entry = input.required<ShortlistEntry>();
+
+  /**
+   * The start and the deadline, each as the advert phrased it or as a day when it did not
+   * phrase anything.
+   *
+   * <p>They are a second meta line and only when one of them is known, rather than two more
+   * items on the first. Six items on a 36rem column wrap to three lines on every card, and
+   * this is the surface that is scanned twenty at a time — the description teaser was taken
+   * off it for exactly that reason. Most cards state neither, so most cards cost nothing.
+   */
+  protected readonly startLabel = computed(
+    () => this.entry().offer.startText ?? this.entry().offer.startsOn,
+  );
+
+  protected readonly deadlineLabel = computed(
+    () => this.entry().offer.applyByText ?? this.entry().offer.applyBy,
+  );
 
     /**
      * Whether this is the offer the detail column is showing. Passed in from the routed id

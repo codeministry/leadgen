@@ -36,6 +36,7 @@ public record PipelineConfig(
         @Valid Sources sources,
         @Valid @NotNull Enrichment enrichment,
         @Valid Content content,
+        @Valid Fields fields,
         @Valid @NotNull Packaging packaging,
         @Valid Digest digest,
         @Valid Security security) {
@@ -135,6 +136,23 @@ public record PipelineConfig(
          */
         public record Rule(@NotBlank String kind, @NotBlank String matches) {
         }
+    }
+
+    /**
+     * When an engagement starts, how long it runs, and by when it has to be answered.
+     *
+     * <p>Optional, and absent means the stage does not run: {@code starts_on} and {@code
+     * duration} then hold whatever the enrichment patterns captured, which is what every
+     * version before this did.
+     *
+     * <p>There is nothing to configure beyond the switch, and that is deliberate. No
+     * selectors, because the stage reads the advert the content stage already cleaned rather
+     * than the page; no patterns, because a pattern table is exactly what this replaces; and
+     * no model key, because it reads {@code llm.models.scoring} like the classifier does — a
+     * {@code models.fields} key would be a third allowlist for a bounded question answered in
+     * three lines of JSON.
+     */
+    public record Fields(boolean enabled) {
     }
 
     public record Profile(@NotBlank String path) {}

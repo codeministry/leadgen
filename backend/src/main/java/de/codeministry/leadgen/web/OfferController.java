@@ -56,9 +56,26 @@ class OfferController {
             @RequestParam(required = false) String band,
             @RequestParam(required = false) String portal,
             @RequestParam(required = false, defaultValue = "false") boolean archived,
+            @RequestParam(required = false) String sort,
+            @RequestParam(required = false) String startWindow,
+            @RequestParam(required = false) Integer minMonths,
+            @RequestParam(required = false, defaultValue = "false") boolean deadlineOpen,
             @RequestParam(required = false) String cursor,
             @RequestParam(required = false, defaultValue = "0") int limit) {
-        return offers.shortlist(new ShortlistQuery(q, band, portal, archived, cursor, limit));
+        // Resolved here and not inside the query, because this is where a string stops being
+        // a string: the enums are the allowlist, so a name nobody defined is refused at the
+        // edge with a sentence and never reaches a statement.
+        return offers.shortlist(new ShortlistQuery(
+            q,
+            band,
+            portal,
+            archived,
+            ShortlistSort.of(sort),
+            StartWindow.of(startWindow),
+            minMonths,
+            deadlineOpen,
+            cursor,
+            limit));
     }
 
     /**
@@ -153,6 +170,21 @@ class OfferController {
     @ExceptionHandler(Judges.UnknownModel.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     String unknownModel(Judges.UnknownModel e) {
+        return e.getMessage();
+    }
+
+    /**
+     * A sort, a start window or a cursor this application does not offer.
+     *
+     * <p>400 and a sentence, never a silent default: a control the server ignores is a
+     * control that lies, and a cursor replayed under the wrong sort returns a plausible wrong
+     * page. It also turns two shapes that used to be 500s into an answer somebody can act on
+     * — a cursor from the three-part form a shared link still carries, and a component that
+     * is not a number.
+     */
+    @ExceptionHandler(BadShortlistRequest.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    String badShortlistRequest(BadShortlistRequest e) {
         return e.getMessage();
     }
 

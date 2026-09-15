@@ -79,7 +79,7 @@
 
                 <label class="control">
                     <span class="sr-only">{{ 'shortlist.portal' | transloco }}</span>
-                    <select class="select select-sm" [value]="portal()" (change)="onPortal($event)">
+                  <select class="select select-sm portal" [value]="portal()" (change)="onPortal($event)">
                         <option value="">{{ 'shortlist.everyPortal' | transloco }}</option>
                         @for (name of store.portals(); track name) {
                             <option [value]="name">{{ name }}</option>
@@ -87,6 +87,65 @@
                     </select>
                 </label>
             </div>
+
+      <!-- Two more rows and not one. All four of the controls above wanted 558px of the
+           540px this column has, in English and in German alike, so a row holds two.
+           Selects rather than a join group: four sort keys and five windows are past
+           what a segmented control holds at this width in either language.
+
+           Each option's text is a catalog key. `[selected]` on the option and never
+           `[value]` on the select — `[value]` depends on the options existing when it
+           is written, and losing that race leaves the first option showing while the
+           URL says something else. -->
+      <div class="row">
+        <label class="control">
+          <span class="sr-only">{{ 'shortlist.sortBy' | transloco }}</span>
+          <select class="select select-sm" (change)="onSelect('sort', $event)">
+            @for (option of sortOptions; track option) {
+              <option [value]="option" [selected]="sort() === option">
+                {{ 'shortlist.sort.' + option | transloco }}
+              </option>
+            }
+          </select>
+        </label>
+
+        <label class="control">
+          <span class="sr-only">{{ 'shortlist.startWindow' | transloco }}</span>
+          <select class="select select-sm" (change)="onSelect('startWindow', $event)">
+            @for (option of startWindowOptions; track option) {
+              <option [value]="option" [selected]="startWindow() === option">
+                {{ 'shortlist.start.' + option | transloco }}
+              </option>
+            }
+          </select>
+        </label>
+      </div>
+
+      <div class="row">
+        <label class="control half">
+          <span class="sr-only">{{ 'shortlist.minDuration' | transloco }}</span>
+          <select class="select select-sm" (change)="onSelect('minMonths', $event)">
+            @for (months of minMonthsOptions; track months) {
+              <option [value]="months" [selected]="minMonths() === months">
+                {{
+                  (months === 0 ? 'shortlist.anyDuration' : 'shortlist.fromMonths')
+                    | transloco: {months: months}
+                }}
+              </option>
+            }
+          </select>
+        </label>
+
+        <button
+          type="button"
+          class="btn btn-sm"
+          [class.btn-active]="deadlineOpen()"
+          [attr.aria-pressed]="deadlineOpen()"
+          (click)="toggleDeadlineOpen()"
+        >
+          {{ 'shortlist.deadlineOpen' | transloco }}
+        </button>
+      </div>
         </div>
 
     <!-- In the column and not in the header, for the reason the filters are: it acts on

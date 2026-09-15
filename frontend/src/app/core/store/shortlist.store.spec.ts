@@ -3,9 +3,21 @@ import {HttpTestingController, provideHttpClientTesting} from '@angular/common/h
 import {TestBed} from '@angular/core/testing';
 import {injectDispatch} from '@ngrx/signals/events';
 import {ShortlistEntry} from '@core/model/shortlist-entry';
-import {ShortlistPage} from '@core/model/shortlist-page';
+import {ShortlistFilters, ShortlistPage} from '@core/model/shortlist-page';
 import {shortlistEvents} from './shortlist.events';
 import {ShortlistStore} from './shortlist.store';
+
+/** The defaults the store itself starts from, so a spec names only what it is changing. */
+const NO_FILTERS: ShortlistFilters = {
+  q: '',
+  band: 'all',
+  portal: '',
+  archived: false,
+  sort: 'score',
+  startWindow: 'any',
+  minMonths: 0,
+  deadlineOpen: false,
+};
 
 function entry(id: number): ShortlistEntry {
     return {
@@ -23,6 +35,10 @@ function entry(id: number): ShortlistEntry {
             rateEur: null,
             remotePercent: null,
             startsOn: null,
+          startText: null,
+          durationMonths: null,
+          applyBy: null,
+          applyByText: null,
             duration: null,
             workload: null,
             language: 'de',
@@ -75,9 +91,50 @@ describe('ShortlistStore', () => {
     afterEach(() => http.verify());
 
     function openList(entries: readonly ShortlistEntry[] = [entry(1), entry(2)]): void {
-        dispatch.opened({q: '', band: 'all', portal: '', archived: false});
+      dispatch.opened(NO_FILTERS);
         http.expectOne((request) => request.url === '/api/offers').flush(page(entries));
     }
+
+  it('starts a new list when the sort changes, so a cursor cannot cross sorts', () => {
+    // The server composes the ORDER BY and the keyset comparison from one expression and
+    // refuses a cursor minted under another sort. That refusal is a guard against
+    // hand-written links; what stops the browser ever sending one is this — the sort is
+    // one of the filters, and `opened` already empties the entries and the cursor.
+    dispatch.opened(NO_FILTERS);
+    http
+      .expectOne((request) => request.url === '/api/offers')
+      .flush({...page([entry(1), entry(2)]), nextCursor: 'score|88|1|1'});
+    expect(store.cursor()).toBe('score|88|1|1');
+
+    dispatch.opened({...NO_FILTERS, sort: 'start'});
+
+    expect(store.entries()).toEqual([]);
+    expect(store.cursor()).toBeNull();
+    const request = http.expectOne((call) => call.url === '/api/offers');
+    expect(request.request.params.get('sort')).toBe('start');
+    expect(request.request.params.has('cursor')).toBe(false);
+    request.flush(page([entry(3)]));
+  });
+
+  it('leaves the match count alone when the list only gets longer', () => {
+    // A longer list is the same match. The count belongs to the filters and not to how
+    // far somebody has scrolled — which is exactly the defect that moved it to the server
+    // in the first place, and it came back on the other side of the wire.
+    dispatch.opened(NO_FILTERS);
+    http
+      .expectOne((request) => request.url === '/api/offers')
+      .flush({...page([entry(1)]), matched: 120, unscored: 7, nextCursor: 'score|88|1|1'});
+
+    dispatch.moreRequested();
+    // What a server with the page clause bleeding into the count would answer.
+    http
+      .expectOne((request) => request.url === '/api/offers')
+      .flush({...page([entry(2)]), matched: 1, unscored: 0, nextCursor: null});
+
+    expect(store.entries().length).toBe(2);
+    expect(store.matched()).toBe(120);
+    expect(store.unscored()).toBe(7);
+  });
 
     it('keeps the list on screen when a detail fetch fails', () => {
         // The whole reason the two pairs exist. Before the split there was one `error`, the
@@ -99,7 +156,7 @@ describe('ShortlistStore', () => {
         dispatch.offerRequested(1);
         http.expectOne('/api/offers/1').flush(entry(1));
 
-        dispatch.opened({q: 'java', band: 'all', portal: '', archived: false});
+      dispatch.opened({...NO_FILTERS, q: 'java'});
         http
             .expectOne((request) => request.url === '/api/offers')
             .flush('boom', {status: 500, statusText: 'Server Error'});

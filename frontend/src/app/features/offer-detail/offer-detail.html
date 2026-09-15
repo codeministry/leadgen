@@ -28,7 +28,7 @@
 
     @if (entry.offer.archivedAt) {
         <p class="type-small archived-note">
-            {{ 'detail.archivedOn' | transloco: {date: entry.offer.archivedAt | date: 'dd.MM.yyyy'} }}
+          {{ 'detail.archivedOn' | transloco: {date: entry.offer.archivedAt | lgDay} }}
             @if (entry.offer.archiveSource === 'AGE') {
                 {{ 'detail.archivedByAge' | transloco }}
             }

@@ -36,17 +36,19 @@ public class OfferQueryService {
      * pipeline through a second portal, and it belongs inside the entry rather than beside
      * it.
      *
-     * <p>`%s` is where the filters go, built by {@link #where}. The ordering is the page's
-     * key as well as its sort: `coalesce(score_value, -1)` rather than `NULLS LAST` so the
-     * unscored have a value the cursor can compare, and `id` last so two offers with the
-     * same score and second cannot straddle a page boundary.
+     * <p>The first `%s` is where the filters and the page clause go, built by {@link #where};
+     * the second is the ordering, built by {@link ShortlistSort}. <b>The ordering is the
+     * page's key as well as its sort</b>, which is why it is composed from one place: the
+     * `coalesce` rather than `NULLS LAST` so that every row has a value the cursor can
+     * compare, and `id` last so two offers sharing a key and a second cannot straddle a page
+     * boundary. What each sentinel is and why is on `ShortlistSort`.
      */
     private static final String SHORTLIST = """
         SELECT o.*
         FROM offer o
         WHERE o.status = 'PASSED' AND o.duplicate_of_id IS NULL
         %s
-        ORDER BY coalesce(o.score_value, -1) DESC, o.ingested_at DESC, o.id DESC
+        ORDER BY %s
         LIMIT :limit
         """;
 
@@ -113,11 +115,19 @@ public class OfferQueryService {
         var thresholds = config.snapshot().rules().scoring().thresholds();
         var filters = where(query, thresholds);
 
-        List<Row> rows = bind(jdbc.sql(SHORTLIST.formatted(filters.sql())), filters)
+        // The page clause on the list and deliberately not on the count. Formatted into
+        // MATCHED as well — which is what shipped — it counted the rows *after* the cursor,
+        // so the number beside the list shrank as the reader scrolled. That is precisely the
+        // defect that moved this count to the server in the first place, reappearing on the
+        // other side of the wire.
+        List<Row> rows = bind(
+            jdbc.sql(SHORTLIST.formatted(filters.sql() + filters.page(), query.sort().orderBy())),
+            filters.params(),
+            filters.pageParams())
                 .param("limit", query.limit())
                 .query(OfferQueryService::row)
                 .list();
-        var counts = bind(jdbc.sql(MATCHED.formatted(filters.sql())), filters)
+        var counts = bind(jdbc.sql(MATCHED.formatted(filters.sql())), filters.params())
                 .query((rs, n) -> new int[] {rs.getInt("matched"), rs.getInt("unscored")})
                 .single();
         // The archive clause alone, and none of the filters: these two describe the set the
@@ -129,7 +139,8 @@ public class OfferQueryService {
                 .query(String.class)
                 .list();
 
-        return new ShortlistPage(entries(rows), cursorAfter(rows, query.limit()), counts[0], counts[1], total, portals);
+        return new ShortlistPage(
+            entries(rows), cursorAfter(rows, query.limit(), query.sort()), counts[0], counts[1], total, portals);
     }
 
     /**
@@ -139,26 +150,22 @@ public class OfferQueryService {
      * a short one is proof that it does not, and one wasted request at the end is cheaper
      * than a count on every page.
      */
-    private static String cursorAfter(List<Row> rows, int limit) {
+    private static String cursorAfter(List<Row> rows, int limit, ShortlistSort sort) {
         if (rows.size() < limit) {
             return null;
         }
         Row last = rows.getLast();
-        // Microseconds, not milliseconds. Postgres stores `timestamptz` to the microsecond
-        // and `now()` is the transaction's clock, so every row an ingest batch writes
-        // carries the same value down to the microsecond. Truncated to milliseconds the
-        // cursor names an instant *before* the row it came from, and the next page's
-        // `<` then excludes every row sharing that millisecond — the rest of the batch,
-        // silently. Measured: a tie test asking for four offers two at a time got three.
-        return "%d|%d|%d"
-                .formatted(last.scoreValue() == null ? -1 : last.scoreValue(), micros(last.ingestedAt()), last.id());
-    }
-
-    /**
-     * Lossless for anything Postgres can store; `toEpochMilli` is not.
-     */
-    private static long micros(java.time.Instant instant) {
-        return instant.getEpochSecond() * 1_000_000L + instant.getNano() / 1_000L;
+        // Exhaustive on purpose, and this is the only reason it is a switch rather than a
+        // method on the enum: a fifth sort key added without deciding what its cursor carries
+        // fails the build here, at the one place that has to change, instead of failing on a
+        // Tuesday at a page boundary.
+        long key = switch (sort) {
+            case SCORE -> ShortlistSort.Key.NUMBER.of(last.scoreValue());
+            case START -> ShortlistSort.Key.DAY.of(last.offer().startsOn());
+            case DEADLINE -> ShortlistSort.Key.DAY.of(last.offer().applyBy());
+            case DURATION -> ShortlistSort.Key.NUMBER.of(last.offer().durationMonths());
+        };
+        return new Cursor(sort, key, last.ingestedAt(), last.id()).encoded();
     }
 
     private List<ShortlistEntry> entries(List<Row> rows) {
@@ -181,17 +188,26 @@ public class OfferQueryService {
     /**
      * The filter clause and the values it needs, kept together so neither can be forgotten.
      *
-     * @param archive which side of the archive is being read, on its own. Two queries need
-     *                that clause without the filters, and assembling it twice is how the two disagree.
-     * @param sql     the archive clause and every filter, which is what the page and the match
-     *                count are read with.
+     * @param archive    which side of the archive is being read, on its own. Two queries need
+     *                   that clause without the filters, and assembling it twice is how the two disagree.
+     * @param sql        the archive clause and every filter. What the match count is read with, and
+     *                   what the page is read with once the page clause is appended.
+     * @param page       the cursor clause and nothing else. <b>Apart from the filters, because the
+     *                   page is not part of the match:</b> formatted into MATCHED it counts the rows after
+     *                   the cursor, so the number beside the list shrinks as the reader scrolls. Two maps
+     *                   for the same reason — the count must not be handed parameters its SQL never names.
      */
-    private record Filters(String archive, String sql, Map<String, Object> params) {}
+    private record Filters(
+        String archive, String sql, String page, Map<String, Object> params, Map<String, Object> pageParams) {
+    }
 
-    private static JdbcClient.StatementSpec bind(JdbcClient.StatementSpec statement, Filters filters) {
+    @SafeVarargs
+    private static JdbcClient.StatementSpec bind(JdbcClient.StatementSpec statement, Map<String, Object>... maps) {
         var bound = statement;
-        for (var param : filters.params().entrySet()) {
-            bound = bound.param(param.getKey(), param.getValue());
+        for (Map<String, Object> map : maps) {
+            for (var param : map.entrySet()) {
+                bound = bound.param(param.getKey(), param.getValue());
+            }
         }
         return bound;
     }
@@ -234,18 +250,42 @@ public class OfferQueryService {
                 """);
             params.put("portal", query.portal());
         }
-        if (query.cursor() != null && !query.cursor().isBlank()) {
-            String[] parts = query.cursor().split("\\|");
-            // All three columns descend together, so one row comparison walks the key.
-            sql.append(" AND (coalesce(o.score_value, -1), o.ingested_at, o.id) < (:cScore, :cAt, :cId)\n");
-            params.put("cScore", Integer.parseInt(parts[0]));
-            params.put(
-                    "cAt",
-                    java.sql.Timestamp.from(java.time.Instant.EPOCH.plus(
-                            Long.parseLong(parts[1]), java.time.temporal.ChronoUnit.MICROS)));
-            params.put("cId", Long.parseLong(parts[2]));
+        // The window's four values partition the set, which is why "unknown" is one of them
+        // rather than an absence: the three dated clauses all carry IS NOT NULL, so without
+        // it their union is not the unfiltered list, and `starts_on` is set only where the
+        // advert named a day somebody could resolve.
+        sql.append(query.startWindow().clause());
+        if (query.minMonths() != null) {
+            // The IS NOT NULL is redundant — `NULL >= 6` already drops the row — and it is
+            // written because the exclusion is a decision rather than a property of
+            // three-valued logic somebody has to know: "at least six months" is a claim about
+            // the offer, and an offer that says nothing does not make it.
+            sql.append(" AND o.duration_months IS NOT NULL AND o.duration_months >= :minMonths\n");
+            params.put("minMonths", query.minMonths());
         }
-        return new Filters(archive, sql.toString(), params);
+        if (query.deadlineOpen()) {
+            // The opposite treatment of null from the clause immediately above, on purpose:
+            // "still open" is the absence of proof that it closed, so an advert that states no
+            // deadline has not missed one. Exactly the pair a later tidy-up harmonises into a
+            // bug. `current_date` is the server's and never a date the browser sends: two
+            // readers in two timezones must not get two lists.
+            sql.append(" AND (o.apply_by IS NULL OR o.apply_by >= current_date)\n");
+        }
+
+        // The page, kept out of `sql` — see the note on Filters.
+        String page = "";
+        Map<String, Object> pageParams = new LinkedHashMap<>();
+        if (query.cursor() != null && !query.cursor().isBlank()) {
+            // One row comparison walks the key, which is legal only while every column moves
+            // in the same direction — so the direction belongs to the tuple, and the sort
+            // composes both the clause and the ORDER BY from one expression.
+            Cursor cursor = Cursor.parse(query.cursor(), query.sort());
+            page = query.sort().pageClause();
+            pageParams.put("cKey", query.sort().kind().bind(cursor.key()));
+            pageParams.put("cAt", java.sql.Timestamp.from(cursor.at()));
+            pageParams.put("cId", cursor.id());
+        }
+        return new Filters(archive, sql.toString(), page, params, pageParams);
     }
 
     /**
@@ -418,7 +458,11 @@ public class OfferQueryService {
                 rs.getObject("rate_eur", BigDecimal.class),
                 rs.getObject("remote_percent", Integer.class),
                 rs.getObject("starts_on", LocalDate.class),
+            rs.getString("start_text"),
                 rs.getString("duration"),
+            rs.getObject("duration_months", Integer.class),
+            rs.getObject("apply_by", LocalDate.class),
+            rs.getString("apply_by_text"),
                 rs.getString("workload"),
                 rs.getString("language"),
                 rs.getString("full_text"),

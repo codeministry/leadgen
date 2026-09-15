@@ -75,7 +75,16 @@ interface ShortlistState {
   bulkArchiveError: string | null;
 }
 
-const NO_FILTERS: ShortlistFilters = {q: '', band: 'all', portal: '', archived: false};
+const NO_FILTERS: ShortlistFilters = {
+  q: '',
+  band: 'all',
+  portal: '',
+  archived: false,
+  sort: 'score',
+  startWindow: 'any',
+  minMonths: 0,
+  deadlineOpen: false,
+};
 
 const initialState: ShortlistState = {
     entries: [],
@@ -145,11 +154,12 @@ export const ShortlistStore = signalStore(
       // `picked` and `pickAnchor` are deliberately untouched here, and the absence is worth
       // a sentence because it is invisible: a longer list is the same list, so what was
       // ticked stays ticked. It is also what lets a Shift-range span a page boundary.
+      // `matched` and `unscored` are deliberately not written here either, and for the same
+      // reason: a longer list is the same match. They belong to the filters, not to how far
+      // somebody has scrolled — which is the whole argument that moved them to the server.
         on(shortlistEvents.moreLoaded, ({payload}, state) => ({
             entries: [...state.entries, ...payload.entries],
             cursor: payload.nextCursor,
-            matched: payload.matched,
-            unscored: payload.unscored,
             total: payload.total,
             loadingMore: false,
         })),

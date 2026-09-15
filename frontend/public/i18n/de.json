@@ -56,7 +56,8 @@
     "language": "Sprache",
     "externalId": "Externe ID",
     "tags": "Schlagworte",
-    "description": "Beschreibung"
+    "description": "Beschreibung",
+    "deadline": "Bewerbungsfrist"
   },
   "dashboard": {
     "title": "Übersicht",
@@ -125,7 +126,26 @@
     "clearSelection": "Auswahl aufheben",
     "confirmArchiveTitle": "Diese Angebote archivieren?",
     "confirmArchiveBody": "{count, plural, one {# Angebot verlässt die Arbeitsliste. Du kannst es jederzeit aus dem Archiv zurückholen.} other {# Angebote verlassen die Arbeitsliste. Du kannst sie jederzeit aus dem Archiv zurückholen.}}",
-    "confirmArchiveConfirm": "{count, plural, one {# Angebot archivieren} other {# Angebote archivieren}}"
+    "confirmArchiveConfirm": "{count, plural, one {# Angebot archivieren} other {# Angebote archivieren}}",
+    "sortBy": "Sortierung",
+    "sort": {
+      "score": "Höchste Punktzahl",
+      "start": "Frühester Start",
+      "deadline": "Nächste Frist",
+      "duration": "Längste Dauer"
+    },
+    "startWindow": "Start",
+    "start": {
+      "any": "Beliebiger Start",
+      "now": "Start ab sofort",
+      "soon": "In 30 Tagen",
+      "later": "Später als 30 Tage",
+      "unknown": "Start nicht genannt"
+    },
+    "minDuration": "Mindestdauer",
+    "anyDuration": "Beliebige Dauer",
+    "fromMonths": "ab {months} Monaten",
+    "deadlineOpen": "Frist offen"
   },
   "offer": {
     "rateUnknown": "Satz unbekannt",
@@ -137,7 +157,9 @@
     "incomplete": "unvollständig",
     "remoteUnknown": "Remote-Anteil unbekannt",
     "remoteShare": "{percent} % remote",
-    "noAgency": "kein Vermittler genannt"
+    "noAgency": "kein Vermittler genannt",
+    "startsAt": "Start {when}",
+    "applyBy": "Frist {when}"
   },
   "detail": {
     "originalAd": "Originalanzeige",

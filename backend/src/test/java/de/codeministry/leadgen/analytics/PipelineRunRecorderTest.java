@@ -12,6 +12,7 @@ import de.codeministry.leadgen.archive.ArchiveReport;
 import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.content.ContentReport;
 import de.codeministry.leadgen.enrich.EnrichmentReport;
+import de.codeministry.leadgen.fields.FieldsReport;
 import de.codeministry.leadgen.filter.FilterReport;
 import de.codeministry.leadgen.ingest.IngestReport;
 import de.codeministry.leadgen.packaging.PackageReport;
@@ -50,6 +51,7 @@ class PipelineRunRecorderTest {
             new ArchiveReport(0, 0, 0, 0),
             new EnrichmentReport(0, 0, 0, 0, 0, 0),
         ContentReport.skipped(),
+        FieldsReport.skipped(),
             new ScoringReport(0, 0, 0, 0, 0, 0, 0),
             null,
             new PackageReport(0, 0, 0, List.of()),

@@ -30,4 +30,22 @@ export interface ShortlistFilters {
      * list over the same side, so the sentence beside the list is about what is on screen.
      */
     readonly archived: boolean;
+  /**
+   * Which order, which is also which cursor: the server composes the ORDER BY and the
+   * keyset comparison from one expression, so a cursor minted under one sort is refused
+   * under another. That is why this belongs in the filters rather than beside them — the
+   * `opened` event already clears `entries` and `cursor` on any change here, which is
+   * exactly what a sort change needs and what stops a mismatched cursor being sent at all.
+   */
+  readonly sort: string;
+  /**
+   * When the engagement starts, as one of `any`, `now`, `soon`, `later`, `unknown`. Four
+   * values that partition the set, and `unknown` is one of them on purpose: most adverts
+   * name no resolvable day, so a window without it would hide most of the list invisibly.
+   */
+  readonly startWindow: string;
+  /** The committed minimum length in months, or 0 for no minimum. */
+  readonly minMonths: number;
+  /** Only offers whose application deadline has not passed, plus those that stated none. */
+  readonly deadlineOpen: boolean;
 }

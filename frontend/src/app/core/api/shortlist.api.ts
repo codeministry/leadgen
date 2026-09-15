@@ -38,6 +38,20 @@ export class ShortlistApi {
         if (filters.archived) {
             params = params.set('archived', 'true');
         }
+      // Each behind a not-the-default guard, like the four above: a parameter that means
+      // the default is a second way to say the same thing, and it puts noise in every link.
+      if (filters.sort !== '' && filters.sort !== 'score') {
+        params = params.set('sort', filters.sort);
+      }
+      if (filters.startWindow !== '' && filters.startWindow !== 'any') {
+        params = params.set('startWindow', filters.startWindow);
+      }
+      if (filters.minMonths > 0) {
+        params = params.set('minMonths', String(filters.minMonths));
+      }
+      if (filters.deadlineOpen) {
+        params = params.set('deadlineOpen', 'true');
+      }
         if (cursor !== null) {
             params = params.set('cursor', cursor);
         }

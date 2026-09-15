@@ -76,9 +76,15 @@
    same false affordance the template comment argues against. `--lg-list-w` and not a token
    of its own: two numbers that are only ever set together are one number written twice.
 
-   Three rows and not four. All four controls in one row wanted 558px of the 540px this
-   column has — in English as well as in German, so shorter labels alone would only have
-   moved the wrap rather than removed it. */
+   Two controls to a row, never four. All four of the original ones in one row wanted 558px
+   of the 540px this column has — in English as well as in German, so shorter labels alone
+   would only have moved the wrap rather than removed it. The sort, the start window, the
+   minimum duration and the deadline toggle follow the same rule, which is why they are two
+   more rows and not one.
+
+   Every row of filters is a row of list: above the breakpoint this column is sticky with a
+   scroller of its own, so the height spent here comes straight off what is scannable. That
+   is the budget to weigh a sixth control against. */
 .filters {
     display: flex;
     flex-direction: column;
@@ -141,6 +147,13 @@
 .control input[type='search'],
 .control select {
     width: 100%;
+}
+
+/* The last filter row holds one select and a content-sized toggle, so `flex: 1` alone
+   stretches the select across the whole column and the row stops lining up with the two
+   even halves above it. Capped at a half, minus half the row gap. */
+.control.half {
+  max-width: calc(50% - 0.25rem);
 }
 
 /* Not `.list`: daisyUI ships a component under that name, and a class that happens to agree
