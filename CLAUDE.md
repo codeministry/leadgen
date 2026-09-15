@@ -989,6 +989,13 @@ actually sorts adverts by.
 - **A value it cannot quote the advert for is discarded.** A date with no phrase is a date
   the model inferred, and kept it would be the one line on the panel nobody can check
   against the ad beside it.
+- **The quote is the value, not the row.** An advert writes "Start: 01.10.2026" and
+  "Laufzeit: 12 Monate", and a model asked for a short quote returns exactly that — while the
+  card and the field row print their own label in front of it, so the screen read
+  "Start Start: 01.10.2026". Measured on the live data: 2 of 6 start phrases and 2 of 6
+  durations carried the advert's own label. The rule belongs in the prompt and not in the
+  browser, where it would be a pattern guessing at somebody else's prose. Rows written before
+  the rule keep their phrasing until something makes them due again.
 - **`months` is the committed minimum, never the optimistic maximum.** "6 Monate mit Option
   auf Verlängerung" is 6 and the phrase carries the rest. Written into the prompt, because
   it is the rule a model otherwise decides differently every run.

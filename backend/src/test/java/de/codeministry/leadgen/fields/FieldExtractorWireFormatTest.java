@@ -114,6 +114,18 @@ class FieldExtractorWireFormatTest {
     }
 
     @Test
+    void asksForTheValueAndNotTheRow() {
+        // Measured on the live data: two of six start phrases came back as "Start: 01.10.2026"
+        // and two of six durations as "Laufzeit: 12 Monate", and the card prints its own label
+        // in front of whatever it is given — so the screen read "Start Start: 01.10.2026".
+        // The prompt is where this belongs; a stripper in the browser would be a pattern
+        // guessing at somebody else's prose.
+        assertThat(FieldExtractor.instructions())
+            .contains("is the value, not the row")
+            .contains("printed twice");
+    }
+
+    @Test
     void dropsAValueItCannotQuoteTheAdvertFor() {
         // A date with no phrase is a date the model inferred. Kept, it would be the one field
         // on the screen nobody can check against the advert beside it.

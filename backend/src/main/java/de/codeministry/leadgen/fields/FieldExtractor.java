@@ -81,6 +81,10 @@ public class FieldExtractor {
               Option auf Verlängerung" is 6. "12-18 Monate" is 12.
             - Give a "text" whenever you give a value. A date you cannot quote the advert for
               is a date you inferred, and it will be discarded.
+            - The "text" is the value, not the row. Leave the advert's own label out of it:
+              "ab 01.10.2026", not "Start: ab 01.10.2026"; "12 Monate", not "Laufzeit: 12
+              Monate". The screen puts its own label in front of what you return, so a label
+              inside it is printed twice.
             - Some facts may already be stated below the advert, read out of it by a pattern.
               They can be wrong or half-read. Correct them from the advert; your answer is the
               one that is kept.

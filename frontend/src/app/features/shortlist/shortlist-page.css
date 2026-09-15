@@ -100,6 +100,27 @@
     gap: 0.5rem;
 }
 
+/* Something happened that this list has not read.
+
+   Capped to the column it speaks for, like the filters above it, and given real room on both
+   sides: it sits between a dense block of controls and a dense list of cards, and without the
+   margins it reads as one more row of chrome rather than as news. The bottom margin is the
+   larger of the two because what follows is the list itself.
+
+   Petrol and never the accent: ochre means "this survived the filter" and nothing else. */
+.stale-hint {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  max-width: var(--lg-list-w);
+  gap: 0.75rem;
+  margin: 1.25rem 0 1.5rem;
+  padding: 0.625rem 0.875rem;
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-field);
+  background-color: var(--lg-selected-surface);
+}
+
 /* Capped like the filter block above it and for the same reason: it belongs to the list
    column, not to the page. Not sticky inside the pane — above the breakpoint the whole
    column is already sticky, and below it this scrolls away with the filters, which is what
