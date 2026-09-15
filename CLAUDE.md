@@ -962,8 +962,11 @@ actually sorts adverts by.
   `enrichment.extract.fields` is one pattern for one German date format, so "ab sofort",
   "Q4/2026" and "Start: KW 42" all yield nothing; `duration` captures the bare number, so
   the `TEXT` column holds `"6"` rather than what the advert said; and no pattern covers a
-  deadline at all, because the newsletter never states one and every agency phrases it
-  differently in the fetched ad. An unmatched pattern is indistinguishable from an advert
+  deadline at all, because the *newsletter* never states one and every agency phrases it
+  differently in the fetched ad. **The fetched ad does state one, often** — measured on the
+  deployed corpus, 9 of 21 offers on the working list, one of them already expired. So the
+  deadline is the field with the most to gain from this stage and the one the sample corpus
+  is least able to show. An unmatched pattern is indistinguishable from an advert
   that said nothing, which is the failure this stage exists to end.
 - **Each fact is a pair, and that is the design.** `start_text` beside `starts_on`,
   `duration` beside `duration_months`, `apply_by_text` beside `apply_by`. The phrase is what
@@ -1681,6 +1684,15 @@ code has to reproduce — the numbers in `docs/SAMPLE-ANALYSIS.md` are the targe
   in the subject matches exactly in all 14. `fallback: none` for this source.
 - **0.0 % contain an hourly rate.** Rate, duration, workload and start date only arrive
   from the enrichment stage (fetching the original ad from the portal).
+- **0 of 1289 state an application deadline, and that is a property of the newsletter, not
+  of the market.** Measured on the deployed instance after the first field-extraction pass:
+  19 of 21 offers on the working list stated at least one of start, duration or deadline, **9 of them a deadline**,
+  dates from 08.09. to 30.09., one already expired. A start is
+  stated as a phrase far more often than as a day — 18 phrases, 4 resolvable to a calendar
+  day, because "Oktober 2026" is a month and a month is not a day. This is the number to
+  re-measure before concluding that a field is empty: the sample corpus under
+  `docs/samples/` cannot show it, since the deadline only appears in the ad the enrichment
+  stage fetches.
 - The hard filter's share depends entirely on the rules, so the archive's own measurement
   is written by `simulate_filter.py` into `docs/samples/filter-baseline.json` and the corpus
   test asserts against that file rather than against a number kept here. At
