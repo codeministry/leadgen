@@ -2,6 +2,10 @@
    The query container is the shortlist's detail pane, not this host — see the note there. */
 :host {
     display: block;
+
+  /* The containing block for the close control, which is pinned to this corner rather than
+     laid out in the header's wrapping action row. */
+  position: relative;
 }
 
 .grid {
@@ -244,4 +248,36 @@
 /* A failed fetch, in the same red the shortlist uses for the same thing. */
 .error {
     color: var(--color-error);
+}
+
+/* On the title's first line and hard against the right edge, whatever the header's row does
+   below it. `top: 0` rather than a centring translate: the button is 2rem and the `type-h2`
+   line it sits beside is about that, so the two read as one row without a measurement that
+   would go stale the moment the type scale moves. */
+.close {
+  position: absolute;
+  top: 0;
+  right: 0;
+}
+
+/* The header pays for the space it does not occupy. Set on the element this component owns,
+   because emulated encapsulation puts the inner title block out of reach — and without it a
+   long title runs underneath the button. */
+lg-page-header.has-close {
+  display: block;
+  padding-right: 2.5rem;
+}
+
+/* One way out at every width. Below the split's breakpoint the detail replaces the board and
+   the screen around it offers "back to the board"; two controls making the same jump, one of
+   them a bare icon, is one too many on the narrowest screen. The number is the split's own,
+   stated once on each side — see `pipeline.css`. */
+@media (width < 72rem) {
+  .close {
+    display: none;
+  }
+
+  lg-page-header.has-close {
+    padding-right: 0;
+  }
 }

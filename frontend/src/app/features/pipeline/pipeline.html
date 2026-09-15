@@ -98,6 +98,12 @@
             [attr.aria-label]="'pipeline.detailLabel' | transloco"
     >
         @if (selectedId() !== null) {
+          <!--
+            Only below the breakpoint, where the detail replaces the board and leaving it is
+            "back". Above it the board is beside the detail, there is nothing to go back to,
+            and the way out is the close control in the detail's own header — on the title's
+            line, where the eye already is.
+          -->
             <a class="btn btn-sm btn-ghost back" routerLink="/pipeline">
                 <lg-icon name="arrow-left" [size]="16"/>
                 {{ 'pipeline.backToBoard' | transloco }}

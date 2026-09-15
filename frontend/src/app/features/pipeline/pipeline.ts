@@ -1,12 +1,12 @@
 import {
-    ChangeDetectionStrategy,
-    Component,
-    computed,
-    effect,
-    ElementRef,
-    inject,
-    OnInit,
-    viewChild,
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  ElementRef,
+  inject,
+  OnInit,
+  viewChild,
 } from '@angular/core';
 import {toSignal} from '@angular/core/rxjs-interop';
 import {ActivatedRoute, NavigationEnd, Router, RouterLink, RouterOutlet} from '@angular/router';
@@ -42,7 +42,14 @@ import {StatusPicker} from '@shared/status-picker/status-picker';
     // Whether the right column is showing an offer, the same flag the shortlist carries: the
     // page header sits outside the split and has to disappear with the board on a narrow
     // screen, so one class is read by every rule that needs it.
-    host: {'[class.detail-open]': 'selectedId() !== null'},
+  host: {
+    '[class.detail-open]': 'selectedId() !== null',
+    // On the screen and not on the reading column: a reader who has just clicked a card
+    // still has the focus in the board, which is exactly the moment Escape is wanted.
+    // The shortlist binds `j`/`k` to its list pane for the opposite reason — those are
+    // letters somebody types into the search field, and Escape is nobody's text.
+    '(keydown.escape)': 'closeDetail($event)',
+  },
 })
 export class Pipeline implements OnInit {
     private readonly dispatch = injectDispatch(applicationEvents);
@@ -65,6 +72,30 @@ export class Pipeline implements OnInit {
      * The offer the child route is showing. Read from the route rather than held here, so a
      * deep link, the back button and a card click cannot disagree about what is open.
      */
+  /**
+   * Escape deselects the offer, which is the same navigation the close control makes.
+   *
+   * Ignored while nothing is open, so the key stays free for whatever else might want it,
+   * and ignored inside a native `select` — every card carries the status picker, and a
+   * browser that is showing its dropdown has its own answer for Escape. A closed select
+   * does not bubble anything worth keeping either way; the guard is there so the two
+   * meanings can never be confused by a reader of this file.
+   */
+  protected closeDetail(event: Event): void {
+    // `Event` and not `KeyboardEvent`: Angular types `$event` on a keyed host binding as
+    // the base type, and `strictTemplates` refuses the narrower signature at build time
+    // only — `check:static` does not run the template compiler and says nothing.
+
+    if (this.selectedId() === null) {
+      return;
+    }
+    if ((event.target as HTMLElement | null)?.closest('select') !== null) {
+      return;
+    }
+    event.preventDefault();
+    void this.router.navigate(['/pipeline']);
+  }
+
     protected readonly selectedId = computed<number | null>(() => {
         this.navigated();
         const raw = this.route.snapshot.firstChild?.paramMap.get('id') ?? null;

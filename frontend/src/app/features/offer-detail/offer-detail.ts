@@ -29,6 +29,7 @@ import {PageHeader} from '@shared/page-header/page-header';
 import {Markdown} from '@shared/markdown/markdown';
 import {Score} from '@shared/score/score';
 import {DayPipe} from '@shared/date/day.pipe';
+import {RouterLink} from '@angular/router';
 
 /**
  * How much advert is worth showing before it is folded away.
@@ -86,6 +87,7 @@ interface Field {
         Icon,
         Markdown,
         PageHeader,
+      RouterLink,
         Score,
         TranslocoPipe,
     ],
@@ -107,6 +109,21 @@ export class OfferDetail implements OnInit {
 
     /** Bound from the route parameter by `withComponentInputBinding()`. */
     readonly id = input.required<string>();
+
+  /**
+   * Where the close control navigates, or null when this detail has no way out of its own.
+   *
+   * Comes from the route's `data`, so the screen that owns the column decides. The board's
+   * reading column exists only while something is being read and closing it hands the lanes
+   * their width back; the shortlist opens its first entry by itself, so a close there would
+   * be undone on the next tick.
+   *
+   * The transform is the one every routed input needs: an absent value binds as `undefined`
+   * and would override the declared default.
+   */
+  readonly closeTo = input<string | null, string | undefined>(null, {
+    transform: (value) => value ?? null,
+  });
 
     /**
      * Fetched by id rather than found in the shortlist. The detail has to work on a reload,

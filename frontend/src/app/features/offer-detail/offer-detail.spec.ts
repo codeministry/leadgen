@@ -89,9 +89,36 @@ describe('OfferDetail', () => {
         return fixture.nativeElement.querySelector('.ad-toggle');
     }
 
+  function close(fixture: ComponentFixture<OfferDetail>): HTMLAnchorElement | null {
+    return fixture.nativeElement.querySelector('a.close');
+  }
+
   function reveals(fixture: ComponentFixture<OfferDetail>): HTMLButtonElement[] {
     return Array.from(fixture.nativeElement.querySelectorAll('.ad-reveal'));
   }
+
+  it('offers a way out only where the route says there is one', () => {
+    // `closeTo` comes from the route's data, so the screen that owns the reading column
+    // decides. The board's exists only while something is being read; the shortlist opens
+    // its first entry by itself, so a close there would be undone on the next tick.
+    const fixture = render(entry(9, null));
+    expect(close(fixture)).toBeNull();
+
+    fixture.componentRef.setInput('closeTo', '/pipeline');
+    fixture.detectChanges();
+
+    const link = close(fixture)!;
+    expect(link).not.toBeNull();
+    expect(link.getAttribute('href')).toBe('/pipeline');
+    expect(link.getAttribute('aria-label')).toBeTruthy();
+
+    // Beside the header and not inside its action row: that row wraps, and a close
+    // control that wraps with it ends up below the title it closes. The header pays for
+    // the space instead, so a long title never runs under the button.
+    const header: HTMLElement = fixture.nativeElement.querySelector('lg-page-header');
+    expect(header.contains(link)).toBe(false);
+    expect(header.classList).toContain('has-close');
+  });
 
     it('folds a long advert and offers to unfold it', () => {
         const fixture = render(entry(1, LONG_AD));

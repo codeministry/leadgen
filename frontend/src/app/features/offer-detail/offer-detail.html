@@ -1,5 +1,10 @@
 @if (entry(); as entry) {
-    <lg-page-header heading="h2" [title]="entry.offer.title" [subtitle]="entry.offer.portal">
+  <lg-page-header
+    heading="h2"
+    [class.has-close]="closeTo() !== null"
+    [title]="entry.offer.title"
+    [subtitle]="entry.offer.portal"
+  >
         @if (entry.offer.url; as url) {
             <!-- Out of the application, so a new tab, and `noopener` with it: a page opened
                  this way can otherwise reach back through `window.opener`, and this URL came off
@@ -26,7 +31,30 @@
         </button>
     </lg-page-header>
 
-    @if (entry.offer.archivedAt) {
+  <!--
+    Beside the header rather than inside its action row, and that is the whole reason it is
+    pinned: the row wraps, so in a 30rem reading column the actions drop below a title that
+    is three lines long and a close control there ends up 60px under the thing it closes.
+    Absolutely placed against this component's top-right corner it stays on the title's
+    first line at every width, and `.has-close` on the header pays for the space so a long
+    title never runs beneath it.
+
+    Inside this component rather than in the pane around it, because the pane cannot project
+    anything through a `router-outlet` — and `closeTo` comes from the route, so the screen
+    that owns the column is still the one deciding whether there is a way out at all.
+  -->
+  @if (closeTo(); as target) {
+    <a
+      class="btn btn-sm btn-square btn-ghost close"
+      [routerLink]="target"
+      [attr.aria-label]="'detail.close' | transloco"
+      [attr.title]="'detail.close' | transloco"
+    >
+      <lg-icon name="x" [size]="16"/>
+    </a>
+  }
+
+  @if (entry.offer.archivedAt) {
         <p class="type-small archived-note">
           {{ 'detail.archivedOn' | transloco: {date: entry.offer.archivedAt | lgDay} }}
             @if (entry.offer.archiveSource === 'AGE') {

@@ -149,7 +149,9 @@
     background-color: var(--lg-selected-surface-hover);
 }
 
-/* Mobile-last: the way back exists only where the board is not on screen beside it. */
+/* Mobile-last: the way back exists only where the board is not on screen beside it. Above the
+   breakpoint the board is right there, so there is nothing to go back to and what the reader
+   wants is the lanes' width returned — which is what the detail's own close control does. */
 .back {
     display: none;
 }

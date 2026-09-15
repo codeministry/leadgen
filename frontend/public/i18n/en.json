@@ -197,7 +197,8 @@
       "TAXONOMY": "portal tags",
       "AGENCY": "agency signature",
       "LEGAL": "legal notice"
-    }
+    },
+    "close": "Close the offer"
   },
   "application": {
     "title": "Where this stands",

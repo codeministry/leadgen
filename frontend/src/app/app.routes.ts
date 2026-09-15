@@ -67,6 +67,13 @@ export const routes: Routes = [
                 // this pattern removes.
                 path: ':id',
                 title: 'Offer · Lead Generation',
+              // Where the detail's close control goes, bound straight onto the component's
+              // `closeTo` input by `withComponentInputBinding()`. Route data rather than a
+              // flag the component derives from the URL: the shortlist auto-selects its
+              // first entry, so closing there would re-open it on the next tick, and the
+              // honest way to say "this one is closable and that one is not" is in the
+              // route that knows.
+              data: {closeTo: '/pipeline'},
                 loadComponent: () =>
                     import('@features/offer-detail/offer-detail').then((m) => m.OfferDetail),
             },

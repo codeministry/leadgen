@@ -197,7 +197,8 @@
       "TAXONOMY": "Portal-Schlagworte",
       "AGENCY": "Agentur-Signatur",
       "LEGAL": "Rechtliches"
-    }
+    },
+    "close": "Angebot schließen"
   },
   "application": {
     "title": "Wie es hier steht",
