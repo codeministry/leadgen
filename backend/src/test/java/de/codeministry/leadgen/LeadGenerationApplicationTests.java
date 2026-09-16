@@ -61,7 +61,11 @@ class LeadGenerationApplicationTests {
         var tables = jdbc.queryForList(
                 "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'", String.class);
 
-        assertThat(tables).contains("source", "offer", "ingest_cursor", "flyway_schema_history");
+        assertThat(tables).contains("source", "offer", "source_run", "flyway_schema_history");
+        // Dropped in V21 with the classes that stopped reading it: progress is a user flag in
+        // the mailbox now, and a schema that still offered the old mechanism was a promise the
+        // code no longer kept.
+        assertThat(tables).doesNotContain("ingest_cursor");
     }
 
     @Test

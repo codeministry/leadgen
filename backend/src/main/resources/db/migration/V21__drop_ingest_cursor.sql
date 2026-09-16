@@ -1,0 +1,19 @@
+-- The IMAP cursor table, dropped.
+--
+-- `ingest_cursor` tracked progress per folder as UIDVALIDITY plus the last UID, and it has
+-- been read by nothing since the connector moved to Spring Integration's `ImapMailReceiver`,
+-- which marks what it has handed over with a user flag written into the mailbox. Two ways to
+-- remember the same thing is one too many, and the one nobody reads is the one that rots:
+-- `IngestCursor` and `IngestCursorStore` went with this migration.
+--
+-- What was given up when the cursor went is recorded in `docs/decisions/pipeline-ingest.md`,
+-- and it did not change today: the owner's mailbox is no longer left untouched, a message the
+-- selector skipped now counts as handed over, and there is no equivalent of a UIDVALIDITY
+-- reset. Dropping the table does not make any of that worse — it only stops a schema claiming
+-- a mechanism the code abandoned.
+--
+-- **This is not reversible by rolling the application back.** A deploy that returns to an
+-- older jar finds no table, and the classes that would have read it are gone from that jar's
+-- successor rather than from the jar itself. Nothing in the running system reads it, so the
+-- loss is the rows, which are a resumption point for a cursor nobody consults.
+DROP TABLE IF EXISTS ingest_cursor;

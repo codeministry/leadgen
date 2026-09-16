@@ -40,6 +40,7 @@ class HardFilterTest {
     static Path configDir;
 
     private static HardFilter filter;
+    private static de.codeministry.leadgen.config.ConfigSnapshot snapshot;
 
     @BeforeAll
     static void loadFictionalRules() {
@@ -48,7 +49,7 @@ class HardFilterTest {
         copyDefault("pipeline.yaml");
         copyDefault("sources.yaml");
 
-        var snapshot = ConfigFixtures.loaderFor(configDir, VALIDATOR).load();
+        snapshot = ConfigFixtures.loaderFor(configDir, VALIDATOR).load();
         filter = new HardFilter(snapshot.rules(), snapshot.profile());
     }
 
@@ -119,6 +120,23 @@ class HardFilterTest {
         assertThat(judge(offer("Barista", "Espresso, nichts über Remote", "Beispielheim"))
                         .passed())
                 .isTrue();
+    }
+
+    @Test
+    void rejectsAnUnstatedShareOnceAcceptUnknownIsSwitchedOff() {
+        // The flag used to be rendered on the rules screen, validated at load and read by
+        // nobody: setting it to false changed nothing at all. This is the test that says it
+        // does something now — and the one beside it says the default still keeps them, so
+        // nothing moved for anybody who did not ask.
+        var strict = new HardFilter(withAcceptUnknown(false), snapshot.profile());
+
+        var verdict = strict.judge(offer("Barista", "Espresso, nichts über Remote", "Beispielheim"));
+
+        assertThat(verdict.stage()).isEqualTo(FilterStage.REMOTE_SHARE);
+        assertThat(verdict.reason()).contains("no remote share stated");
+        // A stated share is still judged by the minimum and not by the flag.
+        assertThat(strict.judge(offer("Barista", "Espresso, 80 % remote", "Beispielheim")).passed())
+            .isTrue();
     }
 
     @Test
@@ -210,4 +228,30 @@ class HardFilterTest {
             throw new UncheckedIOException(e);
         }
     }
+
+    /**
+     * The fixture's rules with one flag flipped. Rebuilt rather than parsed from a second
+     * file, so the two cases differ in exactly the one value under test.
+     */
+    private static de.codeministry.leadgen.config.model.MatchingRules withAcceptUnknown(boolean accept) {
+        var rules = snapshot.rules();
+        var filters = rules.hardFilters();
+        var remote = filters.remote();
+        return new de.codeministry.leadgen.config.model.MatchingRules(
+            rules.version(),
+            new de.codeministry.leadgen.config.model.MatchingRules.HardFilters(
+                new de.codeministry.leadgen.config.model.MatchingRules.HardFilters.Remote(
+                    remote.minRemotePercent(), accept, remote.rejectKeywordsDe(), remote.deriveFrom()),
+                filters.location(),
+                filters.rate(),
+                filters.role(),
+                filters.contract(),
+                filters.language(),
+                filters.freshness()),
+            rules.scoring(),
+            rules.antiSkills(),
+            rules.deduplication(),
+            rules.followUp());
+    }
+
 }

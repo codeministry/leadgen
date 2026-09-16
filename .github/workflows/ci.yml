@@ -58,6 +58,22 @@ jobs:
       - name: Check
         run: ./gradlew check --no-daemon --stacktrace
 
+      # The one thing Spotless was doing that nothing else does. It is off in
+      # `backend/build.gradle.kts`, so the SPDX header on a new Java file is copied by hand —
+      # and a file without one is a licence statement missing from a published Apache-2.0
+      # repository, which nobody notices in review because the header is the part nobody
+      # reads. Grep, not a plugin: it is one rule, it needs no formatter, and it says exactly
+      # which file is missing it. Re-enabling Spotless replaces this step.
+      - name: Every Java file carries its SPDX header
+        run: |
+          missing=$(find backend/src -name '*.java' -print0 \
+            | xargs -0 grep -L 'SPDX-License-Identifier: Apache-2.0' || true)
+          if [ -n "$missing" ]; then
+            echo "Missing the SPDX header:" >&2
+            echo "$missing" >&2
+            exit 1
+          fi
+
       # Uploaded rather than gated. A coverage threshold set on the day the tool is
       # introduced is a threshold somebody disables the first time it is inconvenient; the
       # number is worth having as a trend long before it is worth having as a gate.

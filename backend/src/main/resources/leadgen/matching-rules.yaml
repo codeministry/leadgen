@@ -7,7 +7,11 @@ version: 1
 hard_filters:
   remote:
     min_remote_percent: 80
-    accept_unknown: true            # missing figure -> keep, flag as "unknown"
+    # An offer that states no share at all. True keeps it and flags it as unknown, which is
+    # what the data asks for: the sources state one in 8.8 % of offers. False rejects it at
+    # this stage, and only while a minimum above zero is required — at
+    # `min_remote_percent: 0` nothing is required, so silence cannot be a reason.
+    accept_unknown: true
     reject_keywords_de: [ "100% vor Ort", "vollständig vor Ort", "kein Remote", "Präsenzpflicht", "5 Tage vor Ort" ]
     # Many sources state the remote share rarely; derive it from location and title.
     derive_from:
@@ -31,8 +35,10 @@ hard_filters:
   rate:
     min_hourly_eur: 60
     currency: EUR
-    # If your source rarely carries a rate, keep accept_unknown true and let the
-    # enrichment stage supply it — otherwise this rule filters out everything.
+    # Read by nothing today, and this is the honest reason: the rate rule itself does not run
+    # in the hard filter. `apply_after: enrichment` is enforced at load, the sources state a
+    # rate in 0.0 % of offers, and a flag on a rule that has not run has nothing to decide.
+    # Its sibling under `remote:` is read.
     accept_unknown: true
     apply_after: enrichment
     reject_below_as: HARD_FAIL

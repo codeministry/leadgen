@@ -212,14 +212,11 @@ an editor command aimed at the whole repository.
   `.editorconfig` switches the IntelliJ formatter off for `db/migration/*.sql` for exactly this reason.
 ## Open
 
-- **CI.** The tooling baseline is in place (`.editorconfig`, ESLint, Prettier,
-  Stylelint), but no pipeline runs it yet.
+- **Spotless is off, so a new Java file's SPDX header is copied by hand.** The reason is in
+  `backend/build.gradle.kts`. Nothing enforces the header today; `licenseHeaderIsOnEveryJavaFile`
+  in `ci.yml` is the stopgap, and re-enabling Spotless is the real answer.
 - Which folder in the IMAP mailbox the newsletter lands in — deployment detail, and it
   does not belong in a committed file.
-- **`lg-page-header` has no step below `h2`.** The board's reading column made this visible — the advert's title wrapped
-  to six lines at 30rem — and `--lg-detail-w` going to 40rem bought enough width that it stopped being urgent rather
-  than fixing it. A parent's styles do not reach a component host the router created, so the fix is a third heading
-  level on the component itself.
 
 ## Settled
 

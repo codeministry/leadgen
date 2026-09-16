@@ -43,6 +43,7 @@ public final class HardFilter {
     private final List<Pattern> rejectedContracts;
     private final Pattern remotePercent;
     private final int minRemotePercent;
+    private final boolean acceptUnknownRemote;
 
     public HardFilter(MatchingRules rules, SkillProfile profile) {
         MatchingRules.HardFilters filters = rules.hardFilters();
@@ -57,6 +58,7 @@ public final class HardFilter {
                 filters.contract() == null ? List.of() : filters.contract().rejected());
         this.coreSkills = compile(coreSkillsOf(profile));
         this.minRemotePercent = filters.remote() == null ? 0 : filters.remote().minRemotePercent();
+        this.acceptUnknownRemote = filters.remote() == null || filters.remote().acceptUnknown();
         this.remotePercent = Pattern.compile("(\\d{1,3})\\s*%\\s*remote");
     }
 
@@ -85,10 +87,23 @@ public final class HardFilter {
                 return FilterVerdict.rejected(
                         FilterStage.REMOTE_SHARE, stated + " % remote, the minimum is " + minRemotePercent + " %");
             }
+        } else if (!acceptUnknownRemote && minRemotePercent > 0) {
+            // `remote.accept_unknown: false` finally does something. It was rendered on the
+            // rules screen, validated at load and read by nobody: setting it changed nothing,
+            // which is the class of defect this repository names three times over and kept
+            // carrying. The default is `true` and stays true, so nothing moves for anybody who
+            // has not asked for this — the sources state a share in 8.8 % of offers, and
+            // rejecting the rest by default would empty the shortlist.
+            //
+            // Paired with the minimum for the same reason `OUT_OF_REACH` is: at
+            // `min_remote_percent: 0` no share is required at all, so an unstated one cannot
+            // be a reason to reject.
+            return FilterVerdict.rejected(FilterStage.REMOTE_SHARE, "no remote share stated");
         }
 
-        // An unstated share is not a rejection: `remote.accept_unknown` is true because
-        // the sources state one in 8.8 % of offers. It survives and is flagged instead.
+        // An unstated share is not a rejection while `remote.accept_unknown` is true, and it
+        // is true by default because the sources state one in 8.8 % of offers. It survives and
+        // is flagged instead.
         boolean remote = matches(remoteTokens, location) || matches(remoteTokens, blob);
         // `min_remote_percent: 0` means no remote share is required, which means being on
         // site is acceptable — and then it is acceptable anywhere, so the city list stops

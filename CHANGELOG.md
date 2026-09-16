@@ -9,6 +9,34 @@ may change in any release. See the status note in the README.
 
 ## [Unreleased]
 
+### Changed
+
+- **`remote.accept_unknown` finally does something.** It was rendered on the rules screen,
+  validated at load and read by nobody: setting it to `false` changed nothing at all. An offer
+  that states no remote share is now rejected at the `REMOTE_SHARE` stage when the flag is off *and* a minimum above
+  zero is required — at `min_remote_percent: 0` nothing is required, so
+  silence cannot be a reason. The default is `true` and stays true, so nothing moves for anyone
+  who has not asked for it. Its sibling under `rate:` is still read by nothing, and the shipped
+  file now says why: the rate rule itself does not run in the hard filter.
+- **`lg-page-header` has a third heading level.** A panel that opens inside a screen sits under
+  that screen's own `h2`, so it needed an `h3` — and until now two screens had worked around
+  not having one by setting the type scale on a bare heading.
+
+### Removed
+
+- **`ingest_cursor`, `IngestCursor` and `IngestCursorStore`** (`V21`). Progress has been a user
+  flag in the mailbox since the connector moved to Spring Integration; the cursor was read by
+  nobody, and two ways to remember the same thing is one too many. **The migration drops the
+  table**, so a rollback to an older jar finds no cursor to resume from — nothing reads it, so
+  what is lost is a resumption point nobody consults.
+
+### Fixed
+
+- **Nothing enforced the SPDX header on a new Java file.** Spotless has been off since the
+  formatting fallout, and the header is the part of a file nobody reads in review — on an
+  Apache-2.0 repository that is a licence statement quietly going missing. CI greps for it now,
+  which is one rule and names the file that lacks it. Re-enabling Spotless replaces the step.
+
 ## [0.3.1] — 2026-09-16
 
 A release about the one screen that exists to explain a source, and could not.

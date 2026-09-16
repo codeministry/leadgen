@@ -100,9 +100,11 @@ upserts it. `POST /api/ingest` runs one pass.
   recreated folder has no equivalent of the `UIDVALIDITY` reset. `flaggedAsFallback` is off,
   so a server without user flags gets no marker rather than a `\Flagged` the owner would see.
   What still holds: no `\Seen`, no `\Flagged`, no `\Deleted`.
-- **`IngestCursor` and `IngestCursorStore` are read by nobody now**, and the `ingest_cursor`
-  table is still there. Dead code of exactly the kind this repository removes elsewhere;
-  left standing only because dropping the table is a migration and a decision.
+- **`IngestCursor`, `IngestCursorStore` and the `ingest_cursor` table are gone** (`V21`). They
+  were read by nobody once the connector moved to the user flag, and two ways to remember the
+  same thing is one too many — the one nobody reads is the one that rots. The three guarantees
+  given up with the cursor are the paragraph above; dropping the table changed none of them, it
+  only stopped a schema claiming a mechanism the code had abandoned.
 - **One failing source must not end the run.** `IngestService` catches `IngestException` per
   source, so an unreachable mailbox does not stop the file sources behind it.
 - **The `<mark>` trap is not reproducible in the current corpus** — zero occurrences in all

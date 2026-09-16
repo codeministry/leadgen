@@ -14,7 +14,6 @@ import de.codeministry.leadgen.config.ConfigFixtures;
 import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.config.model.SourcesConfig.Source;
 import de.codeministry.leadgen.ingest.connector.ImapSourceConnector;
-import de.codeministry.leadgen.ingest.store.IngestCursorStore;
 import jakarta.mail.Flags;
 import jakarta.mail.Folder;
 import jakarta.mail.Session;
@@ -66,9 +65,6 @@ class ImapSourceConnectorTest {
     private ConfigRegistry config;
 
     @Autowired
-    private IngestCursorStore cursors;
-
-    @Autowired
     private IngestService ingest;
 
     @Autowired
@@ -90,7 +86,6 @@ class ImapSourceConnectorTest {
     void setUp() {
         mailbox = MAIL.setUser(USER, USER, PASSWORD);
         jdbc.update("DELETE FROM offer");
-        jdbc.update("DELETE FROM ingest_cursor");
         // The cursor has a foreign key on `source`, so the row has to exist. Reusing a
         // literal id here made the outcome depend on which test had run before.
         sourceId = offers.sourceId("imap-newsletter", "imap");

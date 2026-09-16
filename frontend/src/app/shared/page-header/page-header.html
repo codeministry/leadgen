@@ -1,9 +1,13 @@
 <div class="mb-6 flex flex-wrap items-end justify-between gap-4">
     <div class="min-w-0 flex-1">
+      <!-- Three branches and not a class assembled from the input: the tag itself has to
+           change, and Tailwind never emits a class that is built at runtime anyway. -->
         @if (heading() === 'h1') {
             <h1 class="type-h1">{{ title() }}</h1>
-        } @else {
+        } @else if (heading() === 'h2') {
             <h2 class="type-h2">{{ title() }}</h2>
+        } @else {
+          <h3 class="type-h3">{{ title() }}</h3>
         }
         @if (subtitle(); as subtitle) {
             <p class="type-small text-muted mt-1">{{ subtitle }}</p>
