@@ -23,7 +23,7 @@ import javax.sql.DataSource;
  * between "certainly the same project" and "certainly not" is a person.
  *
  * <p><b>The configured number is a similarity and the operator is a distance.</b> pgvector's
- * {@code <=>} is cosine <em>distance</em>, so a threshold of 0.92 is a limit of 0.08. Reading
+ * {@code <=>} is cosine <em>distance</em>, so a threshold of 0.97 is a limit of 0.03. Reading
  * one as the other does not fail: it merges everything or nothing, and both look like a
  * plausible day.
  */

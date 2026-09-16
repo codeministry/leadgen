@@ -127,7 +127,7 @@ class DeduplicationServiceTest {
     @Test
     void collapsesEveryGroupToExactlyOneSurvivor() {
         // ISC-38's other half. The corpus assertion in SampleCorpusAcceptanceTest counts
-        // fingerprint collisions — 159 of 1289 — without a database. This is the identity
+        // fingerprint collisions — 180 of 1289 — without a database. This is the identity
         // that turns that count into a row count: n offers over k fingerprints leave
         // exactly n - k attached, whatever the group sizes are.
         insert(JAVA_LEAD, "A", "a", minutesAgo(50));

@@ -37,8 +37,13 @@ Violating one of these is expensive, and most of them fail silently.
 - **The database image is `pgvector/pgvector:pg17`, not plain postgres.** Deduplication's two
   similarity strategies compare vectors, `V22` creates the extension, and an image without it
   fails that migration with an error naming the extension rather than the image. It is named
-  in `docker-compose.yml`, in the Helm chart, and once for the tests in
-  `backend/src/test/java/de/codeministry/leadgen/Databases.java`.
+  in `docker-compose.yml` and once for the tests in
+  `backend/src/test/java/de/codeministry/leadgen/Databases.java`, and nowhere else — there is
+  no chart in this repository.
+- **The vector column is 2000 wide because pgvector will not index a wider one**, and a model
+  that returns more is truncated to the leading 2000 at the seam rather than widening it.
+  Thresholds are measured with `docs/samples/measure_embeddings.ts` before they are changed;
+  the bands are a property of the model and the market, not of the number.
 - **No CV tailoring.** Fixed PDFs in `config/documents/`, selected by the language
   of the ad and nothing else.
 - **Nothing is ever sent.** Both outputs are rendered files: the digest as text or HTML,
@@ -190,7 +195,7 @@ code has to reproduce — the numbers in `docs/SAMPLE-ANALYSIS.md` are the targe
   `docs/SAMPLE-ANALYSIS.md` § 5. The share is not comparable across settings: at
   `min_remote_percent: 0` the same corpus gave 41.5 %, because the reach rule switches off
   entirely at zero.
-- **12.3 % duplicates** by exact title alone, within a single mail.
+- **14.0 % duplicates** by exact title alone, within a single mail.
 
 ## Order of work
 

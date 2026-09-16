@@ -219,7 +219,7 @@ class OfferQueryServiceTest {
 
     @Test
     void collapsesOneProjectAdvertisedByThreePortalsIntoOneEntryThatNamesThem() {
-        // 12.3 % of the corpus reaches the pipeline more than once. A shortlist showing the
+        // 14.0 % of the corpus reaches the pipeline more than once. A shortlist showing the
         // same project three times is one nobody finishes reading.
         long primary = passed("Senior Java Entwickler", 88);
         duplicateOf(primary, "portal-b", "Zweite Agentur");

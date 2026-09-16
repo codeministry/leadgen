@@ -90,11 +90,11 @@ They are different things and the words are worth keeping apart.
 - The **upsert** collapses one *listing* seen twice — a newsletter repeats what is still
   open, so re-reading is the normal case. 1289 extracted offers become 1280 rows.
 - **Deduplication** collapses one *project* several portals advertise at once. That is
-  12.3 % of the measured corpus, and it is the reason the shortlist is readable.
+  14.0 % of the measured corpus, and it is the reason the shortlist is readable.
 
 The fingerprint is the normalized title and nothing else, and that is measured rather than
 lazy: adding the one other field that exists at this point — the stated location — collapses
-111 instead of 159, and the 48 it gives up are overwhelmingly correct merges lost to the
+127 instead of 180, and the 53 it gives up are overwhelmingly correct merges lost to the
 same ad writing "Nürnberg" in one portal and "Remote und Nürnberg" in the next. **A field
 that is present is not the same as a field that is comparable.** The consequence is
 accepted rather than hidden: two genuinely different projects sharing a title do merge.

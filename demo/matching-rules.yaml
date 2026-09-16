@@ -134,8 +134,10 @@ deduplication:
   fingerprint_fields: [normalized_title, city, start_date, duration_months, top_skills]
   strategies:
     - { type: exact_fingerprint, action: merge }
-    - { type: embedding_cosine, threshold: 0.92, action: merge }
-    - { type: embedding_cosine, threshold: 0.85, action: flag_possible_duplicate }
+    # Measured on 2222 adverts with `qwen3-embedding:8b` at 2000 dimensions; the reasoning is
+    # in docs/decisions/pipeline-dedupe-filter.md.
+    - { type: embedding_cosine, threshold: 0.97, action: merge }
+    - { type: embedding_cosine, threshold: 0.95, action: flag_possible_duplicate }
   merge_policy: keep_first_seen_as_primary
   ttl_days: 60
 

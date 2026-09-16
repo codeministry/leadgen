@@ -9,6 +9,58 @@ may change in any release. See the status note in the README.
 
 ## [Unreleased]
 
+### Changed
+
+- **The embedding column is 2000 wide and the similarity thresholds are 0.97 and 0.95**, all
+  three measured rather than assumed. 2222 real adverts were embedded outside the application
+  and compared pair by pair: at the `0.85` this file shipped with, `nomic-embed-text` paired
+  12147 of them, about eleven flags per offer, and at `0.92` it merged two different projects
+  that shared one agency's title template. It is trained on English and the adverts are German.
+  `qwen3-embedding:8b` pairs 3470 at the same 0.85 and keeps the real duplicates above 0.96,
+  so the numbers moved to where the pairs actually are: **18 merges and 63 flags** on that
+  population instead of 322 and 12147.
+- **A model wider than the column is truncated to its leading 2000 dimensions** instead of
+  being refused. pgvector builds no HNSW index above 2000 for `vector` or 4000 for `halfvec`,
+  both measured against 0.8.6, so a 4096-dimensional model is otherwise unusable. Cutting
+  `qwen3-embedding:8b` to 2000 moves the 0.85 band by two percent, because it is trained with
+  Matryoshka representation learning and its leading dimensions carry the separation. The cut
+  is announced once per process; a model narrower than the column is still refused by name.
+- **The embedding pass skips archived offers**, which scopes the two similarity strategies to
+  the working list while the exact fingerprint keeps running across the whole window. A fresh
+  offer no longer disappears behind an archived primary, and a standing backlog no longer costs
+  a day's call budget to embed adverts nobody will see again: on 13240 offers of which 13232
+  were archived, the window held 11437 rows to embed and 8 of them were on the working list.
+  In a nightly run nothing changes, because archiving happens after this stage.
+- **`docs/samples/measure_embeddings.ts` is how a threshold is changed.** It takes the working
+  list and a model, caches the vectors so a second cut costs nothing, and writes every pair
+  with both titles beside the number. Its output names real adverts and is gitignored with
+  everything else derived from the corpus.
+- **The README no longer says the embedding strategies are skipped**, which stopped being true
+  in 0.4.0, and `llm.models.writing` is named as the one key still read by nothing.
+
+### Fixed
+
+- **`<mark>` no longer survives into the fingerprint as the word "mark".** Some sources wrap
+  the subscriber's own search terms in it and the tag reaches the title as text; the
+  normalizer removed the angle brackets and left the tag's own name standing, twice, so
+  `<mark>DevOps</mark> Engineer` fingerprinted as `mark devops mark engineer` and never met its
+  twin. Measured on 13240 live offers: 402 titles carried it, 384 of them unmerged, at least
+  170 matching an existing fingerprint once it is gone. **The fingerprint is written at ingest,
+  so this takes effect for offers read from now on**; an existing database keeps the
+  fingerprints it has.
+
+### Upgrade notes
+
+- **`V25` drops `offer.embedding` and `offer.embedding_model` and adds them back at the new
+  width.** A vector of one width is not a vector of another, so nothing is carried over and no
+  data outside those two columns is touched. The due query already looks for a null vector, so
+  the next run refills them; with a 4096-dimensional model over a local Ollama that is roughly
+  an hour per ten thousand adverts, and every 32 of them count once against
+  `llm.budget.max_calls_per_day`.
+- **`LLM_MODEL_EMBEDDING` must now name a model of at least 2000 dimensions.**
+  `nomic-embed-text` at 768 no longer fits and is refused by name. Left empty, only
+  `exact_fingerprint` runs, exactly as before.
+
 ## [0.4.0] — 2026-09-16
 
 A release about three keys that were configured and read by nobody, and what each of them

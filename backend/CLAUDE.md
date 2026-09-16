@@ -117,6 +117,11 @@ The reasoning is in `docs/decisions/pipeline-scoring.md`.
   filled in — and the test that exists to prove the tool works *without* a model failed for
   the one person who had finished configuring it. It empties the `${LLM_*}` placeholders in
   the materialised copy: what is under test is the code path, not whose machine it runs on.
+- **`<mark>` reaches the title as text, and stripping the angle brackets is not stripping the tag.** `[^a-z0-9]+` turns
+  `<` and `>` into spaces and leaves the word `mark` standing twice, so `<mark>DevOps</mark> Engineer` fingerprints as
+  `mark devops mark engineer` and never meets its twin. Measured: 402 of 13240 titles carry it. `TitleNormalizer`
+  removes it before the gender suffixes, because a term matching "w" arrives as `(m/<mark>w</mark>/d)` and the suffix
+  pattern does not recognise its own shape until then. Numbers in `docs/SAMPLE-ANALYSIS.md` § 4.
 - **A comma in a jsoup selector is a union, and `selectFirst` answers in document order.**
   Adding a narrower class to `article, main, .job-description, #content` therefore changes nothing whenever a `<main>`
   wraps the page — which is every page that has one. The selector list reads like a priority order and is not one.

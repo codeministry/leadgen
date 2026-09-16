@@ -51,9 +51,9 @@ class SimilarOffersTest {
     /**
      * The two thresholds the shipped `matching-rules.yaml` carries, as similarities.
      */
-    private static final double MERGE_AT = 0.92;
+    private static final double MERGE_AT = 0.97;
 
-    private static final double FLAG_AT = 0.85;
+    private static final double FLAG_AT = 0.95;
 
     private static final String MODEL = "test-embed";
 
@@ -117,10 +117,11 @@ class SimilarOffersTest {
 
     @Test
     void marksWhatIsCloseWithoutMergingIt() {
-        // 28 degrees: cosine 0.883. Outside the merge threshold, inside the flag one — the
-        // band the second strategy exists for.
+        // 16 degrees: cosine 0.961. Outside the merge threshold, inside the flag one — the
+        // band the second strategy exists for, and a narrow one: at the measured thresholds a
+        // flag lives between 14.1 and 18.2 degrees.
         long oldest = insert("Senior Java Entwickler", 0, minutesAgo(60));
-        long close = insert("Java Backend Entwickler", 28, minutesAgo(30));
+        long close = insert("Java Backend Entwickler", 16, minutesAgo(30));
 
         assertThat(similar.merge(60, MERGE_AT)).isZero();
         assertThat(similar.flag(60, FLAG_AT)).isEqualTo(1);
@@ -144,8 +145,8 @@ class SimilarOffersTest {
     @Test
     void shortensAChainSoNoPrimaryIsItselfAttached() {
         // Similarity is not transitive, so one statement can leave A on B while B goes to C.
-        // Each step here is 10 degrees, and only the neighbouring pairs are inside the
-        // threshold — A to C is 20 degrees, which is not.
+        // Each step here is 10 degrees (cosine 0.985), and only the neighbouring pairs are
+        // inside the threshold — A to C is 20 degrees, cosine 0.940, which is not.
         long first = insert("Senior Java Entwickler", 0, minutesAgo(90));
         long second = insert("Java Entwickler Senior", 10, minutesAgo(60));
         long third = insert("Entwickler Java (m/w/d)", 20, minutesAgo(30));

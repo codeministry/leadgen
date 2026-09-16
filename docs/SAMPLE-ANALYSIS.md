@@ -75,8 +75,15 @@ the newsletter confirms that free users are informed hours later than paying one
 
 ## 4. Duplicates
 
-By exact normalized title alone: **159 of 1289 offers are duplicates (12.3 %)**. A single
-project appears up to eight times, often across three portals.
+By exact normalized title alone: **180 of 1289 offers are duplicates (14.0 %)**, leaving 1109
+distinct titles. A single project appears up to eight times, often across three portals.
+
+It was 159 until `TitleNormalizer` learned to strip `<mark>`. Some sources wrap the
+subscriber's own search terms in it and the tag reaches the title as text, where removing the
+angle brackets leaves the word `mark` standing — so one advert wearing it appeared six times
+across two portals without ever meeting itself. Adding the one comparable field that does
+exist, the stated location, collapses 127 rather than 180, which is why the fingerprint is the
+title alone.
 
 ```
 8x  Fullstack Entwickler (m/w/d)                    [external, portal-a, portal-b]

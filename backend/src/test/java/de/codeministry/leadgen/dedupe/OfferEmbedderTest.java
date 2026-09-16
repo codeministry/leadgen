@@ -96,7 +96,7 @@ class OfferEmbedderTest {
         // The whole point of the text form: `'[1,2,3]'::vector` has to arrive as a vector,
         // not as a string that merely looks like one. `<=>` against itself is 0 for a real
         // vector and an error for anything else.
-        answersWith(768, 1);
+        answersWith(OfferEmbedder.DIMENSIONS, 1);
         insert("Senior Java Entwickler (m/w/d)", "Köln", "Ablösung eines Monolithen.");
 
         assertThat(embedder.embed(60)).isEqualTo(1);
@@ -112,7 +112,7 @@ class OfferEmbedderTest {
     void embedsEachOfferOnceAndNotAgainOnTheNextRun() {
         // The pass runs after every ingest, and a vector that is recomputed every night is
         // a bill that grows with the archive rather than with what arrived.
-        answersWith(768, 2);
+        answersWith(OfferEmbedder.DIMENSIONS, 2);
         insert("Senior Java Entwickler (m/w/d)", "Köln", "Ablösung eines Monolithen.");
         insert("Angular Entwickler (m/w/d)", "Remote", "Frontend für ein Versicherungsportal.");
 
@@ -127,7 +127,7 @@ class OfferEmbedderTest {
     void skipsWhatTheExactPassAlreadyResolved() {
         // The exact strategy runs first. A vector for a row already attached to a primary
         // buys nothing and costs the same as one that does.
-        answersWith(768, 1);
+        answersWith(OfferEmbedder.DIMENSIONS, 1);
         long primary = insert("Senior Java Entwickler (m/w/d)", "Köln", "Eins.");
         long attached = insert("Senior Java Entwickler (m/w/d)", "Köln", "Zwei.");
         jdbc.update("UPDATE offer SET duplicate_of_id = ? WHERE id = ?", primary, attached);
@@ -138,23 +138,40 @@ class OfferEmbedderTest {
     }
 
     @Test
+    void skipsWhatHasBeenArchivedOffTheWorkingList() {
+        // In a nightly run this changes nothing, because archiving happens after this stage.
+        // On a standing backlog it is the whole cost: measured on 13240 offers of which 13232
+        // were archived, the window held 11437 rows to embed and 8 of them were still on the
+        // working list. The similarity strategies are scoped to the working list as a result,
+        // because a row with no vector is invisible to both of them.
+        answersWith(OfferEmbedder.DIMENSIONS, 1);
+        insert("Senior Java Entwickler (m/w/d)", "Köln", "Eins.");
+        long archived = insert("Angular Entwickler (m/w/d)", "Remote", "Zwei.");
+        jdbc.update("UPDATE offer SET archived_at = now() WHERE id = ?", archived);
+
+        assertThat(embedder.embed(60)).isEqualTo(1);
+        assertThat(jdbc.queryForObject("SELECT embedding IS NULL FROM offer WHERE id = ?", Boolean.class, archived))
+            .isTrue();
+    }
+
+    @Test
     void sendsTheTitleTheLocationAndTheAdvertsOpening() {
-        answersWith(768, 1);
+        answersWith(OfferEmbedder.DIMENSIONS, 1);
         insert("Senior Java Entwickler (m/w/d)", "Köln", "Ablösung eines Monolithen.");
 
         embedder.embed(60);
 
         MODEL.verify(postRequestedFor(urlPathEqualTo("/embeddings"))
             .withRequestBody(matching("(?s).*Senior Java Entwickler.*"))
-            // The field that cost the exact fingerprint 48 correct merges, because a
+            // The field that cost the exact fingerprint 53 correct merges, because a
             // place written two ways is one place and two strings.
             .withRequestBody(matching("(?s).*K.{1,6}ln.*"))
             .withRequestBody(matching("(?s).*Monolithen.*")));
     }
 
     @Test
-    void refusesAModelOfAnotherWidthRatherThanWritingWhatItSent() {
-        // A 1536-dimensional model against a 768-wide column is a configuration mistake, and
+    void refusesAModelNarrowerThanTheColumnRatherThanWritingWhatItSent() {
+        // A 1536-dimensional model against a 2000-wide column is a configuration mistake, and
         // Postgres would report it as a dimension mismatch naming neither the model nor the
         // key that chose it. Nothing is written, so the next run with the right model still
         // finds work to do.
@@ -164,6 +181,25 @@ class OfferEmbedderTest {
         assertThat(embedder.embed(60)).isZero();
         assertThat(jdbc.queryForObject("SELECT count(*) FROM offer WHERE embedding IS NOT NULL", Integer.class))
             .isZero();
+    }
+
+    @Test
+    void keepsTheLeadingDimensionsOfAWiderModelRatherThanRefusingIt() {
+        // `qwen3-embedding:8b` returns 4096 and pgvector will not index past 2000, so the
+        // choice is truncate or do without the model that actually separates this market.
+        // Measured on 2222 adverts, cutting it to 2000 moves the 0.85 band by two percent.
+        // The vector still has to arrive as a vector, which is what `<=>` proves.
+        answersWith(OfferEmbedder.DIMENSIONS + 2096, 1);
+        insert("Senior Java Entwickler (m/w/d)", "Köln", "Ablösung eines Monolithen.");
+
+        assertThat(embedder.embed(60)).isEqualTo(1);
+
+        Integer width = jdbc.queryForObject(
+            "SELECT vector_dims(embedding) FROM offer WHERE embedding IS NOT NULL", Integer.class);
+        assertThat(width).isEqualTo(OfferEmbedder.DIMENSIONS);
+        assertThat(jdbc.queryForObject(
+                "SELECT embedding <=> embedding FROM offer WHERE embedding IS NOT NULL", Double.class))
+            .isEqualTo(0.0);
     }
 
     @Test

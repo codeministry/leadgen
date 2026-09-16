@@ -24,14 +24,14 @@ import java.util.List;
  * <p>This is not the upsert in {@link de.codeministry.leadgen.ingest.store.OfferStore}.
  * That one collapses a <em>listing</em> seen twice, which is what re-reading a newsletter
  * produces. This one collapses one <em>project</em> that several portals advertise at
- * once, which is what 12.3 % of the measured corpus is.
+ * once, which is what 14.0 % of the measured corpus is.
  *
  * <p><b>The fingerprint is the normalized title and nothing else</b>, and that is a
  * measurement rather than a preference. The configured field list names {@code city},
  * {@code start_date}, {@code duration_months} and {@code top_skills}; all four arrive
  * from enrichment, which runs after this stage, so at this point only the title exists.
  * Adding the one field that does exist, the stated location, was measured over the corpus
- * and is worse: it collapses 111 offers instead of 159, and the 48 it gives up are
+ * and is worse: it collapses 127 offers instead of 180, and the 53 it gives up are
  * overwhelmingly correct merges lost to the same ad writing its location as "Nürnberg" in
  * one portal and "Remote und Nürnberg" in the next. A location has to be parsed before it
  * can be compared, and parsing it is enrichment's job. Until then the fingerprint stays

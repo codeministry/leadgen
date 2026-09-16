@@ -91,7 +91,7 @@ class AnalyticsQueryServiceTest {
 
     @Test
     void countsADuplicateAsADuplicateAndNotAsAProject() {
-        // 12.3 % of the corpus arrives twice. Counted as projects they would make the market
+        // 14.0 % of the corpus arrives twice. Counted as projects they would make the market
         // look busier than it is, and left out entirely the collapse would be invisible.
         LocalDate today = LocalDate.now();
         long primary = arrived(today);

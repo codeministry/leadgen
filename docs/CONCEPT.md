@@ -200,7 +200,7 @@ Each match produces a folder named by a configurable pattern:
 4. **Ingest + extract** against the `local-eml` source — acceptance test: 1289 offers
    from `docs/samples/emails/`, field coverage as in the analysis
 5. **IMAP connector** — same extraction, a different way of getting at the HTML
-6. **Dedupe** — pulled forward: 12.3 % duplicates occur within a single mail
+6. **Dedupe** — pulled forward: 14.0 % duplicates occur within a single mail
 7. **Hard filter** — must hit the measured 16.5 %
 8. **Enrichment** — without this stage there is no rate and no full text
 9. **Scoring + digest** — first daily overview, still without a frontend

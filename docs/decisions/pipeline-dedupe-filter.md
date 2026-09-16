@@ -13,11 +13,11 @@ Every paragraph here was paid for once; none of it is a summary.
 
 - **This is not the upsert in `OfferStore`.** That one collapses a *listing* seen twice,
   which is what re-reading a newsletter produces. This one collapses a *project* several
-  portals advertise at once, which is 12.3 % of the measured corpus.
+  portals advertise at once, which is 14.0 % of the measured corpus.
 - **The fingerprint is the normalized title and nothing else, and that is measured.** The
   configured field list names `city`, `start_date`, `duration_months` and `top_skills`;
   all four come from enrichment, which runs *after* this stage. Adding the one field that
-  does exist — the stated location — collapses 111 instead of 159, and the 48 it gives up
+  does exist — the stated location — collapses 127 instead of 180, and the 53 it gives up
   are overwhelmingly correct merges lost to the same ad writing "Nürnberg" in one portal
   and "Remote und Nürnberg" in the next. A location must be parsed before it can be
   compared. **A field that is present is not the same as a field that is comparable.**
@@ -47,12 +47,62 @@ Every paragraph here was paid for once; none of it is a summary.
 
 - **pgvector, not an array and a loop.** The comparison is a nearest-neighbour search over a
   window of offers, which is the one thing a database index is for. The cost is the image:
-  `pgvector/pgvector:pg17` in place of `postgres:17-alpine`, in Compose, in the chart and in
-  nineteen test classes — which is why the image is now named once, in `Databases`.
-- **768 is in the column and therefore in the configuration.** An index cannot be built on a
-  vector of unstated width, so the width is part of the schema and a model of another width
-  is refused at the seam with both numbers in the sentence. It matches `nomic-embed-text`,
-  which is what a local Ollama offers.
+  `pgvector/pgvector:pg17` in place of `postgres:17-alpine`, in Compose and in nineteen test
+  classes — which is why the image is now named once, in `Databases`.
+- **2000 is in the column because it is the widest vector pgvector will index.** An index
+  cannot be built on a vector of unstated width, so the width is part of the schema and a
+  model that returns fewer is refused at the seam with both numbers in the sentence. The
+  ceiling is not a preference: measured against pgvector 0.8.6, `vector` refuses an HNSW
+  index above 2000 dimensions and `halfvec` above 4000. `V22` shipped 768 for
+  `nomic-embed-text`, which is what a local Ollama offers; `V25` widened it, and why is the
+  next paragraph.
+- **The thresholds were measured before they were allowed to act, and both shipped numbers
+  were wrong.** 2222 real adverts, the non-duplicate PASSED rows inside `ttl_days`, embedded
+  outside the application by `docs/samples/measure_embeddings.ts` and compared pair by pair.
+
+  | band | nomic-embed-text 768 | qwen3-embedding:8b 2000 | qwen3-embedding:8b 4096 |
+  |---|---|---|---|
+  | >= 0.97 | 27 | 18 | 18 |
+  | >= 0.95 | 67 | 63 | 59 |
+  | >= 0.92 | 322 | 270 | 264 |
+  | >= 0.85 | 12147 | 3470 | 3397 |
+
+  At the shipped `0.85` flag, `nomic-embed-text` paired 12147 adverts out of 2222 — about
+  eleven flags per offer, which is not a signal but a second inbox. At the shipped `0.92`
+  merge it put "Smalltalk Visual Works Entwickler" and "Fullstack Entwickler", two different
+  projects sharing one agency's title template, at 0.9346, and it treats the advert ID that
+  distinguishes `ID02836` from `ID02864` as noise. It is trained on English and this market
+  writes German. `qwen3-embedding:8b` keeps the genuine duplicates in a tail above 0.96 and
+  pairs a quarter as many at 0.85, so the numbers are now **0.97 to merge and 0.95 to flag**:
+  18 merges and 63 flags on that population, and the 0.95 band reads exactly as a flag should,
+  "the same posting in English, or with the start date moved on".
+- **A wider model is truncated at the seam, and that is sound rather than convenient.**
+  `qwen3-embedding:8b` returns 4096 dimensions and cannot be indexed at all. It is trained with
+  Matryoshka representation learning, so its leading dimensions carry the separation: cut to
+  2000 it pairs 3470 above 0.85 against 3397 at full width, two percent apart, and cut to 768
+  it still pairs only 4508 against `nomic-embed-text`'s 12147 in the same column width. The cut
+  vector is not renormalised, because `<=>` divides by both lengths. A model trained without
+  MRL degrades instead of shortening, which is why the truncation is announced once at the
+  seam rather than done silently.
+- **The measurement is a script in `docs/samples/`, not a paragraph.** `measure_embeddings.ts`
+  takes the working list as JSON and a model name, caches the vectors so a second cut is free,
+  and writes the bands with **both titles of every pair**. A table of similarities nobody can
+  check against the adverts behind them is a table nobody should act on, which is the same
+  reason `content_block_label` keeps a 200-character sample. Its output names real adverts and
+  is gitignored with everything else derived from the corpus. Re-measure before changing a
+  threshold, and re-measure before changing the model: the bands are a property of the pair,
+  not of the number.
+- **The similarity strategies are scoped to the working list and the exact fingerprint is
+  not.** `OfferEmbedder` skips archived offers, and a row with no vector is invisible to both
+  strategies, because they compare only rows embedded by the same model. The asymmetry is
+  deliberate twice over. Attaching a fresh offer to an archived primary would hide it behind
+  something that is already history, since `keep_first_seen_as_primary` makes the older row the
+  primary — the exact pass does that and gets away with it because a shared title is a much
+  stronger claim than a cosine. And the cost is otherwise the whole stage: measured on 13240
+  offers of which 13232 were archived, the window held 11437 rows to embed and 8 of them were
+  still on the working list, so 357 of 358 requests and a full day of
+  `llm.budget.max_calls_per_day` would have gone to adverts nobody will see again. In a nightly
+  run the filter changes nothing at all, because archiving happens after this stage.
 - **`embedding_model` sits beside the vector**, because two vectors from two models are not
   far apart or close together; they are numbers from different spaces, and the cosine
   between them is a number rather than an error. A row embedded by another model is
@@ -63,12 +113,12 @@ Every paragraph here was paid for once; none of it is a summary.
   always done.
 - **What is embedded is the title, the location and the advert's opening.** Those three are
   what exists before enrichment. The location is deliberately in: it is the field that cost
-  the exact fingerprint 48 correct merges, because "Nürnberg" and "Remote und Nürnberg" are
+  the exact fingerprint 53 correct merges, because "Nürnberg" and "Remote und Nürnberg" are
   one place written twice and two strings compared once. The opening rather than the whole
   advert, because a page of boilerplate about the client's culture makes two different
   projects from the same agency look alike rather than less alike.
-- **The configured number is a similarity and the operator is a distance.** `<=>` is cosine *distance*, so 0.92 is a
-  limit of 0.08. Reading one as the other does not fail; it merges
+- **The configured number is a similarity and the operator is a distance.** `<=>` is cosine *distance*, so 0.97 is a
+  limit of 0.03. Reading one as the other does not fail; it merges
   everything or nothing, and both look like a plausible day.
 - **The older of a pair is always the primary**, which is what makes the pass idempotent: the
   relation is antisymmetric, so a second run assigns what the first did.

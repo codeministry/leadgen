@@ -77,7 +77,7 @@ And in `config/local/matching-rules.yaml`:
 
 2. **Dedupe pulled forward.** In the concept, deduplication was step 9 of the order of
    work, on the assumption that it only pays off across several sources. That is refuted:
-   12.3 % duplicates within the newsletter alone, one project up to eight times. It
+   14.0 % duplicates within the newsletter alone, one project up to eight times. It
    belongs right behind extraction.
 
 3. **Normalize titles.** The `<mark>` markup around search terms and the `(m/w/d)`,

@@ -12,11 +12,11 @@
  *
  * <p>Not the upsert in {@code OfferStore}. That one collapses a <em>listing</em> seen twice,
  * which is what re-reading a newsletter produces. This collapses a <em>project</em>, which is
- * 12.3 % of the measured corpus.
+ * 14.0 % of the measured corpus.
  *
  * <p>The fingerprint is the normalized title and nothing else, and that is measured rather
  * than lazy. Adding the one other field that exists at this point, the stated location,
- * collapses 111 instead of 159, and the 48 it gives up are overwhelmingly correct merges lost
+ * collapses 127 instead of 180, and the 53 it gives up are overwhelmingly correct merges lost
  * to the same ad writing "Nürnberg" in one portal and "Remote und Nürnberg" in the next. <b>A
  * field that is present is not the same as a field that is comparable.</b> The consequence is
  * accepted rather than hidden: two different projects sharing a title do merge.

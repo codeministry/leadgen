@@ -146,8 +146,15 @@ deduplication:
   fingerprint_fields: [ normalized_title, city, start_date, duration_months, top_skills ]
   strategies:
     - { type: exact_fingerprint, action: merge }
-    - { type: embedding_cosine, threshold: 0.92, action: merge }
-    - { type: embedding_cosine, threshold: 0.85, action: flag_possible_duplicate }
+    # Measured, not guessed. 2222 real adverts embedded with `qwen3-embedding:8b` truncated to
+    # 2000 dimensions: 18 pairs sit at or above 0.97 and all but a handful are one project
+    # posted twice, 63 sit between 0.95 and 0.97 and read as "might be, look at it", and 270
+    # reach 0.92 -- where two different postings from one agency's template already meet. The
+    # numbers this file shipped with, 0.92 and 0.85, paired 3470 adverts at the lower one:
+    # eleven flags per offer, which is not a signal. `docs/decisions/pipeline-dedupe-filter.md`
+    # has the bands and how to re-measure them for another model or another market.
+    - { type: embedding_cosine, threshold: 0.97, action: merge }
+    - { type: embedding_cosine, threshold: 0.95, action: flag_possible_duplicate }
   merge_policy: keep_first_seen_as_primary   # further sources attach as OfferSource
   ttl_days: 60
 

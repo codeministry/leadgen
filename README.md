@@ -58,7 +58,7 @@ The numbers come from 14 real newsletter mails:
 |---|---:|---|
 | Offers in 14 mails | **1289** | Reading them by hand is the actual cost |
 | Removed by rules alone, no model | **80.9 %** | The expensive stages only ever see the rest |
-| The same project through several portals | **12.3 %** | Collapsing them is worth a stage of its own |
+| The same project through several portals | **14.0 %** | Collapsing them is worth a stage of its own |
 | Offers stating an hourly rate | **0.0 %** | A rate rule before enrichment filters everything or nothing |
 | Offers stating a remote share | **8.8 %** | Most of what you want to filter on is not in the listing |
 
@@ -163,14 +163,15 @@ about.
   but it is a write, and an earlier implementation kept its own cursor and made none. The
   consequence is that widening a too-narrow subject filter no longer makes the mails behind
   it reachable again.
-- **Only `exact_fingerprint` deduplication is implemented.** The two embedding strategies
-  are read, logged and skipped. And the fingerprint is the normalized title alone, so two
-  genuinely different projects that share a title do merge; the fields that would tell them
-  apart come from enrichment, which runs later.
-- **The LLM is asked two questions and no more** — the four scoring factors (role fit and three penalties), and which
-  blocks of a fetched advert are not the advert. Both read
-  `llm.models.scoring`; `llm.models` also lists `extraction`, `writing` and `embedding`, and none of those three is read
-  today. The shipped file says so.
+- **The exact fingerprint is the normalized title alone**, so two genuinely different projects
+  that share a title do merge; the fields that would tell them apart come from enrichment,
+  which runs later. The two `embedding_cosine` strategies beside it do run now, at thresholds
+  measured against 2222 real adverts rather than guessed — but only when
+  `llm.models.embedding` names a model of at least 2000 dimensions. Without one the pass is
+  the exact fingerprint and nothing else, which is what a fresh clone does.
+- **`llm.models.writing` is the one key still read by nothing.** The cover letter is a
+  Freemarker template. `scoring` is read by the judge, the classifier and the field extractor,
+  `extraction` by the document fallback, and `embedding` by the two similarity strategies.
 - **Content segmentation caches a decision per block, so a mixed block is its weak spot.** A block that is nine parts
   portal furniture and one part per-offer text never repeats, so it never gets a cache hit and costs one model call per
   advert. Its counters are logged and written per offer but are not yet in `pipeline_run`, so the dashboard does not

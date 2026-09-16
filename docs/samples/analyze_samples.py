@@ -20,7 +20,17 @@ FULL_REMOTE_RE = re.compile(r"(100\s*%\s*remote|voll(?:st[äa]ndig)?\s*remote|re
 
 
 def norm(s: str) -> str:
+    """TitleNormalizer, in the language the reference is written in.
+
+    The `<mark>` strip is not cosmetic and is not optional: some sources wrap the
+    subscriber's own search terms in it and the tag survives into the title as text, so
+    the `[^a-z0-9]+` pass below would turn the angle brackets into spaces and leave the
+    word `mark` standing, twice. It goes before the gender suffixes, because a search term
+    matching "w" arrives as `(m/<mark>w</mark>/d)` and the suffix pattern does not
+    recognise its own shape until then.
+    """
     s = unicodedata.normalize("NFKD", s or "").lower()
+    s = re.sub(r"</?mark>", "", s)
     s = re.sub(r"\(m/w/d\)|\(w/m/d\)|\(m/f/d\)", " ", s)
     s = re.sub(r"[^a-z0-9]+", " ", s)
     return " ".join(s.split())

@@ -40,11 +40,18 @@ import java.util.List;
 public class OfferEmbedder {
 
     /**
-     * The width `V22` states on the column, and the width of the vectors
-     * `nomic-embed-text` returns. A model of another width is refused here with both
-     * numbers in the sentence rather than in Postgres with only one.
+     * The width `V25` states on the column, and the widest vector pgvector will build an HNSW
+     * index on. A model that returns fewer is refused here with both numbers in the sentence
+     * rather than in Postgres with only one; a model that returns more is truncated to this.
+     *
+     * <p><b>Truncating is sound for the models worth configuring and is not a trick.</b> A
+     * model trained with Matryoshka representation learning puts the separation in its leading
+     * dimensions, and cosine distance is invariant to a vector's length, so nothing downstream
+     * has to be told. Measured on 2222 adverts: `qwen3-embedding:8b` cut from 4096 to 2000
+     * pairs 3470 of them above 0.85 against 3397 at full width. A model trained without it
+     * degrades instead, which is why the truncation is announced rather than silent.
      */
-    public static final int DIMENSIONS = 768;
+    public static final int DIMENSIONS = 2000;
 
     /**
      * How many adverts go into one request. Large enough that a nightly pass is a handful of
@@ -58,6 +65,10 @@ public class OfferEmbedder {
      * two different projects from the same agency look alike rather than less alike.
      */
     static final int DESCRIPTION_CHARS = 600;
+
+    /** So a truncating configuration says so once per process and not once per advert. */
+    private final java.util.concurrent.atomic.AtomicBoolean saidTruncating =
+            new java.util.concurrent.atomic.AtomicBoolean();
 
     private final ConfigRegistry config;
     private final EmbeddingModels models;
@@ -87,10 +98,22 @@ public class OfferEmbedder {
     }
 
     /**
-     * Embeds everything in the window that has no current vector.
+     * Embeds everything on the working list that has no current vector.
      *
      * <p>Already-merged offers are skipped: the exact pass runs first and has resolved them,
      * and a vector for a row that is already attached to a primary buys nothing.
+     *
+     * <p><b>Archived offers are skipped too, and that scopes the similarity strategies to the
+     * working list.</b> A row with no vector is invisible to both of them, because they compare
+     * only rows embedded by the same model. The exact fingerprint is not scoped that way, so
+     * the two strategies see different populations on purpose: attaching a fresh offer to an
+     * archived primary would put it behind something that is already history, since
+     * `keep_first_seen_as_primary` makes the older row the primary. In a nightly run the
+     * difference is nothing at all, because archiving happens after this stage and there is
+     * nothing archived yet to skip. On a backfilled corpus it is the whole cost: measured on
+     * 13240 offers of which 13232 were archived, the window held 11437 rows to embed and 8 of
+     * them were still on the working list — 357 of 358 requests, and a day's budget, spent on
+     * adverts nobody will see again.
      *
      * @return how many offers were given a vector, 0 when nothing could be.
      */
@@ -153,18 +176,27 @@ public class OfferEmbedder {
         int written = 0;
         for (int index = 0; index < batch.size(); index++) {
             float[] vector = vectors.get(index);
-            if (vector.length != DIMENSIONS) {
+            if (vector.length < DIMENSIONS) {
                 log.warn(
                     "Model '{}' returns {}-dimensional vectors and the offer.embedding column holds {}."
-                        + " Configure a {}-dimensional model in llm.models.embedding, or nothing is compared.",
+                        + " Configure a model of at least {} dimensions in llm.models.embedding,"
+                        + " or nothing is compared.",
                     model,
                     vector.length,
                     DIMENSIONS,
                     DIMENSIONS);
                 return -1;
             }
+            if (vector.length > DIMENSIONS && saidTruncating.compareAndSet(false, true)) {
+                log.info(
+                    "Model '{}' returns {} dimensions; the leading {} are stored, which is the widest"
+                        + " vector pgvector will index.",
+                    model,
+                    vector.length,
+                    DIMENSIONS);
+            }
             jdbc.sql("UPDATE offer SET embedding = CAST(:vector AS vector), embedding_model = :model WHERE id = :id")
-                .param("vector", literal(vector))
+                .param("vector", literal(narrowed(vector)))
                 .param("model", model)
                 .param("id", batch.get(index).id())
                 .update();
@@ -180,6 +212,7 @@ public class OfferEmbedder {
                       FROM offer
                      WHERE ingested_at >= now() - make_interval(days => :ttl)
                        AND duplicate_of_id IS NULL
+                       AND archived_at IS NULL
                        AND (embedding IS NULL OR embedding_model IS DISTINCT FROM :model)
                      ORDER BY id
                     """)
@@ -196,7 +229,7 @@ public class OfferEmbedder {
      *
      * <p>Those three are what exists at this point in the pipeline — everything else comes
      * from enrichment, which runs after deduplication. The location is deliberately in: it is
-     * the one field that cost the exact fingerprint 48 correct merges, because "Nürnberg" and
+     * the one field that cost the exact fingerprint 53 correct merges, because "Nürnberg" and
      * "Remote und Nürnberg" are the same place written twice and only the same string once.
      */
     static String text(String title, String location, String description) {
@@ -210,6 +243,15 @@ public class OfferEmbedder {
                 .append(opening.length() <= DESCRIPTION_CHARS ? opening : opening.substring(0, DESCRIPTION_CHARS));
         }
         return text.toString();
+    }
+
+    /**
+     * The leading {@link #DIMENSIONS} of a vector, or the vector itself when it is already
+     * that wide. Not renormalised: `<=>` is cosine distance and divides by both lengths, so a
+     * shortened vector is compared on its direction exactly as a full one is.
+     */
+    static float[] narrowed(float[] vector) {
+        return vector.length == DIMENSIONS ? vector : java.util.Arrays.copyOf(vector, DIMENSIONS);
     }
 
     /**

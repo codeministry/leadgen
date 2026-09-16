@@ -77,13 +77,15 @@ class LeadGenerationApplicationTests {
         var extensions = jdbc.queryForList("SELECT extname FROM pg_extension", String.class);
         assertThat(extensions).contains("vector");
 
-        // 768 is stated in the column because an index cannot be built without it, so the
-        // width is part of the schema rather than a detail of whichever model answered.
+        // 2000 is stated in the column because an index cannot be built without it, so the
+        // width is part of the schema rather than a detail of whichever model answered. It is
+        // also the ceiling: pgvector refuses an HNSW index on a wider `vector`, which is why a
+        // model returning more is truncated at the seam instead of widening this.
         Integer width = jdbc.queryForObject(
             "SELECT atttypmod FROM pg_attribute"
                 + " WHERE attrelid = 'offer'::regclass AND attname = 'embedding'",
             Integer.class);
-        assertThat(width).isEqualTo(768);
+        assertThat(width).isEqualTo(2000);
     }
 
     @Test

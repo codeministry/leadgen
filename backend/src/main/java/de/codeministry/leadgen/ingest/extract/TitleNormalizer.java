@@ -20,12 +20,24 @@ import java.util.regex.Pattern;
  * decoration that the same ad carries in different spellings across portals, and one
  * project appears up to eight times that way.
  *
- * <p>Markup is stripped before this by the HTML parser, which is why there is no
- * `<mark>` handling here. Search terms arrive wrapped in it on some sources; the
- * current sample corpus has none, so that is a documented expectation and not a
- * measured one.
+ * <p><b>`<mark>` is stripped here, because the expectation that the HTML parser had already
+ * done it did not survive contact with the live corpus.</b> Some sources wrap the subscriber's
+ * own search terms in it and the tag reaches the title as text. It then does not simply
+ * disappear: `[^a-z0-9]+` turns the angle brackets into spaces and leaves the word `mark`
+ * standing, twice, so `<mark>DevOps</mark> Engineer` fingerprints as `mark devops mark
+ * engineer` and never meets `devops engineer`. Measured on 13240 offers: 402 titles carried
+ * the tag, 384 of them were unmerged, and at least 170 match an existing fingerprint once it
+ * is gone. The first pair the embedding strategies ever flagged was one of them, at a cosine
+ * similarity of 0.9528 — a model call to half-find what a regex finds for free.
  */
 public final class TitleNormalizer {
+
+    /**
+     * The tag and nothing else. A general `<[^>]+>` would be no safer: everything it could
+     * additionally match is punctuation that the non-alphanumeric pass removes anyway, and a
+     * narrow pattern says which markup was actually measured in the wild.
+     */
+    private static final Pattern SEARCH_TERM_MARKUP = Pattern.compile("</?mark>", Pattern.CASE_INSENSITIVE);
 
     private static final Pattern GENDER_SUFFIX =
             Pattern.compile("\\((?:m/w/d|w/m/d|m/f/d)\\)", Pattern.CASE_INSENSITIVE);
@@ -38,7 +50,11 @@ public final class TitleNormalizer {
             return "";
         }
         String decomposed = Normalizer.normalize(title, Normalizer.Form.NFKD).toLowerCase(Locale.ROOT);
-        String withoutGender = GENDER_SUFFIX.matcher(decomposed).replaceAll(" ");
+        // Before the gender suffixes, because the tag can sit inside one: a search term
+        // matching "w" would arrive as `(m/<mark>w</mark>/d)` and the suffix pattern would
+        // then not recognise its own shape.
+        String withoutMarkup = SEARCH_TERM_MARKUP.matcher(decomposed).replaceAll("");
+        String withoutGender = GENDER_SUFFIX.matcher(withoutMarkup).replaceAll(" ");
         return NON_ALPHANUMERIC.matcher(withoutGender).replaceAll(" ").trim().replaceAll("\\s+", " ");
     }
 }

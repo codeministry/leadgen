@@ -28,9 +28,15 @@ docs/samples/extracted.json
 # What the reference measured, written by simulate_filter.py. Derived from the corpus and
 # from config/, so it is gitignored with them.
 docs/samples/filter-baseline.json
+# The working list exported for measure_embeddings.ts, and what it wrote: both name real
+# adverts, so they are corpus-derived like everything above.
+docs/samples/offers.json
+docs/samples/embedding-observed-*.md
+docs/samples/embedding-cache-*.json
 # The analysis scripts are the reference implementation and stay in the repo:
 !docs/samples/analyze_samples.py
 !docs/samples/simulate_filter.py
+!docs/samples/measure_embeddings.ts
 
 # Build
 target/

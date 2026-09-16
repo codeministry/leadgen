@@ -42,7 +42,9 @@ llm:
     writing: ${LLM_MODEL_WRITING}     # not read yet
     # Deduplication's two similarity strategies. No fallback to `scoring`: a chat model is
     # not an embedding model. Empty means only `exact_fingerprint` runs, which is what a
-    # fresh clone does. The model has to return 768-dimensional vectors.
+    # fresh clone does. The model has to return at least 2000-dimensional vectors, which is
+    # the width of `offer.embedding` and the widest pgvector will index; a wider model is
+    # truncated to it and says so once at startup.
     embedding: ${LLM_MODEL_EMBEDDING}
   budget:
     # Every request that leaves for a model counts once, whatever it carries: a judge's

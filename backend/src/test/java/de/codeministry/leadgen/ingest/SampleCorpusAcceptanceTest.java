@@ -140,11 +140,14 @@ class SampleCorpusAcceptanceTest {
 
     @Test
     void findsTheMeasuredNumberOfDuplicateTitles() {
-        // 159 of 1289, 12.3 %, by normalized title alone. This is what makes
-        // deduplication a step-5 concern rather than a later one.
+        // 180 of 1289, 14.0 %, by normalized title alone. This is what makes
+        // deduplication a step-5 concern rather than a later one. It was 159 until the
+        // `<mark>` strip landed in TitleNormalizer: the tag reaches the title as text on
+        // this very corpus, and one advert wearing it appeared six times across two
+        // portals without ever meeting itself.
         long distinct =
                 offers.stream().map(ExtractedOffer::fingerprint).distinct().count();
-        assertThat(offers.size() - distinct).isEqualTo(159);
+        assertThat(offers.size() - distinct).isEqualTo(180);
     }
 
     @Test
