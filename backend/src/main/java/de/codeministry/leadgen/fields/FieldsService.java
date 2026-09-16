@@ -11,6 +11,7 @@ package de.codeministry.leadgen.fields;
 import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.config.model.PipelineConfig;
 import de.codeministry.leadgen.content.ContentText;
+import de.codeministry.leadgen.llm.LlmBudget;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
@@ -85,11 +86,13 @@ public class FieldsService {
 
     private final ConfigRegistry config;
     private final FieldExtractors extractors;
+    private final LlmBudget budget;
     private final JdbcClient jdbc;
 
-    FieldsService(ConfigRegistry config, FieldExtractors extractors, DataSource dataSource) {
+    FieldsService(ConfigRegistry config, FieldExtractors extractors, LlmBudget budget, DataSource dataSource) {
         this.config = config;
         this.extractors = extractors;
+        this.budget = budget;
         this.jdbc = JdbcClient.create(dataSource);
     }
 
@@ -119,6 +122,11 @@ public class FieldsService {
         int rejudged = 0;
 
         for (Due offer : due) {
+            if (!budget.take()) {
+                // The rest keep their columns and stay due, which is the same thing an
+                // unanswered request leaves behind — so the next run simply continues.
+                break;
+            }
             requests++;
             Optional<ExtractedFields> answer = extractor.get().extract(offer.asCandidate());
             if (answer.isEmpty()) {

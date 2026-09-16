@@ -54,6 +54,21 @@ class ManualSourceControllerTest {
     }
 
     @Test
+    void carriesWhichFieldsAModelReadIntoTheBody() {
+        // Asserted on the serialized body and not on the record: a component that never
+        // reaches the browser is a badge that never appears, and the screen would look
+        // exactly like one where the rules read everything.
+        given(uploads.store(anyString(), any())).willReturn(document());
+
+        assertThat(mvc.post().uri("/api/sources/manual/documents").multipart().file(file("offer.md")))
+            .hasStatus(201)
+            .bodyJson()
+            .extractingPath("$.fromModel")
+            .asArray()
+            .containsExactly("title", "location");
+    }
+
+    @Test
     void answersARefusedUploadWithTheReason() {
         // A bare 400 is not actionable; "only .md documents are accepted" is.
         willThrow(new ManualDocumentName.Rejected("only .md documents are accepted, not payload.sh"))
@@ -112,6 +127,14 @@ class ManualSourceControllerTest {
                 "senior java entwickler",
                 // A file dropped in by hand did not come in the post.
                 null);
-        return new PendingDocument("offer.md", 128, Instant.parse("2026-09-01T10:00:00Z"), "---\n", offer, null, null);
+        return new PendingDocument(
+            "offer.md",
+            128,
+            Instant.parse("2026-09-01T10:00:00Z"),
+            "---\n",
+            offer,
+            List.of("title", "location"),
+            null,
+            null);
     }
 }

@@ -1,5 +1,6 @@
 import {ChangeDetectionStrategy, Component, computed, input, linkedSignal, output,} from '@angular/core';
 import {TranslocoPipe} from '@jsverse/transloco';
+import {Badge} from '@shared/badge/badge';
 import {MarkdownSource} from '@shared/markdown/markdown-source';
 import {ManualOfferFields, PendingDocument} from '@core/model/manual-document';
 
@@ -13,7 +14,7 @@ import {ManualOfferFields, PendingDocument} from '@core/model/manual-document';
  */
 @Component({
     selector: 'lg-review-card',
-    imports: [MarkdownSource, TranslocoPipe],
+  imports: [Badge, MarkdownSource, TranslocoPipe],
     templateUrl: './review-card.html',
     styleUrl: './review-card.css',
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -36,6 +37,20 @@ export class ReviewCard {
 
     /** Without a title there is no offer: the pipeline drops a block that has none. */
     protected readonly ready = computed(() => this.title().trim().length > 0);
+
+  /** Whether anything at all was read by a model, which is what the note above the form says. */
+  protected readonly readByModel = computed(() => (this.document().fromModel ?? []).length > 0);
+
+  /**
+   * Whether this one field was read by a model rather than by the frontmatter rule.
+   *
+   * The name is the server's, not this form's: the date field is `published` there and
+   * `publishedOn` on the offer beside it, and passing the wrong one would mark nothing
+   * while looking entirely correct.
+   */
+  protected fromModel(field: string): boolean {
+    return (this.document().fromModel ?? []).includes(field);
+  }
 
     protected set(target: { set: (value: string) => void }, event: Event): void {
         target.set((event.target as HTMLInputElement | HTMLTextAreaElement).value);

@@ -41,6 +41,7 @@ export class FacetPanel {
   readonly minMonthsOptions = input.required<readonly number[]>();
 
   readonly deadlineOpen = input.required<boolean>();
+  readonly possibleDuplicates = input.required<boolean>();
 
   /** How many of the five are on. The badge on the trigger, and the chips agree with it. */
   readonly activeCount = input.required<number>();
@@ -51,6 +52,7 @@ export class FacetPanel {
   readonly startWindowChanged = output<string>();
   readonly minMonthsChanged = output<number>();
   readonly deadlineToggled = output<void>();
+  readonly possibleDuplicatesToggled = output<void>();
 
   protected readonly panelId = `lg-facet-panel-${++panels}`;
   protected readonly open = signal(false);

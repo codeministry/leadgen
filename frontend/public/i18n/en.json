@@ -153,6 +153,7 @@
     "minDuration": "Minimum duration",
     "anyDuration": "Any duration",
     "fromMonths": "{months} months or more",
+    "possibleDuplicates": "Possible duplicates",
     "deadlineOpen": "Deadline open",
     "stale": "A run has finished since this list was read.",
     "reload": "Reload",
@@ -167,6 +168,7 @@
       "portal": "Portal: {value}",
       "start": "Start: {value}",
       "deadline": "Deadline open",
+      "possibleDuplicates": "Possible duplicates",
       "scoreBetween": "Score: {from}–{to}",
       "scoreFrom": "Score: {from} and up",
       "scoreTo": "Score: up to {to}",
@@ -208,6 +210,7 @@
     "alsoAdvertisedBy": "Also advertised by",
     "incomplete": "incomplete",
     "remoteUnknown": "remote share unknown",
+    "possibleDuplicate": "possible duplicate",
     "remoteShare": "{percent} % remote",
     "noAgency": "no agency stated",
     "startsAt": "starts {when}",
@@ -283,6 +286,8 @@
     "dropHint": "YAML frontmatter carries the fields, the body is the description. A file without it still works; you fill the fields in here.",
     "bytes": "{size} bytes",
     "noFrontmatter": "No frontmatter in this file, so nothing could be read from it deterministically. Fill the fields in below; the text is on the right.",
+    "readByModel": "No frontmatter in this file. The marked fields were read out of the text by a language model, so check them against it before confirming. The description is the document itself.",
+    "fromModel": "read by a model",
     "duplicate": "Already in the pipeline as “{title}”. Confirming adds a second listing, which deduplication collapses into one entry naming both sources.",
     "commaSeparated": "Separated by commas.",
     "theFile": "The file",
@@ -366,6 +371,7 @@
     "promptModel": "answered by {{model}}",
     "promptNoModel": "no model configured — the prompt is what would be sent",
     "prompt": {
+      "extraction": "Document reader",
       "scoring": "Scoring judge",
       "content": "Content classifier"
     }

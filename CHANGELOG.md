@@ -9,6 +9,82 @@ may change in any release. See the status note in the README.
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-09-16
+
+A release about three keys that were configured and read by nobody, and what each of them
+turned out to be worth: one was implemented, one was implemented and now costs an extension,
+and one was deleted because the thing it promised had already come true five times over.
+
+### Added
+
+- **A document with no frontmatter can now be read by a language model** — the `fallback: llm`
+  that the shipped `sources.yaml` has declared since the beginning and nothing implemented. A
+  pasted advert dropped into the review queue comes back with its title, url, location, portal,
+  agency, publication date and tags filled in; the description stays the document itself, because
+  a summary is what every later stage would otherwise read instead of the advert. Two of those
+  fields are checked against the document before they are kept: a `url` that is not in it
+  character for character is discarded, and a `published` date needs a quote from the document
+  behind it and has to fall between 2000 and today. Rules before model still holds — the model is
+  asked only where the deterministic rule found nothing, and without a reachable model the
+  document is left where it is, exactly as before.
+- **The review screen marks which fields a model read.** Only those get the badge, and it sits
+  inside the label so it is part of the input's accessible name. Nothing of it is written into the
+  file on confirm.
+- **The Rules screen shows the extraction prompt**, first of the three, in the order the pipeline
+  asks them.
+
+- **`llm.budget.max_calls_per_day` is a ceiling now and not a number in a file.** Every request
+  that leaves for a model counts once — judge, classifier, field extraction, a document with no
+  frontmatter, and an embedding of thirty-two adverts alike. Collecting an already-submitted
+  batch does not count, because those answers are paid for. When the day is spent each stage
+  stops asking and leaves its work due, so the next run continues and nothing is written as
+  answered that was not. The count is a row per day in the database, so a restart does not hand
+  the allowance out twice.
+- **Deduplication compares adverts that are not identical.** The two `embedding_cosine`
+  strategies the shipped `matching-rules.yaml` has listed since the beginning now run: above a
+  cosine similarity of 0.92 an offer is attached to the older one it duplicates, above 0.85 it
+  is marked and left alone. The shortlist badges the mark and can filter on it; nothing is
+  hidden, because the working list is what gets trusted instead of the mailbox. Without
+  `llm.models.embedding` only `exact_fingerprint` runs, exactly as before.
+
+### Changed
+
+- **The database image is now `pgvector/pgvector:pg17`.** It is the official postgres image
+  with the extension added: same version, same data directory, same initdb. Debian-based
+  rather than Alpine, so it is a larger first pull.
+- **`llm.models.embedding` is read**, by the two similarity strategies and by nothing else.
+  Unlike the extraction fallback it has no fallback to `scoring`: a chat model is not an
+  embedding model. The model must return 768-dimensional vectors, which is the width
+  `offer.embedding` states; one of another width is refused with both numbers named.
+- **`llm.models.extraction` is read.** It shipped with `# not read yet` beside it; the fallback
+  now reads it, and takes `llm.models.scoring` when it is empty, so a single-model installation
+  has nothing new to fill in. The startup log says which of the two was taken.
+
+### Removed
+
+- **`llm.budget.cache_by_message_id`.** It came from a concept in which extraction was itself a
+  model call, and named a cache keyed by a mail. Extraction is deterministic now and no model is
+  ever asked about a mail — it is asked about an offer, a block or a document. What the key
+  promised is already true five times over: the IMAP user flag, the block-label cache, the fetch
+  cache, the upload's reading cache and scoring's staleness predicate.
+
+### Upgrade notes
+
+- **`cache_by_message_id` is gone, and a configuration carrying it will not start.** Unknown
+  keys are fatal by design, so a `config/pipeline.yaml` copied from the shipped file has to
+  lose that one line. Nothing read it, and nothing is lost by removing it.
+- **`max_calls_per_day` starts applying.** The shipped value is 300 and was read by nothing
+  until now; an installation that judges more than 300 offers on one day will see the rest stay
+  due until the next. **`0` means no calls at all** — no ceiling is the `budget:` block being
+  absent, not a zero.
+- **The postgres image changes.** `docker compose up` recreates the container against
+  `pgvector/pgvector:pg17`; the volume and its data are kept, because it is the same server
+  one extension richer. A deployment pinning the old image fails `V22` at startup with an
+  error naming the `vector` extension.
+- **`V22` and `V23` add three columns and one extension.** Nothing reads them until
+  `llm.models.embedding` names a model, so an installation without one sees no change beyond
+  the image.
+
 ## [0.3.2] — 2026-09-16
 
 A release about three things that were written down as true and were not.
@@ -600,7 +676,8 @@ Found while building the demo, all of them in paths only a container exercises:
   left six.
 - The shortlist card printed the description's Markdown syntax in its teaser.
 
-[Unreleased]: https://github.com/codeministry/leadgen/compare/v0.3.2...HEAD
+[Unreleased]: https://github.com/codeministry/leadgen/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/codeministry/leadgen/releases/tag/v0.4.0
 [0.3.2]: https://github.com/codeministry/leadgen/releases/tag/v0.3.2
 [0.3.1]: https://github.com/codeministry/leadgen/releases/tag/v0.3.1
 [0.3.0]: https://github.com/codeministry/leadgen/releases/tag/v0.3.0

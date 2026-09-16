@@ -11,6 +11,7 @@ package de.codeministry.leadgen.score;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
+import de.codeministry.leadgen.Databases;
 import de.codeministry.leadgen.config.ConfigFixtures;
 import de.codeministry.leadgen.config.ConfigRegistry;
 import org.junit.jupiter.api.AfterAll;
@@ -67,7 +68,7 @@ class JudgeIsBuiltPerRunTest {
 
     @Container
     @ServiceConnection
-    static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:17-alpine");
+    static final PostgreSQLContainer<?> POSTGRES = Databases.postgres();
 
     private static final ObjectMapper JSON = new ObjectMapper();
 

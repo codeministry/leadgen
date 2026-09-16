@@ -8,6 +8,7 @@
  */
 package de.codeministry.leadgen.score;
 
+import de.codeministry.leadgen.Databases;
 import de.codeministry.leadgen.config.ConfigFixtures;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -38,7 +39,7 @@ class ScoringWithoutAModelTest {
 
     @Container
     @ServiceConnection
-    static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:17-alpine");
+    static final PostgreSQLContainer<?> POSTGRES = Databases.postgres();
 
     @Autowired
     private ScoringService scoring;

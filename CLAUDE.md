@@ -34,6 +34,11 @@ Violating one of these is expensive, and most of them fail silently.
   A new source is a YAML block, not a deploy.
 - **Rules before model.** The hard filter runs deterministically and for free before any
   LLM call. Without a language model the tool must still run, only weaker.
+- **The database image is `pgvector/pgvector:pg17`, not plain postgres.** Deduplication's two
+  similarity strategies compare vectors, `V22` creates the extension, and an image without it
+  fails that migration with an error naming the extension rather than the image. It is named
+  in `docker-compose.yml`, in the Helm chart, and once for the tests in
+  `backend/src/test/java/de/codeministry/leadgen/Databases.java`.
 - **No CV tailoring.** Fixed PDFs in `config/documents/`, selected by the language
   of the ad and nothing else.
 - **Nothing is ever sent.** Both outputs are rendered files: the digest as text or HTML,

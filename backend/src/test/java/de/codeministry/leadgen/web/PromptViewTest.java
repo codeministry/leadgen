@@ -71,9 +71,9 @@ class PromptViewTest {
     void rendersWithNoRulesAndNoProfileAtAll() {
         // A fresh clone has neither, and a screen that throws there is a screen that cannot
         // tell somebody why nothing is being scored.
-        var prompts = PromptView.all(null, null, null);
+        var prompts = PromptView.all(null, null, null, null);
 
-        assertThat(prompts).hasSize(2);
+        assertThat(prompts).hasSize(3);
         assertThat(prompt(prompts, "scoring").system())
                 .contains("No profile is configured")
                 .contains("0 to 0");
@@ -101,16 +101,45 @@ class PromptViewTest {
     }
 
     @Test
-    void namesTheSameModelForBoth() {
+    void namesTheSameModelForTheTwoStagesThatShareAKey() {
         // One key read by two stages, and the screen saying so twice is the point.
-        var prompts = PromptView.all(null, null, "a-model");
+        var prompts = PromptView.all(null, null, "a-model", "a-model");
 
         assertThat(prompts).allMatch(prompt -> "a-model".equals(prompt.model()));
     }
 
+    @Test
+    void namesTheExtractionModelWhereItDiffersFromTheScoringOne() {
+        // `llm.models.extraction` is a key of its own, so the two can differ — and the
+        // panel exists to say which one would answer. Two adjacent String parameters is
+        // exactly the shape that gets swapped in silence, so the mapping is pinned here.
+        var prompts = PromptView.all(null, null, "the-judge", "the-reader");
+
+        assertThat(prompt(prompts, "extraction").model()).isEqualTo("the-reader");
+        assertThat(prompt(prompts, "content").model()).isEqualTo("the-judge");
+        assertThat(prompt(prompts, "scoring").model()).isEqualTo("the-judge");
+    }
+
+    @Test
+    void readsADocumentBeforeAnythingIsSegmentedOrScored() {
+        // The order on screen is the order the pipeline asks them in, and the first question
+        // is asked of a file nobody has read yet.
+        assertThat(PromptView.all(null, null, "a-model", "a-model"))
+            .extracting(PromptView::id)
+            .containsExactly("extraction", "content", "scoring");
+    }
+
+    @Test
+    void offersTheDocumentReaderWithTheChecksThatKeepItHonest() {
+        PromptView extraction = prompt("extraction", scoring(15, -10));
+
+        assertThat(extraction.system()).contains("character for character").contains("Do not write a description");
+        assertThat(extraction.user()).contains("Document:");
+    }
+
     private static PromptView prompt(String id, MatchingRules.Scoring scoring) {
         var rules = new MatchingRules(1, null, scoring, null, null, null);
-        return prompt(PromptView.all(rules, PROFILE, "a-model"), id);
+        return prompt(PromptView.all(rules, PROFILE, "a-model", "a-model"), id);
     }
 
     private static PromptView prompt(List<PromptView> prompts, String id) {

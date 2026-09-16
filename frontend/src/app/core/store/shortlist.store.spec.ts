@@ -21,6 +21,7 @@ const NO_FILTERS: ShortlistFilters = {
   startWindow: 'any',
   minMonths: 0,
   deadlineOpen: false,
+  possibleDuplicates: false,
 };
 
 function entry(id: number): ShortlistEntry {
@@ -52,7 +53,7 @@ function entry(id: number): ShortlistEntry {
             archiveSource: null,
         },
         score: {value: 88, hardPass: true, reasons: [], model: null, rulesetVersion: '1'},
-        flags: {incomplete: false, remoteUnknown: true},
+      flags: {incomplete: false, remoteUnknown: true, possibleDuplicate: false},
         sources: [{portal: 'portal-a', agency: null, url: `https://example.invalid/${id}`}],
       content: [],
     };

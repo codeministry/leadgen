@@ -12,6 +12,8 @@ import de.codeministry.leadgen.config.ConfigFixtures;
 import de.codeministry.leadgen.config.ConfigProperties;
 import de.codeministry.leadgen.config.model.SourcesConfig;
 import de.codeministry.leadgen.ingest.connector.FileSourceConnector;
+import de.codeministry.leadgen.ingest.extract.ExtractionFallback;
+import de.codeministry.leadgen.ingest.extract.LlmExtractor;
 import de.codeministry.leadgen.ingest.extract.MarkdownExtractor;
 import de.codeministry.leadgen.ingest.extract.OfferMapper;
 import jakarta.validation.Validation;
@@ -27,8 +29,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -122,12 +123,51 @@ class MarkdownExtractionTest {
     }
 
     @Test
-    void readsNoOfferFromAFileThatIsNothingButAPastedAd() {
-        // No frontmatter, so nothing deterministic to read. `fallback: llm` is what this
-        // case is for; until that exists the file stays where it is rather than entering
-        // the pipeline as an offer with no title.
+    void readsNoOfferFromAPastedAdWhenNoModelAnswers() {
+        // No frontmatter, so nothing deterministic to read. `fallback: llm` is what the
+        // source asks for, but a configuration that reaches no model must not turn the
+        // document into an offer with no title: it stays where it is, exactly as before.
         assertThat(extract("Wir suchen ab sofort einen Java-Entwickler in Köln."))
                 .isEmpty();
+    }
+
+    @Test
+    void readsAPastedAdThroughTheFallbackTheSourceAsksFor() {
+        // The wiring, and only the wiring: what a model is asked and what is kept of its
+        // answer is `LlmExtractorWireFormatTest`'s. What matters here is that the fallback
+        // is reached only after the frontmatter rule found nothing, and that what comes back
+        // goes through the same mapper and the same proxy-link boundary as a frontmatter
+        // block — a link a model found carries the subscriber's address just as one typed
+        // by hand does.
+        var offers = extract(
+            "Wir suchen ab sofort einen Java-Entwickler in Köln.",
+            document -> Optional.of(new LlmExtractor.Reading(
+                new LinkedHashMap<>(Map.of(
+                    OfferMapper.TITLE,
+                    "Java-Entwickler",
+                    OfferMapper.URL,
+                    "https://portal.example/proxy?target=https%3A%2F%2Fportal.example%2Fp%2F12345"
+                        + "&email=someone%40example.com",
+                    OfferMapper.DESCRIPTION,
+                    document)),
+                Set.of(OfferMapper.TITLE, OfferMapper.URL))));
+
+        assertThat(offers).hasSize(1);
+        assertThat(offers.getFirst().title()).isEqualTo("Java-Entwickler");
+        assertThat(offers.getFirst().description()).contains("Java-Entwickler in Köln");
+        assertThat(offers.getFirst().url()).isEqualTo("https://portal.example/p/12345");
+        assertThat(offers.getFirst().url()).doesNotContain("email=").doesNotContain("%40");
+    }
+
+    @Test
+    void asksNoModelWhenTheFrontmatterIsThere() {
+        // Rules before model, and this is the one place it could go wrong quietly: a
+        // document that reads perfectly well would still cost a call on every run.
+        var offers = extract(COMPLETE, document -> {
+            throw new AssertionError("the frontmatter was readable; nothing should have been asked");
+        });
+
+        assertThat(offers).hasSize(1);
     }
 
     @Test
@@ -154,12 +194,16 @@ class MarkdownExtractionTest {
     }
 
     private List<ExtractedOffer> extract(String document) {
+        return extract(document, ExtractionFallback.none());
+    }
+
+    private List<ExtractedOffer> extract(String document, ExtractionFallback fallback) {
         write(document);
         SourcesConfig.Source source = manualInbox();
         var documents = new FileSourceConnector(new ConfigProperties(configDir.toString())).read(source, 0L);
         assertThat(documents).hasSize(1);
 
-        var extractor = new MarkdownExtractor();
+        var extractor = new MarkdownExtractor(fallback);
         var mapper = new OfferMapper();
         return extractor.extract(documents.getFirst().html(), source.extraction()).stream()
                 .map(block -> mapper.map(block, source.extraction(), null))

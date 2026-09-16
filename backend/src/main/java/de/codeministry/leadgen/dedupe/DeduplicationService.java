@@ -14,7 +14,6 @@ import de.codeministry.leadgen.config.model.MatchingRules.Deduplication.Strategy
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import javax.sql.DataSource;
 import java.util.List;
@@ -43,11 +42,19 @@ import java.util.List;
 public class DeduplicationService {
 
     /**
-     * The only strategy that needs no model. The others are logged and skipped.
+     * The strategy that needs no model, and runs first for that reason: what it resolves
+     * costs nothing to resolve, and the similarity pass then has less to ask about.
      */
     private static final String EXACT_FINGERPRINT = "exact_fingerprint";
 
+    /**
+     * The one that does. Both configured actions use it, at two thresholds.
+     */
+    private static final String EMBEDDING_COSINE = "embedding_cosine";
+
     private static final String MERGE = "merge";
+
+    private static final String FLAG = "flag_possible_duplicate";
 
     /**
      * One statement, and idempotent by construction: the primary of a group is recomputed
@@ -78,10 +85,15 @@ public class DeduplicationService {
         """;
 
     private final ConfigRegistry config;
+    private final OfferEmbedder embedder;
+    private final SimilarOffers similar;
     private final JdbcClient jdbc;
 
-    DeduplicationService(ConfigRegistry config, DataSource dataSource) {
+    DeduplicationService(
+        ConfigRegistry config, OfferEmbedder embedder, SimilarOffers similar, DataSource dataSource) {
         this.config = config;
+        this.embedder = embedder;
+        this.similar = similar;
         this.jdbc = JdbcClient.create(dataSource);
     }
 
@@ -92,8 +104,14 @@ public class DeduplicationService {
      * <p>The number returned is the standing total, not the rows this run moved. A second
      * run moves nothing, and reporting zero there would read as "deduplication stopped
      * working" rather than "there was nothing left to do".
+     *
+     * <p><b>No transaction around the whole pass any more</b>, and that is the price of the
+     * similarity strategies: they need vectors, computing a vector is an HTTP call, and a
+     * transaction held open across a few hundred of them is a transaction held open for
+     * minutes. Every statement here is atomic on its own and the pass is idempotent by
+     * construction, so a run that dies halfway is repaired by the next one rather than by a
+     * rollback — which is what the exact pass already relied on.
      */
-    @Transactional
     public int run() {
         Deduplication rules = config.snapshot().rules().deduplication();
         warnAboutUnsupported(rules.strategies());
@@ -104,6 +122,7 @@ public class DeduplicationService {
         }
 
         int moved = jdbc.sql(CLUSTER).param("ttl", rules.ttlDays()).update();
+        moved += similar(rules);
         int attached = attached(rules.ttlDays());
         log.info(
                 "Deduplication: {} offers attached to a primary within {} days, {} moved this run",
@@ -111,6 +130,68 @@ public class DeduplicationService {
                 rules.ttlDays(),
                 moved);
         return attached;
+    }
+
+    /**
+     * The similarity half, in the order the configuration lists it: embed what has no
+     * vector, merge what is near enough to act on, mark what is only close.
+     *
+     * @return how many offers the merging strategy moved.
+     */
+    private int similar(Deduplication rules) {
+        Double mergeAt = threshold(rules, MERGE);
+        Double flagAt = threshold(rules, FLAG);
+        if (mergeAt == null && flagAt == null) {
+            return 0;
+        }
+        if (embedder.model() == null) {
+            // Not a warning: no embedding model is the shipped state, and the strategies are
+            // in the shipped file so that configuring one is a line rather than a deploy.
+            log.info("llm.models.embedding names no model; only 'exact_fingerprint' ran");
+            return 0;
+        }
+        embedder.embed(rules.ttlDays());
+
+        int moved = 0;
+        if (mergeAt != null) {
+            moved = similar.merge(rules.ttlDays(), mergeAt);
+            log.info("Deduplication: {} offers merged at a cosine similarity of {}", moved, mergeAt);
+        }
+        if (flagAt != null) {
+            int flagged = similar.flag(rules.ttlDays(), flagAt);
+            log.info("Deduplication: {} offers marked as possible duplicates at {}", flagged, flagAt);
+        }
+        return moved;
+    }
+
+    /**
+     * The similarity a strategy asks for, or nothing when it asks for none this can use.
+     *
+     * <p>A threshold outside {@code (0, 1]} is refused by name rather than clamped: cosine
+     * similarity has that range, and a 92 meant as a percentage would otherwise merge the
+     * entire window into one offer.
+     */
+    private Double threshold(Deduplication rules, String action) {
+        if (rules.strategies() == null) {
+            return null;
+        }
+        return rules.strategies().stream()
+            .filter(s -> EMBEDDING_COSINE.equals(s.type()) && action.equals(s.action()))
+            .map(Strategy::threshold)
+            .filter(value -> {
+                if (value == null || value <= 0 || value > 1) {
+                    log.warn(
+                        "Strategy '{}' with action '{}' has threshold {}, which is not a cosine"
+                            + " similarity between 0 and 1; it is skipped",
+                        EMBEDDING_COSINE,
+                        action,
+                        value);
+                    return false;
+                }
+                return true;
+            })
+            .findFirst()
+            .orElse(null);
     }
 
     private int attached(int ttlDays) {
@@ -127,16 +208,17 @@ public class DeduplicationService {
     }
 
     /**
-     * Loud but not fatal. The shipped configuration lists two embedding strategies, so
-     * failing here would break the defaults; running silently would leave the operator
-     * believing a similarity pass happened. Both alternatives are worse than a warning.
+     * Loud but not fatal, for the reason it always was: failing here would break a shipped
+     * default, and running silently would leave the operator believing a pass happened.
+     * What is unsupported is now a shorter list than it was — both strategy types the
+     * shipped file names are implemented, so this only fires for a type nobody wrote.
      */
     private void warnAboutUnsupported(List<Strategy> strategies) {
         if (strategies == null) {
             return;
         }
         strategies.stream()
-                .filter(s -> !EXACT_FINGERPRINT.equals(s.type()))
+            .filter(s -> !EXACT_FINGERPRINT.equals(s.type()) && !EMBEDDING_COSINE.equals(s.type()))
                 .forEach(s -> log.warn(
                         "Deduplication strategy '{}' is configured but not implemented; it is skipped", s.type()));
     }

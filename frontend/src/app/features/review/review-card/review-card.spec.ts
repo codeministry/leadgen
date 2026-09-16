@@ -20,6 +20,7 @@ function document(overrides: Partial<PendingDocument> = {}): PendingDocument {
             tags: ['Java', 'Spring Boot'],
             fingerprint: 'senior java entwickler',
         },
+      fromModel: [],
         duplicateOfId: null,
         duplicateOfTitle: null,
         ...overrides,
@@ -68,6 +69,32 @@ describe('ReviewCard', () => {
 
         expect(fixture.nativeElement.textContent).toContain('Already in the pipeline');
     });
+
+  it('marks the fields a model read, and only those', () => {
+    // The reviewer has to know where to look. Without the marks a reading the rules
+    // made and one a model made look exactly alike, and everything gets checked
+    // equally — which in practice means nothing does.
+    const fixture = render(document({fromModel: ['title', 'published']}));
+
+    const marked = (id: string): boolean =>
+      fixture.nativeElement
+        .querySelector(`label[for="${id}-offer.md"]`)
+        .textContent.includes('read by a model');
+
+    expect(marked('title')).toBe(true);
+    expect(marked('published')).toBe(true);
+    expect(marked('url')).toBe(false);
+    expect(marked('location')).toBe(false);
+    // The note above the form, so the badges are explained once rather than guessed at.
+    expect(fixture.nativeElement.textContent).toContain('read out of the text');
+  });
+
+  it('marks nothing when the frontmatter was readable', () => {
+    const fixture = render(document());
+
+    expect(fixture.nativeElement.querySelector('lg-badge')).toBeNull();
+    expect(fixture.nativeElement.textContent).not.toContain('read out of the text');
+  });
 
     it('shows the file beside the fields, because a wrong reading is only visible against it', () => {
         const fixture = render(document());

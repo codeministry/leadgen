@@ -8,11 +8,18 @@
  */
 package de.codeministry.leadgen.manual;
 
+import de.codeministry.leadgen.Databases;
+import de.codeministry.leadgen.ingest.extract.ExtractionFallback;
+import de.codeministry.leadgen.ingest.extract.LlmExtractor;
+import de.codeministry.leadgen.ingest.extract.OfferMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Primary;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -23,7 +30,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.List;
+import java.util.*;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -38,7 +45,45 @@ class ManualUploadServiceTest {
 
     @Container
     @ServiceConnection
-    static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:17-alpine");
+    static final PostgreSQLContainer<?> POSTGRES = Databases.postgres();
+
+    /**
+     * A model that reads whatever it is handed. It stands in for a configured endpoint,
+     * which this test has none of — and it only ever fires for a document with no
+     * frontmatter, so nothing else in this class changes because it is here.
+     */
+    @TestConfiguration
+    static class AModelThatReadsTheDocument {
+
+        /**
+         * How often the model was asked, which is the whole point of the reading cache.
+         */
+        static final java.util.concurrent.atomic.AtomicInteger ASKED =
+            new java.util.concurrent.atomic.AtomicInteger();
+
+        @Bean
+        @Primary
+        ExtractionFallback fallback() {
+            return document -> {
+                ASKED.incrementAndGet();
+                return reading(document);
+            };
+        }
+
+        private static Optional<LlmExtractor.Reading> reading(String document) {
+            return Optional.of(new LlmExtractor.Reading(
+                new LinkedHashMap<>(Map.of(
+                    OfferMapper.TITLE,
+                    "Java-Entwickler",
+                    OfferMapper.LOCATION,
+                    "Remote",
+                    OfferMapper.DESCRIPTION,
+                    document)),
+                Set.of(OfferMapper.TITLE, OfferMapper.LOCATION)));
+        }
+    }
+
+    private static final String PASTED = "Wir suchen ab sofort einen Java-Entwickler. Remote möglich.";
 
     private static final String DOCUMENT = """
         ---
@@ -95,6 +140,74 @@ class ManualUploadServiceTest {
         assertThat(stored.offer().title()).isEqualTo("Senior Java Entwickler (m/w/d)");
         assertThat(stored.offer().location()).isEqualTo("Köln");
         assertThat(stored.text()).contains("Ablösung eines Monolithen.");
+    }
+
+    @Test
+    void marksTheFieldsAModelReadAndLeavesTheOthersUnmarked() {
+        // The review screen badges exactly this set. A frontmatter document carries none,
+        // because its values are the document's own words and there is nothing to check.
+        var byTheRules = uploads.store("frontmatter.md", DOCUMENT.getBytes(StandardCharsets.UTF_8));
+        assertThat(byTheRules.fromModel()).isEmpty();
+
+        var read = uploads.store("gepasted.md", PASTED.getBytes(StandardCharsets.UTF_8));
+
+        assertThat(read.offer()).isNotNull();
+        assertThat(read.offer().title()).isEqualTo("Java-Entwickler");
+        assertThat(read.fromModel()).containsExactlyInAnyOrder(OfferMapper.TITLE, OfferMapper.LOCATION);
+        // The description is the document itself, whichever path read it, so it is never
+        // marked as something a reviewer has to check against the text beside it.
+        assertThat(read.fromModel()).doesNotContain(OfferMapper.DESCRIPTION);
+        assertThat(read.offer().description()).contains("Remote möglich");
+    }
+
+    @Test
+    void asksTheModelOncePerVersionOfAFile() {
+        // Measured against a real endpoint: one reading took about a minute, and listing the
+        // queue reads every document in it. Without this the review screen pays for a model
+        // call per pasted advert on every request — and a model asked twice does not answer
+        // identically, so the list, the panel and the confirm would each show a different
+        // reading of the same unchanged file.
+        AModelThatReadsTheDocument.ASKED.set(0);
+        uploads.store("gepasted.md", PASTED.getBytes(StandardCharsets.UTF_8));
+
+        uploads.pending();
+        uploads.pending();
+        uploads.find("gepasted.md");
+
+        assertThat(AModelThatReadsTheDocument.ASKED.get()).isEqualTo(1);
+    }
+
+    @Test
+    void readsAgainWhenTheFileItselfChanged() throws Exception {
+        // The file is still the state. Editing the document on disk has to produce a fresh
+        // reading, or the cache would be a second copy of the truth.
+        AModelThatReadsTheDocument.ASKED.set(0);
+        uploads.store("gepasted.md", PASTED.getBytes(StandardCharsets.UTF_8));
+        uploads.pending();
+
+        Path file = inbox.pending().orElseThrow().resolve("gepasted.md");
+        Files.writeString(file, PASTED + " Zweite Fassung.");
+        Files.setLastModifiedTime(file, java.nio.file.attribute.FileTime.fromMillis(System.currentTimeMillis() + 2000));
+
+        uploads.pending();
+
+        assertThat(AModelThatReadsTheDocument.ASKED.get()).isEqualTo(2);
+    }
+
+    @Test
+    void writesNoProvenanceIntoTheConfirmedDocument() {
+        // What lands in the inbox is the eight-field contract and nothing else: by then the
+        // values have been through a person, and a marker in the file would travel into the
+        // archive as a field nobody reads.
+        uploads.store("gepasted.md", PASTED.getBytes(StandardCharsets.UTF_8));
+
+        uploads.confirm(
+            "gepasted.md",
+            new ManualOfferFields(
+                "Java-Entwickler", null, PASTED, "Remote", null, null, null, List.of()));
+
+        Path moved = inbox.inbox().orElseThrow().resolve("gepasted.md");
+        assertThat(moved).content().doesNotContain("fromModel").doesNotContain("llm");
     }
 
     @Test

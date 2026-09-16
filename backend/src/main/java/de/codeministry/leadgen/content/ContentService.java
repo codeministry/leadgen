@@ -12,6 +12,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.config.model.PipelineConfig;
+import de.codeministry.leadgen.llm.LlmBudget;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
@@ -90,13 +91,20 @@ public class ContentService {
     private final ConfigRegistry config;
     private final Classifiers classifiers;
     private final BlockLabelStore labels;
+    private final LlmBudget budget;
     private final ObjectMapper json;
     private final JdbcClient jdbc;
 
-    ContentService(ConfigRegistry config, Classifiers classifiers, BlockLabelStore labels, DataSource dataSource) {
+    ContentService(
+        ConfigRegistry config,
+        Classifiers classifiers,
+        BlockLabelStore labels,
+        LlmBudget budget,
+        DataSource dataSource) {
         this.config = config;
         this.classifiers = classifiers;
         this.labels = labels;
+        this.budget = budget;
         this.json = new ObjectMapper();
         this.jdbc = JdbcClient.create(dataSource);
     }
@@ -204,6 +212,11 @@ public class ContentService {
             return new Pass(blocks, fromCache, false, true);
         }
 
+        if (!budget.take()) {
+            // Exactly what an unanswering model leaves behind: the rules' and the cache's
+            // labels stand, the offer stays due, and the next run finishes the advert.
+            return new Pass(blocks, fromCache, true, false);
+        }
         Optional<Map<Integer, ContentClassifier.Labelled>> answered =
             classifier.get().classify(offer.title(), unknown);
         if (answered.isEmpty()) {

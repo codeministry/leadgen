@@ -10,7 +10,11 @@
 # applies the defaults below instead.
 services:
   postgres:
-    image: postgres:17-alpine
+    # The official postgres image with pgvector added — same version, same data directory.
+    # Deduplication compares two adverts that are not identical, which is a vector
+    # comparison, and `V22` creates the extension at startup. A plain postgres image fails
+    # that migration with an error naming the extension rather than the image.
+    image: pgvector/pgvector:pg17
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-leadgen}
       POSTGRES_USER: ${POSTGRES_USER:-leadgen}

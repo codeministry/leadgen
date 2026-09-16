@@ -8,6 +8,7 @@
  */
 package de.codeministry.leadgen.offer;
 
+import de.codeministry.leadgen.Databases;
 import de.codeministry.leadgen.config.ConfigFixtures;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -39,7 +40,7 @@ class OfferQueryServiceTest {
 
     @Container
     @ServiceConnection
-    static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:17-alpine");
+    static final PostgreSQLContainer<?> POSTGRES = Databases.postgres();
 
     /**
      * Pinned to the shipped defaults rather than to whatever `config/` this machine has.
@@ -121,7 +122,7 @@ class OfferQueryServiceTest {
         passed("Angular Entwickler", 40);
         rejected("Java Entwickler in Zürich");
 
-        var page = offers.shortlist(new ShortlistQuery("angular", null, null, false, null, null, null, false, null, 0));
+        var page = offers.shortlist(new ShortlistQuery("angular", null, null, false, null, null, null, false, false, null, 0));
 
         assertThat(page.matched()).isEqualTo(1);
         assertThat(page.total()).isEqualTo(2);
@@ -147,7 +148,7 @@ class OfferQueryServiceTest {
         jdbc.update("UPDATE offer SET tags = ARRAY['Kubernetes'] WHERE id = ?", tagged);
         passed("Anderer Entwickler", 60);
 
-        var page = offers.shortlist(new ShortlistQuery("kubernetes", null, null, false, null, null, null, false, null, 0));
+        var page = offers.shortlist(new ShortlistQuery("kubernetes", null, null, false, null, null, null, false, false, null, 0));
 
         assertThat(page.entries()).extracting(entry -> entry.offer().id()).containsExactly(tagged);
     }
@@ -308,7 +309,7 @@ class OfferQueryServiceTest {
         jdbc.update("UPDATE offer SET archived_at = now(), archive_source = 'AGE' WHERE id = ?", archived);
 
         var list = offers.shortlist(ShortlistQuery.first());
-        var archive = offers.shortlist(new ShortlistQuery(null, null, null, true, null, null, null, false, null, 0));
+        var archive = offers.shortlist(new ShortlistQuery(null, null, null, true, null, null, null, false, false, null, 0));
 
         assertThat(ids(list)).containsExactly(working);
         assertThat(list.matched()).isEqualTo(1);
@@ -335,7 +336,7 @@ class OfferQueryServiceTest {
         assertThat(offers.shortlist(ShortlistQuery.first())
                         .portals())
                 .containsExactly("portal-a");
-        assertThat(offers.shortlist(new ShortlistQuery(null, null, null, true, null, null, null, false, null, 0))
+        assertThat(offers.shortlist(new ShortlistQuery(null, null, null, true, null, null, null, false, false, null, 0))
                         .portals())
                 .containsExactly("portal-c");
         assertThat(archived).isPositive();
@@ -582,7 +583,7 @@ class OfferQueryServiceTest {
         durationMonths(passed("Drei Monate", 50), 3);
         passed("Keine Dauer genannt", 50);
 
-        var page = offers.shortlist(new ShortlistQuery(null, null, null, false, null, null, 6, false, null, 0));
+        var page = offers.shortlist(new ShortlistQuery(null, null, null, false, null, null, 6, false, false, null, 0));
 
         assertThat(page.matched()).isEqualTo(1);
         assertThat(page.entries().getFirst().offer().durationMonths()).isEqualTo(12);
@@ -596,7 +597,7 @@ class OfferQueryServiceTest {
         applyBy(passed("Frist vorbei", 50), LocalDate.now().minusDays(1));
         long unstated = passed("Keine Frist genannt", 50);
 
-        var page = offers.shortlist(new ShortlistQuery(null, null, null, false, null, null, null, true, null, 0));
+        var page = offers.shortlist(new ShortlistQuery(null, null, null, false, null, null, null, true, false, null, 0));
 
         assertThat(page.matched()).isEqualTo(2);
         assertThat(ids(page)).contains(unstated);
@@ -705,7 +706,7 @@ class OfferQueryServiceTest {
     // ---- fixtures ------------------------------------------------------------------
 
     private static ShortlistQuery inWindow(StartWindow window) {
-        return new ShortlistQuery(null, null, null, false, null, window, null, false, null, 0);
+        return new ShortlistQuery(null, null, null, false, null, window, null, false, false, null, 0);
     }
 
     private static ScoreFilter band(String name) {
@@ -751,6 +752,31 @@ class OfferQueryServiceTest {
     /**
      * A survivor that states nothing at all: no score, no start, no deadline, no duration.
      */
+    @Test
+    void marksAndFiltersWhatTheSimilarityPassOnlySuspected() {
+        // The band between the two thresholds: close enough to be worth two eyes, not close
+        // enough to take one of them off the list. So the row stays, carries a flag, and can
+        // be asked for on its own.
+        long older = passed("Senior Java Entwickler", 88);
+        long suspected = passed("Java Entwickler Senior", 84);
+        jdbc.update("UPDATE offer SET possible_duplicate_of_id = ? WHERE id = ?", older, suspected);
+
+        var all = offers.shortlist(ShortlistQuery.first());
+        assertThat(all.entries()).hasSize(2);
+        assertThat(all.entries().stream()
+            .filter(entry -> entry.flags().possibleDuplicate())
+            .map(entry -> entry.offer().id()))
+            .containsExactly(suspected);
+
+        var only = offers.shortlist(new ShortlistQuery(
+            null, null, null, false, null, null, null, false, true, null, 0));
+        assertThat(only.entries()).hasSize(1);
+        assertThat(only.entries().getFirst().offer().id()).isEqualTo(suspected);
+        // Still a working-list offer: the filter narrows what is shown and changes nothing
+        // about what the offer is.
+        assertThat(only.entries().getFirst().flags().possibleDuplicate()).isTrue();
+    }
+
     private long bare(String title) {
         return passed(title, null);
     }

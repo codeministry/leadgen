@@ -43,7 +43,7 @@ class LeadGenerationApplicationTests {
 
     @Container
     @ServiceConnection
-    static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:17-alpine");
+    static final PostgreSQLContainer<?> POSTGRES = Databases.postgres();
 
     @Autowired
     private JdbcTemplate jdbc;
@@ -66,6 +66,24 @@ class LeadGenerationApplicationTests {
         // the mailbox now, and a schema that still offered the old mechanism was a promise the
         // code no longer kept.
         assertThat(tables).doesNotContain("ingest_cursor");
+    }
+
+    @Test
+    void theVectorExtensionIsThereAndTheColumnHasAWidth() {
+        // The image is the thing under test here. `pgvector/pgvector:pg17` is a plain postgres
+        // with the extension added, and on any image without it `V22` fails at startup naming
+        // the extension rather than the image — which is a long way from the compose file that
+        // actually decides it.
+        var extensions = jdbc.queryForList("SELECT extname FROM pg_extension", String.class);
+        assertThat(extensions).contains("vector");
+
+        // 768 is stated in the column because an index cannot be built without it, so the
+        // width is part of the schema rather than a detail of whichever model answered.
+        Integer width = jdbc.queryForObject(
+            "SELECT atttypmod FROM pg_attribute"
+                + " WHERE attrelid = 'offer'::regclass AND attname = 'embedding'",
+            Integer.class);
+        assertThat(width).isEqualTo(768);
     }
 
     @Test

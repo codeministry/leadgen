@@ -34,10 +34,25 @@ import java.util.regex.Pattern;
  * <p>The eight field names are the same contract as everywhere else. A frontmatter key
  * spelled differently is read and then ignored, in silence — which is the reason the
  * review screen exists.
+ *
+ * <p><b>A document with no frontmatter is the {@code fallback} case</b>, and what happens
+ * to it is the source's decision, not this class's: {@code none} leaves it where it is,
+ * {@code llm} hands it to {@link LlmExtractor}. The order is what keeps <i>rules before
+ * model</i> true — the model is asked about the one shape the rules cannot address, and
+ * only after they have found nothing.
  */
 @Slf4j
 @Component
 public class MarkdownExtractor {
+
+    /**
+     * The two values {@code extraction.fallback} may take. Anything else is refused by name
+     * rather than approximated: a source configured with a fallback this does not know would
+     * otherwise behave exactly like one configured with none.
+     */
+    public static final String NONE = "none";
+
+    public static final String LLM = "llm";
 
     /**
      * The whole document, not a prefix of it: the frontmatter is what lies between the
@@ -49,24 +64,45 @@ public class MarkdownExtractor {
 
     private final JsonMapper yaml = JsonMapper.builder(new YAMLFactory()).build();
 
+    private final ExtractionFallback fallback;
+
+    public MarkdownExtractor(ExtractionFallback fallback) {
+        this.fallback = fallback;
+    }
+
     /**
-     * @return one block, or none when the file has no frontmatter at all. A file without
-     * it is a pasted ad, which is what `fallback: llm` is for; until that exists the
-     * file is left where it is rather than entering as an offer with no title.
+     * The blocks alone, for the pipeline, which has nowhere to put anything else.
+     *
+     * @return one block, or none. A file with no frontmatter at all is a pasted ad, and
+     * what becomes of it is the source's {@code fallback}: under {@code none} it is left
+     * where it is rather than entering as an offer with no title, under {@code llm} it is
+     * read by a model and still reviewed before it becomes an offer.
      */
     public List<Map<String, Object>> extract(String text, Extraction extraction) {
+        return read(text, extraction).blocks();
+    }
+
+    /**
+     * The blocks and where their values came from.
+     *
+     * <p>The second half exists for the review screen and for nothing else: an upload is
+     * reviewed before it becomes an offer, and a reviewer who cannot see which values a
+     * model read has to check all of them equally. It is deliberately not part of a block —
+     * a block is the eight-field contract the whole pipeline is built on, and provenance in
+     * it would travel all the way into the archive.
+     */
+    public Document read(String text, Extraction extraction) {
         if (text == null || text.isBlank()) {
-            return List.of();
+            return Document.nothing();
         }
         Matcher matcher = FRONTMATTER.matcher(text);
         if (!matcher.matches()) {
-            log.warn("A markdown document has no YAML frontmatter; nothing deterministic to read from it");
-            return List.of();
+            return withoutFrontmatter(text, extraction);
         }
 
         Map<String, Object> front = parse(matcher.group(1));
         if (front == null) {
-            return List.of();
+            return Document.nothing();
         }
 
         Map<String, Object> block = new LinkedHashMap<>();
@@ -81,14 +117,49 @@ public class MarkdownExtractor {
             block.put(OfferMapper.DESCRIPTION, body.strip());
         }
 
-        // The same privacy boundary as everywhere else: a file pasted out of the
-        // newsletter carries the subscriber's address in every link, and it does not
-        // matter that this document arrived by hand.
-        var url = extraction.fields() == null ? null : extraction.fields().get(OfferMapper.URL);
+        return Document.byTheRules(unwrapped(block, extraction));
+    }
+
+    /**
+     * The {@code fallback} case, and every way out of it is a sentence in the log. A
+     * document that quietly produces no offer is the failure this stage is most likely to
+     * have, and the reasons are not interchangeable — the two that are about the model
+     * rather than about the configuration are written one class further down.
+     */
+    private Document withoutFrontmatter(String text, Extraction extraction) {
+        String configured = extraction == null ? null : extraction.fallback();
+        if (configured == null || configured.isBlank() || NONE.equalsIgnoreCase(configured)) {
+            log.warn("A markdown document has no YAML frontmatter; nothing deterministic to read from it");
+            return Document.nothing();
+        }
+        if (!LLM.equalsIgnoreCase(configured)) {
+            log.warn(
+                "A markdown document has no YAML frontmatter and the source asks for fallback '{}';"
+                    + " implemented are '{}' and '{}'",
+                configured,
+                NONE,
+                LLM);
+            return Document.nothing();
+        }
+        return fallback.read(text)
+            .map(reading -> new Document(
+                List.of(unwrapped(reading.block(), extraction)), List.copyOf(reading.fromModel())))
+            .orElseGet(Document::nothing);
+    }
+
+    /**
+     * The same privacy boundary as everywhere else: a file pasted out of the newsletter
+     * carries the subscriber's address in every link, and it does not matter that this
+     * document arrived by hand — nor that a model was the one that found the link.
+     */
+    private static Map<String, Object> unwrapped(Map<String, Object> block, Extraction extraction) {
+        var url = extraction == null || extraction.fields() == null
+            ? null
+            : extraction.fields().get(OfferMapper.URL);
         if (url != null && url.unwrapQueryParam() != null && block.get(OfferMapper.URL) instanceof String raw) {
             block.put(OfferMapper.URL, ProxyLink.unwrap(raw, url.unwrapQueryParam()));
         }
-        return List.of(block);
+        return block;
     }
 
     private Map<String, Object> parse(String frontmatter) {
@@ -148,5 +219,25 @@ public class MarkdownExtractor {
                 .map(String::strip)
                 .filter(tag -> !tag.isEmpty())
                 .toList();
+    }
+
+    /**
+     * What one document yielded, and which of its values a model read.
+     *
+     * @param blocks    what the pipeline maps into offers. One at most here — one document is
+     *                  one offer, unlike the newsletter.
+     * @param fromModel the field names in {@code blocks} that came from the fallback, empty
+     *                  whenever the frontmatter was readable. A frontmatter body and a pasted
+     *                  advert are both the document's own words, so neither is in here.
+     */
+    public record Document(List<Map<String, Object>> blocks, List<String> fromModel) {
+
+        static Document nothing() {
+            return new Document(List.of(), List.of());
+        }
+
+        static Document byTheRules(Map<String, Object> block) {
+            return new Document(List.of(block), List.of());
+        }
     }
 }

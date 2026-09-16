@@ -8,20 +8,11 @@
  */
 package de.codeministry.leadgen.web;
 
-import de.codeministry.leadgen.config.ConfigRegistry;
-import de.codeministry.leadgen.config.RulesView;
-import de.codeministry.leadgen.config.SourceDetail;
-import de.codeministry.leadgen.config.SourceDetailService;
-import de.codeministry.leadgen.config.SourceQueryService;
-import de.codeministry.leadgen.config.SourcesView;
+import de.codeministry.leadgen.config.*;
+import de.codeministry.leadgen.ingest.extract.LlmExtractors;
 import de.codeministry.leadgen.score.Judges;
 import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseStatus;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -111,7 +102,14 @@ class ConfigController {
     List<PromptView> prompts() {
         var snapshot = config.snapshot();
         var choices = judges.choices();
-        return PromptView.all(snapshot.rules(), snapshot.profile(), choices.isEmpty() ? null : choices.getFirst());
+        var llm = snapshot.application().llm();
+        return PromptView.all(
+            snapshot.rules(),
+            snapshot.profile(),
+            choices.isEmpty() ? null : choices.getFirst(),
+            // The stage's own choice, asked rather than reproduced: a copy of it here
+            // would name one model on the screen while the run used the other.
+            LlmExtractors.modelFor(llm == null ? null : llm.models()));
     }
 
     /**

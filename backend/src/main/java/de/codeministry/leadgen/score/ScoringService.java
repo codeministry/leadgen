@@ -12,6 +12,7 @@ import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.config.ConfigSnapshot;
 import de.codeministry.leadgen.config.model.MatchingRules;
 import de.codeministry.leadgen.config.model.PipelineConfig;
+import de.codeministry.leadgen.llm.LlmBudget;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
@@ -100,6 +101,7 @@ public class ScoringService {
     private final Judges judges;
     private final ScoreBatchService batches;
     private final ScoreWriter writer;
+    private final LlmBudget budget;
     private final JdbcClient jdbc;
 
     ScoringService(
@@ -107,11 +109,13 @@ public class ScoringService {
             Judges judges,
             ScoreBatchService batches,
             ScoreWriter writer,
+            LlmBudget budget,
             DataSource dataSource) {
         this.config = config;
         this.judges = judges;
         this.batches = batches;
         this.writer = writer;
+        this.budget = budget;
         this.jdbc = JdbcClient.create(dataSource);
     }
 
@@ -206,6 +210,11 @@ public class ScoringService {
 
             if (judge.isEmpty()) {
                 score = Score.unscored(reasons, rulesetVersion);
+            } else if (!budget.take()) {
+                // The same outcome as no judge at all, and for the same reason: the offer
+                // keeps its deterministic reasons, stays due, and tomorrow's allowance
+                // finishes it. A total from four of five weights would be worse than none.
+                score = Score.unscored(reasons, rulesetVersion);
             } else {
                 List<ScoreReason> answer = judge.get().judge(candidate);
                 reasons.addAll(answer);
@@ -286,6 +295,13 @@ public class ScoringService {
 
         List<ScoreReason> reasons =
                 new java.util.ArrayList<>(new RuleScorer(rules, snapshot.profile()).score(candidate));
+        if (!budget.take()) {
+            // Somebody pressed a button, so this gets a sentence rather than a silent
+            // no-op — and the same exception the silent judge gets, because from the
+            // screen's side both mean "no number today".
+            throw new NoJudge("today's llm.budget.max_calls_per_day is spent; the offer keeps its"
+                + " deterministic reasons and the next run scores it");
+        }
         List<ScoreReason> answer = judge.judge(candidate);
         reasons.addAll(answer);
         // Somebody pressed a button, so silence gets a sentence rather than a number: the

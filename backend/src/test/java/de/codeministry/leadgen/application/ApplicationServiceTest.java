@@ -8,6 +8,7 @@
  */
 package de.codeministry.leadgen.application;
 
+import de.codeministry.leadgen.Databases;
 import de.codeministry.leadgen.config.ConfigFixtures;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -36,7 +37,7 @@ class ApplicationServiceTest {
 
     @Container
     @ServiceConnection
-    static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:17-alpine");
+    static final PostgreSQLContainer<?> POSTGRES = Databases.postgres();
 
     /**
      * Pinned to the shipped defaults rather than to whatever `config/` this machine has.

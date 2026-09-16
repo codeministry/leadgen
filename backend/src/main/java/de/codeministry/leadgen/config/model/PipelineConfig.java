@@ -106,7 +106,14 @@ public record PipelineConfig(
             }
         }
 
-        public record Budget(@Min(0) int maxCallsPerDay, boolean cacheByMessageId) {}
+        /**
+         * @param maxCallsPerDay how many requests a day may leave for a model, counting every
+         *                       stage alike. <b>Null and zero are different answers</b>: absent means no ceiling,
+         *                       and {@code 0} means none at all. A primitive here bound an absent key to zero and
+         *                       would have stopped every call in a file that merely names the block.
+         */
+        public record Budget(@Min(0) Integer maxCallsPerDay) {
+        }
     }
 
     /**

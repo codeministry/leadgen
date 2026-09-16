@@ -11,6 +11,7 @@ package de.codeministry.leadgen.enrich;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.client.WireMock;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
+import de.codeministry.leadgen.Databases;
 import de.codeministry.leadgen.config.ConfigFixtures;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -50,7 +51,7 @@ class EnrichmentServiceTest {
 
     @Container
     @ServiceConnection
-    static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:17-alpine");
+    static final PostgreSQLContainer<?> POSTGRES = Databases.postgres();
 
     private static final WireMockServer PORTAL =
             new WireMockServer(WireMockConfiguration.options().dynamicPort());

@@ -63,4 +63,5 @@ export interface ShortlistFilters {
   readonly minMonths: number;
   /** Only offers whose application deadline has not passed, plus those that stated none. */
   readonly deadlineOpen: boolean;
+  readonly possibleDuplicates: boolean;
 }

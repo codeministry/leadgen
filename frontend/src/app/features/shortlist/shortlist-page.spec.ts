@@ -39,7 +39,7 @@ function entry(id: number, title: string, value: number | null, portal: string):
             archiveSource: null,
         },
         score: {value, hardPass: true, reasons: [], model: null, rulesetVersion: '1'},
-        flags: {incomplete: false, remoteUnknown: true},
+      flags: {incomplete: false, remoteUnknown: true, possibleDuplicate: false},
         sources: [{portal, agency: null, url: `https://example.invalid/${id}`}],
       content: [],
     };

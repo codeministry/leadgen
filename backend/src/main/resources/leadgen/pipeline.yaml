@@ -18,18 +18,21 @@ llm:
   # once the nightly pass is large.
   batch: ${LLM_BATCH:false}
   models:
-    # Only `scoring` is read today, and three stages read it: the scoring judge, the
+    # Two keys are read. `scoring` is read by three stages — the scoring judge, the
     # content classifier and the field extractor. One key rather than three, because a
     # `models.content` or `models.fields` key would mean a second and third allowlist, a
     # second and third entry in the run history and a second and third select in the
     # header — for two bounded classifiers that answer in three lines of JSON.
     #
-    # The other three name stages that are deterministic or not implemented: extraction
-    # has no LLM fallback in the ingest sense, the cover letter is a Freemarker template,
-    # and the two embedding-based deduplication strategies are logged and skipped. They
-    # stay here because the stages exist in the concept, but a value in any of them
+    # `writing` is the one key left that nothing reads: the cover letter is a Freemarker
+    # template. It stays here because the stage exists in the concept, but a value in it
     # changes nothing.
-    extraction: ${LLM_MODEL_EXTRACTION}  # not read yet
+    #
+    # Read by the extraction fallback: a source with `fallback: llm` hands a document the
+    # deterministic rules could not read to this model. Leave it empty and `scoring`
+    # applies, which is what most installations want — one model, one line to fill in.
+    # The startup log says which of the two was taken.
+    extraction: ${LLM_MODEL_EXTRACTION}
     scoring: ${LLM_MODEL_SCORING}     # the judge, the classifier, the field extractor
     # The alternatives offered in the select beside the run button, comma separated.
     # An allowlist, not a suggestion: the chosen model travels as a request parameter,
@@ -37,10 +40,22 @@ llm:
     # bought. `scoring` is always the first entry and need not be repeated here.
     scoring_options: ${LLM_MODEL_SCORING_OPTIONS:}
     writing: ${LLM_MODEL_WRITING}     # not read yet
-    embedding: ${LLM_MODEL_EMBEDDING}   # not read yet
+    # Deduplication's two similarity strategies. No fallback to `scoring`: a chat model is
+    # not an embedding model. Empty means only `exact_fingerprint` runs, which is what a
+    # fresh clone does. The model has to return 768-dimensional vectors.
+    embedding: ${LLM_MODEL_EMBEDDING}
   budget:
+    # Every request that leaves for a model counts once, whatever it carries: a judge's
+    # prompt, a classifier's, a field extraction, a document with no frontmatter, and an
+    # embedding of thirty-two adverts alike. Collecting a batch that was already submitted
+    # does not count — those answers are paid for, and refusing to fetch them would strand
+    # them.
+    #
+    # When the day is spent, each stage stops asking and leaves its work due: nothing is
+    # written as answered that was not answered, so the next run continues where this one
+    # stopped. `0` means no calls at all; **no ceiling is this block being absent**, not a
+    # zero.
     max_calls_per_day: 300
-    cache_by_message_id: true
 
 # File names, resolved against the configuration directory — never a path with the
 # directory baked in: inside the container that directory is /config, not

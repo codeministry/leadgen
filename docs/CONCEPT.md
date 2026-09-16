@@ -95,9 +95,12 @@ Measured against 14 real mails, see [SAMPLE-ANALYSIS.md](SAMPLE-ANALYSIS.md).
 | Digest | one daily overview instead of reviewing each offer | `pipeline.yaml → digest` |
 
 **Cost logic:** the hard filter runs before every expensive call. Only what survives gets
-scored semantically. Extraction uses a small model, scoring and writing a large one.
-Results are cached per document id — the same mail is never paid for twice. The LLM
-provider is interchangeable (Anthropic, Ollama, OpenAI-compatible); in the extreme the
+scored semantically. Nothing is ever paid for twice, and not by one cache but by five, each
+belonging to the stage it protects: the IMAP receiver flags a message it has read, block
+labels are remembered by `(portal, digest)`, a fetched advert is cached by url, an upload's
+reading by the file's version, and scoring asks only what is stale — never written, changed
+weights, or a different model. Above all of them sits one ceiling, `llm.budget.max_calls_per_day`.
+The LLM provider is interchangeable (Anthropic, Ollama, OpenAI-compatible); in the extreme the
 tool runs purely rule-based with no external call at all.
 
 ## 5. Domain model

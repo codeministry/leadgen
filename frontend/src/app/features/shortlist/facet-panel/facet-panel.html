@@ -150,4 +150,16 @@
       {{ 'shortlist.deadlineOpen' | transloco }}
     </button>
   </div>
+
+  <div class="panel-row">
+    <button
+      type="button"
+      class="btn btn-sm deadline"
+      [class.btn-active]="possibleDuplicates()"
+      [attr.aria-pressed]="possibleDuplicates()"
+      (click)="possibleDuplicatesToggled.emit()"
+    >
+      {{ 'shortlist.possibleDuplicates' | transloco }}
+    </button>
+  </div>
 </div>

@@ -15,8 +15,8 @@ export interface ExtractedOffer {
 /**
  * One upload waiting for review. Mirrors `PendingDocument`.
  *
- * `offer` is null when the file has no frontmatter — a pasted ad, which is exactly the
- * case the review screen exists for.
+ * `offer` is null when nothing could be read from the file at all — a pasted ad under a
+ * source that asks for no fallback, or one where no model answered.
  */
 export interface PendingDocument {
     readonly name: string;
@@ -24,6 +24,14 @@ export interface PendingDocument {
     readonly uploadedAt: string;
     readonly text: string;
     readonly offer: ExtractedOffer | null;
+  /**
+   * The fields a language model read, empty whenever the frontmatter was readable.
+   *
+   * The names are the server's eight-field contract and not this interface's spelling:
+   * the date is `published` here and `publishedOn` on `ExtractedOffer`. They are the keys
+   * of the block the pipeline maps, which is what the server marks.
+   */
+  readonly fromModel: readonly string[];
     readonly duplicateOfId: number | null;
     readonly duplicateOfTitle: string | null;
 }

@@ -11,6 +11,7 @@ package de.codeministry.leadgen.manual;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
+import de.codeministry.leadgen.config.model.SourcesConfig;
 import de.codeministry.leadgen.ingest.ExtractedOffer;
 import de.codeministry.leadgen.ingest.extract.MarkdownExtractor;
 import de.codeministry.leadgen.ingest.extract.OfferMapper;
@@ -26,6 +27,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * The review queue: what an upload does before it is allowed to become an offer.
@@ -47,6 +49,13 @@ public class ManualUploadService {
      * Generous for an advert, small enough that nothing here is a place to store files.
      */
     public static final long MAX_BYTES = 512 * 1024L;
+
+    /**
+     * One reading per version of a file. See {@link #reading}: under `fallback: llm` this is
+     * the difference between a screen that opens and one that pays for a model call per
+     * document, per request, and shows a different answer every time.
+     */
+    private final Map<String, Reading> readings = new ConcurrentHashMap<>();
 
     private final ManualInbox inbox;
     private final MarkdownExtractor markdown;
@@ -108,6 +117,11 @@ public class ManualUploadService {
                     .filter(file -> file.getFileName().toString().endsWith(ManualDocumentName.EXTENSION))
                     .sorted(Comparator.comparing(file -> file.getFileName().toString()))
                     .forEach(file -> documents.add(describe(file)));
+            // The queue is the whole truth about what is waiting, so this is the one place
+            // that can tell a reading of a file nobody will ask about again.
+            Set<String> waiting = new HashSet<>();
+            documents.forEach(document -> waiting.add(document.name()));
+            readings.keySet().retainAll(waiting);
             return documents;
         } catch (IOException e) {
             throw new UncheckedIOException("cannot list " + directory, e);
@@ -147,6 +161,7 @@ public class ManualUploadService {
      */
     public boolean reject(String name) {
         Path file = ManualDocumentName.resolve(pendingDirectory(), name);
+        readings.remove(name);
         try {
             return Files.deleteIfExists(file);
         } catch (IOException e) {
@@ -184,10 +199,44 @@ public class ManualUploadService {
         }
     }
 
+    /**
+     * What the extraction made of this file, asked once per version of it.
+     *
+     * <p><b>Two reasons, and the second is the one that matters.</b> Under `fallback: llm`
+     * every reading is a model call, so listing a queue of pasted adverts would pay for one
+     * per document on every request — measured at about a minute for a single document, with
+     * the screen sitting on "loading" for all of it. And a model asked the same question
+     * twice does not answer identically: the list, the panel and the confirm would each show
+     * a slightly different reading of the same unchanged file, and the operator would be
+     * approving the last one by accident.
+     *
+     * <p>The file is still the state. The key is its size and its timestamp, so editing the
+     * document on disk produces a fresh reading, and a restart simply asks again — nothing
+     * here is remembered that the file cannot say for itself.
+     */
+    private MarkdownExtractor.Document reading(Path file, String text, SourcesConfig.Extraction extraction) {
+        String name = file.getFileName().toString();
+        long size = size(file);
+        long modified = modified(file).toEpochMilli();
+        Reading cached = readings.get(name);
+        if (cached != null && cached.size() == size && cached.modified() == modified) {
+            return cached.document();
+        }
+        MarkdownExtractor.Document document = markdown.read(text, extraction);
+        readings.put(name, new Reading(size, modified, document));
+        return document;
+    }
+
+    private record Reading(long size, long modified, MarkdownExtractor.Document document) {
+    }
+
     private PendingDocument describe(Path file) {
         String text = read(file);
         var extraction = inbox.source().orElseThrow(NoInbox::new).extraction();
-        ExtractedOffer offer = markdown.extract(text, extraction).stream()
+        // `read` rather than `extract`, for the one thing the pipeline has nowhere to put and
+        // this screen is built around: which of the fields a model filled in.
+        var document = reading(file, text, extraction);
+        ExtractedOffer offer = document.blocks().stream()
                 // No arrival date: a file dropped in by hand did not come in the post, and
                 // the file's own timestamp would be the upload's, dressed up as one.
                 .map(block -> mapper.map(block, extraction, null))
@@ -204,7 +253,14 @@ public class ManualUploadService {
             }
         }
         return new PendingDocument(
-                file.getFileName().toString(), size(file), modified(file), text, offer, duplicateId, duplicateTitle);
+            file.getFileName().toString(),
+            size(file),
+            modified(file),
+            text,
+            offer,
+            offer == null ? List.of() : document.fromModel(),
+            duplicateId,
+            duplicateTitle);
     }
 
     /**

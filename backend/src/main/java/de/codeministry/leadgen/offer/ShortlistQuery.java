@@ -46,6 +46,10 @@ import java.util.List;
  *                     offers that stated nothing</b>, deliberately: "still open" is the absence of proof
  *                     that it closed. The opposite null treatment from {@code minMonths}, one clause away
  *                     from it, which is exactly the pair a later tidy-up harmonises into a bug.
+ * @param possibleDuplicates only offers the similarity pass marked as possibly the same
+ *                     project as an older one. A reason to look at two offers side by side, never a
+ *                     reason to hide one: the merging threshold already took everything it was sure
+ *                     about, and what is left is the band where a person decides.
  * @param cursor       the last row of the previous page, or null for the first.
  * @param limit        how many rows to return.
  */
@@ -58,6 +62,7 @@ public record ShortlistQuery(
     StartWindow startWindow,
     Integer minMonths,
     boolean deadlineOpen,
+    boolean possibleDuplicates,
     String cursor,
     int limit) {
 
@@ -98,31 +103,31 @@ public record ShortlistQuery(
      * reason they do not each carry ten arguments.
      */
     public static ShortlistQuery first() {
-        return new ShortlistQuery(null, null, null, false, null, null, null, false, null, DEFAULT_LIMIT);
+        return new ShortlistQuery(null, null, null, false, null, null, null, false, false, null, DEFAULT_LIMIT);
     }
 
     public ShortlistQuery withCursor(String next) {
         return new ShortlistQuery(
-            q, score, portals, archived, sort, startWindow, minMonths, deadlineOpen, next, limit);
+            q, score, portals, archived, sort, startWindow, minMonths, deadlineOpen, possibleDuplicates, next, limit);
     }
 
     public ShortlistQuery withLimit(int rows) {
         return new ShortlistQuery(
-            q, score, portals, archived, sort, startWindow, minMonths, deadlineOpen, cursor, rows);
+            q, score, portals, archived, sort, startWindow, minMonths, deadlineOpen, possibleDuplicates, cursor, rows);
     }
 
     public ShortlistQuery withSort(ShortlistSort order) {
         return new ShortlistQuery(
-            q, score, portals, archived, order, startWindow, minMonths, deadlineOpen, cursor, limit);
+            q, score, portals, archived, order, startWindow, minMonths, deadlineOpen, possibleDuplicates, cursor, limit);
     }
 
     public ShortlistQuery withScore(ScoreFilter filter) {
         return new ShortlistQuery(
-            q, filter, portals, archived, sort, startWindow, minMonths, deadlineOpen, cursor, limit);
+            q, filter, portals, archived, sort, startWindow, minMonths, deadlineOpen, possibleDuplicates, cursor, limit);
     }
 
     public ShortlistQuery withPortals(List<String> names) {
         return new ShortlistQuery(
-            q, score, names, archived, sort, startWindow, minMonths, deadlineOpen, cursor, limit);
+            q, score, names, archived, sort, startWindow, minMonths, deadlineOpen, possibleDuplicates, cursor, limit);
     }
 }

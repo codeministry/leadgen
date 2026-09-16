@@ -201,6 +201,9 @@ export class ShortlistPage {
   /** Only offers whose deadline has not passed, plus every offer that stated none. */
   readonly deadlineOpen = input(false, {transform: (value: string | undefined) => value === '1'});
 
+  /** Only offers the similarity pass marked as possibly the same project as an older one. */
+  readonly possibleDuplicates = input(false, {transform: (value: string | undefined) => value === '1'});
+
   /**
    * The six sort keys the server offers, in the order they are worth trying. The names are
    * the server's; a union type here would disagree with it the first time one is added, the
@@ -265,6 +268,7 @@ export class ShortlistPage {
       startWindow: this.startWindow(),
       minMonths: this.minMonths(),
       deadlineOpen: this.deadlineOpen(),
+      possibleDuplicates: this.possibleDuplicates(),
     }));
 
     /**
@@ -489,6 +493,16 @@ export class ShortlistPage {
       });
     }
 
+    if (this.possibleDuplicates()) {
+      chips.push({
+        id: 'possibleDuplicates',
+        label: 'shortlist.facet.possibleDuplicates',
+        valueKey: null,
+        params: {},
+        clear: {possibleDuplicates: null},
+      });
+    }
+
     return chips;
   });
 
@@ -686,6 +700,13 @@ export class ShortlistPage {
         });
     }
 
+  protected togglePossibleDuplicates(): void {
+    void this.router.navigate([], {
+      queryParams: {possibleDuplicates: this.possibleDuplicates() ? null : '1'},
+      queryParamsHandling: 'merge',
+    });
+  }
+
     /**
      * Arrow keys and `j`/`k` walk the list, because triage is twenty offers in a row and a
      * mouse round trip per offer is the thing this screen was rebuilt to remove.
@@ -788,6 +809,7 @@ export class ShortlistPage {
       startWindow: null,
       minMonths: null,
       deadlineOpen: null,
+      possibleDuplicates: null,
     });
     }
 }

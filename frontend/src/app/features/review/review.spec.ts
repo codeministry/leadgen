@@ -25,6 +25,7 @@ const PENDING: PendingDocument = {
     tags: [],
     fingerprint: null,
   },
+  fromModel: [],
   duplicateOfId: null,
   duplicateOfTitle: null,
 };

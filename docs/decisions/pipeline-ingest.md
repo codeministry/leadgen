@@ -154,9 +154,50 @@ the next run; a file uploaded through the browser waits for review first.
 - **`pending/` is a subdirectory of the inbox and is inert by construction.** The file
   connector lists regular files only, so what waits for review cannot be ingested by
   accident.
-- **A file with no frontmatter yields no offer.** That is the `fallback: llm` case and it
-  is not implemented; the file stays where it is rather than entering as an offer with no
-  title.
+- **A file with no frontmatter is the source's `fallback` decision, not the extractor's.**
+  Under `none` it yields no offer and stays where it is. Under `llm` it is handed to a
+  model, and every other way out is a sentence in the log — an unknown fallback value is
+  named rather than treated as `none`, and a configuration that reaches no model says so
+  instead of looking like an unreadable document.
+
+## The extraction fallback
+
+`backend/…/ingest/extract/LlmExtractor`, its per-run factory `LlmExtractors`, and the
+one-method seam `ExtractionFallback` that `MarkdownExtractor` calls.
+
+- **It is the exception that proves *rules before model*, not a break in it.** Every
+  structured source is read by CSS or by frontmatter and costs nothing; what reaches here
+  is a pasted advert, where there is no structure to address and the alternative is not a
+  cheaper reading but no offer at all. The model is asked only after the deterministic rule
+  found nothing, and a test fails if a readable frontmatter asks anything.
+- **The description is never the model's.** It is the document, verbatim. A model asked for
+  a description writes a summary, and that summary is what the enrichment stage, the
+  classifier and the judge would then all read instead of the advert. What the model is
+  asked for is the seven short fields around it.
+- **Two of those seven are checked against the document before they are kept**, and both
+  are the kind of mistake that is invisible on the review screen. A `url` that is not in
+  the document character for character is an address the model assembled out of a portal's
+  name, and it leads somewhere real. A `published` date needs a quote from the document
+  behind it — the same rule the field extractor follows — and has to fall between 2000 and
+  today, because `published` is what the freshness rule counts days from and a future date
+  stays new for as long as the offer exists.
+- **A document with no title yields nothing.** An offer without one is worse than no offer:
+  it reaches the shortlist as a blank row.
+- **It reads `llm.models.extraction`, and falls back to `scoring`.** The key shipped with
+  `# not read yet` beside it for three releases, which is the same class of lie as an
+  unimplemented auth mode. Falling back rather than demanding a second entry is the same
+  argument that made an API key optional for Ollama: most installations run one model, and
+  there would be nothing to write in the second line. Which of the two was taken is said
+  once per process, and the Rules screen shows the same choice because it asks the same
+  method rather than reproducing it.
+- **The reading is cached per version of a file, and the reason is correctness before
+  cost.** The review queue describes every waiting document on every request, so without a
+  cache a list of pasted adverts pays for one model call each, measured at about a minute
+  for a single document against a local 20B model. Worse, a model asked the same question
+  twice does not answer identically: the list, the panel and the confirm would each show a
+  slightly different reading of the same unchanged file, and the operator would be
+  approving the last one by accident. The key is the file's size and timestamp, so editing
+  the document on disk produces a fresh reading and the file stays the state.
 
 ## The upload and its review
 
@@ -167,6 +208,13 @@ the next run; a file uploaded through the browser waits for review first.
   A pasted ad can be extracted wrongly and a frontmatter key spelled differently is read
   and then ignored, in silence. Without the step in between, a bad reading enters the
   shortlist, which is the one list that gets trusted instead of the mailbox.
+- **The review screen marks the fields a model read, and only those.** Without the marks a
+  reading the rules made and one a model made look exactly alike, so everything gets
+  checked equally — which in practice means nothing does. The badge sits *inside* the
+  label, so it is part of the input's accessible name rather than a decoration beside it.
+  The provenance travels in the response and never into the file: what the confirm writes
+  is the eight-field contract and nothing else, because by then the values have been
+  through a person.
 - **No staging table: the file is the state.** It can be read with `cat`, confirming is a
   move, and a rejected upload is a file that was deleted rather than a row nobody looks at
   again. The correction is written back into the document, so re-reading the same file

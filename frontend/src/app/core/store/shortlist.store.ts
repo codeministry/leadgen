@@ -97,6 +97,7 @@ const NO_FILTERS: ShortlistFilters = {
   startWindow: 'any',
   minMonths: 0,
   deadlineOpen: false,
+  possibleDuplicates: false,
 };
 
 const initialState: ShortlistState = {

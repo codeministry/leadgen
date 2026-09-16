@@ -332,7 +332,7 @@ class OfferControllerTest {
         return new ShortlistEntry(
             offer,
             new OfferScoreView(88, true, List.of(), null, null),
-            new OfferFlags(false, true),
+            new OfferFlags(false, true, false),
             List.of(),
             List.of());
     }

@@ -48,7 +48,7 @@ function entry(
             archiveSource: null,
         },
         score: {value: 80, hardPass: true, reasons: [], model: 'test', rulesetVersion: '3'},
-        flags: {incomplete: false, remoteUnknown: true},
+      flags: {incomplete: false, remoteUnknown: true, possibleDuplicate: false},
         sources: [{portal: 'portal-a', agency: null, url: `https://example.invalid/${id}`}],
       content,
     };

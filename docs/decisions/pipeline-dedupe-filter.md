@@ -33,11 +33,55 @@ Every paragraph here was paid for once; none of it is a summary.
   count mean moved rather than seen.
 - **`IngestReport.merged` is the standing total, not the rows this run moved.** A second
   run moves nothing, and a zero there would read as "deduplication stopped working".
-- **Only `exact_fingerprint` is implemented.** The two embedding strategies need a model
-  and are logged and skipped; failing at load would break the shipped defaults, and
-  running silently would suggest a similarity pass happened. A `merge_policy` other than
-  `keep_first_seen_as_primary` *is* fatal at load, because that one would be read,
-  ignored, and quietly do the first-seen thing anyway.
+- **All three strategies the shipped file lists are implemented**, and the order is the
+  point: the exact one costs nothing, so it runs first and the similarity pass has less to
+  ask about. A strategy type nobody wrote is still logged and skipped rather than fatal —
+  failing at load would break a shipped default. A `merge_policy` other than
+  `keep_first_seen_as_primary` *is* fatal at load, because that one would be read, ignored,
+  and quietly do the first-seen thing anyway.
+
+## The two similarity strategies
+
+`backend/…/dedupe/OfferEmbedder` fills the vector, `dedupe/SimilarOffers` compares it, and
+`V22`/`V23` hold the column and the flag.
+
+- **pgvector, not an array and a loop.** The comparison is a nearest-neighbour search over a
+  window of offers, which is the one thing a database index is for. The cost is the image:
+  `pgvector/pgvector:pg17` in place of `postgres:17-alpine`, in Compose, in the chart and in
+  nineteen test classes — which is why the image is now named once, in `Databases`.
+- **768 is in the column and therefore in the configuration.** An index cannot be built on a
+  vector of unstated width, so the width is part of the schema and a model of another width
+  is refused at the seam with both numbers in the sentence. It matches `nomic-embed-text`,
+  which is what a local Ollama offers.
+- **`embedding_model` sits beside the vector**, because two vectors from two models are not
+  far apart or close together; they are numbers from different spaces, and the cosine
+  between them is a number rather than an error. A row embedded by another model is
+  re-embedded rather than compared.
+- **`llm.models.embedding` has no fallback.** The ingest fallback takes the scoring model
+  when its own key is empty; this one must not, because a chat model is not an embedding
+  model. Unset means the similarity strategies do not run, which is what a fresh clone has
+  always done.
+- **What is embedded is the title, the location and the advert's opening.** Those three are
+  what exists before enrichment. The location is deliberately in: it is the field that cost
+  the exact fingerprint 48 correct merges, because "Nürnberg" and "Remote und Nürnberg" are
+  one place written twice and two strings compared once. The opening rather than the whole
+  advert, because a page of boilerplate about the client's culture makes two different
+  projects from the same agency look alike rather than less alike.
+- **The configured number is a similarity and the operator is a distance.** `<=>` is cosine *distance*, so 0.92 is a
+  limit of 0.08. Reading one as the other does not fail; it merges
+  everything or nothing, and both look like a plausible day.
+- **The older of a pair is always the primary**, which is what makes the pass idempotent: the
+  relation is antisymmetric, so a second run assigns what the first did.
+- **Similarity is not transitive, so there is no equivalence class to compute** the way the
+  exact pass does with `first_value`. One statement can leave A attached to B while B goes to
+  C, and the chain is shortened afterwards in up to five passes.
+- **`flag_possible_duplicate` writes its own column.** `duplicate_of_id` decides what the
+  working list shows, and a maybe written into it would silently hide an offer. The shortlist
+  badges the flag and can filter on it; nothing is hidden, and the row stays its own offer.
+- **The transaction around the whole pass is gone.** Computing a vector is an HTTP call, and a
+  transaction held open across a few hundred of them is held open for minutes. Every statement
+  is atomic on its own and the pass is idempotent, so a run that dies halfway is repaired by
+  the next one rather than by a rollback.
 
 ## The hard filter
 

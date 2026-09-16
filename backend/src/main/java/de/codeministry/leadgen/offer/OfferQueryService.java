@@ -289,6 +289,11 @@ public class OfferQueryService {
             sql.append(" AND o.duration_months IS NOT NULL AND o.duration_months >= :minMonths\n");
             params.put("minMonths", query.minMonths());
         }
+        if (query.possibleDuplicates()) {
+            // A reason to look rather than a verdict, so it narrows the list instead of
+            // changing what the list is: the archive axis and the score bands still apply.
+            sql.append(" AND o.possible_duplicate_of_id IS NOT NULL\n");
+        }
         if (query.deadlineOpen()) {
             // The opposite treatment of null from the clause immediately above, on purpose:
             // "still open" is the absence of proof that it closed, so an advert that states no
@@ -399,7 +404,10 @@ public class OfferQueryService {
                         reasons.getOrDefault(row.id, List.of()),
                         row.scoreModel,
                         row.rulesetVersion),
-                new OfferFlags(row.enrichedAt == null || row.enrichmentNote != null, row.remotePercent == null),
+            new OfferFlags(
+                row.enrichedAt == null || row.enrichmentNote != null,
+                row.remotePercent == null,
+                row.possibleDuplicateOfId != null),
             sources,
             withContent ? ContentText.parse(row.contentBlocks) : List.of());
     }
@@ -466,7 +474,10 @@ public class OfferQueryService {
             /** The raw JSON. Parsed only for the detail — see {@code entry(..., withContent)}. */
             String contentBlocks,
             /** Carried only so the cursor can name the row it stopped at. */
-            java.time.Instant ingestedAt) {}
+            java.time.Instant ingestedAt,
+            /** The older offer the similarity pass thinks this might be, or null. */
+            Long possibleDuplicateOfId) {
+    }
 
     private static Row row(ResultSet rs, int index) throws SQLException {
         long id = rs.getLong("id");
@@ -511,7 +522,10 @@ public class OfferQueryService {
                 instant(rs),
                 rs.getString("enrichment_note"),
             rs.getString("content_blocks"),
-                rs.getTimestamp("ingested_at").toInstant());
+            rs.getTimestamp("ingested_at").toInstant(),
+            // `getObject` with the type, never `getLong`: that one answers 0 for SQL NULL
+            // and 0 is an offer id nobody has, so every row would carry a badge.
+            rs.getObject("possible_duplicate_of_id", Long.class));
     }
 
     private static List<String> tags(ResultSet rs) throws SQLException {

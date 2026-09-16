@@ -9,6 +9,7 @@
 package de.codeministry.leadgen.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import de.codeministry.leadgen.Databases;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -44,7 +45,7 @@ class SourceDetailMaskingTest {
 
     @Container
     @ServiceConnection
-    static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:17-alpine");
+    static final PostgreSQLContainer<?> POSTGRES = Databases.postgres();
 
     /**
      * Built once and remembered: a supplier is called on every resolution and not once per

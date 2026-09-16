@@ -8,6 +8,7 @@
  */
 package de.codeministry.leadgen.config;
 
+import de.codeministry.leadgen.Databases;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,7 +35,7 @@ class SourceDetailServiceTest {
 
     @Container
     @ServiceConnection
-    static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:17-alpine");
+    static final PostgreSQLContainer<?> POSTGRES = Databases.postgres();
 
     @DynamicPropertySource
     static void configuration(DynamicPropertyRegistry registry) {

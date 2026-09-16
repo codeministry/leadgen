@@ -153,6 +153,7 @@
     "minDuration": "Mindestdauer",
     "anyDuration": "Beliebige Dauer",
     "fromMonths": "ab {months} Monaten",
+    "possibleDuplicates": "Mögliche Dubletten",
     "deadlineOpen": "Frist offen",
     "stale": "Seit dem Laden dieser Liste ist ein Lauf durchgelaufen.",
     "reload": "Neu laden",
@@ -167,6 +168,7 @@
       "portal": "Portal: {value}",
       "start": "Start: {value}",
       "deadline": "Frist offen",
+      "possibleDuplicates": "Mögliche Dubletten",
       "scoreBetween": "Punktzahl: {from}–{to}",
       "scoreFrom": "Punktzahl: ab {from}",
       "scoreTo": "Punktzahl: bis {to}",
@@ -208,6 +210,7 @@
     "alsoAdvertisedBy": "Ebenfalls ausgeschrieben von",
     "incomplete": "unvollständig",
     "remoteUnknown": "Remote-Anteil unbekannt",
+    "possibleDuplicate": "mögliche Dublette",
     "remoteShare": "{percent} % remote",
     "noAgency": "kein Vermittler genannt",
     "startsAt": "Start {when}",
@@ -283,6 +286,8 @@
     "dropHint": "Das YAML-Frontmatter trägt die Felder, der Text darunter ist die Beschreibung. Eine Datei ohne Frontmatter geht auch; die Felder füllst du dann hier aus.",
     "bytes": "{size} Bytes",
     "noFrontmatter": "Kein Frontmatter in dieser Datei, es ließ sich also nichts verlässlich auslesen. Trage die Felder unten ein; der Text steht rechts.",
+    "readByModel": "Kein Frontmatter in dieser Datei. Die markierten Felder hat ein Sprachmodell aus dem Text gelesen, prüfe sie vor dem Bestätigen dagegen. Die Beschreibung ist das Dokument selbst.",
+    "fromModel": "vom Modell gelesen",
     "duplicate": "Steht schon im Verlauf als „{title}“. Ein Bestätigen legt eine zweite Anzeige an, die die Dublettenerkennung zu einem Eintrag mit beiden Quellen zusammenfasst.",
     "commaSeparated": "Durch Kommas getrennt.",
     "theFile": "Die Datei",
@@ -366,6 +371,7 @@
     "promptModel": "beantwortet von {{model}}",
     "promptNoModel": "kein Modell konfiguriert — der Prompt ist, was gesendet würde",
     "prompt": {
+      "extraction": "Dokumentleser",
       "scoring": "Scoring-Judge",
       "content": "Content-Klassifikator"
     }

@@ -8,6 +8,7 @@
  */
 package de.codeministry.leadgen.dedupe;
 
+import de.codeministry.leadgen.Databases;
 import de.codeministry.leadgen.config.ConfigFixtures;
 import de.codeministry.leadgen.ingest.extract.TitleNormalizer;
 import org.junit.jupiter.api.BeforeEach;
@@ -41,7 +42,7 @@ class DeduplicationServiceTest {
 
     @Container
     @ServiceConnection
-    static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:17-alpine");
+    static final PostgreSQLContainer<?> POSTGRES = Databases.postgres();
 
     private static final String JAVA_LEAD = "Senior Java Entwickler (m/w/d)";
 
@@ -206,6 +207,14 @@ class DeduplicationServiceTest {
             Path dir = Files.createTempDirectory("leadgen-dedupe");
             dir.toFile().deleteOnExit();
             ConfigFixtures.materialize(dir);
+            // The same trap `ScoringWithoutAModelTest` documents, and this stage walked into
+            // it the moment it started reading the llm block: the shipped file names its
+            // settings as ${LLM_*} placeholders and the resolver reads the developer's own
+            // `.env` behind the process environment. Left open, a machine with an embedding
+            // model configured would run a similarity pass against a real endpoint in a test
+            // that is about the exact fingerprint.
+            Path pipeline = dir.resolve("pipeline.yaml");
+            Files.writeString(pipeline, Files.readString(pipeline).replaceAll("\\$\\{LLM_[A-Z_]+(?::[^}]*)?}", "''"));
             return dir;
         } catch (IOException e) {
             throw new UncheckedIOException(e);

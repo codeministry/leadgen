@@ -34,7 +34,7 @@ function entry(id: number): ShortlistEntry {
             archiveSource: null,
         },
         score: {value: 88, hardPass: true, reasons: [], model: null, rulesetVersion: '1'},
-        flags: {incomplete: false, remoteUnknown: true},
+      flags: {incomplete: false, remoteUnknown: true, possibleDuplicate: false},
         sources: [{portal: 'portal-a', agency: null, url: `https://example.invalid/${id}`}],
       content: [],
     };
@@ -64,6 +64,23 @@ describe('OfferCard', () => {
   function checkbox(fixture: ComponentFixture<OfferCard>): HTMLInputElement {
     return fixture.nativeElement.querySelector('input[type="checkbox"]') as HTMLInputElement;
   }
+
+  it('badges an offer the similarity pass only suspected', async () => {
+    // The band between merging and leaving alone: the row is still on the list and still
+    // its own offer, and what the badge asks for is a second pair of eyes.
+    const suspected = entry(2);
+    const fixture = await render(false, {
+      entry: {...suspected, flags: {...suspected.flags, possibleDuplicate: true}},
+    });
+
+    expect(fixture.nativeElement.textContent).toContain('possible duplicate');
+  });
+
+  it('badges nothing when the pass found no near neighbour', async () => {
+    const fixture = await render(false);
+
+    expect(fixture.nativeElement.textContent).not.toContain('possible duplicate');
+  });
 
     it('links into the split view and carries the filters with it', async () => {
         // Without `queryParamsHandling`, opening an offer drops the query string and the list

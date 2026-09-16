@@ -124,10 +124,50 @@ Every paragraph here was paid for once; none of it is a summary.
   there was nothing to write in `.env`, so the judge was silently never built. The rule is
   about the value, which is why the provider is listed separately from
   `openai-compatible` even though it gets the same judge.
-- **Only `llm.models.scoring` is read.** `extraction` has no LLM fallback implemented, the
-  cover letter is a Freemarker template, and `embedding` belongs to the two deduplication
-  strategies that are logged and skipped. Three keys that look configured and are not is
-  the same class of lie as an unimplemented auth mode, so the shipped file says so.
+
+## The day's allowance
+
+`backend/…/llm/LlmBudget`, `V24`, and one call site in every stage that sends a request.
+
+- **`max_calls_per_day` shipped in the configuration from the beginning and was read by
+  nothing**, which is the same class of lie as an unimplemented auth mode. It is read now.
+- **A request is a request.** A judge's prompt and an embedding carrying thirty-two adverts
+  count the same, because the number in the file says "calls" and an exception to that would
+  live only in the code rather than beside the number a person reads.
+- **Collecting a submitted batch is the one thing that does not count.** Those answers are
+  already bought; a spent budget that refused to fetch them would strand them in flight and
+  the money with them.
+- **A spent day stops each stage where it is, and nothing is written as answered.** The judge
+  leaves the offer unscored and therefore due, the field extractor its columns, the ingest
+  fallback the document. That is the same shape every one of them already had for a model
+  that does not answer, which is why no stage needed a new state.
+- **The count is a row per day in the database, not a field in memory.** A restart would
+  otherwise hand out the allowance twice, and a restart is what happens on the night
+  something else goes wrong. It also means the nightly pass and a run started by hand share
+  one day.
+- **Check and increment are one statement.** Between a `SELECT` and an `UPDATE` there is a
+  window where two stages both read the last remaining call and both take it; the `WHERE` on
+  the conflict closes it, and a refused call updates nothing and returns no row.
+- **`cache_by_message_id` was deleted rather than implemented.** It sat in the same block and
+  came from a concept in which extraction itself was a model call: cache the answer per mail,
+  and the same mail is never paid for twice. Extraction is deterministic now, and no model is
+  ever asked about a mail at all — it is asked about an offer, a block or a document. What the
+  key promised is true five times over and by five different keys: the IMAP user flag, the
+  `(portal, digest)` label cache, the fetch cache, the upload's reading cache, and scoring's
+  own staleness predicate. A sixth cache keyed by something no stage holds would have been a
+  mechanism looking for a caller.
+- **`0` means no calls; no ceiling is the absent block.** The other reading is the expensive
+  one — somebody writing `0` to mean "off" would get a bill. The record component is an
+  `Integer` for the same reason: as a primitive, an absent key bound to zero and a file that
+  merely names the block would have stopped every call in the pipeline.
+
+- **`llm.models.scoring` is read by three stages, and `extraction` by a fourth.** The judge,
+  the content classifier and the field extractor share `scoring`; the ingest fallback reads
+  `extraction` and takes `scoring` when it is empty, and the deduplication pass reads
+  `embedding` with no fallback at all. `writing` is the only one left that nothing reads: the
+  cover letter is a Freemarker template. A key that looks configured and is not is the same
+  class of lie as an unimplemented auth mode, so the shipped file says which is which — and
+  the list of lies is down to one.
 - **The judge is built per run**, not once at startup, because the configuration is
   hot-reloadable: a key added to `.env` should start producing scores without a restart.
 - **A run judges what is stale, not everything that ever passed.** Every stage before this

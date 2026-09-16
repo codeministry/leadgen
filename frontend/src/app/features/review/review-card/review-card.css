@@ -31,6 +31,23 @@
     color: var(--lg-warning-text);
 }
 
+/* Same ground as the other two notes, and deliberately not a warning colour: a document
+   read by a model is the normal case for a pasted advert, not a problem. What wants
+   attention is the individual field, and that is where the badge sits. */
+.model {
+  margin-top: 0.625rem;
+}
+
+/* The badge lives inside the label, so it is part of the input's accessible name rather
+   than a decoration beside it. `baseline` rather than `center` keeps the caption's own
+   line where it was when no badge is there. */
+.label-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.375rem;
+}
+
 .split {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(min(20rem, 100%), 1fr));

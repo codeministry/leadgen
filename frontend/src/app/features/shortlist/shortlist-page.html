@@ -123,6 +123,7 @@
           [minMonths]="minMonths()"
           [minMonthsOptions]="minMonthsOptions"
           [deadlineOpen]="deadlineOpen()"
+          [possibleDuplicates]="possibleDuplicates()"
           [activeCount]="facetChips().length"
           (portalToggled)="togglePortal($event)"
           (scoreRangeChanged)="setScoreRange($event)"
@@ -130,6 +131,7 @@
           (startWindowChanged)="setFilter('startWindow', $event)"
           (minMonthsChanged)="setMinMonths($event)"
           (deadlineToggled)="toggleDeadlineOpen()"
+          (possibleDuplicatesToggled)="togglePossibleDuplicates()"
         />
       </div>
 

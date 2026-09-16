@@ -72,7 +72,11 @@
             @if (entry().flags.incomplete) {
                 <lg-badge tone="warning" [outline]="true">{{ 'offer.incomplete' | transloco }}</lg-badge>
             }
-            @if (entry().flags.remoteUnknown) {
+          @if (entry().flags.possibleDuplicate) {
+            <lg-badge tone="warning" [outline]="true">{{ 'offer.possibleDuplicate' | transloco }}</lg-badge>
+          }
+
+          @if (entry().flags.remoteUnknown) {
                 <lg-badge tone="ghost" [outline]="true">{{ 'offer.remoteUnknown' | transloco }}</lg-badge>
             } @else {
                 <lg-badge tone="ghost" [outline]="true">

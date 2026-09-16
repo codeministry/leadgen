@@ -11,6 +11,7 @@ package de.codeministry.leadgen.web;
 import de.codeministry.leadgen.config.model.MatchingRules;
 import de.codeministry.leadgen.config.model.SkillProfile;
 import de.codeministry.leadgen.content.ContentClassifier;
+import de.codeministry.leadgen.ingest.extract.LlmExtractor;
 import de.codeministry.leadgen.score.ChatClientJudge;
 
 import java.util.List;
@@ -44,14 +45,27 @@ import java.util.List;
 public record PromptView(String id, String model, String system, String user) {
 
     /**
-     * Both prompts, in the order the pipeline asks them.
+     * All three prompts, in the order the pipeline asks them: a document is read before its
+     * advert is segmented, and both happen before anything is scored.
      *
-     * <p>They carry the same model on purpose, and the screen showing it twice is the point:
-     * {@code llm.models.scoring} is read by two stages, which is what keeps the rule that an
-     * unread {@code models.*} key is a lie true without adding a second allowlist.
+     * <p>The last two carry the same model on purpose, and the screen showing it twice is the
+     * point: {@code llm.models.scoring} is read by two stages, which is what keeps the rule
+     * that an unread {@code models.*} key is a lie true without adding a second allowlist.
+     * The first may carry a different one, because {@code llm.models.extraction} is a key of
+     * its own — and which one it would be is exactly what this panel is for.
+     *
+     * @param extractionModel which model reads a document with no frontmatter. Not the same
+     *                        parameter as {@code model} and not interchangeable with it, which is
+     *                        why {@code PromptViewTest} pins both.
      */
-    public static List<PromptView> all(MatchingRules rules, SkillProfile profile, String model) {
+    public static List<PromptView> all(
+        MatchingRules rules, SkillProfile profile, String model, String extractionModel) {
         return List.of(
+            new PromptView(
+                "extraction",
+                extractionModel,
+                LlmExtractor.instructions(),
+                LlmExtractor.exampleUser()),
                 new PromptView(
                         "content",
                         model,

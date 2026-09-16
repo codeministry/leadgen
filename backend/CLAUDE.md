@@ -70,6 +70,15 @@ The reasoning stage by stage lives in `docs/decisions/pipeline-ingest.md`,
   `PACKAGES_DIR` and `INBOX_DIR` look as though they meant something on the Spring side as
   well, which is how a value ends up written in the one place that is not read.
 
+## The call budget
+
+**Every stage that sends a request to a model asks `LlmBudget.take()` first**, and a false
+answer means "not now": the stage leaves its work undone and due rather than writing a result
+it never received. A request is a request, so an embedding of thirty-two adverts counts the
+same as one judge's prompt. Collecting a finished batch is the one exception and is not
+counted — those answers are already bought, and refusing to collect them would strand them.
+The reasoning is in `docs/decisions/pipeline-scoring.md`.
+
 ## Traps that have already cost money
 
 - **`listOfRows()` hands the driver's own types straight on, and a cast is how that becomes a
@@ -111,6 +120,19 @@ The reasoning stage by stage lives in `docs/decisions/pipeline-ingest.md`,
 - **A comma in a jsoup selector is a union, and `selectFirst` answers in document order.**
   Adding a narrower class to `article, main, .job-description, #content` therefore changes nothing whenever a `<main>`
   wraps the page — which is every page that has one. The selector list reads like a priority order and is not one.
+- **A `@DynamicPropertySource` supplier may run more than once, so it must not create anything.** A supplier that
+  makes a temp directory hands out a different one on each resolution: the loader keeps the first, the test rewrites the
+  last, and every edit is read from a file nobody loads. The configuration reloads cleanly, logs "Configuration
+  reloaded", and never changes — measured on `LlmBudgetTest`, where four assertions failed against a file that plainly
+  held the new value. Create the directory in a static field and let the supplier return it.
+- **An UPDATE cannot reference its own target table from a LATERAL item in its FROM clause.** The target is not part
+  of the from_list, so `UPDATE offer a SET … FROM LATERAL (SELECT … WHERE b.x = a.x)` fails with "invalid reference to
+  FROM-clause entry for table a" — which reads like a typo in an alias that is plainly there. A CTE with a correlated
+  subquery does the same job: compute the pairs in a `WITH`, then update `FROM` that.
+- **Two constructors on a `@Component` are none, and the error names the wrong thing.** Spring picks neither and
+  reports `No default constructor found` — a message about a constructor that was never meant to exist, rather than
+  about the ambiguity. Every context in the suite fails at once: measured at 194 failures from one added convenience
+  constructor taking a `Clock`. Keep one constructor, or mark one `@Autowired`.
 - **Two methods called `kindOf(String)` that differ only in return type do not overload.**
   Same erasure, so the compiler refuses the second — and because annotation processing then does not run, the error it
   prints is 70 lines of "cannot find symbol: log" in files nobody touched. Read the *last* error, not the first.

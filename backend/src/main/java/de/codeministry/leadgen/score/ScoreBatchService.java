@@ -10,6 +10,7 @@ package de.codeministry.leadgen.score;
 
 import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.config.model.MatchingRules;
+import de.codeministry.leadgen.llm.LlmBudget;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
@@ -51,12 +52,15 @@ public class ScoreBatchService {
     private final ConfigRegistry config;
     private final Judges judges;
     private final ScoreWriter writer;
+    private final LlmBudget budget;
     private final JdbcClient jdbc;
 
-    ScoreBatchService(ConfigRegistry config, Judges judges, ScoreWriter writer, DataSource dataSource) {
+    ScoreBatchService(
+        ConfigRegistry config, Judges judges, ScoreWriter writer, LlmBudget budget, DataSource dataSource) {
         this.config = config;
         this.judges = judges;
         this.writer = writer;
+        this.budget = budget;
         this.jdbc = JdbcClient.create(dataSource);
     }
 
@@ -74,6 +78,12 @@ public class ScoreBatchService {
      */
     @Transactional
     int submit(BatchJudge judge, List<ScoreCandidate> due, RuleScorer scorer, MatchingRules rules) {
+        // One request for the whole batch, so one call against the day. **Collecting a
+        // finished batch is deliberately not counted**: those answers are already bought,
+        // and a spent budget that refused to collect them would strand them in flight.
+        if (!budget.take()) {
+            return 0;
+        }
         Optional<String> providerId = judge.submit(due);
         if (providerId.isEmpty()) {
             return 0;

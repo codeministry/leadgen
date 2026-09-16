@@ -80,6 +80,12 @@ export interface Offer {
 export interface OfferFlags {
     readonly incomplete: boolean;
     readonly remoteUnknown: boolean;
+  /**
+   * The similarity pass found an older offer close enough to be the same project and not
+   * close enough to merge. A reason to look at two offers side by side, never a reason to
+   * hide one.
+   */
+  readonly possibleDuplicate: boolean;
 }
 
 /** One portal advertising an offer. A duplicate cluster names all of them. */

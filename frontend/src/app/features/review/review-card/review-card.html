@@ -11,6 +11,12 @@
     </p>
 }
 
+@if (readByModel()) {
+  <p class="type-small note model" role="status">
+    {{ 'review.readByModel' | transloco }}
+  </p>
+}
+
 @if (document().duplicateOfTitle; as existing) {
     <p class="type-small note duplicate" role="status">
         {{ 'review.duplicate' | transloco: {title: existing} }}
@@ -20,9 +26,12 @@
 <div class="split">
     <div class="fields">
         <div class="field">
-            <label class="type-caption text-muted" [for]="'title-' + document().name">{{
-                    'field.title' | transloco
-                }}</label>
+          <label class="type-caption text-muted label-row" [for]="'title-' + document().name">
+            {{ 'field.title' | transloco }}
+            @if (fromModel('title')) {
+              <lg-badge tone="warning" [outline]="true">{{ 'review.fromModel' | transloco }}</lg-badge>
+            }
+          </label>
             <input
                     class="input input-sm"
                     [id]="'title-' + document().name"
@@ -33,9 +42,12 @@
         </div>
 
         <div class="field">
-            <label class="type-caption text-muted" [for]="'url-' + document().name">{{
-                    'field.url' | transloco
-                }}</label>
+          <label class="type-caption text-muted label-row" [for]="'url-' + document().name">
+            {{ 'field.url' | transloco }}
+            @if (fromModel('url')) {
+              <lg-badge tone="warning" [outline]="true">{{ 'review.fromModel' | transloco }}</lg-badge>
+            }
+          </label>
             <input
                     class="input input-sm type-mono-data"
                     [id]="'url-' + document().name"
@@ -47,9 +59,12 @@
 
         <div class="pair">
             <div class="field">
-                <label class="type-caption text-muted" [for]="'location-' + document().name">{{
-                        'field.location' | transloco
-                    }}</label>
+              <label class="type-caption text-muted label-row" [for]="'location-' + document().name">
+                {{ 'field.location' | transloco }}
+                @if (fromModel('location')) {
+                  <lg-badge tone="warning" [outline]="true">{{ 'review.fromModel' | transloco }}</lg-badge>
+                }
+              </label>
                 <input
                         class="input input-sm"
                         [id]="'location-' + document().name"
@@ -59,9 +74,12 @@
                 />
             </div>
             <div class="field">
-                <label class="type-caption text-muted" [for]="'portal-' + document().name">{{
-                        'field.portal' | transloco
-                    }}</label>
+              <label class="type-caption text-muted label-row" [for]="'portal-' + document().name">
+                {{ 'field.portal' | transloco }}
+                @if (fromModel('portal')) {
+                  <lg-badge tone="warning" [outline]="true">{{ 'review.fromModel' | transloco }}</lg-badge>
+                }
+              </label>
                 <input
                         class="input input-sm"
                         [id]="'portal-' + document().name"
@@ -74,9 +92,12 @@
 
         <div class="pair">
             <div class="field">
-                <label class="type-caption text-muted" [for]="'agency-' + document().name">{{
-                        'field.agency' | transloco
-                    }}</label>
+              <label class="type-caption text-muted label-row" [for]="'agency-' + document().name">
+                {{ 'field.agency' | transloco }}
+                @if (fromModel('agency')) {
+                  <lg-badge tone="warning" [outline]="true">{{ 'review.fromModel' | transloco }}</lg-badge>
+                }
+              </label>
                 <input
                         class="input input-sm"
                         [id]="'agency-' + document().name"
@@ -86,9 +107,12 @@
                 />
             </div>
             <div class="field">
-                <label class="type-caption text-muted" [for]="'published-' + document().name">{{
-                        'field.published' | transloco
-                    }}</label>
+              <label class="type-caption text-muted label-row" [for]="'published-' + document().name">
+                {{ 'field.published' | transloco }}
+                @if (fromModel('published')) {
+                  <lg-badge tone="warning" [outline]="true">{{ 'review.fromModel' | transloco }}</lg-badge>
+                }
+              </label>
                 <input
                         class="input input-sm type-mono-data"
                         [id]="'published-' + document().name"
@@ -101,9 +125,12 @@
         </div>
 
         <div class="field">
-            <label class="type-caption text-muted" [for]="'tags-' + document().name">{{
-                    'field.tags' | transloco
-                }}</label>
+          <label class="type-caption text-muted label-row" [for]="'tags-' + document().name">
+            {{ 'field.tags' | transloco }}
+            @if (fromModel('tags')) {
+              <lg-badge tone="warning" [outline]="true">{{ 'review.fromModel' | transloco }}</lg-badge>
+            }
+          </label>
             <input
                     class="input input-sm"
                     [id]="'tags-' + document().name"

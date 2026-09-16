@@ -84,19 +84,9 @@ public class ChatModels {
      * missing key must leave the tool running, only weaker.
      */
     public Optional<ChatModel> of(PipelineConfig.Llm llm, String model) {
-        if (llm == null || blank(llm.provider()) || blank(model)) {
-            return Optional.empty();
-        }
-        // A key is what a hosted provider needs and a local one does not. Requiring it
-        // everywhere made `provider: ollama` unusable: a local server wants no key, so there
-        // was nothing to write in `.env`, and nothing was ever built.
-        if (blank(llm.apiKey()) && !OLLAMA.equals(llm.provider())) {
-            return Optional.empty();
-        }
-        if (blank(llm.baseUrl())) {
-            // Required even for a hosted provider whose address never changes: a URL in the
-            // code is a vendor in the code, and this repository has none.
-            log.warn("llm.base_url is not set; there is nowhere to send a request");
+        // The three rules that decide whether there is anything to reach at all live in
+        // `Providers`, because embeddings ask them too and a second copy would relearn them.
+        if (!Providers.reachable(llm, model)) {
             return Optional.empty();
         }
         return switch (llm.provider()) {

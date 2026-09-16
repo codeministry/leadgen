@@ -155,8 +155,11 @@ sources:
         # A file pasted out of the newsletter carries the subscriber's address in every
         # link. The privacy boundary does not care that the document arrived by hand.
         url: { unwrap_query_param: target }
-      # A file that is nothing but a pasted ad has no frontmatter to read. Not implemented
-      # yet: such a file is left where it is rather than entering with no title.
+      # A file that is nothing but a pasted ad has no frontmatter to read. `llm` hands it
+      # to `llm.models.extraction`, or to `scoring` when that is empty; `none` leaves it
+      # where it is. Either way it is still reviewed before it becomes an offer, and the
+      # review screen marks which fields the model read. Without a reachable model this
+      # behaves exactly like `none`.
       fallback: llm
     defaults:
       language: de

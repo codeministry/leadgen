@@ -61,6 +61,9 @@ export class ShortlistApi {
       if (filters.minMonths > 0) {
         params = params.set('minMonths', String(filters.minMonths));
       }
+      if (filters.possibleDuplicates) {
+        params = params.set('possibleDuplicates', 'true');
+      }
       if (filters.deadlineOpen) {
         params = params.set('deadlineOpen', 'true');
       }
