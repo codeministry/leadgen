@@ -9,7 +9,7 @@ plugins {
 }
 
 group = "de.codeministry"
-version = "0.3.0"
+version = "0.3.1"
 
 /**
  * Java 25 through the toolchain rather than the ambient JDK: Gradle runs on

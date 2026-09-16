@@ -81,13 +81,18 @@ class SourceDetailMaskingTest {
     @Autowired
     private SourceDetailService details;
 
+    /**
+     * A mapper of its own: this context has no bean, and the assertion is about the fields.
+     */
+    private final ObjectMapper mapper = new ObjectMapper();
+
     @Test
     void theCredentialNeverLeavesTheMachine() throws Exception {
         var detail = details.detail("sample-newsletter", 30).orElseThrow();
 
         // Serialised, because the assertion worth making is about the whole answer and not
         // about the field somebody remembered to check.
-        String json = new ObjectMapper().writeValueAsString(detail);
+        String json = mapper.writeValueAsString(detail);
 
         assertThat(json).doesNotContain(PASSWORD).doesNotContain(MAILBOX);
         assertThat(detail.connection().text()).contains("password: " + Secrets.MASK);

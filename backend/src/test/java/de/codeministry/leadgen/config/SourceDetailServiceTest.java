@@ -23,6 +23,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import java.time.LocalDate;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 
 /**
  * One source, opened: what defines it, and when its numbers last moved.
@@ -45,6 +46,16 @@ class SourceDetailServiceTest {
 
     @Autowired
     private JdbcTemplate jdbc;
+
+    /**
+     * Built here rather than injected: this context has no `ObjectMapper` bean, and what is
+     * under test is the record's own annotation rather than anybody's mapper configuration.
+     * The time module is what a bare mapper is missing.
+     */
+    private final com.fasterxml.jackson.databind.ObjectMapper mapper =
+        com.fasterxml.jackson.databind.json.JsonMapper.builder()
+            .addModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule())
+            .build();
 
     @BeforeEach
     void clean() {
@@ -155,6 +166,24 @@ class SourceDetailServiceTest {
         assertThat(run.extracted()).isEqualTo(1289);
         assertThat(run.written()).isEqualTo(1280);
         assertThat(run.missing()).isZero();
+    }
+
+    @Test
+    void putsTheMissingCountOnTheWireAndNotOnlyInJava() {
+        // Jackson builds a record's JSON from its components, and `missing()` is a method — so
+        // it was absent from the answer, the browser read `undefined`, and the panel painted an
+        // "undefined missing" badge on every run where the count actually matched. Every
+        // hand-written fixture had supplied the field, which is exactly what a fixture cannot
+        // check. The assertion is therefore on the serialised form.
+        long id = source("manual-inbox");
+        ran(id, "2026-09-14", 5, 157, 157, 169);
+
+        var detail = details.detail("manual-inbox", 30).orElseThrow();
+        // The application's own mapper and not a bare one: what is under test is the JSON this
+        // service actually answers with, and a mapper without the JSR-310 module is not it.
+        String json = assertDoesNotThrow(() -> mapper.writeValueAsString(detail.runs().getFirst()));
+
+        assertThat(json).contains("\"missing\":12");
     }
 
     @Test

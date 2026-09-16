@@ -78,6 +78,13 @@
   text-align: right;
 }
 
+/* Measured on the panel: at 30rem the date wrapped to three lines and the Announced badge was
+   clipped at the column's edge. A date is one token. */
+.runs th[scope='row'],
+.runs .num {
+  white-space: nowrap;
+}
+
 /* The one event that gets an edge, on top of the badge that carries the words. Warning *text*
    and never `--color-warning`, which is a fill and fails AA below 24px. */
 .runs .diverged {
@@ -111,6 +118,32 @@
   border-radius: var(--radius-field);
   background-color: var(--color-base-200);
   white-space: pre;
+}
+
+/* `::ng-deep` because the block is injected through `[innerHTML]`: emulated encapsulation
+   stamps its attribute onto the elements the *template* declares, and a node highlight.js
+   wrote afterwards carries none — so `.yaml-text .hljs-attr` would compile to a selector that
+   matches nothing, silently. Measured exactly that way here: the classes were in the markup and
+   every one of them had the plain text's colour.
+
+   Scoped under `:host`, so this is still a component stylesheet and not a global one. The roles
+   are mapped for YAML rather than copied from the Markdown view: there a key and a string are
+   both "content", here the key is the structure and the value is what somebody came to read.
+   No ochre anywhere — it means "this survived the filter", and nothing here survived anything. */
+:host ::ng-deep .yaml-text .hljs-attr {
+  color: var(--color-primary);
+}
+
+:host ::ng-deep .yaml-text .hljs-string,
+:host ::ng-deep .yaml-text .hljs-literal,
+:host ::ng-deep .yaml-text .hljs-number {
+  color: var(--color-secondary);
+}
+
+:host ::ng-deep .yaml-text .hljs-comment,
+:host ::ng-deep .yaml-text .hljs-bullet,
+:host ::ng-deep .yaml-text .hljs-meta {
+  color: var(--lg-muted);
 }
 
 /* A clamp and a mask rather than a truncated string, so the text stays whole in the DOM and

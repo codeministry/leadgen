@@ -34,7 +34,15 @@ public record SourceRun(LocalDate ranOn, int documents, int extracted, int writt
      * How far {@code announced} and {@code extracted} are apart, or null where there is no
      * count to check against. Computed here rather than in the browser, so the badge in the
      * history and the badge in the table row are the same number from the same place.
+     *
+     * <p><b>{@code @JsonProperty} is load-bearing.</b> Jackson serialises a record from its
+     * components, and a no-argument method that is not a bean getter is not one of them — so
+     * this was simply absent from the JSON, the browser read `undefined`, and the panel painted
+     * an "undefined missing" badge on every run where the count matched. Found in a screenshot,
+     * not in a test: every fixture supplied the field by hand, which is the one thing a
+     * hand-written fixture cannot check.
      */
+    @com.fasterxml.jackson.annotation.JsonProperty("missing")
     public Integer missing() {
         return announced == null ? null : announced - extracted;
     }

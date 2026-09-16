@@ -9,6 +9,10 @@ may change in any release. See the status note in the README.
 
 ## [Unreleased]
 
+## [0.3.1] — 2026-09-16
+
+A release about the one screen that exists to explain a source, and could not.
+
 ### Added
 
 - **A source can be opened, and it shows the block of `sources.yaml` that defines it.** The
@@ -67,6 +71,20 @@ may change in any release. See the status note in the README.
   to appear on the other after a navigation.
 - **The docs placed the Markdown upload on the Sources screen.** It moved to Review with the
   split views and the endpoint kept its path, which is what let the two sentences drift apart.
+
+### Upgrade notes
+
+- **`GET /api/sources` changed shape.** It answers `{file, layer, sources}` instead of a bare
+  array, and `layer` has left the row. Anything reading that endpoint by hand needs the one
+  extra hop; the browser in this repository was changed with it.
+- **No migration.** The run history reads `source_run`, which has been append-only since `V9`,
+  and the block comes from the file on disk. Nothing is written by any of this.
+- **A source's block is visible in the browser now**, so it is worth knowing what that shows:
+  the file as written, with placeholders unresolved and values under secret-looking keys
+  masked. Masking is by key name and covers credentials, not identity — a real block still
+  names your portal, your mailbox folder and your paths. `security.auth` still has one
+  implemented value, so what stands in front of that endpoint is `server.address`, which the
+  container overrides.
 
 ## [0.3.0] — 2026-09-15
 
@@ -541,7 +559,8 @@ Found while building the demo, all of them in paths only a container exercises:
   left six.
 - The shortlist card printed the description's Markdown syntax in its teaser.
 
-[Unreleased]: https://github.com/codeministry/leadgen/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/codeministry/leadgen/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/codeministry/leadgen/releases/tag/v0.3.1
 [0.3.0]: https://github.com/codeministry/leadgen/releases/tag/v0.3.0
 [0.2.1]: https://github.com/codeministry/leadgen/releases/tag/v0.2.1
 [0.2.0]: https://github.com/codeministry/leadgen/releases/tag/v0.2.0

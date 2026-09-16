@@ -105,10 +105,12 @@
 
   /* The sources panel: a fixed column for a source's run history, and how far its YAML block
      is folded. The history is fixed for the reason `--lg-list-w` is — five numeric columns
-     that would otherwise re-wrap on every monitor — and the clamp decides only *how far*, never
+     that would otherwise re-wrap on every monitor. 34rem and not 30: measured on the panel, at
+     30rem the day wrapped to three lines and the Announced badge was clipped at the column's
+     edge — and the clamp decides only *how far*, never
      *whether*: that is a line count the server sends, because a measured height is suspended in
      a backgrounded tab. */
-  --lg-runs-w: 30rem;
+  --lg-runs-w: 34rem;
   --lg-yaml-clamp: 24rem;
 
     /* Selection in a list. Not the accent: ochre means "this survived the filter" and nothing

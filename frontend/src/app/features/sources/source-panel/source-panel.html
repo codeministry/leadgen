@@ -83,13 +83,15 @@
                   <tr [class.diverged]="row.run.missing !== null && row.run.missing !== 0">
                     <th scope="row" class="type-mono-data">{{ row.run.ranOn | lgDay }}</th>
                     <td class="type-mono-data num text-muted">{{ row.run.documents }}</td>
-                    <td class="type-mono-data num" [class.text-muted]="row.extractedDelta === 0">
+                    <td class="type-mono-data num"
+                        [class.text-muted]="row.extractedDelta === null || row.extractedDelta === 0">
                       {{ row.run.extracted }}
                       @if (row.extractedDelta !== null && row.extractedDelta !== 0) {
                         <span class="run-delta">{{ delta(row.extractedDelta) }}</span>
                       }
                     </td>
-                    <td class="type-mono-data num" [class.text-muted]="row.writtenDelta === 0">
+                    <td class="type-mono-data num"
+                        [class.text-muted]="row.writtenDelta === null || row.writtenDelta === 0">
                       {{ row.run.written }}
                       @if (row.writtenDelta !== null && row.writtenDelta !== 0) {
                         <span class="run-delta">{{ delta(row.writtenDelta) }}</span>

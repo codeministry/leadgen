@@ -94,6 +94,13 @@ describe('SourcePanel', () => {
 
     expect(deltas.map((delta) => delta.textContent?.trim())).toContain('+12');
     expect(fixture.nativeElement.querySelectorAll('.runs tbody tr')).toHaveLength(3);
+
+    // The oldest row in the window has nothing before it, so it is not a change either — the
+    // edge of what was fetched is not an event, and ink there would read as one.
+    const cells: HTMLElement[] = Array.from(
+      fixture.nativeElement.querySelectorAll('.runs tbody tr:last-child td'),
+    );
+    expect(cells.filter((cell) => cell.classList.contains('text-muted')).length).toBeGreaterThan(1);
   });
 
   it('marks a run where the announced count disagreed, with the badge the table already uses', () => {
