@@ -9,6 +9,10 @@ may change in any release. See the status note in the README.
 
 ## [Unreleased]
 
+## [0.3.2] — 2026-09-16
+
+A release about three things that were written down as true and were not.
+
 ### Changed
 
 - **`remote.accept_unknown` finally does something.** It was rendered on the rules screen,
@@ -36,6 +40,15 @@ may change in any release. See the status note in the README.
   formatting fallout, and the header is the part of a file nobody reads in review — on an
   Apache-2.0 repository that is a licence statement quietly going missing. CI greps for it now,
   which is one rule and names the file that lacks it. Re-enabling Spotless replaces the step.
+
+### Upgrade notes
+
+- **`V21` drops `ingest_cursor`.** Nothing has read it since the IMAP connector moved to a
+  user flag in the mailbox, so what is lost is a resumption point nobody consults — but a
+  rollback to an older jar will not find the table again.
+- **`remote.accept_unknown: false` now rejects.** It did nothing before. If you set it to
+  `false` at some point and kept it there because the shortlist looked fine, it will start
+  removing every offer that states no remote share. The shipped default is `true`.
 
 ## [0.3.1] — 2026-09-16
 
@@ -587,7 +600,8 @@ Found while building the demo, all of them in paths only a container exercises:
   left six.
 - The shortlist card printed the description's Markdown syntax in its teaser.
 
-[Unreleased]: https://github.com/codeministry/leadgen/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/codeministry/leadgen/compare/v0.3.2...HEAD
+[0.3.2]: https://github.com/codeministry/leadgen/releases/tag/v0.3.2
 [0.3.1]: https://github.com/codeministry/leadgen/releases/tag/v0.3.1
 [0.3.0]: https://github.com/codeministry/leadgen/releases/tag/v0.3.0
 [0.2.1]: https://github.com/codeministry/leadgen/releases/tag/v0.2.1
