@@ -3,6 +3,18 @@ import {ChangeDetectionStrategy, Component, computed, input, output} from '@angu
 export interface PickerOption {
     readonly value: string;
     readonly label: string;
+    /**
+     * The heading this option sits under, or absent for one that stands on its own. Still a
+     * plain string: `shared/` does not know what the caller's groups mean, only that
+     * consecutive options naming the same one belong together.
+     */
+    readonly group?: string;
+}
+
+/** A run of consecutive options under one heading. `null` is the ungrouped run. */
+interface PickerGroup {
+    readonly label: string | null;
+    readonly options: PickerOption[];
 }
 
 /**
@@ -53,6 +65,29 @@ export class StatusPicker {
     protected readonly labelClass = computed(() =>
         this.labelHidden() ? 'sr-only' : 'type-caption text-muted',
     );
+
+    /**
+     * The options cut into runs of `<optgroup>`s.
+     *
+     * Consecutive and never sorted: the order the caller passes is the order that means
+     * something — for the eleven application states it is the path an application usually
+     * takes — and regrouping by name would quietly reorder it. An option with no `group`
+     * starts an ungrouped run, so a caller that never sets one gets exactly the flat list
+     * this control had before.
+     */
+    protected readonly groups = computed<readonly PickerGroup[]>(() => {
+        const runs: PickerGroup[] = [];
+        for (const option of this.options()) {
+            const label = option.group ?? null;
+            const current = runs.at(-1);
+            if (current !== undefined && current.label === label) {
+                current.options.push(option);
+            } else {
+                runs.push({label, options: [option]});
+            }
+        }
+        return runs;
+    });
 
     protected onChange(event: Event): void {
         this.picked.emit((event.target as HTMLSelectElement).value);

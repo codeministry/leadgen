@@ -469,6 +469,7 @@
     "offerLoad": "Dieses Angebot konnte nicht geladen werden.",
     "boardLoad": "Das Board konnte nicht geladen werden.",
     "historyLoad": "Der Verlauf konnte nicht geladen werden.",
+    "statusSave": "Der Status wurde nicht gespeichert. Die Karte steht wieder, wo sie war.",
     "sourcesLoad": "Die Quellen konnten nicht geladen werden.",
     "rulesLoad": "Die Regeln konnten nicht geladen werden.",
     "queueLoad": "Die Prüfliste konnte nicht geladen werden.",

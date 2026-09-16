@@ -75,13 +75,13 @@ describe('ApplicationsStore', () => {
         expect(store.columns()[1]?.applications.map((a) => a.id)).toEqual([2]);
     });
 
-    it('offers every state the lanes contain, in the order the usual path runs', () => {
+    it('offers every state the lanes contain, in the order the usual path runs, under its lane', () => {
         open([]);
 
         expect(store.statusChoices()).toEqual([
-            {value: 'PACKAGED', label: 'Packaged'},
-            {value: 'SENT', label: 'Sent'},
-            {value: 'REPLIED', label: 'Replied'},
+            {value: 'PACKAGED', label: 'Packaged', group: 'Prepared'},
+            {value: 'SENT', label: 'Sent', group: 'Out'},
+            {value: 'REPLIED', label: 'Replied', group: 'Out'},
         ]);
     });
 
@@ -141,7 +141,53 @@ describe('ApplicationsStore', () => {
         dispatch.changed({id: 1, update: {status: 'SENT'}});
         http.expectOne('/api/applications/1').flush('nope', {status: 500, statusText: 'Error'});
 
-        expect(store.error()).toContain('not saved');
+        expect(store.error()).toBe('error.statusSave');
         expect(store.saving()).toBeNull();
+    });
+
+    it('splits every lane by state, because a lane is not a drop target', () => {
+        // Four of the five lanes hold more than one state and `closed` begins at `WON`, so a
+        // board that let a card be dropped on the lane would have to guess which one is meant.
+        open([application(), application({id: 2, status: 'SENT'}), application({id: 3, status: 'REPLIED'})]);
+
+        expect(store.columns()[1]?.groups.map((group) => group.status)).toEqual(['SENT', 'REPLIED']);
+        expect(store.columns()[1]?.groups[0]?.applications.map((a) => a.id)).toEqual([2]);
+        expect(store.columns()[1]?.groups[1]?.applications.map((a) => a.id)).toEqual([3]);
+        // The heading and the picker read the same word, because they share one function.
+        expect(store.columns()[1]?.groups.map((group) => group.label)).toEqual(['Sent', 'Replied']);
+    });
+
+    it('moves the card before the answer is back, and lets the answer replace it', () => {
+        open([application()]);
+
+        dispatch.changed({id: 1, update: {status: 'SENT'}});
+
+        // Already in the target lane, before anything has been flushed — a card that waits a
+        // round trip reads as a drag that did not take.
+        expect(store.applications()[0]?.status).toBe('SENT');
+        expect(store.columns()[1]?.groups[0]?.applications.map((a) => a.id)).toEqual([1]);
+        // But not dated here: the server does that, and a local guess would stand next to the
+        // real row until the next reload.
+        expect(store.applications()[0]?.sentOn).toBeNull();
+
+        http.expectOne('/api/applications/1').flush(application({status: 'SENT', sentOn: '2026-09-17'}));
+
+        expect(store.applications()[0]?.sentOn).toBe('2026-09-17');
+    });
+
+    it('puts the card back in the state it came from when the write fails', () => {
+        open([application({followUpOn: '2026-09-30', followUpDue: true})]);
+
+        dispatch.changed({id: 1, update: {status: 'LOST'}});
+        expect(store.applications()[0]?.status).toBe('LOST');
+
+        http.expectOne('/api/applications/1').flush('nope', {status: 500, statusText: 'Error'});
+
+        // The whole row, not only the status: the optimistic patch is undone by restoring what
+        // was there, so nothing it touched can survive the failure.
+        expect(store.applications()[0]?.status).toBe('PACKAGED');
+        expect(store.applications()[0]?.followUpOn).toBe('2026-09-30');
+        expect(store.followUpsDue()).toBe(1);
+        expect(store.error()).toBe('error.statusSave');
     });
 });

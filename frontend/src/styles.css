@@ -202,3 +202,24 @@ html {
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
 }
+
+/* The dragged card while it is in the air. It lives here and not in `pipeline.css` because
+   the CDK appends the preview to `<body>`, where no component-scoped rule reaches it — and
+   keeping it in the document rather than inside the lane is what stops `.board-col`'s
+   `overflow: auto` from clipping the card halfway across the board. */
+.cdk-drag-preview {
+    display: flex;
+    flex-direction: column;
+    padding: 0.625rem 0.75rem;
+    border: 1px solid var(--color-primary);
+    border-radius: var(--radius-field);
+    background-color: var(--color-base-200);
+    box-shadow: 0 8px 24px oklch(0% 0 0 / 22%);
+    opacity: 0.95;
+    cursor: grabbing;
+}
+
+/* A drop that lands nowhere animates back to where the card came from. */
+.cdk-drag-animating {
+    transition: transform 180ms cubic-bezier(0, 0, 0.2, 1);
+}

@@ -62,6 +62,46 @@ describe('StatusPicker', () => {
         expect(select.classList.contains('select-xs')).toBe(false);
     });
 
+    it('cuts consecutive options into optgroups, and leaves the order alone', () => {
+        // Consecutive and never sorted: the order the caller passes is the order that means
+        // something. A run that comes back to a heading it used before is a second group,
+        // because regrouping by name would move the options in between.
+        const fixture = TestBed.createComponent(StatusPicker);
+        fixture.componentRef.setInput('value', 'SENT');
+        fixture.componentRef.setInput('options', [
+            {value: 'NEW', label: 'New', group: 'Backlog'},
+            {value: 'SHORTLISTED', label: 'Shortlisted', group: 'Backlog'},
+            {value: 'SENT', label: 'Sent', group: 'Out'},
+        ]);
+        fixture.detectChanges();
+
+        const groups: HTMLOptGroupElement[] = Array.from(
+            fixture.nativeElement.querySelectorAll('optgroup'),
+        );
+        expect(groups.map((group) => group.label)).toEqual(['Backlog', 'Out']);
+        expect(groups[0]?.querySelectorAll('option').length).toBe(2);
+
+        const options: HTMLOptionElement[] = Array.from(
+            fixture.nativeElement.querySelectorAll('option'),
+        );
+        expect(options.map((option) => option.value)).toEqual(['NEW', 'SHORTLISTED', 'SENT']);
+        // Grouping must not cost the selection the previous test is about.
+        expect((fixture.nativeElement.querySelector('select') as HTMLSelectElement).value).toBe('SENT');
+    });
+
+    it('stays a flat list for a caller that names no groups', () => {
+        const fixture = TestBed.createComponent(StatusPicker);
+        fixture.componentRef.setInput('value', 'NEW');
+        fixture.componentRef.setInput('options', [
+            {value: 'NEW', label: 'New'},
+            {value: 'LOST', label: 'Lost'},
+        ]);
+        fixture.detectChanges();
+
+        expect(fixture.nativeElement.querySelectorAll('optgroup').length).toBe(0);
+        expect(fixture.nativeElement.querySelectorAll('option').length).toBe(2);
+    });
+
     it('labels the control for a screen reader, because the card has no visible label', () => {
         const fixture = TestBed.createComponent(StatusPicker);
         fixture.componentRef.setInput('value', 'NEW');

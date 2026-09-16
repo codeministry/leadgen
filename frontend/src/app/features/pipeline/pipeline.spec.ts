@@ -1,10 +1,12 @@
 import {provideHttpClient} from '@angular/common/http';
 import {HttpTestingController, provideHttpClientTesting} from '@angular/common/http/testing';
-import {ChangeDetectionStrategy, Component, signal} from '@angular/core';
+import {CdkDragDrop, CdkDropList} from '@angular/cdk/drag-drop';
+import {ChangeDetectionStrategy, Component, DebugElement, signal} from '@angular/core';
 import {TestBed} from '@angular/core/testing';
+import {By} from '@angular/platform-browser';
 import {provideRouter, Router} from '@angular/router';
 import {RouterTestingHarness} from '@angular/router/testing';
-import {ApplicationView, PipelineLane} from '@core/model/application';
+import {ApplicationStatus, ApplicationView, PipelineLane} from '@core/model/application';
 import {SCORE_THRESHOLDS} from '@shared/shared.ports';
 
 /**
@@ -159,6 +161,89 @@ describe('Pipeline', () => {
     expect(patch.request.body).toEqual({status: 'SENT'});
     expect(TestBed.inject(Router).url).toBe('/pipeline');
   });
+
+  it('offers one drop zone per state, not one per lane', async () => {
+    // Four of the five real lanes hold more than one state and `closed` begins at `WON`, so
+    // a lane-wide target would have to guess — and would mark a dropped card won.
+    const harness = await openBoard();
+    const zones = harness.fixture.debugElement.queryAll(By.directive(CdkDropList));
+
+    expect(zones.length).toBe(5);
+    expect(zones.map((zone) => zone.injector.get(CdkDropList).data)).toEqual([
+      'NEW',
+      'SHORTLISTED',
+      'PACKAGED',
+      'SENT',
+      'REPLIED',
+    ]);
+  });
+
+  it('writes the zone\'s state when a card is let go of in another one', async () => {
+    // jsdom cannot produce a real CDK drag, so the drop is emitted on the directive the
+    // template binds to. What is under test is the write it causes, and that is real.
+    const harness = await openBoard();
+    const zones = harness.fixture.debugElement.queryAll(By.directive(CdkDropList));
+
+    drop(zones[0]!, zones[3]!);
+    harness.detectChanges();
+
+    const patch = http.expectOne('/api/applications/4');
+    expect(patch.request.method).toBe('PATCH');
+    expect(patch.request.body).toEqual({status: 'SENT'});
+    // The card is in the target zone before the answer is flushed.
+    expect(zones[3]!.nativeElement.textContent).toContain('Senior Java Entwickler');
+    patch.flush({...APPLICATION, status: 'SENT', sentOn: '2026-09-17'});
+  });
+
+  it('asks for nothing when a card is let go of in the zone it came from', async () => {
+    // The server records no event row for a status that did not change, so the round trip
+    // would buy a card greying out and nothing else. `http.verify()` in `afterEach` is the
+    // assertion.
+    const harness = await openBoard();
+    const zones = harness.fixture.debugElement.queryAll(By.directive(CdkDropList));
+
+    drop(zones[0]!, zones[0]!);
+    harness.detectChanges();
+
+    http.expectNone('/api/applications/4');
+  });
+
+  it('opens the state zones on the press, not on the drag', async () => {
+    // The order is the whole point and it is measured, not preferred: the CDK caches every
+    // container's rectangle at the first move past the threshold and never asks again, so
+    // zones revealed on `cdkDragStarted` are measured collapsed and a drop over one produces
+    // no request at all. `pointerdown` is unconditionally before the first move.
+    //
+    // Asserted without a `detectChanges()` in between on purpose: the class is written
+    // straight onto the element rather than through a binding, because change detection runs
+    // a frame later and a frame later is the race this exists to avoid.
+    const harness = await openBoard();
+    const board: HTMLElement = harness.routeNativeElement!.querySelector('.board')!;
+    const card: HTMLElement = board.querySelector('.lane-card')!;
+    const grip: HTMLElement = card.querySelector('.card-grip')!;
+
+    expect(board.classList.contains('picking')).toBe(false);
+
+    // On the grip and nowhere else: pressing a card to read it must not open the zones.
+    card.dispatchEvent(new PointerEvent('pointerdown', {bubbles: true}));
+    expect(board.classList.contains('picking')).toBe(false);
+
+    grip.dispatchEvent(new PointerEvent('pointerdown', {bubbles: true}));
+    expect(board.classList.contains('picking')).toBe(true);
+
+    window.dispatchEvent(new PointerEvent('pointerup'));
+    expect(board.classList.contains('picking')).toBe(false);
+  });
+
+  /** The drop the CDK would emit, reduced to what the handler reads. */
+  function drop(from: DebugElement, to: DebugElement): void {
+    const container = to.injector.get(CdkDropList);
+    to.injector.get(CdkDropList).dropped.emit({
+      previousContainer: from.injector.get(CdkDropList),
+      container,
+      item: {data: APPLICATION},
+    } as unknown as CdkDragDrop<ApplicationStatus>);
+  }
 
   afterEach(() => http.verify());
 });

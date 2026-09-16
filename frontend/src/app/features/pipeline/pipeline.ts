@@ -9,6 +9,14 @@ import {
   viewChild,
 } from '@angular/core';
 import {toSignal} from '@angular/core/rxjs-interop';
+import {
+  CdkDrag,
+  CdkDragDrop,
+  CdkDragHandle,
+  CdkDropList,
+  CdkDropListGroup,
+} from '@angular/cdk/drag-drop';
+import {CdkScrollable} from '@angular/cdk/scrolling';
 import {ActivatedRoute, NavigationEnd, Router, RouterLink, RouterOutlet} from '@angular/router';
 import {filter, map} from 'rxjs';
 import {injectDispatch} from '@ngrx/signals/events';
@@ -16,7 +24,6 @@ import {TranslocoPipe} from '@jsverse/transloco';
 import {ApplicationStatus, ApplicationView} from '@core/model/application';
 import {applicationEvents} from '@core/store/applications.events';
 import {ApplicationsStore} from '@core/store/applications.store';
-import {Badge} from '@shared/badge/badge';
 import {EmptyState} from '@shared/empty-state/empty-state';
 import {Icon} from '@shared/icon/icon';
 import {PageHeader} from '@shared/page-header/page-header';
@@ -26,7 +33,11 @@ import {StatusPicker} from '@shared/status-picker/status-picker';
 @Component({
     selector: 'lg-pipeline',
     imports: [
-        Badge,
+        CdkDrag,
+        CdkDragHandle,
+        CdkDropList,
+        CdkDropListGroup,
+        CdkScrollable,
         EmptyState,
         Icon,
         PageHeader,
@@ -130,10 +141,58 @@ export class Pipeline implements OnInit {
         });
     }
 
-    protected toneFor(status: ApplicationStatus): 'success' | 'error' | 'ghost' {
-        if (status === 'WON') {
-            return 'success';
+    /**
+     * A card let go of in another state's zone. The same one-line dispatch `move` makes —
+     * drag is a second gesture for the one write, not a second write path.
+     *
+     * A drop in the zone it came from is not a request: the server records no event row for
+     * a status that did not change, so the round trip would buy a card greying out and
+     * nothing else.
+     */
+    protected dropped(event: CdkDragDrop<ApplicationStatus>): void {
+        if (event.previousContainer === event.container) {
+            return;
         }
-        return status === 'LOST' || status === 'REJECTED' || status === 'EXPIRED' ? 'error' : 'ghost';
+        const application: ApplicationView = event.item.data;
+        this.dispatch.changed({
+            id: application.id,
+            update: {status: event.container.data},
+        });
     }
+
+    /**
+     * Shows the state zones, on the press rather than on the drag.
+     *
+     * At rest a lane is one list in the states' own order, which is what a reader scans; a
+     * target to aim at is only worth its height while there is something to aim. The moment
+     * it appears is measured, not chosen: the CDK caches every container's rectangle at the
+     * first move past the threshold and never asks again, so a reveal on `cdkDragStarted`
+     * lands after the measurement and the lanes are measured collapsed. A drop over a zone
+     * revealed that way produced no request at all; the same drop with the zones already
+     * open wrote `{"status":"LOST"}`. `pointerdown` is unconditionally before the first
+     * move, which is what makes the geometry the CDK reads the geometry on the screen.
+     *
+     * Bound to the grip rather than to the card, so pressing a card to read it never opens
+     * them: only a hand already on the drag affordance does.
+     *
+     * The class is written straight onto the element instead of through a signal binding,
+     * and that is the whole point: change detection runs a frame later, and a frame later is
+     * exactly the race this method exists to avoid.
+     */
+    protected showTargets(event: PointerEvent): void {
+        const grip = event.currentTarget as HTMLElement;
+        this.board = grip.closest('.board');
+        this.board?.classList.add('picking');
+        // A press that never becomes a drag ends here; a drag ends in `cdkDragEnded`. Both
+        // close the zones, and `once` means neither leaves a listener behind.
+        const close = (): void => this.hideTargets();
+        window.addEventListener('pointerup', close, {once: true});
+        window.addEventListener('pointercancel', close, {once: true});
+    }
+
+    protected hideTargets(): void {
+        this.board?.classList.remove('picking');
+    }
+
+    private board: HTMLElement | null = null;
 }

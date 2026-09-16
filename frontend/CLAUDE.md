@@ -28,6 +28,15 @@ Carried over from a sibling Angular project, which is the house style:
   pair with `withReducer` + `withEventHandlers`. Model: `core/store/status.store.ts`.
   Where the I/O is the DOM rather than HTTP, `withHooks` + an `effect` replaces
   `withEventHandlers` — see `core/theme/theme.store.ts`.
+- **`@angular/cdk` is in for `drag-drop` and `scrolling` only** — the pipeline board's cards.
+  It ships no stylesheet; its drag classes are styled in `pipeline.css`, except the preview,
+  which the CDK appends to `<body>` and which therefore lives in `src/styles.css`.
+- **Anything that changes a drop container's size must happen before the drag starts.** The
+  CDK measures every container once, at the first pointer move past the threshold, and never
+  asks again; a target revealed on `cdkDragStarted` is measured at its collapsed size and a
+  drop over it silently produces no event at all. The board reveals its zones on
+  `pointerdown` for that reason, by writing the class straight onto the element — a
+  `[class.x]` binding lands a frame late, which is the same race.
 - **Specs live beside their file.**
 - **Strict TypeScript** plus `strictTemplates`, `noPropertyAccessFromIndexSignature`,
   `noImplicitReturns`, `noImplicitOverride`, `noUnusedLocals`. No `baseUrl` — TypeScript

@@ -18,10 +18,25 @@ Every paragraph here was paid for once; none of it is a summary.
   `{ value, label }` options and emits a string. The layering rule is the reason, and the
   cast back to `ApplicationStatus` is safe for the same reason: the options came from the
   feature that owns the type.
+- **The picker's options are cut into `<optgroup>`s by an optional `group` on the option,
+  and the runs are consecutive rather than collected by name.** Eleven flat states are a
+  list to read; five headings are a shape to recognise, and they are the same five the board
+  draws, because both come from `statusChoices` and that comes from the lanes the server
+  states. A plain string keeps the layering intact — `shared/` knows that consecutive options
+  naming the same group belong together and nothing else. Consecutive matters: the order is
+  the path an application usually takes, and regrouping by name would move whatever sat
+  between two runs of the same heading. An option with no `group` starts an ungrouped run, so
+  a caller that sets none gets exactly the flat list this control had before.
+- **Nothing is styled on the `optgroup`.** Measured live, the browser already gives the
+  heading `font-weight: 500` against the options' 400 and indents them by 7.5px. More CSS at
+  `<option>`/`<optgroup>` is the kind of change that reads as work and does nothing: macOS
+  paints a native select's popup itself and honours almost none of it.
 - **Bind the selection on the option, not with `[value]` on the select.** `[value]`
   depends on the options existing when it is written; losing that race leaves the first
-  option showing, so a card reads "New" while the badge beside it says SENT. No error,
-  and picking the state it is already in looks like nothing happening.
+  option showing, so a card reads "New" while it stands in the Out lane. No error, and
+  picking the state it is already in looks like nothing happening. Found when a status
+  badge on the card still said SENT beside it — the badge is gone now, so the picker is
+  the only place the state is written and this rule is the only thing keeping it honest.
 - **The row is replaced with the server's answer, never with what was asked for.** The
   service dates a send itself and drops a follow-up on closing, so a locally patched row
   would disagree with the database until the next reload.
@@ -33,6 +48,78 @@ Every paragraph here was paid for once; none of it is a summary.
   entered at all.
 - **`saving` names the application in flight, not a boolean.** One card greys out; the
   rest stay usable.
+- **A state is the drop target, never a lane.** Five lanes hold eleven states and four of them
+  hold more than one; `closed` begins at `WON`, so a card let go of on the lane would be marked
+  won on the strength of the enum's declaration order. Each lane therefore renders its states as
+  their own `cdkDropList`. The zones carry a `min-height` while one is being aimed at, because
+  an empty state with no children has no box to let go of a card over, and the lane's "nothing
+  here" line moved up under the lane head where it is said once instead of five times.
+- **At rest a lane is one list, and the states are its order rather than its headings.** The
+  groups are laid out at every moment — they have to be, see the reveal below — but an empty
+  state is `display: none` and a heading only appears while a card is in the air. "Packaged"
+  under a lane already called "Prepared" is the same word twice anyway; the rest are a
+  structure the reader does not need until there is something to aim at.
+- **Sorting inside a zone is off.** There is no order to persist: the board query decides the
+  order within a state, so a dropped position would be honoured until the next load and then
+  silently revert. `cdkDropListSortingDisabled` says that out loud; leaving it on would have
+  been a promise the server never made.
+- **The card moves before the answer is back, and the row it moved from is kept.** A drag whose
+  card stays put for a round trip reads as a drag that did not take. Only the **status** is
+  patched locally, though — the service dates a send itself and drops the follow-up on closing,
+  so anything else written here would be a guess standing next to the real row until `updated`
+  replaces it. `changeFailed` grew an `id` for exactly this: a rollback has to name the card,
+  and `pending` is keyed by id rather than a single slot because the writes are `concatMap` and
+  a queued second change would otherwise overwrite the first one's undo. The same edit turned
+  the hardcoded English sentence into `error.statusSave` — the template pipes `store.error()`
+  through `| transloco`, so that sentence was being looked up as a key, missed, and printed.
+- **The grip drags, not the card, and the picker stays.** A `<span cdkDragHandle>` rather than
+  a `<button>`: a focusable control that does nothing on Enter promises a keyboard path drag
+  does not have, and that path is the picker two rows below. The whole card was tried as the
+  drag surface and given up. It costs text selection, it needs `cdkDragStartDelay` on touch or
+  a swipe up a lane drags a card instead of scrolling, and it puts the gesture on the same box
+  as the stretched title link — where a click after a drag is at least a question. Measured,
+  that question has a reassuring answer: a click fires on the nearest common ancestor of the
+  `mousedown` and `mouseup` targets, and the release target is the `<ul class="cards">` in both
+  cases that matter — a drag into another zone and a drag returned to its exact starting point,
+  because the CDK lifts the card out of the flow and the preview takes no pointer events. So
+  the common ancestor is the board, never the anchor, and no click needs suppressing. The grip
+  is kept anyway, for the other three reasons.
+- **The card carries no status badge.** The picker directly above it is the same word, and a
+  second copy of a value is a thing that can disagree with it — which is exactly how the
+  `[value]` race above was found. What is left on the card is the score, the title, the dates,
+  the picker and the agency: five things, each said once.
+- **The card takes a hover, the border only.** The same treatment and the same `color-mix` the
+  shortlist's card carries, so a board card and a list card behave alike; a wash would have to
+  be told apart from the selected card's, and hover is not a statement about the offer. The
+  grip brightens with it: it is an affordance for the hand already on that card, not a sixth
+  thing to read on a surface scanned twenty at a time.
+- **The state zones open on `pointerdown`, not on `cdkDragStarted`, and the difference is a
+  defect.** The CDK caches every container's rectangle when the drag sequence starts — at the
+  first move past the threshold — and never asks again. Zones revealed after that are measured
+  collapsed: a drop over one produced **no request at all**, while the identical drop with the
+  zones already open wrote `{"status":"LOST"}`. Both measured in the browser, which is the only
+  place the question can be asked. The press is unconditionally before the first move, so the
+  geometry the CDK reads is the geometry on the screen. Bound to the grip and not to the card,
+  so pressing a card to read it never opens them: only a hand already on the drag affordance
+  does, which is also what removes the flash the whole-card variant had on every click.
+- **The class is written onto the element, not bound with `[class.picking]`.** A signal binding
+  is applied by change detection a frame later, and a frame later is precisely the race the
+  previous point is about. One owner, one moment, synchronous — and the spec asserts it without
+  a `detectChanges()` in between, which is what would catch a well-meaning rewrite into a
+  binding.
+- **The drag preview is styled in `styles.css` and the rest in `pipeline.css`.** The CDK appends
+  the preview to `<body>`, where no component-scoped rule reaches it, and leaving it in the
+  document rather than `[cdkDragPreviewContainer]="'parent'"` is what stops `.board-col`'s
+  `overflow: auto` from clipping the card halfway across the board. The zone highlight and the
+  placeholder land on elements inside the template and stay with the feature. Petrol throughout,
+  never ochre: a drop target is not a statement about the offer.
+- **`.board-col` needs `cdkScrollable` or a drag towards the edge scrolls nothing.** The CDK
+  auto-scrolls only containers it has been told about, and this one is deliberately a single
+  scroller for both axes.
+- **jsdom cannot produce a CDK drag, so the spec emits the drop on the directive** the template
+  binds to, rather than calling the component's method. The assertion that matters is the
+  request, and that half is real: a drop in another zone PATCHes, a drop in the zone the card
+  came from asks for nothing — the server records no event row for a status that did not change.
 - **A DOM-render screenshot is not proof of what the browser paints.** It serialises and
   re-renders, which drops DOM properties that have no attribute (a `<select>`'s
   selection) and some component CSS on SVG children (the score ring). Read the

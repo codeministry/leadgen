@@ -469,6 +469,7 @@
     "offerLoad": "That offer did not load.",
     "boardLoad": "The board did not load.",
     "historyLoad": "The history did not load.",
+    "statusSave": "The status was not saved. The card went back where it was.",
     "sourcesLoad": "The sources did not load.",
     "rulesLoad": "The rules did not load.",
     "queueLoad": "The review queue did not load.",

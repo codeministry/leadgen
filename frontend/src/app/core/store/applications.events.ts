@@ -11,7 +11,11 @@ export const applicationEvents = eventGroup({
         /** The operator says this is where the application stands now. */
         changed: type<{ id: number; update: ApplicationUpdate }>(),
         updated: type<ApplicationView>(),
-        changeFailed: type<string>(),
+        /**
+         * The id and not only the message: the board moves the card before the answer is
+         * back, so a failure has to name the card whose row goes back where it was.
+         */
+        changeFailed: type<{ id: number; message: string }>(),
         historyRequested: type<number>(),
         historyLoaded: type<{ id: number; events: readonly ApplicationEvent[] }>(),
     },

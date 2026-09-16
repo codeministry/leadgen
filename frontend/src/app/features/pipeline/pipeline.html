@@ -4,7 +4,9 @@
 />
 
 <div class="split">
-    <div class="board-col">
+    <!-- `cdkScrollable` is what lets a drag towards the edge scroll the board: the CDK only
+         auto-scrolls containers it has been told about, and this one scrolls both axes. -->
+    <div class="board-col" cdkScrollable>
         @if (store.error(); as error) {
             <p class="type-small board-error" role="alert">
                 <lg-icon name="triangle-alert" [size]="16"/>
@@ -13,7 +15,9 @@
         }
 
         @if (store.columns().length > 0) {
-            <div class="board">
+            <!-- One group rather than an id list: every drop zone on this board accepts from
+                 every other, and a list of ids is a second place to keep that agreement. -->
+            <div class="board" cdkDropListGroup>
                 @for (column of store.columns(); track column.lane.id) {
                     <section class="lane">
                         <h2 class="type-caption lane-head">
@@ -21,63 +25,113 @@
                             <span class="type-mono-data text-muted">{{ column.applications.length }}</span>
                         </h2>
 
-                        <ul class="cards">
-                            @for (application of column.applications; track application.id) {
-                                <li
-                                  class="lane-card"
-                                        [class.saving]="store.saving() === application.id"
-                                        [class.is-selected]="application.offerId === selectedId()"
+                        @if (column.applications.length === 0) {
+                            <p class="type-small text-muted empty">{{ 'pipeline.laneEmpty' | transloco }}</p>
+                        }
+
+                        @for (group of column.groups; track group.status) {
+                            <div class="lane-group">
+                                <!-- Rendered always and shown only while something is being
+                                     dragged — see the CSS. At rest the lane reads as one list
+                                     in the states' own order; the zones are what the reader
+                                     needs to aim at, and only then. Not an `@if` on
+                                     `dragging()`: the drop containers have to exist before the
+                                     drag starts, because the CDK caches their geometry at the
+                                     first move and never asks again. -->
+                                @if (column.groups.length > 1) {
+                                    <h3 class="type-caption group-head">{{ group.label }}</h3>
+                                }
+
+                                <!-- Sorting off: the board query decides the order within a state,
+                                     so a dropped position would silently reset on the next load. -->
+                                <ul
+                                        class="cards"
+                                        cdkDropList
+                                        cdkDropListSortingDisabled
+                                        [cdkDropListData]="group.status"
+                                        (cdkDropListDropped)="dropped($event)"
                                 >
-                                    <div class="card-top">
-                                        <lg-score [value]="application.scoreValue" [size]="40"/>
-                                        <h3 class="type-small card-title">
-                                            <!-- The title link covers the whole card (see the CSS), so the status
-                                                 picker below has to lift itself above it or it stops being
-                                                 clickable. -->
-                                            <a
-                                                    [routerLink]="['/pipeline', application.offerId]"
-                                                    [attr.aria-current]="application.offerId === selectedId() ? 'true' : null"
-                                            >{{ application.title }}</a
-                                            >
-                                        </h3>
-                                    </div>
+                                    @for (application of group.applications; track application.id) {
+                                        <!-- The grip drags, not the card. It keeps the gesture off the
+                                             stretched title link, leaves text selectable, and leaves a
+                                             swipe on the card body scrolling the lane on touch. -->
+                                        <li
+                                                class="lane-card"
+                                                cdkDrag
+                                                [cdkDragData]="application"
+                                                [cdkDragDisabled]="store.saving() === application.id"
+                                                (cdkDragEnded)="hideTargets()"
+                                                [class.saving]="store.saving() === application.id"
+                                                [class.is-selected]="application.offerId === selectedId()"
+                                        >
+                                            <div class="card-top">
+                                                <!-- `pointerdown` and not `cdkDragStarted` opens the state
+                                                     zones, and that is measured rather than preferred: the
+                                                     CDK caches every container's rectangle at the first
+                                                     move past the threshold and never asks again, so zones
+                                                     revealed after it are measured collapsed and a drop
+                                                     over one produces no request at all. The same drop with
+                                                     them already open writes `{"status":"LOST"}`. On the
+                                                     grip and not on the card, so pressing a card to read it
+                                                     does not open them.
 
-                                    <p class="type-mono-data text-muted card-meta">
-                                        @if (application.rateEur !== null) {
-                                            <span>{{ application.rateEur }} &euro;/h</span>
-                                        }
-                                        @if (application.sentOn; as sent) {
-                                            <span>{{ 'pipeline.sent' | transloco: {date: sent} }}</span>
-                                        }
-                                        @if (application.followUpOn; as due) {
-                                            <span [class.due]="application.followUpDue">
-                        {{ 'pipeline.followUp' | transloco: {date: due} }}
-                      </span>
-                                        }
-                                    </p>
+                                                     A `<span>` and not a `<button>`: a focusable control
+                                                     that does nothing on Enter promises a keyboard path
+                                                     drag does not have. That path is the picker below. -->
+                                                <span
+                                                        class="card-grip"
+                                                        cdkDragHandle
+                                                        aria-hidden="true"
+                                                        (pointerdown)="showTargets($event)"
+                                                >
+                          <lg-icon name="grip-vertical" [size]="16"/>
+                        </span>
+                                                <lg-score [value]="application.scoreValue" [size]="40"/>
+                                                <h4 class="type-small card-title">
+                                                    <!-- The title link covers the whole card (see the CSS),
+                                                         so the picker below has to lift itself over it or it
+                                                         stops being clickable. -->
+                                                    <a
+                                                            [routerLink]="['/pipeline', application.offerId]"
+                                                            [attr.aria-current]="application.offerId === selectedId() ? 'true' : null"
+                                                    >{{ application.title }}</a
+                                                    >
+                                                </h4>
+                                            </div>
 
-                                    <lg-status-picker
-                                            class="card-status"
-                                            [value]="application.status"
-                                            [options]="store.statusChoices()"
-                                            [disabled]="store.saving() === application.id"
-                                            [label]="'pipeline.statusOf' | transloco: { title: application.title }"
-                                            (picked)="move(application, $event)"
-                                    />
+                                            <p class="type-mono-data text-muted card-meta">
+                                                @if (application.rateEur !== null) {
+                                                    <span>{{ application.rateEur }} &euro;/h</span>
+                                                }
+                                                @if (application.sentOn; as sent) {
+                                                    <span>{{ 'pipeline.sent' | transloco: {date: sent} }}</span>
+                                                }
+                                                @if (application.followUpOn; as due) {
+                                                    <span [class.due]="application.followUpDue">
+                            {{ 'pipeline.followUp' | transloco: {date: due} }}
+                          </span>
+                                                }
+                                            </p>
 
-                                    <div class="card-foot">
-                                        <lg-badge [tone]="toneFor(application.status)" [outline]="true">
-                                            {{ application.status }}
-                                        </lg-badge>
-                                        <span class="type-caption text-muted">
-                      {{ application.agency ?? ('offer.noAgency' | transloco) }}
-                    </span>
-                                    </div>
-                                </li>
-                            } @empty {
-                                <li class="type-small text-muted empty">{{ 'pipeline.laneEmpty' | transloco }}</li>
-                            }
-                        </ul>
+                                            <!-- No status badge: the picker below is the same word, and
+                                                 the second copy was the thing that could disagree with it. -->
+                                            <p class="type-caption text-muted card-foot">
+                                                {{ application.agency ?? ('offer.noAgency' | transloco) }}
+                                            </p>
+
+                                            <lg-status-picker
+                                                    class="card-status"
+                                                    [value]="application.status"
+                                                    [options]="store.statusChoices()"
+                                                    [disabled]="store.saving() === application.id"
+                                                    [label]="'pipeline.statusOf' | transloco: { title: application.title }"
+                                                    (picked)="move(application, $event)"
+                                            />
+                                        </li>
+                                    }
+                                </ul>
+                            </div>
+                        }
                     </section>
                 }
             </div>
