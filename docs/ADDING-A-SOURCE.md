@@ -13,6 +13,8 @@ The core knows exactly two things, and everything else is configuration:
 ```java
 interface SourceConnector { List<RawDocument> read(Source source, long sourceId); }
 interface ExtractionStrategy { List<ExtractedOffer> extract(RawDocument doc, Extraction config); }
+// Illustrative. There is no such interface in the code: the strategies are a switch in
+// IngestService.read, and a new one is a case there.
 ```
 
 A **connector** is chosen by `type` and fetches documents. Two are implemented: `file`
@@ -107,7 +109,7 @@ heading it sits under, not anything inside the card.
 **`fallback: none` means no language model is involved.** Set it only when every field
 really does come out of the markup — and then prove it with `expect_count_from_subject`.
 
-## Two things worth knowing before you write selectors
+## Four things worth knowing before you write selectors
 
 **Only the prose field is converted to Markdown.** `text()` joins every node with a space,
 so an advert would arrive as one line. `description` (and `full_text` in enrichment) go
@@ -117,6 +119,21 @@ field stays flat text — a title in an `<h3>` would otherwise arrive as
 
 **A pattern reads a line, a field reads a document.** A regex in YAML is written against a
 line, `.` does not match a newline, and `**` around a word breaks a pattern outright.
+
+**A marketing mail has no classes, so select on the shape of a link — with a child
+combinator.** Table layouts from the usual mail builders carry nothing semantic, and the only
+stable feature of a card is that the project link in it looks like a project link.
+`table:has(a[href*=/projects/])` is the obvious way to say that and the wrong one: `:has()`
+matches every *ancestor* table as well, so one card is counted once per nesting level.
+Measured on three real mails: 46, 56 and 31 blocks where there were 9, 11 and 6. Anchor the
+path instead — `td:has(> p > a[href*=/projects/])` — and pin the count in a test, because a
+block that yields no title is dropped without a word.
+
+**`prefix` returns before everything else, so it cannot be combined.** It filters the matched
+elements on `text()` and hands back the first one with the prefix stripped — `attr`, `regex`,
+`unwrap_query_param`, `list` and `split` are never reached. That matters when one element
+carries several labels (`Place: … // Contract: … // Start: …`): a prefix read gives you all
+three. Narrow the selector until it reaches that one element, then use `regex` with a group.
 
 ## Inheriting instead of copying
 

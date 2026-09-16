@@ -24,6 +24,10 @@ data/
 # Real newsletter mails and anything derived from them: they carry the
 # subscriber's mail address in headers and unsubscribe links.
 docs/samples/emails/
+# The search-agent mails from the two portals, same reason: they name the subscriber in
+# the body and carry the address as a mailto in the footer.
+docs/samples/emails-freelance-de/
+docs/samples/emails-freelancermap/
 docs/samples/extracted.json
 # What the reference measured, written by simulate_filter.py. Derived from the corpus and
 # from config/, so it is gitignored with them.

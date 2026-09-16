@@ -9,7 +9,27 @@ may change in any release. See the status note in the README.
 
 ## [Unreleased]
 
+### Added
+
+- **Two search-agent portals can be read beside the aggregator, and both are a block of YAML.**
+  The selectors and the senders name a portal, so they live in the operator's `config/` and not
+  in the repository, and `SearchAgentCorpusTest` checks them against the saved mails and skips
+  itself when either is absent — the arrangement the aggregator's corpus test already has.
+  Measured on five real mails: 26 cards out of three, and 1 out of each of the other two.
+
 ### Changed
+
+- **`selector.from` is part of the IMAP search, not only of the post-filter.** The progress flag
+  is one name for every source and the receiver writes it to whatever its search returned, so two
+  sources sharing a folder used to race: the first flagged all of it, the second read zero
+  documents with no error and no counter. Each source now asks the server only for its own
+  senders. Widening `from` reaches the mails behind it again as a consequence.
+  **`subject_matches` cannot join it** — a Java regex is not an IMAP SEARCH — so two sources told
+  apart by subject alone still need separate folders, and `match_all: true` in a shared folder
+  turns the check off entirely.
+- **The dead `rss` stubs are gone from the shipped example's neighbourhood.** There is no rss
+  connector; a source of that type was logged and skipped, which is the same class of lie as a
+  configuration key nothing reads.
 
 - **The embedding column is 2000 wide and the similarity thresholds are 0.97 and 0.95**, all
   three measured rather than assumed. 2222 real adverts were embedded outside the application

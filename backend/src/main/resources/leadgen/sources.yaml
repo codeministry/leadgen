@@ -30,11 +30,17 @@ sources:
       # inside the inbox is usually "INBOX/Jobs". A name that does not exist fails
       # the source with the list of folders the mailbox actually has.
       folder: INBOX
+      # `from` is part of the server-side search, and that is what lets several sources
+      # share one folder: the progress flag is one name for all of them, and a source that
+      # merely sees another's mail marks it as taken. `subject_matches` cannot join it — a
+      # Java regex is not an IMAP SEARCH — so two sources told apart by subject alone still
+      # need separate folders.
       from: [ "newsletter@example.com" ]
       subject_matches: ".*new projects.*"
       since_days: 360
       # Dedicated mode: set this when the folder holds nothing but this newsletter, and
-      # drop `from`/`subject_matches`. Filter mode is the case above.
+      # drop `from`/`subject_matches`. Never in a shared folder — it turns the sender check
+      # off, including the one in the search.
       match_all: false
       mark_seen: false
       # The only accepted value, and deliberately so: the same mailbox is read on a

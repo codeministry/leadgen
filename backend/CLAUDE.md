@@ -117,6 +117,11 @@ The reasoning is in `docs/decisions/pipeline-scoring.md`.
   filled in — and the test that exists to prove the tool works *without* a model failed for
   the one person who had finished configuring it. It empties the `${LLM_*}` placeholders in
   the materialised copy: what is under test is the code path, not whose machine it runs on.
+- **Several IMAP sources may share a folder only because `selector.from` is in the `SearchTerm`.** The progress flag is
+  the one name `leadgen` and the receiver writes it to whatever its *search* returned, before `matches()` sees sender or
+  subject — so without that term the first source flags the others' mail and they read zero documents in silence.
+  `subject_matches` cannot join it (Java regex vs. IMAP SEARCH), and `match_all: true` switches the check off: both mean
+  separate folders. Reasoning in `docs/decisions/pipeline-ingest.md`.
 - **`<mark>` reaches the title as text, and stripping the angle brackets is not stripping the tag.** `[^a-z0-9]+` turns
   `<` and `>` into spaces and leaves the word `mark` standing twice, so `<mark>DevOps</mark> Engineer` fingerprints as
   `mark devops mark engineer` and never meets its twin. Measured: 402 of 13240 titles carry it. `TitleNormalizer`

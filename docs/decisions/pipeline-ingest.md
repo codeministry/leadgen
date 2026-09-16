@@ -23,6 +23,32 @@ upserts it. `POST /api/ingest` runs one pass.
   stops matching loses offers, and fewer offers is indistinguishable from a quiet day on the
   market. The document states its own count; a mismatch is logged loudly and never discards
   what did come through.
+- **`selector.from` is part of the server-side search, not only of the post-filter.** The
+  progress flag is one name for every source and the receiver writes it to whatever its search
+  returned, so two sources sharing a folder race and the loser reads nothing — silently. Asking
+  the server for the senders a source actually wants makes the flag it sets its own business
+  again, and it gives back something the flag had taken: widening `from` now reaches the mails
+  behind it. `subject_matches` cannot join it, because a Java regex is not an IMAP SEARCH, so
+  two sources told apart by subject alone still need their own folders.
+- **A table-layout mail has no classes to select, so the card is addressed by the shape of its
+  link.** Both search-agent portals ship mjml-style tables whose only stable feature is that a
+  project link looks like a project link. `table:has(a[href*=…])` is the obvious selector and
+  the wrong one: it matches every ancestor table too, and counted 46, 56 and 31 cards where
+  there were 9, 11 and 6. The child combinator is what makes it exact —
+  `td:has(> p > a[href*=…])` — and the count is the thing worth pinning in a test, because a
+  block that yields no title is dropped without a word.
+- **Neither search-agent mail carries a description, and that is a measurement about the hard
+  filter.** One portal states a start phrase, an agency and a place; the other adds a created
+  date, a contract form and a start. Neither states prose. `NO_CORE_SKILL` and `ROLE_OR_STACK`
+  therefore judge those offers on the title alone and more gets through — which is acceptable
+  here only because the mails come from saved searches that are already narrow, and because
+  enrichment fetches the real advert immediately afterwards. The location is still extracted:
+  `OUT_OF_REACH` is the largest filter stage by far.
+- **A field's label can be shared with two other fields, and then `prefix` is the wrong tool.**
+  One portal writes `Ort: … // Vertragsart: … // Start: …` into a single element, so a prefix
+  read hands back all three. `prefix` also returns before `regex`, `attr` and `list` are ever
+  applied, so the two cannot be combined; the way through is a selector narrow enough to reach
+  that one element and a `regex` with a group.
 - **A second source inherits an extraction, it never copies one.** `extraction.inherit: <id>`
   resolves at load, one level only. Two copies of a selector table drift, and the copy nobody
   looks at drifts unnoticed.

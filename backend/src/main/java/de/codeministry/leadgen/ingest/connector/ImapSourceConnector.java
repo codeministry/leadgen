@@ -18,6 +18,8 @@ import jakarta.mail.*;
 import jakarta.mail.internet.InternetAddress;
 import jakarta.mail.search.AndTerm;
 import jakarta.mail.search.FlagTerm;
+import jakarta.mail.search.FromStringTerm;
+import jakarta.mail.search.OrTerm;
 import jakarta.mail.search.SearchTerm;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -174,8 +176,8 @@ public class ImapSourceConnector implements SourceConnector {
      *
      * <p>That is the one thing this connector may never do. Not marking {@code \Seen} is
      * pointless if progress is read off it, and "fewer offers" is indistinguishable from a
-     * quiet day on the market. The selector's sender, subject and age rules are applied
-     * here afterwards, exactly as before.
+     * quiet day on the market. The selector's subject and age rules are applied here
+     * afterwards; the sender is in the search itself, and why is on {@link #notAlreadyTaken}.
      */
     /**
      * "Not already taken", and nothing else: no {@code \Seen}, no {@code \Answered}, no
@@ -194,9 +196,24 @@ public class ImapSourceConnector implements SourceConnector {
      * the upsert on {@code (source_id, external_id)} is what makes re-reading free. It is
      * logged, because the alternative is a nightly run that quietly does far more work than
      * anybody thinks.
+     *
+     * <p><b>The selector's senders are part of the search, and that is what lets several
+     * sources share one folder.</b> {@link #USER_FLAG} is one name for all of them, and the
+     * receiver flags everything its search returned — before {@link #matches} has looked at
+     * sender or subject. A source that merely <em>sees</em> another's mail therefore burns
+     * it: the other source asks for {@code NOT KEYWORD leadgen} the next minute and is told
+     * there is nothing, with no error anywhere. Asking the server for the senders this source
+     * actually wants makes the flag it sets its own business again.
+     *
+     * <p>It also gives back something the flag had taken away. Widening {@code from} now
+     * reaches the mails behind it, because a mail this source never asked for was never
+     * flagged by it. <b>{@code subject_matches} cannot join it</b> — it is a Java regex and
+     * IMAP SEARCH knows only substrings — so two sources told apart by subject alone still
+     * have to live in separate folders.
      */
-    private static SearchTerm notAlreadyTaken(Flags supportedFlags, Folder folder) {
+    private static SearchTerm notAlreadyTaken(Flags supportedFlags, Folder folder, Selector selector) {
         SearchTerm notDeleted = new FlagTerm(new Flags(Flags.Flag.DELETED), false);
+        notDeleted = and(notDeleted, fromAnyOf(selector));
         if (supportedFlags == null || !supportedFlags.contains(Flags.Flag.USER)) {
             log.warn(
                     "Mailbox folder '{}' does not support user flags, so nothing marks a message as taken"
@@ -207,6 +224,27 @@ public class ImapSourceConnector implements SourceConnector {
         Flags taken = new Flags();
         taken.add(USER_FLAG);
         return new AndTerm(notDeleted, new FlagTerm(taken, false));
+    }
+
+    /**
+     * The senders this source asked for, as one term, or nothing when it asked for none.
+     *
+     * <p>{@code FromStringTerm} is a substring match on the whole From header, which is what
+     * the protocol offers and is enough here: an address is distinctive. The post-filter in
+     * {@link #matches} still compares addresses exactly, so a server that answers too
+     * generously changes nothing.
+     */
+    private static SearchTerm fromAnyOf(Selector selector) {
+        if (selector == null || selector.from() == null || selector.from().isEmpty()) {
+            return null;
+        }
+        SearchTerm[] senders =
+                selector.from().stream().map(FromStringTerm::new).toArray(SearchTerm[]::new);
+        return senders.length == 1 ? senders[0] : new OrTerm(senders);
+    }
+
+    private static SearchTerm and(SearchTerm term, SearchTerm addition) {
+        return addition == null ? term : new AndTerm(term, addition);
     }
 
     private ImapMailReceiver receiver(Source source, Selector selector) {
@@ -225,7 +263,7 @@ public class ImapSourceConnector implements SourceConnector {
         receiver.setShouldDeleteMessages(false);
         receiver.setFlaggedAsFallback(false);
         receiver.setUserFlag(USER_FLAG);
-        receiver.setSearchTermStrategy(ImapSourceConnector::notAlreadyTaken);
+        receiver.setSearchTermStrategy((flags, folder) -> notAlreadyTaken(flags, folder, selector));
         // The whole message, not the headers: the body is the document.
         receiver.setSimpleContent(false);
         // The folder must outlive `receive()`. The receiver hands back messages whose content

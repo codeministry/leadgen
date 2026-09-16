@@ -52,6 +52,9 @@ class ImapSourceConnectorTest {
     private static final String PASSWORD = "secret";
     private static final String NEWSLETTER = "newsletter@example.com";
 
+    /** A second sender in the same folder, which is the case the user flag used to lose. */
+    private static final String PORTAL = "portal@example.com";
+
     @RegisterExtension
     static final GreenMailExtension MAIL = new GreenMailExtension(ServerSetupTest.IMAP).withPerMethodLifecycle(true);
 
@@ -226,6 +229,26 @@ class ImapSourceConnectorTest {
      * rather than assembled in code, so the message the connector sees has the same MIME
      * structure as a real newsletter — which is the thing the HTML-part lookup depends on.
      */
+    @Test
+    void twoSourcesInOneFolderDoNotBurnEachOthersMail() {
+        // The user flag is one name for every source, and the receiver sets it on everything
+        // its *search* returned — before the sender is looked at. Without the sender in the
+        // search the first source to run flags both mails, and the second is told the folder
+        // is empty: no error, no counter, indistinguishable from a quiet week.
+        deliver(NEWSLETTER, "3 neue Projekte sind da!");
+        deliver(PORTAL, "3 neue Projekte sind da!");
+
+        Source portal = config.snapshot().sources().sources().stream()
+                .filter(s -> s.id().equals("imap-portal"))
+                .findFirst()
+                .orElseThrow();
+
+        assertThat(connector.read(source, sourceId)).hasSize(1);
+        assertThat(connector.read(portal, offers.sourceId("imap-portal", "imap")))
+                .as("the portal source still finds its own mail after the newsletter source ran")
+                .hasSize(1);
+    }
+
     private void deliver(String from, String subject) {
         try (var in = Files.newInputStream(Path.of("src/test/resources/ingest/mails/sample.eml"))) {
             var message = new jakarta.mail.internet.MimeMessage(Session.getInstance(new Properties()), in);
@@ -309,7 +332,23 @@ class ImapSourceConnectorTest {
                               mark_seen: false
                               state: uid
                         %s\
-                        """.formatted(ServerSetupTest.IMAP.getPort(), USER, PASSWORD, NEWSLETTER, extraction));
+                          - id: imap-portal
+                            enabled: true
+                            type: imap
+                            connection: local-imap
+                            selector:
+                              folder: INBOX
+                              from: ["%s"]
+                            extraction:
+                              inherit: imap-newsletter
+                        """
+                            .formatted(
+                                    ServerSetupTest.IMAP.getPort(),
+                                    USER,
+                                    PASSWORD,
+                                    NEWSLETTER,
+                                    extraction,
+                                    PORTAL));
             return dir;
         } catch (IOException e) {
             throw new UncheckedIOException(e);
