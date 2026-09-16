@@ -170,12 +170,17 @@ costs a language-model call.
 - **Core skills are read with their aliases.** An ad asking for "Springboot", "Spring
   Data" or "k8s" names a core skill, and eight bare names would answer no. Worth twelve
   offers over the corpus.
-- **`remote.accept_unknown` is displayed and never read.** `RulesView` renders it, the
-  config model validates it, and `HardFilter` consults it nowhere: an offer that states no
-  remote share simply falls through to the next stage, which is what the flag describes but
-  not because of it. Setting it to `false` changes nothing. Same class as the
-  `onsite_max_km` key that sat in the schema with no reader — and worth keeping in mind
-  before the flag is trusted in an argument about why an offer survived.
+- **`remote.accept_unknown` decides what happens to an unstated share, and it is paired
+  with the minimum.** It spent a long time rendered, validated and read by nobody — the
+  same class as the `onsite_max_km` key that sat in the schema with no reader — and
+  `HardFilter` now consults it. `true`, the default, lets an offer that states no remote
+  share fall through to the next stage; `false` rejects it as `REMOTE_SHARE` with "no
+  remote share stated". The default stays `true` because the sources state a share in
+  8.8 % of offers, so rejecting the rest by default would empty the shortlist. It is
+  paired with `min_remote_percent > 0` for the same reason `OUT_OF_REACH` is: where no
+  share is required at all, an unstated one cannot be a reason to reject. One divergence
+  worth knowing — `simulate_filter.py` does not implement the `false` branch, so the
+  reference implementation and the Java disagree the moment the flag is switched off.
 - **`min_remote_percent: 0` switches the reach rule off, and that is the point.** Zero
   required remote share means being on site is acceptable, and then it is acceptable
   anywhere — the hand-written city list stops applying. Without the condition the two

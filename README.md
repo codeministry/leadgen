@@ -212,7 +212,9 @@ bun run test                   # Vitest
   behind the parts that are not obvious
 - [Configuration](docs/CONFIGURATION.md) — the two layers, the four files, every variable
 - [Adding a source](docs/ADDING-A-SOURCE.md) — a new source is a YAML block, worked through
-  line by line
+  line by line, then every key with what reads it
+- [Writing rules](docs/WRITING-RULES.md) — the six knockouts, the weight table and the
+  thresholds, and which keys are read by nothing
 - [Development](docs/DEVELOPMENT.md) — prerequisites, commands, and the traps a newcomer
   hits first
 - [Concept](docs/CONCEPT.md) — the original design: domain model, module layout, order of work

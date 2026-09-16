@@ -35,7 +35,7 @@ config/                                yours, gitignored, overriding the above f
 | File                  | Bound to         | What it decides                                                                                                                                                               |
 |-----------------------|------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `sources.yaml`        | `SourcesConfig`  | Where offers come from and how a document is read, down to the CSS selector and the date format. A new source is a block here — see [ADDING-A-SOURCE.md](ADDING-A-SOURCE.md). |
-| `matching-rules.yaml` | `MatchingRules`  | The six knockout stages, the scoring weights and penalties, the three thresholds, deduplication, freshness, follow-up.                                                        |
+| `matching-rules.yaml` | `MatchingRules`  | The six knockout stages, the scoring weights and penalties, the three thresholds, deduplication, freshness, follow-up — see [WRITING-RULES.md](WRITING-RULES.md).             |
 | `skill-profile.yaml`  | `SkillProfile`   | Who is applying: skills with weights and aliases, industries, reference projects, and which CV goes with which language.                                                      |
 | `pipeline.yaml`       | `PipelineConfig` | The process itself: provider and model, enrichment, content segmentation, packaging, digest, auth.                                                                            |
 

@@ -107,7 +107,8 @@ per-stage counts sum to the total. The verdict — stage *and* reason — is wri
 offer, because a rejection without its reason is a number nobody trusts a week later.
 
 Not one keyword is in Java. `docs/samples/simulate_filter.py` is the reference
-implementation and a corpus test asserts the two still agree.
+implementation and a corpus test asserts the two still agree. Which key drives which stage,
+and how to change one, is in [WRITING-RULES.md](WRITING-RULES.md).
 
 Three defects that each moved the survivor count by hundreds, all silent, all now fixed in
 one place (`TextFold`): an umlaut fold that left `ko ln` and lost every Köln offer;
@@ -206,7 +207,8 @@ undone, rather than something to take on trust.
 
 Rules before model, again. `RuleScorer` decides everything the profile and the offer's own
 fields can decide, for free. A `Judge` is asked about role fit and three penalties, and
-nothing else.
+nothing else. The weight table itself, the arithmetic behind the total and the three
+thresholds are in [WRITING-RULES.md](WRITING-RULES.md).
 
 - **Unscored is not zero, and not nothing.** With no key the deterministic reasons are still
   written. What is withheld is the *total*: computed from five of nine weights it would not

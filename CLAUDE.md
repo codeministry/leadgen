@@ -143,6 +143,8 @@ docs/samples/emails/*.eml         14 real newsletter mails (gitignored)
 docs/samples/analyze_samples.py   extraction, field coverage, duplicates
 docs/samples/simulate_filter.py   simulation of the hard filters
 docs/decisions/*.md               the reasoning per stage, moved out of this file
+docs/ADDING-A-SOURCE.md           the worked example, then every sources.yaml key
+docs/WRITING-RULES.md             every matching-rules.yaml key and what reads it
 backend/CLAUDE.md                 backend conventions and the traps of that tree
 frontend/CLAUDE.md                frontend conventions and the traps of that tree
 
@@ -227,6 +229,10 @@ an editor command aimed at the whole repository.
   in `ci.yml` is the stopgap, and re-enabling Spotless is the real answer.
 - Which folder in the IMAP mailbox the newsletter lands in — deployment detail, and it
   does not belong in a committed file.
+- **Roughly fifteen configuration keys are bound, validated, rendered and read by nothing.**
+  They are now marked as such in the `read by` columns of `docs/WRITING-RULES.md` and
+  `docs/ADDING-A-SOURCE.md` rather than left to be discovered; removing them is the real
+  answer, and it is a schema change, so it is its own decision.
 
 ## Settled
 

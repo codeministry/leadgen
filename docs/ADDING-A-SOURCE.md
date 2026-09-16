@@ -188,6 +188,142 @@ Three rules the existing implementations follow and a new one has to:
 - **One failing source must not end the run.** `IngestService` catches per source.
 - **Progress is never tracked by seen/unseen.** The same mailbox is read on a phone.
 
+## Every key, and what reads it
+
+The worked example above is one shape of one source. This is the whole schema, and a
+`read by` column saying `nothing` where that is the truth — the shipped file declares more
+than the code reads, and there is no way to tell from the file itself.
+
+### What is actually implemented
+
+| `type` | Connector | Fetches |
+|---|---|---|
+| `file` | `FileSourceConnector` | every file in a directory matching `glob` |
+| `imap` | `ImapSourceConnector` | messages of a folder matching `selector` |
+
+| `extraction.strategy` | Extractor | Shape |
+|---|---|---|
+| `html-blocks` | `HtmlBlockExtractor` | one document holds many offers |
+| `markdown-frontmatter` | `MarkdownExtractor` | one document is one offer |
+
+Anything else is **logged and skipped, not fatal** — a `type` with no connector says so
+once per run and the source contributes nothing. That matters because the shipped file
+names two that do not exist: `sample-portal-feed` declares `type: rss` and
+`sample-direct-enquiry` declares `strategy: llm`. Both ship disabled.
+
+### `connections[]`
+
+Omit the block entirely when every source reads files; a missing `connections:` is an empty
+one, not an error.
+
+| Key | Type | Required | Read by |
+|---|---|---|---|
+| `id` | string | yes | referenced by `source.connection` |
+| `type` | string | yes | `imap` is the only kind with a connector |
+| `host`, `port`, `ssl`, `username`, `password` | | | the IMAP connector |
+| `mode` | string | | nothing |
+| `poll_interval` | duration | | nothing |
+
+One cross-file check is fatal: an **enabled** source pointing at an `imap` connection whose
+host, username or password is blank fails at load, naming `IMAP_HOST`, `IMAP_USER` and
+`IMAP_PASSWORD`. A disabled source with the same gap is fine, which is what lets the shipped
+defaults carry a mailbox nobody has configured.
+
+### `sources[]`
+
+| Key | Type | Read by |
+|---|---|---|
+| `id` | string, required | the offer's `source_id`, and the Sources screen |
+| `enabled` | bool, default `false` | the run |
+| `type` | string, required | connector lookup |
+| `connection` | string | `imap` only; must name a declared connection |
+| `path` | string | `file` only — **resolved against the configuration directory** |
+| `glob` | string | `file` only, comma-separated |
+| `selector` | block | `imap` only |
+| `extraction` | block, required | the extractor |
+| `url` | string | nothing |
+| `schedule` | duration | nothing — a run is triggered, not scheduled per source |
+| `defaults` | map | nothing |
+
+### `selector` — `imap` only
+
+| Key | Type | Read by |
+|---|---|---|
+| `folder` | string | the mailbox to open. **Blank fails the run for that source.** |
+| `from` | list | both the server-side IMAP `SEARCH` and the local re-check |
+| `exclude_from` | list | the local re-check |
+| `subject_matches` | regex | the local re-check |
+| `since_days` | int | the local re-check |
+| `match_all` | bool | takes every message that got past `since_days` and `exclude_from` |
+| `mark_seen` | bool | nothing |
+| `state` | string | nothing — the UID cursor it documents was removed |
+
+`match_all: true` is the dedicated-folder case: the folder holds nothing but this
+newsletter, so no sender or subject filter is needed. It short-circuits `from` and
+`subject_matches` but **not** `since_days` or `exclude_from`, which still apply.
+
+### `extraction`
+
+| Key | Type | Read by |
+|---|---|---|
+| `strategy` | string | required **after** inheritance is resolved |
+| `block_selector` | CSS | `html-blocks` |
+| `fields` | map | both extractors |
+| `inherit` | source id | the loader |
+| `prefer_part` | string, default `html` | the MIME part search |
+| `date_format` | pattern | the fallback for a field without its own `format` |
+| `expect_count_from_subject` | regex | the count check |
+| `fallback` | `none` \| `llm` | **`markdown-frontmatter` only** |
+
+Three behaviours that are not obvious from the key names:
+
+**`glob` is suffix matching, not globbing.** A leading `*` is stripped and the rest is a
+suffix test, so `*.eml` works and `report-*.eml` matches nothing at all. An empty or absent
+`glob` takes every file.
+
+**`inherit` replaces the whole extraction block.** A child cannot override one field of its
+parent — it states `inherit` and gets the parent's table verbatim. One level only: a parent
+that itself inherits is rejected with *"…which inherits itself — one level only"*, and a
+parent that is not declared with *"…which is not declared"*.
+
+**`fallback` is read only by `MarkdownExtractor`, and only when a document has no
+frontmatter at all.** On an `html-blocks` source the key is inert, which is worth knowing
+before you trust it: `fallback: none` there is documentation, not a guarantee. `llm` hands
+the document to the model named by `llm.models.extraction` (falling back to
+`llm.models.scoring`); an unrecognised value warns, names the two implemented ones, and
+behaves as `none`.
+
+### `extraction.fields.<name>`
+
+The eight names that mean anything are the ones listed under *The contract you are filling
+in* above. Each maps to a block of these keys:
+
+| Key | What it does |
+|---|---|
+| `ancestor` | look outside the block, at the nearest matching ancestor |
+| `css` | the element inside the scope; absent means the scope itself |
+| `prefix` | pick the one matched element whose text starts with this, and strip it |
+| `list` + `split` | take every match, split each on a literal separator |
+| `attr` | take an attribute instead of the text |
+| `unwrap_query_param` | the link is a tracking proxy; keep this parameter, discard the query |
+| `regex` | group 1 if the pattern has one, otherwise the whole match |
+| `format` | how to read a date out of **this** field, overriding `date_format` |
+| `path`, `html` | nothing reads them |
+
+**The order matters, because getting it wrong produces a null rather than an error:**
+
+1. `ancestor` — no matching ancestor and the field is null, immediately.
+2. `css` — no match and the field is null.
+3. **`prefix` returns here.** It filters the matches on their text, strips the prefix and
+   hands back the first one. `attr`, `regex`, `unwrap_query_param`, `list` and `split` are
+   **never reached**. When one element carries several labels, narrow the selector until it
+   reaches that one element and use `regex` with a group instead.
+4. `list` + `split` — all matches, each split, trimmed, empties dropped.
+5. Otherwise the first match: `attr` (or its text) → `unwrap_query_param` → `regex`.
+
+A field whose name is not one of the eight is extracted and then dropped in silence, and a
+block whose `title` comes out blank is dropped with it.
+
 ## Checking your work
 
 ```bash
