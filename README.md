@@ -3,7 +3,7 @@
 **An acquisition tool for freelancers.** It collects project offers from sources you
 configure, throws away four in five for free with deterministic rules, scores what is left
 against your own profile, and assembles a ready-to-send application package for the
-matches. **It never sends anything.**
+matches.
 
 [![CI](https://github.com/codeministry/leadgen/actions/workflows/ci.yml/badge.svg)](https://github.com/codeministry/leadgen/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-0E6E6B.svg)](LICENSE)

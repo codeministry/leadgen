@@ -101,7 +101,14 @@ public class EmbeddingModels {
                     ObservationRegistry.NOOP,
                     null,
                     List.of()))
-                .options(OpenAiEmbeddingOptions.builder().model(model).build())
+                // The timeout belongs on the options as well, and this is not a duplicate of
+                // the one handed to the client above. `AbstractOpenAiOptions` substitutes its
+                // own DEFAULT_TIMEOUT of 60 s for a null one, so `getTimeout()` never answers
+                // null, so Spring AI always sets a per-call timeout — and a per-call timeout
+                // wins over the client's. Left out, `llm.timeout` is bound, validated, printed
+                // in the banner and read by nothing: measured on the deployed instance at
+                // PT120S, PT600S and PT20S, every request gave up after 60.03 s.
+                .options(OpenAiEmbeddingOptions.builder().model(model).timeout(timeout).build())
                 .build());
     }
 }

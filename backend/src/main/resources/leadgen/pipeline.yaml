@@ -11,8 +11,14 @@ llm:
   api_key: ${LLM_API_KEY}
   # How long one request to a model may take. 30 s was hard-coded and is comfortable for a
   # hosted endpoint; a local one loading a 20B model first is not, and the stage then reports
-  # "without a usable answer" for an answer that never arrived. Measured 2026-09-17 on the
-  # deployed instance: content, fields and scoring each gave up at the ceiling in one run.
+  # "without a usable answer" for an answer that never arrived.
+  #
+  # This value reaches the wire only because `ChatModels` and `EmbeddingModels` put it on the
+  # *options* as well as on the client. Spring AI's `AbstractOpenAiOptions` substitutes a
+  # 60 s default for a null one and then always sets a per-call timeout, which overrides the
+  # client's — so on the openai-compatible path an unset options timeout silently pins every
+  # request at 60 s whatever is written here. Measured on the deployed instance before the
+  # fix: PT120S, PT600S and PT20S all gave up after 60.03 s.
   timeout: ${LLM_TIMEOUT:PT120S}
   # Half the price, at the cost of a synchronous answer: the requests are handed over as
   # one batch and collected by a poller minutes later, so packaging and the digest happen

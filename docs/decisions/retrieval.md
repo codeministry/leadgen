@@ -385,3 +385,39 @@ description.
 
 Every output names real adverts and stays gitignored, like every other file derived from the
 corpus.
+
+## The 60-second ceiling the configuration could not reach
+
+The stage ran for the first time on the deployed instance on 2026-09-17 and indexed nothing:
+three batches, three `Indexing 32 adverts failed: Request failed`, `0 of 89`.
+
+The first plausible reading was the obvious one. A batch is 32 whole adverts, and against
+`qwen3-embedding:8b` on that host real adverts from this corpus measured 18.6 s for 4, 92.5 s
+for 16 and **177.1 s for 32** — comfortably past the 120 s in `llm.timeout`. So the value was
+raised to 600 s. The stage failed again, with the batches exactly 60.03 s apart, the same as
+before.
+
+That number is what makes this worth writing down. Raising the ceiling changed nothing, and
+lowering it to 20 s changed nothing either: all three settings failed at 60 s. The
+configuration key was bound, validated, printed in the startup banner, and read by nothing on
+this path.
+
+Two other explanations were ruled out with measurements rather than with reasoning. The
+network is not it: a throwaway pod inside the cluster sent the identical 32-advert body to the
+same host and got `http=200` after 174 s, so the path carries a three-minute request. The model
+is not it either: deduplication embedded 964 of 964 offers with that same model in the same
+run, because its text is a title and 600 characters and each request finished inside a minute.
+
+The cause is in Spring AI, four lines apart in two files. `AbstractOpenAiOptions` substitutes
+its own `DEFAULT_TIMEOUT` of 60 s whenever it is constructed with a null one, so
+`getTimeout()` never answers null; `OpenAiEmbeddingModel` and `OpenAiChatModel` then set a
+per-call timeout on every request, and `SpringAiOpenAiHttpClient` lets a per-call timeout
+override the client it was built with. Handing the timeout to the client alone — which is what
+`OpenAiSetup.setupSyncClient` takes — is therefore not enough. It has to go on the options too,
+in `EmbeddingModels` and in `ChatModels` both, and the Anthropic options beside them carry no
+such default and never had the problem.
+
+The lasting lesson is not about embeddings. **A configuration key whose effect is never
+measured is indistinguishable from a key that does nothing**, and this one had a dated comment
+claiming a measurement behind it. The three settings that all failed at 60 s are the cheapest
+test there was, and it was available at any point.

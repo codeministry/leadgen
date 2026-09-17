@@ -132,6 +132,10 @@ The reasoning is in `docs/decisions/pipeline-scoring.md`.
   wraps the page — which is every page that has one. The selector list reads like a priority order and is not one.
 - **A `@DynamicPropertySource` supplier may run more than once, so it must not create anything.** Create the temp
   directory in a static field and let the supplier return it. Reasoning in `docs/decisions/configuration.md`.
+- **A Spring AI options object built without a timeout pins every request at 60 s, whatever `llm.timeout` says.**
+  `AbstractOpenAiOptions` fills a null one with its own default, so a per-call timeout is always sent and beats the
+  client's. Set it on the options *and* the client, in `ChatModels` and `EmbeddingModels`. Measured: the same 60 s
+  failure at PT120S, PT600S and PT20S. See `docs/decisions/retrieval.md`.
 - **A pgvector distance against a NULL vector is NULL, so `ORDER BY … LIMIT k` returns k arbitrary rows.** Check
   that an anchor row actually has a vector before ordering by its distance. Reasoning in
   `docs/decisions/retrieval.md`.

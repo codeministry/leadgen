@@ -153,7 +153,10 @@ public class ChatModels {
                     ObservationRegistry.NOOP,
                     null,
                     List.of()))
-                .options(OpenAiChatOptions.builder().model(model).build())
+                // Same trap as in `EmbeddingModels`: without this, `AbstractOpenAiOptions`
+                // fills in its 60 s DEFAULT_TIMEOUT and the per-call value overrides the
+                // client's. The Anthropic options below carry no such default.
+                .options(OpenAiChatOptions.builder().model(model).timeout(timeout).build())
                 .build());
     }
 
