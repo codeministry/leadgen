@@ -159,6 +159,21 @@
             </div>
         </section>
 
+        <!-- Absent, not disabled, where nothing is configured to answer: the scoring model list
+             already crosses the wire for the header's select, so the capability needs no second
+             field. It asks the advert this page is showing and nothing else — which is why it
+             needs no retrieval at all, and why `docs/decisions/retrieval.md` names it as the
+             carve-out worth having. -->
+        @if (canAsk()) {
+            <section class="panel">
+                <div class="section-head">
+                    <h2 class="type-h2">{{ 'detail.ask.title' | transloco }}</h2>
+                </div>
+                <p class="type-small text-muted panel-note">{{ 'detail.ask.note' | transloco }}</p>
+                <lg-ask-panel [offerId]="entry.offer.id"/>
+            </section>
+        }
+
         <section class="panel">
             <div class="section-head">
                 <h2 class="type-h2">{{ 'detail.whyScored' | transloco }}</h2>

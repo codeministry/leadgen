@@ -8,6 +8,9 @@
  */
 package de.codeministry.leadgen.web;
 
+import de.codeministry.leadgen.ask.AdvertAnswer;
+import de.codeministry.leadgen.ask.AdvertAskService;
+import de.codeministry.leadgen.ask.AdvertQuestion;
 import de.codeministry.leadgen.archive.ArchiveRequest;
 import de.codeministry.leadgen.archive.ArchiveResult;
 import de.codeministry.leadgen.archive.ArchiveService;
@@ -36,11 +39,14 @@ class OfferController {
     private final OfferQueryService offers;
     private final ScoringService scoring;
     private final ArchiveService archive;
+    private final AdvertAskService asks;
 
-    OfferController(OfferQueryService offers, ScoringService scoring, ArchiveService archive) {
+    OfferController(
+            OfferQueryService offers, ScoringService scoring, ArchiveService archive, AdvertAskService asks) {
         this.offers = offers;
         this.scoring = scoring;
         this.archive = archive;
+        this.asks = asks;
     }
 
     /**
@@ -96,6 +102,23 @@ class OfferController {
             possibleDuplicates,
             cursor,
             limit));
+    }
+
+    /**
+     * What this one advert says about one bounded question.
+     *
+     * <p>A POST because it spends a model call, the same reason `score` is one, and it stores
+     * nothing: the answer lives as long as the screen. A 409 rather than an empty answer when
+     * the question cannot be asked right now — no model, no advert text, or a spent budget —
+     * because "the advert is silent" and "nobody could ask" read identically on screen and mean
+     * opposite things.
+     */
+    @PostMapping("/{id}/ask")
+    AdvertAnswer ask(@PathVariable long id, @RequestParam String question) {
+        return asks.ask(id, AdvertQuestion.of(question))
+            .orElseThrow(() -> new CannotAsk(
+                "this advert cannot be asked right now: no model is configured, it has no fetched text,"
+                    + " or today's llm.budget is spent"));
     }
 
     /**
@@ -223,6 +246,20 @@ class OfferController {
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     String retrievalUnavailable(SemanticFilter.RetrievalUnavailable e) {
         return e.getMessage();
+    }
+
+    /** Asked something this installation cannot answer just now. */
+    @ExceptionHandler(CannotAsk.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    String cannotAsk(CannotAsk e) {
+        return e.getMessage();
+    }
+
+    /** A state of the server rather than a bad request, which is why it is a 409. */
+    static class CannotAsk extends RuntimeException {
+        CannotAsk(String message) {
+            super(message);
+        }
     }
 
     @ExceptionHandler(NotFound.class)

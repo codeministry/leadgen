@@ -267,7 +267,17 @@
       "LEGAL": "Rechtliches"
     },
     "close": "Angebot schließen",
-    "findRelated": "Ähnliche Angebote finden"
+    "findRelated": "Ähnliche Angebote finden",
+    "ask": {
+      "title": "Diese Anzeige fragen",
+      "note": "Beantwortet allein aus dieser Anzeige, und jede Antwort zeigt den Satz, auf dem sie beruht.",
+      "silent": "Dazu sagt diese Anzeige nichts.",
+      "rate": "Zur Rate",
+      "client": "Zum Kunden",
+      "onsite": "Zur Anwesenheit vor Ort",
+      "onboarding": "Zum Onboarding",
+      "extension": "Zur Verlängerung"
+    }
   },
   "application": {
     "title": "Wie es hier steht",

@@ -1,0 +1,45 @@
+<!-- One row per question. The button is the question, and the answer unfolds under it rather
+     than in a second place: a reader who clicked "rate" is looking at that row. -->
+<ul class="questions">
+  @for (question of questions; track question) {
+    @let answer = answerFor(question);
+    @let refusal = refusalFor(question);
+    <li class="question">
+      <button
+        type="button"
+        class="btn btn-sm btn-ghost question-ask"
+        [disabled]="asking() !== null || answer !== undefined"
+        (click)="ask(question)"
+      >
+        <lg-icon name="message-circle-question" [size]="16"/>
+        {{ 'detail.ask.' + question | transloco }}
+      </button>
+
+      @if (asking() === question) {
+        <p class="type-small text-muted">{{ 'common.loading' | transloco }}</p>
+      }
+
+      <!-- Answered: the sentence, and under it the sentence from the advert it rests on. The
+           quote is shown and not tucked away — the server already dropped every claim it could
+           not find in the text, and showing the evidence is what lets a reader confirm it. -->
+      @if (answer?.stated) {
+        <p class="answer">{{ answer!.answer }}</p>
+        <blockquote class="type-small quote">{{ answer!.quote }}</blockquote>
+      }
+
+      <!-- Silent is an answer. Drawn quietly, and never like a failure. -->
+      @if (answer !== undefined && !answer.stated) {
+        <p class="type-small text-muted">{{ 'detail.ask.silent' | transloco }}</p>
+      }
+
+      <!-- Refused is not an answer. The server's own sentence, because it names which of the
+           three reasons applied and a reader must not read a spent budget as a quiet advert. -->
+      @if (refusal) {
+        <p class="type-small refusal">
+          <lg-icon name="circle-alert" [size]="14"/>
+          {{ refusal }}
+        </p>
+      }
+    </li>
+  }
+</ul>

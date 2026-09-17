@@ -271,7 +271,34 @@ the start window, the duration floor. "Which Java offers start in October" is a 
 expensive and unverifiable, over the one dataset money decisions come from. The honest
 carve-out is single-offer question answering, which needs no retrieval at all: one
 de-furnitured advert is a few thousand tokens and fits whole in any context window,
-`ContentText.of` already produces it and `Answers.objectIn` already reads the reply.
+`ContentText.of` already produces it and `Answers.objectIn` already reads the reply. **Built
+2026-09-17** as `ask/`, and the rest of this paragraph is the argument for its shape.
+
+**Every claim carries a sentence from the advert, and one that is not in the advert is
+dropped.** That is the whole design; the fixed question list, the absent storage and the shared
+model key are arrangements around it. It is the same rule the measurement scripts follow — a
+table of similarities nobody can check against the adverts behind them is a table nobody should
+act on — applied to prose instead of numbers, and prose is where it matters more, because a
+number that looks wrong invites a second look and a fluent paragraph does not. Without the
+check this screen would be a confident, specific, unfalsifiable answer about a document the
+reader is holding. With it, a wrong answer is a missing answer.
+
+The check folds both sides before comparing, which is not a detail: measured on the deployed
+instance the same question answered twice returned the quote once with the source's Markdown
+emphasis and once without, and both are faithful. What folding cannot forgive is an invented
+sentence.
+
+**Three states and deliberately not one.** *Silent* is an answer — this advert does not say, and
+that is the expected answer for most questions on most adverts. *Refused* is not an answer:
+nobody could ask, because no model is configured, the advert was never fetched, or the day's
+budget is spent. They are a 200 and a 409 respectively, because drawn the same way a reader
+takes a spent budget for a quiet advert and fills the gap themselves. *Answered* carries the
+sentence and its quote.
+
+**The questions are an enum and not a text box.** The type is the allowlist, so nothing a caller
+sends reaches a prompt, the cost per advert has a ceiling against a budget sized for a nightly
+pass, and the five are the questions an advert is actually read for. Nothing is stored, so
+nothing goes stale when the content stage rewrites the advert underneath it.
 
 **The CV corpus.** Chunking the PDFs in `config/documents/` has no legal consumer here,
 because *no CV tailoring* means nothing may be selected out of a CV in the first place. It

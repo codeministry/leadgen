@@ -267,7 +267,17 @@
       "LEGAL": "legal notice"
     },
     "close": "Close the offer",
-    "findRelated": "Find related offers"
+    "findRelated": "Find related offers",
+    "ask": {
+      "title": "Ask this advert",
+      "note": "Answered from this advert only, and every answer shows the sentence it rests on.",
+      "silent": "This advert does not say.",
+      "rate": "About the rate",
+      "client": "About the client",
+      "onsite": "About being on site",
+      "onboarding": "About onboarding",
+      "extension": "About an extension"
+    }
   },
   "application": {
     "title": "Where this stands",

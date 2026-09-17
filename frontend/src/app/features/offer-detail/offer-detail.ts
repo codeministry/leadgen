@@ -20,8 +20,10 @@ import {ScoreReason} from '@core/model/score';
 import {applicationEvents} from '@core/store/applications.events';
 import {ApplicationsStore} from '@core/store/applications.store';
 import {shortlistEvents} from '@core/store/shortlist.events';
+import {ScoringModelStore} from '@core/store/scoring-model.store';
 import {ShortlistStore} from '@core/store/shortlist.store';
 import {ApplicationPanel} from './application-panel/application-panel';
+import {AskPanel} from './ask-panel/ask-panel';
 import {Badge} from '@shared/badge/badge';
 import {EmptyState} from '@shared/empty-state/empty-state';
 import {Icon} from '@shared/icon/icon';
@@ -81,6 +83,7 @@ interface Field {
     selector: 'lg-offer-detail',
     imports: [
         ApplicationPanel,
+      AskPanel,
         Badge,
       DayPipe,
         EmptyState,
@@ -106,6 +109,7 @@ export class OfferDetail implements OnInit {
   private readonly dayPipe = inject(DayPipe);
     private readonly router = inject(Router);
     protected readonly store = inject(ShortlistStore);
+  private readonly scoringModels = inject(ScoringModelStore);
     protected readonly applications = inject(ApplicationsStore);
 
     /** Bound from the route parameter by `withComponentInputBinding()`. */
@@ -138,6 +142,15 @@ export class OfferDetail implements OnInit {
    * the button for it as well would need a flag on the offer itself.
    */
   protected readonly canFindRelated = computed(() => this.store.relatedCoverage() !== null);
+
+  /**
+   * Whether anything is configured to answer a question about this advert.
+   *
+   * <p>The scoring model list already crosses the wire for the header's select, and this reads
+   * the same key the server does — so the capability needs no second field and cannot drift
+   * from it. Empty means a fresh clone, where the panel is absent rather than disabled.
+   */
+  protected readonly canAsk = computed(() => this.scoringModels.available().length > 0);
 
   /**
    * Narrow the list to this offer's neighbourhood, without leaving the offer.

@@ -11,6 +11,9 @@ package de.codeministry.leadgen.web;
 import de.codeministry.leadgen.archive.ArchiveRequest;
 import de.codeministry.leadgen.archive.ArchiveResult;
 import de.codeministry.leadgen.archive.ArchiveService;
+import de.codeministry.leadgen.ask.AdvertAnswer;
+import de.codeministry.leadgen.ask.AdvertAskService;
+import de.codeministry.leadgen.ask.AdvertQuestion;
 import de.codeministry.leadgen.offer.*;
 import de.codeministry.leadgen.score.ScoringService;
 import org.junit.jupiter.api.Test;
@@ -49,6 +52,9 @@ class OfferControllerTest {
 
     @MockitoBean
     private ArchiveService archive;
+
+    @MockitoBean
+    private AdvertAskService asks;
 
     @Test
     void answersWithTheWholeEntryRatherThanWithNothing() {
@@ -218,6 +224,41 @@ class OfferControllerTest {
             .hasStatus(org.springframework.http.HttpStatus.BAD_REQUEST);
 
         then(offers).should(never()).shortlist(any());
+    }
+
+    @Test
+    void asksTheAdvertTheQuestionThatWasNamed() {
+        given(asks.ask(42L, AdvertQuestion.RATE))
+            .willReturn(java.util.Optional.of(
+                new AdvertAnswer("rate", true, "95 EUR.", "Die Vergütung liegt bei 95 EUR.", "a-model")));
+
+        assertThat(mvc.post().uri("/api/offers/42/ask").param("question", "rate"))
+            .hasStatusOk()
+            .bodyJson()
+            .extractingPath("$.quote")
+            .isEqualTo("Die Vergütung liegt bei 95 EUR.");
+    }
+
+    @Test
+    void refusesAQuestionNobodyDefinedWithoutEverReachingTheModel() {
+        // A question the server silently replaced would answer about something the reader did
+        // not ask, and the answer would look exactly as authoritative.
+        assertThat(mvc.post().uri("/api/offers/42/ask").param("question", "salary"))
+            .hasStatus(org.springframework.http.HttpStatus.BAD_REQUEST);
+
+        then(asks).should(never()).ask(anyLong(), any());
+    }
+
+    @Test
+    void answers409WhenNobodyCouldAskAtAll() {
+        // Not an empty answer and not a silent one: no model, no fetched text and a spent
+        // budget are all "nobody could ask", which the screen must not draw like a quiet advert.
+        given(asks.ask(anyLong(), any())).willReturn(java.util.Optional.empty());
+
+        assertThat(mvc.post().uri("/api/offers/42/ask").param("question", "onsite"))
+            .hasStatus(org.springframework.http.HttpStatus.CONFLICT)
+            .bodyText()
+            .contains("budget");
     }
 
     @Test

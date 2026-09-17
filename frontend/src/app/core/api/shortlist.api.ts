@@ -1,6 +1,7 @@
 import {HttpClient, HttpParams} from '@angular/common/http';
 import {inject, Injectable} from '@angular/core';
 import {Observable} from 'rxjs';
+import {AdvertAnswer, AdvertQuestion} from '@core/model/advert-answer';
 import {ArchiveResult} from '@core/model/archive-result';
 import {FunnelView} from '@core/model/funnel';
 import {ShortlistEntry} from '@core/model/shortlist-entry';
@@ -117,6 +118,20 @@ export class ShortlistApi {
   archiveAll(ids: readonly number[]): Observable<ArchiveResult> {
     return this.http.post<ArchiveResult>('/api/offers/archive', {ids});
   }
+
+    /**
+     * Ask this one advert one bounded question.
+     *
+     * A POST because it spends a model call, the same reason `rescore` is one, and it stores
+     * nothing: the answer lives as long as the screen. A 409 means the question could not be
+     * asked at all — no model, no fetched text, or a spent budget — which the screen must not
+     * render as "the advert is silent", because those mean opposite things.
+     */
+    ask(id: number, question: AdvertQuestion): Observable<AdvertAnswer> {
+        return this.http.post<AdvertAnswer>(`/api/offers/${id}/ask`, null, {
+            params: new HttpParams().set('question', question),
+        });
+    }
 
     /**
      * Judge this one offer again. A POST because it spends a language-model call and
