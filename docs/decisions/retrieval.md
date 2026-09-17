@@ -157,6 +157,45 @@ else. That was a deterministic fix with no migration, no key and no model, and i
 a second reason too: a semantic search measured against a lexical search that never read the
 corpus is not measured against anything.
 
+## Which projects the letter pitches
+
+`referencesFor` counted how many of a project's `stack` tokens appeared in the advert, kept
+`overlap > 0`, and took two. Three consequences, and the third is the one that cost something:
+the pitches contributed nothing to the choice although they are the only fields saying what a
+project *was*; a dozen Spring projects tied on "Java" and the order fell to whichever the YAML
+listed first; and because the filter ran before the limit, **a letter could go out pitching one
+project or none**, silently, since `meta.json` records the empty list and nobody reads it before
+sending.
+
+**The lexical rule still decides everything it can.** A project whose stack the advert names is a
+project the advert asked for, and no similarity outranks that — the comparator sorts on overlap
+first and on similarity only within it, so the guarantee is structural rather than a later
+reader's care. The model speaks in exactly the two places the rule is silent: it breaks ties
+among equal overlap, and it fills the slots the rule left empty. Without vectors the output is
+byte for byte what it was, which is what makes the fallback real.
+
+**Measured 2026-09-17** over 252 adverts and six reference projects, by
+`docs/samples/measure_references.ts`:
+
+| | adverts |
+|---|---|
+| fewer than two references under the old rule | **72 of 252** |
+| fewer than two after the blend | **0** |
+| where the choice changed at all | 137 |
+
+The 137 break down as 37 fills, 19 pure reorders and 36 swaps among projects of equal overlap,
+which are the three things the blend is supposed to do and nothing else. Read against the
+titles, the swaps are the point: a Cloud Security / AWS advert now gets the Amazon market-data
+API instead of a corporate portal relaunch, and a DevOps advert gets the self-operated
+Kubernetes platform. The generic project used to win those on YAML order.
+
+**One vector per project and language, not per project.** The pitches are content rather than
+repository language, and an advert is compared against the pitch in its own language — the
+language `PackagingService` already determined for the letter. A mixed-language blob is not the
+comparison anyone wants. They are embedded once per process and cached by a digest of the text,
+so an edited pitch re-embeds itself alone and hot reload stays free; a table would buy
+persistence across restarts for a handful of vectors that cost one request to rebuild.
+
 ## The trap in `similar=`
 
 **A scalar subselect for an offer with no vector returns k arbitrary offers, and nothing says
@@ -237,6 +276,10 @@ de-furnitured advert is a few thousand tokens and fits whole in any context wind
 **The CV corpus.** Chunking the PDFs in `config/documents/` has no legal consumer here,
 because *no CV tailoring* means nothing may be selected out of a CV in the first place. It
 would also buy a PDF text dependency for a corpus of two files.
+
+**Generation in the cover letter.** `llm.models.writing` stays read by nothing, and that stays
+the honest state — the *selection* of reference projects is what retrieval improved, and it is
+built. See § *Which projects the letter pitches*.
 
 **Generation in the cover letter.** `llm.models.writing` stays read by nothing, and that stays
 the honest state. A template cannot invent a project, a rate or a client name into a document

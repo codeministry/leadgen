@@ -14,6 +14,7 @@ import de.codeministry.leadgen.application.ApplicationStatus;
 import de.codeministry.leadgen.config.*;
 import de.codeministry.leadgen.config.model.PipelineConfig;
 import de.codeministry.leadgen.config.model.SkillProfile;
+import de.codeministry.leadgen.llm.Vectors;
 import de.codeministry.leadgen.content.ContentText;
 import de.codeministry.leadgen.filter.TextFold;
 import freemarker.template.Configuration;
@@ -61,7 +62,8 @@ public class PackagingService {
     private static final String DUE = """
         SELECT id, title, description, full_text, url, location, portal, agency, tags,
                published_on, rate_eur, duration, workload, remote_percent, starts_on, contact,
-               score_value, score_band, score_model, enrichment_note, content_blocks
+               score_value, score_band, score_model, enrichment_note, content_blocks,
+               retrieval_embedding
         FROM offer
         WHERE status = 'PASSED' AND duplicate_of_id IS NULL AND archived_at IS NULL
           AND score_band = 'SHORTLISTED' AND packaged_at IS NULL
@@ -76,11 +78,19 @@ public class PackagingService {
     private static final Pattern GERMAN = Pattern.compile(
             "(?<![a-z])(der|die|das|und|fur|mit|wir|sie|unser|kenntnisse|erfahrung|projekt|kunde)(?![a-z])");
 
+    /**
+     * How many projects a letter pitches. Two is what the templates render and what a reader
+     * gets through; it was a literal on the old selection and is named here because two places
+     * now read it.
+     */
+    private static final int REFERENCES = 2;
+
     private static final Pattern UNSAFE = Pattern.compile("[^a-z0-9]+");
 
     private final ConfigRegistry config;
     private final ConfigProperties properties;
     private final ApplicationService applications;
+    private final ProfileEmbeddings profileEmbeddings;
     private final JdbcClient jdbc;
     private final ObjectMapper json;
     private final Configuration freemarker;
@@ -89,10 +99,12 @@ public class PackagingService {
             ConfigRegistry config,
             ConfigProperties properties,
             ApplicationService applications,
+            ProfileEmbeddings profileEmbeddings,
             DataSource dataSource) {
         this.config = config;
         this.properties = properties;
         this.applications = applications;
+        this.profileEmbeddings = profileEmbeddings;
         this.jdbc = JdbcClient.create(dataSource);
         this.json = new ObjectMapper().findAndRegisterModules();
         this.freemarker = new Configuration(Configuration.VERSION_2_3_34);
@@ -142,7 +154,8 @@ public class PackagingService {
         String scoreBand,
         String scoreModel,
         String enrichmentNote,
-        String contentBlocks) {
+        String contentBlocks,
+        String retrievalEmbedding) {
 
         static Due of(ResultSet rs, int row) throws SQLException {
             return new Due(
@@ -166,7 +179,11 @@ public class PackagingService {
                 rs.getString("score_band"),
                 rs.getString("score_model"),
                 rs.getString("enrichment_note"),
-                rs.getString("content_blocks"));
+                rs.getString("content_blocks"),
+                // A `vector` column comes back as text, the way it went in. Read with
+                // `getString` and never through `listOfRows()`, where the driver hands over a
+                // `PGobject` and the cast that looks right is a 500.
+                rs.getString("retrieval_embedding"));
         }
 
         private static List<String> tags(ResultSet rs) throws SQLException {
@@ -243,7 +260,10 @@ public class PackagingService {
             throws IOException, TemplateException {
         SkillProfile profile = snapshot.profile();
         String language = languageOf(row, profile);
-        List<SkillProfile.ReferenceProject> projects = referencesFor(row, profile);
+        // After the language, because the pitch is compared in the language the letter is
+        // written in: a German pitch against a German advert is the comparison that means
+        // something, and a mixed-language blob is not.
+        List<SkillProfile.ReferenceProject> projects = referencesFor(row, profile, language);
         List<String> matchedSkills = matchedSkills(row, profile);
 
         Path folder = Path.of(settings.outputDir()).resolve(folderName(settings.naming(), row));
@@ -395,27 +415,23 @@ public class PackagingService {
     }
 
     /**
-     * The reference projects whose stack the offer actually asks for, strongest first.
+     * Two reference projects: the ones the advert asked for, and where it asked for none, the
+     * ones it is about.
+     *
+     * <p>The lexical rule still decides everything it can — {@link ReferenceRanking} carries
+     * the argument, and the reason this method is now three lines is that the rule and the
+     * blend are worth testing without a database.
      */
-    private static List<SkillProfile.ReferenceProject> referencesFor(Due row, SkillProfile profile) {
-        if (profile == null || profile.referenceProjects() == null) {
-            return List.of();
-        }
+    private List<SkillProfile.ReferenceProject> referencesFor(Due row, SkillProfile profile, String language) {
         String haystack = haystack(row);
-        record Scored(SkillProfile.ReferenceProject project, long overlap) {}
-        return profile.referenceProjects().stream()
-                .map(project -> new Scored(
-                        project,
-                        project.stack() == null
-                                ? 0
-                                : project.stack().stream()
-                                        .filter(s -> names(haystack, s))
-                                        .count()))
-                .filter(scored -> scored.overlap() > 0)
-                .sorted((a, b) -> Long.compare(b.overlap(), a.overlap()))
-                .limit(2)
-                .map(Scored::project)
-                .toList();
+        return ReferenceRanking.choose(
+                profile,
+                project -> project.stack() == null
+                        ? 0
+                        : project.stack().stream().filter(s -> names(haystack, s)).count(),
+                Vectors.parse(row.retrievalEmbedding()),
+                profileEmbeddings.forLanguage(profile, language),
+                REFERENCES);
     }
 
     private static List<String> matchedSkills(Due row, SkillProfile profile) {

@@ -37,11 +37,15 @@ docs/samples/filter-baseline.json
 # because the script takes `--offers=NAME` and a second export carries the same adverts.
 docs/samples/offers*.json
 docs/samples/embedding-observed-*.md
+# Which of your projects a letter would pitch, per advert: names real adverts and reads the
+# individual profile, so it is corpus-derived like everything above.
+docs/samples/reference-selection-*.md
 docs/samples/embedding-cache-*.json
 # The analysis scripts are the reference implementation and stay in the repo:
 !docs/samples/analyze_samples.py
 !docs/samples/simulate_filter.py
 !docs/samples/measure_embeddings.ts
+!docs/samples/measure_references.ts
 
 # Build
 target/

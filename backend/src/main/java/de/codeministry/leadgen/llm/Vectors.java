@@ -49,6 +49,54 @@ public final class Vectors {
     }
 
     /**
+     * The inverse of {@link #literal}: pgvector's text form back into a vector.
+     *
+     * <p>Needed because a {@code vector} column comes back from the driver as text, the same way
+     * it goes in. Null or blank is nothing rather than an empty vector — an offer that has not
+     * been indexed has no direction, and a zero vector would have one that compares to
+     * everything equally badly while looking like an answer.
+     */
+    public static float[] parse(String literal) {
+        if (literal == null || literal.isBlank()) {
+            return null;
+        }
+        String inner = literal.strip();
+        if (inner.startsWith("[") && inner.endsWith("]")) {
+            inner = inner.substring(1, inner.length() - 1);
+        }
+        if (inner.isBlank()) {
+            return null;
+        }
+        String[] parts = inner.split(",");
+        float[] vector = new float[parts.length];
+        for (int index = 0; index < parts.length; index++) {
+            vector[index] = Float.parseFloat(parts[index].strip());
+        }
+        return vector;
+    }
+
+    /**
+     * Cosine similarity, which is what the comparisons outside SQL are stated in.
+     *
+     * <p><b>A similarity and not a distance, unlike pgvector's {@code <=>}.</b> The two are one
+     * minus the other, and reading one as the other does not fail — it ranks everything
+     * backwards while still returning plausible numbers. Named so the sign is on the method.
+     */
+    public static double similarity(float[] a, float[] b) {
+        int width = Math.min(a.length, b.length);
+        double dot = 0;
+        double na = 0;
+        double nb = 0;
+        for (int index = 0; index < width; index++) {
+            dot += (double) a[index] * b[index];
+            na += (double) a[index] * a[index];
+            nb += (double) b[index] * b[index];
+        }
+        double norm = Math.sqrt(na) * Math.sqrt(nb);
+        return norm == 0 ? 0 : dot / norm;
+    }
+
+    /**
      * pgvector's own text form, which is what lets a stage write a vector over plain JDBC with
      * no driver extension: the column takes {@code '[1,2,3]'::vector}.
      */
