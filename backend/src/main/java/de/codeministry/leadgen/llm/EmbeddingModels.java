@@ -36,8 +36,6 @@ import java.util.concurrent.ConcurrentHashMap;
 @Component
 public class EmbeddingModels {
 
-    private static final Duration TIMEOUT = Duration.ofSeconds(30);
-
     private static final char SEPARATOR = ' ';
 
     /**
@@ -61,7 +59,7 @@ public class EmbeddingModels {
             // Ollama serves `/v1/embeddings` in the same shape, so it is the same client at a
             // different address — the same reason the two share a chat client.
             case ChatModels.OPENAI_COMPATIBLE, ChatModels.OLLAMA ->
-                Optional.of(openAi(llm.baseUrl(), ChatModels.key(llm), model));
+                Optional.of(openAi(llm.baseUrl(), ChatModels.key(llm), model, llm.timeout()));
             case ChatModels.ANTHROPIC -> {
                 log.warn(
                     "llm.provider is '{}', which has no embedding endpoint;"
@@ -80,9 +78,9 @@ public class EmbeddingModels {
         };
     }
 
-    private EmbeddingModel openAi(String baseUrl, String apiKey, String model) {
+    private EmbeddingModel openAi(String baseUrl, String apiKey, String model, Duration timeout) {
         return models.computeIfAbsent(
-            baseUrl + SEPARATOR + Integer.toHexString(apiKey.hashCode()) + SEPARATOR + model,
+            baseUrl + SEPARATOR + Integer.toHexString(apiKey.hashCode()) + SEPARATOR + model + SEPARATOR + timeout,
             ignored -> OpenAiEmbeddingModel.builder()
                 // No asynchronous client beside it, unlike the chat pair: this builder
                 // constructs only the one it is given and never reaches for a second.
@@ -96,7 +94,7 @@ public class EmbeddingModels {
                     false,
                     false,
                     model,
-                    TIMEOUT,
+                    timeout,
                     0,
                     null,
                     null,

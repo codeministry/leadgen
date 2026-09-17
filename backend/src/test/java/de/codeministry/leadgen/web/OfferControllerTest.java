@@ -306,6 +306,7 @@ class OfferControllerTest {
     private static ShortlistEntry entry(Instant archivedAt, String source) {
         var offer = new OfferView(
                 1L,
+                "sample-newsletter",
                 "x",
                 "Senior Java Entwickler",
                 "Beschreibung",

@@ -8,6 +8,9 @@
  */
 package de.codeministry.leadgen.config;
 
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
 import jakarta.validation.ValidatorFactory;
@@ -15,6 +18,7 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -103,6 +107,31 @@ class ConfigWatcherTest {
         var before = registry.snapshot();
         settle();
         assertThat(registry.snapshot()).isSameAs(before);
+    }
+
+    /**
+     * The poll runs twice a second for the life of the process. It used to bind and validate
+     * `pipeline.yaml` on every one of them, purely to learn which two file names to stamp —
+     * thirty lines a minute in the deployed log announcing a read of a file nothing had
+     * touched, and a full parse behind each line. The watch list is derived from the running
+     * snapshot now, so an untouched configuration is read exactly once: at startup.
+     */
+    @Test
+    void readsNothingFromDiskWhileTheFilesAreUntouched() {
+        ListAppender<ILoggingEvent> log = new ListAppender<>();
+        Logger loaderLog = (Logger) LoggerFactory.getLogger(ConfigLoader.class);
+        log.start();
+        loaderLog.addAppender(log);
+        try {
+            settle();
+            settle();
+        } finally {
+            loaderLog.detachAppender(log);
+        }
+
+        assertThat(log.list)
+                .extracting(ILoggingEvent::getFormattedMessage)
+                .noneMatch(message -> message.contains("read from"));
     }
 
     /**

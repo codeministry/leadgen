@@ -16,6 +16,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -42,6 +43,12 @@ public class ConfigWatcher {
     private final Map<Path, Stamp> applied = new HashMap<>();
     private final Map<Path, Stamp> pending = new HashMap<>();
 
+    // Which snapshot the watch list was derived from. Snapshots are swapped whole, so
+    // identity is the cheapest way to ask "has anything been reloaded since?" — and it
+    // keeps the derivation out of the poll, which runs twice a second.
+    private ConfigSnapshot derivedFrom;
+    private List<Path> watched;
+
     /**
      * Size as well as timestamp: a file saved twice within one filesystem tick differs only in size.
      */
@@ -50,13 +57,13 @@ public class ConfigWatcher {
     ConfigWatcher(ConfigRegistry registry, ConfigLoader loader) {
         this.registry = registry;
         this.loader = loader;
-        loader.watchedFiles().forEach(file -> applied.put(file, stamp(file)));
+        watchedFiles().forEach(file -> applied.put(file, stamp(file)));
     }
 
     @Scheduled(fixedDelayString = "${leadgen.config-poll-interval:PT2S}")
     public void pollForChanges() {
         Map<Path, Stamp> now = new HashMap<>();
-        loader.watchedFiles().forEach(file -> now.put(file, stamp(file)));
+        watchedFiles().forEach(file -> now.put(file, stamp(file)));
 
         boolean changed = !now.equals(applied);
         boolean settled = now.equals(pending);
@@ -80,6 +87,20 @@ public class ConfigWatcher {
             return;
         }
         registry.reload();
+    }
+
+    /**
+     * The three paths to stamp, derived once per snapshot rather than once per poll. Only a
+     * reload can change which files these are, and a reload is exactly what swaps the
+     * snapshot.
+     */
+    private List<Path> watchedFiles() {
+        ConfigSnapshot current = registry.snapshot();
+        if (current != derivedFrom) {
+            derivedFrom = current;
+            watched = loader.watchedFiles(current.application());
+        }
+        return watched;
     }
 
     /**

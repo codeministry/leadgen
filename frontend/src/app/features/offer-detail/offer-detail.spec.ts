@@ -23,6 +23,7 @@ function entry(
     return {
         offer: {
             id,
+            sourceName: 'sample-newsletter',
             externalId: `https://example.invalid/${id}`,
             title: 'Senior Java Entwickler',
             description: 'Ablösung eines Monolithen.',

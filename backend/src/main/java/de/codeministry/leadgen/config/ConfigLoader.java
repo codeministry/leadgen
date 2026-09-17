@@ -27,6 +27,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.*;
+import java.util.stream.Stream;
 
 /**
  * Reads, resolves, binds and validates the configuration.
@@ -93,22 +94,28 @@ public class ConfigLoader {
      * The files a reload has to watch — the external ones only. A default lives inside the
      * jar and cannot change while the process runs, so watching it would be watching
      * nothing.
+     *
+     * <p><b>The pipeline is passed in and not read here.</b> This used to bind and validate
+     * `pipeline.yaml` on every call purely to learn the two configurable file names, and the
+     * watcher calls it twice a second: measured on the deployed instance, thirty log lines a
+     * minute announcing that the configuration had been read while nothing had changed, and a
+     * full parse behind each one.
+     *
+     * <p>The caller passes the running snapshot, so a `pipeline.yaml` that renames the rules or
+     * sources file is watched under its new name one cycle later — the same cycle the rename
+     * takes effect in, because `pipeline.yaml` itself is always in the list. A file that is
+     * broken on disk therefore stays watched too: the reload is rejected, the last good
+     * snapshot stays, and fixing the file is still seen without a restart.
      */
-    public List<Path> watchedFiles() {
+    public List<Path> watchedFiles(PipelineConfig pipeline) {
         Path dir = properties.configDirectory();
-        List<String> names;
-        try {
-            PipelineConfig pipeline = read(source(dir, PIPELINE_FILE), PipelineConfig.class);
-            names = List.of(
-                    PIPELINE_FILE,
-                    fileName(pipeline.rules().path(), RULES_FILE),
-                    fileName(sourcesPath(pipeline), SOURCES_FILE));
-        } catch (RuntimeException e) {
-            // A broken pipeline.yaml still has to be watched, or fixing it would need a
-            // restart — which is exactly the situation hot reload exists for.
-            names = List.of(PIPELINE_FILE, RULES_FILE, SOURCES_FILE);
-        }
-        return names.stream().distinct().map(dir::resolve).toList();
+        return Stream.of(
+                        PIPELINE_FILE,
+                        fileName(pipeline.rules().path(), RULES_FILE),
+                        fileName(sourcesPath(pipeline), SOURCES_FILE))
+                .distinct()
+                .map(dir::resolve)
+                .toList();
     }
 
     private ConfigSource source(Path dir, String name) {

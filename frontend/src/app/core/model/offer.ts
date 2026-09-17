@@ -32,6 +32,13 @@ export interface ContentBlock {
 
 export interface Offer {
     readonly id: number;
+    /**
+     * The configured input this row was read from, as `sources.yaml` names it and as the
+     * sources screen lists it. Provenance, not content: `portal` is who advertises the
+     * project, this is which source delivered it here. Never null — every offer row has a
+     * source, including the ones typed in by hand.
+     */
+    readonly sourceName: string;
     readonly externalId: string | null;
     readonly title: string;
     readonly description: string | null;

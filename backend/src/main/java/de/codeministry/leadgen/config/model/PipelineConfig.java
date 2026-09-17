@@ -50,9 +50,32 @@ public record PipelineConfig(
             String provider,
             String baseUrl,
             String apiKey,
+            Duration timeout,
             boolean batch,
             @NotNull Models models,
             @Valid Budget budget) {
+
+        /**
+         * How long one request to a model may take before it is given up on.
+         *
+         * <p><b>Measured, not guessed.</b> The clients were built with a fixed 30 s, which is
+         * comfortable for a hosted endpoint and too short for a local one: a cold
+         * `gpt-oss:20b` needs longer to load than to answer, and the stage then reports
+         * "without a usable answer" — a sentence about the model's reply for a reply that
+         * never arrived. Measured on 2026-09-17 against the deployed instance: content,
+         * fields and scoring each gave up, three stages of a run lost to a ceiling nothing
+         * could raise without a rebuild.
+         *
+         * <p>Absent means {@link #DEFAULT_TIMEOUT}, so a configuration file that predates the
+         * key keeps working — and the accessor below is what guarantees that no reader ever
+         * sees the null.
+         */
+        public static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(120);
+
+        @Override
+        public Duration timeout() {
+            return timeout == null ? DEFAULT_TIMEOUT : timeout;
+        }
 
         /**
          * The one wire format whose batch endpoint is implemented, named here rather than
@@ -161,6 +184,7 @@ public record PipelineConfig(
      */
     public record Fields(boolean enabled) {
     }
+
 
     public record Profile(@NotBlank String path) {}
 

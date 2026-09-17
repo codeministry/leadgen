@@ -8,6 +8,7 @@
  */
 package de.codeministry.leadgen.config;
 
+import de.codeministry.leadgen.config.model.PipelineConfig;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
 import jakarta.validation.ValidatorFactory;
@@ -101,6 +102,20 @@ class ConfigLoaderTest {
         assertThatThrownBy(() -> ConfigFixtures.loaderFor(configDir, VALIDATOR).load())
                 .hasMessageContaining("llm.batch")
                 .hasMessageContaining("ollama");
+    }
+
+    @Test
+    void readsTheModelTimeoutAndFallsBackWhenTheKeyIsAbsent() throws IOException {
+        // The shipped file names PT120S, because 30 s was a ceiling a local model loading a
+        // 20B file cannot meet and no configuration could raise.
+        assertThat(ConfigFixtures.loaderFor(configDir, VALIDATOR).load().application().llm().timeout())
+                .isEqualTo(Duration.ofSeconds(120));
+
+        // A configuration written before the key existed is not a broken one.
+        rewrite("pipeline.yaml", "  timeout: ${LLM_TIMEOUT:PT120S}\n", "");
+
+        assertThat(ConfigFixtures.loaderFor(configDir, VALIDATOR).load().application().llm().timeout())
+                .isEqualTo(PipelineConfig.Llm.DEFAULT_TIMEOUT);
     }
 
     @Test

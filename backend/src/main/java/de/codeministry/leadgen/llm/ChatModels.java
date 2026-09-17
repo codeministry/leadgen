@@ -54,8 +54,6 @@ public class ChatModels {
      */
     public static final int MAX_TOKENS = 4096;
 
-    private static final Duration TIMEOUT = Duration.ofSeconds(30);
-
     /**
      * The separator in a cache key. A space, because none of the four parts can hold one: a
      * provider kind is an identifier, a URL cannot carry a raw space, the middle part is hex,
@@ -93,8 +91,8 @@ public class ChatModels {
             // Ollama serves the same chat-completions shape under /v1, so it is the same
             // client at a different address. It is listed separately because it is the one
             // provider that needs no key, and that is a rule about the value.
-            case OPENAI_COMPATIBLE, OLLAMA -> Optional.of(openAi(llm.baseUrl(), key(llm), model));
-            case ANTHROPIC -> Optional.of(anthropic(llm.baseUrl(), key(llm), model));
+            case OPENAI_COMPATIBLE, OLLAMA -> Optional.of(openAi(llm.baseUrl(), key(llm), model, llm.timeout()));
+            case ANTHROPIC -> Optional.of(anthropic(llm.baseUrl(), key(llm), model, llm.timeout()));
             default -> {
                 log.warn(
                     "llm.provider is '{}'; implemented are '{}', '{}' and '{}'",
@@ -113,9 +111,9 @@ public class ChatModels {
      * <p>An <em>empty</em> key rather than a null one is what puts the client into its
      * no-auth mode, which is what a local server wants.
      */
-    private ChatModel openAi(String baseUrl, String apiKey, String model) {
+    private ChatModel openAi(String baseUrl, String apiKey, String model, Duration timeout) {
         return models.computeIfAbsent(
-            cacheKey(OPENAI_COMPATIBLE, baseUrl, apiKey, model),
+            cacheKey(OPENAI_COMPATIBLE, baseUrl, apiKey, model, timeout),
             ignored -> OpenAiChatModel.builder()
                 .openAiClient(OpenAiSetup.setupSyncClient(
                     baseUrl,
@@ -127,7 +125,7 @@ public class ChatModels {
                     false,
                     false,
                     model,
-                    TIMEOUT,
+                    timeout,
                     0,
                     null,
                     null,
@@ -148,7 +146,7 @@ public class ChatModels {
                     false,
                     false,
                     model,
-                    TIMEOUT,
+                    timeout,
                     0,
                     null,
                     null,
@@ -165,14 +163,14 @@ public class ChatModels {
      * <p>{@code maxTokens} is set here and not left to a default for the reason
      * {@link #MAX_TOKENS} states: a truncated body parses to nothing at all.
      */
-    private ChatModel anthropic(String baseUrl, String apiKey, String model) {
+    private ChatModel anthropic(String baseUrl, String apiKey, String model, Duration timeout) {
         return models.computeIfAbsent(
-            cacheKey(ANTHROPIC, baseUrl, apiKey, model),
+            cacheKey(ANTHROPIC, baseUrl, apiKey, model, timeout),
             ignored -> AnthropicChatModel.builder()
-                .anthropicClient(AnthropicSetup.setupSyncClient(baseUrl, apiKey, TIMEOUT, 0, null, null))
+                .anthropicClient(AnthropicSetup.setupSyncClient(baseUrl, apiKey, timeout, 0, null, null))
                 // Same reason as the OpenAI pair above: the builder would otherwise
                 // construct an asynchronous client from nothing.
-                .anthropicClientAsync(AnthropicSetup.setupAsyncClient(baseUrl, apiKey, TIMEOUT, 0, null, null))
+                .anthropicClientAsync(AnthropicSetup.setupAsyncClient(baseUrl, apiKey, timeout, 0, null, null))
                 .options(AnthropicChatOptions.builder()
                     .model(model)
                     .maxTokens(MAX_TOKENS)
@@ -183,8 +181,17 @@ public class ChatModels {
     /**
      * The key is hashed rather than kept, so a heap dump does not hand out the API key.
      */
-    private static String cacheKey(String provider, String baseUrl, String apiKey, String model) {
-        return provider + SEPARATOR + baseUrl + SEPARATOR + Integer.toHexString(apiKey.hashCode()) + SEPARATOR + model;
+    private static String cacheKey(
+            String provider, String baseUrl, String apiKey, String model, Duration timeout) {
+        return provider
+                + SEPARATOR
+                + baseUrl
+                + SEPARATOR
+                + Integer.toHexString(apiKey.hashCode())
+                + SEPARATOR
+                + model
+                + SEPARATOR
+                + timeout;
     }
 
     /**

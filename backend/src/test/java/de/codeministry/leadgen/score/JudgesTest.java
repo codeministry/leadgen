@@ -82,6 +82,7 @@ class JudgesTest {
                         "anthropic",
                         "https://gateway.invalid",
                         "key",
+                        null,
                         false,
                         new PipelineConfig.Llm.Models(null, null, null, null, null),
                         null)))
@@ -89,7 +90,7 @@ class JudgesTest {
     }
 
     private java.util.Optional<Judge> judgeFor(String provider, String baseUrl, String apiKey) {
-        return judge(new PipelineConfig.Llm(provider, baseUrl, apiKey, false, SCORING, null));
+        return judge(new PipelineConfig.Llm(provider, baseUrl, apiKey, null, false, SCORING, null));
     }
 
     private java.util.Optional<Judge> judge(PipelineConfig.Llm llm) {

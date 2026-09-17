@@ -208,6 +208,9 @@ bun run test                   # Vitest
 
 ## Documentation
 
+[`docs/README.md`](docs/README.md) is the index: what each document is for, and which one to
+open for the question you have.
+
 - [Architecture](docs/ARCHITECTURE.md) — the pipeline stage by stage, and the reasoning
   behind the parts that are not obvious
 - [Configuration](docs/CONFIGURATION.md) — the two layers, the four files, every variable

@@ -25,6 +25,9 @@ import java.util.List;
  * Option"); the normalised half is what a sort key and a filter can compare. Either may be
  * null on its own: a phrase with no resolvable date is the ordinary case.
  *
+ * @param sourceName    the source this row was read from, as {@code sources.yaml} names it and as
+ *                      the sources screen lists it. Provenance rather than content: {@code portal} is
+ *                      who advertises the project, this is which configured input delivered it here.
  * @param archivedAt    when this left the working list, or null while it is still on it.
  * @param archiveSource who took it off, or why it is exempt from the age rule. Carried
  *                      beside the timestamp because the two together are four states and not two, and a
@@ -33,6 +36,7 @@ import java.util.List;
  */
 public record OfferView(
         long id,
+        String sourceName,
         String externalId,
         String title,
         String description,

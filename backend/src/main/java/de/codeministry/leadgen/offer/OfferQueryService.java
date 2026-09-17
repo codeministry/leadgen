@@ -44,8 +44,9 @@ public class OfferQueryService {
      * boundary. What each sentinel is and why is on `ShortlistSort`.
      */
     private static final String SHORTLIST = """
-        SELECT o.*
+        SELECT o.*, s.name AS source_name
         FROM offer o
+        JOIN source s ON s.id = o.source_id
         WHERE o.status = 'PASSED' AND o.duplicate_of_id IS NULL
         %s
         ORDER BY %s
@@ -372,7 +373,11 @@ public class OfferQueryService {
     public Optional<ShortlistEntry> find(long id) {
         // Not restricted to PASSED: the detail is also how somebody looks at an offer the
         // filter rejected and asks whether the rule was right.
-        return jdbc.sql("SELECT o.* FROM offer o WHERE o.id = ?")
+        return jdbc.sql("""
+                SELECT o.*, s.name AS source_name
+                FROM offer o JOIN source s ON s.id = o.source_id
+                WHERE o.id = ?
+                """)
                 .param(id)
                 .query(OfferQueryService::row)
                 .optional()
@@ -483,6 +488,7 @@ public class OfferQueryService {
         long id = rs.getLong("id");
         var offer = new OfferView(
                 id,
+                rs.getString("source_name"),
                 rs.getString("external_id"),
                 rs.getString("title"),
                 rs.getString("description"),

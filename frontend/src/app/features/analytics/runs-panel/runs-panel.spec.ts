@@ -59,6 +59,27 @@ describe('RunsPanel', () => {
         expect(fixture.nativeElement.textContent).not.toContain('2026-09-02 06:47');
     });
 
+    it('lists the newest run first, while the chart keeps running forwards in time', () => {
+        // Two different orders on purpose: a reader scanning the table wants today's run at the
+        // top, and a line chart drawn newest-first shows a rise as a decline.
+        const fixture = render(
+            series(
+                [
+                    pass('2026-09-01T10:00:00Z', 100),
+                    pass('2026-09-03T10:00:00Z', 300),
+                    pass('2026-09-02T10:00:00Z', 200),
+                ],
+                '2026-09-01T10:00:00Z',
+            ),
+        );
+
+        const extracted = Array.from(
+            fixture.nativeElement.querySelectorAll('tbody tr td:first-of-type'),
+        ).map((cell) => (cell as HTMLElement).textContent?.trim());
+
+        expect(extracted).toEqual(['300', '200', '100']);
+    });
+
     it('names the scale each run ran under', () => {
         // Two runs under two rulesets on one line look comparable and are not.
         const fixture = render(series([pass('2026-09-01T10:00:00Z', 100)], '2026-09-01T10:00:00Z'));

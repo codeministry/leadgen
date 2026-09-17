@@ -216,6 +216,7 @@ class FieldExtractorWireFormatTest {
             ChatModels.OPENAI_COMPATIBLE,
             MODEL.baseUrl(),
             "test-key",
+            null,
             false,
             new PipelineConfig.Llm.Models(null, "a-model", null, null, null),
             null);

@@ -9,6 +9,11 @@ llm:
   provider: ${LLM_PROVIDER:}            # anthropic | ollama | openai-compatible
   base_url: ${LLM_BASE_URL:}
   api_key: ${LLM_API_KEY}
+  # How long one request to a model may take. 30 s was hard-coded and is comfortable for a
+  # hosted endpoint; a local one loading a 20B model first is not, and the stage then reports
+  # "without a usable answer" for an answer that never arrived. Measured 2026-09-17 on the
+  # deployed instance: content, fields and scoring each gave up at the ceiling in one run.
+  timeout: ${LLM_TIMEOUT:PT120S}
   # Half the price, at the cost of a synchronous answer: the requests are handed over as
   # one batch and collected by a poller minutes later, so packaging and the digest happen
   # after the collection rather than at the end of the run that submitted. Only the

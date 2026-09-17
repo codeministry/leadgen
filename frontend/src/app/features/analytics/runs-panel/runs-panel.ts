@@ -65,6 +65,18 @@ export class RunsPanel {
         }));
     });
 
+    /**
+     * The table reads newest first, the chart cannot. A line chart whose x axis runs backwards
+     * in time shows a rise as a decline, so the two orders are deliberately different and both
+     * derived from the same rows. Sorted rather than reversed: the order the API returns is not
+     * this component's to assume, and a table that silently depends on it breaks quietly.
+     */
+    protected readonly tableRows = computed(() =>
+        [...this.rows()].sort(
+            (a, b) => new Date(b.pass.finishedAt).getTime() - new Date(a.pass.finishedAt).getTime(),
+        ),
+    );
+
     protected readonly since = computed(() => this.runs().historySince?.slice(0, 10) ?? null);
 
     protected readonly option = computed<ChartOption>(() => {

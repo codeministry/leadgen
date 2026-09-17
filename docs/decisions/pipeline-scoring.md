@@ -125,6 +125,34 @@ Every paragraph here was paid for once; none of it is a summary.
   about the value, which is why the provider is listed separately from
   `openai-compatible` even though it gets the same judge.
 
+## How long one request may take
+
+`llm.timeout` in `pipeline.yaml`, read by `ChatModels` and `EmbeddingModels`, default
+`PT120S`.
+
+It used to be a constant of 30 s in both factories, which is a comfortable ceiling for a
+hosted endpoint and the wrong one for a local model that has to be loaded before it can
+answer. Measured on the deployed instance on 2026-09-17, against Ollama on the LAN with
+`gpt-oss:20b`: content, fields and scoring each spent their whole stage waiting and then gave
+up, and the run reported `1 without a usable answer` — a sentence about the model's reply for
+a reply that never arrived. The endpoint was reachable and the model present the whole time;
+the chart's own measurement puts that model at 34 s warm, so a cold start has no chance under
+30 s.
+
+**Absent means the default, and that is deliberate.** The key is bound as a `Duration` whose
+accessor substitutes `DEFAULT_TIMEOUT` for a null, so a configuration file written before the
+key existed keeps working — and because the two configuration layers override file by file,
+that is not a rare case but the normal one for anybody who copied the file once.
+
+**The timeout is part of the client's cache key.** Both factories cache one built client per
+configuration, so without it a change to this value would be accepted, logged, and then have
+no effect until the next restart — the failure mode that the base URL and the key already had
+to be keyed on.
+
+**Raising it does not raise what a run costs.** The budget counts requests, not seconds, and a
+request that times out has already been paid for. What it buys is that the answer arrives
+before the stage stops waiting for it.
+
 ## The day's allowance
 
 `backend/…/llm/LlmBudget`, `V24`, and one call site in every stage that sends a request.
