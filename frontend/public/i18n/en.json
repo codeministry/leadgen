@@ -49,6 +49,7 @@
   "field": {
     "title": "Title",
     "url": "URL",
+    "source": "Source",
     "portal": "Portal",
     "agency": "Agency",
     "location": "Location",
@@ -103,7 +104,7 @@
   },
   "shortlist": {
     "title": "Shortlist",
-    "searchLabel": "Search titles, descriptions and tags",
+    "searchLabel": "Search titles, adverts and tags",
     "searchPlaceholder": "Search offers",
     "scoreBand": "Score band",
     "bandAll": "All",
@@ -173,7 +174,10 @@
       "scoreFrom": "Score: {from} and up",
       "scoreTo": "Score: up to {to}",
       "scoreState": "Score: {value}",
-      "durationMonths": "Duration: {months} months or more"
+      "durationMonths": "Duration: {months} months or more",
+      "relatedText": "Related to “{value}”",
+      "relatedOffer": "Related to {value}",
+      "relatedOfferUnnamed": "Related to one offer"
     },
     "scoreSection": "Score",
     "scoreStateLabel": "Judged",
@@ -199,7 +203,16 @@
       "apply": "Apply {name}",
       "remove": "Delete {name}",
       "nothingToSave": "Set a filter first."
-    }
+    },
+    "related": {
+      "findText": "Find offers related to “{value}”",
+      "find": "Find related",
+      "partial": "{read} of {total} offers have been read for meaning so far. The rest cannot appear here yet."
+    },
+    "noRelatedTitle": "Nothing related on this list",
+    "noRelatedHint": "The related search and these filters have no offers in common. Remove one, or clear the related search.",
+    "countRelated": "{matched} of {total} · closest matches only",
+    "countArchivedRelated": "{matched} of {total} archived · closest matches only"
   },
   "offer": {
     "rateUnknown": "rate unknown",
@@ -253,7 +266,8 @@
       "AGENCY": "agency signature",
       "LEGAL": "legal notice"
     },
-    "close": "Close the offer"
+    "close": "Close the offer",
+    "findRelated": "Find related offers"
   },
   "application": {
     "title": "Where this stands",

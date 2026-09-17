@@ -221,8 +221,46 @@ class OfferControllerTest {
     }
 
     @Test
+    void passesTheRelatednessAxisThroughAsTheTypesItIs() {
+        given(offers.shortlist(any())).willReturn(new ShortlistPage(List.of(), null, 0, 0, 0, List.of(), null, null));
+
+        assertThat(mvc.get().uri("/api/offers").param("similar", "42")).hasStatusOk();
+
+        var captured = org.mockito.ArgumentCaptor.forClass(ShortlistQuery.class);
+        then(offers).should().shortlist(captured.capture());
+        assertThat(captured.getValue().related().similarTo()).isEqualTo(42L);
+        assertThat(captured.getValue().related().semantic()).isNull();
+    }
+
+    @Test
+    void refusesBothSpellingsOfTheRelatednessAxisBeforeReadingAnything() {
+        // The same shape the score axis has: two spellings of one narrowing is not "both at
+        // once", because the server would have to pick a neighbourhood around two different
+        // points and the caller could not tell which one it got.
+        assertThat(mvc.get().uri("/api/offers").param("semantic", "kubernetes").param("similar", "42"))
+            .hasStatus(org.springframework.http.HttpStatus.BAD_REQUEST);
+
+        then(offers).should(never()).shortlist(any());
+    }
+
+    @Test
+    void answers400WhenTheInstallationCannotSearchByMeaning() {
+        // Never a silently widened list: a shared link or a saved view carrying `semantic=` is
+        // how this arrives on an installation without the index, and the reader has to be able
+        // to tell a refusal from a quiet market.
+        given(offers.shortlist(any()))
+            .willThrow(new de.codeministry.leadgen.retrieval.SemanticFilter.RetrievalUnavailable(
+                "this installation does not search by meaning: the retrieval index is switched off"));
+
+        assertThat(mvc.get().uri("/api/offers").param("semantic", "kubernetes"))
+            .hasStatus(org.springframework.http.HttpStatus.BAD_REQUEST)
+            .bodyText()
+            .contains("does not search by meaning");
+    }
+
+    @Test
     void passesTheNewFiltersThroughToTheQueryAsTheTypesTheyAre() {
-        given(offers.shortlist(any())).willReturn(new ShortlistPage(List.of(), null, 0, 0, 0, List.of()));
+        given(offers.shortlist(any())).willReturn(new ShortlistPage(List.of(), null, 0, 0, 0, List.of(), null, null));
 
         assertThat(mvc.get()
             .uri("/api/offers")
@@ -261,7 +299,7 @@ class OfferControllerTest {
 
     @Test
     void passesTheScoreAxisAndEveryNamedPortalThroughAsTheTypesTheyAre() {
-        given(offers.shortlist(any())).willReturn(new ShortlistPage(List.of(), null, 0, 0, 0, List.of()));
+        given(offers.shortlist(any())).willReturn(new ShortlistPage(List.of(), null, 0, 0, 0, List.of(), null, null));
 
         assertThat(mvc.get()
             .uri("/api/offers")
@@ -281,7 +319,7 @@ class OfferControllerTest {
     void readsOnePortalAsAListOfOne() {
         // The parameter kept its singular name, so a link written before the filter took more
         // than one still binds — this is what says so.
-        given(offers.shortlist(any())).willReturn(new ShortlistPage(List.of(), null, 0, 0, 0, List.of()));
+        given(offers.shortlist(any())).willReturn(new ShortlistPage(List.of(), null, 0, 0, 0, List.of(), null, null));
 
         assertThat(mvc.get().uri("/api/offers").param("portal", "portal-c")).hasStatusOk();
 
@@ -292,7 +330,7 @@ class OfferControllerTest {
 
     @Test
     void defaultsToTheScoreOrderWhenNothingAsksForAnything() {
-        given(offers.shortlist(any())).willReturn(new ShortlistPage(List.of(), null, 0, 0, 0, List.of()));
+        given(offers.shortlist(any())).willReturn(new ShortlistPage(List.of(), null, 0, 0, 0, List.of(), null, null));
 
         assertThat(mvc.get().uri("/api/offers")).hasStatusOk();
 

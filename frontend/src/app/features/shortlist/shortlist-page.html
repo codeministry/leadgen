@@ -13,8 +13,13 @@
        silently becomes a different number. It is possible at all because the search is
        debounced — announced per keystroke it would chatter over the typing. -->
   <p class="type-small text-muted count" role="status">
+    <!-- Four words when a relatedness filter is on, because the match was then bounded by
+         the search rather than by the market, and a count that does not say so lies by
+         omission. "only" attaches to the set and not to a sequence: it says which offers were
+         considered, never which order they are in. Four keys rather than a sentence with an
+         optional tail, the same reason `count` and `countArchived` are already two. -->
     {{
-      (archived() ? 'shortlist.countArchived' : 'shortlist.count')
+      countKey()
         | transloco: {matched: store.matched(), total: store.total()}
     }}
     @if (store.unscored() > 0) {
@@ -82,6 +87,24 @@
         </button>
       </div>
 
+      <!-- An offer made about the words already typed, not a second way to type. It appears
+           while there is something in the field and disappears when the words move into the
+           chip row below, so the bar grows one row while typing and gives it back. Absent
+           entirely where the server cannot answer: a control it would refuse is worse than
+           one that says it does not exist, the same rule the sort list follows. -->
+      @if (relatedAvailable() && q() !== '') {
+        <div class="filters-row">
+          <button
+            type="button"
+            class="btn btn-xs btn-ghost related-suggest"
+            (click)="findRelated(q())"
+          >
+            <lg-icon name="scan-search" [size]="14"/>
+            {{ 'shortlist.related.findText' | transloco: {value: q()} }}
+          </button>
+        </div>
+      }
+
       <div class="filters-row">
         <!-- Native radio semantics rather than three `aria-pressed` buttons: exactly one of
              the three is always on, and `aria-pressed` states that they are independent
@@ -140,8 +163,27 @@
            ✕ as a decorative glyph: a 12px icon inside a chip cannot be a 24×24 target and a
            chip trivially is. Petrol and the selection wash, never ochre — ochre means "this
            survived the filter", not "a filter is on". -->
-      @if (facetChips().length > 0) {
+      @if (facetChips().length > 0 || relatedChip() !== null) {
         <div class="filters-row facets">
+          <!-- First, and built by the same shape with the same markup, so the row reads as one
+               row either way. It is counted by nothing: the panel's badge is `facetChips`, and
+               its rule is that the count is exactly what sits behind the trigger. -->
+          @if (relatedChip(); as related) {
+            @let relatedText =
+              related.params['value'] === undefined
+                ? (related.label | transloco)
+                : (related.label | transloco: related.params);
+            <button
+              type="button"
+              class="facet type-small"
+              [attr.title]="relatedText"
+              [attr.aria-label]="'shortlist.facetRemove' | transloco: {label: relatedText}"
+              (click)="removeFacet(related)"
+            >
+              <span class="facet-text">{{ relatedText }}</span>
+              <lg-icon name="x" [size]="12"/>
+            </button>
+          }
           @for (chip of facetChips(); track chip.id) {
             @let text =
               chip.valueKey !== null
@@ -175,6 +217,17 @@
       they did not ask about. The click is the consent. `role="status"` so it is announced
       rather than only painted, and `polite` because it interrupts nothing.
     -->
+    <!-- Two server-counted numbers and no threshold, no model name, no `k`. It exists only
+         while the index is behind, and removes itself when the two meet — nothing to configure
+         and nothing to dismiss. Not a live region: the count in the header already announces on
+         every filter change, and a third one would talk over the one that matters. -->
+    @if (relatedCoverage(); as coverage) {
+      <p class="type-small stale-hint">
+        <lg-icon name="scan-search" [size]="16"/>
+        {{ 'shortlist.related.partial' | transloco: {read: coverage.readable, total: coverage.total} }}
+      </p>
+    }
+
     @if (store.stale()) {
       <p class="type-small stale-hint" role="status">
         <lg-icon name="refresh" [size]="16"/>
@@ -270,6 +323,17 @@
                         icon="archive"
                         [title]="'shortlist.emptyArchiveTitle' | transloco"
                         [description]="'shortlist.emptyArchiveHint' | transloco"
+                />
+            } @else if (relatedChip() !== null) {
+                <!-- Before the generic branch, because "nothing matches these filters" does not
+                     say that the relatedness search is the reason. It deliberately does not say
+                     "nothing was close enough": there is no cutoff — the count is a count — so an
+                     empty result under this filter alone means nothing has been read yet, which
+                     is what the note above the list is already saying. -->
+                <lg-empty-state
+                        icon="scan-search"
+                        [title]="'shortlist.noRelatedTitle' | transloco"
+                        [description]="'shortlist.noRelatedHint' | transloco"
                 />
             } @else if (filtered()) {
                 <lg-empty-state

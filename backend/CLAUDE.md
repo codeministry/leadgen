@@ -130,15 +130,13 @@ The reasoning is in `docs/decisions/pipeline-scoring.md`.
 - **A comma in a jsoup selector is a union, and `selectFirst` answers in document order.**
   Adding a narrower class to `article, main, .job-description, #content` therefore changes nothing whenever a `<main>`
   wraps the page — which is every page that has one. The selector list reads like a priority order and is not one.
-- **A `@DynamicPropertySource` supplier may run more than once, so it must not create anything.** A supplier that
-  makes a temp directory hands out a different one on each resolution: the loader keeps the first, the test rewrites the
-  last, and every edit is read from a file nobody loads. The configuration reloads cleanly, logs "Configuration
-  reloaded", and never changes — measured on `LlmBudgetTest`, where four assertions failed against a file that plainly
-  held the new value. Create the directory in a static field and let the supplier return it.
-- **An UPDATE cannot reference its own target table from a LATERAL item in its FROM clause.** The target is not part
-  of the from_list, so `UPDATE offer a SET … FROM LATERAL (SELECT … WHERE b.x = a.x)` fails with "invalid reference to
-  FROM-clause entry for table a" — which reads like a typo in an alias that is plainly there. A CTE with a correlated
-  subquery does the same job: compute the pairs in a `WITH`, then update `FROM` that.
+- **A `@DynamicPropertySource` supplier may run more than once, so it must not create anything.** Create the temp
+  directory in a static field and let the supplier return it. Reasoning in `docs/decisions/configuration.md`.
+- **A pgvector distance against a NULL vector is NULL, so `ORDER BY … LIMIT k` returns k arbitrary rows.** Check
+  that an anchor row actually has a vector before ordering by its distance. Reasoning in
+  `docs/decisions/retrieval.md`.
+- **An UPDATE cannot reference its own target table from a LATERAL item in its FROM clause.** Compute the pairs in a
+  `WITH` and update `FROM` that. Reasoning in `docs/decisions/pipeline-dedupe-filter.md`.
 - **Two constructors on a `@Component` are none, and the error names the wrong thing.** Spring picks neither and
   reports `No default constructor found` — a message about a constructor that was never meant to exist, rather than
   about the ambiguity. Every context in the suite fails at once: measured at 194 failures from one added convenience

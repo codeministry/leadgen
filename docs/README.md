@@ -66,6 +66,7 @@ room.
 | [pipeline-enrich-content.md](decisions/pipeline-enrich-content.md) | The only fetch that leaves the machine, block labelling, start/duration/deadline                   |
 | [pipeline-scoring.md](decisions/pipeline-scoring.md)               | Rules before model, the weight table that outranks the judge, the digest and the package folder    |
 | [read-side.md](decisions/read-side.md)                             | The working-set predicate, keyset paging, the six sort keys, the filters                           |
+| [retrieval.md](decisions/retrieval.md)                             | What a vector may decide and what it may not. **Decided, not built** — read its last section first |
 | [configuration.md](decisions/configuration.md)                     | The two layers, the three files read as one snapshot, the startup banner                           |
 | [frontend-split-views.md](decisions/frontend-split-views.md)       | The three split screens, the shell, and the first screen that writes                               |
 | [frontend-design-system.md](decisions/frontend-design-system.md)   | Both themes, the accent's one meaning, the navigation, the catalogs                                |
@@ -89,6 +90,7 @@ a number written down in prose. `measure_embeddings.ts` is what a similarity thr
 be measured with before it is changed — the bands are a property of the model and the market,
 not of the number. Its `embedding-observed-*.md` reports and `embedding-cache-*.json` stay
 out of the repository for size, and the conclusions drawn from them live in
+[decisions/retrieval.md](decisions/retrieval.md) and
 [decisions/pipeline-dedupe-filter.md](decisions/pipeline-dedupe-filter.md).
 
 `screenshots/` holds what the root README renders; the light and dark ones are chosen per

@@ -33,8 +33,9 @@ docs/samples/extracted.json
 # from config/, so it is gitignored with them.
 docs/samples/filter-baseline.json
 # The working list exported for measure_embeddings.ts, and what it wrote: both name real
-# adverts, so they are corpus-derived like everything above.
-docs/samples/offers.json
+# adverts, so they are corpus-derived like everything above. A pattern and not the one name,
+# because the script takes `--offers=NAME` and a second export carries the same adverts.
+docs/samples/offers*.json
 docs/samples/embedding-observed-*.md
 docs/samples/embedding-cache-*.json
 # The analysis scripts are the reference implementation and stay in the repo:

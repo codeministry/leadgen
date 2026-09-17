@@ -12,6 +12,7 @@ import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.config.model.PipelineConfig;
 import de.codeministry.leadgen.llm.EmbeddingModels;
 import de.codeministry.leadgen.llm.LlmBudget;
+import de.codeministry.leadgen.llm.Vectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.ai.embedding.EmbeddingRequest;
@@ -40,18 +41,13 @@ import java.util.List;
 public class OfferEmbedder {
 
     /**
-     * The width `V25` states on the column, and the widest vector pgvector will build an HNSW
-     * index on. A model that returns fewer is refused here with both numbers in the sentence
-     * rather than in Postgres with only one; a model that returns more is truncated to this.
-     *
-     * <p><b>Truncating is sound for the models worth configuring and is not a trick.</b> A
-     * model trained with Matryoshka representation learning puts the separation in its leading
-     * dimensions, and cosine distance is invariant to a vector's length, so nothing downstream
-     * has to be told. Measured on 2222 adverts: `qwen3-embedding:8b` cut from 4096 to 2000
-     * pairs 3470 of them above 0.85 against 3397 at full width. A model trained without it
-     * degrades instead, which is why the truncation is announced rather than silent.
+     * The width `V25` states on the column. Delegated to {@link Vectors#DIMENSIONS}, which is
+     * where the number and the argument for truncating now live, because a second embedding
+     * stage writes to a second column of the same width and two copies of this would disagree
+     * exactly once. Kept as a constant here so the callers and the tests that name it do not
+     * all have to move.
      */
-    public static final int DIMENSIONS = 2000;
+    public static final int DIMENSIONS = Vectors.DIMENSIONS;
 
     /**
      * How many adverts go into one request. Large enough that a nightly pass is a handful of
@@ -245,28 +241,14 @@ public class OfferEmbedder {
         return text.toString();
     }
 
-    /**
-     * The leading {@link #DIMENSIONS} of a vector, or the vector itself when it is already
-     * that wide. Not renormalised: `<=>` is cosine distance and divides by both lengths, so a
-     * shortened vector is compared on its direction exactly as a full one is.
-     */
+    /** {@link Vectors#narrowed} — kept so the tests that name it here keep naming it here. */
     static float[] narrowed(float[] vector) {
-        return vector.length == DIMENSIONS ? vector : java.util.Arrays.copyOf(vector, DIMENSIONS);
+        return Vectors.narrowed(vector);
     }
 
-    /**
-     * pgvector's own text form, which is what lets this write a vector over plain JDBC with
-     * no driver extension: the column takes `'[1,2,3]'::vector`.
-     */
+    /** {@link Vectors#literal}. */
     static String literal(float[] vector) {
-        StringBuilder out = new StringBuilder(vector.length * 8).append('[');
-        for (int index = 0; index < vector.length; index++) {
-            if (index > 0) {
-                out.append(',');
-            }
-            out.append(vector[index]);
-        }
-        return out.append(']').toString();
+        return Vectors.literal(vector);
     }
 
     private record Pending(long id, String text) {

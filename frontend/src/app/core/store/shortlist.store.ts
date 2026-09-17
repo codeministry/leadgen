@@ -8,7 +8,7 @@ import {refreshEvents} from '@core/refresh/refresh.events';
 import {ingestEvents} from './ingest.events';
 import {FunnelView} from '@core/model/funnel';
 import {ShortlistEntry} from '@core/model/shortlist-entry';
-import {ShortlistFilters} from '@core/model/shortlist-page';
+import {RelatedCoverage, ShortlistFilters} from '@core/model/shortlist-page';
 import {ScoringModelStore} from './scoring-model.store';
 import {shortlistEvents} from './shortlist.events';
 
@@ -21,6 +21,14 @@ interface ShortlistState {
     unscored: number;
     total: number;
     portals: readonly string[];
+    /**
+     * How far the relatedness filter can see, or null when this installation cannot answer
+     * one at all. The null is the capability flag, and it is what lets the screen leave the
+     * control out rather than offer one the server would refuse.
+     */
+    relatedCoverage: RelatedCoverage | null;
+    /** The title of the offer a `similar=` filter is anchored on, so the chip can name it. */
+    relatedTo: string | null;
     loadingMore: boolean;
     /** The offer the detail is showing, fetched by id rather than found in the list. */
     selected: ShortlistEntry | null;
@@ -98,6 +106,8 @@ const NO_FILTERS: ShortlistFilters = {
   minMonths: 0,
   deadlineOpen: false,
   possibleDuplicates: false,
+  semantic: '',
+  similarTo: null,
 };
 
 const initialState: ShortlistState = {
@@ -108,6 +118,8 @@ const initialState: ShortlistState = {
     unscored: 0,
     total: 0,
     portals: [],
+    relatedCoverage: null,
+    relatedTo: null,
     loadingMore: false,
     selected: null,
     funnel: null,
@@ -167,6 +179,8 @@ export const ShortlistStore = signalStore(
             unscored: payload.unscored,
             total: payload.total,
             portals: payload.portals,
+            relatedCoverage: payload.related,
+            relatedTo: payload.relatedTo,
             listLoading: false,
         })),
         on(shortlistEvents.moreRequested, () => ({loadingMore: true})),

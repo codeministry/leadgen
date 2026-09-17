@@ -189,6 +189,28 @@ content:
 fields:
   enabled: true
 
+# The retrieval index: one vector per offer over the whole de-furnitured advert, which is what a
+# semantic search reads. Runs after scoring and not after content, where its input is ready: the
+# day's budget is shared with the judge, and the first pass after this is switched on walks the
+# whole working list. In front of the judge that backfill spends the day and the shortlist goes
+# unjudged; behind it, the same backfill degrades only the search.
+#
+# A second column and not `offer.embedding`. That one is the title, the location and 600
+# characters, and its merge band was measured against exactly that text. Two questions, two
+# vectors, one model — `docs/decisions/retrieval.md` has the measurements.
+#
+# No model key: this reads `llm.models.embedding`, for the reason a `models.content` key was
+# refused twice. Empty there means this stage does nothing, which is what a fresh clone does.
+retrieval:
+  # Off by default, unlike the two stages above it: this column has no measured threshold behind
+  # it. A switch of its own, because configuring an embedding model for deduplication — which is
+  # measured — must not silently switch on an indexing pass that is not.
+  enabled: ${RETRIEVAL_ENABLED:false}
+  # How many nearest offers a semantic search may select. A count and deliberately not a
+  # similarity: the search narrows the set and never reorders it, so no band has to be measured
+  # before this can be switched on. A threshold would have to be.
+  neighbours: 200
+
 packaging:
   output_dir: ${PACKAGES_DIR:./packages}
   naming: "{date}_{company}_{slug}"

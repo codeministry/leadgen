@@ -21,6 +21,7 @@ import de.codeministry.leadgen.ingest.IngestReport;
 import de.codeministry.leadgen.ingest.IngestService;
 import de.codeministry.leadgen.ingest.SourceIngestResult;
 import de.codeministry.leadgen.packaging.PackageReport;
+import de.codeministry.leadgen.retrieval.RetrievalReport;
 import de.codeministry.leadgen.score.ScoringReport;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -113,6 +114,7 @@ class IngestControllerTest {
                     new ContentReport(12, 12, 96, 84, 12, 0),
                     new FieldsReport(12, 12, 12, 9, 4),
                         new ScoringReport(12, 12, 0, 2, 3, 0, 0),
+                        new RetrievalReport(12, 12, 1, "an-embedding-model"),
                         null,
                         new PackageReport(2, 2, 0, List.of()),
                         Instant.parse("2026-09-05T06:12:00Z")));

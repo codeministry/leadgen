@@ -132,6 +132,12 @@ Every paragraph here was paid for once; none of it is a summary.
   transaction held open across a few hundred of them is held open for minutes. Every statement
   is atomic on its own and the pass is idempotent, so a run that dies halfway is repaired by
   the next one rather than by a rollback.
+- **An UPDATE cannot reference its own target table from a LATERAL item in its FROM clause**,
+  which is why both similarity statements are a CTE and not the shorter thing they look like
+  they should be. The target is not part of the from_list, so
+  `UPDATE offer a SET … FROM LATERAL (SELECT … WHERE b.x = a.x)` fails with "invalid reference
+  to FROM-clause entry for table a" — a message that reads like a typo in an alias that is
+  plainly there. The pairs are computed in a `WITH` and the update reads `FROM` that instead.
 
 ## The hard filter
 

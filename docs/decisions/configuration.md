@@ -92,8 +92,13 @@ reads a YAML file itself.
 - **A banner must not be able to end a startup.** An unresolvable placeholder is printed as
   such, an unreadable file contributes nothing, and neither throws at the last moment before
   the process is ready.
-- **A `@DynamicPropertySource` supplier is called once per resolution, not once per context.**
-  Reading `leadgen.config-dir` for the banner made `PackagingServiceTest` build a second temp
-  configuration and reassign the static it asserts against — it then deleted a CV the
-  application was never going to open. Anything with a side effect in such a supplier has to
-  be memoized.
+- **A `@DynamicPropertySource` supplier is called once per resolution, not once per context,
+  so it must not create anything.** Reading `leadgen.config-dir` for the banner made
+  `PackagingServiceTest` build a second temp configuration and reassign the static it asserts
+  against — it then deleted a CV the application was never going to open. A supplier that makes
+  a temp directory hands out a different one on each resolution: the loader keeps the first,
+  the test rewrites the last, and every edit is read from a file nobody loads. The
+  configuration reloads cleanly, logs "Configuration reloaded", and never changes — measured on
+  `LlmBudgetTest`, where four assertions failed against a file that plainly held the new value.
+  Create the directory in a static field and let the supplier return it; anything else with a
+  side effect has to be memoized.

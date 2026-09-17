@@ -12,6 +12,7 @@ import de.codeministry.leadgen.archive.ArchiveRequest;
 import de.codeministry.leadgen.archive.ArchiveResult;
 import de.codeministry.leadgen.archive.ArchiveService;
 import de.codeministry.leadgen.offer.*;
+import de.codeministry.leadgen.retrieval.SemanticFilter;
 import de.codeministry.leadgen.score.Judges;
 import de.codeministry.leadgen.score.ScoringService;
 import jakarta.validation.Valid;
@@ -66,6 +67,12 @@ class OfferController {
             @RequestParam(required = false, defaultValue = "false") boolean archived,
             @RequestParam(required = false) String sort,
             @RequestParam(required = false) String startWindow,
+            // The relatedness axis, two spellings of one narrowing: words to be near, or an
+            // offer to be near. `RelatedFilter` refuses both at once, the way `ScoreFilter`
+            // refuses a band and a range. `similar` costs no model call, because the offer's
+            // vector is already in the table.
+            @RequestParam(required = false) String semantic,
+            @RequestParam(required = false) Long similar,
             @RequestParam(required = false) Integer minMonths,
             @RequestParam(required = false, defaultValue = "false") boolean deadlineOpen,
             @RequestParam(required = false, defaultValue = "false") boolean possibleDuplicates,
@@ -83,6 +90,7 @@ class OfferController {
             archived,
             ShortlistSort.of(sort),
             StartWindow.of(startWindow),
+            new RelatedFilter(semantic, similar),
             minMonths,
             deadlineOpen,
             possibleDuplicates,
@@ -197,6 +205,23 @@ class OfferController {
     @ExceptionHandler(BadShortlistRequest.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     String badShortlistRequest(BadShortlistRequest e) {
+        return e.getMessage();
+    }
+
+    /**
+     * A relatedness filter this installation cannot answer.
+     *
+     * <p>400 with a sentence, and its own handler rather than a subtype of the one above,
+     * because the two failures are not the same kind: that one is a value nobody defined, this
+     * one is a capability nobody configured. Both are the caller's to fix, and neither may be
+     * ignored — <b>a `semantic=` parameter quietly dropped returns the unfiltered list under a
+     * heading saying it was narrowed</b>, with a count that is true about a set the reader never
+     * asked for. A shared link or a saved view is how that arrives on an installation without
+     * the index, so this path is not hypothetical.
+     */
+    @ExceptionHandler(SemanticFilter.RetrievalUnavailable.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    String retrievalUnavailable(SemanticFilter.RetrievalUnavailable e) {
         return e.getMessage();
     }
 

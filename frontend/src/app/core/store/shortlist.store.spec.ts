@@ -22,12 +22,15 @@ const NO_FILTERS: ShortlistFilters = {
   minMonths: 0,
   deadlineOpen: false,
   possibleDuplicates: false,
+  semantic: '',
+  similarTo: null,
 };
 
 function entry(id: number): ShortlistEntry {
     return {
         offer: {
             id,
+            sourceName: 'sample-newsletter',
             externalId: `https://example.invalid/${id}`,
             title: `Senior Java Entwickler ${id}`,
             description: 'Ablösung eines Monolithen.',
@@ -67,6 +70,8 @@ function page(entries: readonly ShortlistEntry[]): ShortlistPage {
         unscored: 0,
         total: entries.length,
         portals: ['portal-a'],
+        related: null,
+        relatedTo: null,
     };
 }
 

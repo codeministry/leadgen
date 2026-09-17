@@ -110,6 +110,7 @@ there**, which is what keeps this file readable.
 | The three split screens, the shell, the write path                          | `docs/decisions/frontend-split-views.md`    |
 | Both themes, the accent's one meaning, the navigation, the catalogs         | `docs/decisions/frontend-design-system.md`  |
 | The eleven application states and their event log                           | `docs/decisions/manual-status.md`           |
+| Two vector columns, the search that narrows, what a vector may not decide   | `docs/decisions/retrieval.md`               |
 | The sixteen steps this tool was built in, and what each had to prove        | `docs/decisions/order-of-work.md`           |
 
 The conventions and the traps for each half sit beside the code, in `backend/CLAUDE.md` and
@@ -229,6 +230,13 @@ an editor command aimed at the whole repository.
   in `ci.yml` is the stopgap, and re-enabling Spotless is the real answer.
 - Which folder in the IMAP mailbox the newsletter lands in — deployment detail, and it
   does not belong in a committed file.
+- **Retrieval is decided and not built.** `docs/decisions/retrieval.md` settles the shape: a second
+  column for the whole de-furnitured advert, never the dedupe column, because the merge band was
+  measured against the short text and `embedding_model` cannot tell two texts apart under one model
+  name. Semantic search narrows the set and never reorders it, so the keyset cursor stays untouched and
+  no threshold has to be measured first. The stage runs behind `SCORE`, because one backfill in front
+  of it would spend the day's `llm.budget` and leave the shortlist unjudged. Whoever builds it takes
+  the four measurements in that file's last section first.
 - **Roughly fifteen configuration keys are bound, validated, rendered and read by nothing.**
   They are now marked as such in the `read by` columns of `docs/WRITING-RULES.md` and
   `docs/ADDING-A-SOURCE.md` rather than left to be discovered; removing them is the real

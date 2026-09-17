@@ -67,6 +67,14 @@ export class ShortlistApi {
       if (filters.deadlineOpen) {
         params = params.set('deadlineOpen', 'true');
       }
+      // Two spellings of one narrowing, and never both: the server answers 400 for the pair,
+      // and the writers on the page clear one when they set the other.
+      if (filters.semantic.trim() !== '') {
+        params = params.set('semantic', filters.semantic.trim());
+      }
+      if (filters.similarTo !== null) {
+        params = params.set('similar', String(filters.similarTo));
+      }
         if (cursor !== null) {
             params = params.set('cursor', cursor);
         }

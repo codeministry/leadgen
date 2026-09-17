@@ -205,6 +205,30 @@ export class ShortlistPage {
   readonly possibleDuplicates = input(false, {transform: (value: string | undefined) => value === '1'});
 
   /**
+   * Words to find offers near.
+   *
+   * <p><b>This narrows and never reorders.</b> The list stays in whichever of the six orders
+   * is selected, so the first row is not the best match — there is no such thing here, and an
+   * interface that implies one would have people reading row one as the answer.
+   *
+   * <p>Not routed through {@link setFilter}: `DEFAULTS` holds `'any'`, and somebody searching
+   * for the word *any* would have their filter silently dropped. The same reason the score
+   * bounds bypass it.
+   */
+  readonly semantic = input('', {transform: (value: string | undefined) => value ?? ''});
+
+  /**
+   * An offer to find offers near. Costs no model call — both vectors are already stored — and
+   * the anchor is in its own result, because its distance to itself is zero.
+   */
+  readonly similar = input<number | null, string | undefined>(null, {
+    transform: (value) => {
+      const id = Number(value);
+      return value === undefined || value === '' || !Number.isFinite(id) ? null : id;
+    },
+  });
+
+  /**
    * The six sort keys the server offers, in the order they are worth trying. The names are
    * the server's; a union type here would disagree with it the first time one is added, the
    * same reason nothing in this browser names a weight or a filter stage.
@@ -269,6 +293,8 @@ export class ShortlistPage {
       minMonths: this.minMonths(),
       deadlineOpen: this.deadlineOpen(),
       possibleDuplicates: this.possibleDuplicates(),
+      semantic: this.semantic(),
+      similarTo: this.similar(),
     }));
 
     /**
@@ -407,6 +433,7 @@ export class ShortlistPage {
         this.band() !== 'all' ||
         this.archived() ||
         this.sort() !== 'score' ||
+        this.related() !== null ||
         this.facetChips().length > 0,
     );
 
@@ -422,6 +449,88 @@ export class ShortlistPage {
    * <p>A portal is one chip each rather than one chip saying "3 portals": the point of a
    * chip is that it can be removed on its own.
    */
+  /**
+   * The relatedness filter as a chip, or null.
+   *
+   * <p><b>Its own computed and deliberately not part of {@link facetChips}.</b> The panel's
+   * badge counts that list, and its own rule is that the count is exactly what sits behind the
+   * trigger. This filter does not, so folding it in would make the badge claim a filter the
+   * panel does not contain — the same class of quiet disagreement the shortlist has already
+   * paid for twice. It is rendered first in the same row with the same markup, so it reads as
+   * one row of chips either way.
+   *
+   * <p>Removing it writes both parameters away, because the two are one filter with two
+   * spellings and only one of them is ever set.
+   */
+  protected readonly relatedChip = computed<FacetChip | null>(() => {
+    if (this.semantic() !== '') {
+      return {
+        id: 'related-text',
+        label: 'shortlist.facet.relatedText',
+        valueKey: null,
+        params: {value: this.semantic()},
+        clear: {semantic: null, similar: null},
+      };
+    }
+    if (this.similar() === null) {
+      return null;
+    }
+    // The query string carries the id and nothing else, so the title comes from the server on
+    // the same response the list did. Before the first page arrives there is no title yet, and
+    // the unnamed form is what the chip says for that moment — the list is loading anyway.
+    const title = this.store.relatedTo();
+    const chip: FacetChip = {
+      id: 'related-offer',
+      label: title === null ? 'shortlist.facet.relatedOfferUnnamed' : 'shortlist.facet.relatedOffer',
+      valueKey: null,
+      params: title === null ? {} : {value: title},
+      clear: {semantic: null, similar: null},
+    };
+    return chip;
+  });
+
+  /**
+   * Which of the four count sentences the header says.
+   *
+   * <p>Two axes and therefore four keys: which side of the archive is on screen, and whether
+   * the match was bounded by a relatedness filter. The second half is the honest part — with
+   * the filter on, the number beside the list describes a neighbourhood the search chose, not
+   * what the market produced.
+   */
+  protected readonly countKey = computed(() => {
+    if (this.relatedChip() === null) {
+      return this.archived() ? 'shortlist.countArchived' : 'shortlist.count';
+    }
+    return this.archived() ? 'shortlist.countArchivedRelated' : 'shortlist.countRelated';
+  });
+
+  /** Whether a relatedness filter is on at all, for {@link filtered}. */
+  protected readonly related = computed(() => this.relatedChip());
+
+  /**
+   * How much of the working list this filter can reach, while that is worth saying.
+   *
+   * <p>Null once the index has caught up, so the note removes itself with nothing to configure
+   * and nothing to dismiss. Null too when the installation cannot search this way at all,
+   * which is the same absence the control itself has.
+   */
+  protected readonly relatedCoverage = computed(() => {
+    const coverage = this.store.relatedCoverage();
+    if (coverage === null || this.relatedChip() === null || coverage.readable >= coverage.total) {
+      return null;
+    }
+    return coverage;
+  });
+
+  /**
+   * Whether this installation can answer a relatedness question.
+   *
+   * <p>Off, every trace of the feature is absent rather than disabled: a control the server
+   * would refuse is worse than one that says it does not exist, which is the same rule the
+   * sort list follows.
+   */
+  protected readonly relatedAvailable = computed(() => this.store.relatedCoverage() !== null);
+
   protected readonly facetChips = computed<readonly FacetChip[]>(() => {
     const chips: FacetChip[] = [];
 
@@ -669,6 +778,24 @@ export class ShortlistPage {
   }
 
   /**
+   * Find offers near these words.
+   *
+   * <p>Clears `q` and `similar`, because the three are one question asked three ways and the
+   * server refuses two of them together. It writes the typed words out of the field and into
+   * the chip row, which is what makes the filter visible as a filter.
+   *
+   * <p>Not through {@link setFilter}: `DEFAULTS` contains `'any'`, and a search for that word
+   * would be dropped without a trace.
+   */
+  protected findRelated(text: string): void {
+    const phrase = text.trim();
+    if (phrase === '') {
+      return;
+    }
+    this.write({semantic: phrase, q: null, similar: null});
+  }
+
+  /**
    * One portal in or out, the rest untouched. An empty selection drops the parameter rather
    * than writing an empty one, which is what keeps "every portal" the absence of a filter.
    */
@@ -810,6 +937,8 @@ export class ShortlistPage {
       minMonths: null,
       deadlineOpen: null,
       possibleDuplicates: null,
+      semantic: null,
+      similar: null,
     });
     }
 }

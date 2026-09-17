@@ -25,6 +25,7 @@ import de.codeministry.leadgen.ingest.extract.MarkdownExtractor;
 import de.codeministry.leadgen.ingest.extract.OfferMapper;
 import de.codeministry.leadgen.ingest.store.OfferStore;
 import de.codeministry.leadgen.packaging.PackagingService;
+import de.codeministry.leadgen.retrieval.RetrievalIndexService;
 import de.codeministry.leadgen.score.ScoringService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -67,6 +68,7 @@ public class IngestService {
     private final ContentService content;
     private final FieldsService fields;
     private final ScoringService scoring;
+    private final RetrievalIndexService retrieval;
     private final PackagingService packaging;
     private final DigestService digest;
     private final PipelineRunRecorder history;
@@ -85,6 +87,7 @@ public class IngestService {
             ContentService content,
             FieldsService fields,
             ScoringService scoring,
+            RetrievalIndexService retrieval,
             PackagingService packaging,
             DigestService digest,
             PipelineRunRecorder history) {
@@ -101,6 +104,7 @@ public class IngestService {
         this.content = content;
         this.fields = fields;
         this.scoring = scoring;
+        this.retrieval = retrieval;
         this.packaging = packaging;
         this.digest = digest;
         this.history = history;
@@ -161,14 +165,14 @@ public class IngestService {
 
     /**
      * The stages every run has, whatever its sources are: dedupe, filter, archive, enrich,
-     * content, fields, score, package, digest.
+     * content, fields, score, retrieval, package, digest.
      *
      * <p>A constant because the sequence below is written out rather than driven by a list,
      * and it is pinned by {@code IngestOrderTest}, which verifies both the order and that
      * there are this many of them. Without that test it is the kind of number that is wrong
      * for a month before anybody notices the progress bar stopping at eight of nine.
      */
-    static final int GLOBAL_STAGES = 9;
+    static final int GLOBAL_STAGES = 10;
 
     private IngestReport runOnce(String scoringModel) {
         // Before anything else, because scoring is the last stage: checked only there, a
@@ -252,6 +256,16 @@ public class IngestService {
         // `score_model` on the offers whose values actually moved.
         var extractedFields = stages.time("FIELDS", fields::run);
         var scored = stages.time("SCORE", () -> scoring.run(scoringModel));
+        // After scoring and not after content, where its input is ready — and the order is the
+        // whole argument, so it is written here rather than left to be rediscovered.
+        // `LlmBudget` is one allowance shared by every stage, and the first pass after this is
+        // switched on walks the whole working list: a few thousand offers is over a hundred
+        // requests at a batch of thirty-two. In front of SCORE that backfill spends the day and
+        // the shortlist goes unjudged, which is a new and unproven stage starving the one the
+        // tool exists for. Behind it, the same backfill degrades only the semantic search, and
+        // the search has a deterministic fallback. Nothing between CONTENT and SCORE reads the
+        // column, so waiting costs nothing.
+        var indexed = stages.time("RETRIEVAL", retrieval::run);
         // Packaging before the digest, so the digest can say which offers already have a
         // folder. Both write files and neither sends anything.
         var packages = stages.time("PACKAGE", packaging::run);
@@ -268,6 +282,7 @@ public class IngestService {
             segmented,
             extractedFields,
                 scored,
+                indexed,
                 written,
                 packages,
                 java.time.Instant.now());

@@ -14,6 +14,7 @@ import de.codeministry.leadgen.enrich.EnrichmentReport;
 import de.codeministry.leadgen.fields.FieldsReport;
 import de.codeministry.leadgen.filter.FilterReport;
 import de.codeministry.leadgen.packaging.PackageReport;
+import de.codeministry.leadgen.retrieval.RetrievalReport;
 import de.codeministry.leadgen.score.ScoringReport;
 
 import java.nio.file.Path;
@@ -40,6 +41,11 @@ import java.util.List;
  *                   in offers whose score it invalidated by changing a value.
  * @param scored     what the shortlist looks like afterwards. `unscored` above zero means no
  *                   language model was configured; the offers are there, only unranked.
+ * @param indexed    what the retrieval index did. `embedded` below `due` is the day's budget
+ *                   running out mid-pass, which leaves the rest due rather than half-written —
+ *                   expected for several nights after the stage is first switched on, and the
+ *                   backfill rather than a fault. A null `model` means the stage is off or no
+ *                   embedding model is configured, and semantic search then does not exist.
  * @param digest     the file the run wrote, or null when the digest is switched off. A file,
  *                   never a message: the tool has no send path at all.
  * @param packaged   the folders built for everything above the shortlist threshold. Folders
@@ -59,6 +65,7 @@ public record IngestReport(
         ContentReport segmented,
         FieldsReport fields,
         ScoringReport scored,
+        RetrievalReport indexed,
         Path digest,
         PackageReport packaged,
         Instant finishedAt) {

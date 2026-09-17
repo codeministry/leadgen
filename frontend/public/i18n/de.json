@@ -49,6 +49,7 @@
   "field": {
     "title": "Titel",
     "url": "URL",
+    "source": "Quelle",
     "portal": "Portal",
     "agency": "Vermittler",
     "location": "Ort",
@@ -103,7 +104,7 @@
   },
   "shortlist": {
     "title": "Auswahl",
-    "searchLabel": "Titel, Beschreibungen und Schlagworte durchsuchen",
+    "searchLabel": "Titel, Anzeigen und Schlagworte durchsuchen",
     "searchPlaceholder": "Angebote suchen",
     "scoreBand": "Punktebereich",
     "bandAll": "Alle",
@@ -173,7 +174,10 @@
       "scoreFrom": "Punktzahl: ab {from}",
       "scoreTo": "Punktzahl: bis {to}",
       "scoreState": "Punktzahl: {value}",
-      "durationMonths": "Dauer: ab {months} Monaten"
+      "durationMonths": "Dauer: ab {months} Monaten",
+      "relatedText": "Ähnlich zu „{value}“",
+      "relatedOffer": "Ähnlich zu {value}",
+      "relatedOfferUnnamed": "Ähnlich zu einem Angebot"
     },
     "scoreSection": "Punktzahl",
     "scoreStateLabel": "Bewertet",
@@ -199,7 +203,16 @@
       "apply": "{name} anwenden",
       "remove": "{name} löschen",
       "nothingToSave": "Setze zuerst einen Filter."
-    }
+    },
+    "related": {
+      "findText": "Angebote ähnlich zu „{value}“ finden",
+      "find": "Ähnliche finden",
+      "partial": "{read} von {total} Angeboten sind bisher inhaltlich erfasst. Die übrigen können hier noch nicht erscheinen."
+    },
+    "noRelatedTitle": "Nichts Ähnliches auf dieser Liste",
+    "noRelatedHint": "Die Ähnlichkeitssuche und diese Filter haben keine gemeinsamen Angebote. Entferne einen davon oder die Ähnlichkeitssuche.",
+    "countRelated": "{matched} von {total} · nur die ähnlichsten",
+    "countArchivedRelated": "{matched} von {total} archiviert · nur die ähnlichsten"
   },
   "offer": {
     "rateUnknown": "Satz unbekannt",
@@ -253,7 +266,8 @@
       "AGENCY": "Agentur-Signatur",
       "LEGAL": "Rechtliches"
     },
-    "close": "Angebot schließen"
+    "close": "Angebot schließen",
+    "findRelated": "Ähnliche Angebote finden"
   },
   "application": {
     "title": "Wie es hier steht",

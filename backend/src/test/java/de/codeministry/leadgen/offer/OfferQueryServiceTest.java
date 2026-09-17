@@ -122,7 +122,7 @@ class OfferQueryServiceTest {
         passed("Angular Entwickler", 40);
         rejected("Java Entwickler in Zürich");
 
-        var page = offers.shortlist(new ShortlistQuery("angular", null, null, false, null, null, null, false, false, null, 0));
+        var page = offers.shortlist(new ShortlistQuery("angular", null, null, false, null, null, null, null, false, false, null, 0));
 
         assertThat(page.matched()).isEqualTo(1);
         assertThat(page.total()).isEqualTo(2);
@@ -148,9 +148,51 @@ class OfferQueryServiceTest {
         jdbc.update("UPDATE offer SET tags = ARRAY['Kubernetes'] WHERE id = ?", tagged);
         passed("Anderer Entwickler", 60);
 
-        var page = offers.shortlist(new ShortlistQuery("kubernetes", null, null, false, null, null, null, false, false, null, 0));
+        var page = offers.shortlist(new ShortlistQuery("kubernetes", null, null, false, null, null, null, null, false, false, null, 0));
 
         assertThat(page.entries()).extracting(entry -> entry.offer().id()).containsExactly(tagged);
+    }
+
+    @Test
+    void searchesTheSegmentedAdvertAndNotOnlyTheTeaser() {
+        // The defect this fixes: the tool fetched the advert, stripped its furniture, stored
+        // it, and then searched the newsletter teaser.
+        long segmented = passed("Entwickler", 70);
+        segment(segmented, block("CONTENT", "Ablösung eines Kernbankensystems in Kubernetes."));
+        passed("Anderer Entwickler", 60);
+
+        var page = offers.shortlist(search("kernbankensystem"));
+
+        assertThat(page.entries()).extracting(entry -> entry.offer().id()).containsExactly(segmented);
+    }
+
+    @Test
+    void doesNotSearchThePortalFurnitureTheContentStageTookOut() {
+        // `full_text` still carries the agency's own signature. Searching it unconditionally
+        // would match every advert that agency ever posted, which is the reason the search
+        // goes through the CONTENT blocks rather than through the whole page.
+        long segmented = passed("Entwickler", 70);
+        segment(
+                segmented,
+                block("CONTENT", "Ablösung eines Monolithen."),
+                block("AGENCY", "Acme Consulting GmbH, Amtsgericht Köln HRB 12345."));
+
+        assertThat(offers.shortlist(search("amtsgericht")).entries()).isEmpty();
+        assertThat(offers.shortlist(search("monolithen")).entries())
+                .extracting(entry -> entry.offer().id())
+                .containsExactly(segmented);
+    }
+
+    @Test
+    void fallsBackToTheWholePageForAnAdvertThatWasNeverSegmented() {
+        // `ContentText.of`'s own fallback: an advert with no blocks has `full_text` and
+        // nothing else, so refusing to search it would hide what the tool did fetch.
+        long fetched = passed("Entwickler", 70);
+        jdbc.update("UPDATE offer SET full_text = ? WHERE id = ?", "Migration nach Kubernetes.", fetched);
+
+        assertThat(offers.shortlist(search("kubernetes")).entries())
+                .extracting(entry -> entry.offer().id())
+                .containsExactly(fetched);
     }
 
     @Test
@@ -309,7 +351,7 @@ class OfferQueryServiceTest {
         jdbc.update("UPDATE offer SET archived_at = now(), archive_source = 'AGE' WHERE id = ?", archived);
 
         var list = offers.shortlist(ShortlistQuery.first());
-        var archive = offers.shortlist(new ShortlistQuery(null, null, null, true, null, null, null, false, false, null, 0));
+        var archive = offers.shortlist(new ShortlistQuery(null, null, null, true, null, null, null, null, false, false, null, 0));
 
         assertThat(ids(list)).containsExactly(working);
         assertThat(list.matched()).isEqualTo(1);
@@ -336,7 +378,7 @@ class OfferQueryServiceTest {
         assertThat(offers.shortlist(ShortlistQuery.first())
                         .portals())
                 .containsExactly("portal-a");
-        assertThat(offers.shortlist(new ShortlistQuery(null, null, null, true, null, null, null, false, false, null, 0))
+        assertThat(offers.shortlist(new ShortlistQuery(null, null, null, true, null, null, null, null, false, false, null, 0))
                         .portals())
                 .containsExactly("portal-c");
         assertThat(archived).isPositive();
@@ -583,7 +625,7 @@ class OfferQueryServiceTest {
         durationMonths(passed("Drei Monate", 50), 3);
         passed("Keine Dauer genannt", 50);
 
-        var page = offers.shortlist(new ShortlistQuery(null, null, null, false, null, null, 6, false, false, null, 0));
+        var page = offers.shortlist(new ShortlistQuery(null, null, null, false, null, null, null, 6, false, false, null, 0));
 
         assertThat(page.matched()).isEqualTo(1);
         assertThat(page.entries().getFirst().offer().durationMonths()).isEqualTo(12);
@@ -597,7 +639,7 @@ class OfferQueryServiceTest {
         applyBy(passed("Frist vorbei", 50), LocalDate.now().minusDays(1));
         long unstated = passed("Keine Frist genannt", 50);
 
-        var page = offers.shortlist(new ShortlistQuery(null, null, null, false, null, null, null, true, false, null, 0));
+        var page = offers.shortlist(new ShortlistQuery(null, null, null, false, null, null, null, null, true, false, null, 0));
 
         assertThat(page.matched()).isEqualTo(2);
         assertThat(ids(page)).contains(unstated);
@@ -706,7 +748,7 @@ class OfferQueryServiceTest {
     // ---- fixtures ------------------------------------------------------------------
 
     private static ShortlistQuery inWindow(StartWindow window) {
-        return new ShortlistQuery(null, null, null, false, null, window, null, false, false, null, 0);
+        return new ShortlistQuery(null, null, null, false, null, window, null, null, false, false, null, 0);
     }
 
     private static ScoreFilter band(String name) {
@@ -768,13 +810,37 @@ class OfferQueryServiceTest {
             .map(entry -> entry.offer().id()))
             .containsExactly(suspected);
 
-        var only = offers.shortlist(new ShortlistQuery(
-            null, null, null, false, null, null, null, false, true, null, 0));
+        var only = offers.shortlist(new ShortlistQuery(null, null, null, false, null, null, null, null, false, true, null, 0));
         assertThat(only.entries()).hasSize(1);
         assertThat(only.entries().getFirst().offer().id()).isEqualTo(suspected);
         // Still a working-list offer: the filter narrows what is shown and changes nothing
         // about what the offer is.
         assertThat(only.entries().getFirst().flags().possibleDuplicate()).isTrue();
+    }
+
+    private static ShortlistQuery search(String q) {
+        return new ShortlistQuery(q, null, null, false, null, null, null, null, false, false, null, 0);
+    }
+
+    /**
+     * One entry of `content_blocks` as `ContentService` writes it. The kind is what decides
+     * whether the search may read the text, so a fixture that sets `full_text` alone cannot
+     * prove anything about either half of this.
+     */
+    private static String block(String kind, String text) {
+        return """
+            {"index": 0, "kind": "%s", "text": "%s", "reason": "fixture", "by": "RULE"}"""
+                .formatted(kind, text);
+    }
+
+    private void segment(long offer, String... blocks) {
+        jdbc.update(
+                "UPDATE offer SET content_blocks = CAST(? AS jsonb), full_text = ?, content_at = now() WHERE id = ?",
+                "[" + String.join(",", blocks) + "]",
+                // The whole page, furniture included — which is exactly what the search must
+                // not read once the blocks exist.
+                "Acme Consulting GmbH, Amtsgericht Köln HRB 12345. Jetzt bewerben.",
+                offer);
     }
 
     private long bare(String title) {

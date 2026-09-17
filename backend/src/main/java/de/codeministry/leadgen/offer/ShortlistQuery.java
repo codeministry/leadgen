@@ -23,7 +23,9 @@ import java.util.List;
  * unrecognised band quietly meaning "all" is a defensible reading of a range where an
  * unrecognised window quietly breaks a partition.
  *
- * @param q            free text over title, description and tags. Null or blank means no search.
+ * @param q            free text over the title, the description, the tags and the advert the
+ *                     enrichment stage fetched — the content blocks when the advert was segmented,
+ *                     {@code full_text} when it was not. Null or blank means no search.
  * @param score        the score axis, as one thing: a band, a range, or a state. See
  *                     {@link ScoreFilter}, which is also where the rule that only one of the three may be
  *                     asked for lives.
@@ -46,6 +48,9 @@ import java.util.List;
  *                     offers that stated nothing</b>, deliberately: "still open" is the absence of proof
  *                     that it closed. The opposite null treatment from {@code minMonths}, one clause away
  *                     from it, which is exactly the pair a later tidy-up harmonises into a bug.
+ * @param related      offers near some words, or near one offer. <b>Narrows and never reorders</b>,
+ *                     so the sort is whatever was asked for and the first row is not the best match.
+ *                     See {@link RelatedFilter}.
  * @param possibleDuplicates only offers the similarity pass marked as possibly the same
  *                     project as an older one. A reason to look at two offers side by side, never a
  *                     reason to hide one: the merging threshold already took everything it was sure
@@ -60,6 +65,7 @@ public record ShortlistQuery(
     boolean archived,
     ShortlistSort sort,
     StartWindow startWindow,
+    RelatedFilter related,
     Integer minMonths,
     boolean deadlineOpen,
     boolean possibleDuplicates,
@@ -85,6 +91,7 @@ public record ShortlistQuery(
         sort = sort == null ? ShortlistSort.SCORE : sort;
         startWindow = startWindow == null ? StartWindow.ANY : startWindow;
         score = score == null ? ScoreFilter.ANY : score;
+        related = related == null ? RelatedFilter.ANY : related;
         // Blanks dropped and the list made immutable here rather than at the edge, because a
         // repeated query parameter arrives as `?portal=a&portal=` from any form that renders
         // an empty option — and one blank name in the IN list matches nothing, so the filter
@@ -103,31 +110,43 @@ public record ShortlistQuery(
      * reason they do not each carry ten arguments.
      */
     public static ShortlistQuery first() {
-        return new ShortlistQuery(null, null, null, false, null, null, null, false, false, null, DEFAULT_LIMIT);
+        return new ShortlistQuery(
+                null, null, null, false, null, null, null, null, false, false, null, DEFAULT_LIMIT);
     }
 
     public ShortlistQuery withCursor(String next) {
         return new ShortlistQuery(
-            q, score, portals, archived, sort, startWindow, minMonths, deadlineOpen, possibleDuplicates, next, limit);
+            q, score, portals, archived, sort, startWindow, related, minMonths, deadlineOpen, possibleDuplicates,
+            next, limit);
     }
 
     public ShortlistQuery withLimit(int rows) {
         return new ShortlistQuery(
-            q, score, portals, archived, sort, startWindow, minMonths, deadlineOpen, possibleDuplicates, cursor, rows);
+            q, score, portals, archived, sort, startWindow, related, minMonths, deadlineOpen, possibleDuplicates,
+            cursor, rows);
     }
 
     public ShortlistQuery withSort(ShortlistSort order) {
         return new ShortlistQuery(
-            q, score, portals, archived, order, startWindow, minMonths, deadlineOpen, possibleDuplicates, cursor, limit);
+            q, score, portals, archived, order, startWindow, related, minMonths, deadlineOpen, possibleDuplicates,
+            cursor, limit);
     }
 
     public ShortlistQuery withScore(ScoreFilter filter) {
         return new ShortlistQuery(
-            q, filter, portals, archived, sort, startWindow, minMonths, deadlineOpen, possibleDuplicates, cursor, limit);
+            q, filter, portals, archived, sort, startWindow, related, minMonths, deadlineOpen, possibleDuplicates,
+            cursor, limit);
+    }
+
+    public ShortlistQuery withRelated(RelatedFilter filter) {
+        return new ShortlistQuery(
+            q, score, portals, archived, sort, startWindow, filter, minMonths, deadlineOpen, possibleDuplicates,
+            cursor, limit);
     }
 
     public ShortlistQuery withPortals(List<String> names) {
         return new ShortlistQuery(
-            q, score, names, archived, sort, startWindow, minMonths, deadlineOpen, possibleDuplicates, cursor, limit);
+            q, score, names, archived, sort, startWindow, related, minMonths, deadlineOpen, possibleDuplicates,
+            cursor, limit);
     }
 }

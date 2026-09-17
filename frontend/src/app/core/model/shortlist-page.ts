@@ -9,6 +9,11 @@ import {ShortlistEntry} from './shortlist-entry';
  *     the loaded entries it shrank as you scrolled while reading as a claim about the list.
  * @param portals every portal on the shortlist, not merely on this page — a filter built
  *     from the loaded page would offer fewer choices the further you scroll.
+ * @param related how much of the working list a relatedness filter can reach, or null when
+ *     this installation cannot answer one at all. **That null is the whole capability flag**,
+ *     and what lets the screen leave the control out rather than offer a disabled one.
+ * @param relatedTo the title of the offer a `similar=` filter is anchored on, so the chip can
+ *     name it without a second request. Null unless that is what was asked for.
  */
 export interface ShortlistPage {
     readonly entries: readonly ShortlistEntry[];
@@ -17,6 +22,20 @@ export interface ShortlistPage {
     readonly unscored: number;
     readonly total: number;
     readonly portals: readonly string[];
+    readonly related: RelatedCoverage | null;
+    readonly relatedTo: string | null;
+}
+
+/**
+ * How far the relatedness filter can see, in offers.
+ *
+ * Two counts and not a percentage, because the sentence built from them names offers. It is
+ * what stops a short result reading as a quiet market while the index is still being filled:
+ * most adverts simply have no vector yet. It stops being worth printing when the two meet.
+ */
+export interface RelatedCoverage {
+    readonly readable: number;
+    readonly total: number;
 }
 
 /** What the screen is asking for. The query string holds it, so a view stays a link. */
@@ -64,4 +83,13 @@ export interface ShortlistFilters {
   /** Only offers whose application deadline has not passed, plus those that stated none. */
   readonly deadlineOpen: boolean;
   readonly possibleDuplicates: boolean;
+  /**
+   * Words to find offers near. **Narrows and never reorders**: the list stays in whichever of
+   * the six orders is selected, so the first row is not the best match — there is no such
+   * thing here. The server refuses this together with `similarTo`, and this screen never
+   * produces the pair.
+   */
+  readonly semantic: string;
+  /** An offer to find offers near, or null. Costs no model call: both vectors are stored. */
+  readonly similarTo: number | null;
 }

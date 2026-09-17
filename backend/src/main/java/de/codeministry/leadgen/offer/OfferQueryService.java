@@ -11,6 +11,7 @@ package de.codeministry.leadgen.offer;
 import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.config.model.MatchingRules;
 import de.codeministry.leadgen.content.ContentText;
+import de.codeministry.leadgen.retrieval.SemanticFilter;
 import de.codeministry.leadgen.score.ScoreReason;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
@@ -97,10 +98,12 @@ public class OfferQueryService {
 
     private final JdbcClient jdbc;
     private final ConfigRegistry config;
+    private final SemanticFilter semantic;
 
-    OfferQueryService(DataSource dataSource, ConfigRegistry config) {
+    OfferQueryService(DataSource dataSource, ConfigRegistry config, SemanticFilter semantic) {
         this.jdbc = JdbcClient.create(dataSource);
         this.config = config;
+        this.semantic = semantic;
     }
 
     /**
@@ -114,7 +117,12 @@ public class OfferQueryService {
      */
     public ShortlistPage shortlist(ShortlistQuery query) {
         var thresholds = config.snapshot().rules().scoring().thresholds();
-        var filters = where(query, thresholds);
+        // Resolved before the clause is built, because this is the one filter that can refuse:
+        // a relatedness question this installation cannot answer is a 400 with a sentence, never
+        // a parameter quietly dropped. Dropped, the list would widen under a heading saying it
+        // was narrowed, and the count beside it would be true about a set nobody asked for.
+        var narrowing = semantic.narrow(query.related().semantic(), query.related().similarTo());
+        var filters = where(query, thresholds, narrowing);
 
         // The page clause on the list and deliberately not on the count. Formatted into
         // MATCHED as well — which is what shipped — it counted the rows *after* the cursor,
@@ -141,7 +149,14 @@ public class OfferQueryService {
                 .list();
 
         return new ShortlistPage(
-            entries(rows), cursorAfter(rows, query.limit(), query.sort()), counts[0], counts[1], total, portals);
+            entries(rows),
+            cursorAfter(rows, query.limit(), query.sort()),
+            counts[0],
+            counts[1],
+            total,
+            portals,
+            semantic.coverage(),
+            query.related().similarTo() == null ? null : semantic.titleOf(query.related().similarTo()));
     }
 
     /**
@@ -218,12 +233,19 @@ public class OfferQueryService {
     /**
      * The filters, as SQL and parameters.
      *
-     * <p>The search matches what the browser's did: title, description and the tags. The
-     * portal matches the offer's own or any of its duplicates', because a project reaching
-     * the shortlist through portal-c is on portal-c even when portal-a holds the primary — the
-     * dropdown offers those portals, so the filter has to accept them.
+     * <p>The search reads the title, the description, the tags and <b>the advert the enrichment
+     * stage fetched</b> — the same text {@link ContentText#of} hands to the judge and the
+     * packager, and by the same rule: the content blocks when the advert was segmented, and
+     * {@code full_text} only when it was not. Searching {@code full_text} unconditionally would
+     * put the portal furniture back into the one place it was taken out of, and a search for an
+     * agency's postal address would then match every advert that agency ever posted.
+     *
+     * <p>The portal matches the offer's own or any of its duplicates', because a project
+     * reaching the shortlist through portal-c is on portal-c even when portal-a holds the
+     * primary — the dropdown offers those portals, so the filter has to accept them.
      */
-    private static Filters where(ShortlistQuery query, MatchingRules.Scoring.Thresholds thresholds) {
+    private static Filters where(
+        ShortlistQuery query, MatchingRules.Scoring.Thresholds thresholds, SemanticFilter.Narrowing narrowing) {
         // The third part of "this is on my list today", beside PASSED and primaries-only.
         // It is a literal rather than a parameter because it is a choice between two
         // clauses, not a value: `archived_at = :x` cannot express "is null".
@@ -232,9 +254,20 @@ public class OfferQueryService {
         Map<String, Object> params = new LinkedHashMap<>();
 
         if (query.q() != null && !query.q().isBlank()) {
+            // The CASE is `ContentText.of`'s fallback written as SQL: a segmented advert is
+            // searched through its CONTENT blocks, and an advert that was never segmented —
+            // or whose blocks were all furniture — through `full_text`, which is the only
+            // text it has. `jsonb_array_elements` returns no rows for a null column, so an
+            // offer enrichment never reached lands in the ELSE and matches on nothing.
             sql.append("""
                 AND (o.title ILIKE :q OR o.description ILIKE :q
-                     OR EXISTS (SELECT 1 FROM unnest(o.tags) AS tag WHERE tag ILIKE :q))
+                     OR EXISTS (SELECT 1 FROM unnest(o.tags) AS tag WHERE tag ILIKE :q)
+                     OR CASE WHEN EXISTS (SELECT 1 FROM jsonb_array_elements(o.content_blocks) AS b
+                                           WHERE b ->> 'kind' = 'CONTENT')
+                             THEN EXISTS (SELECT 1 FROM jsonb_array_elements(o.content_blocks) AS b
+                                           WHERE b ->> 'kind' = 'CONTENT' AND b ->> 'text' ILIKE :q)
+                             ELSE o.full_text ILIKE :q
+                        END)
                 """);
             params.put("q", "%" + query.q().trim() + "%");
         }
@@ -302,6 +335,15 @@ public class OfferQueryService {
             // bug. `current_date` is the server's and never a date the browser sends: two
             // readers in two timezones must not get two lists.
             sql.append(" AND (o.apply_by IS NULL OR o.apply_by >= current_date)\n");
+        }
+
+        // The relatedness neighbourhood, and it goes in `sql` with every other filter rather
+        // than anywhere near the ordering. It narrows the set without redefining the key, so the
+        // cursor, the ORDER BY and the match count all keep working untouched — which is the
+        // entire reason this is a filter and not a seventh sort.
+        if (narrowing != null) {
+            sql.append(narrowing.sql());
+            params.putAll(narrowing.params());
         }
 
         // The page, kept out of `sql` — see the note on Filters.

@@ -8,6 +8,8 @@
  */
 package de.codeministry.leadgen.offer;
 
+import de.codeministry.leadgen.retrieval.SemanticFilter;
+
 import java.util.List;
 
 /**
@@ -28,6 +30,21 @@ import java.util.List;
  * @param total      the whole shortlist, so the same sentence can say what it was narrowed from.
  * @param portals    every portal on the shortlist, not merely on this page. Derived from the
  *                   page it would be a filter that offers fewer choices the further you scroll.
+ * @param related    how much of the working list a relatedness filter can reach, or <b>null when
+ *                   this installation cannot answer one at all</b> — which is the whole capability
+ *                   flag, and what lets the browser leave the control out instead of offering one
+ *                   the server would refuse. Server-counted over the working list, like every
+ *                   other number printed beside this list: built from the loaded page it would
+ *                   shrink as the reader scrolled, which is the defect that moved `matched` here.
+ * @param relatedTo  the title of the offer a `similar=` filter is anchored on, so the chip can
+ *                   name it without a second request. Null unless that is what was asked for.
  */
 public record ShortlistPage(
-        List<ShortlistEntry> entries, String nextCursor, int matched, int unscored, int total, List<String> portals) {}
+        List<ShortlistEntry> entries,
+        String nextCursor,
+        int matched,
+        int unscored,
+        int total,
+        List<String> portals,
+        SemanticFilter.RelatedCoverage related,
+        String relatedTo) {}

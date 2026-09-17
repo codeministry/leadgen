@@ -29,7 +29,7 @@ import {PageHeader} from '@shared/page-header/page-header';
 import {Markdown} from '@shared/markdown/markdown';
 import {Score} from '@shared/score/score';
 import {DayPipe} from '@shared/date/day.pipe';
-import {RouterLink} from '@angular/router';
+import {Router, RouterLink} from '@angular/router';
 
 /**
  * How much advert is worth showing before it is folded away.
@@ -104,6 +104,7 @@ export class OfferDetail implements OnInit {
     private readonly applicationDispatch = injectDispatch(applicationEvents);
   private readonly transloco = inject(TranslocoService);
   private readonly dayPipe = inject(DayPipe);
+    private readonly router = inject(Router);
     protected readonly store = inject(ShortlistStore);
     protected readonly applications = inject(ApplicationsStore);
 
@@ -124,6 +125,41 @@ export class OfferDetail implements OnInit {
   readonly closeTo = input<string | null, string | undefined>(null, {
     transform: (value) => value ?? null,
   });
+
+  /**
+   * Whether this installation can find offers related to this one.
+   *
+   * <p>Read off the list response the store already holds: `relatedCoverage` is null when the
+   * retrieval index does not exist here, and the button is then absent rather than disabled —
+   * a control the server would refuse is worse than one that says it does not exist.
+   *
+   * <p>It does not know whether <em>this</em> advert has been indexed. The server refuses that
+   * case by name, so the failure is a sentence and never a list of arbitrary offers; hiding
+   * the button for it as well would need a flag on the offer itself.
+   */
+  protected readonly canFindRelated = computed(() => this.store.relatedCoverage() !== null);
+
+  /**
+   * Narrow the list to this offer's neighbourhood, without leaving the offer.
+   *
+   * <p>It navigates to this same offer's route and changes only the query string, so above the
+   * split's breakpoint the detail stays open and the left column becomes the neighbourhood —
+   * with the anchor still in it, because its distance to itself is zero. `semantic` is cleared
+   * with it: the two are one filter with two spellings and the server refuses the pair.
+   *
+   * <p><b>Below the breakpoint the detail replaces the list</b>, so the change is real but not
+   * visible until the reader goes back to it, where the chip is waiting. Making the click
+   * navigate to the list there would need this component to know the breakpoint, and that
+   * number lives on the shortlist page beside the `matchMedia` that reads it; a second copy of
+   * a media query in a second component is a worse trade than a click whose effect is one
+   * screen away.
+   */
+  protected findRelated(id: number): void {
+    void this.router.navigate(['/shortlist', id], {
+      queryParams: {similar: id, semantic: null},
+      queryParamsHandling: 'merge',
+    });
+  }
 
     /**
      * Fetched by id rather than found in the shortlist. The detail has to work on a reload,
@@ -346,6 +382,10 @@ export class OfferDetail implements OnInit {
             return [];
         }
         return [
+          // First, because it is the only row that says where this offer came from rather
+          // than what it says. The portal below it is who advertises the project; this is
+          // the configured source that delivered it, named as the sources screen names it.
+          {label: 'field.source', value: offer.sourceName},
             {label: 'field.portal', value: offer.portal},
             {label: 'field.agency', value: offer.agency},
             {label: 'field.location', value: offer.location},

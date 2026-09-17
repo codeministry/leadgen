@@ -109,6 +109,16 @@ screen reads one of these, and none of them writes.
   link still carries, and a component that is not a number. `cursorAfter` picks its key with
   an **exhaustive switch**, so a fifth sort added without a cursor component fails the build
   rather than a page boundary.
+- **The free-text search reads the advert, and reads it de-furnitured.** It matched the title,
+  the description and the tags — that is, the newsletter teaser and a portal's tag cloud — while
+  the advert the enrichment stage had gone out and fetched sat unread in the same row. It now
+  matches `ContentText.of`'s text as well, by the same rule the judge and the packager get it:
+  the CONTENT blocks when the advert was segmented, `full_text` only when it was not. Searching
+  `full_text` unconditionally is the version that looks simpler and is wrong — it puts back the
+  portal furniture the content stage exists to remove, and a search for an agency's postal
+  address or the word in its privacy link would then match every advert that agency ever posted.
+  The visible consequence is that the match count rises against the same corpus. That is the
+  fix working, not a regression.
 - **The page clause is kept apart from the filters, and that was a live defect.** `where()`
   appended the cursor into the same clause `MATCHED` was formatted with, so on page two
   `matched` and `unscored` counted the rows *after* the cursor and the number beside the list

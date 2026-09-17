@@ -14,6 +14,7 @@ function entry(id: number, title: string, value: number | null, portal: string):
     return {
         offer: {
             id,
+            sourceName: 'sample-newsletter',
             externalId: `https://example.invalid/${id}`,
             title,
             description: 'Ablösung eines Monolithen.',
@@ -59,6 +60,10 @@ function page(over: Partial<ShortlistPayload> = {}): ShortlistPayload {
         unscored: 1,
         total: ENTRIES.length,
         portals: ['portal-a', 'portal-b'],
+        // Null is the capability flag: this installation cannot search by meaning, which is
+        // the shipped default and therefore what most of these cases are about.
+        related: null,
+        relatedTo: null,
         ...over,
     };
 }
@@ -167,6 +172,121 @@ describe('ShortlistPage', () => {
       [],
       expect.objectContaining({queryParams: {portal: ['portal-b']}}),
         );
+  });
+
+  describe('the related filter', () => {
+    /** A page from an installation that has the retrieval index. */
+    function indexed(over: Partial<ShortlistPayload> = {}): ShortlistPayload {
+      return page({related: {readable: 3, total: 3}, ...over});
+    }
+
+    it('offers nothing at all where the server cannot answer', () => {
+      // Absent and not disabled. `related: null` on the envelope is the whole capability
+      // flag, and a control the server would refuse is worse than one that says it does not
+      // exist — the same rule the sort list follows.
+      const fixture = render(page({related: null}));
+      fixture.componentRef.setInput('q', 'kubernetes');
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.textContent).not.toContain('Find offers related to');
+      expect(fixture.nativeElement.querySelectorAll('.facets .facet')).toHaveLength(0);
+    });
+
+    it('keeps a phrase that happens to be one of the query string defaults', () => {
+      // `DEFAULTS` holds '', 'all', 'score', 'any' and '0', and `setFilter` drops any value
+      // in it. Routed through there, a search for the word *any* would vanish without a
+      // trace — which is why the score bounds bypass it too.
+      const fixture = render(indexed());
+      const navigate = vi.spyOn(TestBed.inject(Router), 'navigate');
+
+      fixture.componentRef.setInput('q', 'any');
+      fixture.detectChanges();
+      const suggestion: HTMLButtonElement | null =
+        fixture.nativeElement.querySelector('.related-suggest');
+      suggestion!.click();
+
+      expect(navigate).toHaveBeenCalledWith(
+        [],
+        expect.objectContaining({queryParams: {semantic: 'any', q: null, similar: null}}),
+      );
+    });
+
+    it('shows the filter as a chip the panel does not count', () => {
+      // The panel's badge is `facetChips().length` and its own rule is that the count is
+      // exactly what sits behind the trigger. This filter is not behind it, so folding it in
+      // would make the badge claim a filter the panel does not contain.
+      const fixture = render(indexed());
+      fixture.componentRef.setInput('semantic', 'kubernetes');
+      fixture.componentRef.setInput('deadlineOpen', '1');
+      fixture.detectChanges();
+
+      const chips: HTMLButtonElement[] = Array.from(
+        fixture.nativeElement.querySelectorAll('.facets .facet'),
+      );
+      expect(chips).toHaveLength(2);
+      expect(chips[0]!.textContent).toContain('kubernetes');
+
+      const badge = fixture.nativeElement.querySelector('lg-facet-panel .active-count');
+      expect(badge?.textContent?.trim()).toBe('1');
+    });
+
+    it('clears with everything else, and its two spellings together', () => {
+      // Missing from `clearAll`, it would be the one filter "Clear all" does not clear.
+      const fixture = render(indexed());
+      fixture.componentRef.setInput('semantic', 'kubernetes');
+      fixture.detectChanges();
+      const navigate = vi.spyOn(TestBed.inject(Router), 'navigate');
+
+      fixture.nativeElement.querySelector('.facet-clear').click();
+
+      expect(navigate).toHaveBeenCalledWith(
+        [],
+        expect.objectContaining({
+          queryParams: expect.objectContaining({semantic: null, similar: null}),
+        }),
+      );
+    });
+
+    it('says how much of the list it can reach, and stops once it can reach all of it', () => {
+      // The sentence that keeps a short result from reading as a quiet market while the
+      // index is still filling. It removes itself when the two numbers meet.
+      const fixture = render(indexed({related: {readable: 340, total: 2219}}));
+      fixture.componentRef.setInput('semantic', 'kubernetes');
+      fixture.detectChanges();
+      expect(fixture.nativeElement.textContent).toContain('340');
+
+      expectPage().flush(indexed({related: {readable: 2219, total: 2219}}));
+      fixture.detectChanges();
+      expect(fixture.nativeElement.textContent).not.toContain('2219 offers have been read');
+    });
+
+    it('says the match was bounded by the search and not by the market', () => {
+      // A count that does not say so lies by omission: with the filter on, the number beside
+      // the list describes a neighbourhood the search chose. "only" attaches to the set, never
+      // to a sequence — "closest first" would be the ranking claim this design refuses.
+      const fixture = render(indexed({matched: 6, total: 9}));
+      expect(fixture.nativeElement.querySelector('.count').textContent).not.toContain('closest');
+
+      fixture.componentRef.setInput('semantic', 'kubernetes');
+      fixture.detectChanges();
+      expectPage().flush(indexed({matched: 6, total: 9}));
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.querySelector('.count').textContent).toContain(
+        'closest matches only',
+      );
+    });
+
+    it('sends the anchor rather than the words when an offer is the anchor', () => {
+      const fixture = render(indexed());
+      fixture.componentRef.setInput('similar', '42');
+      fixture.detectChanges();
+
+      const request = expectPage();
+      expect(request.request.params.get('similar')).toBe('42');
+      expect(request.request.params.has('semantic')).toBe(false);
+      request.flush(indexed({relatedTo: 'Senior Java Entwickler'}));
+    });
   });
 
   it('keeps the sort and the archive side when every filter is cleared', () => {

@@ -31,6 +31,8 @@ import de.codeministry.leadgen.ingest.extract.OfferMapper;
 import de.codeministry.leadgen.ingest.store.OfferStore;
 import de.codeministry.leadgen.packaging.PackageReport;
 import de.codeministry.leadgen.packaging.PackagingService;
+import de.codeministry.leadgen.retrieval.RetrievalIndexService;
+import de.codeministry.leadgen.retrieval.RetrievalReport;
 import de.codeministry.leadgen.score.ScoringReport;
 import de.codeministry.leadgen.score.ScoringService;
 import org.junit.jupiter.api.BeforeEach;
@@ -68,6 +70,7 @@ class IngestOrderTest {
     private final ContentService content = mock(ContentService.class);
     private final FieldsService fields = mock(FieldsService.class);
     private final ScoringService scoring = mock(ScoringService.class);
+    private final RetrievalIndexService retrieval = mock(RetrievalIndexService.class);
     private final PackagingService packaging = mock(PackagingService.class);
     private final DigestService digest = mock(DigestService.class);
     private final PipelineRunRecorder history = mock(PipelineRunRecorder.class);
@@ -92,6 +95,7 @@ class IngestOrderTest {
         when(content.run()).thenReturn(ContentReport.skipped());
         when(fields.run()).thenReturn(FieldsReport.skipped());
         when(scoring.run(any())).thenReturn(new ScoringReport(0, 0, 0, 0, 0, 0, 0));
+        when(retrieval.run()).thenReturn(RetrievalReport.skipped());
         when(packaging.run()).thenReturn(new PackageReport(0, 0, 0, List.of()));
         when(digest.render(any())).thenReturn(Optional.empty());
 
@@ -109,6 +113,7 @@ class IngestOrderTest {
             content,
             fields,
                 scoring,
+                retrieval,
                 packaging,
                 digest,
                 history);
@@ -186,11 +191,24 @@ class IngestOrderTest {
         // No sources are configured here, so what is left is exactly the global stages — and
         // the count `IngestService` writes into the row has to be that same number, or the
         // progress stops one short of the end for a month before anybody notices.
+        // RETRIEVAL sits behind SCORE and not behind CONTENT, where it reads: `LlmBudget` is
+        // one allowance shared by every stage, and the first pass after the stage is switched
+        // on walks the whole working list. In front of the judge that backfill spends the day
+        // and the shortlist goes unjudged.
         assertThat(names.getAllValues())
             .containsExactly(
-                "DEDUPE", "FILTER", "ARCHIVE", "ENRICH", "CONTENT", "FIELDS", "SCORE", "PACKAGE", "DIGEST");
+                "DEDUPE",
+                "FILTER",
+                "ARCHIVE",
+                "ENRICH",
+                "CONTENT",
+                "FIELDS",
+                "SCORE",
+                "RETRIEVAL",
+                "PACKAGE",
+                "DIGEST");
         assertThat(names.getAllValues()).hasSize(IngestService.GLOBAL_STAGES);
-        assertThat(positions.getAllValues()).containsExactly(1, 2, 3, 4, 5, 6, 7, 8, 9);
+        assertThat(positions.getAllValues()).containsExactly(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
         verify(history).start(any(), any(), org.mockito.ArgumentMatchers.eq(IngestService.GLOBAL_STAGES));
     }
 

@@ -17,6 +17,7 @@ import de.codeministry.leadgen.filter.FilterReport;
 import de.codeministry.leadgen.ingest.IngestReport;
 import de.codeministry.leadgen.packaging.PackageReport;
 import de.codeministry.leadgen.score.Judges;
+import de.codeministry.leadgen.retrieval.RetrievalReport;
 import de.codeministry.leadgen.score.ScoringReport;
 import org.junit.jupiter.api.Test;
 
@@ -53,6 +54,7 @@ class PipelineRunRecorderTest {
         ContentReport.skipped(),
         FieldsReport.skipped(),
             new ScoringReport(0, 0, 0, 0, 0, 0, 0),
+            RetrievalReport.skipped(),
             null,
             new PackageReport(0, 0, 0, List.of()),
             Instant.EPOCH);

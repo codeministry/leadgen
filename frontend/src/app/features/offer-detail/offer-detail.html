@@ -5,6 +5,16 @@
     [title]="entry.offer.title"
     [subtitle]="entry.offer.portal"
   >
+        <!-- Absent, never disabled, where the server cannot answer: a control it would refuse
+             is worse than one that says it does not exist. One word for the whole capability,
+             "related", and deliberately not "similar" — the list already badges possible
+             duplicates, and those two mean different things. -->
+        @if (canFindRelated()) {
+            <button type="button" class="btn btn-sm btn-ghost" (click)="findRelated(entry.offer.id)">
+                <lg-icon name="scan-search" [size]="16"/>
+                {{ 'detail.findRelated' | transloco }}
+            </button>
+        }
         @if (entry.offer.url; as url) {
             <!-- Out of the application, so a new tab, and `noopener` with it: a page opened
                  this way can otherwise reach back through `window.opener`, and this URL came off

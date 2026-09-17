@@ -37,6 +37,7 @@ public record PipelineConfig(
         @Valid @NotNull Enrichment enrichment,
         @Valid Content content,
         @Valid Fields fields,
+        @Valid Retrieval retrieval,
         @Valid @NotNull Packaging packaging,
         @Valid Digest digest,
         @Valid Security security) {
@@ -185,6 +186,29 @@ public record PipelineConfig(
     public record Fields(boolean enabled) {
     }
 
+    /**
+     * The retrieval index: one vector per offer over the whole de-furnitured advert, which is
+     * what a semantic search reads.
+     *
+     * <p><b>A switch of its own although {@code llm.models.embedding} is already one.</b>
+     * Without it, configuring an embedding model for <i>deduplication</i> — where the bands are
+     * measured and the behaviour is proven — would silently switch on an indexing pass that is
+     * neither. Two separable decisions, and a second switch is the only way to separate them.
+     *
+     * <p>Off by default, unlike {@code content.enabled} and {@code fields.enabled}: this column
+     * has no measured threshold behind it, so a fresh clone should do what it did before.
+     *
+     * <p>No model key. It reads {@code llm.models.embedding}, the same one deduplication reads,
+     * for the reason a {@code models.content} and a {@code models.fields} key were each refused.
+     *
+     * @param enabled    whether the stage runs at all.
+     * @param neighbours how many nearest offers a semantic search may select. <b>A count and
+     *                   deliberately not a similarity threshold:</b> the search narrows the set
+     *                   and does not rank it, so nothing here has to be measured before the
+     *                   stage can be switched on. A threshold would.
+     */
+    public record Retrieval(boolean enabled, @Min(1) Integer neighbours) {
+    }
 
     public record Profile(@NotBlank String path) {}
 
