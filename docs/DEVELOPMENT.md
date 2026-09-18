@@ -56,6 +56,13 @@ future major moves the image tag, `PGDATA` and the mount in one edit.
 The volume is named after the Compose project, which is the directory name unless
 `COMPOSE_PROJECT_NAME` says otherwise — check with `docker volume ls` rather than assuming it.
 
+**Step 2 removes the volume, and that is not tidiness.** Docker seeds a volume from the image
+only when the volume is empty at first mount, so retargeting a volume that still holds the old
+cluster hands the new major a directory with `PG_VERSION`, `base/` and `global/` lying at its
+root. The new major does not read those, does not complain about them, and initdbs its own
+cluster into a subdirectory of the same volume. Two clusters then share one volume, which is
+the same silent-empty-database symptom with the rollback tangled up in it as well.
+
 ```bash
 # 1. dump from the still-running old major, and note the count you expect to see again
 docker compose exec -T postgres pg_dump -U leadgen -Fc leadgen > leadgen-old.dump
