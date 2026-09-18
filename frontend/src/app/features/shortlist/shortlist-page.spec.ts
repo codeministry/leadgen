@@ -36,6 +36,7 @@ function entry(id: number, title: string, value: number | null, portal: string):
             language: 'de',
             fullText: null,
             packageDir: null,
+          ingestedAt: '2026-09-02T05:12:00Z',
             archivedAt: null,
             archiveSource: null,
         },

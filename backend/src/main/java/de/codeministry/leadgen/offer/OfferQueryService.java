@@ -528,6 +528,7 @@ public class OfferQueryService {
 
     private static Row row(ResultSet rs, int index) throws SQLException {
         long id = rs.getLong("id");
+        var ingestedAt = rs.getTimestamp("ingested_at").toInstant();
         var offer = new OfferView(
                 id,
                 rs.getString("source_name"),
@@ -552,6 +553,7 @@ public class OfferQueryService {
                 rs.getString("language"),
                 rs.getString("full_text"),
                 rs.getString("package_dir"),
+            ingestedAt,
                 rs.getTimestamp("archived_at") == null
                         ? null
                         : rs.getTimestamp("archived_at").toInstant(),
@@ -570,7 +572,7 @@ public class OfferQueryService {
                 instant(rs),
                 rs.getString("enrichment_note"),
             rs.getString("content_blocks"),
-            rs.getTimestamp("ingested_at").toInstant(),
+            ingestedAt,
             // `getObject` with the type, never `getLong`: that one answers 0 for SQL NULL
             // and 0 is an offer id nobody has, so every row would carry a badge.
             rs.getObject("possible_duplicate_of_id", Long.class));

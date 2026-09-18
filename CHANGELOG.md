@@ -19,6 +19,18 @@ may change in any release. See the status note in the README.
 
 ### Changed
 
+- **The database image is now `pgvector/pgvector:0.8.6-pg18`, and the tag is pinned.** It was
+  the floating `pg17`, which had quietly moved to pgvector 0.8.6 on 2026-08-13 — so pgvector was
+  already current and the only thing behind was Postgres itself, 17.11 against 18.6. Both
+  numbers are now values in the diff rather than the date somebody last pulled. Nothing in the
+  schema changes: 0.8.6 still refuses an HNSW index above 2000 dimensions, so the columns, the
+  indexes and all twenty-six migrations stay exactly as they are.
+- **Compose mounts the database volume at `/var/lib/postgresql`, not at `…/postgresql/data`.**
+  Postgres 18 scoped `PGDATA` by major version and moved the declared VOLUME up one level. The
+  old target is not rejected, it is ignored, and that is the reason this line exists: the
+  container initdbs an empty cluster elsewhere, Flyway applies everything green, and the API
+  serves an empty working list with nothing in the log to explain it. `PGDATA` is now also
+  stated in the service, beside the mount that has to match it.
 - **`selector.from` is part of the IMAP search, not only of the post-filter.** The progress flag
   is one name for every source and the receiver writes it to whatever its search returned, so two
   sources sharing a folder used to race: the first flagged all of it, the second read zero
@@ -80,6 +92,14 @@ may change in any release. See the status note in the README.
 - **`LLM_MODEL_EMBEDDING` must now name a model of at least 2000 dimensions.**
   `nomic-embed-text` at 768 no longer fits and is refused by name. Left empty, only
   `exact_fingerprint` runs, exactly as before.
+- **The Postgres major changes, and this time the volume and its data are NOT kept.** The 0.4.0
+  note said they were, because that release changed only the extension on the same server. This
+  one is 17 to 18: the data directory moved, the existing volume cannot be handed to the new
+  image, and `docker compose up` on it starts an empty database that looks entirely healthy. The
+  migration is `pg_dump -Fc` out of the running 17, a fresh volume, `pg_restore` into 18, and
+  the old volume kept until the offer count matches — written out step by step in
+  `docs/DEVELOPMENT.md`. A deployment that only bumps the image tag loses sight of its data
+  without a single error.
 
 ## [0.4.0] — 2026-09-16
 

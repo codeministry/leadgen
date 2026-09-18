@@ -69,6 +69,13 @@ export interface Offer {
     /** The folder the packaging stage wrote. Null until the offer clears the threshold. */
     readonly packageDir: string | null;
 
+  /**
+   * When the pipeline first wrote this row — the counterpart of `publishedOn`, which is
+   * what the advert says about itself. Never null: it is written once at ingest and no
+   * later stage touches it.
+   */
+  readonly ingestedAt: string;
+
     /** When this left the working list, or null while it is still on it. */
     readonly archivedAt: string | null;
     /**

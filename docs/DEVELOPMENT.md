@@ -8,7 +8,7 @@
 | Gradle   | —          | Use the wrapper (`./gradlew`).                                                                                                               |
 | bun      | **1.3+**   | The package manager for the frontend. Never npm or npx.                                                                                      |
 | Docker   | any recent | Required for `docker compose`, **and for `./gradlew :backend:test`** — the backend tests use Testcontainers.                                 |
-| Postgres | 17         | Supplied by Compose. Published on host port **55432**, not 5432.                                                                             |
+| Postgres | 18         | Supplied by Compose. Published on host port **55432**, not 5432.                                                                             |
 
 The host port is 55432 on purpose: a developer machine usually already has a Postgres on
 5432, and connecting to the wrong one fails as `password authentication failed for user
@@ -40,6 +40,52 @@ lint and Vitest for the frontend. The frontend is bracketed with plain `Exec` ta
 `bun` rather than with the Node Gradle plugin — the plugin does not speak bun, and this way
 `package.json` stays the single list of frontend commands and `bun run <script>` behaves
 identically inside and outside Gradle.
+
+## Moving an existing database to a new Postgres major
+
+A one-time step per instance, and it is written out here rather than shipped as a script
+because it destroys a volume and wants a person watching it.
+
+The reason it cannot be skipped: Postgres 18 scoped `PGDATA` by major version, and the
+container silently ignores a volume mounted at the old `…/postgresql/data`. It then starts an
+empty cluster, Flyway applies every migration green, and the application serves an empty
+working list while the data is still sitting in the volume. Nothing in the log says so. The
+mount target in `docker-compose.yml` is `/var/lib/postgresql` for exactly this reason, and a
+future major moves the image tag, `PGDATA` and the mount in one edit.
+
+The volume is named after the Compose project, which is the directory name unless
+`COMPOSE_PROJECT_NAME` says otherwise — check with `docker volume ls` rather than assuming it.
+
+```bash
+# 1. dump from the still-running old major, and note the count you expect to see again
+docker compose exec -T postgres pg_dump -U leadgen -Fc leadgen > leadgen-old.dump
+docker compose exec -T postgres psql -U leadgen -d leadgen -tAc 'SELECT count(*) FROM offer'
+
+# 2. copy the old volume aside. Do NOT delete it yet — this is the whole rollback
+docker compose down
+docker volume create lead-generation_postgres-data-old
+docker run --rm -v lead-generation_postgres-data:/from \
+  -v lead-generation_postgres-data-old:/to alpine sh -c 'cp -a /from/. /to/'
+docker volume rm lead-generation_postgres-data
+
+# 3. bring the new major up on an empty volume and let it initdb
+docker compose up -d postgres
+docker compose exec -T postgres psql -U leadgen -d leadgen -c 'SELECT version()'
+
+# 4. restore, then verify before anything else touches the database
+docker compose exec -T postgres pg_restore -U leadgen -d leadgen --clean --if-exists \
+  < leadgen-old.dump
+docker compose exec -T postgres psql -U leadgen -d leadgen \
+  -c "SELECT extname, extversion FROM pg_extension WHERE extname = 'vector'" \
+  -c 'SELECT count(*) FROM offer' \
+  -c "SELECT indexname FROM pg_indexes WHERE indexname LIKE '%embedding%'"
+```
+
+Expected at the end: the extension at the image's own version, the offer count from step 1,
+and both `idx_offer_embedding` and `idx_offer_retrieval_embedding` back. The dump carries
+`flyway_schema_history` with it, so Flyway sees every version applied and re-runs nothing.
+
+Only once the count matches: `docker volume rm lead-generation_postgres-data-old`.
 
 ## Where the settings come from
 

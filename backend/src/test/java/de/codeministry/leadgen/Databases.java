@@ -22,12 +22,20 @@ import org.testcontainers.containers.PostgreSQLContainer;
 public final class Databases {
 
     /**
-     * The same image {@code docker-compose.yml} and the Helm chart run, and it is the
-     * official postgres image with pgvector added — same version, same data directory, same
-     * initdb behaviour. It is Debian-based rather than Alpine, so it is a larger first pull
-     * and that is the whole of the cost.
+     * The same image {@code docker-compose.yml} runs, and it is the official postgres image
+     * with pgvector added. It is Debian-based rather than Alpine, so it is a larger first
+     * pull and that is the whole of the cost.
+     *
+     * <p>Pinned to an exact pgvector and an exact major rather than left floating on
+     * {@code pg18}, so that which extension the suite ran against is a value in the diff and
+     * not the date somebody last pulled. It has to be changed here and in Compose together.
+     *
+     * <p>Postgres 18 moved the data directory into a version-scoped path, which is a trap for
+     * the Compose file and not for this one: Testcontainers mounts no data volume, so there is
+     * no target here that could miss it. The trap is written out beside the mount it applies
+     * to.
      */
-    public static final String IMAGE = "pgvector/pgvector:pg17";
+    public static final String IMAGE = "pgvector/pgvector:0.8.6-pg18";
 
     private Databases() {
     }

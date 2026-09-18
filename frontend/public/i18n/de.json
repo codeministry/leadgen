@@ -59,6 +59,7 @@
     "duration": "Dauer",
     "workload": "Auslastung",
     "published": "Veröffentlicht",
+    "ingested": "Eingelesen am",
     "language": "Sprache",
     "externalId": "Externe ID",
     "tags": "Schlagworte",

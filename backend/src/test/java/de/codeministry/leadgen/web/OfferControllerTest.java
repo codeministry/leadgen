@@ -63,14 +63,17 @@ class OfferControllerTest {
         given(archive.setArchived(anyLong(), anyBoolean())).willReturn(true);
         given(offers.find(1L)).willReturn(Optional.of(entry(Instant.parse("2026-09-02T08:00:00Z"), "MANUAL")));
 
-        assertThat(mvc.patch()
+        var body = assertThat(mvc.patch()
                         .uri("/api/offers/1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"archived\":true}"))
                 .hasStatusOk()
-                .bodyJson()
-                .extractingPath("$.offer.archiveSource")
-                .isEqualTo("MANUAL");
+            .bodyJson();
+        body.extractingPath("$.offer.archiveSource").isEqualTo("MANUAL");
+        // When this tool read the row, which is not what the advert says about itself.
+        // Serialised as an instant and not as a timestamp, because the screen formats it
+        // with the same pipe as every other day on that panel.
+        body.extractingPath("$.offer.ingestedAt").asString().startsWith("2026-09-01T05:00");
     }
 
     @Test
@@ -407,6 +410,7 @@ class OfferControllerTest {
                 "de",
                 null,
                 null,
+            Instant.parse("2026-09-01T05:00:00Z"),
                 archivedAt,
                 source);
         return new ShortlistEntry(

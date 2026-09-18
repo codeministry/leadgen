@@ -34,12 +34,18 @@ Violating one of these is expensive, and most of them fail silently.
   A new source is a YAML block, not a deploy.
 - **Rules before model.** The hard filter runs deterministically and for free before any
   LLM call. Without a language model the tool must still run, only weaker.
-- **The database image is `pgvector/pgvector:pg17`, not plain postgres.** Deduplication's two
-  similarity strategies compare vectors, `V22` creates the extension, and an image without it
-  fails that migration with an error naming the extension rather than the image. It is named
+- **The database image is `pgvector/pgvector:0.8.6-pg18`, not plain postgres.** Deduplication's
+  two similarity strategies compare vectors, `V22` creates the extension, and an image without
+  it fails that migration with an error naming the extension rather than the image. It is named
   in `docker-compose.yml` and once for the tests in
   `backend/src/test/java/de/codeministry/leadgen/Databases.java`, and nowhere else — there is
-  no chart in this repository.
+  no chart in this repository. The tag is pinned: a floating one swaps the extension binary
+  under a live data directory with nothing in the diff to show for it.
+- **Compose mounts the database volume at `/var/lib/postgresql`, never at `…/data`, and a
+  major bump moves the tag, `PGDATA`, the mount and the data together.** Since Postgres 18 the
+  old target is ignored rather than refused, so the wrong one starts an empty cluster, migrates
+  it green and serves zero offers. No test can see a mount; the runbook is in
+  `docs/DEVELOPMENT.md`.
 - **The vector column is 2000 wide because pgvector will not index a wider one**, and a model
   that returns more is truncated to the leading 2000 at the seam rather than widening it.
   Thresholds are measured with `docs/samples/measure_embeddings.ts` before they are changed;

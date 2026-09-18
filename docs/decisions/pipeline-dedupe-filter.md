@@ -47,8 +47,23 @@ Every paragraph here was paid for once; none of it is a summary.
 
 - **pgvector, not an array and a loop.** The comparison is a nearest-neighbour search over a
   window of offers, which is the one thing a database index is for. The cost is the image:
-  `pgvector/pgvector:pg17` in place of `postgres:17-alpine`, in Compose and in nineteen test
+  `pgvector/pgvector` in place of `postgres:17-alpine`, in Compose and in nineteen test
   classes — which is why the image is now named once, in `Databases`.
+- **The tag is pinned, and pinning it is what made the major bump visible.** It ran on the
+  floating `pg17` until 2026-09-18. That tag had silently moved to pgvector 0.8.6 on
+  2026-08-13, so "update pgvector to the newest version" turned out to be already done, and the
+  only thing actually behind was Postgres itself: 17.11 against a current 18.6. Pinned to
+  `0.8.6-pg18`, both numbers are values in the diff rather than a pull date.
+- **The Postgres 18 data directory moved, and the old mount target fails silently.** Measured
+  on `0.8.6-pg18`: `PGDATA=/var/lib/postgresql/18/docker`, the declared VOLUME one level up,
+  and `/var/lib/postgresql/` empty in the image. Compose mounted `…/postgresql/data`, which 18
+  does not read and does not complain about — it initdbs an empty cluster at the new path,
+  Flyway applies all twenty-six migrations green, and the API serves an empty working list. No
+  test can catch it, because Testcontainers mounts no data volume at all; the mount is the one
+  thing the suite cannot see. So the rule sits in `CLAUDE.md` beside the image, the comment
+  sits beside the mount, and the data moves by `pg_dump -Fc` into a fresh volume, with the old
+  one kept until the offer count matches. A dump also carries `flyway_schema_history`, so
+  nothing re-runs and no migration's checksum is touched.
 - **2000 is in the column because it is the widest vector pgvector will index.** An index
   cannot be built on a vector of unstated width, so the width is part of the schema and a
   model that returns fewer is refused at the seam with both numbers in the sentence. The

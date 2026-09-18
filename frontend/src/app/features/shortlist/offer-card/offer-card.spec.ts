@@ -31,6 +31,7 @@ function entry(id: number): ShortlistEntry {
             language: 'de',
             fullText: null,
             packageDir: null,
+          ingestedAt: '2026-09-02T05:12:00Z',
             archivedAt: null,
             archiveSource: null,
         },

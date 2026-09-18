@@ -379,34 +379,56 @@ export class OfferDetail implements OnInit {
         }
     }
 
-    /**
-     * Every extracted field, including the ones that came back empty. A missing
-     * rate is information — it means enrichment did not reach the original ad —
-     * and hiding the row would make the gap invisible.
-     */
   /** A stored day as the chosen language writes one, or null when there is none. */
   private day(value: string | null): string | null {
     return this.dayPipe.transform(value);
   }
 
+  /**
+   * Every extracted field, including the ones that came back empty. A missing
+   * rate is information — it means enrichment did not reach the original ad —
+   * and hiding the row would make the gap invisible.
+   */
     protected readonly fields = computed<readonly Field[]>(() => {
         const offer = this.entry()?.offer;
         if (offer === undefined) {
             return [];
         }
         return [
-          // First, because it is the only row that says where this offer came from rather
-          // than what it says. The portal below it is who advertises the project; this is
-          // the configured source that delivered it, named as the sources screen names it.
+          // Four blocks, in the order a person reads the panel: where this came from,
+          // what the work is, when it runs, and what this tool wrote about the row.
+          // Nothing separates them in the markup — the grid is one list — so the order is
+          // the only thing carrying the grouping, which is why a new row belongs inside a
+          // block and never simply at the end, and why every block holds an even number
+          // of fields: the grid is two columns wide, and an odd block folds the next
+          // one's first row up beside its own last.
+
+          // Where it came from. First, because these are the only rows that say that
+          // rather than what the advert says: `portal` is who advertises the project,
+          // `source` is the configured input that delivered it, named as the sources
+          // screen names it, and the external id is the ad itself, one click away.
           {label: 'field.source', value: offer.sourceName},
             {label: 'field.portal', value: offer.portal},
             {label: 'field.agency', value: offer.agency},
+          this.externalId(offer),
+
+          // What the work is. The four terms that decide whether the rest is worth
+          // reading; `workload` sits with the remote share rather than after the
+          // deadline, because both answer "how much of the week", not "when".
             {label: 'field.location', value: offer.location},
             {
                 label: 'field.remoteShare',
                 value: offer.remotePercent === null ? null : `${offer.remotePercent} %`,
             },
+          {label: 'field.workload', value: offer.workload},
             {label: 'field.rate', value: offer.rateEur === null ? null : `${offer.rateEur} €/h`},
+
+          // When it runs. Four rows rather than three, because the panel is a
+          // two-column grid: a block with an odd number of fields pushes the next one's
+          // first row up beside its own last, and the grouping the order carries is then
+          // broken exactly where it is supposed to be read. `published` closes this block
+          // for that reason and because it belongs to the advert's own timeline.
+          //
           // The phrase first, the resolved value only when there is no phrase. "ab sofort"
           // is what the advert said and is often the whole truth; a day nobody can quote it
           // for would be the one line on this panel that cannot be checked against the ad
@@ -415,12 +437,17 @@ export class OfferDetail implements OnInit {
           {label: 'field.start', value: offer.startText ?? this.day(offer.startsOn)},
             {label: 'field.duration', value: offer.duration},
           {label: 'field.deadline', value: offer.applyByText ?? this.day(offer.applyBy)},
-            {label: 'field.workload', value: offer.workload},
-          // Formatted like the two rows above it. It was the server's `YYYY-MM-DD`, which
-          // sat on the same panel as a start the reader can actually read.
           {label: 'field.published', value: this.day(offer.publishedOn)},
+
+          // What this tool wrote about the row rather than what the advert says. The
+          // ingest day opens the last block and so sits diagonally under `published`,
+          // which is as close as a two-column grid gets: the two are only useful read
+          // against each other, an advert published in July and first seen here in
+          // September being a stale listing that neither row states alone.
+          {label: 'field.ingested', value: this.day(offer.ingestedAt)},
+          // The language of the ad, the one thing that picks a CV. It ends the panel
+          // because it is read once, not compared with anything.
             {label: 'field.language', value: offer.language},
-            this.externalId(offer),
         ];
     });
 

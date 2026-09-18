@@ -59,6 +59,7 @@
     "duration": "Duration",
     "workload": "Workload",
     "published": "Published",
+    "ingested": "Ingested",
     "language": "Language",
     "externalId": "External id",
     "tags": "Tags",

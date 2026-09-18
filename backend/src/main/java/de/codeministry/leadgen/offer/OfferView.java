@@ -28,6 +28,10 @@ import java.util.List;
  * @param sourceName    the source this row was read from, as {@code sources.yaml} names it and as
  *                      the sources screen lists it. Provenance rather than content: {@code portal} is
  *                      who advertises the project, this is which configured input delivered it here.
+ * @param ingestedAt    when the pipeline first wrote this row. The counterpart of
+ *                      {@code publishedOn}: that one is what the advert says about itself, this one is
+ *                      when this tool saw it. Never null — it is written once at ingest and no later
+ *                      stage touches it, which is also why the {@code fresh} sort key can rest on it.
  * @param archivedAt    when this left the working list, or null while it is still on it.
  * @param archiveSource who took it off, or why it is exempt from the age rule. Carried
  *                      beside the timestamp because the two together are four states and not two, and a
@@ -58,5 +62,6 @@ public record OfferView(
         String language,
         String fullText,
         String packageDir,
+        Instant ingestedAt,
         Instant archivedAt,
         String archiveSource) {}

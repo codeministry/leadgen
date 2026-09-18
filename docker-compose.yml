@@ -10,20 +10,36 @@
 # applies the defaults below instead.
 services:
   postgres:
-    # The official postgres image with pgvector added — same version, same data directory.
-    # Deduplication compares two adverts that are not identical, which is a vector
-    # comparison, and `V22` creates the extension at startup. A plain postgres image fails
-    # that migration with an error naming the extension rather than the image.
-    image: pgvector/pgvector:pg17
+    # The official postgres image with pgvector added. Deduplication compares two adverts
+    # that are not identical, which is a vector comparison, and `V22` creates the extension
+    # at startup. A plain postgres image fails that migration with an error naming the
+    # extension rather than the image.
+    #
+    # The tag is pinned to an exact pgvector and an exact major, and deliberately not left
+    # floating on `pg18`. A floating tag swaps the extension binary under a live data
+    # directory on the next `docker compose pull`, and that is a change nobody can see in a
+    # diff. Bumping it is an edit here, together with the two lines below.
+    image: pgvector/pgvector:0.8.6-pg18
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-leadgen}
       POSTGRES_USER: ${POSTGRES_USER:-leadgen}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-leadgen}
+      # Stated here although the image already sets it, because the mount below has to hit
+      # exactly this path and the two are otherwise decided in different places. Postgres 18
+      # scoped the data directory by major version; on 19 both lines move together or not at
+      # all.
+      PGDATA: /var/lib/postgresql/18/docker
     env_file:
       - path: .env
         required: true
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      # `/var/lib/postgresql`, NOT `/var/lib/postgresql/data`. Postgres 18 moved `PGDATA`
+      # into a version-scoped subdirectory and the declared VOLUME up one level, and the old
+      # target does not fail — it is simply ignored. The container then initdbs an empty
+      # cluster somewhere else, Flyway runs every migration green, the API comes up healthy
+      # with zero offers, and the real data sits untouched and invisible in this volume.
+      # Nothing in the log says so; the row count is the only symptom.
+      - postgres-data:/var/lib/postgresql
     ports:
       # The container side is fixed at 5432: Postgres binds that port inside the
       # container whatever the host side is. Making both sides variable publishes a

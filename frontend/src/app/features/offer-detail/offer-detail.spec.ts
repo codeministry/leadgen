@@ -45,6 +45,7 @@ function entry(
             language: 'de',
             fullText,
             packageDir: null,
+          ingestedAt: '2026-09-02T05:12:00Z',
             archivedAt: null,
             archiveSource: null,
         },
@@ -97,6 +98,42 @@ describe('OfferDetail', () => {
   function reveals(fixture: ComponentFixture<OfferDetail>): HTMLButtonElement[] {
     return Array.from(fixture.nativeElement.querySelectorAll('.ad-reveal'));
   }
+
+  it('reads the panel in four blocks, and says when the offer was read in', () => {
+    // The whole order, not a pair of neighbours: nothing in the markup separates the
+    // blocks — the grid is one list — so this sequence is the only thing carrying the
+    // grouping, and a row appended at the end would land in the wrong one with every
+    // other assertion still green.
+    const fixture = render(entry(9, null));
+    const rows: HTMLElement[] = Array.from(fixture.nativeElement.querySelectorAll('.fields .field'));
+    const labels = rows.map((row) => row.querySelector('dt')!.textContent!.trim());
+
+    expect(labels).toEqual([
+      // where it came from
+      'Source',
+      'Portal',
+      'Agency',
+      'External id',
+      // what the work is
+      'Location',
+      'Remote share',
+      'Workload',
+      'Rate',
+      // when it runs — four, so the next block starts on a fresh grid row
+      'Start',
+      'Duration',
+      'Application deadline',
+      'Published',
+      // what this tool wrote about the row
+      'Ingested',
+      'Language',
+    ]);
+
+    // The two days are only useful read against each other, and both are written the way
+    // the active language writes a day rather than as the server's `YYYY-MM-DD`.
+    const ingested = rows[labels.indexOf('Ingested')];
+    expect(ingested.querySelector('dd')!.textContent!.trim()).toBe('Sep 2, 2026');
+  });
 
   it('offers a way out only where the route says there is one', () => {
     // `closeTo` comes from the route's data, so the screen that owns the reading column
