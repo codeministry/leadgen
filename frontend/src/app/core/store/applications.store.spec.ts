@@ -64,9 +64,9 @@ describe('ApplicationsStore', () => {
 
     function open(applications: readonly ApplicationView[]): void {
         dispatch.opened();
-        http.expectOne('/api/applications').flush(applications);
-        http.expectOne('/api/applications/lanes').flush(LANES);
-      http.expectOne('/api/applications/transitions').flush(TRANSITIONS);
+        http.expectOne('/api/v1/applications').flush(applications);
+        http.expectOne('/api/v1/applications/lanes').flush(LANES);
+      http.expectOne('/api/v1/applications/transitions').flush(TRANSITIONS);
     }
 
     it('groups the board by the lanes the server states, not by a copy of the enum', () => {
@@ -91,7 +91,7 @@ describe('ApplicationsStore', () => {
         open([application()]);
 
         dispatch.changed({id: 1, update: {status: 'SENT'}});
-        const request = http.expectOne('/api/applications/1');
+        const request = http.expectOne('/api/v1/applications/1');
         expect(request.request.method).toBe('PATCH');
         expect(store.saving()).toBe(1);
 
@@ -123,9 +123,9 @@ describe('ApplicationsStore', () => {
 
     shortlist.archived(archiveAnswer(7, null));
 
-    http.expectOne('/api/applications').flush([application()]);
-    http.expectOne('/api/applications/lanes').flush(LANES);
-    http.expectOne('/api/applications/transitions').flush(TRANSITIONS);
+    http.expectOne('/api/v1/applications').flush([application()]);
+    http.expectOne('/api/v1/applications/lanes').flush(LANES);
+    http.expectOne('/api/v1/applications/transitions').flush(TRANSITIONS);
     expect(store.applications().map((a) => a.offerId)).toEqual([7]);
   });
 
@@ -142,7 +142,7 @@ describe('ApplicationsStore', () => {
         expect(store.followUpsDue()).toBe(1);
 
         dispatch.changed({id: 1, update: {status: 'SENT'}});
-        http.expectOne('/api/applications/1').flush('nope', {status: 500, statusText: 'Error'});
+        http.expectOne('/api/v1/applications/1').flush('nope', {status: 500, statusText: 'Error'});
 
         expect(store.error()).toBe('error.statusSave');
         expect(store.saving()).toBeNull();
@@ -173,7 +173,7 @@ describe('ApplicationsStore', () => {
         // real row until the next reload.
         expect(store.applications()[0]?.sentOn).toBeNull();
 
-        http.expectOne('/api/applications/1').flush(application({status: 'SENT', sentOn: '2026-09-17'}));
+        http.expectOne('/api/v1/applications/1').flush(application({status: 'SENT', sentOn: '2026-09-17'}));
 
         expect(store.applications()[0]?.sentOn).toBe('2026-09-17');
     });
@@ -184,7 +184,7 @@ describe('ApplicationsStore', () => {
         dispatch.changed({id: 1, update: {status: 'LOST'}});
         expect(store.applications()[0]?.status).toBe('LOST');
 
-        http.expectOne('/api/applications/1').flush('nope', {status: 500, statusText: 'Error'});
+        http.expectOne('/api/v1/applications/1').flush('nope', {status: 500, statusText: 'Error'});
 
         // The whole row, not only the status: the optimistic patch is undone by restoring what
         // was there, so nothing it touched can survive the failure.
@@ -225,7 +225,7 @@ describe('ApplicationsStore', () => {
     open([application()]);
 
     dispatch.changed({id: 1, update: {status: 'SENT'}});
-    http.expectOne('/api/applications/1').flush('cannot skip PACKAGED', {
+    http.expectOne('/api/v1/applications/1').flush('cannot skip PACKAGED', {
       status: 409,
       statusText: 'Conflict',
     });
@@ -243,24 +243,24 @@ describe('ApplicationsStore', () => {
       open([application({status: 'NEW', packageDir: null})]);
 
       dispatch.changed({id: 1, update: {status: 'PACKAGED'}});
-      http.expectOne('/api/applications/1')
+      http.expectOne('/api/v1/applications/1')
         .flush(application({status: 'PACKAGED', packageDir: null}));
 
       vi.advanceTimersByTime(1_300);
-      http.expectOne('/api/applications').flush([
+      http.expectOne('/api/v1/applications').flush([
         application({status: 'PACKAGED', packageDir: null}),
       ]);
       expect(store.applications()[0]?.packageDir).toBeNull();
 
       vi.advanceTimersByTime(2_000);
-      http.expectOne('/api/applications').flush([
+      http.expectOne('/api/v1/applications').flush([
         application({status: 'PACKAGED', packageDir: '/packages/2026-09-02_acme_x'}),
       ]);
       expect(store.applications()[0]?.packageDir).toBe('/packages/2026-09-02_acme_x');
 
       // And it stops there rather than spending its remaining attempts.
       vi.advanceTimersByTime(10_000);
-      http.expectNone('/api/applications');
+      http.expectNone('/api/v1/applications');
     } finally {
       vi.useRealTimers();
     }

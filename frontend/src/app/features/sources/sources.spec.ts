@@ -87,14 +87,14 @@ describe('Sources', () => {
 
   async function openList(view: SourcesView = SOURCES): Promise<RouterTestingHarness> {
     const harness = await RouterTestingHarness.create('/sources');
-    http.expectOne('/api/sources').flush(view);
+    http.expectOne('/api/v1/sources').flush(view);
     harness.detectChanges();
     return harness;
   }
 
   /** The panel's own request, matched on the path so the `runs` parameter cannot fail it. */
   function flushDetail(): void {
-    http.expectOne((request) => request.url === '/api/sources/demo-newsletter').flush(DETAIL);
+    http.expectOne((request) => request.url === '/api/v1/sources/demo-newsletter').flush(DETAIL);
   }
 
   it('states the file once rather than in every row', async () => {
@@ -113,7 +113,7 @@ describe('Sources', () => {
     // read as "no sources configured" — on the screen whose whole job is to make a
     // misconfigured source visible.
     const harness = await RouterTestingHarness.create('/sources');
-    http.expectOne('/api/sources').flush('nope', {status: 500, statusText: 'Server Error'});
+    http.expectOne('/api/v1/sources').flush('nope', {status: 500, statusText: 'Server Error'});
     harness.detectChanges();
 
     expect(harness.routeNativeElement!.querySelector('[role="alert"]')).not.toBeNull();
@@ -130,7 +130,7 @@ describe('Sources', () => {
     flushDetail();
     harness.detectChanges();
 
-    http.expectNone('/api/sources');
+    http.expectNone('/api/v1/sources');
     expect(harness.routeNativeElement!.textContent).toContain('demo-newsletter');
   });
 
@@ -169,7 +169,7 @@ describe('Sources', () => {
     );
     TestBed.tick();
 
-    http.expectOne('/api/sources').flush(SOURCES);
+    http.expectOne('/api/v1/sources').flush(SOURCES);
     flushDetail();
   });
 

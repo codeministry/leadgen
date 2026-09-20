@@ -60,7 +60,7 @@ describe('Review', () => {
 
   async function openWithSelection(): Promise<RouterTestingHarness> {
     const harness = await RouterTestingHarness.create(`/review?doc=${DOCUMENT_NAME}`);
-    http.expectOne('/api/sources/manual/pending').flush([PENDING]);
+    http.expectOne('/api/v1/sources/manual/pending').flush([PENDING]);
     harness.detectChanges();
     return harness;
   }
@@ -79,7 +79,7 @@ describe('Review', () => {
     harness.detectChanges();
 
     const request = http.expectOne(
-      `/api/sources/manual/pending/${encodeURIComponent(DOCUMENT_NAME)}/confirm`,
+      `/api/v1/sources/manual/pending/${encodeURIComponent(DOCUMENT_NAME)}/confirm`,
     );
     expect(request.request.method).toBe('POST');
     request.flush(PENDING);
@@ -98,7 +98,7 @@ describe('Review', () => {
     harness.detectChanges();
 
     const request = http.expectOne(
-      `/api/sources/manual/pending/${encodeURIComponent(DOCUMENT_NAME)}`,
+      `/api/v1/sources/manual/pending/${encodeURIComponent(DOCUMENT_NAME)}`,
     );
     expect(request.request.method).toBe('DELETE');
     request.flush(null);

@@ -27,7 +27,7 @@ class StatusControllerTest {
 
     @Test
     void returnsApplicationNameAndVersion() {
-        Assertions.assertThat(mvc.get().uri("/api/status"))
+        Assertions.assertThat(mvc.get().uri("/api/v1/status"))
                 .hasStatusOk()
                 .bodyJson()
             .isEqualTo("{\"application\":\"lead-generation\",\"version\":\"0.4.0\"}");

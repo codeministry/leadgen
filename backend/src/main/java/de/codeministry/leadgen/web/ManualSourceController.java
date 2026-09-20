@@ -31,7 +31,7 @@ import java.util.List;
  * address — the same invariant the packaging stage is guarded by.
  */
 @RestController
-@RequestMapping("/api/sources/manual")
+@RequestMapping("/api/v1/sources/manual")
 class ManualSourceController {
 
     private final ManualUploadService uploads;

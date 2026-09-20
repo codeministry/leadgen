@@ -64,7 +64,7 @@ class OfferControllerTest {
         given(offers.find(1L)).willReturn(Optional.of(entry(Instant.parse("2026-09-02T08:00:00Z"), "MANUAL")));
 
         var body = assertThat(mvc.patch()
-                        .uri("/api/offers/1")
+                        .uri("/api/v1/offers/1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"archived\":true}"))
                 .hasStatusOk()
@@ -82,7 +82,7 @@ class OfferControllerTest {
         given(offers.find(1L)).willReturn(Optional.of(entry(null, "RESTORED")));
 
         assertThat(mvc.patch()
-                        .uri("/api/offers/1")
+                        .uri("/api/v1/offers/1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"archived\":false}"))
                 .hasStatusOk();
@@ -95,7 +95,7 @@ class OfferControllerTest {
         given(archive.setArchived(anyLong(), anyBoolean())).willReturn(false);
 
         assertThat(mvc.patch()
-                        .uri("/api/offers/999")
+                        .uri("/api/v1/offers/999")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"archived\":true}"))
                 .hasStatus(404);
@@ -106,7 +106,7 @@ class OfferControllerTest {
         // `Boolean` rather than `boolean`, so an absent field is a validation failure
         // naming the field instead of a Jackson error naming the type.
         assertThat(mvc.patch()
-                        .uri("/api/offers/1")
+                        .uri("/api/v1/offers/1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
                 .hasStatus4xxClientError();
@@ -117,7 +117,7 @@ class OfferControllerTest {
         given(archive.setArchived(anyCollection(), anyBoolean())).willReturn(new ArchiveResult(3, 3, 0));
 
         assertThat(mvc.post()
-            .uri("/api/offers/archive")
+            .uri("/api/v1/offers/archive")
             .contentType(MediaType.APPLICATION_JSON)
             .content("{\"ids\":[1,2,3]}"))
             .hasStatusOk();
@@ -132,7 +132,7 @@ class OfferControllerTest {
         given(archive.setArchived(anyCollection(), anyBoolean())).willReturn(new ArchiveResult(2, 2, 1));
 
         assertThat(mvc.post()
-            .uri("/api/offers/archive")
+            .uri("/api/v1/offers/archive")
             .contentType(MediaType.APPLICATION_JSON)
             .content("{\"ids\":[1,2]}"))
             .hasStatusOk()
@@ -151,7 +151,7 @@ class OfferControllerTest {
         given(archive.setArchived(anyCollection(), anyBoolean())).willReturn(new ArchiveResult(3, 2, 0));
 
         assertThat(mvc.post()
-            .uri("/api/offers/archive")
+            .uri("/api/v1/offers/archive")
             .contentType(MediaType.APPLICATION_JSON)
             .content("{\"ids\":[1,2,999]}"))
             .hasStatusOk()
@@ -166,13 +166,13 @@ class OfferControllerTest {
         // list, and a body with no list at all — the second one reaches the compact
         // constructor with null before `@NotEmpty` ever runs.
         assertThat(mvc.post()
-            .uri("/api/offers/archive")
+            .uri("/api/v1/offers/archive")
             .contentType(MediaType.APPLICATION_JSON)
             .content("{\"ids\":[]}"))
             .hasStatus4xxClientError();
 
         assertThat(mvc.post()
-            .uri("/api/offers/archive")
+            .uri("/api/v1/offers/archive")
             .contentType(MediaType.APPLICATION_JSON)
             .content("{}"))
             .hasStatus4xxClientError();
@@ -189,7 +189,7 @@ class OfferControllerTest {
             .collect(Collectors.joining(","));
 
         assertThat(mvc.post()
-            .uri("/api/offers/archive")
+            .uri("/api/v1/offers/archive")
             .contentType(MediaType.APPLICATION_JSON)
             .content("{\"ids\":[" + ids + "]}"))
             .hasStatus4xxClientError();
@@ -202,7 +202,7 @@ class OfferControllerTest {
         given(archive.setArchived(anyCollection(), anyBoolean())).willReturn(new ArchiveResult(2, 2, 0));
 
         assertThat(mvc.post()
-            .uri("/api/offers/archive")
+            .uri("/api/v1/offers/archive")
             .contentType(MediaType.APPLICATION_JSON)
             .content("{\"ids\":[1,1,2]}"))
             .hasStatusOk();
@@ -215,7 +215,7 @@ class OfferControllerTest {
         // The injection test belongs here, at the edge, because this is where a string stops
         // being a string: the enum is the allowlist, so a name nobody defined never composes
         // an ORDER BY.
-        assertThat(mvc.get().uri("/api/offers").param("sort", "score; DROP TABLE offer"))
+        assertThat(mvc.get().uri("/api/v1/offers").param("sort", "score; DROP TABLE offer"))
             .hasStatus(org.springframework.http.HttpStatus.BAD_REQUEST);
 
         then(offers).should(never()).shortlist(any());
@@ -223,7 +223,7 @@ class OfferControllerTest {
 
     @Test
     void refusesAStartWindowNobodyDefined() {
-        assertThat(mvc.get().uri("/api/offers").param("startWindow", "yesterday"))
+        assertThat(mvc.get().uri("/api/v1/offers").param("startWindow", "yesterday"))
             .hasStatus(org.springframework.http.HttpStatus.BAD_REQUEST);
 
         then(offers).should(never()).shortlist(any());
@@ -235,7 +235,7 @@ class OfferControllerTest {
             .willReturn(java.util.Optional.of(
                 new AdvertAnswer("rate", true, "95 EUR.", "Die Vergütung liegt bei 95 EUR.", "a-model")));
 
-        assertThat(mvc.post().uri("/api/offers/42/ask").param("question", "rate"))
+        assertThat(mvc.post().uri("/api/v1/offers/42/ask").param("question", "rate"))
             .hasStatusOk()
             .bodyJson()
             .extractingPath("$.quote")
@@ -246,7 +246,7 @@ class OfferControllerTest {
     void refusesAQuestionNobodyDefinedWithoutEverReachingTheModel() {
         // A question the server silently replaced would answer about something the reader did
         // not ask, and the answer would look exactly as authoritative.
-        assertThat(mvc.post().uri("/api/offers/42/ask").param("question", "salary"))
+        assertThat(mvc.post().uri("/api/v1/offers/42/ask").param("question", "salary"))
             .hasStatus(org.springframework.http.HttpStatus.BAD_REQUEST);
 
         then(asks).should(never()).ask(anyLong(), any());
@@ -258,7 +258,7 @@ class OfferControllerTest {
         // budget are all "nobody could ask", which the screen must not draw like a quiet advert.
         given(asks.ask(anyLong(), any())).willReturn(java.util.Optional.empty());
 
-        assertThat(mvc.post().uri("/api/offers/42/ask").param("question", "onsite"))
+        assertThat(mvc.post().uri("/api/v1/offers/42/ask").param("question", "onsite"))
             .hasStatus(org.springframework.http.HttpStatus.CONFLICT)
             .bodyText()
             .contains("budget");
@@ -268,7 +268,7 @@ class OfferControllerTest {
     void passesTheRelatednessAxisThroughAsTheTypesItIs() {
         given(offers.shortlist(any())).willReturn(new ShortlistPage(List.of(), null, 0, 0, 0, List.of(), null, null));
 
-        assertThat(mvc.get().uri("/api/offers").param("similar", "42")).hasStatusOk();
+        assertThat(mvc.get().uri("/api/v1/offers").param("similar", "42")).hasStatusOk();
 
         var captured = org.mockito.ArgumentCaptor.forClass(ShortlistQuery.class);
         then(offers).should().shortlist(captured.capture());
@@ -281,7 +281,7 @@ class OfferControllerTest {
         // The same shape the score axis has: two spellings of one narrowing is not "both at
         // once", because the server would have to pick a neighbourhood around two different
         // points and the caller could not tell which one it got.
-        assertThat(mvc.get().uri("/api/offers").param("semantic", "kubernetes").param("similar", "42"))
+        assertThat(mvc.get().uri("/api/v1/offers").param("semantic", "kubernetes").param("similar", "42"))
             .hasStatus(org.springframework.http.HttpStatus.BAD_REQUEST);
 
         then(offers).should(never()).shortlist(any());
@@ -296,7 +296,7 @@ class OfferControllerTest {
             .willThrow(new de.codeministry.leadgen.retrieval.SemanticFilter.RetrievalUnavailable(
                 "this installation does not search by meaning: the retrieval index is switched off"));
 
-        assertThat(mvc.get().uri("/api/offers").param("semantic", "kubernetes"))
+        assertThat(mvc.get().uri("/api/v1/offers").param("semantic", "kubernetes"))
             .hasStatus(org.springframework.http.HttpStatus.BAD_REQUEST)
             .bodyText()
             .contains("does not search by meaning");
@@ -307,7 +307,7 @@ class OfferControllerTest {
         given(offers.shortlist(any())).willReturn(new ShortlistPage(List.of(), null, 0, 0, 0, List.of(), null, null));
 
         assertThat(mvc.get()
-            .uri("/api/offers")
+            .uri("/api/v1/offers")
             .param("sort", "deadline")
             .param("startWindow", "soon")
             .param("minMonths", "6")
@@ -324,7 +324,7 @@ class OfferControllerTest {
 
     @Test
     void refusesAScoreStateNobodyDefined() {
-        assertThat(mvc.get().uri("/api/offers").param("scoreState", "pending"))
+        assertThat(mvc.get().uri("/api/v1/offers").param("scoreState", "pending"))
             .hasStatus(org.springframework.http.HttpStatus.BAD_REQUEST);
 
         then(offers).should(never()).shortlist(any());
@@ -335,7 +335,7 @@ class OfferControllerTest {
         // Intersected instead of refused this returns rows, and a short list after filtering
         // is indistinguishable from a quiet day on the market. The edge is where it has to be
         // caught, because nothing further in reads the request as a request.
-        assertThat(mvc.get().uri("/api/offers").param("band", "shortlist").param("minScore", "60"))
+        assertThat(mvc.get().uri("/api/v1/offers").param("band", "shortlist").param("minScore", "60"))
             .hasStatus(org.springframework.http.HttpStatus.BAD_REQUEST);
 
         then(offers).should(never()).shortlist(any());
@@ -346,7 +346,7 @@ class OfferControllerTest {
         given(offers.shortlist(any())).willReturn(new ShortlistPage(List.of(), null, 0, 0, 0, List.of(), null, null));
 
         assertThat(mvc.get()
-            .uri("/api/offers")
+            .uri("/api/v1/offers")
             .param("minScore", "40")
             .param("maxScore", "80")
             .param("portal", "portal-b", "portal-c"))
@@ -365,7 +365,7 @@ class OfferControllerTest {
         // than one still binds — this is what says so.
         given(offers.shortlist(any())).willReturn(new ShortlistPage(List.of(), null, 0, 0, 0, List.of(), null, null));
 
-        assertThat(mvc.get().uri("/api/offers").param("portal", "portal-c")).hasStatusOk();
+        assertThat(mvc.get().uri("/api/v1/offers").param("portal", "portal-c")).hasStatusOk();
 
         var captured = org.mockito.ArgumentCaptor.forClass(ShortlistQuery.class);
         then(offers).should().shortlist(captured.capture());
@@ -376,7 +376,7 @@ class OfferControllerTest {
     void defaultsToTheScoreOrderWhenNothingAsksForAnything() {
         given(offers.shortlist(any())).willReturn(new ShortlistPage(List.of(), null, 0, 0, 0, List.of(), null, null));
 
-        assertThat(mvc.get().uri("/api/offers")).hasStatusOk();
+        assertThat(mvc.get().uri("/api/v1/offers")).hasStatusOk();
 
         var captured = org.mockito.ArgumentCaptor.forClass(ShortlistQuery.class);
         then(offers).should().shortlist(captured.capture());

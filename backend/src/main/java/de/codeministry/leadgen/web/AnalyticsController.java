@@ -23,7 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
  * and the two would disagree the first time either changed.
  */
 @RestController
-@RequestMapping("/api/analytics")
+@RequestMapping("/api/v1/analytics")
 class AnalyticsController {
 
     private final AnalyticsQueryService analytics;

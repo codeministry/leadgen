@@ -69,9 +69,9 @@ describe('Pipeline', () => {
 
   /** The one pair of requests the board makes when it opens. */
   function flushBoard(): void {
-    http.expectOne('/api/applications').flush([APPLICATION]);
-    http.expectOne('/api/applications/lanes').flush(LANES);
-    http.expectOne('/api/applications/transitions').flush(TRANSITIONS);
+    http.expectOne('/api/v1/applications').flush([APPLICATION]);
+    http.expectOne('/api/v1/applications/lanes').flush(LANES);
+    http.expectOne('/api/v1/applications/transitions').flush(TRANSITIONS);
   }
 
   async function openBoard(): Promise<RouterTestingHarness> {
@@ -91,8 +91,8 @@ describe('Pipeline', () => {
     await harness.navigateByUrl('/pipeline/7');
     harness.detectChanges();
 
-    http.expectNone('/api/applications');
-    http.expectNone('/api/applications/lanes');
+    http.expectNone('/api/v1/applications');
+    http.expectNone('/api/v1/applications/lanes');
     expect(harness.routeNativeElement?.textContent).toContain('detail');
   });
 
@@ -113,7 +113,7 @@ describe('Pipeline', () => {
 
     expect(TestBed.inject(Router).url).toBe('/pipeline');
     // Closing is a navigation on this screen and nothing else: the board is not refetched.
-    http.expectNone('/api/applications');
+    http.expectNone('/api/v1/applications');
   });
 
   it('leaves Escape alone while nothing is open, and inside a status picker', async () => {
@@ -158,7 +158,7 @@ describe('Pipeline', () => {
 
     // The picked status is saved, and picking one is not a navigation: the card's link
     // must not have been followed on the way.
-    const patch = http.expectOne('/api/applications/4');
+    const patch = http.expectOne('/api/v1/applications/4');
     expect(patch.request.method).toBe('PATCH');
     expect(patch.request.body).toEqual({status: 'SENT'});
     expect(TestBed.inject(Router).url).toBe('/pipeline');
@@ -189,7 +189,7 @@ describe('Pipeline', () => {
     drop(zones[0]!, zones[3]!);
     harness.detectChanges();
 
-    const patch = http.expectOne('/api/applications/4');
+    const patch = http.expectOne('/api/v1/applications/4');
     expect(patch.request.method).toBe('PATCH');
     expect(patch.request.body).toEqual({status: 'SENT'});
     // The card is in the target zone before the answer is flushed.
@@ -207,7 +207,7 @@ describe('Pipeline', () => {
     drop(zones[0]!, zones[0]!);
     harness.detectChanges();
 
-    http.expectNone('/api/applications/4');
+    http.expectNone('/api/v1/applications/4');
   });
 
   it('opens the state zones on the press, not on the drag', async () => {

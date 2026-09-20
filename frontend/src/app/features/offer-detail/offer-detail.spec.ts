@@ -75,10 +75,10 @@ describe('OfferDetail', () => {
         const fixture = TestBed.createComponent(OfferDetail);
         fixture.componentRef.setInput('id', String(payload.offer.id));
         fixture.detectChanges();
-        http.expectOne(`/api/offers/${payload.offer.id}`).flush(payload);
+        http.expectOne(`/api/v1/offers/${payload.offer.id}`).flush(payload);
         // Both are answered with an empty list rather than left open: the application panel
         // shares this page, and an unanswered request leaves its computed reading `undefined`.
-        http.match((request) => request.url.startsWith('/api/applications')).forEach((request) => request.flush([]));
+        http.match((request) => request.url.startsWith('/api/v1/applications')).forEach((request) => request.flush([]));
         fixture.detectChanges();
         return fixture;
     }
@@ -251,8 +251,8 @@ describe('OfferDetail', () => {
     // the next one's furniture for a decision nobody made about it.
     fixture.componentRef.setInput('id', '7');
     fixture.detectChanges();
-    http.expectOne('/api/offers/7').flush(entry(7, null, blocks));
-    http.match((request) => request.url.startsWith('/api/applications')).forEach((request) => request.flush([]));
+    http.expectOne('/api/v1/offers/7').flush(entry(7, null, blocks));
+    http.match((request) => request.url.startsWith('/api/v1/applications')).forEach((request) => request.flush([]));
     fixture.detectChanges();
 
     expect(ad(fixture).textContent).not.toContain('Save to watchlist');

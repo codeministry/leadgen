@@ -98,14 +98,14 @@ describe('ShortlistStore', () => {
         // The store injects `ScoringModelStore`, which asks the server which judges it may
         // offer as soon as it exists. Nothing here is about that, but it is a real request and
         // `verify()` counts it.
-        http.expectOne('/api/scoring-models').flush({effective: null, options: []});
+        http.expectOne('/api/v1/scoring-models').flush({effective: null, options: []});
     });
 
     afterEach(() => http.verify());
 
     function openList(entries: readonly ShortlistEntry[] = [entry(1), entry(2)]): void {
       dispatch.opened(NO_FILTERS);
-        http.expectOne((request) => request.url === '/api/offers').flush(page(entries));
+        http.expectOne((request) => request.url === '/api/v1/offers').flush(page(entries));
     }
 
   it('starts a new list when the sort changes, so a cursor cannot cross sorts', () => {
@@ -115,7 +115,7 @@ describe('ShortlistStore', () => {
     // one of the filters, and `opened` already empties the entries and the cursor.
     dispatch.opened(NO_FILTERS);
     http
-      .expectOne((request) => request.url === '/api/offers')
+      .expectOne((request) => request.url === '/api/v1/offers')
       .flush({...page([entry(1), entry(2)]), nextCursor: 'score|88|1|1'});
     expect(store.cursor()).toBe('score|88|1|1');
 
@@ -123,7 +123,7 @@ describe('ShortlistStore', () => {
 
     expect(store.entries()).toEqual([]);
     expect(store.cursor()).toBeNull();
-    const request = http.expectOne((call) => call.url === '/api/offers');
+    const request = http.expectOne((call) => call.url === '/api/v1/offers');
     expect(request.request.params.get('sort')).toBe('start');
     expect(request.request.params.has('cursor')).toBe(false);
     request.flush(page([entry(3)]));
@@ -135,13 +135,13 @@ describe('ShortlistStore', () => {
     // in the first place, and it came back on the other side of the wire.
     dispatch.opened(NO_FILTERS);
     http
-      .expectOne((request) => request.url === '/api/offers')
+      .expectOne((request) => request.url === '/api/v1/offers')
       .flush({...page([entry(1)]), matched: 120, unscored: 7, nextCursor: 'score|88|1|1'});
 
     dispatch.moreRequested();
     // What a server with the page clause bleeding into the count would answer.
     http
-      .expectOne((request) => request.url === '/api/offers')
+      .expectOne((request) => request.url === '/api/v1/offers')
       .flush({...page([entry(2)]), matched: 1, unscored: 0, nextCursor: null});
 
     expect(store.entries().length).toBe(2);
@@ -155,7 +155,7 @@ describe('ShortlistStore', () => {
     // again at the top — news the reader did not ask about, delivered by moving them.
     dispatch.opened(NO_FILTERS);
     http
-      .expectOne((request) => request.url === '/api/offers')
+      .expectOne((request) => request.url === '/api/v1/offers')
       .flush({...page([entry(1), entry(2)]), nextCursor: 'score|88|1|1'});
     expect(store.stale()).toBe(false);
 
@@ -166,21 +166,21 @@ describe('ShortlistStore', () => {
     expect(store.cursor()).toBe('score|88|1|1');
     // The funnel is read again either way: four numbers above the column, and nothing
     // about them is lost by reading them twice.
-    http.expectOne('/api/offers/funnel').flush({stages: [], survived: 2, considered: 2});
+    http.expectOne('/api/v1/offers/funnel').flush({stages: [], survived: 2, considered: 2});
   });
 
   it('clears the flag when a page actually arrives, whoever asked for it', () => {
     // Self-correcting, and it is what stops this browser's own run from leaving the hint
     // behind: the reload `ingestEvents.finished` starts clears it with no sequencing.
     dispatch.opened(NO_FILTERS);
-    http.expectOne((request) => request.url === '/api/offers').flush(page([entry(1)]));
+    http.expectOne((request) => request.url === '/api/v1/offers').flush(page([entry(1)]));
 
     refresh.requested('tab-focused');
-    http.expectOne('/api/offers/funnel').flush({stages: [], survived: 1, considered: 1});
+    http.expectOne('/api/v1/offers/funnel').flush({stages: [], survived: 1, considered: 1});
     expect(store.stale()).toBe(true);
 
     dispatch.opened(NO_FILTERS);
-    http.expectOne((request) => request.url === '/api/offers').flush(page([entry(1), entry(2)]));
+    http.expectOne((request) => request.url === '/api/v1/offers').flush(page([entry(1), entry(2)]));
 
     expect(store.stale()).toBe(false);
   });
@@ -191,7 +191,7 @@ describe('ShortlistStore', () => {
         openList();
 
         dispatch.offerRequested(999);
-        http.expectOne('/api/offers/999').flush('no such offer', {
+        http.expectOne('/api/v1/offers/999').flush('no such offer', {
             status: 404,
             statusText: 'Not Found',
         });
@@ -203,11 +203,11 @@ describe('ShortlistStore', () => {
 
     it('keeps the detail on screen when the list fetch fails', () => {
         dispatch.offerRequested(1);
-        http.expectOne('/api/offers/1').flush(entry(1));
+        http.expectOne('/api/v1/offers/1').flush(entry(1));
 
       dispatch.opened({...NO_FILTERS, q: 'java'});
         http
-            .expectOne((request) => request.url === '/api/offers')
+            .expectOne((request) => request.url === '/api/v1/offers')
             .flush('boom', {status: 500, statusText: 'Server Error'});
 
         expect(store.listError()).toBe('error.shortlistLoad');
@@ -220,11 +220,11 @@ describe('ShortlistStore', () => {
         // way back are the detail itself. The row is no longer part of the side being read.
         openList();
         dispatch.offerRequested(1);
-        http.expectOne('/api/offers/1').flush(entry(1));
+        http.expectOne('/api/v1/offers/1').flush(entry(1));
 
         dispatch.archiveRequested({id: 1, archived: true});
         const archived = entry(1);
-        http.expectOne('/api/offers/1').flush({
+        http.expectOne('/api/v1/offers/1').flush({
             ...archived,
             offer: {...archived.offer, archivedAt: '2026-09-06T08:00:00Z', archiveSource: 'MANUAL'},
         });

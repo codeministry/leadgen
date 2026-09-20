@@ -86,7 +86,7 @@ describe('ShortlistPage', () => {
 
     /** The one request the screen makes on open, whatever the filters put in the query. */
     function expectPage(): ReturnType<HttpTestingController['expectOne']> {
-        return http.expectOne((request) => request.url === '/api/offers');
+        return http.expectOne((request) => request.url === '/api/v1/offers');
     }
 
     function render(payload: ShortlistPayload = page()): ComponentFixture<ShortlistPage> {
@@ -377,7 +377,7 @@ describe('ShortlistPage', () => {
         // Nothing left to ask for. A sentinel stays in the DOM until the cursor runs out, so
         // without this guard the last crossing would re-request the final page forever.
         fixture.componentInstance['loadMore']();
-        http.expectNone((request) => request.url === '/api/offers');
+        http.expectNone((request) => request.url === '/api/v1/offers');
     });
 
     it('reads the archive as its own side rather than as a fourth band', () => {
@@ -582,7 +582,7 @@ describe('ShortlistPage', () => {
     (fixture.nativeElement.querySelector('.bulk-bar .btn-primary') as HTMLButtonElement).click();
     fixture.detectChanges();
 
-    http.expectNone('/api/offers/archive');
+    http.expectNone('/api/v1/offers/archive');
     expect(selectionCount(fixture)).toBe(1);
   });
 
@@ -604,7 +604,7 @@ describe('ShortlistPage', () => {
     fixture.componentInstance['confirmArchivePicked']();
     fixture.detectChanges();
 
-    const request = http.expectOne('/api/offers/archive');
+    const request = http.expectOne('/api/v1/offers/archive');
     expect(request.request.method).toBe('POST');
     expect(request.request.body).toEqual({ids: [1, 2]});
     request.flush({requested: 2, archived: 2, unscored: 0});
@@ -624,7 +624,7 @@ describe('ShortlistPage', () => {
     pick(fixture, 1);
     fixture.componentInstance['confirmArchivePicked']();
     fixture.detectChanges();
-    http.expectOne('/api/offers/archive').flush({requested: 2, archived: 1, unscored: 0});
+    http.expectOne('/api/v1/offers/archive').flush({requested: 2, archived: 1, unscored: 0});
     fixture.detectChanges();
 
     expect(store.matched()).toBe(2);
@@ -640,10 +640,10 @@ describe('ShortlistPage', () => {
     pick(fixture, 0);
     fixture.componentInstance['confirmArchivePicked']();
     fixture.detectChanges();
-    http.expectOne('/api/offers/archive').flush({requested: 1, archived: 1, unscored: 0});
+    http.expectOne('/api/v1/offers/archive').flush({requested: 1, archived: 1, unscored: 0});
     fixture.detectChanges();
 
-    http.expectOne('/api/offers/1');
+    http.expectOne('/api/v1/offers/1');
   });
 
   it('offers no selection on the archive side', () => {

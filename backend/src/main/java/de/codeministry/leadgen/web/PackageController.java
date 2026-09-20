@@ -28,7 +28,7 @@ import java.nio.file.Path;
  * happens to it afterwards is still their decision.
  */
 @RestController
-@RequestMapping("/api/offers")
+@RequestMapping("/api/v1/offers")
 class PackageController {
 
     private final PackageArchiveService packages;

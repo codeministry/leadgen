@@ -60,7 +60,7 @@ class ConfigControllerTest {
         // asserting something that cannot differ between two rows.
         given(sources.summaries()).willReturn(new SourcesView("sources.yaml", "config-dir", List.of()));
 
-        assertThat(mvc.get().uri("/api/sources"))
+        assertThat(mvc.get().uri("/api/v1/sources"))
             .hasStatusOk()
             .bodyJson()
             .isEqualTo("{\"file\":\"sources.yaml\",\"layer\":\"config-dir\",\"sources\":[]}");
@@ -72,7 +72,7 @@ class ConfigControllerTest {
         // taken out of the file since the page was loaded.
         given(details.detail(eq("no-such-source"), anyInt())).willReturn(Optional.empty());
 
-        assertThat(mvc.get().uri("/api/sources/no-such-source")).hasStatus(HttpStatus.NOT_FOUND);
+        assertThat(mvc.get().uri("/api/v1/sources/no-such-source")).hasStatus(HttpStatus.NOT_FOUND);
     }
 
     @Test
@@ -87,7 +87,7 @@ class ConfigControllerTest {
         // spelling: both are names, and neither is a path.
         given(details.detail(any(), anyInt())).willReturn(Optional.empty());
 
-        assertThat(mvc.get().uri("/api/sources/{id}", "..%2F..%2Fetc%2Fpasswd"))
+        assertThat(mvc.get().uri("/api/v1/sources/{id}", "..%2F..%2Fetc%2Fpasswd"))
             .hasStatus(HttpStatus.NOT_FOUND);
 
         then(details).should().detail("..%2F..%2Fetc%2Fpasswd", 0);
@@ -97,7 +97,7 @@ class ConfigControllerTest {
     void asksForAsManyRunsAsTheRequestNamed() {
         given(details.detail(eq("manual-inbox"), eq(7))).willReturn(Optional.of(detail()));
 
-        assertThat(mvc.get().uri("/api/sources/manual-inbox").param("runs", "7")).hasStatusOk();
+        assertThat(mvc.get().uri("/api/v1/sources/manual-inbox").param("runs", "7")).hasStatusOk();
 
         then(details).should().detail("manual-inbox", 7);
     }

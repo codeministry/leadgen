@@ -21,7 +21,7 @@ export interface SourceSummary {
 }
 
 /**
- * What `/api/sources` answers: the file that defines the sources, and the sources.
+ * What `/api/v1/sources` answers: the file that defines the sources, and the sources.
  *
  * <p>The layer is on the envelope and no longer on the row. It is one probe for the whole
  * file — the two configuration layers override each other file by file and never key by key —

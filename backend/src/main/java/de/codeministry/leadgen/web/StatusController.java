@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
  * and the JSON contract line up. Everything real arrives with the pipeline stages.
  */
 @RestController
-@RequestMapping("/api")
+@RequestMapping("/api/v1")
 public class StatusController {
 
     private final String application;

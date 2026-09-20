@@ -369,7 +369,7 @@ export class OfferDetail implements OnInit {
      * this only fetches a copy of it into a browser that is not on that machine.
      */
     protected packageUrl(id: number): string {
-        return `/api/offers/${id}/package`;
+        return `/api/v1/offers/${id}/package`;
     }
 
     protected record(update: ApplicationUpdate): void {

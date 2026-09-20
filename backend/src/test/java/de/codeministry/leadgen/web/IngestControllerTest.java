@@ -62,7 +62,7 @@ class IngestControllerTest {
     void answersWithNoContentWhenNothingHasEverRun() {
         given(lastRun.lastRun()).willReturn(Optional.empty());
 
-        assertThat(mvc.get().uri("/api/ingest/last")).hasStatus(204);
+        assertThat(mvc.get().uri("/api/v1/ingest/last")).hasStatus(204);
     }
 
     @Test
@@ -88,7 +88,7 @@ class IngestControllerTest {
                         true,
                         List.of(new LastRunSource("demo-newsletter", 5, 169, 151, 169)))));
 
-        assertThat(mvc.get().uri("/api/ingest/last"))
+        assertThat(mvc.get().uri("/api/v1/ingest/last"))
                 .hasStatusOk()
                 .bodyJson()
                 .extractingPath("$.sources[0].complete")
@@ -121,7 +121,7 @@ class IngestControllerTest {
                         new PackageReport(2, 2, 0, List.of()),
                         Instant.parse("2026-09-05T06:12:00Z")));
 
-        assertThat(mvc.post().uri("/api/ingest"))
+        assertThat(mvc.post().uri("/api/v1/ingest"))
                 .hasStatusOk()
                 .bodyJson()
                 .extractingPath("$.sources[0].details[0].complete")
@@ -136,7 +136,7 @@ class IngestControllerTest {
         // skipped rather than a night that ran twice.
         given(ingest.run(null)).willThrow(new IngestService.AlreadyRunning());
 
-        assertThat(mvc.post().uri("/api/ingest"))
+        assertThat(mvc.post().uri("/api/v1/ingest"))
                 .hasStatus(org.springframework.http.HttpStatus.CONFLICT)
                 .bodyText()
                 .contains("already in progress");
@@ -149,7 +149,7 @@ class IngestControllerTest {
         // tell them apart is a body that eventually gets inspected wrongly.
         given(lastRun.currentRun()).willReturn(java.util.Optional.empty());
 
-        assertThat(mvc.get().uri("/api/ingest/current")).hasStatus(org.springframework.http.HttpStatus.NO_CONTENT);
+        assertThat(mvc.get().uri("/api/v1/ingest/current")).hasStatus(org.springframework.http.HttpStatus.NO_CONTENT);
     }
 
     @Test
@@ -164,7 +164,7 @@ class IngestControllerTest {
                 9,
                 Instant.parse("2026-09-15T07:20:00Z"))));
 
-        assertThat(mvc.get().uri("/api/ingest/current"))
+        assertThat(mvc.get().uri("/api/v1/ingest/current"))
             .hasStatusOk()
             .bodyJson()
             .extractingPath("$.stage")

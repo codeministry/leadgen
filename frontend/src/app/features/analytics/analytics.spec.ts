@@ -77,7 +77,7 @@ describe('Analytics', () => {
     function render(view: AnalyticsView = VIEW): ComponentFixture<Analytics> {
         const fixture = TestBed.createComponent(Analytics);
         fixture.detectChanges();
-        http.expectOne('/api/analytics').flush(view);
+        http.expectOne('/api/v1/analytics').flush(view);
         fixture.detectChanges();
         return fixture;
     }
@@ -170,7 +170,7 @@ describe('Analytics', () => {
     it('asks somebody to run the pipeline when nothing has run at all', () => {
         const fixture = TestBed.createComponent(Analytics);
         fixture.detectChanges();
-        http.expectOne('/api/analytics').flush(null, {status: 500, statusText: 'nope'});
+        http.expectOne('/api/v1/analytics').flush(null, {status: 500, statusText: 'nope'});
         fixture.detectChanges();
 
         expect(fixture.nativeElement.textContent).toContain('The analytics did not load.');

@@ -49,7 +49,7 @@ describe('AskPanel', () => {
 
         click(fixture);
 
-        const request = http.expectOne((r) => r.url === '/api/offers/42/ask');
+        const request = http.expectOne((r) => r.url === '/api/v1/offers/42/ask');
         expect(request.request.params.get('question')).toBe('rate');
         expect(request.request.method).toBe('POST');
         request.flush(answered);
@@ -60,7 +60,7 @@ describe('AskPanel', () => {
         // Rendering the quote is what lets a reader confirm it by looking up.
         const fixture = render();
         click(fixture);
-        http.expectOne((r) => r.url === '/api/offers/42/ask').flush(answered);
+        http.expectOne((r) => r.url === '/api/v1/offers/42/ask').flush(answered);
         fixture.detectChanges();
 
         expect(fixture.nativeElement.textContent).toContain('95 EUR pro Stunde.');
@@ -70,7 +70,7 @@ describe('AskPanel', () => {
     it('draws a silent advert as an answer and not as a failure', () => {
         const fixture = render();
         click(fixture);
-        http.expectOne((r) => r.url === '/api/offers/42/ask')
+        http.expectOne((r) => r.url === '/api/v1/offers/42/ask')
             .flush({question: 'rate', stated: false, answer: null, quote: null, model: 'test-model'});
         fixture.detectChanges();
 
@@ -83,7 +83,7 @@ describe('AskPanel', () => {
         // the screen has no business restating it in its own words.
         const fixture = render();
         click(fixture);
-        http.expectOne((r) => r.url === '/api/offers/42/ask').flush(
+        http.expectOne((r) => r.url === '/api/v1/offers/42/ask').flush(
             "today's llm.budget is spent",
             {status: 409, statusText: 'Conflict'},
         );
@@ -96,11 +96,11 @@ describe('AskPanel', () => {
         // One question is one model call against the budget the judge shares.
         const fixture = render();
         click(fixture);
-        http.expectOne((r) => r.url === '/api/offers/42/ask').flush(answered);
+        http.expectOne((r) => r.url === '/api/v1/offers/42/ask').flush(answered);
         fixture.detectChanges();
 
         click(fixture);
-        http.expectNone((r) => r.url === '/api/offers/42/ask');
+        http.expectNone((r) => r.url === '/api/v1/offers/42/ask');
     });
 
     it('asks one at a time, so a held key cannot spend five calls', () => {
@@ -108,6 +108,6 @@ describe('AskPanel', () => {
         click(fixture, 0);
         click(fixture, 1);
 
-        http.expectOne((r) => r.url === '/api/offers/42/ask');
+        http.expectOne((r) => r.url === '/api/v1/offers/42/ask');
     });
 });

@@ -23,7 +23,7 @@ import java.util.List;
  * nothing on the page saying why. The house already bundles for this reason: an
  * `IngestReport` carries five sub-reports and a `ShortlistEntry` carries four parts.
  *
- * <p>No query parameters, for the same reason `/api/offers` has none: the daily buckets for
+ * <p>No query parameters, for the same reason `/api/v1/offers` has none: the daily buckets for
  * both axes come down together and the browser switches between them, aggregates them into
  * weeks and windows them. A parameter would be a second implementation of an aggregation
  * that already exists in SQL, disagreeing with it the first time either changed. The one

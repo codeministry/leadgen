@@ -9,7 +9,7 @@ import {ShortlistFilters, ShortlistPage} from '@core/model/shortlist-page';
 import {scoringModelParams} from './scoring-model-param';
 
 /**
- * `/api/offers` — what survived the filter, ranked, with the reasons behind each score.
+ * `/api/v1/offers` — what survived the filter, ranked, with the reasons behind each score.
  *
  * The list comes down a page at a time and the filters travel with the request. The query
  * string still holds them, so a filtered shortlist survives a reload and is shareable as a
@@ -79,12 +79,12 @@ export class ShortlistApi {
         if (cursor !== null) {
             params = params.set('cursor', cursor);
         }
-        return this.http.get<ShortlistPage>('/api/offers', {params});
+        return this.http.get<ShortlistPage>('/api/v1/offers', {params});
     }
 
     /** What the filter did to the whole archive, stage by stage. */
     funnel(): Observable<FunnelView> {
-        return this.http.get<FunnelView>('/api/offers/funnel');
+        return this.http.get<FunnelView>('/api/v1/offers/funnel');
     }
 
     /**
@@ -92,7 +92,7 @@ export class ShortlistApi {
      * an offer the filter rejected, and neither is in the shortlist.
      */
     one(id: number): Observable<ShortlistEntry> {
-        return this.http.get<ShortlistEntry>(`/api/offers/${id}`);
+        return this.http.get<ShortlistEntry>(`/api/v1/offers/${id}`);
     }
 
     /**
@@ -104,7 +104,7 @@ export class ShortlistApi {
      * the database until the next reload.
      */
     setArchived(id: number, archived: boolean): Observable<ShortlistEntry> {
-        return this.http.patch<ShortlistEntry>(`/api/offers/${id}`, {archived});
+        return this.http.patch<ShortlistEntry>(`/api/v1/offers/${id}`, {archived});
     }
 
   /**
@@ -116,7 +116,7 @@ export class ShortlistApi {
    * replacing them, so the representation would be fetched only to be thrown away.
    */
   archiveAll(ids: readonly number[]): Observable<ArchiveResult> {
-    return this.http.post<ArchiveResult>('/api/offers/archive', {ids});
+    return this.http.post<ArchiveResult>('/api/v1/offers/archive', {ids});
   }
 
     /**
@@ -128,7 +128,7 @@ export class ShortlistApi {
      * render as "the advert is silent", because those mean opposite things.
      */
     ask(id: number, question: AdvertQuestion): Observable<AdvertAnswer> {
-        return this.http.post<AdvertAnswer>(`/api/offers/${id}/ask`, null, {
+        return this.http.post<AdvertAnswer>(`/api/v1/offers/${id}/ask`, null, {
             params: new HttpParams().set('question', question),
         });
     }
@@ -138,7 +138,7 @@ export class ShortlistApi {
      * rewrites the score, and it answers with the whole entry rather than the score alone.
      */
     rescore(id: number, model: string | null): Observable<ShortlistEntry> {
-        return this.http.post<ShortlistEntry>(`/api/offers/${id}/score`, null, {
+        return this.http.post<ShortlistEntry>(`/api/v1/offers/${id}/score`, null, {
             params: scoringModelParams(model),
         });
     }

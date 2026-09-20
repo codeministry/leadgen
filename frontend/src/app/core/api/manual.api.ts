@@ -3,13 +3,13 @@ import {inject, Injectable} from '@angular/core';
 import {Observable} from 'rxjs';
 import {ManualOfferFields, PendingDocument} from '@core/model/manual-document';
 
-/** `/api/sources/manual` — the endpoint that puts a document on disk. */
+/** `/api/v1/sources/manual` — the endpoint that puts a document on disk. */
 @Injectable({providedIn: 'root'})
 export class ManualApi {
     private readonly http = inject(HttpClient);
 
     pending(): Observable<readonly PendingDocument[]> {
-        return this.http.get<readonly PendingDocument[]>('/api/sources/manual/pending');
+        return this.http.get<readonly PendingDocument[]>('/api/v1/sources/manual/pending');
     }
 
     /**
@@ -20,17 +20,17 @@ export class ManualApi {
     upload(file: File): Observable<PendingDocument> {
         const body = new FormData();
         body.append('file', file, file.name);
-        return this.http.post<PendingDocument>('/api/sources/manual/documents', body);
+        return this.http.post<PendingDocument>('/api/v1/sources/manual/documents', body);
     }
 
     confirm(name: string, fields: ManualOfferFields): Observable<PendingDocument> {
         return this.http.post<PendingDocument>(
-            `/api/sources/manual/pending/${encodeURIComponent(name)}/confirm`,
+            `/api/v1/sources/manual/pending/${encodeURIComponent(name)}/confirm`,
             fields,
         );
     }
 
     reject(name: string): Observable<void> {
-        return this.http.delete<void>(`/api/sources/manual/pending/${encodeURIComponent(name)}`);
+        return this.http.delete<void>(`/api/v1/sources/manual/pending/${encodeURIComponent(name)}`);
     }
 }

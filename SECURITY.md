@@ -23,8 +23,8 @@ so here it is.
 - **There is no authentication.** `security.auth` accepts exactly one value, `none`, and
   the loader is fatal on any other — because someone writing `basic` and believing the
   write endpoints are protected is the worst failure available here. The write endpoints
-  (`POST /api/ingest`, `POST /api/sources/manual/documents`, `PATCH /api/applications/{id}`,
-  `PATCH /api/offers/{id}`) are open to anyone who can reach the port.
+  (`POST /api/v1/ingest`, `POST /api/v1/sources/manual/documents`, `PATCH /api/v1/applications/{id}`,
+  `PATCH /api/v1/offers/{id}`) are open to anyone who can reach the port.
 - **What stands in front of them is the bind address.** `server.address` defaults to
   `127.0.0.1`. Docker Compose overrides it to `0.0.0.0`, because a process bound to
   loopback inside a container is reachable through nothing at all — so **the container is

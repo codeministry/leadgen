@@ -140,7 +140,7 @@ export class IngestApi {
      *     on the other side as well, and that is a second way to say the same thing.
      */
     run(model: string | null): Observable<IngestReport> {
-        return this.http.post<IngestReport>('/api/ingest', {}, {params: scoringModelParams(model)});
+        return this.http.post<IngestReport>('/api/v1/ingest', {}, {params: scoringModelParams(model)});
     }
 
   /**
@@ -152,7 +152,7 @@ export class IngestApi {
    * stage yet".
    */
   current(): Observable<CurrentRunView | null> {
-    return this.http.get<CurrentRunView | null>('/api/ingest/current');
+    return this.http.get<CurrentRunView | null>('/api/v1/ingest/current');
   }
 
     /**
@@ -161,6 +161,6 @@ export class IngestApi {
      * distinction the status code was chosen for: "no run" is not "a run with zero counts".
      */
     last(): Observable<LastRunView | null> {
-        return this.http.get<LastRunView | null>('/api/ingest/last');
+        return this.http.get<LastRunView | null>('/api/v1/ingest/last');
     }
 }

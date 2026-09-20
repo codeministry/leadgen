@@ -25,7 +25,7 @@ import java.util.stream.Collectors;
  * here that could grow into sending — no recipient, no channel, no address.
  */
 @RestController
-@RequestMapping("/api/applications")
+@RequestMapping("/api/v1/applications")
 class ApplicationController {
 
     private final ApplicationService applications;

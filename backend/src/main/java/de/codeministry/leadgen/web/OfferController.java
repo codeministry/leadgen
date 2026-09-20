@@ -33,7 +33,7 @@ import java.util.List;
  * is the pipeline's and is rewritten on the next run.
  */
 @RestController
-@RequestMapping("/api/offers")
+@RequestMapping("/api/v1/offers")
 class OfferController {
 
     private final OfferQueryService offers;

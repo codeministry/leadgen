@@ -22,7 +22,7 @@ import java.util.List;
  * endpoint would mean two ways to change the same thing disagreeing about which won.
  */
 @RestController
-@RequestMapping("/api")
+@RequestMapping("/api/v1")
 class ConfigController {
 
     private final SourceQueryService sources;

@@ -46,7 +46,7 @@ class ManualSourceControllerTest {
     void acceptsAMarkdownDocumentAndAnswersWithWhatTheExtractionRead() {
         given(uploads.store(anyString(), any())).willReturn(document());
 
-        assertThat(mvc.post().uri("/api/sources/manual/documents").multipart().file(file("offer.md")))
+        assertThat(mvc.post().uri("/api/v1/sources/manual/documents").multipart().file(file("offer.md")))
                 .hasStatus(201)
                 .bodyJson()
                 .extractingPath("$.offer.title")
@@ -60,7 +60,7 @@ class ManualSourceControllerTest {
         // exactly like one where the rules read everything.
         given(uploads.store(anyString(), any())).willReturn(document());
 
-        assertThat(mvc.post().uri("/api/sources/manual/documents").multipart().file(file("offer.md")))
+        assertThat(mvc.post().uri("/api/v1/sources/manual/documents").multipart().file(file("offer.md")))
             .hasStatus(201)
             .bodyJson()
             .extractingPath("$.fromModel")
@@ -75,7 +75,7 @@ class ManualSourceControllerTest {
                 .given(uploads)
                 .store(anyString(), any());
 
-        assertThat(mvc.post().uri("/api/sources/manual/documents").multipart().file(file("payload.sh")))
+        assertThat(mvc.post().uri("/api/v1/sources/manual/documents").multipart().file(file("payload.sh")))
                 .hasStatus(400)
                 .bodyText()
                 .contains(".md");
@@ -86,7 +86,7 @@ class ManualSourceControllerTest {
         // Not the client's mistake, and not a 500: the source is switched off.
         willThrow(new ManualUploadService.NoInbox()).given(uploads).pending();
 
-        assertThat(mvc.get().uri("/api/sources/manual/pending")).hasStatus(409);
+        assertThat(mvc.get().uri("/api/v1/sources/manual/pending")).hasStatus(409);
     }
 
     @Test
@@ -94,7 +94,7 @@ class ManualSourceControllerTest {
         given(uploads.confirm(anyString(), any())).willReturn(document());
 
         assertThat(mvc.post()
-                        .uri("/api/sources/manual/pending/offer.md/confirm")
+                        .uri("/api/v1/sources/manual/pending/offer.md/confirm")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"title\":\"Senior Java Entwickler (m/w/d)\",\"tags\":[\"Java\"]}"))
                 .hasStatusOk();
@@ -105,8 +105,8 @@ class ManualSourceControllerTest {
         given(uploads.find(anyString())).willReturn(Optional.empty());
         given(uploads.reject(anyString())).willReturn(false);
 
-        assertThat(mvc.get().uri("/api/sources/manual/pending/nothing.md")).hasStatus(404);
-        assertThat(mvc.delete().uri("/api/sources/manual/pending/nothing.md")).hasStatus(404);
+        assertThat(mvc.get().uri("/api/v1/sources/manual/pending/nothing.md")).hasStatus(404);
+        assertThat(mvc.delete().uri("/api/v1/sources/manual/pending/nothing.md")).hasStatus(404);
     }
 
     private static MockMultipartFile file(String name) {

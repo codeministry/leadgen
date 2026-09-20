@@ -14,6 +14,6 @@ export class StatusApi {
 
     /** RxJS stays at the I/O boundary; the store bridges into signals. */
     load(): Observable<AppStatus> {
-        return this.http.get<AppStatus>('/api/status');
+        return this.http.get<AppStatus>('/api/v1/status');
     }
 }

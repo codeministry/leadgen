@@ -9,29 +9,29 @@ import {
   TransitionMap,
 } from '@core/model/application';
 
-/** `/api/applications` — the first write endpoint in this application. */
+/** `/api/v1/applications` — the first write endpoint in this application. */
 @Injectable({providedIn: 'root'})
 export class ApplicationsApi {
     private readonly http = inject(HttpClient);
 
     board(): Observable<readonly ApplicationView[]> {
-        return this.http.get<readonly ApplicationView[]>('/api/applications');
+        return this.http.get<readonly ApplicationView[]>('/api/v1/applications');
     }
 
     lanes(): Observable<readonly PipelineLane[]> {
-        return this.http.get<readonly PipelineLane[]>('/api/applications/lanes');
+        return this.http.get<readonly PipelineLane[]>('/api/v1/applications/lanes');
     }
 
   /** What each state may move to, so the picker can grey out what the endpoint refuses. */
   transitions(): Observable<TransitionMap> {
-    return this.http.get<TransitionMap>('/api/applications/transitions');
+    return this.http.get<TransitionMap>('/api/v1/applications/transitions');
   }
 
     history(id: number): Observable<readonly ApplicationEvent[]> {
-        return this.http.get<readonly ApplicationEvent[]>(`/api/applications/${id}/history`);
+        return this.http.get<readonly ApplicationEvent[]>(`/api/v1/applications/${id}/history`);
     }
 
     update(id: number, update: ApplicationUpdate): Observable<ApplicationView> {
-        return this.http.patch<ApplicationView>(`/api/applications/${id}`, update);
+        return this.http.patch<ApplicationView>(`/api/v1/applications/${id}`, update);
     }
 }

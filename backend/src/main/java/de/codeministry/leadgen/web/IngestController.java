@@ -25,7 +25,7 @@ import org.springframework.web.bind.annotation.*;
  * file drop without waiting for a schedule.
  */
 @RestController
-@RequestMapping("/api")
+@RequestMapping("/api/v1")
 @RequiredArgsConstructor
 public class IngestController {
 

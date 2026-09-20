@@ -44,7 +44,7 @@ class ApplicationControllerTest {
         given(applications.update(anyLong(), any())).willReturn(view(ApplicationStatus.SENT));
 
         assertThat(mvc.patch()
-                        .uri("/api/applications/1")
+                        .uri("/api/v1/applications/1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"status\":\"SENT\",\"sentOn\":\"2026-09-01\"}"))
                 .hasStatusOk()
@@ -58,7 +58,7 @@ class ApplicationControllerTest {
         // A typo has to fail at the door rather than reaching the database as a string
         // nothing can read back.
         assertThat(mvc.patch()
-                        .uri("/api/applications/1")
+                        .uri("/api/v1/applications/1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"status\":\"POSTED\"}"))
                 .hasStatus4xxClientError();
@@ -67,7 +67,7 @@ class ApplicationControllerTest {
     @Test
     void refusesAnUpdateWithNoStatusAtAll() {
         assertThat(mvc.patch()
-                        .uri("/api/applications/1")
+                        .uri("/api/v1/applications/1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"note\":\"just a note\"}"))
                 .hasStatus4xxClientError();
@@ -80,7 +80,7 @@ class ApplicationControllerTest {
                 .update(anyLong(), any());
 
         assertThat(mvc.patch()
-                        .uri("/api/applications/42")
+                        .uri("/api/v1/applications/42")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"status\":\"SENT\"}"))
                 .hasStatus(org.springframework.http.HttpStatus.NOT_FOUND);
@@ -88,7 +88,7 @@ class ApplicationControllerTest {
 
     @Test
     void servesTheLanesSoTheBoardDoesNotHardcodeThem() {
-        assertThat(mvc.get().uri("/api/applications/lanes"))
+        assertThat(mvc.get().uri("/api/v1/applications/lanes"))
                 .hasStatusOk()
                 .bodyJson()
                 .extractingPath("$[0].id")

@@ -46,7 +46,7 @@ describe('SourcePanel', () => {
     fixture.componentRef.setInput('id', id);
     fixture.detectChanges();
     // The panel's own request, which the store makes on `sourceOpened`.
-    http.expectOne((request) => request.url === `/api/sources/${id}`).flush(view);
+    http.expectOne((request) => request.url === `/api/v1/sources/${id}`).flush(view);
     fixture.detectChanges();
     return fixture;
   }
@@ -77,7 +77,7 @@ describe('SourcePanel', () => {
 
     fixture.componentRef.setInput('id', 'other-source');
     fixture.detectChanges();
-    http.expectOne((request) => request.url === '/api/sources/other-source')
+    http.expectOne((request) => request.url === '/api/v1/sources/other-source')
       .flush(detail({...long, id: 'other-source'}));
     fixture.detectChanges();
 
