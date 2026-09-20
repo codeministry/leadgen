@@ -29,17 +29,17 @@ jobs:
     timeout-minutes: 30
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       # Pinned to 25 to match the Gradle toolchain. There is no toolchain resolver in
       # `settings.gradle.kts`, so Gradle cannot download a JDK of its own: this step is
       # what puts the toolchain's version on the runner, and a mismatch is loud.
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '25'
 
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v5
 
       # The frontend is bracketed into the Gradle build with plain `Exec` tasks calling
       # bun, so bun has to exist before `check` runs. Version pinned to what
@@ -79,7 +79,7 @@ jobs:
       # number is worth having as a trend long before it is worth having as a gate.
       - name: Coverage reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: coverage
           path: |
@@ -91,7 +91,7 @@ jobs:
       # The one thing worth keeping from a red run.
       - name: Test reports
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: test-reports
           path: |
@@ -109,12 +109,12 @@ jobs:
     timeout-minutes: 20
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
 
       - name: Backend image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: backend/Dockerfile
@@ -123,7 +123,7 @@ jobs:
           cache-to: type=gha,mode=max,scope=backend
 
       - name: Frontend image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: frontend/Dockerfile

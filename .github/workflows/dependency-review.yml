@@ -19,9 +19,9 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/dependency-review-action@v4
+      - uses: actions/dependency-review-action@v5
         with:
           fail-on-severity: high
           # Denied rather than allowed: an allowlist has to be maintained against every

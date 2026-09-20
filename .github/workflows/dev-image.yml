@@ -53,7 +53,7 @@ jobs:
       sha: ${{ steps.derive.outputs.sha }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           # workflow_run checks out the default branch's head unless told otherwise, so
           # without this the image would carry the wrong commit in its tag.
@@ -109,24 +109,24 @@ jobs:
             dockerfile: frontend/Dockerfile
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       # arm64 is emulated here and it is slow. It is not optional: the cluster this is
       # deployed to runs on arm64, and an image that exists only for amd64 cannot start
       # there — it fails at pull time with an exec format error, not at build time.
-      - uses: docker/setup-qemu-action@v3
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-qemu-action@v4
+      - uses: docker/setup-buildx-action@v4
 
-      - uses: docker/login-action@v3
+      - uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ghcr.io/${{ github.repository_owner }}/${{ matrix.name }}
           # `type=semver` is useless here: it only produces output on a tag ref, and this
@@ -139,7 +139,7 @@ jobs:
           labels: |
             org.opencontainers.image.version=${{ needs.version.outputs.version }}
 
-      - uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@v7
         with:
           context: .
           file: ${{ matrix.dockerfile }}
