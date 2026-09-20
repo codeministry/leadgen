@@ -8,7 +8,8 @@
  */
 package de.codeministry.leadgen.packaging;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.json.JsonMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import de.codeministry.leadgen.application.ApplicationService;
 import de.codeministry.leadgen.application.ApplicationStatus;
 import de.codeministry.leadgen.config.*;
@@ -39,6 +40,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.regex.Pattern;
 
@@ -121,7 +123,7 @@ public class PackagingService {
     private final ApplicationService applications;
     private final ProfileEmbeddings profileEmbeddings;
     private final JdbcClient jdbc;
-    private final ObjectMapper json;
+    private final JsonMapper json;
     private final Configuration freemarker;
 
     PackagingService(
@@ -135,7 +137,11 @@ public class PackagingService {
         this.applications = applications;
         this.profileEmbeddings = profileEmbeddings;
         this.jdbc = JdbcClient.create(dataSource);
-        this.json = new ObjectMapper().findAndRegisterModules();
+        // Named, not discovered. `findAndRegisterModules()` is a ServiceLoader scan, which
+        // means the set of modules depends on the classpath's order and, in a native image,
+        // is empty unless somebody registered the scan as a hint. This mapper writes
+        // `meta.json`, whose only non-trivial types are the java.time ones.
+        this.json = JsonMapper.builder().addModule(new JavaTimeModule()).build();
         this.freemarker = new Configuration(Configuration.VERSION_2_3_34);
         this.freemarker.setDefaultEncoding(StandardCharsets.UTF_8.name());
         // A missing value in a template is a bug in the template, not something to paper
@@ -327,8 +333,15 @@ public class PackagingService {
         Map<String, Object> model = new LinkedHashMap<>();
         model.put("offer", row.model());
         model.put("profile", profile);
-        model.put("projects", projects);
+        // Views and not the profile's own records: the language is decided once, here,
+        // rather than by each template guessing which of two title and two pitch fields
+        // it wants. Both letters then read identically.
+        model.put("projects", projects.stream().map(project -> ProjectView.of(project, language)).toList());
         model.put("matchedSkills", matchedSkills);
+        // `offer.startsOn` is a LocalDate and Freemarker renders one as ISO, which reads as
+        // a machine's date in a sentence written for a person. The archive keeps the ISO
+        // form on purpose; a letter does not.
+        model.put("startsOnText", startsOnText(row.startsOn(), language));
         model.put("archivedAt", Instant.now().toString());
 
         List<String> written = new ArrayList<>();
@@ -541,6 +554,21 @@ public class PackagingService {
     /**
      * `{date}_{company}_{slug}`, with everything reduced to what a file system likes.
      */
+    /**
+     * The start date as the language of the letter writes it: {@code 01.10.2026} in German,
+     * {@code 1 October 2026} in English. Null when the advert states no day — nineteen of
+     * twenty-one adverts named a start and only four of those named a calendar day, so the
+     * templates guard this value rather than assume it.
+     */
+    private static String startsOnText(LocalDate startsOn, String language) {
+        if (startsOn == null) {
+            return null;
+        }
+        return "en".equalsIgnoreCase(language)
+            ? startsOn.format(DateTimeFormatter.ofPattern("d MMMM yyyy", Locale.ENGLISH))
+            : startsOn.format(DateTimeFormatter.ofPattern("dd.MM.yyyy", Locale.GERMAN));
+    }
+
     private static String folderName(String naming, Due row) {
         String date = row.publishedOn() == null
             ? LocalDate.now().toString()

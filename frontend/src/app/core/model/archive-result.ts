@@ -1,5 +1,5 @@
 /**
- * What one archive-by-hand wrote, as `POST /api/offers/archive` answers it.
+ * What one archive-by-hand wrote, as `POST /api/v1/offers/archive` answers it.
  *
  * Mirrors `de.codeministry.leadgen.archive.ArchiveResult`. Two counts and not the rows: the
  * list drops an archived offer rather than replacing it, so entries would be fetched only to

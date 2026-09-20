@@ -26,6 +26,7 @@ The root [`README.md`](../README.md) is the front door and stays shorter than an
 | know where a value comes from, or why it is missing | [CONFIGURATION.md](CONFIGURATION.md)     |
 | see it run without a mailbox                        | [`demo/README.md`](../demo/README.md)    |
 | know *why* a stage looks the way it does            | [`decisions/`](decisions/), table below  |
+| build or debug the native image                     | [native-image.md](decisions/native-image.md) |
 
 ## The guides
 
@@ -72,6 +73,7 @@ room.
 | [frontend-design-system.md](decisions/frontend-design-system.md)   | Both themes, the accent's one meaning, the navigation, the catalogs                                |
 | [manual-status.md](decisions/manual-status.md)                     | The eleven application states and their event log                                                  |
 | [order-of-work.md](decisions/order-of-work.md)                     | The sixteen steps this tool was built in, and what each had to prove                               |
+| [native-image.md](decisions/native-image.md)                       | Why there are two images, the AOT cache's training problem, and the hints written by hand          |
 
 ## samples/ — the measuring instruments
 

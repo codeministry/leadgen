@@ -102,7 +102,13 @@ class PackagingServiceTest {
         packaging.run();
         assertThat(read(folderOf(german).resolve("cover_letter.txt")))
                 .contains("Sehr geehrte Damen und Herren")
-                .doesNotContain("Dear Sir");
+                .doesNotContain("Dear Sir")
+                // The salutation used to be the only thing under test, and the reference
+                // projects went out in whichever language the profile happened to be
+                // written in. A German advert answered with an English project title is
+                // the half of the letter a reader notices first.
+                .contains("Beispielprojekt")
+                .doesNotContain("Example project");
 
         reset();
         long english = requested(
@@ -110,7 +116,43 @@ class PackagingServiceTest {
         packaging.run();
         assertThat(read(folderOf(english).resolve("cover_letter.txt")))
                 .contains("Dear Sir or Madam")
-                .doesNotContain("Sehr geehrte");
+                .doesNotContain("Sehr geehrte")
+                .contains("Example project")
+                .doesNotContain("Beispielprojekt");
+    }
+
+    @Test
+    void namesThePortalAsTheSourceAndNotTheAgency() {
+        // `agency` is the company writing the advert, so it is who the letter is addressed
+        // to — not where it was found. Naming it after "über" told the recruiter that we
+        // came across their own advert through them.
+        long id = requested("Senior Java Entwickler (m/w/d)", "Wir suchen einen Entwickler mit Erfahrung in Spring Boot.");
+        packaging.run();
+        assertThat(read(folderOf(id).resolve("cover_letter.txt")))
+                .contains("Über portal-a bin ich auf")
+                .doesNotContain("Acme Consulting GmbH");
+    }
+
+    @Test
+    void rendersEveryLineFlushLeft() {
+        // Freemarker drops a line that holds nothing but a directive; it keeps the
+        // indentation of a text line inside an <#if> or a <#list>. Every paragraph of this
+        // letter sits in one, so the whole body used to reach the client indented by four
+        // spaces and nothing in the suite could see it.
+        long id = requested("Senior Java Entwickler (m/w/d)", "Für unseren Kunden suchen wir Spring Boot und Kubernetes.");
+        packaging.run();
+        assertThat(read(folderOf(id).resolve("cover_letter.txt")).lines())
+                .noneMatch(line -> line.startsWith(" ") || line.startsWith("\t"));
+    }
+
+    @Test
+    void writesTheStartDateTheWayTheLanguageOfTheLetterWritesIt() {
+        long id = requested("Senior Java Entwickler (m/w/d)", "Wir suchen einen Entwickler, das Projekt startet fest terminiert.");
+        jdbc.update("UPDATE offer SET starts_on = DATE '2026-10-01' WHERE id = ?", id);
+        packaging.run();
+        assertThat(read(folderOf(id).resolve("cover_letter.txt")))
+                .contains("Ein Einstieg zum 01.10.2026 ist möglich.")
+                .doesNotContain("2026-10-01");
     }
 
     @Test

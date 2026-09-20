@@ -53,24 +53,31 @@ industries:
 # offer's own skills matched, so these are written to be quotable as they stand.
 reference_projects:
   - id: commerce-platform
-    title: SaaS-Commerce-Plattform
-    period: "2015 - 2019"
+    title_de: SaaS-Commerce-Plattform
+    title_en: SaaS commerce platform
+    from: "2015-03"
+    to: "2019-08"
     role: Architekt und Entwickler
     stack: [Java, Spring Boot, PostgreSQL, REST]
-    # Content, not repository language: these go verbatim into the cover letter, in
-    # the language of the ad.
+    # Content, not repository language: title and pitch go verbatim into the cover
+    # letter, in the language of the ad. The period is months, and the letter turns
+    # them into "seit 03/2015" or "since 03/2015" itself.
     pitch_de: "Eine Handelsplattform für mehrere Mandanten, von der Warenwirtschaft bis zur Kasse, über vier Jahre entwickelt und betrieben."
     pitch_en: "A multi-tenant commerce platform from inventory to checkout, built and operated over four years."
   - id: monolith-split
-    title: Zerlegung eines Monolithen
-    period: "2019 - 2021"
+    title_de: Zerlegung eines Monolithen
+    title_en: Breaking up a monolith
+    from: "2019-09"
+    to: "2021-06"
     role: Backend-Entwickler
     stack: [Java, Spring Boot, Kafka, Kubernetes]
     pitch_de: "Ablösung eines gewachsenen Monolithen in eigenständige Services, ereignisgetrieben und ohne Big-Bang-Umstellung."
     pitch_en: "Breaking a grown monolith into services, event-driven and without a big-bang cutover."
   - id: inspection-pwa
-    title: Inspektions-PWA
-    period: "2022 - 2024"
+    title_de: Inspektions-PWA
+    title_en: Inspection PWA
+    from: "2022-01"
+    to: "2024-05"
     role: Fullstack-Entwickler
     stack: [Angular, TypeScript, PostgreSQL]
     pitch_de: "Eine offlinefähige Angular-Anwendung für Inspektionen im Feld, inklusive Synchronisation und Konfliktauflösung."

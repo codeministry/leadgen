@@ -3,6 +3,11 @@ plugins {
     jacoco
     alias(libs.plugins.spring.boot)
     alias(libs.plugins.spring.dependency.management)
+    // Applied for both images, not only the native one: applying it is what makes the Boot
+    // plugin register `processAot`, and there is no separate switch for that. It is not
+    // free, though — it also registers the aotTest chain, which lands in `check`. That is
+    // switched off below, and the block there says what it cost to find out.
+    alias(libs.plugins.graalvm.native)
     // Off with the block near the bottom of this file, which says why and what it costs.
     // The version catalog entry stays, so re-enabling is this line and that block.
     // alias(libs.plugins.spotless)
@@ -25,6 +30,58 @@ java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(25)
     }
+}
+
+/**
+ * Toolchain detection is off, and that is a decision rather than laziness.
+ *
+ * <p>Two JDK 25s are usually installed on a machine that builds this: an ordinary one and a
+ * GraalVM. Gradle tells them apart by version, not by which of them has `native-image`, and
+ * there is no toolchain resolver in `settings.gradle.kts` to fetch a third. So `GRAALVM_HOME`
+ * decides — one environment variable in one documented command, rather than a detection rule
+ * that is right on exactly one machine. `docs/DEVELOPMENT.md` has the command.
+ *
+ * <p>It also keeps `./gradlew check` working on a JDK with no `native-image` at all, which is
+ * what CI's `check` job runs on.
+ */
+graalvmNative {
+    toolchainDetection = false
+}
+
+/**
+ * `processTestAot` is off, and this is not an optimisation — it is what keeps `check`
+ * finishing.
+ *
+ * <p>Applying the GraalVM plugin makes Boot register AOT processing for the *test* source
+ * set as well, and it lands in the `check` graph. All three tasks of that chain are off,
+ * not just the first: disabling `processTestAot` alone leaves `compileAotTestJava`
+ * running against the output it did not produce, which fails the build for a second and
+ * unrelated-looking reason. That task starts every `@SpringBootTest`
+ * context at build time, which here means Testcontainers: measured, `./gradlew check` went
+ * from 2.5 minutes to still running after fifty, with no output naming the task as the
+ * reason. Nothing in this repository wants it, because the decision is that the JVM suite
+ * stays the authority and a compiled image is checked by `backend/smoke/smoke.sh` rather
+ * than by `nativeTest`. Re-enable it only together with that decision.
+ */
+tasks.matching { it.name in setOf("processTestAot", "compileAotTestJava", "processAotTestResources") }
+    .configureEach { enabled = false }
+
+/**
+ * `processAot` starts the real application context at build time to work out what can be
+ * decided ahead of it. It does not bake property *values* into the jar, but it does bake
+ * *condition outcomes* — so a `SPRING_*` key in somebody's `.env` can change what ends up
+ * in the artifact. Docker and CI never see the file (`.dockerignore` excludes it); a local
+ * `./gradlew bootJar` does, and this is what stops it.
+ *
+ * <p>The switch and not a working directory, which was the first attempt and does not work.
+ * `DotEnv` searches *upwards*, four parents deep, and every directory a Gradle task can be
+ * pointed at is inside the repository: from `build/aot-sandbox` the root is the third parent
+ * and from `build/tmp/processAot` the fourth. There is no sandbox deep enough, so the reader
+ * is told to stand down instead. `DotEnv.SKIP` is the same name, and its javadoc is the other
+ * half of this paragraph.
+ */
+tasks.named<JavaExec>("processAot") {
+    environment("LEADGEN_SKIP_DOTENV", "1")
 }
 
 repositories {

@@ -7,7 +7,7 @@ import {ConfigStore} from './config.store';
 /**
  * The configured thresholds, for the parts of `shared/` that need them.
  *
- * <p>Read from `GET /api/rules` through the store that already holds it, and asked for once
+ * <p>Read from `GET /api/v1/rules` through the store that already holds it, and asked for once
  * at startup rather than by whichever screen happens to render a score first — a ring on
  * the pipeline board must not depend on somebody having opened the rules screen.
  *

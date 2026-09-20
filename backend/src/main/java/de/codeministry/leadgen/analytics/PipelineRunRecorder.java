@@ -157,7 +157,7 @@ public class PipelineRunRecorder {
      * <p>A pass that is killed mid-flight — a restart, a crash, a rolled deployment — leaves
      * its row open forever, and from the read side that is indistinguishable from a pass that
      * is still going. Measured on the developer database: a row from 2026-09-06 still said
-     * RUNNING nine days later, so {@code /api/ingest/current} reported a run in flight and
+     * RUNNING nine days later, so {@code /api/v1/ingest/current} reported a run in flight and
      * the button would have refused every click from then on.
      *
      * <p>Startup is the exact moment to say so, and no heuristic is needed for it: this

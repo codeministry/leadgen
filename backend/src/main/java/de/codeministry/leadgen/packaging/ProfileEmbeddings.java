@@ -143,22 +143,23 @@ public class ProfileEmbeddings {
      * What a reference project is, as one text.
      *
      * <p>Title, role and stack are what it was built with; the pitch is what it was about, and
-     * it is the half the lexical selection cannot see at all. The English pitch falls back to
-     * the German one, the same fallback the template makes.
+     * it is the half the lexical selection cannot see at all. Title and pitch are chosen
+     * through {@link ProjectView}, which is the same choice the letter makes — an embedding
+     * of a German title against a German advert has to compare the text that will actually
+     * be sent, not the other language's copy of it.
      */
     static String text(SkillProfile.ReferenceProject project, String language) {
-        StringBuilder text = new StringBuilder(project.title() == null ? "" : project.title().strip());
+        String title = ProjectView.title(project, language);
+        StringBuilder text = new StringBuilder(title == null ? "" : title);
         if (project.role() != null && !project.role().isBlank()) {
             text.append('\n').append(project.role().strip());
         }
         if (project.stack() != null && !project.stack().isEmpty()) {
             text.append('\n').append(String.join(", ", project.stack()));
         }
-        String pitch = "en".equalsIgnoreCase(language) && project.pitchEn() != null && !project.pitchEn().isBlank()
-                ? project.pitchEn()
-                : project.pitchDe();
-        if (pitch != null && !pitch.isBlank()) {
-            text.append('\n').append(pitch.strip());
+        String pitch = ProjectView.pitch(project, language);
+        if (pitch != null) {
+            text.append('\n').append(pitch);
         }
         return text.toString().strip();
     }

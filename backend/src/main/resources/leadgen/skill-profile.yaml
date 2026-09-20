@@ -39,12 +39,17 @@ industries:
 # the skills an offer asks for.
 reference_projects:
   - id: example-project
-    title: Example project
-    period: "2023 - 2024"
+    # Title and pitch are content, not repo language: they go verbatim into the cover
+    # letter, in the language of the job ad. One of the two titles is enough; the other
+    # language falls back to it.
+    title_de: Beispielprojekt
+    title_en: Example project
+    # Months, not free text, so that "since" and "seit" are the letter's business and
+    # not the profile's. Leave `to` out while the work is still running.
+    from: "2023-04"
+    to: "2024-11"
     role: Fullstack developer
     stack: [ Java, Spring Boot ]
-    # The pitch fields are content, not repo language: they go verbatim into the
-    # cover letter, in the language of the job ad.
     pitch_de: "Ein Satz, der das Projekt für einen Vermittler greifbar macht."
     pitch_en: "One sentence a recruiter can understand."
 

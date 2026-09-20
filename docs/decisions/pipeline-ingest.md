@@ -10,7 +10,7 @@ Every paragraph here was paid for once; none of it is a summary.
 
 `backend/…/ingest/`. A connector fetches documents, `HtmlBlockExtractor` splits them into
 blocks and reads fields, `OfferMapper` turns a block into an `ExtractedOffer`, `OfferStore`
-upserts it. `POST /api/ingest` runs one pass.
+upserts it. `POST /api/v1/ingest` runs one pass.
 
 - **No selector is written in Java.** Block selector, every field, the date format and the
   proxy parameter all come from the source's `extraction` section. That is what makes a

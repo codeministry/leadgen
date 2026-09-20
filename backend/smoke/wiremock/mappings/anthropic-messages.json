@@ -1,0 +1,34 @@
+{
+  "name": "anthropic messages",
+  "request": {
+    "method": "POST",
+    "urlPathPattern": "(/v1)?/messages"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "jsonBody": {
+      "id": "msg_smoke",
+      "type": "message",
+      "role": "assistant",
+      "model": "smoke-model",
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"reasons\":[{\"factor\":\"role_fit\",\"points\":24,\"label\":\"Java, Spring Boot and Kubernetes are the core of the ad\"},{\"factor\":\"vague_description\",\"points\":-3,\"label\":\"the client behind the agency is not named\"}]}"
+        }
+      ],
+      "stop_reason": "end_turn",
+      "stop_sequence": null,
+      "usage": {
+        "input_tokens": 1200,
+        "output_tokens": 80
+      }
+    }
+  },
+  "metadata": {
+    "note": "Matched by pattern and not by literal path: Spring AI's OpenAI client posts to {base_url}/chat/completions and prefixes /v1 only when the base URL has no path of its own, so a literal /v1/chat/completions stub is served 404 and the judge reports 'did not answer with a usable judgement' — a message about the model, for a routing mistake. Measured against this stack."
+  }
+}

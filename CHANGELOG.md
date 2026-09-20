@@ -11,6 +11,16 @@ may change in any release. See the status note in the README.
 
 ### Added
 
+- **`backend/smoke/smoke.sh` checks a finished image, and CI runs it.** Twenty-four checks in
+  seven groups against the built container rather than against the code: the context boots and
+  is not a GraalVM fallback, all 27 migrations ran and `vector` exists, all four configuration
+  files bound (one off disk and three off the classpath), a cover letter rendered through
+  FreeMarker, IMAP read a mailbox, and a stubbed model answer came back through the vendor SDK.
+  Each one asserts on a result, because the failure this exists for is an empty answer from a
+  service that reports healthy. It brings up its own Compose project on its own volume and
+  tears it down on exit. `backend/smoke/measure.sh` beside it compares two images and is run by
+  hand.
+
 - **Two search-agent portals can be read beside the aggregator, and both are a block of YAML.**
   The selectors and the senders name a portal, so they live in the operator's `config/` and not
   in the repository, and `SearchAgentCorpusTest` checks them against the saved mails and skips
@@ -18,6 +28,34 @@ may change in any release. See the status note in the README.
   Measured on five real mails: 26 cards out of three, and 1 out of each of the other two.
 
 ### Changed
+
+- **The backend image ships the jar unpacked, with Spring AOT switched on.** The entry point
+  is `java -Dspring.aot.enabled=true -jar /app/app.jar` over an extracted layout instead of a
+  fat jar. Measured on linux/arm64, five rounds, medians: time-to-healthy 6.43 s to 3.06 s,
+  `Started … in` 5.39 s to 2.55 s, idle memory 271 MiB to 237 MiB, image size unchanged at
+  350 MB. Most of it is the unpacking rather than the AOT half — Boot's nested-jar class loader
+  reads every dependency through a jar inside a jar — which matters because only the AOT half
+  carries risk: `processAot` starts the real context at build time and freezes condition
+  outcomes into the artifact. Build in Docker or CI, never from a tree with a filled-in `.env`.
+  The numbers, the method and the noise floor are in `docs/decisions/native-image.md`.
+
+- **Every endpoint moved from `/api` to `/api/v1`, and this is a breaking change.** The paths
+  were the one part of this tool with no version in them, on a service whose own changelog
+  header says the API may change in any release while the version is below `1.0.0` — so the
+  next shape change would have had nowhere to go but on top of the old path. There is no alias
+  and no redirect: the prefix is unversioned exactly once, and carrying it for a release would
+  be the second implementation of the same route that this repository avoids everywhere else.
+  `SECURITY.md` names the four write endpoints at their new paths, the frontend calls them, and
+  `backend/smoke/smoke.sh` keeps the prefix in one variable rather than ten strings.
+
+- **A reference project states its title twice and its period as two months.**
+  `reference_projects[].title` and `.period` are replaced by `title_de`, `title_en`, `from`
+  and `to`. One title was one language, so a German advert was answered with an English
+  project title, and `period` was free text, so `"since 2024-01"` put an English word in a
+  German letter. `from`/`to` are months (`"2024-01"`); an absent `to` means the work is still
+  running, and the letter renders `seit 01/2024` or `since 01/2024` itself. One of each title
+  and pitch pair is enough — the other language falls back to it, in both directions, which
+  the English letter previously did for the pitch only and the German one not at all.
 
 - **A package is built when a person asks for one, not when a run ends.** Reaching the
   shortlist opened an application directly at `PACKAGED` and built its folder; measured on
@@ -99,6 +137,22 @@ may change in any release. See the status note in the README.
 
 ### Fixed
 
+- **The cover letter named the agency as the place the advert was found.** `agency` is the
+  company writing the advert, so `"über Constaff GmbH bin ich auf Ihre Ausschreibung
+  gestoßen (freelancermap)"` told the recruiter that we came across their own advert through
+  them. The sentence now names `portal` and drops the agency, which the letter is addressed
+  to anyway; without a portal it opens `"Ich bin auf …"`.
+- **Every paragraph of both letters and of the archived advert reached the client indented by
+  four spaces.** Freemarker strips a line holding nothing but a directive; it does not strip
+  the indentation of a text line inside an `<#if>` or a `<#list>`, and every paragraph of
+  these templates sits in one. The bodies are flush left now and
+  `PackagingServiceTest.rendersEveryLineFlushLeft` holds them there.
+- **The German letter opened with a lowercase word**, because the sentence began with a
+  conditional whose first branch was `über`.
+- **A start date rendered as `2026-10-01` inside a German sentence.** Freemarker prints a
+  `LocalDate` as ISO when no format is set; the letter now writes `01.10.2026` and the
+  English one `1 October 2026`. The archived advert keeps ISO on purpose.
+
 - **`<mark>` no longer survives into the fingerprint as the word "mark".** Some sources wrap
   the subscriber's own search terms in it and the tag reaches the title as text; the
   normalizer removed the angle brackets and left the tag's own name standing, twice, so
@@ -109,6 +163,19 @@ may change in any release. See the status note in the README.
   fingerprints it has.
 
 ### Upgrade notes
+
+- **Anything outside this repository that calls the API has to be moved in the same deploy as
+  the image.** The rewrite is mechanical — `s#/api/#/api/v1/#` over the caller — and the
+  failure mode if it is missed is a `404` on every call rather than a wrong answer, so it is
+  loud. `/actuator/**` is unaffected. A reverse proxy that matches on the `/api/` prefix needs
+  no change; one that rewrites the path does.
+
+- **`config/skill-profile.yaml` has to be migrated in the same deploy as the image.**
+  `ConfigLoader` parses with `FAIL_ON_UNKNOWN_PROPERTIES`, so an old `title:` or `period:`
+  stops the application at startup with a message naming the key. Per project: rename `title`
+  to `title_de` or `title_en`, add the other language or leave it out, and replace `period`
+  with `from` and `to` as `"YYYY-MM"`. The shipped default in
+  `backend/src/main/resources/leadgen/skill-profile.yaml` is the worked example.
 
 - **`V25` drops `offer.embedding` and `offer.embedding_model` and adds them back at the new
   width.** A vector of one width is not a vector of another, so nothing is carried over and no

@@ -1,0 +1,94 @@
+# The smoke stack, as an OVERLAY on `docker-compose.yml` and never as a file of its own.
+#
+# `postgres` is inherited verbatim, which is the point: `pgvector/pgvector:0.8.6-pg18` is
+# named in exactly two places in this repository and a third copy is a third thing to
+# forget on the next major. Run it as
+#
+#   docker compose -f docker-compose.yml -f backend/smoke/docker-compose.smoke.yml \
+#     -p leadgen-smoke up -d postgres greenmail wiremock smoke-api
+#
+# Always with `-p leadgen-smoke`: the project name is what keeps this stack's volume apart
+# from the development one, which holds the real corpus.
+#
+# The service under test is `smoke-api` and not `api`, deliberately. `api` carries a
+# `build:` block that an overlay cannot remove, so overriding its image would still build
+# from source — and what this suite exists to test is a finished image, whichever one
+# `SMOKE_IMAGE` names.
+services:
+  greenmail:
+    image: greenmail/standalone:2.1.9
+    environment:
+      # One user, no SSL. The IMAP path under test is provider discovery and the search
+      # terms, not TLS; TLS is tested against wiremock, where a self-signed certificate
+      # can be handed to the JVM as a trust store.
+      GREENMAIL_OPTS: >-
+        -Dgreenmail.setup.test.imap
+        -Dgreenmail.users=smoke:smoke@example.invalid
+        -Dgreenmail.auth.disabled
+        -Dgreenmail.verbose
+    ports:
+      - "${SMOKE_GREENMAIL_IMAP_PORT:-13143}:3143"
+      - "${SMOKE_GREENMAIL_API_PORT:-18081}:8080"
+
+  wiremock:
+    image: wiremock/wiremock:3.13.1
+    command:
+      - --global-response-templating
+      - --https-port=8443
+      - --verbose
+    volumes:
+      - ./backend/smoke/wiremock:/home/wiremock:ro
+    ports:
+      - "${SMOKE_WIREMOCK_PORT:-18082}:8080"
+      - "${SMOKE_WIREMOCK_TLS_PORT:-18443}:8443"
+
+  smoke-api:
+    image: ${SMOKE_IMAGE:?set SMOKE_IMAGE to the image under test}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-leadgen}
+      POSTGRES_USER: ${POSTGRES_USER:-leadgen}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-leadgen}
+      # The configuration directory holds ONE file. The other three come off the
+      # classpath, so a single run proves the two-layer lookup in both directions — and
+      # the direction that breaks in a native image is the classpath one.
+      LEADGEN_CONFIG_DIR: /config
+      PACKAGES_DIR: /packages
+      DIGEST_DIR: /packages/digest
+      INBOX_DIR: /corpus
+      MANUAL_INBOX_DIR: /inbox
+      SERVER_ADDRESS: 0.0.0.0
+      IMAP_HOST: greenmail
+      IMAP_PORT: "3143"
+      IMAP_USER: smoke
+      IMAP_PASSWORD: smoke
+      # openai-compatible and not anthropic, because that is the wire format the deployed
+      # instance speaks (`provider: ollama` builds the same client) and the one whose SDK
+      # ships its own reachability metadata. The Anthropic path is exercised by a second
+      # run: SMOKE_LLM_PROVIDER=anthropic.
+      LLM_PROVIDER: ${SMOKE_LLM_PROVIDER:-openai-compatible}
+      LLM_BASE_URL: http://wiremock:8080
+      LLM_API_KEY: smoke
+      LLM_BATCH: "false"
+      LLM_TIMEOUT: PT20S
+      LLM_MODEL_SCORING: smoke-model
+      LLM_MODEL_EXTRACTION: smoke-model
+      LLM_MODEL_WRITING: ""
+      LLM_MODEL_EMBEDDING: ""
+      RETRIEVAL_ENABLED: "false"
+    volumes:
+      - ./backend/smoke/config:/config:ro
+      # The generated newsletter corpus, which is committed and deterministic. The file
+      # source in that config globs it.
+      - ./demo/corpus:/corpus:ro
+    tmpfs:
+      # uid 100 is `app` in the JVM image and 65532 is `nonroot` in the native one, so
+      # both are given write access rather than the script having to know which it started.
+      - /packages:uid=100,gid=101,mode=1777
+      - /inbox:uid=100,gid=101,mode=1777
+    ports:
+      - "${SMOKE_API_PORT:-18080}:8080"

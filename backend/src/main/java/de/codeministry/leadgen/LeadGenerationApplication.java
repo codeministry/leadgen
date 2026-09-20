@@ -8,6 +8,7 @@
  */
 package de.codeministry.leadgen;
 
+import org.springframework.context.annotation.ImportRuntimeHints;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
@@ -26,11 +27,16 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  */
 @SpringBootApplication
 @ConfigurationPropertiesScan
+// The four YAML defaults and the three templates are reached by a name computed at
+// runtime, so nothing at build time can see them. The class says what that costs.
+@ImportRuntimeHints(LeadGenRuntimeHints.class)
 @EnableScheduling
 @EnableAsync
 public class LeadGenerationApplication {
 
-    static void main(String[] args) {
+    // Public because native-image resolves the entry point reflectively and rejects a
+    // package-private one, with an error about a method that does exist.
+    public static void main(String[] args) {
         SpringApplication.run(LeadGenerationApplication.class, args);
     }
 }

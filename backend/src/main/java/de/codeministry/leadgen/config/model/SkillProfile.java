@@ -10,11 +10,13 @@ package de.codeministry.leadgen.config.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
+import java.time.YearMonth;
 import java.util.List;
 import java.util.Map;
 
@@ -27,8 +29,8 @@ import java.util.Map;
  * the weights and the cover letter the reference projects, so the whole file is bound
  * rather than the two fields the filter reads today.
  *
- * <p>The `pitch_de` fields are content, not repository language: they end up verbatim in
- * German cover letters.
+ * <p>The `title_*` and `pitch_*` fields are content, not repository language: they end up
+ * verbatim in a cover letter, in the language of the advert.
  *
  * @param localePrimary the language the profile is written for, not a hard filter.
  */
@@ -73,14 +75,44 @@ public record SkillProfile(
     public record Industry(
             @NotBlank String name, @Min(1) @Max(10) int weight, String note, List<String> match) {}
 
+    /**
+     * One project the cover letter may cite.
+     *
+     * <p>The title exists twice and the period not at all as text, because both used to be
+     * one field and both therefore ended up in one language. A German advert then got an
+     * English title, which is the half of the letter a reader notices first. The period is
+     * two {@link YearMonth}s and is rendered by {@code ProjectView}, so "since" and "seit"
+     * are a property of the letter rather than of the profile. An absent {@code to} means
+     * the work is still running.
+     *
+     * <p>The pitch fields are content, not repository language, and the title fields are
+     * now the same: they go verbatim into a letter, in the language of the advert.
+     */
     public record ReferenceProject(
             @NotBlank String id,
-            String title,
-            String period,
+            String titleDe,
+            String titleEn,
+            YearMonth from,
+            YearMonth to,
             String role,
             List<String> stack,
             String pitchDe,
-            String pitchEn) {}
+            String pitchEn) {
+
+        /**
+         * A project with neither title renders as an empty line above its pitch, which is a
+         * defect nobody sees until it is in front of a client. Fail at startup instead, where
+         * every other malformed value in this file already fails.
+         */
+        @AssertTrue(message = "needs a title_de or a title_en")
+        public boolean isTitled() {
+            return !isBlank(titleDe) || !isBlank(titleEn);
+        }
+
+        private static boolean isBlank(String value) {
+            return value == null || value.isBlank();
+        }
+    }
 
     public record Language(@NotBlank String name, String level) {}
 

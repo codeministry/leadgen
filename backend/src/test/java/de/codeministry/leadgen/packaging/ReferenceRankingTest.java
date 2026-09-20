@@ -12,6 +12,7 @@ import de.codeministry.leadgen.config.model.SkillProfile;
 import de.codeministry.leadgen.llm.Vectors;
 import org.junit.jupiter.api.Test;
 
+import java.time.YearMonth;
 import java.util.List;
 import java.util.Map;
 
@@ -149,7 +150,9 @@ class ReferenceRankingTest {
     }
 
     private static SkillProfile.ReferenceProject project(String id, List<String> stack) {
-        return new SkillProfile.ReferenceProject(id, id + " project", "2023 - 2024", "Fullstack", stack, "de", "en");
+        return new SkillProfile.ReferenceProject(
+                id, id + " Projekt", id + " project", YearMonth.of(2023, 4), YearMonth.of(2024, 11),
+                "Fullstack", stack, "de", "en");
     }
 
     private static SkillProfile profile(SkillProfile.ReferenceProject... projects) {

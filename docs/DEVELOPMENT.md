@@ -9,6 +9,7 @@
 | bun      | **1.3+**   | The package manager for the frontend. Never npm or npx.                                                                                      |
 | Docker   | any recent | Required for `docker compose`, **and for `./gradlew :backend:test`** — the backend tests use Testcontainers.                                 |
 | Postgres | 18         | Supplied by Compose. Published on host port **55432**, not 5432.                                                                             |
+| GraalVM  | **25**     | Only for `./gradlew :backend:nativeCompile`. `check`, `bootRun` and `docker compose` need an ordinary JDK 25 and never look for it.          |
 
 The host port is 55432 on purpose: a developer machine usually already has a Postgres on
 5432, and connecting to the wrong one fails as `password authentication failed for user
@@ -28,6 +29,9 @@ docker compose up postgres     # just the database a local run expects
 docker compose up --build      # the whole stack
 docker compose -f docker-compose.yml -f docker-compose.demo.yml up --build   # …with the demo data
 
+SMOKE_IMAGE=leadgen-api:aot backend/smoke/smoke.sh    # what has to work in a finished image
+IMAGE=leadgen-api:aot backend/smoke/measure.sh        # …and how it compares; needs that stack up
+
 cd frontend
 bun run start                  # dev server :4200, proxies /api to API_PROXY_TARGET
 bun run check:static           # ESLint (--max-warnings 0), Stylelint, tsc
@@ -40,6 +44,44 @@ lint and Vitest for the frontend. The frontend is bracketed with plain `Exec` ta
 `bun` rather than with the Node Gradle plugin — the plugin does not speak bun, and this way
 `package.json` stays the single list of frontend commands and `bun run <script>` behaves
 identically inside and outside Gradle.
+
+## Checking a finished image
+
+`./gradlew check` is the authority on behaviour. It cannot see the failures that are
+properties of *how the artifact was built* rather than of the code in it — a missing
+reflection hint in a native image compiles, starts, reports healthy, and then returns an
+empty result from one stage. `backend/smoke/smoke.sh` is for those.
+
+```bash
+docker build -f backend/Dockerfile -t leadgen-api:local .
+SMOKE_IMAGE=leadgen-api:local backend/smoke/smoke.sh
+```
+
+It brings up its own stack under the compose project `leadgen-smoke` — Postgres inherited
+verbatim from `docker-compose.yml`, plus GreenMail and WireMock — runs the image under test
+against it, and tears the whole thing down on exit. It never touches the development
+volume. `SMOKE_KEEP=1` leaves the stack up to poke at.
+
+Seven groups, twenty-four checks, each one a path that only breaks in a compiled image:
+the context boots and is not a GraalVM fallback; all migrations ran and the `vector`
+extension is there; all four configuration files bound, one off disk and three off the
+classpath, which is the direction a native image breaks; a cover letter rendered through
+Freemarker; IMAP connected and read a mailbox; and a stubbed model response came back
+through the vendor SDK's deserializer.
+
+`SMOKE_LLM_PROVIDER=anthropic` runs the last group against the Anthropic wire format
+instead of the OpenAI-compatible one. Both are worth running before publishing a native
+image: they are different SDKs, and only one of them ships its own reachability metadata.
+
+CI runs this suite: the `images` job of `.github/workflows/ci.yml` builds the backend image
+and smokes it, which is also the only startup number worth comparing between runs.
+
+`backend/smoke/measure.sh` is the same stack's measuring instrument and is run separately,
+against a stack that is already up — `smoke.sh` does not call it, because it sleeps 60 s per
+round. It reports image size, two startup numbers and memory at two points, five rounds by
+default, because a single before-and-after pair on a laptop is inside the noise. The
+numbers it has produced so far, and what they meant, are in
+`docs/decisions/native-image.md`.
 
 ## Moving an existing database to a new Postgres major
 

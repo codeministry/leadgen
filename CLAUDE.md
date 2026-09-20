@@ -34,6 +34,20 @@ Violating one of these is expensive, and most of them fail silently.
   A new source is a YAML block, not a deploy.
 - **Rules before model.** The hard filter runs deterministically and for free before any
   LLM call. Without a language model the tool must still run, only weaker.
+- **Ollama is the provider, and there is no automatic fallback.** Scoring, classification and
+  embeddings run locally and for free. Anthropic is never wired in as a fallback for a failed
+  or slow local call — it is used only when Marcello sets it for that specific run. A silent
+  fallback turns a free pipeline into a billed one without anything in the output to show it.
+- **Pre-1.0 the version bump is PATCH, even for a breaking change.** SemVer would ask for a
+  minor bump on a broken API or schema; this repository does not, and will not until 1.0.
+  A breaking `/api/sources` response-shape change shipped as `v0.3.1` after `v0.4.0` was
+  rejected, and the next one — the dropped `ingest_cursor` table plus changed
+  `remote.accept_unknown` semantics — went out as `v0.3.2`. The breaking part belongs in the
+  release notes, not in the number.
+- **Production maintenance never touches the codebase.** Bulk re-import, rescoring, a
+  bulk-archive: these run against the live instance from the terminal or as direct SQL. A
+  one-off admin task that leaves a commit behind has been done wrong, because the next
+  release then carries a migration nobody asked for.
 - **The database image is `pgvector/pgvector:0.8.6-pg18`, not plain postgres.** Deduplication's
   two similarity strategies compare vectors, `V22` creates the extension, and an image without
   it fails that migration with an error naming the extension rather than the image. It is named
@@ -72,13 +86,20 @@ Violating one of these is expensive, and most of them fail silently.
   anything skip — otherwise a SENT application stands for a document nobody ever made.
 - **Archiving discards the package unless the application was ever sent, and a restore comes
   back at `NEW`.** Both halves keep "PACKAGED" and "there is a folder" the same fact.
+- **Anything reached by a name computed at runtime needs a hint in `LeadGenRuntimeHints`.**
+  The four YAML files and the three templates are reached that way, and
+  `LeadGenRuntimeHintsTest` fails when something new under `src/main/resources/leadgen/` has
+  none. Third-party metadata is not this file's job: FreeMarker, jsoup, flyway, postgresql,
+  snakeyaml and angus-mail come from the GraalVM reachability repository, whose version travels
+  with the `native-build-tools` plugin. In a native image a missing hint is an empty result,
+  not an error.
 - **Never commit.** Do the work, leave it uncommitted, offer the commit — the maintainer
   reviews the diff and decides what lands.
 
 ## Monorepo
 
 `backend/` (Spring Boot 4.1, Java 25, Gradle) · `frontend/` (Angular 22 zoneless +
-`@ngrx/signals` + Tailwind 4/DaisyUI) · `charts/` (Helm) · `config/` · `docs/`.
+`@ngrx/signals` + Tailwind 4/DaisyUI) · `config/` · `docs/`.
 The root Gradle build brackets both: `./gradlew check` runs the Spring tests and the
 frontend's lint + tests in one call.
 
@@ -124,6 +145,7 @@ there**, which is what keeps this file readable.
 | The eleven application states and their event log                           | `docs/decisions/manual-status.md`           |
 | Two vector columns, the search that narrows, what a vector may not decide   | `docs/decisions/retrieval.md`               |
 | The sixteen steps this tool was built in, and what each had to prove        | `docs/decisions/order-of-work.md`           |
+| The AOT cache, the native image, and the hints written by hand              | `docs/decisions/native-image.md`            |
 
 The conventions and the traps for each half sit beside the code, in `backend/CLAUDE.md` and
 `frontend/CLAUDE.md`. A nested file is loaded when a file in that tree is read, never at
@@ -242,13 +264,8 @@ an editor command aimed at the whole repository.
   in `ci.yml` is the stopgap, and re-enabling Spotless is the real answer.
 - Which folder in the IMAP mailbox the newsletter lands in — deployment detail, and it
   does not belong in a committed file.
-- **Retrieval is decided and not built.** `docs/decisions/retrieval.md` settles the shape: a second
-  column for the whole de-furnitured advert, never the dedupe column, because the merge band was
-  measured against the short text and `embedding_model` cannot tell two texts apart under one model
-  name. Semantic search narrows the set and never reorders it, so the keyset cursor stays untouched and
-  no threshold has to be measured first. The stage runs behind `SCORE`, because one backfill in front
-  of it would spend the day's `llm.budget` and leave the shortlist unjudged. Whoever builds it takes
-  the four measurements in that file's last section first.
+- **Retrieval is decided and not built.** The shape, and the four measurements to take
+  before switching it on, are in `docs/decisions/retrieval.md`.
 - **Roughly fifteen configuration keys are bound, validated, rendered and read by nothing.**
   They are now marked as such in the `read by` columns of `docs/WRITING-RULES.md` and
   `docs/ADDING-A-SOURCE.md` rather than left to be discovered; removing them is the real

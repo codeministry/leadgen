@@ -34,13 +34,13 @@ The reasoning stage by stage lives in `docs/decisions/pipeline-ingest.md`,
   `spring-boot-flyway` the migrations sit on the classpath and never run, and the only
   symptom is Hibernate complaining about missing tables. `@WebMvcTest` likewise moved
   from `…test.autoconfigure.web.servlet` into `spring-boot-webmvc-test`.
-- **The credentials file is `.env` and cannot be called anything else without a cost.**
-  Compose substitutes the `${...}` in `docker-compose.yml` from `.env` and nothing else:
-  not from `env_file:`, which only injects into a container, and not from
-  `COMPOSE_ENV_FILES` set inside a file (measured — real environment variable or
-  `--env-file` only). Another name needs a flag on every call or a symlink, and forgetting
-  either silently applies the compose defaults, so the stack listens where the application
-  is not looking.
+- **`.env` is the one name, it is read by the application and not by the build, and Spring
+  sees it too.** Compose substitutes `${...}` from `.env` and from nothing else — not
+  `env_file:`, not `COMPOSE_ENV_FILES` inside a file. `DotEnvEnvironmentPostProcessor`
+  registers it below `systemEnvironment`, so a real exported variable still wins and
+  `LEADGEN_CONFIG_DIR`, `POSTGRES_PASSWORD` and `SERVER_PORT` mean the same thing however
+  the process was started. What each half cost before it worked this way is in
+  `docs/decisions/configuration.md`.
 - **A published port's container side is fixed at 5432.** Postgres binds that port inside
   the container whatever the host side is; making both sides variable publishes a host port
   forwarding to a port nobody listens on, which looks exactly like no port at all.
@@ -49,21 +49,17 @@ The reasoning stage by stage lives in `docs/decisions/pipeline-ingest.md`,
   `password authentication failed for user "leadgen"` — a message naming the user and
   neither the host nor the database it actually reached. `DatasourceBanner` prints the
   effective JDBC URL at startup for the same reason the frontend prints its proxy target.
-- **`.env` is read by the application, not by the build.** It used to be a `bootRun` hook, so
-  launching the very same configuration from an IDE silently saw none of it: the value was in
-  the file and the service said it was missing. The file is searched upwards from the working
-  directory and real environment variables win, so every start path behaves identically.
-  Compose reads the same file.
-- **`.env` reaches Spring too, and it has to.** `DotEnvEnvironmentPostProcessor` registers it
-  as a property source directly below `systemEnvironment`, so a real exported variable still
-  wins and `application.yaml` now loses to the file. Without it the file meant two different
-  things depending on which of the two readers a variable happened to be used by:
-  `LEADGEN_CONFIG_DIR`, `POSTGRES_PASSWORD` and `SERVER_PORT` could be written there, be
-  visibly present, and have no effect whatsoever — while Compose, which passes those same
-  names as real environment variables, behaved exactly as written. It is a
-  `SystemEnvironmentPropertySource`, so `SPRING_DATASOURCE_URL` maps the way an exported
-  variable would, and it is registered in `META-INF/spring.factories` rather than as a bean
-  because it has to run before the environment is bound.
+- **The aotTest chain is off, and all three tasks of it.** Applying the GraalVM plugin puts
+  AOT processing of the *test* source set into `check`, which starts every `@SpringBootTest`
+  context at build time — measured, `check` went from 2.5 minutes to still running after
+  fifty, naming no task. Disabling only `processTestAot` then fails `compileAotTestJava`
+  against output that was never produced.
+- **`processAot` runs the application context at build time, so a condition decided by
+  `.env` is frozen into the jar.** Build artifacts in Docker or CI, never from a tree with a
+  filled-in `.env`.
+- **The AOT cache applies to the *extracted* jar and silently does nothing against the fat
+  one.** Train and run on the same base image; `-Xlog:aot` is the only thing that will say it
+  was rejected.
 - **`leadgen.packages-dir` and `leadgen.inbox-dir` are gone, and were read by nothing.** The
   packages directory is `packaging.output_dir` in `pipeline.yaml`, the inbox is a source's
   `path` in `sources.yaml`, and both are read by the tool itself. Their only effect was to make

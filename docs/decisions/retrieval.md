@@ -312,7 +312,7 @@ built. See § *Which projects the letter pitches*.
 the honest state. A template cannot invent a project, a rate or a client name into a document
 somebody is about to send under their own name, which is what makes the package folder safe to
 produce unattended. Where retrieval helps there is *selection*: `referencesFor` ranks reference
-projects by counting stack tokens in the advert, so `pitch_de`, `role` and `title` contribute
+projects by counting stack tokens in the advert, so the pitch and the title contribute
 nothing, a dozen Spring projects tie on every Java advert, and — because the overlap filter
 runs before the limit of two — a letter can go out with one reference project or none. The
 model picks among sentences that were all written by hand.

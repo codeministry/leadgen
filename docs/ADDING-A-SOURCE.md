@@ -328,7 +328,7 @@ block whose `title` comes out blank is dropped with it.
 
 ```bash
 ./gradlew :backend:test --tests '*ExtractionTest*'
-curl -s -X POST http://localhost:8080/api/ingest | jq '.sources'
+curl -s -X POST http://localhost:8080/api/v1/ingest | jq '.sources'
 ```
 
 The report names, per document, how many offers were extracted and how many the document

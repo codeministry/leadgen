@@ -77,6 +77,11 @@ __pycache__/
 # The Ideal State Artifact is a working document, not project documentation.
 ISA.md
 
+# Editor swap files. One of these was found sitting in the Java sources, one `git add -A`
+# away from a public repository.
+*.sw[a-p]
+.*.sw[a-p]
+
 # Coverage reports. Produced by `./gradlew check`, never committed.
 /coverage/
 frontend/coverage/

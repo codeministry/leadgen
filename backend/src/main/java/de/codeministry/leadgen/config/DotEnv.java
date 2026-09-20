@@ -47,9 +47,30 @@ public record DotEnv(Optional<Path> file, Map<String, String> declared) {
     private static final int SEARCH_DEPTH = 4;
 
     /**
+     * The one way to make this reader stand down, and it exists for a build rather than for a
+     * run.
+     *
+     * <p>`processAot` starts the real application context at build time, so whatever this class
+     * finds then is frozen into the artifact as a set of condition outcomes. The search below
+     * goes <i>upwards</i>, four parents deep, which is further than any working directory a
+     * Gradle task can be given while staying inside the repository: from
+     * `backend/build/aot-sandbox` the repository root is the third parent and from
+     * `backend/build/tmp/processAot` it is the fourth. So a sandbox directory cannot hide the
+     * file and there is no directory that can. An explicit switch can, and `backend/build.gradle.kts`
+     * sets it on that one task.
+     *
+     * <p>Not a Spring property, because this runs before the environment is bound and has
+     * nothing to read one from.
+     */
+    public static final String SKIP = "LEADGEN_SKIP_DOTENV";
+
+    /**
      * Locates and reads the file, or reports that there is none.
      */
     public static DotEnv load() {
+        if (skipped()) {
+            return new DotEnv(Optional.empty(), Map.of());
+        }
         Path base = Path.of("").toAbsolutePath();
         for (int i = 0; i <= SEARCH_DEPTH && base != null; i++) {
             Path candidate = base.resolve(FILE_NAME);
@@ -59,6 +80,16 @@ public record DotEnv(Optional<Path> file, Map<String, String> declared) {
             base = base.getParent();
         }
         return new DotEnv(Optional.empty(), Map.of());
+    }
+
+    /**
+     * Any value but the empty string counts, so `LEADGEN_SKIP_DOTENV=1` and
+     * `LEADGEN_SKIP_DOTENV=true` mean the same thing and a variable set to nothing means what
+     * an unset one means.
+     */
+    private static boolean skipped() {
+        String value = System.getenv(SKIP);
+        return value != null && !value.isBlank();
     }
 
     /**

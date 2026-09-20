@@ -23,7 +23,7 @@ screen reads one of these, and none of them writes.
   total made the rail report **-45 survivors**, and counting duplicates as survivors made
   the sources screen say 104 where the shortlist showed 96.
 - **The detail is not restricted to survivors.** It is also how somebody opens an offer the
-  filter rejected and asks whether the rule was right, so `/api/offers/{id}` serves any id
+  filter rejected and asks whether the rule was right, so `/api/v1/offers/{id}` serves any id
   and `hardPass` says which it is.
 - **Reasons and duplicate clusters are two queries for the whole list, not two per entry.**
 - **The shortlist is paged, and the filters go with the page.** The whole list used to come
@@ -191,7 +191,7 @@ screen reads one of these, and none of them writes.
   declares. A union type in TypeScript for any of them disagrees with the server the first
   time one is added — and the symptom is a compile error in a component that has no
   business knowing the filter at all.
-- **`/api/prompts` renders what is sent, and never the template.** The Rules screen answered
+- **`/api/v1/prompts` renders what is sent, and never the template.** The Rules screen answered
   "why did this offer score what it scored" for the deterministic half only; the prompt was the
   one part of the decision with nowhere to look it up. Rendered, because the two things worth
   checking are exactly the two that get substituted in — that the configured bounds reached the
@@ -207,7 +207,7 @@ screen reads one of these, and none of them writes.
 
 ## The sources screen, opened
 
-`config/SourceDetailService` behind `GET /api/sources/{id}?runs=30`, with
+`config/SourceDetailService` behind `GET /api/v1/sources/{id}?runs=30`, with
 `config/YamlBlocks` and `config/YamlMask` under it, and `features/sources/source-panel/` on
 the other end. The first thing in this application that shows a person their own
 configuration file.
@@ -260,12 +260,12 @@ configuration file.
   file, the newsletter block reported its end on the line reading `- id: sample-portal-feed`.
   Checking the mark's column does not save it either, because that token starts at the dash's
   column and not at zero. The bound is the next item's start, which is exact.
-- **One endpoint and not two**, and nothing new on `/api/sources`. One disclosure is one click,
+- **One endpoint and not two**, and nothing new on `/api/v1/sources`. One disclosure is one click,
   so two loading states in one panel would be two failure modes for one decision; and the list
   is refetched on every finished run and every tab focus, which is no place for file text.
 - **The layer left the row for the envelope.** It is one probe for the whole file — the two
   layers override each other file by file and never key by key — so a badge per row asserted
-  what cannot differ between two rows, the same class as `remote.accept_unknown`. `/api/sources`
+  what cannot differ between two rows, the same class as `remote.accept_unknown`. `/api/v1/sources`
   answers `{file, layer, sources}` now, which is a breaking change to a published endpoint and
   is named as one in the changelog.
 - **The history answers "when did the number change", because that is what its table is for.**

@@ -272,8 +272,8 @@ offer a person owns.
   part of the side being read, and leaving it there shows the working list carrying
   something that is not on it until somebody reloads.
 - **The bulk endpoint answers a report, and that is the one place the plural breaks the singular's rule.**
-  `PATCH /api/offers/{id}` returns the whole `ShortlistEntry` because the browser replaces its row with what the server
-  stored. `POST /api/offers/archive` cannot:
+  `PATCH /api/v1/offers/{id}` returns the whole `ShortlistEntry` because the browser replaces its row with what the server
+  stored. `POST /api/v1/offers/archive` cannot:
   the reducer drops those rows rather than replacing them, so entries would be fetched only to be discarded — measured
   here at ~1.4 KB each, so 200 offers is ~280 KB of representation nobody reads. `requested` against `archived` is what
   an id that named no offer costs, and it is why the endpoint answers 200 where the single PATCH answers 404: refusing

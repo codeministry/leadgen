@@ -14,12 +14,14 @@ Published:  ${offer.publishedOn!"unknown"}
 URL:        ${offer.url!""}
 Archived:   ${archivedAt}
 
+<#-- Column 0, like the letters: Freemarker keeps the indentation of a text line inside a
+     directive body, and an indented copy of the original advert is not a copy of it. -->
 <#if offer.description??>
-    ${offer.description}
+${offer.description}
 </#if>
 <#if offer.fullText??>
 
-    --- the original ad ---
+--- the original ad ---
 
-    ${offer.fullText}
+${offer.fullText}
 </#if>

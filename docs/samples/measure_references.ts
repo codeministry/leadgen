@@ -45,7 +45,8 @@ type Offer = {
 
 type Project = {
   id: string;
-  title?: string;
+  title_de?: string;
+  title_en?: string;
   role?: string;
   stack?: string[];
   pitch_de?: string;
@@ -103,7 +104,7 @@ function haystack(offer: Offer): string {
 
 /** `ProfileEmbeddings.text`, for the German pitch — this corpus is a German market. */
 function projectText(project: Project): string {
-  let text = (project.title ?? "").trim();
+  let text = (project.title_de ?? project.title_en ?? "").trim();
   if (project.role?.trim()) text += "\n" + project.role.trim();
   if (project.stack?.length) text += "\n" + project.stack.join(", ");
   if (project.pitch_de?.trim()) text += "\n" + project.pitch_de.trim();
@@ -166,7 +167,7 @@ if (await Bun.file(advertCache).exists()) {
 console.error(`embedding ${projects.length} reference projects`);
 const projectVectors = (await embed(projects.map(projectText))).map(narrowed);
 
-const title = (p: Project) => p.title ?? p.id;
+const title = (p: Project) => p.title_de ?? p.title_en ?? p.id;
 const rows: string[] = [];
 let shortToday = 0;
 let shortBlended = 0;

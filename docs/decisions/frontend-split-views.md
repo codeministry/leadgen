@@ -10,7 +10,7 @@ Every paragraph here was paid for once; none of it is a summary.
 `frontend/…/core/store/applications.store.ts` plus `features/pipeline/` and the panel in
 `features/offer-detail/`. The first screen in this app that writes.
 
-- **The lanes come from `/api/applications/lanes`, not from a constant.** Eleven states
+- **The lanes come from `/api/v1/applications/lanes`, not from a constant.** Eleven states
   across five lanes is a decision the enum already makes; a second copy in the browser
   disagrees with it the first time a state is added — visibly on the board, invisibly in
   the code.

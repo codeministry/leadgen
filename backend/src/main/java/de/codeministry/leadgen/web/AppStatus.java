@@ -9,6 +9,6 @@
 package de.codeministry.leadgen.web;
 
 /**
- * What `GET /api/status` answers.
+ * What `GET /api/v1/status` answers.
  */
 public record AppStatus(String application, String version) {}

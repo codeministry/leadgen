@@ -30,6 +30,12 @@
       "groupName": "spring boot"
     },
     {
+      "description": "native-build-tools carries the GraalVM reachability-metadata repository version with it, so a bump changes which third-party metadata the native image is compiled against. Its own pull request, read before merging.",
+      "matchPackageNames": ["/^org\\.graalvm\\.buildtools/"],
+      "groupName": null,
+      "automerge": false
+    },
+    {
       "description": "A formatter bump rewrites every file it touches. That has to be a deliberate commit, never a grouped one.",
       "matchPackageNames": ["/^com\\.diffplug\\.spotless/", "/^com\\.palantir\\.javaformat/"],
       "groupName": null,

@@ -29,7 +29,14 @@ jobs:
     timeout-minutes: 30
 
     steps:
+      # Full history, for the migration check at the end of this job and for nothing else.
+      # The default is a shallow clone of depth 1, which leaves HEAD a grafted boundary: the
+      # base ref can then be fetched and still share no reachable merge base with it, so the
+      # three-dot diff errors instead of answering. A guard that cannot answer is worse than
+      # no guard, because it is green.
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       # Pinned to 25 to match the Gradle toolchain. There is no toolchain resolver in
       # `settings.gradle.kts`, so Gradle cannot download a JDK of its own: this step is
@@ -57,6 +64,39 @@ jobs:
       # off, and what re-enabling takes, is written where it was switched off.
       - name: Check
         run: ./gradlew check --no-daemon --stacktrace
+
+      # An applied migration is immutable: Flyway hashes the file's bytes, so editing one
+      # that a database already ran changes its checksum and every such database refuses to
+      # start. `.editorconfig` already stops the IDE formatter from rewriting these files,
+      # which covers the accident; it does not cover the deliberate edit, and the symptom
+      # appears only in the target environment, never here. This step closes that half.
+      #
+      # Only on a pull request, because "changed relative to the base" is the only form of
+      # the question that has an answer. The checkout above is unshallow, so the base ref is
+      # fetched at full depth here rather than to a guessed number of commits: a branch that
+      # is further behind the base than the guess would otherwise fail the same silent way a
+      # shallow HEAD does.
+      #
+      # `MDR` and not `M`: Flyway validates a file's checksum *and* its description, so
+      # deleting an applied migration and renaming one break a deployed database exactly as
+      # editing one does, and neither is an `M`.
+      #
+      # No `|| true` anywhere in here. It is what made the first version of this step
+      # unfailable — inside the command substitution it turns every git error into an empty
+      # answer and a green run, which is the one outcome a guard must not have.
+      - name: No applied migration was changed
+        if: github.event_name == 'pull_request'
+        run: |
+          git fetch --no-tags origin "$GITHUB_BASE_REF"
+          changed=$(git diff --name-only --diff-filter=MDR \
+            "origin/$GITHUB_BASE_REF...HEAD" \
+            -- backend/src/main/resources/db/migration/)
+          if [ -n "$changed" ]; then
+            echo "These migrations are already applied somewhere and must not change:" >&2
+            echo "$changed" >&2
+            echo "Add a new V<n>__ migration instead." >&2
+            exit 1
+          fi
 
       # The one thing Spotless was doing that nothing else does. It is off in
       # `backend/build.gradle.kts`, so the SPDX header on a new Java file is copied by hand —
@@ -106,19 +146,23 @@ jobs:
   images:
     name: Docker images build
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
 
     steps:
       - uses: actions/checkout@v5
 
       - uses: docker/setup-buildx-action@v4
 
+      # `load: true` and a tag, because this image is not only built here: the smoke step
+      # below runs it, and a run needs it in the local daemon rather than in buildx's cache.
       - name: Backend image
         uses: docker/build-push-action@v7
         with:
           context: .
           file: backend/Dockerfile
           push: false
+          load: true
+          tags: leadgen-api:ci
           cache-from: type=gha,scope=backend
           cache-to: type=gha,mode=max,scope=backend
 
@@ -130,3 +174,36 @@ jobs:
           push: false
           cache-from: type=gha,scope=frontend
           cache-to: type=gha,mode=max,scope=frontend
+
+      # The half `./gradlew check` cannot reach. Those tests say the code is right; this says
+      # the *artifact* is, which is a different question once a build step decides what the
+      # runtime can still see. It brings up its own compose project against its own volume and
+      # tears it down on exit, so it cannot touch anything else on the runner.
+      #
+      # Here and not in `check`, because it needs the image that the step above just built, and
+      # on a Linux runner rather than a laptop, because that is the only startup number worth
+      # comparing across runs. The suite prints its row into the job summary.
+      #
+      # `SMOKE_KEEP=1` only because of the step after it: the suite's own trap would otherwise
+      # remove the containers before anything could read their logs, and a red run whose logs
+      # are already gone is the failure mode this suite exists to avoid elsewhere. The runner
+      # is thrown away either way; the teardown at the end is there so the two steps stay
+      # honest about who cleans up.
+      # `docker-compose.yml` declares `.env` as required, and a runner has none. The values in
+      # the example are placeholders; the suite overrides every one it cares about.
+      - name: Compose needs an .env
+        run: cp .env.example .env
+
+      - name: Smoke the backend image
+        env:
+          SMOKE_IMAGE: leadgen-api:ci
+          SMOKE_KEEP: '1'
+        run: backend/smoke/smoke.sh
+
+      - name: Smoke logs
+        if: failure()
+        run: docker compose -f docker-compose.yml -f backend/smoke/docker-compose.smoke.yml -p leadgen-smoke logs --no-color --tail 200 || true
+
+      - name: Smoke teardown
+        if: always()
+        run: docker compose -f docker-compose.yml -f backend/smoke/docker-compose.smoke.yml -p leadgen-smoke down -v --remove-orphans || true

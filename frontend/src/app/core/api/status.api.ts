@@ -2,7 +2,7 @@ import {HttpClient} from '@angular/common/http';
 import {inject, Injectable} from '@angular/core';
 import {Observable} from 'rxjs';
 
-/** What `GET /api/status` returns. Kept in sync with `StatusController` by hand. */
+/** What `GET /api/v1/status` returns. Kept in sync with `StatusController` by hand. */
 export interface AppStatus {
     readonly application: string;
     readonly version: string;

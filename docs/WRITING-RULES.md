@@ -397,7 +397,9 @@ file itself — [`demo/skill-profile.yaml`](../demo/skill-profile.yaml) is a com
 | `core[].weight` | `core_skill_overlap` and `saturation_core_count` |
 | `strong[]`, `peripheral[]` | `core_skill_overlap` only — invisible to the filter |
 | `industries[].name`, `.match`, `.weight` | `industry_fit`. Without `match:`, the name is compared against German ad text. |
-| `reference_projects[]` | the cover letter |
+| `reference_projects[].title_de`, `.title_en`, `.pitch_de`, `.pitch_en` | the cover letter. One of each pair is enough; the other language falls back to it. |
+| `reference_projects[].from`, `.to` | the cover letter's period. Months (`"2024-01"`). No `to` means still running, and the letter writes "seit" or "since" itself. |
+| `reference_projects[].role`, `.stack` | `ReferenceRanking`, which picks the two projects a letter cites |
 | `cv_variants` | which CV goes into the package |
 | `locale_primary` | the fallback language of a package, when the ad's own says nothing |
 | `identity.*` | the judge's prompt |

@@ -21,7 +21,7 @@ export type ApplicationStatus =
     | 'EXPIRED';
 
 /**
- * A lane of the board, as `GET /api/applications/lanes` states it.
+ * A lane of the board, as `GET /api/v1/applications/lanes` states it.
  *
  * The grouping is not repeated here. Eleven states across five lanes is a decision the
  * enum already makes, and a second copy in the browser would disagree with it the first
@@ -34,7 +34,7 @@ export interface PipelineLane {
 }
 
 /**
- * What each state may be moved to, as `GET /api/applications/transitions` states it.
+ * What each state may be moved to, as `GET /api/v1/applications/transitions` states it.
  *
  * Read from the server rather than written out here for the same reason the lanes are: a
  * second copy of the rule in the browser disagrees with the endpoint the first time it

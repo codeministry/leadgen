@@ -9,7 +9,7 @@ Every paragraph here was paid for once; none of it is a summary.
 ## Order of work
 
 1. ✅ **Monorepo skeleton** — root build, `backend/` skeleton, `frontend/` skeleton,
-   `docker-compose.yml` (postgres, api, web), `.env` loading, Flyway. `GET /api/status`
+   `docker-compose.yml` (postgres, api, web), `.env` loading, Flyway. `GET /api/v1/status`
    plus the `StatusStore` exist only to prove the full path (component → proxy → Spring
    → Postgres) end to end; they are not a feature.
 2. ✅ **Configuration layer** — load, validate and hot-reload `sources.yaml`,
@@ -36,11 +36,11 @@ Every paragraph here was paid for once; none of it is a summary.
    the offer's own skills selected, the fixed PDF for the ad's language, the archived
    original and a `meta.json`. A folder on disk; nothing is sent.
 10. ✅ **Frontend** — design system, shell and all six screens, every one of them on a
-    real endpoint. `GET /api/offers` and `/api/offers/{id}` carry the shortlist and the
-    detail, `/api/offers/funnel` the filter counts, `/api/sources` and `/api/rules` the
+    real endpoint. `GET /api/v1/offers` and `/api/v1/offers/{id}` carry the shortlist and the
+    detail, `/api/v1/offers/funnel` the filter counts, `/api/v1/sources` and `/api/v1/rules` the
     configuration as the screens read it. `core/fixtures/` is gone.
 11. ✅ **Manual status capture** — the `application` table and its event log,
-    `GET/PATCH /api/applications`, and both screens on it: the board groups by the lanes
+    `GET/PATCH /api/v1/applications`, and both screens on it: the board groups by the lanes
     the endpoint states, and the offer detail carries the same control plus the dates,
     the note and the history. The dashboard's follow-up tile counts what the server
     called due. The tool never sends — it finds, filters, scores and packages; the
@@ -50,13 +50,13 @@ Every paragraph here was paid for once; none of it is a summary.
     lands in `<config-dir>/inbox/` and is read by a `manual-inbox` **file** source on the next
     run, so no new connector is needed. *(The drop zone was on the Sources screen when this was
     written and moved to Review with step 13, where the upload is reviewed before it becomes an
-    offer. `POST /api/sources/manual/documents` kept its path, which is what made the two
+    offer. `POST /api/v1/sources/manual/documents` kept its path, which is what made the two
     sentences drift apart.)* One document is one offer here,
     so it needs a `markdown-frontmatter` extraction strategy: YAML frontmatter carries the
     eight-field contract, the body is the description, `fallback: llm` covers a raw pasted
     ad. `external_id` is the unwrapped URL or a content hash, otherwise re-uploading the
     same ad makes a second offer. `ProxyLink.unwrap` still applies, and the inbox is
-    gitignored. `POST /api/sources/manual/documents` is the first write endpoint in this
+    gitignored. `POST /api/v1/sources/manual/documents` is the first write endpoint in this
     app and writes to disk, so it needs an extension allowlist, a size limit, a sanitised
     filename and a decision about `security.auth`, which is `none` today.
 

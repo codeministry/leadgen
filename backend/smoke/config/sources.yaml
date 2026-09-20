@@ -1,0 +1,70 @@
+# The only file the smoke run puts in the configuration directory.
+#
+# `pipeline.yaml`, `matching-rules.yaml` and `skill-profile.yaml` are deliberately absent:
+# they come off the classpath, so one run proves both halves of the two-layer lookup. The
+# half that breaks in a native image is the classpath one — a resource reached by a name
+# the analysis never sees is simply not there, and `ConfigSource` then reports a broken
+# artifact rather than a missing file.
+version: 1
+
+connections:
+  - id: greenmail
+    type: imap
+    host: ${IMAP_HOST}
+    port: ${IMAP_PORT:3143}
+    # Plain IMAP. What this source is here to prove is jakarta.mail's provider discovery
+    # and the `jakarta.mail.search.*` term classes, neither of which cares about TLS.
+    # TLS is proven separately, against wiremock, where the certificate can be handed to
+    # the JVM as a trust store.
+    ssl: false
+    username: ${IMAP_USER}
+    password: ${IMAP_PASSWORD}
+    mode: poll
+    poll_interval: PT15M
+
+sources:
+  # The generated corpus, read off disk. Deterministic, committed, and extracted with the
+  # same selector block the shipped newsletter source declares — so this exercises the real
+  # path rather than a fixture written to match it.
+  - id: smoke-corpus
+    enabled: true
+    type: file
+    path: ${INBOX_DIR:/corpus}
+    glob: "*.eml"
+    extraction:
+      strategy: html-blocks
+      block_selector: "div.job-card"
+      prefer_part: html
+      expect_count_from_subject: "^(\\d+)"
+      fields:
+        title:       { css: "h3.job-title" }
+        description: { css: "div.job-description" }
+        url:         { css: "a.job-link", attr: href, unwrap_query_param: target }
+        agency:      { css: "div.job-meta span", prefix: "🏢 " }
+        location:    { css: "div.job-meta span", prefix: "📍 " }
+        published:   { css: "div.job-meta span", prefix: "📅 ", format: "dd.MM.yyyy – HH:mm 'Uhr'" }
+        portal:      { css: "div.job-meta span", prefix: "🔗 " }
+        tags:        { ancestor: "div.tag-group", css: "h2.tag-header", list: true, split: "+" }
+      fallback: none
+    defaults:
+      language: de
+      channel: newsletter
+
+  # The same extraction over IMAP. This source exists for the transport and not for the
+  # offers: it is the only thing in the suite that touches jakarta.mail, the runtime-built
+  # `ImapMailReceiver`, and Spring Integration's SpEL evaluation context.
+  - id: smoke-imap
+    enabled: true
+    type: imap
+    connection: greenmail
+    selector:
+      folder: INBOX
+      match_all: true
+      mark_seen: false
+      since_days: 3650
+      state: uid
+    extraction:
+      inherit: smoke-corpus
+    defaults:
+      language: de
+      channel: newsletter

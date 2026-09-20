@@ -23,6 +23,13 @@ flexmark = "0.64.8"
 # third model module would buy nothing. Pinned rather than tracked for the same reason jsoup
 # and freemarker are — a judge that suddenly answers differently should show up as a diff.
 springAi = "2.0.1"
+# The GraalVM build tools. Applied for BOTH images and not only the native one: applying
+# it is what makes the Boot plugin register `processAot`, and Spring AOT is half of the JVM
+# image's startup win. It also carries the version of the reachability-metadata repository
+# with it, which is where postgresql, flyway, freemarker, jsoup, snakeyaml and angus-mail
+# get their metadata — so a bump changes what compiles rather than what runs, and it gets a
+# pull request of its own.
+graalvmNative = "1.1.14"
 # Formatting and the SPDX header, both enforced by `check` rather than remembered.
 spotless = "7.0.4"
 # palantir-java-format rather than google-java-format: 120 columns and 8-space
@@ -52,3 +59,4 @@ flexmark-html2md = { module = "com.vladsch.flexmark:flexmark-html2md-converter",
 spring-boot = { id = "org.springframework.boot", version.ref = "springBoot" }
 spring-dependency-management = { id = "io.spring.dependency-management", version.ref = "springDependencyManagement" }
 spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }
+graalvm-native = { id = "org.graalvm.buildtools.native", version.ref = "graalvmNative" }

@@ -17,7 +17,7 @@ interface AnalyticsState {
 const initialState: AnalyticsState = {view: null, error: null, loading: false};
 
 /**
- * `GET /api/analytics` — one payload, one loading state, one failure.
+ * `GET /api/v1/analytics` — one payload, one loading state, one failure.
  *
  * <p>`exhaustMap` rather than `switchMap`: the request is idempotent and the answer is the
  * same whichever of two in-flight ones wins, so a second open while the first is running is

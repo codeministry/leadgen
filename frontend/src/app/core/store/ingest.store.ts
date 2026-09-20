@@ -38,11 +38,11 @@ const initialState: IngestState = {
 };
 
 /**
- * `POST /api/ingest` runs one pass over every enabled source. `exhaustMap` rather
+ * `POST /api/v1/ingest` runs one pass over every enabled source. `exhaustMap` rather
  * than `switchMap`: a second click while a run is in flight must be ignored, not
  * start a competing pass over the same mailbox.
  *
- * `GET /api/ingest/last` answers the other half. Without it the dashboard knew about a run
+ * `GET /api/v1/ingest/last` answers the other half. Without it the dashboard knew about a run
  * only if this browser had started one — measured on 2026-09-02, a `pipeline_run` row six
  * minutes old and the screen saying "No run yet". After a scheduled nightly pass that is
  * every morning, on the one screen whose subtitle is "what came in this morning".

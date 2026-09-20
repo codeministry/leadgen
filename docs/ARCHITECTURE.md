@@ -285,7 +285,7 @@ Read-only, and separate from the stages that write — each stage owns a narrow 
 
 ### The prompts on the Rules screen
 
-`/api/prompts` hands over both system prompts **rendered**, not as templates. That screen
+`/api/v1/prompts` hands over both system prompts **rendered**, not as templates. That screen
 already carries the weight table, the knockouts and the thresholds — the deterministic half of
 a score — and the prompt was the one input to the decision with nowhere to look it up.
 

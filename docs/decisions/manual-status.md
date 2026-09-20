@@ -23,7 +23,7 @@ write endpoint in the application.
   answers 409 for the rest. **Everything after the package stays free**, including the way
   back: the nine other states still answer "all eleven", because a correction there costs
   nothing that has to exist on disk.
-- **The rule is served, not mirrored.** `GET /api/applications/transitions` states it and
+- **The rule is served, not mirrored.** `GET /api/v1/applications/transitions` states it and
   the picker greys out what it names, for the same reason the lanes are an endpoint: a
   second copy of the rule in the browser disagrees with the server the first time it moves,
   visibly on the board and invisibly in the code. Nine of the eleven entries are the full
