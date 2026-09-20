@@ -203,7 +203,9 @@ public class ApplicationService {
      * to be correctable without an argument. What is checked is that the values make sense
      * together — a sent application needs a date, because "sent, at some point" is not a
      * fact anyone can act on, and a follow-up in the past is a reminder that has already
-     * failed.
+     * failed. The same consistency runs the other way: a move back in front of the package
+     * clears {@code sent_on}, {@code follow_up_on} and {@code outcome}, because the analytics
+     * and the follow-up list read those fields rather than the status.
      *
      * <p>The exception is {@link ApplicationStatus#PACKAGED}, which cannot be stepped over on
      * the way out of NEW or SHORTLISTED, because it is what builds the folder. The rule is
@@ -221,8 +223,18 @@ public class ApplicationService {
             throw new TransitionRefused(id, before.status(), update.status());
         }
 
-        LocalDate sentOn = update.sentOn() != null ? update.sentOn() : before.sentOn();
-        if (update.status().isOut() && sentOn == null) {
+        // A move back in front of the package withdraws the attempt, not only its status, and
+        // it does so even against values given in the same call: an application nobody has
+        // packaged yet cannot have been sent, cannot be waiting on an answer, and cannot have
+        // ended in one. Measured on the deployed instance on 2026-09-20, where two
+        // applications stood at NEW carrying a `sent_on` from a click-through of the board.
+        // The analytics read those fields rather than the status, so the answer rate reported
+        // two sends and one same-day reply that never happened. ArchiveService's RESET_TO_NEW
+        // already clears all three for this reason; this is the hand-moved half of that rule.
+        boolean withdrawn = update.status().isBeforePackage();
+
+        LocalDate sentOn = withdrawn ? null : (update.sentOn() != null ? update.sentOn() : before.sentOn());
+        if (!withdrawn && update.status().isOut() && sentOn == null) {
             // Defaulting rather than refusing: the operator is recording a fact that
             // already happened, and today is right far more often than it is wrong.
             sentOn = LocalDate.now();
@@ -230,9 +242,10 @@ public class ApplicationService {
         LocalDate followUp = update.clearsFollowUp()
                 ? null
                 : (update.followUpOn() != null ? update.followUpOn() : before.followUpOn());
-        if (update.status().isClosed()) {
+        if (update.status().isClosed() || withdrawn) {
             followUp = null;
         }
+        String outcome = withdrawn ? null : (update.outcome() != null ? update.outcome() : before.outcome());
 
         jdbc.sql("""
             UPDATE application
@@ -243,7 +256,7 @@ public class ApplicationService {
                         update.status().name(),
                         sentOn,
                         followUp,
-                        update.outcome() != null ? update.outcome() : before.outcome(),
+                    outcome,
                         update.note() != null ? update.note() : before.note(),
                         id)
                 .update();

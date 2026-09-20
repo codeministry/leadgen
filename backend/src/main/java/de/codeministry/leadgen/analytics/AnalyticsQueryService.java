@@ -327,8 +327,27 @@ public class AnalyticsQueryService {
     private static final String UNSCORED =
             "SELECT count(*) FROM offer WHERE duplicate_of_id IS NULL AND score_band = 'UNSCORED'";
 
-    private static final String APPLICATIONS_BY_STATUS =
-            "SELECT status, count(*) AS applications FROM application GROUP BY 1";
+    /**
+     * The board's own population, and {@code o.archived_at IS NULL} is what makes it that.
+     *
+     * <p>The query had no {@code WHERE} at all, so it counted cards the board does not show:
+     * measured on the deployed instance on 2026-09-20, NEW stood at 38 here and at 22 there,
+     * the difference being sixteen applications on offers somebody had archived by hand. Two
+     * screens disagreeing about one number is worse than either number being wrong, and the
+     * board is the one an operator acts on, so this follows it rather than the other way
+     * round. The rule is {@code ApplicationService}'s; see its {@code BOARD} for why an
+     * archived offer is the clearest statement available that it is done with.
+     *
+     * <p>{@code TRANSITIONS} deliberately keeps no such filter: it is history, and a move
+     * that happened does not stop having happened when the offer is archived afterwards.
+     */
+    private static final String APPLICATIONS_BY_STATUS = """
+        SELECT a.status, count(*) AS applications
+        FROM application a
+        JOIN offer o ON o.id = a.offer_id
+        WHERE o.archived_at IS NULL
+        GROUP BY 1
+        """;
 
     private static final String TRANSITIONS = """
         SELECT (e.recorded_at AT TIME ZONE :zone)::date AS day, e.to_status, count(*) AS moves

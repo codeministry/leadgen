@@ -121,6 +121,48 @@ class ApplicationServiceTest {
     }
 
     @Test
+    void withdrawsTheAttemptWhenTheApplicationMovesBackInFrontOfThePackage() {
+        // The answer rate reads `sent_on` and not the status, so an application pulled back
+        // into the backlog would go on counting as sent. Measured on the deployed instance on
+        // 2026-09-20: two such rows, left behind by a click-through of the board, and a
+        // response rate of one reply in zero days standing on them. The follow-up and the
+        // outcome describe the same attempt and go with it.
+        long id = applications.open(offerId, ApplicationStatus.PACKAGED);
+        applications.update(
+            id,
+            new ApplicationUpdate(
+                ApplicationStatus.SENT, null, LocalDate.now().plusDays(7), null, "wartet auf Antwort", null));
+        var sent = applications.find(id).orElseThrow();
+        assertThat(sent.sentOn()).isNotNull();
+        assertThat(sent.followUpOn()).isNotNull();
+        assertThat(sent.outcome()).isNotNull();
+
+        applications.update(id, update(ApplicationStatus.NEW));
+
+        var withdrawn = applications.find(id).orElseThrow();
+        assertThat(withdrawn.sentOn()).isNull();
+        assertThat(withdrawn.followUpOn()).isNull();
+        assertThat(withdrawn.outcome()).isNull();
+    }
+
+    @Test
+    void refusesToDateASendOnAnApplicationThatIsBackInTheBacklog() {
+        // Explicitly given and still dropped: the values describe a state the application no
+        // longer stands in, and keeping them would be the same wrong number by another route.
+        long id = applications.open(offerId, ApplicationStatus.PACKAGED);
+
+        applications.update(
+            id,
+            new ApplicationUpdate(
+                ApplicationStatus.NEW, LocalDate.now(), LocalDate.now().plusDays(3), null, "offen", null));
+
+        var back = applications.find(id).orElseThrow();
+        assertThat(back.sentOn()).isNull();
+        assertThat(back.followUpOn()).isNull();
+        assertThat(back.outcome()).isNull();
+    }
+
+    @Test
     void marksAFollowUpDueOnceItsDayHasCome() {
         long id = applications.open(offerId, ApplicationStatus.PACKAGED);
 

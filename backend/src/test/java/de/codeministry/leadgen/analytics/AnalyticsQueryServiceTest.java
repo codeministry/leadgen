@@ -259,6 +259,23 @@ class AnalyticsQueryServiceTest {
     }
 
     @Test
+    void countsOnlyTheApplicationsTheBoardStillShows() {
+        // Two screens disagreeing about one number is worse than either being wrong. Measured
+        // on the deployed instance on 2026-09-20: NEW stood at 38 here and at 22 on the board,
+        // the difference being applications on offers somebody had archived by hand.
+        long standing = arrived(LocalDate.now());
+        long archived = arrived(LocalDate.now());
+        opened(standing);
+        opened(archived);
+        jdbc.update("UPDATE offer SET archived_at = now() WHERE id = ?", archived);
+
+        assertThat(analytics.analytics().applications().byStatus())
+            .filteredOn(count -> count.status() == ApplicationStatus.NEW)
+            .singleElement()
+            .satisfies(count -> assertThat(count.applications()).isEqualTo(1));
+    }
+
+    @Test
     void answersOnAnEmptyArchiveWithoutFailing() {
         // A fresh clone on its first morning opens this screen before anything has run.
         var view = analytics.analytics();
@@ -407,6 +424,11 @@ class AnalyticsQueryServiceTest {
                 Long.class,
                 offerId,
                 sentOn);
+    }
+
+    private long opened(long offerId) {
+        return jdbc.queryForObject(
+            "INSERT INTO application (offer_id, status) VALUES (?, 'NEW') RETURNING id", Long.class, offerId);
     }
 
     private void moved(long applicationId, ApplicationStatus to) {
