@@ -300,6 +300,16 @@
                 <p class="type-caption text-muted package-note">
                     {{ 'detail.packageOnDisk' | transloco }}
                 </p>
+            } @else if (application()?.status === 'PACKAGED') {
+              <!--
+                The folder is built after the status change has committed, so the answer to
+                the PATCH is a PACKAGED row with no folder yet. Saying "no package" here
+                would read as the build having quietly failed; the store re-reads the board
+                a few times and this branch gives way on its own.
+              -->
+              <p class="type-caption text-muted package-note" aria-live="polite">
+                {{ 'detail.packageBuilding' | transloco }}
+              </p>
             } @else {
                 <p class="type-caption text-muted package-note">
                     {{ 'detail.noPackageYet' | transloco }}
@@ -311,7 +321,7 @@
             <section class="panel">
                 <lg-application-panel
                         [application]="application"
-                        [statusChoices]="applications.statusChoices()"
+                        [statusChoices]="applications.choicesFor(application.status)"
                         [history]="history()"
                         [saving]="applications.saving() === application.id"
                         (changed)="record($event)"

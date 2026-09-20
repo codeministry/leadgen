@@ -9,6 +9,8 @@
 package de.codeministry.leadgen.ingest;
 
 import de.codeministry.leadgen.analytics.PipelineRunRecorder;
+import de.codeministry.leadgen.application.ApplicationService;
+import de.codeministry.leadgen.application.OpenReport;
 import de.codeministry.leadgen.archive.ArchiveReport;
 import de.codeministry.leadgen.archive.ArchiveService;
 import de.codeministry.leadgen.config.ConfigRegistry;
@@ -71,6 +73,7 @@ class IngestOrderTest {
     private final FieldsService fields = mock(FieldsService.class);
     private final ScoringService scoring = mock(ScoringService.class);
     private final RetrievalIndexService retrieval = mock(RetrievalIndexService.class);
+    private final ApplicationService applications = mock(ApplicationService.class);
     private final PackagingService packaging = mock(PackagingService.class);
     private final DigestService digest = mock(DigestService.class);
     private final PipelineRunRecorder history = mock(PipelineRunRecorder.class);
@@ -96,6 +99,7 @@ class IngestOrderTest {
         when(fields.run()).thenReturn(FieldsReport.skipped());
         when(scoring.run(any())).thenReturn(new ScoringReport(0, 0, 0, 0, 0, 0, 0));
         when(retrieval.run()).thenReturn(RetrievalReport.skipped());
+        when(applications.openShortlisted()).thenReturn(OpenReport.nothing());
         when(packaging.run()).thenReturn(new PackageReport(0, 0, 0, List.of()));
         when(digest.render(any())).thenReturn(Optional.empty());
 
@@ -114,6 +118,7 @@ class IngestOrderTest {
             fields,
                 scoring,
                 retrieval,
+            applications,
                 packaging,
                 digest,
                 history);
@@ -154,7 +159,8 @@ class IngestOrderTest {
     void runsTheStagesInTheOrderTheirPlacementIsArguedFor() {
         service.run("some-model");
 
-        var order = inOrder(scoring, dedupe, filter, archive, enrich, content, fields, packaging, digest, history);
+        var order =
+            inOrder(scoring, dedupe, filter, archive, enrich, content, fields, applications, packaging, digest, history);
         // The model check is first because scoring is last: checked only where it is used,
         // an unknown name is refused after a whole pass has already been paid for.
         order.verify(scoring).checkModel("some-model");
@@ -168,6 +174,9 @@ class IngestOrderTest {
         // what it writes feeds `project_setup` and the judge's description of an offer.
         order.verify(fields).run();
         order.verify(scoring).run("some-model");
+        // The board before the folder: reaching the shortlist buys a card, and the folder
+        // waits for somebody to agree with it.
+        order.verify(applications).openShortlisted();
         order.verify(packaging).run();
         order.verify(digest).render(any());
         order.verify(history).record(any(), any(), any(), anyString(), any());
@@ -205,10 +214,11 @@ class IngestOrderTest {
                 "FIELDS",
                 "SCORE",
                 "RETRIEVAL",
+                "OPEN",
                 "PACKAGE",
                 "DIGEST");
         assertThat(names.getAllValues()).hasSize(IngestService.GLOBAL_STAGES);
-        assertThat(positions.getAllValues()).containsExactly(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
+        assertThat(positions.getAllValues()).containsExactly(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11);
         verify(history).start(any(), any(), org.mockito.ArgumentMatchers.eq(IngestService.GLOBAL_STAGES));
     }
 

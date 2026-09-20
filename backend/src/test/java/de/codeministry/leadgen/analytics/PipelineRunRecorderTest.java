@@ -8,6 +8,7 @@
  */
 package de.codeministry.leadgen.analytics;
 
+import de.codeministry.leadgen.application.OpenReport;
 import de.codeministry.leadgen.archive.ArchiveReport;
 import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.content.ContentReport;
@@ -16,8 +17,8 @@ import de.codeministry.leadgen.fields.FieldsReport;
 import de.codeministry.leadgen.filter.FilterReport;
 import de.codeministry.leadgen.ingest.IngestReport;
 import de.codeministry.leadgen.packaging.PackageReport;
-import de.codeministry.leadgen.score.Judges;
 import de.codeministry.leadgen.retrieval.RetrievalReport;
+import de.codeministry.leadgen.score.Judges;
 import de.codeministry.leadgen.score.ScoringReport;
 import org.junit.jupiter.api.Test;
 
@@ -56,6 +57,7 @@ class PipelineRunRecorderTest {
             new ScoringReport(0, 0, 0, 0, 0, 0, 0),
             RetrievalReport.skipped(),
             null,
+        OpenReport.nothing(),
             new PackageReport(0, 0, 0, List.of()),
             Instant.EPOCH);
 

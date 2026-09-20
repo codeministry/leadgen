@@ -9,6 +9,13 @@ export interface PickerOption {
      * consecutive options naming the same one belong together.
      */
     readonly group?: string;
+  /**
+   * Offered but not choosable from where the caller stands. Marked rather than left out:
+   * a control whose options come and go is harder to read than one where the unreachable
+   * ones are visibly unreachable, and the browser refuses to select a disabled option
+   * anyway. `shared/` does not know why, only that this one is not available.
+   */
+  readonly disabled?: boolean;
 }
 
 /** A run of consecutive options under one heading. `null` is the ungrouped run. */

@@ -1,9 +1,11 @@
 /**
  * Mirrors `de.codeministry.leadgen.application.ApplicationStatus`.
  *
- * The transitions are documented, not enforced: every value here is entered by hand
- * about events the system never saw, and a tool that refuses a correction because the
- * path looks wrong is a tool nobody keeps current.
+ * The transitions are documented, not enforced — with one exception. Every value here is
+ * entered by hand about events the system never saw, and a tool that refuses a correction
+ * because the path looks wrong is a tool nobody keeps current. What is refused is a route
+ * around `PACKAGED`, because that is the state that builds the folder an application is
+ * sent from, so stepping over it would claim a document that does not exist.
  */
 export type ApplicationStatus =
     | 'NEW'
@@ -30,6 +32,16 @@ export interface PipelineLane {
     readonly label: string;
     readonly states: readonly ApplicationStatus[];
 }
+
+/**
+ * What each state may be moved to, as `GET /api/applications/transitions` states it.
+ *
+ * Read from the server rather than written out here for the same reason the lanes are: a
+ * second copy of the rule in the browser disagrees with the endpoint the first time it
+ * changes — visibly on the board, invisibly in the code. Nine of the eleven entries are the
+ * full list, and that is the point.
+ */
+export type TransitionMap = Readonly<Record<ApplicationStatus, readonly ApplicationStatus[]>>;
 
 /** Mirrors `ApplicationView`: the application plus enough of the offer to recognise it. */
 export interface ApplicationView {

@@ -14,9 +14,9 @@ import de.codeministry.leadgen.application.ApplicationStatus;
 import de.codeministry.leadgen.config.*;
 import de.codeministry.leadgen.config.model.PipelineConfig;
 import de.codeministry.leadgen.config.model.SkillProfile;
-import de.codeministry.leadgen.llm.Vectors;
 import de.codeministry.leadgen.content.ContentText;
 import de.codeministry.leadgen.filter.TextFold;
+import de.codeministry.leadgen.llm.Vectors;
 import freemarker.template.Configuration;
 import freemarker.template.Template;
 import freemarker.template.TemplateException;
@@ -59,15 +59,44 @@ import java.util.regex.Pattern;
 @Service
 public class PackagingService {
 
-    private static final String DUE = """
+    /**
+     * The offers somebody has asked for a package for.
+     *
+     * <p><b>The gate is the person's decision, not the score band.</b> It used to be
+     * {@code score_band = 'SHORTLISTED'}, which meant the run built a folder for everything
+     * the tool liked — measured on the deployed instance on 2026-09-17: 93 packages against 2
+     * applications actually sent, every one of them paying for its templates, its CV copy and
+     * its reference-ranking embeddings. Reaching the shortlist now opens an application at
+     * NEW and nothing else; moving it to PACKAGED is what asks for the folder, and that is
+     * what this reads.
+     *
+     * <p>Dropping the band is deliberate rather than incidental: an operator may decide to
+     * answer a MAYBE, and a gate that second-guessed them would leave a PACKAGED application
+     * with nothing behind it — the exact state
+     * {@link de.codeministry.leadgen.application.ApplicationStatus#allowedNext()} exists to
+     * make impossible.
+     *
+     * <p>{@code packaged_at IS NULL} still carries "not built yet", so a restored offer whose
+     * folder survived the archive is not rebuilt.
+     */
+    private static final String REQUESTED = """
         SELECT id, title, description, full_text, url, location, portal, agency, tags,
                published_on, rate_eur, duration, workload, remote_percent, starts_on, contact,
                score_value, score_band, score_model, enrichment_note, content_blocks,
                retrieval_embedding
         FROM offer
         WHERE status = 'PASSED' AND duplicate_of_id IS NULL AND archived_at IS NULL
-          AND score_band = 'SHORTLISTED' AND packaged_at IS NULL
+          AND packaged_at IS NULL
+          AND EXISTS (SELECT 1 FROM application a
+                       WHERE a.offer_id = offer.id AND a.status = 'PACKAGED')
+        """;
+
+    private static final String DUE = REQUESTED + """
         ORDER BY score_value DESC, id
+        """;
+
+    private static final String DUE_ONE = REQUESTED + """
+          AND id = ?
         """;
 
     /**
@@ -226,15 +255,39 @@ public class PackagingService {
         }
     }
 
+    /**
+     * Builds every folder that has been asked for and is still missing.
+     *
+     * <p>This is no longer where packages normally come from — {@link #buildFor(long)} is,
+     * the moment somebody moves an application to PACKAGED — and it stays in the run as the
+     * retry. A build that failed, or one whose listener never ran because the process went
+     * down between the commit and the disk, leaves the offer due and this picks it up. On a
+     * healthy instance it reports zero, and that is the expected reading.
+     */
     @Transactional
     public PackageReport run() {
+        return buildAll(jdbc.sql(DUE).query(Due::of).list());
+    }
+
+    /**
+     * The same for one offer, which is what asking for a package looks like.
+     *
+     * <p>Called after the status change has committed, so a rolled-back move never leaves a
+     * folder behind. A no-op when the offer's application is not PACKAGED or the folder is
+     * already there: the query is the authority, not the caller.
+     */
+    @Transactional
+    public PackageReport buildFor(long offerId) {
+        return buildAll(jdbc.sql(DUE_ONE).param(offerId).query(Due::of).list());
+    }
+
+    private PackageReport buildAll(List<Due> due) {
         ConfigSnapshot snapshot = config.snapshot();
         PipelineConfig.Packaging settings = snapshot.application().packaging();
         if (settings == null) {
             return PackageReport.nothing();
         }
 
-        List<Due> due = jdbc.sql(DUE).query(Due::of).list();
         int built = 0;
         int failed = 0;
         List<Path> folders = new ArrayList<>();
@@ -245,14 +298,16 @@ public class PackagingService {
                 folders.add(folder);
                 built++;
             } catch (IOException | TemplateException | RuntimeException e) {
-                // One unbuildable package must not stop the rest, and the offer stays
-                // shortlisted so the next run tries again.
+                // One unbuildable package must not stop the rest, and the offer keeps its
+                // PACKAGED application with no `packaged_at`, so the next run tries again.
                 log.error("Offer {} could not be packaged: {}", row.id(), e.getMessage(), e);
                 failed++;
             }
         }
 
-        log.info("Packaging: {} of {} built, {} failed", built, due.size(), failed);
+        if (built > 0 || failed > 0) {
+            log.info("Packaging: {} of {} built, {} failed", built, due.size(), failed);
+        }
         return new PackageReport(due.size(), built, failed, folders);
     }
 
@@ -290,9 +345,10 @@ public class PackagingService {
             .params(folder.toString(), language, row.id())
                 .update();
 
-        // The first moment there is something for a person to act on, so this is where
-        // the application opens. Idempotent: a second packaging run must not reset a
-        // status the operator has already moved on.
+        // A no-op on the normal path: the PACKAGED application is what asked for this
+        // folder, so the row is already there. It stands for the abnormal one — a folder
+        // with no application behind it would be invisible on the only screen that reads
+        // this state. Idempotent, so it cannot reset a status anybody has moved on.
         applications.open(row.id(), ApplicationStatus.PACKAGED);
         log.info("Offer {} packaged into {} ({})", row.id(), folder, String.join(", ", written));
         return folder;

@@ -14,6 +14,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
+import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
@@ -81,6 +82,26 @@ public final class PackageArchive {
             throw new Rejected("the package folder '" + resolved + "' does not exist");
         }
         return resolved;
+    }
+
+    /**
+     * Removes the folder and everything in it.
+     *
+     * <p>Deliberately beside {@link #writeZip}, because it needs the same two rules and for
+     * the same reason: regular files only, and symlinks are deleted rather than followed, so
+     * what goes is what the packaging stage put there and never something it happens to point
+     * at. The caller has already been through {@link #resolve}, which is what guarantees this
+     * is a direct child of the configured output directory.
+     *
+     * <p>Deepest first, because a directory is only removable once it is empty.
+     */
+    public static void deleteFolder(Path folder) throws IOException {
+        try (Stream<Path> walk = Files.walk(folder)) {
+            List<Path> entries = walk.sorted(Comparator.reverseOrder()).toList();
+            for (Path entry : entries) {
+                Files.deleteIfExists(entry);
+            }
+        }
     }
 
     /**

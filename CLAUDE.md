@@ -66,6 +66,12 @@ Violating one of these is expensive, and most of them fail silently.
   unsubscribe links.
 - **`min_hourly_eur` must not apply before the enrichment stage.** The newsletter carries
   a rate in 0.0 % of offers. Applied earlier, the rule filters either everything or nothing.
+- **A package is built when a person moves an application to `PACKAGED`, never by a run.**
+  The shortlist opens an application at `NEW` and costs one row; the folder is built after
+  that status write commits. So `PACKAGED` is the one transition the endpoint refuses to let
+  anything skip — otherwise a SENT application stands for a document nobody ever made.
+- **Archiving discards the package unless the application was ever sent, and a restore comes
+  back at `NEW`.** Both halves keep "PACKAGED" and "there is a folder" the same fact.
 - **Never commit.** Do the work, leave it uncommitted, offer the commit — the maintainer
   reviews the diff and decides what lands.
 

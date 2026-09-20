@@ -119,6 +119,38 @@ class PackageArchiveTest {
         throw new AssertionError("meta.json was not in the archive");
     }
 
+    @Test
+    void removesAFolderAndEverythingUnderIt() throws IOException {
+        Files.createDirectories(folder.resolve("original"));
+        Files.writeString(folder.resolve("original/offer.txt"), "Die Anzeige", StandardCharsets.UTF_8);
+
+        PackageArchive.deleteFolder(folder);
+
+        assertThat(Files.exists(folder)).isFalse();
+        // And nothing beside it: the base is the output directory, which holds every other
+        // package.
+        assertThat(Files.isDirectory(base)).isTrue();
+    }
+
+    @Test
+    void deletesASymlinkRatherThanWhatItPointsAt() throws IOException {
+        // The same rule `writeZip` follows, and the one that matters more here: a package
+        // folder is written by this application, but the row that names it is editable by
+        // anything with a psql prompt.
+        Path outside = Files.createDirectories(base.resolve("not-a-package"));
+        Files.writeString(outside.resolve("keep.txt"), "bleibt", StandardCharsets.UTF_8);
+        try {
+            Files.createSymbolicLink(folder.resolve("link"), outside);
+        } catch (UnsupportedOperationException | IOException e) {
+            return; // A file system without symlinks has nothing to prove here.
+        }
+
+        PackageArchive.deleteFolder(folder);
+
+        assertThat(Files.exists(folder)).isFalse();
+        assertThat(Files.exists(outside.resolve("keep.txt"))).isTrue();
+    }
+
     private static List<String> entriesOf(ByteArrayOutputStream out) throws IOException {
         List<String> names = new ArrayList<>();
         try (ZipInputStream zip = new ZipInputStream(new ByteArrayInputStream(out.toByteArray()))) {

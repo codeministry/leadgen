@@ -3,6 +3,7 @@ import {HttpTestingController, provideHttpClientTesting} from '@angular/common/h
 import {TestBed} from '@angular/core/testing';
 import {injectDispatch} from '@ngrx/signals/events';
 import {ApplicationView, PipelineLane} from '@core/model/application';
+import {TRANSITIONS} from '@core/model/transitions.fixture';
 import {ShortlistEntry} from '@core/model/shortlist-entry';
 import {applicationEvents} from './applications.events';
 import {shortlistEvents} from './shortlist.events';
@@ -65,6 +66,7 @@ describe('ApplicationsStore', () => {
         dispatch.opened();
         http.expectOne('/api/applications').flush(applications);
         http.expectOne('/api/applications/lanes').flush(LANES);
+      http.expectOne('/api/applications/transitions').flush(TRANSITIONS);
     }
 
     it('groups the board by the lanes the server states, not by a copy of the enum', () => {
@@ -123,6 +125,7 @@ describe('ApplicationsStore', () => {
 
     http.expectOne('/api/applications').flush([application()]);
     http.expectOne('/api/applications/lanes').flush(LANES);
+    http.expectOne('/api/applications/transitions').flush(TRANSITIONS);
     expect(store.applications().map((a) => a.offerId)).toEqual([7]);
   });
 
@@ -190,4 +193,76 @@ describe('ApplicationsStore', () => {
         expect(store.followUpsDue()).toBe(1);
         expect(store.error()).toBe('error.statusSave');
     });
+
+  it('marks what the endpoint would refuse rather than leaving it out', () => {
+    // Greyed out and not hidden: a control whose options come and go is harder to read
+    // than one where the unreachable states are visibly unreachable, and the disabled
+    // `Sent` under `New` is what explains the rule without a sentence.
+    open([]);
+
+    const fromNew = store.choicesFor('NEW');
+    expect(fromNew.find((choice) => choice.value === 'PACKAGED')?.disabled).toBe(false);
+    expect(fromNew.find((choice) => choice.value === 'SENT')?.disabled).toBe(true);
+
+    // And everything past the package is free, which is nine of the eleven states.
+    expect(store.choicesFor('PACKAGED').some((choice) => choice.disabled)).toBe(false);
+  });
+
+  it('assumes a move is allowed until the map has arrived', () => {
+    // The endpoint is the authority either way. Refusing on a map the browser has not
+    // been given yet would block the board for as long as one request is in flight.
+    expect(store.allows('NEW', 'SENT')).toBe(true);
+
+    open([]);
+
+    expect(store.allows('NEW', 'SENT')).toBe(false);
+    expect(store.allows('NEW', 'PACKAGED')).toBe(true);
+  });
+
+  it('says a refused move differently from one that failed', () => {
+    // Both put the card back, and only one of them is worth a second attempt. "Not
+    // saved" next to a 409 sends the operator looking for a problem that is not there.
+    open([application()]);
+
+    dispatch.changed({id: 1, update: {status: 'SENT'}});
+    http.expectOne('/api/applications/1').flush('cannot skip PACKAGED', {
+      status: 409,
+      statusText: 'Conflict',
+    });
+
+    expect(store.error()).toBe('error.statusBlocked');
+    expect(store.applications()[0]?.status).toBe('PACKAGED');
+  });
+
+  it('reads the board again until the package the operator asked for shows up', () => {
+    // The folder is built after the status change commits, so the answer to the PATCH is
+    // a PACKAGED row with no folder. Without the poll the panel would say "no package"
+    // until something else reloaded the board, which reads as a build that failed.
+    vi.useFakeTimers();
+    try {
+      open([application({status: 'NEW', packageDir: null})]);
+
+      dispatch.changed({id: 1, update: {status: 'PACKAGED'}});
+      http.expectOne('/api/applications/1')
+        .flush(application({status: 'PACKAGED', packageDir: null}));
+
+      vi.advanceTimersByTime(1_300);
+      http.expectOne('/api/applications').flush([
+        application({status: 'PACKAGED', packageDir: null}),
+      ]);
+      expect(store.applications()[0]?.packageDir).toBeNull();
+
+      vi.advanceTimersByTime(2_000);
+      http.expectOne('/api/applications').flush([
+        application({status: 'PACKAGED', packageDir: '/packages/2026-09-02_acme_x'}),
+      ]);
+      expect(store.applications()[0]?.packageDir).toBe('/packages/2026-09-02_acme_x');
+
+      // And it stops there rather than spending its remaining attempts.
+      vi.advanceTimersByTime(10_000);
+      http.expectNone('/api/applications');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

@@ -10,6 +10,7 @@ package de.codeministry.leadgen.ingest;
 
 import de.codeministry.leadgen.analytics.PipelineRunRecorder;
 import de.codeministry.leadgen.analytics.StageLog;
+import de.codeministry.leadgen.application.ApplicationService;
 import de.codeministry.leadgen.archive.ArchiveService;
 import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.config.model.SourcesConfig.Source;
@@ -69,6 +70,7 @@ public class IngestService {
     private final FieldsService fields;
     private final ScoringService scoring;
     private final RetrievalIndexService retrieval;
+    private final ApplicationService applications;
     private final PackagingService packaging;
     private final DigestService digest;
     private final PipelineRunRecorder history;
@@ -88,6 +90,7 @@ public class IngestService {
             FieldsService fields,
             ScoringService scoring,
             RetrievalIndexService retrieval,
+            ApplicationService applications,
             PackagingService packaging,
             DigestService digest,
             PipelineRunRecorder history) {
@@ -105,6 +108,7 @@ public class IngestService {
         this.fields = fields;
         this.scoring = scoring;
         this.retrieval = retrieval;
+        this.applications = applications;
         this.packaging = packaging;
         this.digest = digest;
         this.history = history;
@@ -165,14 +169,14 @@ public class IngestService {
 
     /**
      * The stages every run has, whatever its sources are: dedupe, filter, archive, enrich,
-     * content, fields, score, retrieval, package, digest.
+     * content, fields, score, retrieval, open, package, digest.
      *
      * <p>A constant because the sequence below is written out rather than driven by a list,
      * and it is pinned by {@code IngestOrderTest}, which verifies both the order and that
      * there are this many of them. Without that test it is the kind of number that is wrong
      * for a month before anybody notices the progress bar stopping at eight of nine.
      */
-    static final int GLOBAL_STAGES = 10;
+    static final int GLOBAL_STAGES = 11;
 
     private IngestReport runOnce(String scoringModel) {
         // Before anything else, because scoring is the last stage: checked only there, a
@@ -266,8 +270,13 @@ public class IngestService {
         // the search has a deterministic fallback. Nothing between CONTENT and SCORE reads the
         // column, so waiting costs nothing.
         var indexed = stages.time("RETRIEVAL", retrieval::run);
-        // Packaging before the digest, so the digest can say which offers already have a
-        // folder. Both write files and neither sends anything.
+        // What the run owes a person: a card for everything it decided to recommend. It used
+        // to build the folder here as well, for all of them, which is how the deployed
+        // instance came to hold 93 packages against 2 applications ever sent. The folder now
+        // waits for somebody to agree, and this stage costs one statement.
+        var opened = stages.time("OPEN", applications::openShortlisted);
+        // And the retry for anything whose folder was asked for and not built — normally
+        // nothing. Before the digest because both write files, and neither sends anything.
         var packages = stages.time("PACKAGE", packaging::run);
         var written = stages.time(
                 "DIGEST", () -> digest.render(java.time.LocalDate.now()).orElse(null));
@@ -284,6 +293,7 @@ public class IngestService {
                 scored,
                 indexed,
                 written,
+            opened,
                 packages,
                 java.time.Instant.now());
         // After the work, never before it: a run that failed halfway must not leave a row

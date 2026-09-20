@@ -73,6 +73,14 @@ export interface ScoringReport {
     readonly submitted: number;
 }
 
+/** Mirrors `de.codeministry.leadgen.application.OpenReport`. */
+export interface OpenReport {
+  /** How many offers the shortlist holds, whether or not they already have a card. */
+  readonly standing: number;
+  /** How many of them this run put on the board. Zero on a re-run. */
+  readonly opened: number;
+}
+
 /** Mirrors `de.codeministry.leadgen.packaging.PackageReport`. */
 export interface PackageReport {
     readonly due: number;
@@ -113,7 +121,12 @@ export interface IngestReport {
     readonly scored: ScoringReport;
     /** The digest file the run wrote, or null when it is switched off. A file, never a message. */
     readonly digest: string | null;
-    /** The application packages built for everything above the shortlist threshold. */
+  /** The cards this run put on the board. What reaching the shortlist buys. */
+  readonly opened: OpenReport;
+  /**
+   * The packages built on this pass, which is the retry and not the normal path: a folder
+   * is built the moment somebody moves an application to Packaged. Zero is healthy.
+   */
     readonly packaged: PackageReport;
 }
 

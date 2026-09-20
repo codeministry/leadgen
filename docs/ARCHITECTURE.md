@@ -35,21 +35,22 @@ thing that touches the schema.
 
 `IngestService.run(scoringModel)` is the orchestrator, and **the order is the design**.
 
-| #  | Stage        | Owner                             | Why it sits here                                                                                                                                     |
-|----|--------------|-----------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------|
-| 0  | Model check  | `score.ScoringService#checkModel` | Before everything, so an unknown model is not discovered *after* a whole pass has been paid for.                                                     |
-| 1  | Fetch        | `ingest.connector.*`              | Per source. One failing source must not end the run.                                                                                                 |
-| 2  | Extract      | `ingest.extract.*`                | Strategy read from configuration, never assumed.                                                                                                     |
-| 3  | Map + upsert | `OfferMapper`, `store.OfferStore` | `ON CONFLICT (source_id, external_id)` is what makes re-reading a newsletter free.                                                                   |
-| 4  | Deduplicate  | `dedupe.DeduplicationService`     | Globally, after all sources: a pass scoped to one source would never see the pair it exists to collapse.                                             |
-| 5  | Hard filter  | `filter.FilterService`            | Free and deterministic, so everything expensive sees a fifth of the input.                                                                           |
-| 6  | Archive      | `archive.ArchiveService`          | After the filter so a restored offer carries a current verdict; before enrichment so an offer off the list pays for neither the fetch nor the model. |
-| 7  | Enrich       | `enrich.EnrichmentService`        | The only stage that leaves the machine, and only for survivors.                                                                                      |
-| 8  | Content      | `content.ContentService`          | After enrichment because it reads the fetched advert; before scoring because scoring has to judge the advert and not the portal around it.           |
-| 9  | Score        | `score.ScoringService`            | Deterministic factors always; a model for four of them.                                                                                              |
-| 10 | Package      | `packaging.PackagingService`      | A folder per offer above the shortlist threshold.                                                                                                    |
-| 11 | Digest       | `digest.DigestService`            | A file, and the last thing a run does.                                                                                                               |
-| 12 | Record       | `analytics.PipelineRunRecorder`   | Last, and it cannot throw: a history row is worth less than the run. Writes the per-stage timings `StageLog` collected as the run went.              |
+| #   | Stage        | Owner                             | Why it sits here                                                                                                                                     |
+|-----|--------------|-----------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------|
+| 0   | Model check  | `score.ScoringService#checkModel` | Before everything, so an unknown model is not discovered *after* a whole pass has been paid for.                                                     |
+| 1   | Fetch        | `ingest.connector.*`              | Per source. One failing source must not end the run.                                                                                                 |
+| 2   | Extract      | `ingest.extract.*`                | Strategy read from configuration, never assumed.                                                                                                     |
+| 3   | Map + upsert | `OfferMapper`, `store.OfferStore` | `ON CONFLICT (source_id, external_id)` is what makes re-reading a newsletter free.                                                                   |
+| 4   | Deduplicate  | `dedupe.DeduplicationService`     | Globally, after all sources: a pass scoped to one source would never see the pair it exists to collapse.                                             |
+| 5   | Hard filter  | `filter.FilterService`            | Free and deterministic, so everything expensive sees a fifth of the input.                                                                           |
+| 6   | Archive      | `archive.ArchiveService`          | After the filter so a restored offer carries a current verdict; before enrichment so an offer off the list pays for neither the fetch nor the model. |
+| 7   | Enrich       | `enrich.EnrichmentService`        | The only stage that leaves the machine, and only for survivors.                                                                                      |
+| 8   | Content      | `content.ContentService`          | After enrichment because it reads the fetched advert; before scoring because scoring has to judge the advert and not the portal around it.           |
+| 9   | Score        | `score.ScoringService`            | Deterministic factors always; a model for four of them.                                                                                              |
+| 10  | Open         | `application.ApplicationService`  | A card at `NEW` per offer above the shortlist threshold. What reaching the shortlist buys; the folder waits for a person.                            |
+| 10a | Package      | `packaging.PackagingService`      | The retry for a folder somebody asked for and did not get. Normally zero: a package is built when an application reaches `PACKAGED`.                 |
+| 11  | Digest       | `digest.DigestService`            | A file, and the last thing a run does.                                                                                                               |
+| 12  | Record       | `analytics.PipelineRunRecorder`   | Last, and it cannot throw: a history row is worth less than the run. Writes the per-stage timings `StageLog` collected as the run went.              |
 
 ### Ingest and extraction
 
@@ -245,7 +246,8 @@ thresholds are in [WRITING-RULES.md](WRITING-RULES.md).
 
 ### Packaging and the digest
 
-One folder per offer above the threshold: the fixed CV for the ad's language, a Freemarker
+One folder per offer **somebody has decided to answer** — the run opens a card at `NEW` and
+builds nothing. The folder holds the fixed CV for the ad's language, a Freemarker
 cover letter using the reference projects the offer's own skills selected, the archived
 original, and a `meta.json` carrying the decision — score, every reason, the matched skills,
 and every portal in the duplicate cluster.

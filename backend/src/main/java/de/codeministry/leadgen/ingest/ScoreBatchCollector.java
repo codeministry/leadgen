@@ -9,6 +9,7 @@
 package de.codeministry.leadgen.ingest;
 
 import de.codeministry.leadgen.analytics.PipelineRunRecorder;
+import de.codeministry.leadgen.application.ApplicationService;
 import de.codeministry.leadgen.digest.DigestService;
 import de.codeministry.leadgen.packaging.PackagingService;
 import de.codeministry.leadgen.score.ScoreBatchCollection;
@@ -24,9 +25,13 @@ import java.time.LocalDate;
  * The second half of a batched run, arriving minutes after the first.
  *
  * <p>{@code IngestService} ends the moment the scoring requests are handed over, because
- * the answers are not coming back inside that request. Packaging and the digest are what
- * would have followed, and they still have to follow — just from here. Same order, same two
- * calls, and the digest is still the last thing that happens.
+ * the answers are not coming back inside that request. Opening the board, packaging and the
+ * digest are what would have followed, and they still have to follow — just from here. Same
+ * order, same three calls, and the digest is still the last thing that happens.
+ *
+ * <p><b>The OPEN call is the one that is easy to forget</b>, and forgetting it is silent:
+ * with {@code llm.batch} on, the scores land here, so nothing else would ever put a card on
+ * the board and the shortlist would stay empty with every stage reporting success.
  *
  * <p><b>It lives beside {@code IngestService} rather than in the score package</b>, because
  * this is the class that knows what a finished run consists of. Scoring knows how to write
@@ -42,6 +47,7 @@ import java.time.LocalDate;
 class ScoreBatchCollector {
 
     private final ScoreBatchService batches;
+    private final ApplicationService applications;
     private final PackagingService packaging;
     private final DigestService digest;
     private final PipelineRunRecorder history;
@@ -58,8 +64,10 @@ class ScoreBatchCollector {
             if (!collected.anythingHappened()) {
                 return;
             }
-            // Packaging before the digest, so the digest can say which offers already have
-            // a folder. The same order the run itself uses, for the same reason.
+            // The cards for what the batch just scored, then the retry for any folder that
+            // was asked for and not built, then the digest. The same order the run itself
+            // uses, for the same reasons.
+            var opened = applications.openShortlisted();
             var packages = packaging.run();
             var written = digest.render(LocalDate.now()).orElse(null);
             // The run that submitted this batch left a row saying so. It is finished here,
@@ -67,9 +75,10 @@ class ScoreBatchCollector {
             // existed, and a row completed there would state the previous run's shortlist.
             history.complete(collected.scored(), packages.built(), written != null);
             log.info(
-                    "Collected {} scoring batch(es), {} offers scored; {} package(s) built, digest {}",
+                "Collected {} scoring batch(es), {} offers scored; {} card(s) opened, {} package(s) built, digest {}",
                     collected.ended(),
                     collected.scored(),
+                opened.opened(),
                     packages.built(),
                     written == null ? "not written" : written);
         } catch (RuntimeException e) {

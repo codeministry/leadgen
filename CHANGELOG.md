@@ -19,6 +19,33 @@ may change in any release. See the status note in the README.
 
 ### Changed
 
+- **A package is built when a person asks for one, not when a run ends.** Reaching the
+  shortlist opened an application directly at `PACKAGED` and built its folder; measured on
+  the deployed instance on 2026-09-17, that was **93 applications at `PACKAGED` against 2
+  ever sent**, and 76 directories nothing ever deleted. The run now opens the application at
+  `NEW` in a stage of its own, `OPEN`, and the folder is built when somebody moves it to
+  `PACKAGED` — after that write commits, in the background, with the `PACKAGE` stage left in
+  the run as the retry. On a healthy instance that stage reports zero from now on.
+- **`PACKAGED` cannot be skipped, and it is the only transition that cannot.** `NEW` and
+  `SHORTLISTED` reach each other, `PACKAGED`, `REJECTED` and `EXPIRED`; anything else answers
+  409. Everything past the package stays as free as it was, correction in any direction
+       included. The rule is served as `GET /api/applications/transitions` rather than copied into
+       the browser, and the picker greys out what the endpoint would refuse.
+- **Archiving an offer now discards its package, unless the application was ever sent**, and
+  restoring one puts it back at `NEW`. Both halves exist to keep "`PACKAGED`" and "there is a
+  folder" the same fact. The age pass does neither: it reconciles, and a pass that reverses
+  itself must not delete files. A new `OrphanSweep` removes, at every start, any direct child
+  of the packaging output directory that carries a `meta.json` and that no `package_dir`
+  names.
+- **`ApplicationStatus.isLive()` exempts from `NEW` upwards instead of everything but
+  `PACKAGED`.** The old wording was correct for the old meaning and is exactly inverted for
+  the new one: left alone it would have archived the offers somebody is preparing and exempted
+  every offer nobody has looked at, which is the whole shortlist.
+- **`V27` brings the existing corpus to the same meaning**: every application that neither
+  stands at nor was ever moved to `SENT`, `REPLIED`, `INTERVIEW` or `OFFER` goes back to
+  `NEW`, loses the dates of that attempt and gives up its `package_dir`. What was genuinely
+  sent keeps its status and its folder. **Take a dump before deploying it** — it is not
+  reversible, and the directories it orphans are removed by `OrphanSweep` at the next start.
 - **The database image is now `pgvector/pgvector:0.8.6-pg18`, and the tag is pinned.** It was
   the floating `pg17`, which had quietly moved to pgvector 0.8.6 on 2026-08-13 — so pgvector was
   already current and the only thing behind was Postgres itself, 17.11 against 18.6. Both

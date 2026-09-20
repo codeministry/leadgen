@@ -243,6 +243,98 @@ class ApplicationServiceTest {
                 .hasMessageContaining("999999");
     }
 
+    @Test
+    void refusesToStepOverThePackage() {
+        // The one enforced transition, and the reason is not tidiness: the folder an
+        // application is sent from is built on the way into PACKAGED, so a route around it
+        // would produce a SENT application with nothing on disk behind it.
+        long id = applications.open(offerId, ApplicationStatus.NEW);
+
+        assertThatThrownBy(() -> applications.update(id, update(ApplicationStatus.SENT)))
+            .isInstanceOf(ApplicationService.TransitionRefused.class)
+            .hasMessageContaining("PACKAGED");
+
+        // And nothing happened: not the status, and not the event that would claim it did.
+        assertThat(applications.find(id).orElseThrow().status()).isEqualTo(ApplicationStatus.NEW);
+        assertThat(applications.history(id)).hasSize(1);
+    }
+
+    @Test
+    void refusesAMoveThatWouldHaveDatedASendThatNeverHappened() {
+        // The guard sits in front of the `isOut()` defaulting for this reason. Behind it,
+        // a refused request would already have computed today as the send date.
+        long id = applications.open(offerId, ApplicationStatus.NEW);
+
+        assertThatThrownBy(() -> applications.update(id, update(ApplicationStatus.INTERVIEW)))
+            .isInstanceOf(ApplicationService.TransitionRefused.class);
+
+        assertThat(applications.find(id).orElseThrow().sentOn()).isNull();
+    }
+
+    @Test
+    void letsAnUndecidedOfferBePreparedOrDecidedAgainst() {
+        // Deciding against an offer must never need a package first. Marking it as one to
+        // come back to must not either, or SHORTLISTED is a state nothing can reach.
+        for (ApplicationStatus allowed : java.util.List.of(
+            ApplicationStatus.SHORTLISTED, ApplicationStatus.REJECTED, ApplicationStatus.EXPIRED)) {
+            reset();
+            long id = applications.open(offerId, ApplicationStatus.NEW);
+            assertThat(applications.update(id, update(allowed)).status()).isEqualTo(allowed);
+        }
+    }
+
+    @Test
+    void leavesEverythingAfterThePackageFree() {
+        // Past the folder the old rule stands unchanged: a project can be lost before it
+        // was ever answered, and a mistyped status has to be correctable in any direction.
+        long id = applications.open(offerId, ApplicationStatus.PACKAGED);
+
+        assertThat(applications.update(id, update(ApplicationStatus.LOST)).status())
+            .isEqualTo(ApplicationStatus.LOST);
+        assertThat(applications.update(id, update(ApplicationStatus.NEW)).status())
+            .isEqualTo(ApplicationStatus.NEW);
+    }
+
+    @Test
+    void putsEveryShortlistedOfferOnTheBoardAtNewAndOnlyOnce() {
+        var first = applications.openShortlisted();
+
+        assertThat(first.opened()).isEqualTo(1);
+        assertThat(first.standing()).isEqualTo(1);
+        assertThat(jdbc.queryForObject("SELECT status FROM application WHERE offer_id = ?", String.class, offerId))
+            .isEqualTo("NEW");
+        assertThat(jdbc.queryForObject(
+            "SELECT count(*) FROM application_event WHERE to_status = 'NEW'", Integer.class))
+            .isEqualTo(1);
+
+        // A second run in the same morning opens nothing, and resets nothing either.
+        // Moved to SHORTLISTED rather than to PACKAGED on purpose: the latter publishes a
+        // request for a folder, and this test has no business writing one to disk.
+        applications.update(
+            jdbc.queryForObject("SELECT id FROM application WHERE offer_id = ?", Long.class, offerId),
+            update(ApplicationStatus.SHORTLISTED));
+
+        assertThat(applications.openShortlisted().opened()).isZero();
+        assertThat(jdbc.queryForObject("SELECT status FROM application WHERE offer_id = ?", String.class, offerId))
+            .isEqualTo("SHORTLISTED");
+    }
+
+    @Test
+    void leavesWhatTheShortlistDidNotRecommendOffTheBoard() {
+        jdbc.update("UPDATE offer SET score_band = 'REVIEW' WHERE id = ?", offerId);
+
+        assertThat(applications.openShortlisted().opened()).isZero();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM application", Integer.class))
+            .isZero();
+    }
+
+    @Test
+    void leavesAnArchivedOfferOffTheBoard() {
+        jdbc.update("UPDATE offer SET archived_at = now(), archive_source = 'MANUAL' WHERE id = ?", offerId);
+
+        assertThat(applications.openShortlisted().opened()).isZero();
+    }
+
     private static ApplicationUpdate update(ApplicationStatus status) {
         return new ApplicationUpdate(status, null, null, null, null, null);
     }

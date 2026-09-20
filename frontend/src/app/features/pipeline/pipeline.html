@@ -49,6 +49,7 @@
                                         cdkDropList
                                         cdkDropListSortingDisabled
                                         [cdkDropListData]="group.status"
+                                        [cdkDropListEnterPredicate]="accepts(group.status)"
                                         (cdkDropListDropped)="dropped($event)"
                                 >
                                     @for (application of group.applications; track application.id) {
@@ -122,7 +123,7 @@
                                             <lg-status-picker
                                                     class="card-status"
                                                     [value]="application.status"
-                                                    [options]="store.statusChoices()"
+                                                    [options]="store.choicesFor(application.status)"
                                                     [disabled]="store.saving() === application.id"
                                                     [label]="'pipeline.statusOf' | transloco: { title: application.title }"
                                                     (picked)="move(application, $event)"

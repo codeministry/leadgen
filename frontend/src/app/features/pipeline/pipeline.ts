@@ -9,13 +9,7 @@ import {
   viewChild,
 } from '@angular/core';
 import {toSignal} from '@angular/core/rxjs-interop';
-import {
-  CdkDrag,
-  CdkDragDrop,
-  CdkDragHandle,
-  CdkDropList,
-  CdkDropListGroup,
-} from '@angular/cdk/drag-drop';
+import {CdkDrag, CdkDragDrop, CdkDragHandle, CdkDropList, CdkDropListGroup,} from '@angular/cdk/drag-drop';
 import {CdkScrollable} from '@angular/cdk/scrolling';
 import {ActivatedRoute, NavigationEnd, Router, RouterLink, RouterOutlet} from '@angular/router';
 import {filter, map} from 'rxjs';
@@ -159,6 +153,20 @@ export class Pipeline implements OnInit {
             update: {status: event.container.data},
         });
     }
+
+  /**
+   * Whether this zone will take that card, asked by the CDK before the drop.
+   *
+   * The endpoint refuses a move that steps over PACKAGED, so without this the card would
+   * fly into `Out`, snap back a round trip later and leave an error under the board. A
+   * zone that will not take it simply does not.
+   *
+   * An arrow property rather than a method: `[cdkDropListEnterPredicate]` is called by the
+   * CDK with no receiver, and a plain method would lose `this` and read the store off
+   * `undefined` — at the first drag, not at build time.
+   */
+  protected readonly accepts = (status: ApplicationStatus) => (drag: CdkDrag<ApplicationView>) =>
+    this.store.allows(drag.data.status, status);
 
     /**
      * Shows the state zones, on the press rather than on the drag.

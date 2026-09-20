@@ -271,9 +271,46 @@ before the stage stops waiting for it.
 
 ## The application package
 
-`backend/…/packaging/`. One folder per offer above the shortlist threshold, built at the
-end of a run.
+`backend/…/packaging/`. One folder per offer somebody has decided to answer, built when
+they decide it.
 
+- **The gate is the person's decision and not the score band.** It was the band: the run
+  built a folder for everything it liked, at the end of every pass. Measured on the deployed
+  instance on 2026-09-17, that gave **93 applications at `PACKAGED` against 2 ever sent** —
+  fifty prepared for every one that went out, each paying for its templates, its CV copy and
+  its reference-ranking embeddings, and each leaving a directory nothing ever deleted (76 of
+  them, 6.0 MB). Reaching the shortlist now opens an application at `NEW` and costs one row;
+  moving it to `PACKAGED` is what asks for the folder, and `PackagingService.DUE` reads
+  exactly that. Dropping `score_band` from the query is deliberate rather than incidental: an
+  operator may decide to answer a `REVIEW`, and a gate that second-guessed them would leave a
+  `PACKAGED` application with nothing behind it.
+- **The build runs after the status write commits, and the run keeps a retry.** A folder
+  written inside the transaction that asked for it survives a rollback the row does not, so
+  `PackageWorker` listens `AFTER_COMMIT`; and because the work is disk and templates rather
+  than something the operator is waiting on, it is `@Async`. That is only safe because
+  nothing is lost when a listener never runs: the offer stays due, so the `PACKAGE` stage in
+  the next pass builds it. On a healthy instance that stage now reports zero, which is the
+  expected reading and not a fault. The browser meanwhile shows "building" and re-reads the
+  board a few times, because the answer to the PATCH is a `PACKAGED` row with no folder yet
+  and "no package" there would read as a build that failed.
+- **Archiving an offer discards its package unless it was ever sent.** A folder costs disk
+  for as long as it exists and is rebuildable from the same advert — nulling `packaged_at`
+  is what re-arms that — so an offer leaving the working list takes it along. What is not
+  rebuildable is the record of what actually went out, and **that question is the event log's
+  and not the status's**: a `LOST` application may have been answered and lost, or written
+  off before anybody wrote a line, and those two have opposite answers. The current status is
+  asked as well, because deleting is the irreversible half and a row standing at `SENT` with
+  a hole in its log must not lose the folder over it. Only the manual archive does this; the
+  age pass reconciles and undoes itself, and a pass that reverses itself must not delete
+  files on the way.
+- **`OrphanSweep` collects what nothing points at**, at every start. Three things leave a
+  folder behind and none can clean up after itself: a build that died before recording where
+  it wrote, a discard that cleared the row and could not delete the directory, and `V27`,
+  which cleared seventy-odd rows in one statement because a migration has no disk. It removes
+  a **direct child of the output directory that carries a `meta.json`** and is named by no
+  `package_dir`. That marker is the safety catch: the directory comes from configuration and
+  this runs unattended, so a misconfigured path has to find nothing it recognises rather than
+  a directory full of somebody's files.
 - **This is where a send button would arrive**, one convenient afternoon: the folder is
   finished and the contact is right there in `meta.json`. `NothingIsSentTest` reads the
   repository for `Transport.send`, `JavaMailSender`, `MimeMessageHelper`, `setRecipient(`

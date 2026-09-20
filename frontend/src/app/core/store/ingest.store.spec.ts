@@ -29,7 +29,8 @@ function report(): IngestReport {
         enriched: {considered: 12, enriched: 0, incomplete: 12, fromCache: 0, requests: 0, deferred: 0},
         scored: {considered: 12, scored: 12, unscored: 0, shortlisted: 2, review: 3, unusable: 0, submitted: 0},
         digest: null,
-        packaged: {due: 2, built: 2, failed: 0, folders: []},
+      opened: {standing: 12, opened: 2},
+      packaged: {due: 0, built: 0, failed: 0, folders: []},
         finishedAt: '2026-09-05T06:12:00Z',
     };
 }

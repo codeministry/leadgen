@@ -21,14 +21,22 @@
     @for (group of groups(); track $index) {
         @if (group.label === null) {
             @for (option of group.options; track option.value) {
-                <option [value]="option.value" [selected]="option.value === value()">
+              <option
+                [value]="option.value"
+                [selected]="option.value === value()"
+                [disabled]="option.disabled ?? false"
+              >
                     {{ option.label }}
                 </option>
             }
         } @else {
             <optgroup [label]="group.label">
                 @for (option of group.options; track option.value) {
-                    <option [value]="option.value" [selected]="option.value === value()">
+                  <option
+                    [value]="option.value"
+                    [selected]="option.value === value()"
+                    [disabled]="option.disabled ?? false"
+                  >
                         {{ option.label }}
                     </option>
                 }

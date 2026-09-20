@@ -11,6 +11,7 @@ package de.codeministry.leadgen.web;
 import de.codeministry.leadgen.analytics.LastRunQueryService;
 import de.codeministry.leadgen.analytics.LastRunSource;
 import de.codeministry.leadgen.analytics.LastRunView;
+import de.codeministry.leadgen.application.OpenReport;
 import de.codeministry.leadgen.archive.ArchiveReport;
 import de.codeministry.leadgen.content.ContentReport;
 import de.codeministry.leadgen.enrich.EnrichmentReport;
@@ -116,6 +117,7 @@ class IngestControllerTest {
                         new ScoringReport(12, 12, 0, 2, 3, 0, 0),
                         new RetrievalReport(12, 12, 1, "an-embedding-model"),
                         null,
+                    new OpenReport(12, 12),
                         new PackageReport(2, 2, 0, List.of()),
                         Instant.parse("2026-09-05T06:12:00Z")));
 

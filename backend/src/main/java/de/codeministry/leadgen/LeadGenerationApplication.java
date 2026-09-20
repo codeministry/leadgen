@@ -11,18 +11,26 @@ package de.codeministry.leadgen;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
+import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
  * Entry point. Scheduling is enabled here because the pipeline runs inside this
  * process (concept § 10, phase 1) — there is no separate worker container.
+ *
+ * <p>Asynchronous execution is enabled for exactly one thing: {@code PackageWorker}, which
+ * writes and removes package folders after the transaction that asked for it has committed.
+ * The work is disk and templates rather than a request anybody is waiting on, and Boot's own
+ * {@code applicationTaskExecutor} runs it — a second pool for one listener would be one more
+ * thing to size and shut down.
  */
 @SpringBootApplication
 @ConfigurationPropertiesScan
 @EnableScheduling
+@EnableAsync
 public class LeadGenerationApplication {
 
-    public static void main(String[] args) {
+    static void main(String[] args) {
         SpringApplication.run(LeadGenerationApplication.class, args);
     }
 }

@@ -122,16 +122,29 @@ class ArchiveServiceTest {
     }
 
     @Test
-    void archivesAnOfferWhoseApplicationIsOnlyTheOneThePackagerOpened() {
-        // `PackagingService` opens an application the moment it builds a folder, so
-        // treating PACKAGED as "in progress" would exempt every offer that ever reached
-        // the shortlist — which is the whole shortlist.
-        long packaged = offer("Nur verpackt", TODAY.minusDays(window + 30));
-        application(packaged, "PACKAGED");
+    void archivesAnOfferWhoseApplicationIsOnlyTheOneTheShortlistOpened() {
+        // The shortlist opens an application at NEW for everything it likes, so treating
+        // that as "in progress" would exempt the whole shortlist from the age rule. The
+        // exemption used to sit on PACKAGED for exactly this reason and moved when the
+        // meaning did.
+        long listed = offer("Nur gelistet", TODAY.minusDays(window + 30));
+        application(listed, "NEW");
 
         archive.run(TODAY);
 
-        assertThat(archivedAt(packaged)).isNotNull();
+        assertThat(archivedAt(listed)).isNotNull();
+    }
+
+    @Test
+    void neverArchivesAnOfferSomebodyHasPrepared() {
+        // A package is a decision and a folder on disk. Ageing it off the list would hide
+        // the card that is the only way back to either.
+        long prepared = offer("Verpackt", TODAY.minusDays(window + 30));
+        application(prepared, "PACKAGED");
+
+        archive.run(TODAY);
+
+        assertThat(archivedAt(prepared)).isNull();
     }
 
     @Test
@@ -296,6 +309,76 @@ class ArchiveServiceTest {
         var result = archive.setArchived(List.of(once, once), true);
 
         assertThat(result).isEqualTo(new ArchiveResult(1, 1, 1));
+    }
+
+    @Test
+    void putsARestoredOfferBackOnTheBoardAsUndecided() {
+        // It comes back without its package — that was thrown away on the way out — so
+        // leaving it at PACKAGED would claim a folder that is no longer there. NEW is also
+        // the only state the transition guard can hold, because the guard only works on the
+        // way in to the package and not after it.
+        long back = offer("Zurückgeholt", TODAY);
+        application(back, "PACKAGED");
+        archive.setArchived(List.of(back), true);
+
+        archive.setArchived(List.of(back), false);
+
+        assertThat(status(back)).isEqualTo("NEW");
+        assertThat(jdbc.queryForObject(
+            """
+                SELECT count(*) FROM application_event e JOIN application a ON a.id = e.application_id
+                WHERE a.offer_id = ? AND e.from_status = 'PACKAGED' AND e.to_status = 'NEW'
+                  AND e.note = 'restored'
+                """,
+            Integer.class,
+            back))
+            .isEqualTo(1);
+    }
+
+    @Test
+    void takesTheDatesOfThePreviousAttemptWithIt() {
+        // A restored application that keeps a send date and a follow-up is a reminder about
+        // something that is no longer true, on the one list that stops being read when it
+        // fills up with those.
+        long back = offer("Beworben und zurückgeholt", TODAY);
+        application(back, "SENT");
+        jdbc.update(
+            "UPDATE application SET sent_on = ?, follow_up_on = ?, outcome = 'kein Feedback' WHERE offer_id = ?",
+            TODAY.minusDays(7),
+            TODAY.plusDays(7),
+            back);
+        archive.setArchived(List.of(back), true);
+
+        archive.setArchived(List.of(back), false);
+
+        assertThat(jdbc.queryForObject(
+            "SELECT sent_on IS NULL AND follow_up_on IS NULL AND outcome IS NULL"
+                + " FROM application WHERE offer_id = ?",
+            Boolean.class,
+            back))
+            .isTrue();
+    }
+
+    @Test
+    void leavesAnApplicationAloneWhenThePassBringsTheOfferBackItself() {
+        // The window widening is not somebody changing their mind. `RESTORE_INSIDE_WINDOW`
+        // reconciles rows the pass archived itself, and resetting a status every time the
+        // freshness number moves would be a rule nobody asked for.
+        long aged = offer("Zu alt, dann wieder nicht", TODAY.minusDays(window + 30));
+        application(aged, "REJECTED");
+        archive.run(TODAY);
+        assertThat(archivedAt(aged)).isNotNull();
+
+        // The same way the other reconciliation test widens it: an earlier "today" moves the
+        // cutoff back past the offer's date.
+        assertThat(archive.run(TODAY.minusDays(31)).restored()).isEqualTo(1);
+
+        assertThat(archivedAt(aged)).isNull();
+        assertThat(status(aged)).isEqualTo("REJECTED");
+    }
+
+    private String status(long offerId) {
+        return jdbc.queryForObject("SELECT status FROM application WHERE offer_id = ?", String.class, offerId);
     }
 
     private long offer(String title, LocalDate publishedOn) {

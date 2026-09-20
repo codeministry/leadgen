@@ -1,7 +1,21 @@
+import {HttpErrorResponse} from '@angular/common/http';
 import {computed, inject} from '@angular/core';
-import {signalStore, withComputed, withState} from '@ngrx/signals';
+import {signalStore, withComputed, withMethods, withState} from '@ngrx/signals';
 import {Events, on, withEventHandlers, withReducer} from '@ngrx/signals/events';
-import {catchError, concatMap, exhaustMap, filter, forkJoin, map, of} from 'rxjs';
+import {
+  catchError,
+  concatMap,
+  EMPTY,
+  exhaustMap,
+  filter,
+  forkJoin,
+  map,
+  of,
+  switchMap,
+  take,
+  takeWhile,
+  timer,
+} from 'rxjs';
 import {ApplicationsApi} from '@core/api/applications.api';
 import {
   ApplicationEvent,
@@ -9,6 +23,7 @@ import {
   ApplicationView,
   PipelineLane,
   statusLabel,
+  TransitionMap,
 } from '@core/model/application';
 import {applicationEvents} from './applications.events';
 import {ingestEvents} from './ingest.events';
@@ -38,11 +53,19 @@ export interface StatusChoice {
     readonly label: string;
     /** The lane the state belongs to, which the picker renders as an `<optgroup>`. */
     readonly group: string;
+  /**
+   * Refused from the state the row stands in, so the picker offers it greyed out rather
+   * than hiding it: a control whose options come and go is harder to read than one where
+   * the unreachable ones are visibly unreachable.
+   */
+  readonly disabled?: boolean;
 }
 
 interface ApplicationsState {
     applications: readonly ApplicationView[];
     lanes: readonly PipelineLane[];
+  /** What each state may move to, as the server states it. Empty until the board loads. */
+  transitions: Partial<TransitionMap>;
     /** Keyed by application id, and only for the ones actually looked at. */
     history: Record<number, readonly ApplicationEvent[]>;
     /** The application currently in flight, so one card can say "saving" and the rest cannot. */
@@ -69,9 +92,27 @@ function without(
     return rest;
 }
 
+/**
+ * How long the board is re-read while a package is being built.
+ *
+ * Rendering a letter and copying a PDF is fast, so the first look is soon and the rest are
+ * a courtesy: four attempts over seven seconds, then the panel keeps saying "building" and
+ * the next refresh answers it. Polling longer would be guessing at a failure the server has
+ * already logged.
+ */
+const POLL_FIRST_MS = 1_200;
+const POLL_EVERY_MS = 2_000;
+const POLL_ATTEMPTS = 4;
+
+/** A 409 from the PATCH: the move would have stepped over `PACKAGED`. */
+function refusedTransition(error: unknown): boolean {
+  return error instanceof HttpErrorResponse && error.status === 409;
+}
+
 const initialState: ApplicationsState = {
     applications: [],
     lanes: [],
+  transitions: {},
     history: {},
     saving: null,
     pending: {},
@@ -118,14 +159,43 @@ export const ApplicationsStore = signalStore(
             () => applications().filter((application) => application.followUpDue).length,
         ),
     })),
+  withMethods((store) => ({
+    /**
+     * The same eleven options, seen from one state: the ones the endpoint would refuse
+     * are marked rather than removed. A control whose options come and go is harder to
+     * read than one where the unreachable states are visibly unreachable — and the
+     * greyed-out `Sent` under `New` is what explains the rule without a sentence.
+     *
+     * Falls back to the plain list until the map has arrived, which is the honest
+     * answer: the browser does not yet know, and the endpoint is the authority anyway.
+     */
+    choicesFor(status: ApplicationStatus): readonly StatusChoice[] {
+      const allowed = store.transitions()[status];
+      if (allowed === undefined) {
+        return store.statusChoices();
+      }
+      return store.statusChoices().map((choice) => ({
+        ...choice,
+        disabled: !allowed.includes(choice.value),
+      }));
+    },
+    /** Whether a move would be accepted, which is what the board asks before a drop. */
+    allows(from: ApplicationStatus, to: ApplicationStatus): boolean {
+      return store.transitions()[from]?.includes(to) ?? true;
+    },
+    })),
     withReducer(
         on(applicationEvents.opened, () => ({loading: true, error: null})),
         on(applicationEvents.loaded, ({payload}) => ({
             applications: payload.applications,
             lanes: payload.lanes,
+          transitions: payload.transitions,
             loading: false,
         })),
         on(applicationEvents.failed, ({payload}) => ({error: payload, loading: false})),
+      // The rows alone, from a poll waiting for a package. The lanes and the transition
+      // map are decisions and do not change between two of them.
+      on(applicationEvents.boardRefreshed, ({payload}) => ({applications: payload})),
       /*
        * The card moves the moment the operator lets go of it, and the row it moved from is
        * kept. A drag whose card stays put until the answer is back reads as a drag that did
@@ -213,7 +283,11 @@ export const ApplicationsStore = signalStore(
         return [
             events.on(applicationEvents.opened).pipe(
                 exhaustMap(() =>
-                    forkJoin({applications: api.board(), lanes: api.lanes()}).pipe(
+                  forkJoin({
+                    applications: api.board(),
+                    lanes: api.lanes(),
+                    transitions: api.transitions(),
+                  }).pipe(
                         map((payload) => applicationEvents.loaded(payload)),
                         catchError(() => of(applicationEvents.failed('error.boardLoad'))),
                     ),
@@ -245,14 +319,46 @@ export const ApplicationsStore = signalStore(
                 concatMap(({payload}) =>
                     api.update(payload.id, payload.update).pipe(
                         map((view) => applicationEvents.updated(view)),
-                        catchError(() =>
+                      catchError((error: unknown) =>
                             of(
                                 applicationEvents.changeFailed({
                                     id: payload.id,
-                                    message: 'error.statusSave',
+                                  message: refusedTransition(error)
+                                    ? 'error.statusBlocked'
+                                    : 'error.statusSave',
                                 }),
                             ),
                         ),
+                    ),
+                ),
+            ),
+          /*
+           * A package is built after the status change has committed, so the answer to the
+           * PATCH is a PACKAGED row with no folder yet. Without this the panel would say
+           * "no package" until something else happened to reload the board, which reads as
+           * the build having silently failed.
+           */
+          events.on(applicationEvents.updated).pipe(
+            filter(
+              ({payload}) => payload.status === 'PACKAGED' && payload.packageDir === null,
+            ),
+            map(({payload}) => applicationEvents.packageAwaited(payload.id)),
+          ),
+          events.on(applicationEvents.packageAwaited).pipe(
+            // `switchMap`, so a second decision replaces the first poll rather than
+            // running a second one beside it.
+            switchMap(({payload}) =>
+                timer(POLL_FIRST_MS, POLL_EVERY_MS).pipe(
+                  take(POLL_ATTEMPTS),
+                  concatMap(() => api.board().pipe(catchError(() => EMPTY))),
+                  // Inclusive, so the answer that carries the folder is the last one
+                  // through rather than the one that gets dropped.
+                  takeWhile(
+                    (rows) =>
+                      rows.find((row) => row.id === payload)?.packageDir == null,
+                    true,
+                  ),
+                  map((rows) => applicationEvents.boardRefreshed(rows)),
                     ),
                 ),
             ),

@@ -66,6 +66,9 @@ class PackagingServiceTest {
     @BeforeEach
     void reset() {
         jdbc.update("DELETE FROM offer_score_reason");
+        // Before the offers: the application references them, and the event references the
+        // application. The cascade only runs from the application downwards.
+        jdbc.update("DELETE FROM application");
         jdbc.update("DELETE FROM offer");
         jdbc.update("DELETE FROM source");
         sourceId =
@@ -74,7 +77,7 @@ class PackagingServiceTest {
 
     @Test
     void buildsAFolderWithEveryDocument() {
-        long id = shortlisted(
+        long id = requested(
                 "Senior Java Entwickler Spring Boot (m/w/d)",
                 "Wir suchen für unseren Kunden einen Entwickler mit Erfahrung in Spring Boot.");
         reason(id, "core_skill_overlap", "2 of 2 core skills named: Java, Spring Boot", 45);
@@ -93,7 +96,7 @@ class PackagingServiceTest {
 
     @Test
     void writesTheCoverLetterInTheLanguageOfTheAd() {
-        long german = shortlisted(
+        long german = requested(
                 "Senior Java Entwickler (m/w/d)",
                 "Wir suchen für unseren Kunden einen Entwickler mit Erfahrung in Spring Boot.");
         packaging.run();
@@ -102,7 +105,7 @@ class PackagingServiceTest {
                 .doesNotContain("Dear Sir");
 
         reset();
-        long english = shortlisted(
+        long english = requested(
                 "Senior Java Developer", "Our client is looking for a backend engineer, Spring Boot, remote.");
         packaging.run();
         assertThat(read(folderOf(english).resolve("cover_letter.txt")))
@@ -114,7 +117,7 @@ class PackagingServiceTest {
     void archivesTheAdAsItWasWhenTheDecisionWasMade() {
         // Portals take listings down. A package without the original is a package nobody
         // can check six months later.
-        long id = shortlisted("Senior Java Entwickler (m/w/d)", "Kurzbeschreibung aus dem Newsletter.");
+        long id = requested("Senior Java Entwickler (m/w/d)", "Kurzbeschreibung aus dem Newsletter.");
         jdbc.update("UPDATE offer SET full_text = ? WHERE id = ?", "Der vollständige Text der Anzeige.", id);
 
         packaging.run();
@@ -134,7 +137,7 @@ class PackagingServiceTest {
         // never written — which on screen is every offer above the threshold reporting that
         // it has no package. Every fixture before this one set `full_text` alone, which is
         // why the suite stayed green.
-        long id = shortlisted("Senior Entwickler (m/w/d)", "Kurzbeschreibung aus dem Newsletter.");
+        long id = requested("Senior Entwickler (m/w/d)", "Kurzbeschreibung aus dem Newsletter.");
         jdbc.update(
             """
                 UPDATE offer
@@ -165,7 +168,7 @@ class PackagingServiceTest {
 
     @Test
     void writesTheScoreAndItsReasonsIntoMetaJson() throws IOException {
-        long id = shortlisted("Senior Java Entwickler (m/w/d)", "Spring Boot, für unseren Kunden.");
+        long id = requested("Senior Java Entwickler (m/w/d)", "Spring Boot, für unseren Kunden.");
         reason(id, "core_skill_overlap", "2 of 2 core skills named: Java, Spring Boot", 45);
         reason(id, "vague_description", "team size left open", -10);
 
@@ -183,7 +186,7 @@ class PackagingServiceTest {
     @Test
     void namesEverySourceOfADuplicateCluster() throws IOException {
         // One project advertised by three portals is one package, and it says which three.
-        long primary = shortlisted("Senior Java Entwickler (m/w/d)", "Spring Boot, für unseren Kunden.");
+        long primary = requested("Senior Java Entwickler (m/w/d)", "Spring Boot, für unseren Kunden.");
         long second = shortlisted("Senior Java Entwickler (m/w/d)", "Spring Boot, für unseren Kunden.");
         jdbc.update("UPDATE offer SET duplicate_of_id = ?, portal = 'portal-b' WHERE id = ?", primary, second);
 
@@ -195,23 +198,51 @@ class PackagingServiceTest {
     }
 
     @Test
-    void packagesOnlyWhatIsAboveTheThreshold() {
-        long shortlisted = shortlisted("Senior Java Entwickler (m/w/d)", "Spring Boot, für unseren Kunden.");
-        long review = shortlisted("Java Entwickler (m/w/d)", "Spring Boot, für unseren Kunden.");
-        jdbc.update("UPDATE offer SET score_band = 'REVIEW', score_value = 61 WHERE id = ?", review);
+    void packagesOnlyWhatSomebodyAskedFor() {
+        // Reaching the shortlist is the tool's opinion and buys a card, not a folder. What
+        // buys the folder is a person moving that card to PACKAGED.
+        long asked = requested("Senior Java Entwickler (m/w/d)", "Spring Boot, für unseren Kunden.");
+        long waiting = shortlisted("Java Entwickler (m/w/d)", "Spring Boot, für unseren Kunden.");
+        jdbc.update("INSERT INTO application (offer_id, status) VALUES (?, 'NEW')", waiting);
 
         var report = packaging.run();
 
         assertThat(report.due()).isEqualTo(1);
-        assertThat(jdbc.queryForObject("SELECT package_dir FROM offer WHERE id = ?", String.class, shortlisted))
+        assertThat(jdbc.queryForObject("SELECT package_dir FROM offer WHERE id = ?", String.class, asked))
+            .isNotNull();
+        assertThat(jdbc.queryForObject("SELECT package_dir FROM offer WHERE id = ?", String.class, waiting))
+            .isNull();
+    }
+
+    @Test
+    void packagesAnOfferTheBandWouldNotHaveShortlisted() {
+        // The band stopped being the gate on purpose: an operator may decide to answer a
+        // REVIEW, and refusing them the folder would leave a PACKAGED application with
+        // nothing behind it — the one state the transition rule exists to prevent.
+        long id = requested("Java Entwickler (m/w/d)", "Spring Boot, für unseren Kunden.");
+        jdbc.update("UPDATE offer SET score_band = 'REVIEW', score_value = 61 WHERE id = ?", id);
+
+        assertThat(packaging.run().built()).isEqualTo(1);
+        assertThat(jdbc.queryForObject("SELECT package_dir FROM offer WHERE id = ?", String.class, id))
                 .isNotNull();
-        assertThat(jdbc.queryForObject("SELECT package_dir FROM offer WHERE id = ?", String.class, review))
+    }
+
+    @Test
+    void buildsForOneOfferOnDemand() {
+        long asked = requested("Senior Java Entwickler (m/w/d)", "Spring Boot, für unseren Kunden.");
+        long alsoAsked = requested("Java Entwickler Spring (m/w/d)", "Spring Boot, für unseren Kunden.");
+
+        assertThat(packaging.buildFor(asked).built()).isEqualTo(1);
+
+        assertThat(jdbc.queryForObject("SELECT package_dir FROM offer WHERE id = ?", String.class, alsoAsked))
                 .isNull();
+        // And the retry pass in the run picks up the one the listener did not reach.
+        assertThat(packaging.run().built()).isEqualTo(1);
     }
 
     @Test
     void doesNotBuildTheSamePackageTwice() {
-        shortlisted("Senior Java Entwickler (m/w/d)", "Spring Boot, für unseren Kunden.");
+        requested("Senior Java Entwickler (m/w/d)", "Spring Boot, für unseren Kunden.");
 
         assertThat(packaging.run().built()).isEqualTo(1);
         assertThat(packaging.run().due()).isZero();
@@ -226,7 +257,7 @@ class PackagingServiceTest {
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
-        long id = shortlisted("Senior Java Entwickler (m/w/d)", "Spring Boot, für unseren Kunden.");
+        long id = requested("Senior Java Entwickler (m/w/d)", "Spring Boot, für unseren Kunden.");
 
         assertThat(packaging.run().built()).isEqualTo(1);
         assertThat(files(folderOf(id))).contains("cv-MISSING.txt", "cover_letter.txt", "meta.json");
@@ -251,6 +282,16 @@ class PackagingServiceTest {
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
+    }
+
+    /**
+     * A shortlisted offer somebody has asked for a package for — the only thing this stage
+     * builds anything for. The band no longer decides that; the application's status does.
+     */
+    private long requested(String title, String description) {
+        long id = shortlisted(title, description);
+        jdbc.update("INSERT INTO application (offer_id, status) VALUES (?, 'PACKAGED')", id);
+        return id;
     }
 
     private long shortlisted(String title, String description) {

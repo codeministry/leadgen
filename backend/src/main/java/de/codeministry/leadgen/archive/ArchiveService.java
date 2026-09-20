@@ -11,6 +11,7 @@ package de.codeministry.leadgen.archive;
 import de.codeministry.leadgen.application.ApplicationStatus;
 import de.codeministry.leadgen.config.ConfigRegistry;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -110,6 +111,39 @@ public class ArchiveService {
         """;
 
     /**
+     * What a restore does to the board.
+     *
+     * <p><b>An offer that comes back comes back undecided.</b> Its package was thrown away on
+     * the way out unless it had been sent, so leaving it at PACKAGED would be a claim about a
+     * folder that is no longer there — and the guard in {@code ApplicationService.update} only
+     * holds if the way back in starts before the package, not after it. So the status goes to
+     * NEW and the dates that described a previous attempt go with it.
+     *
+     * <p>The event row is what makes that lossless. The current row cannot say "this was won
+     * in June and put back on the list in September"; the log can, and it is the same log
+     * every other correction is written to.
+     *
+     * <p>Only the decision. {@link #RESTORE_INSIDE_WINDOW} does not run this: the pass
+     * undoing its own archiving is not somebody changing their mind, and resetting a status
+     * every time the freshness window widens would be a rule nobody asked for.
+     */
+    private static final String RESET_TO_NEW = """
+        WITH before AS (
+            SELECT id, status FROM application
+            WHERE offer_id = ANY (?) AND status <> 'NEW'
+            FOR UPDATE
+        ), moved AS (
+            UPDATE application a
+            SET status = 'NEW', sent_on = NULL, follow_up_on = NULL, outcome = NULL,
+                updated_at = now()
+            FROM before b WHERE a.id = b.id
+            RETURNING a.id
+        )
+        INSERT INTO application_event (application_id, from_status, to_status, note)
+        SELECT b.id, b.status, 'NEW', 'restored' FROM before b
+        """;
+
+    /**
      * Primaries, like every other number an operator reads: a duplicate is not an entry.
      */
     private static final String STANDING =
@@ -133,10 +167,12 @@ public class ArchiveService {
 
     private final ConfigRegistry config;
     private final JdbcClient jdbc;
+    private final ApplicationEventPublisher events;
 
-    ArchiveService(ConfigRegistry config, DataSource dataSource) {
+    ArchiveService(ConfigRegistry config, DataSource dataSource, ApplicationEventPublisher events) {
         this.config = config;
         this.jdbc = JdbcClient.create(dataSource);
+        this.events = events;
     }
 
     /**
@@ -196,6 +232,18 @@ public class ArchiveService {
                 result.archived(),
                 result.requested(),
                 archived ? "archived" : "restored");
+        }
+
+        if (archived) {
+            // Announced rather than deleted here: this service is SQL and the folders are
+            // disk. The listener runs after this transaction commits, so a rollback can
+            // never leave an offer on the list with its package already gone.
+            events.publishEvent(new OffersArchived(List.of(ids)));
+        } else {
+            int reset = jdbc.sql(RESET_TO_NEW).param(ids).update();
+            if (reset > 0) {
+                log.info("{} restored offers went back to NEW", reset);
+            }
         }
         return result;
     }

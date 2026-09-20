@@ -8,6 +8,7 @@
  */
 package de.codeministry.leadgen.ingest;
 
+import de.codeministry.leadgen.application.OpenReport;
 import de.codeministry.leadgen.archive.ArchiveReport;
 import de.codeministry.leadgen.content.ContentReport;
 import de.codeministry.leadgen.enrich.EnrichmentReport;
@@ -48,8 +49,13 @@ import java.util.List;
  *                   embedding model is configured, and semantic search then does not exist.
  * @param digest     the file the run wrote, or null when the digest is switched off. A file,
  *                   never a message: the tool has no send path at all.
- * @param packaged   the folders built for everything above the shortlist threshold. Folders
- *                   on disk, for the same reason.
+ * @param opened     the cards this run put on the board, and how many the shortlist holds in
+ *                   total. This is what reaching the shortlist now buys — a decision to make,
+ *                   costing one row. It used to buy a folder, for every one of them.
+ * @param packaged   the folders built on this pass, which is the retry rather than the normal
+ *                   path: a package is built the moment somebody moves an application to
+ *                   PACKAGED. Zero here is the healthy reading. Folders on disk, never a
+ *                   message, for the same reason the digest is a file.
  * @param finishedAt when the run ended. Present for the same reason {@code LastRunView}
  *                   carries it: without a time on the panel, a pass that ran for three hours and one
  *                   that was clicked a minute ago read identically. The start is deliberately not here
@@ -67,6 +73,7 @@ public record IngestReport(
         ScoringReport scored,
         RetrievalReport indexed,
         Path digest,
+        OpenReport opened,
         PackageReport packaged,
         Instant finishedAt) {
 

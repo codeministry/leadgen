@@ -292,12 +292,12 @@ thresholds:
   discard: 0
 ```
 
-| Band | Condition | What it gates |
-|---|---|---|
-| `SHORTLISTED` | `value >= auto_shortlist` | An application package is built for it. |
-| `REVIEW` | `value >= review` and below `auto_shortlist` | Listed in the digest, a person decides. |
-| `DISCARDED` | below `review` | Neither. |
-| `UNSCORED` | no value | Always shown in the digest, never packaged. |
+| Band          | Condition                                    | What it gates                                                                                            |
+|---------------|----------------------------------------------|----------------------------------------------------------------------------------------------------------|
+| `SHORTLISTED` | `value >= auto_shortlist`                    | It gets a card on the board, at `NEW`. The package is built when a person moves that card to `PACKAGED`. |
+| `REVIEW`      | `value >= review` and below `auto_shortlist` | Listed in the digest, a person decides.                                                                  |
+| `DISCARDED`   | below `review`                               | Neither.                                                                                                 |
+| `UNSCORED`    | no value                                     | Always shown in the digest, never put on the board.                                                      |
 
 `review` above `auto_shortlist` is refused at load. It would not fail on its own — the
 shortlist bound is tested first — it would silently delete the `REVIEW` band and build a

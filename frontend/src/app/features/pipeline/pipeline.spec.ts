@@ -7,6 +7,7 @@ import {By} from '@angular/platform-browser';
 import {provideRouter, Router} from '@angular/router';
 import {RouterTestingHarness} from '@angular/router/testing';
 import {ApplicationStatus, ApplicationView, PipelineLane} from '@core/model/application';
+import {TRANSITIONS} from '@core/model/transitions.fixture';
 import {SCORE_THRESHOLDS} from '@shared/shared.ports';
 
 /**
@@ -70,6 +71,7 @@ describe('Pipeline', () => {
   function flushBoard(): void {
     http.expectOne('/api/applications').flush([APPLICATION]);
     http.expectOne('/api/applications/lanes').flush(LANES);
+    http.expectOne('/api/applications/transitions').flush(TRANSITIONS);
   }
 
   async function openBoard(): Promise<RouterTestingHarness> {
