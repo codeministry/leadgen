@@ -87,12 +87,8 @@ Violating one of these is expensive, and most of them fail silently.
 - **Archiving discards the package unless the application was ever sent, and a restore comes
   back at `NEW`.** Both halves keep "PACKAGED" and "there is a folder" the same fact.
 - **Anything reached by a name computed at runtime needs a hint in `LeadGenRuntimeHints`.**
-  The four YAML files and the three templates are reached that way, and
-  `LeadGenRuntimeHintsTest` fails when something new under `src/main/resources/leadgen/` has
-  none. Third-party metadata is not this file's job: FreeMarker, jsoup, flyway, postgresql,
-  snakeyaml and angus-mail come from the GraalVM reachability repository, whose version travels
-  with the `native-build-tools` plugin. In a native image a missing hint is an empty result,
-  not an error.
+  The four YAML files and the three templates are; a missing hint is an empty result in a
+  native image, not an error. `LeadGenRuntimeHintsTest` fails when a new one has none.
 - **Never commit.** Do the work, leave it uncommitted, offer the commit — the maintainer
   reviews the diff and decides what lands.
 
@@ -210,29 +206,10 @@ code has to reproduce — the numbers in `docs/SAMPLE-ANALYSIS.md` are the targe
 
 ## Measured baseline
 
-- 14 mails, **1289 offers**, all extracted deterministically via CSS. The count announced
-  in the subject matches exactly in all 14. `fallback: none` for this source.
-- **0.0 % contain an hourly rate.** Rate, duration, workload and start date only arrive
-  from the enrichment stage (fetching the original ad from the portal).
-- **0 of 1289 state an application deadline, and that is a property of the newsletter, not
-  of the market.** Measured on the deployed instance after the first field-extraction pass:
-  19 of 21 offers on the working list stated at least one of start, duration or deadline, **9 of them a deadline**,
-  dates from 08.09. to 30.09., one already expired. A start is
-  stated as a phrase far more often than as a day — 18 phrases, 4 resolvable to a calendar
-  day, because "Oktober 2026" is a month and a month is not a day. This is the number to
-  re-measure before concluding that a field is empty: the sample corpus under
-  `docs/samples/` cannot show it, since the deadline only appears in the ad the enrichment
-  stage fetches.
-- The hard filter's share depends entirely on the rules, so the archive's own measurement
-  is written by `simulate_filter.py` into `docs/samples/filter-baseline.json` and the corpus
-  test asserts against that file rather than against a number kept here. At
-  `min_remote_percent: 40` it is **19.1 %** — 246 of 1289, ~18 per mail after
-  deduplication. That is the daily LLM budget, and the archive window narrows it again on
-  top. The stages and the three defects that moved this number are in
-  `docs/SAMPLE-ANALYSIS.md` § 5. The share is not comparable across settings: at
-  `min_remote_percent: 0` the same corpus gave 41.5 %, because the reach rule switches off
-  entirely at zero.
-- **14.0 % duplicates** by exact title alone, within a single mail.
+The numbers this tool was built against — what the corpus contains, what the newsletter never
+carries, and what the hard filter lets through at which setting — are in
+[`docs/SAMPLE-ANALYSIS.md`](docs/SAMPLE-ANALYSIS.md) § 8. They are measurements rather than
+rules, and a measurement is re-taken rather than remembered.
 
 ## Order of work
 

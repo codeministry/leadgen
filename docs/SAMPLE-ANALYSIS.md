@@ -172,3 +172,34 @@ Machine Learning 50 · Data Science 46 · Elasticsearch 18 · MongoDB 11 · Redi
 `AI`, `Machine Learning` and `Data Science` together produce close to 400 hits and almost
 nothing suitable. Deselecting them in the aggregator profile removes noise at the source.
 `Cloud`, with 656 hits, is so broad that it barely narrows anything.
+
+## 8. The baseline in one place
+
+Moved here out of `CLAUDE.md`, which is loaded into every session and has a character budget
+that `WorkingNotesStaySmallTest` enforces. These are measurements, not rules: the rule is
+"re-measure before concluding a field is empty", and it stays in the notes. Everything behind
+it is here.
+
+- 14 mails, **1289 offers**, all extracted deterministically via CSS. The count announced
+  in the subject matches exactly in all 14. `fallback: none` for this source.
+- **0.0 % contain an hourly rate.** Rate, duration, workload and start date only arrive
+  from the enrichment stage (fetching the original ad from the portal).
+- **0 of 1289 state an application deadline, and that is a property of the newsletter, not
+  of the market.** Measured on the deployed instance after the first field-extraction pass:
+  19 of 21 offers on the working list stated at least one of start, duration or deadline, **9 of them a deadline**,
+  dates from 08.09. to 30.09., one already expired. A start is
+  stated as a phrase far more often than as a day — 18 phrases, 4 resolvable to a calendar
+  day, because "Oktober 2026" is a month and a month is not a day. This is the number to
+  re-measure before concluding that a field is empty: the sample corpus under
+  `docs/samples/` cannot show it, since the deadline only appears in the ad the enrichment
+  stage fetches.
+- The hard filter's share depends entirely on the rules, so the archive's own measurement
+  is written by `simulate_filter.py` into `docs/samples/filter-baseline.json` and the corpus
+  test asserts against that file rather than against a number kept here. At
+  `min_remote_percent: 40` it is **19.1 %** — 246 of 1289, ~18 per mail after
+  deduplication. That is the daily LLM budget, and the archive window narrows it again on
+  top. The stages and the three defects that moved this number are in
+  `docs/SAMPLE-ANALYSIS.md` § 5. The share is not comparable across settings: at
+  `min_remote_percent: 0` the same corpus gave 41.5 %, because the reach rule switches off
+  entirely at zero.
+- **14.0 % duplicates** by exact title alone, within a single mail.
