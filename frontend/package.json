@@ -11,7 +11,9 @@
     "lint:fix": "eslint . --fix",
     "lint:css": "stylelint \"src/**/*.css\"",
     "format": "prettier --write \"src/**/*.{ts,html,css,json}\"",
-    "check:static": "bun run lint && bun run lint:css && tsc -p tsconfig.app.json --noEmit"
+    "check:static": "bun run lint && bun run lint:css && tsc -p tsconfig.app.json --noEmit",
+    "verify:quick": "bun run check:static && bun run test",
+    "verify": "bun run check:static && bun run test:coverage && bun run build"
   },
   "private": true,
   "packageManager": "bun@1.3.12",
