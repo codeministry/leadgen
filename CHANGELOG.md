@@ -9,6 +9,18 @@ may change in any release. See the status note in the README.
 
 ## [Unreleased]
 
+### Added
+
+- **The tool can start a pass by itself.** `INGEST_CRON` takes a Spring cron expression in
+  the JVM's timezone and defaults to `-`, which is no schedule at all, so the shipped image
+  reads nobody's mailbox until it is asked to. A deployment that already schedules the run
+  from outside, with a Kubernetes CronJob or with cron on the host, leaves the key alone. It
+  is a cron expression rather than an interval because only cron carries a disabled marker,
+  and the bean is unconditional rather than `@ConditionalOnProperty`, because Spring AOT
+  evaluates a bean condition at build time and the image would then ignore the variable in
+  the running container without saying so. A pass that is already running is skipped and
+  logged rather than queued.
+
 ### Changed
 
 - **An IMAP selector now has to say which messages are its own, and three arrangements are

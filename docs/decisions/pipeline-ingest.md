@@ -133,6 +133,17 @@ upserts it. `POST /api/v1/ingest` runs one pass.
   only stopped a schema claiming a mechanism the code had abandoned.
 - **One failing source must not end the run.** `IngestService` catches `IngestException` per
   source, so an unreachable mailbox does not stop the file sources behind it.
+- **The schedule is a cron expression the application reads, and the default is no schedule.** Three options were on the
+  table. A `@Scheduled(fixedDelayString = …)` has no way to say "off": there is no disabled marker and a zero delay is a
+  busy loop, so the switch would have had to be a second key, and the state where the boolean is off while the interval
+  looks configured is exactly the one an operator misreads. A `@ConditionalOnProperty` on the bean reads better and is
+  the trap: `processAot` evaluates conditions at build time, so the image would be built with the schedule off and
+  setting the variable in the running container would change nothing, silently — which is this repository's whole
+  category of expensive failure. A placeholder inside `@Scheduled(cron = …)` is resolved when the task is registered,
+  which is at runtime in the operator's own environment, and Spring's `-` is a disabled marker that needs no second key.
+  The deployed instance schedules the run with a Kubernetes CronJob and will keep doing so; this exists because Docker
+  Compose is the supported way to run this repository and Compose schedules nothing. The timezone is deliberately the
+  JVM's: naming one here would be wiring in where the operator lives.
 - **`match_all` is weaker than its documentation, and its obvious test proves nothing.** The key reads as "dedicated
   folder: take everything", and `ImapSourceConnector.matches` does return early on it. But the selector's senders are
   also in the IMAP `SEARCH` term, and `fromAnyOf` never looks at the flag, so a source with both `match_all: true` and

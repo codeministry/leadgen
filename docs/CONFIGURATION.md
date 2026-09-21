@@ -159,6 +159,7 @@ rationale. `*` marks a credential.
 | `LOG_LEVEL` | `INFO` | |
 | `CONFIG_POLL_INTERVAL` | `PT2S` | Two polls are needed to apply a change, so worst case is twice this. |
 | `SCORE_BATCH_POLL_INTERVAL` | `PT5M` | Only read when `LLM_BATCH` is true. |
+| `INGEST_CRON` | `-` | A Spring cron expression, in the JVM's timezone, for a pass the tool starts itself. `-` is no schedule, and it is the default. Leave it alone if a CronJob or the host's cron already schedules the run. |
 | `DIGEST_FORMAT` | `html` | `text` or `html`. |
 | `OIDC_ISSUER`, `OIDC_CLIENT_ID` | — | Read only when `AUTH_MODE` is `oidc`, which is not implemented. |
 | `SAMPLE_FEED_URL` | — | The feed of `sample-portal-feed`, which ships disabled. |
