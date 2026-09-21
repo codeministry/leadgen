@@ -38,12 +38,13 @@ Violating one of these is expensive, and most of them fail silently.
   embeddings run locally and for free. Anthropic is never wired in as a fallback for a failed
   or slow local call — it is used only when Marcello sets it for that specific run. A silent
   fallback turns a free pipeline into a billed one without anything in the output to show it.
-- **Pre-1.0 the version bump is PATCH, even for a breaking change.** SemVer would ask for a
-  minor bump on a broken API or schema; this repository does not, and will not until 1.0.
-  A breaking `/api/sources` response-shape change shipped as `v0.3.1` after `v0.4.0` was
-  rejected, and the next one — the dropped `ingest_cursor` table plus changed
-  `remote.accept_unknown` semantics — went out as `v0.3.2`. The breaking part belongs in the
-  release notes, not in the number.
+- **Pre-1.0 a breaking change is a PATCH; only the runtime moves the MINOR.** SemVer would ask
+  for a minor bump on a broken API or schema; this repository does not, and will not until 1.0.
+  A breaking `/api/sources` response shape shipped as `v0.3.1`, and the dropped `ingest_cursor`
+  table plus changed `remote.accept_unknown` semantics as `v0.3.2`. The minor is kept for a
+  change in how the artifact is built or run: `v0.4.0` ships the jar unpacked with Spring AOT
+  switched on, and carries three breaking changes along with it. The breaking part belongs in
+  the release notes, not in the number.
 - **Production maintenance never touches the codebase.** Bulk re-import, rescoring, a
   bulk-archive: these run against the live instance from the terminal or as direct SQL. A
   one-off admin task that leaves a commit behind has been done wrong, because the next

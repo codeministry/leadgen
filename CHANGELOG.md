@@ -9,7 +9,106 @@ may change in any release. See the status note in the README.
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-09-21
+
+The release that changes how the artifact runs: the image ships the jar unpacked with Spring
+AOT switched on, and three things break underneath it — the API prefix, the Postgres major,
+and what `PACKAGED` means. Everything written up as `0.4.0` on 2026-09-16 and never tagged is
+part of it. The upgrade notes are not optional this time; one of them takes a database dump *before* the deploy.
+
 ### Added
+
+- **The shortlist can be searched by meaning, over a vector of the whole advert.** A second
+  column, `offer.retrieval_embedding`, a stage that fills it after `SCORE`, and a filter that
+  reads it. It is a second column and not the one deduplication uses, because the two answer
+  different questions: `offer.embedding` holds the title, the location and 600 characters, and
+  that is the text the merge band was measured against. Re-using one column cannot be made
+  safe — after a re-embed some rows would carry each text under the same model name, the guard
+  in `SimilarOffers` would pass, and the cosine between two incomparable vectors is a number
+  rather than an error. **The search narrows; it never reorders.** A relevance order would make
+  the sort key a function of the request and the cursor a function of the query text, which is
+  what `ShortlistSort` and `Cursor` exist to prevent, so `retrieval.neighbours` is a count and
+  there is no threshold to measure. The consequence is stated rather than hidden: with the
+  filter on, the count reads "6 of 9 · closest matches only". Measured 2026-09-17 over 252
+  fetched and segmented adverts, the advert text produces 347 pairs above 0.8 against the
+  teaser's 488, and the ten in the merge band are one project posted twice — which refutes a
+  prediction this repository made, left standing struck through in
+  `docs/decisions/retrieval.md`.
+
+- **Five questions an advert can be asked on the detail screen** — the rate, the client, being
+  on site, onboarding, an extension — answered from that advert and nothing else. **Every claim
+  carries a sentence from the advert, and a claim whose sentence is not in the advert is
+  dropped.** That is the whole design, and the rest are arrangements around it: without the
+  check this screen would be a confident, specific, unfalsifiable answer about a document the
+  reader is holding; with it, a wrong answer is a missing answer. There is no retrieval, and
+  that is the point — one de-furnitured advert fits whole in any context window worth
+  configuring, so choosing what to leave out would only be a way to leave something out. The
+  questions are an enum, so nothing a caller sends reaches a prompt and the cost per advert has
+  a ceiling; the model is `llm.models.scoring`, which three stages already share; nothing is
+  stored, so nothing goes stale when the content stage rewrites the advert underneath it.
+  Silent is an answer and comes back 200, refused is not one and comes back 409 — no model, no
+  fetched text and a spent budget all mean nobody could ask, and drawn the same way a reader
+  takes a spent budget for a quiet advert.
+
+- **A card can be dragged into its next state on the pipeline board**, through the same `PATCH`
+  the eleven-entry picker already made. **A state is the drop target, never a lane**: four of
+  the five lanes hold more than one state and `closed` begins at `WON`, so a lane-wide target
+  would have marked a dropped card won on the strength of the enum's declaration order. At rest
+  a lane stays one list; the zones and their headings appear while a card is being picked up,
+  on `pointerdown` and not on `cdkDragStarted` — a defect rather than a preference, because the
+  CDK caches every container's rectangle at the first move past the threshold and never asks
+  again, so a zone revealed after it is measured collapsed and a drop over it produces no
+  request at all. Measured in the browser, both ways. The card moves before the answer is back
+  and goes back where it was when the write fails.
+
+- **A document with no frontmatter can now be read by a language model** — the `fallback: llm`
+  that the shipped `sources.yaml` has declared since the beginning and nothing implemented. A
+  pasted advert dropped into the review queue comes back with its title, url, location, portal,
+  agency, publication date and tags filled in; the description stays the document itself, because
+  a summary is what every later stage would otherwise read instead of the advert. Two of those
+  fields are checked against the document before they are kept: a `url` that is not in it
+  character for character is discarded, and a `published` date needs a quote from the document
+  behind it and has to fall between 2000 and today. Rules before model still holds — the model is
+  asked only where the deterministic rule found nothing, and without a reachable model the
+  document is left where it is, exactly as before.
+
+- **The review screen marks which fields a model read.** Only those get the badge, and it sits
+  inside the label so it is part of the input's accessible name. Nothing of it is written into the
+  file on confirm.
+
+- **The Rules screen shows the extraction prompt**, first of the three, in the order the pipeline
+  asks them.
+
+- **Deduplication compares adverts that are not identical.** The two `embedding_cosine`
+  strategies the shipped `matching-rules.yaml` has listed since the beginning now run: above a
+  cosine similarity of 0.97 an offer is attached to the older one it duplicates, above 0.95 it
+  is marked and left alone. The shortlist badges the mark and can filter on it; nothing is
+  hidden, because the working list is what gets trusted instead of the mailbox. Both numbers
+  were measured rather than assumed — the population and the method are under *Changed*.
+  Without `llm.models.embedding` only `exact_fingerprint` runs, exactly as before.
+
+- **`llm.budget.max_calls_per_day` is a ceiling now and not a number in a file.** Every request
+  that leaves for a model counts once — judge, classifier, field extraction, a document with no
+  frontmatter, and an embedding of thirty-two adverts alike. Collecting an already-submitted
+  batch does not count, because those answers are paid for. When the day is spent each stage
+  stops asking and leaves its work due, so the next run continues and nothing is written as
+  answered that was not. The count is a row per day in the database, so a restart does not hand
+  the allowance out twice.
+
+- **`llm.timeout` bounds a model request in time**, read by `ChatModels` and `EmbeddingModels`,
+  default `PT120S`. The hard-coded 30 s was comfortable for a hosted endpoint and not for a
+  local one loading a 20B model first: measured on the deployed instance, content, fields and
+  scoring each gave up at the ceiling in one run and reported "without a usable answer" for an
+  answer that had never arrived. The value is set in the per-call options and not only on the
+  client, because Spring AI's own 60 s otherwise wins and the configured number is read by
+  nobody.
+
+- **The offer carries two more facts about itself: `sourceName` and `ingestedAt`.** The first is
+  provenance rather than content — `portal` is who advertises the project, `sourceName` is which
+  configured input delivered it here, as `sources.yaml` names it and as the sources screen lists
+  it. The second is the counterpart of `publishedOn`: that one is what the advert says about
+  itself, this one is when this tool first saw it. It is written once at ingest and no later
+  stage touches it, which is also why the `fresh` sort key can rest on it.
 
 - **`backend/smoke/smoke.sh` checks a finished image, and CI runs it.** Twenty-four checks in
   seven groups against the built container rather than against the code: the context boots and
@@ -27,7 +126,124 @@ may change in any release. See the status note in the README.
   itself when either is absent — the arrangement the aggregator's corpus test already has.
   Measured on five real mails: 26 cards out of three, and 1 out of each of the other two.
 
+- **`docs/README.md` is the map of the documentation**, and `docs/WRITING-RULES.md` documents
+  every `matching-rules.yaml` key beside the existing worked example for `sources.yaml`. The
+  keys bound and rendered but read by nothing are marked as such in both, rather than left to
+  be discovered.
+
 ### Changed
+
+- **Every endpoint moved from `/api` to `/api/v1`, and this is a breaking change.** The paths
+  were the one part of this tool with no version in them, on a service whose own changelog
+  header says the API may change in any release while the version is below `1.0.0` — so the
+  next shape change would have had nowhere to go but on top of the old path. There is no alias
+  and no redirect: the prefix is unversioned exactly once, and carrying it for a release would
+  be the second implementation of the same route that this repository avoids everywhere else.
+  `SECURITY.md` names the four write endpoints at their new paths, the frontend calls them, and
+  `backend/smoke/smoke.sh` keeps the prefix in one variable rather than ten strings.
+
+- **A package is built when a person asks for one, not when a run ends.** Reaching the
+  shortlist opened an application directly at `PACKAGED` and built its folder; measured on
+  the deployed instance on 2026-09-17, that was **93 applications at `PACKAGED` against 2
+  ever sent**, and 76 directories nothing ever deleted. The run now opens the application at
+  `NEW` in a stage of its own, `OPEN`, and the folder is built when somebody moves it to
+  `PACKAGED` — after that write commits, in the background, with the `PACKAGE` stage left in
+  the run as the retry. On a healthy instance that stage reports zero from now on.
+
+- **`PACKAGED` cannot be skipped, and it is the only transition that cannot.** `NEW` and
+  `SHORTLISTED` reach each other, `PACKAGED`, `REJECTED` and `EXPIRED`; anything else answers
+  409. Everything past the package stays as free as it was, correction in any direction
+       included. The rule is served as `GET /api/v1/applications/transitions` rather than copied
+       into the browser, and the picker greys out what the endpoint would refuse. Moving an
+       application back now also clears `sentOn`, `followUpOn` and `outcome`, so a corrected row
+       does not keep the dates of an attempt it no longer claims.
+
+- **Archiving an offer now discards its package, unless the application was ever sent**, and
+  restoring one puts it back at `NEW`. Both halves exist to keep "`PACKAGED`" and "there is a
+  folder" the same fact. The age pass does neither: it reconciles, and a pass that reverses
+  itself must not delete files. A new `OrphanSweep` removes, at every start, any direct child
+  of the packaging output directory that carries a `meta.json` and that no `package_dir`
+  names.
+
+- **`ApplicationStatus.isLive()` exempts from `NEW` upwards instead of everything but
+  `PACKAGED`.** The old wording was correct for the old meaning and is exactly inverted for
+  the new one: left alone it would have archived the offers somebody is preparing and exempted
+  every offer nobody has looked at, which is the whole shortlist.
+
+- **`V27` brings the existing corpus to the same meaning**: every application that neither
+  stands at nor was ever moved to `SENT`, `REPLIED`, `INTERVIEW` or `OFFER` goes back to
+  `NEW`, loses the dates of that attempt and gives up its `package_dir`. What was genuinely
+  sent keeps its status and its folder. **Take a dump before deploying it** — it is not
+  reversible, and the directories it orphans are removed by `OrphanSweep` at the next start.
+
+- **The database image is `pgvector/pgvector:0.8.6-pg18`, and the tag is pinned.** It was
+  `postgres:17-alpine`, which carries no `vector` extension at all, so `V22` needs the image as
+  much as the image needs `V22`. Both numbers are values in the diff rather than the date
+  somebody last pulled: 0.8.6 still refuses an HNSW index above 2000 dimensions, so the
+  columns and the indexes stay exactly as they are, and a floating tag would swap the extension
+  binary under a live data directory with nothing in the diff to show for it. It is Debian-based
+  rather than Alpine, so it is a larger first pull.
+
+- **Compose mounts the database volume at `/var/lib/postgresql`, not at `…/postgresql/data`.**
+  Postgres 18 scoped `PGDATA` by major version and moved the declared VOLUME up one level. The
+  old target is not rejected, it is ignored, and that is the reason this line exists: the
+  container initdbs an empty cluster elsewhere, Flyway applies everything green, and the API
+  serves an empty working list with nothing in the log to explain it. `PGDATA` is now also
+  stated in the service, beside the mount that has to match it.
+
+- **The embedding column is 2000 wide and the similarity thresholds are 0.97 and 0.95**, all
+  three measured rather than assumed. 2222 real adverts were embedded outside the application
+  and compared pair by pair: at the `0.85` this file shipped with, `nomic-embed-text` paired
+  12147 of them, about eleven flags per offer, and at `0.92` it merged two different projects
+  that shared one agency's title template. It is trained on English and the adverts are German.
+  `qwen3-embedding:8b` pairs 3470 at the same 0.85 and keeps the real duplicates above 0.96,
+  so the numbers moved to where the pairs actually are: **18 merges and 63 flags** on that
+  population instead of 322 and 12147.
+
+- **A model wider than the column is truncated to its leading 2000 dimensions** instead of
+  being refused. pgvector builds no HNSW index above 2000 for `vector` or 4000 for `halfvec`,
+  both measured against 0.8.6, so a 4096-dimensional model is otherwise unusable. Cutting
+  `qwen3-embedding:8b` to 2000 moves the 0.85 band by two percent, because it is trained with
+  Matryoshka representation learning and its leading dimensions carry the separation. The cut
+  is announced once per process; a model narrower than the column is still refused by name.
+
+- **The embedding pass skips archived offers**, which scopes the two similarity strategies to
+  the working list while the exact fingerprint keeps running across the whole window. A fresh
+  offer no longer disappears behind an archived primary, and a standing backlog no longer costs
+  a day's call budget to embed adverts nobody will see again: on 13240 offers of which 13232
+  were archived, the window held 11437 rows to embed and 8 of them were on the working list.
+  In a nightly run nothing changes, because archiving happens after this stage.
+
+- **`docs/samples/measure_embeddings.ts` is how a threshold is changed.** It takes the working
+  list and a model, caches the vectors so a second cut costs nothing, and writes every pair
+  with both titles beside the number. Its output names real adverts and is gitignored with
+  everything else derived from the corpus.
+
+- **A letter pitches the projects the advert is about, not the ones the YAML listed first.**
+  `referencesFor` counted how many of a project's `stack` tokens the advert named, kept
+  `overlap > 0` and took two, with three consequences: the pitches contributed nothing although
+  they are the only fields saying what a project *was*, a dozen Spring projects tied on "Java"
+  and the order fell to whichever the profile listed first, and — because the filter ran before
+  the limit — a letter could go out pitching one project or none, silently. **The lexical rule
+  still decides everything it can**: the comparator sorts on overlap first and on similarity
+  only within it, so "a real match is never outranked" is structural rather than a later
+  reader's care. The model speaks in the two places the rule is silent, breaking ties among
+  equal overlap and filling the slots the rule left empty. Measured over 252 adverts and six
+  reference projects by `docs/samples/measure_references.ts`: **72 of 252** got fewer than two
+  references under the old rule and **0** after the blend; of the 137 selections that changed,
+  37 are fills, 19 are pure reorders and 36 are swaps among projects of equal overlap. One
+  vector per project **and language**, cached by a digest of the text, so an edited pitch
+  re-embeds itself alone. Without an embedding model, a spent budget or a vector, the output is
+  byte for byte what it was.
+
+- **A reference project states its title twice and its period as two months.**
+  `reference_projects[].title` and `.period` are replaced by `title_de`, `title_en`, `from`
+  and `to`. One title was one language, so a German advert was answered with an English
+  project title, and `period` was free text, so `"since 2024-01"` put an English word in a
+  German letter. `from`/`to` are months (`"2024-01"`); an absent `to` means the work is still
+  running, and the letter renders `seit 01/2024` or `since 01/2024` itself. One of each title
+  and pitch pair is enough — the other language falls back to it, in both directions, which
+  the English letter previously did for the pitch only and the German one not at all.
 
 - **The backend image ships the jar unpacked, with Spring AOT switched on.** The entry point
   is `java -Dspring.aot.enabled=true -jar /app/app.jar` over an extracted layout instead of a
@@ -39,101 +255,38 @@ may change in any release. See the status note in the README.
   outcomes into the artifact. Build in Docker or CI, never from a tree with a filled-in `.env`.
   The numbers, the method and the noise floor are in `docs/decisions/native-image.md`.
 
-- **Every endpoint moved from `/api` to `/api/v1`, and this is a breaking change.** The paths
-  were the one part of this tool with no version in them, on a service whose own changelog
-  header says the API may change in any release while the version is below `1.0.0` — so the
-  next shape change would have had nowhere to go but on top of the old path. There is no alias
-  and no redirect: the prefix is unversioned exactly once, and carrying it for a release would
-  be the second implementation of the same route that this repository avoids everywhere else.
-  `SECURITY.md` names the four write endpoints at their new paths, the frontend calls them, and
-  `backend/smoke/smoke.sh` keeps the prefix in one variable rather than ten strings.
-
-- **A reference project states its title twice and its period as two months.**
-  `reference_projects[].title` and `.period` are replaced by `title_de`, `title_en`, `from`
-  and `to`. One title was one language, so a German advert was answered with an English
-  project title, and `period` was free text, so `"since 2024-01"` put an English word in a
-  German letter. `from`/`to` are months (`"2024-01"`); an absent `to` means the work is still
-  running, and the letter renders `seit 01/2024` or `since 01/2024` itself. One of each title
-  and pitch pair is enough — the other language falls back to it, in both directions, which
-  the English letter previously did for the pitch only and the German one not at all.
-
-- **A package is built when a person asks for one, not when a run ends.** Reaching the
-  shortlist opened an application directly at `PACKAGED` and built its folder; measured on
-  the deployed instance on 2026-09-17, that was **93 applications at `PACKAGED` against 2
-  ever sent**, and 76 directories nothing ever deleted. The run now opens the application at
-  `NEW` in a stage of its own, `OPEN`, and the folder is built when somebody moves it to
-  `PACKAGED` — after that write commits, in the background, with the `PACKAGE` stage left in
-  the run as the retry. On a healthy instance that stage reports zero from now on.
-- **`PACKAGED` cannot be skipped, and it is the only transition that cannot.** `NEW` and
-  `SHORTLISTED` reach each other, `PACKAGED`, `REJECTED` and `EXPIRED`; anything else answers
-  409. Everything past the package stays as free as it was, correction in any direction
-       included. The rule is served as `GET /api/applications/transitions` rather than copied into
-       the browser, and the picker greys out what the endpoint would refuse.
-- **Archiving an offer now discards its package, unless the application was ever sent**, and
-  restoring one puts it back at `NEW`. Both halves exist to keep "`PACKAGED`" and "there is a
-  folder" the same fact. The age pass does neither: it reconciles, and a pass that reverses
-  itself must not delete files. A new `OrphanSweep` removes, at every start, any direct child
-  of the packaging output directory that carries a `meta.json` and that no `package_dir`
-  names.
-- **`ApplicationStatus.isLive()` exempts from `NEW` upwards instead of everything but
-  `PACKAGED`.** The old wording was correct for the old meaning and is exactly inverted for
-  the new one: left alone it would have archived the offers somebody is preparing and exempted
-  every offer nobody has looked at, which is the whole shortlist.
-- **`V27` brings the existing corpus to the same meaning**: every application that neither
-  stands at nor was ever moved to `SENT`, `REPLIED`, `INTERVIEW` or `OFFER` goes back to
-  `NEW`, loses the dates of that attempt and gives up its `package_dir`. What was genuinely
-  sent keeps its status and its folder. **Take a dump before deploying it** — it is not
-  reversible, and the directories it orphans are removed by `OrphanSweep` at the next start.
-- **The database image is now `pgvector/pgvector:0.8.6-pg18`, and the tag is pinned.** It was
-  the floating `pg17`, which had quietly moved to pgvector 0.8.6 on 2026-08-13 — so pgvector was
-  already current and the only thing behind was Postgres itself, 17.11 against 18.6. Both
-  numbers are now values in the diff rather than the date somebody last pulled. Nothing in the
-  schema changes: 0.8.6 still refuses an HNSW index above 2000 dimensions, so the columns, the
-  indexes and all twenty-six migrations stay exactly as they are.
-- **Compose mounts the database volume at `/var/lib/postgresql`, not at `…/postgresql/data`.**
-  Postgres 18 scoped `PGDATA` by major version and moved the declared VOLUME up one level. The
-  old target is not rejected, it is ignored, and that is the reason this line exists: the
-  container initdbs an empty cluster elsewhere, Flyway applies everything green, and the API
-  serves an empty working list with nothing in the log to explain it. `PGDATA` is now also
-  stated in the service, beside the mount that has to match it.
 - **`selector.from` is part of the IMAP search, not only of the post-filter.** The progress flag
   is one name for every source and the receiver writes it to whatever its search returned, so two
   sources sharing a folder used to race: the first flagged all of it, the second read zero
   documents with no error and no counter. Each source now asks the server only for its own
-  senders. Widening `from` reaches the mails behind it again as a consequence.
-  **`subject_matches` cannot join it** — a Java regex is not an IMAP SEARCH — so two sources told
+  senders. Widening `from` reaches the mails behind it again as a consequence. **`subject_matches` cannot join it** — a
+  Java regex is not an IMAP SEARCH — so two sources told
   apart by subject alone still need separate folders, and `match_all: true` in a shared folder
   turns the check off entirely.
+
+- **`llm.models.embedding` is read**, by the two similarity strategies, by the retrieval stage
+  and by the reference blend, and by nothing else. Unlike the extraction fallback it has no
+  fallback to `scoring`: a chat model is not an embedding model. A model narrower than the
+  2000-wide column is refused with both numbers named.
+
+- **`llm.models.extraction` is read.** It shipped with `# not read yet` beside it; the fallback
+  now reads it, and takes `llm.models.scoring` when it is empty, so a single-model installation
+  has nothing new to fill in. The startup log says which of the two was taken.
+
+- **The README no longer says the embedding strategies are skipped**, which the two entries
+  above make untrue, and `llm.models.writing` is named as the one key still read by nothing.
+
+### Removed
+
+- **`llm.budget.cache_by_message_id`.** It came from a concept in which extraction was itself a
+  model call, and named a cache keyed by a mail. Extraction is deterministic now and no model is
+  ever asked about a mail — it is asked about an offer, a block or a document. What the key
+  promised is already true five times over: the IMAP user flag, the block-label cache, the fetch
+  cache, the upload's reading cache and scoring's staleness predicate.
+
 - **The dead `rss` stubs are gone from the shipped example's neighbourhood.** There is no rss
   connector; a source of that type was logged and skipped, which is the same class of lie as a
   configuration key nothing reads.
-
-- **The embedding column is 2000 wide and the similarity thresholds are 0.97 and 0.95**, all
-  three measured rather than assumed. 2222 real adverts were embedded outside the application
-  and compared pair by pair: at the `0.85` this file shipped with, `nomic-embed-text` paired
-  12147 of them, about eleven flags per offer, and at `0.92` it merged two different projects
-  that shared one agency's title template. It is trained on English and the adverts are German.
-  `qwen3-embedding:8b` pairs 3470 at the same 0.85 and keeps the real duplicates above 0.96,
-  so the numbers moved to where the pairs actually are: **18 merges and 63 flags** on that
-  population instead of 322 and 12147.
-- **A model wider than the column is truncated to its leading 2000 dimensions** instead of
-  being refused. pgvector builds no HNSW index above 2000 for `vector` or 4000 for `halfvec`,
-  both measured against 0.8.6, so a 4096-dimensional model is otherwise unusable. Cutting
-  `qwen3-embedding:8b` to 2000 moves the 0.85 band by two percent, because it is trained with
-  Matryoshka representation learning and its leading dimensions carry the separation. The cut
-  is announced once per process; a model narrower than the column is still refused by name.
-- **The embedding pass skips archived offers**, which scopes the two similarity strategies to
-  the working list while the exact fingerprint keeps running across the whole window. A fresh
-  offer no longer disappears behind an archived primary, and a standing backlog no longer costs
-  a day's call budget to embed adverts nobody will see again: on 13240 offers of which 13232
-  were archived, the window held 11437 rows to embed and 8 of them were on the working list.
-  In a nightly run nothing changes, because archiving happens after this stage.
-- **`docs/samples/measure_embeddings.ts` is how a threshold is changed.** It takes the working
-  list and a model, caches the vectors so a second cut costs nothing, and writes every pair
-  with both titles beside the number. Its output names real adverts and is gitignored with
-  everything else derived from the corpus.
-- **The README no longer says the embedding strategies are skipped**, which stopped being true
-  in 0.4.0, and `llm.models.writing` is named as the one key still read by nothing.
 
 ### Fixed
 
@@ -142,13 +295,16 @@ may change in any release. See the status note in the README.
   gestoßen (freelancermap)"` told the recruiter that we came across their own advert through
   them. The sentence now names `portal` and drops the agency, which the letter is addressed
   to anyway; without a portal it opens `"Ich bin auf …"`.
+
 - **Every paragraph of both letters and of the archived advert reached the client indented by
   four spaces.** Freemarker strips a line holding nothing but a directive; it does not strip
   the indentation of a text line inside an `<#if>` or a `<#list>`, and every paragraph of
   these templates sits in one. The bodies are flush left now and
   `PackagingServiceTest.rendersEveryLineFlushLeft` holds them there.
+
 - **The German letter opened with a lowercase word**, because the sentence began with a
   conditional whose first branch was `über`.
+
 - **A start date rendered as `2026-10-01` inside a German sentence.** Freemarker prints a
   `LocalDate` as ISO when no format is set; the letter now writes `01.10.2026` and the
   English one `1 October 2026`. The archived advert keeps ISO on purpose.
@@ -162,7 +318,31 @@ may change in any release. See the status note in the README.
   so this takes effect for offers read from now on**; an existing database keeps the
   fingerprints it has.
 
+- **The analytics counted archived offers**, so the funnel on the dashboard described the
+  window and not the working list the rest of the tool talks about.
+
+- **The free-text search read the newsletter teaser** where the advert had been fetched and
+  segmented. It now reads the advert, through the CONTENT blocks rather than the whole page.
+
 ### Upgrade notes
+
+- **Take a `pg_dump -Fc` before this deploy, and keep it until the offer count matches.** Two
+  of the notes below are irreversible on their own, and they arrive together.
+
+- **The Postgres major changes from 17 to 18, and the volume cannot be carried over.** The data
+  directory moved, the existing volume cannot be handed to the new image, and `docker compose
+  up` on it starts an empty database that looks entirely healthy: Flyway migrates it green and
+  the API serves zero offers with nothing in the log to explain it. The migration is
+  `pg_dump -Fc` out of the running 17, a fresh volume, `pg_restore` into 18, and the old volume
+  kept until the counts match — written out step by step in `docs/DEVELOPMENT.md`. A deployment
+  that only bumps the image tag loses sight of its data without a single error. The image also
+  has to be one carrying `vector`: `V22` creates the extension and fails by name on a plain
+  postgres image.
+
+- **`V22` to `V27` add an extension, four columns and one rewrite.** The rewrite is `V27`:
+  every application that neither stands at nor was ever moved to `SENT`, `REPLIED`,
+  `INTERVIEW` or `OFFER` goes back to `NEW` and gives up its `package_dir`, and `OrphanSweep`
+  removes the directories it orphans at the next start. That one is not reversible.
 
 - **Anything outside this repository that calls the API has to be moved in the same deploy as
   the image.** The rewrite is mechanical — `s#/api/#/api/v1/#` over the caller — and the
@@ -177,99 +357,24 @@ may change in any release. See the status note in the README.
   with `from` and `to` as `"YYYY-MM"`. The shipped default in
   `backend/src/main/resources/leadgen/skill-profile.yaml` is the worked example.
 
-- **`V25` drops `offer.embedding` and `offer.embedding_model` and adds them back at the new
-  width.** A vector of one width is not a vector of another, so nothing is carried over and no
-  data outside those two columns is touched. The due query already looks for a null vector, so
-  the next run refills them; with a 4096-dimensional model over a local Ollama that is roughly
-  an hour per ten thousand adverts, and every 32 of them count once against
-  `llm.budget.max_calls_per_day`.
-- **`LLM_MODEL_EMBEDDING` must now name a model of at least 2000 dimensions.**
-  `nomic-embed-text` at 768 no longer fits and is refused by name. Left empty, only
-  `exact_fingerprint` runs, exactly as before.
-- **The Postgres major changes, and this time the volume and its data are NOT kept.** The 0.4.0
-  note said they were, because that release changed only the extension on the same server. This
-  one is 17 to 18: the data directory moved, the existing volume cannot be handed to the new
-  image, and `docker compose up` on it starts an empty database that looks entirely healthy. The
-  migration is `pg_dump -Fc` out of the running 17, a fresh volume, `pg_restore` into 18, and
-  the old volume kept until the offer count matches — written out step by step in
-  `docs/DEVELOPMENT.md`. A deployment that only bumps the image tag loses sight of its data
-  without a single error.
-
-## [0.4.0] — 2026-09-16
-
-A release about three keys that were configured and read by nobody, and what each of them
-turned out to be worth: one was implemented, one was implemented and now costs an extension,
-and one was deleted because the thing it promised had already come true five times over.
-
-### Added
-
-- **A document with no frontmatter can now be read by a language model** — the `fallback: llm`
-  that the shipped `sources.yaml` has declared since the beginning and nothing implemented. A
-  pasted advert dropped into the review queue comes back with its title, url, location, portal,
-  agency, publication date and tags filled in; the description stays the document itself, because
-  a summary is what every later stage would otherwise read instead of the advert. Two of those
-  fields are checked against the document before they are kept: a `url` that is not in it
-  character for character is discarded, and a `published` date needs a quote from the document
-  behind it and has to fall between 2000 and today. Rules before model still holds — the model is
-  asked only where the deterministic rule found nothing, and without a reachable model the
-  document is left where it is, exactly as before.
-- **The review screen marks which fields a model read.** Only those get the badge, and it sits
-  inside the label so it is part of the input's accessible name. Nothing of it is written into the
-  file on confirm.
-- **The Rules screen shows the extraction prompt**, first of the three, in the order the pipeline
-  asks them.
-
-- **`llm.budget.max_calls_per_day` is a ceiling now and not a number in a file.** Every request
-  that leaves for a model counts once — judge, classifier, field extraction, a document with no
-  frontmatter, and an embedding of thirty-two adverts alike. Collecting an already-submitted
-  batch does not count, because those answers are paid for. When the day is spent each stage
-  stops asking and leaves its work due, so the next run continues and nothing is written as
-  answered that was not. The count is a row per day in the database, so a restart does not hand
-  the allowance out twice.
-- **Deduplication compares adverts that are not identical.** The two `embedding_cosine`
-  strategies the shipped `matching-rules.yaml` has listed since the beginning now run: above a
-  cosine similarity of 0.92 an offer is attached to the older one it duplicates, above 0.85 it
-  is marked and left alone. The shortlist badges the mark and can filter on it; nothing is
-  hidden, because the working list is what gets trusted instead of the mailbox. Without
-  `llm.models.embedding` only `exact_fingerprint` runs, exactly as before.
-
-### Changed
-
-- **The database image is now `pgvector/pgvector:pg17`.** It is the official postgres image
-  with the extension added: same version, same data directory, same initdb. Debian-based
-  rather than Alpine, so it is a larger first pull.
-- **`llm.models.embedding` is read**, by the two similarity strategies and by nothing else.
-  Unlike the extraction fallback it has no fallback to `scoring`: a chat model is not an
-  embedding model. The model must return 768-dimensional vectors, which is the width
-  `offer.embedding` states; one of another width is refused with both numbers named.
-- **`llm.models.extraction` is read.** It shipped with `# not read yet` beside it; the fallback
-  now reads it, and takes `llm.models.scoring` when it is empty, so a single-model installation
-  has nothing new to fill in. The startup log says which of the two was taken.
-
-### Removed
-
-- **`llm.budget.cache_by_message_id`.** It came from a concept in which extraction was itself a
-  model call, and named a cache keyed by a mail. Extraction is deterministic now and no model is
-  ever asked about a mail — it is asked about an offer, a block or a document. What the key
-  promised is already true five times over: the IMAP user flag, the block-label cache, the fetch
-  cache, the upload's reading cache and scoring's staleness predicate.
-
-### Upgrade notes
-
 - **`cache_by_message_id` is gone, and a configuration carrying it will not start.** Unknown
-  keys are fatal by design, so a `config/pipeline.yaml` copied from the shipped file has to
-  lose that one line. Nothing read it, and nothing is lost by removing it.
+  keys are fatal by design, so a `config/pipeline.yaml` copied from an older shipped file has
+  to lose that one line. Nothing read it, and nothing is lost by removing it.
+
 - **`max_calls_per_day` starts applying.** The shipped value is 300 and was read by nothing
   until now; an installation that judges more than 300 offers on one day will see the rest stay
   due until the next. **`0` means no calls at all** — no ceiling is the `budget:` block being
   absent, not a zero.
-- **The postgres image changes.** `docker compose up` recreates the container against
-  `pgvector/pgvector:pg17`; the volume and its data are kept, because it is the same server
-  one extension richer. A deployment pinning the old image fails `V22` at startup with an
-  error naming the `vector` extension.
-- **`V22` and `V23` add three columns and one extension.** Nothing reads them until
-  `llm.models.embedding` names a model, so an installation without one sees no change beyond
-  the image.
+
+- **`LLM_MODEL_EMBEDDING` must name a model of at least 2000 dimensions.** `nomic-embed-text`
+  at 768 does not fit and is refused by name. Left empty, only `exact_fingerprint` runs and
+  neither the search by meaning nor the reference blend does, exactly as before. Filling the
+  two vector columns for the first time costs roughly an hour per ten thousand adverts over a
+  local Ollama with a 4096-dimensional model, and every 32 of them count once against
+  `llm.budget.max_calls_per_day`.
+
+- **`llm.timeout` defaults to `PT120S`** where the hard-coded value was 30 s. An installation
+  in front of a hosted endpoint that wants the old behaviour has to say so.
 
 ## [0.3.2] — 2026-09-16
 
