@@ -205,6 +205,50 @@ class ConfigLoaderTest {
     }
 
     @Test
+    void rejectsDedicatedModeBesideASenderFilter() throws IOException {
+        // The two say opposite things and the sender wins, because `from` is in the IMAP
+        // search term and no flag in the selector takes it out again.
+        rewrite("sources.yaml", "match_all: false", "match_all: true");
+
+        assertThatThrownBy(() -> ConfigFixtures.loaderFor(configDir, VALIDATOR).load())
+                .isInstanceOf(ConfigValidationException.class)
+                .hasMessageContaining("name one or the other");
+    }
+
+    @Test
+    void rejectsASelectorThatNamesNoFilterAndDoesNotSaySoOutLoud() throws IOException {
+        // Reading the whole folder is a legitimate thing to want and an accident that looks
+        // identical to it. `match_all: true` is how the intention gets written down.
+        rewrite(
+                "sources.yaml",
+                """
+                      from: [ "newsletter@example.com" ]
+                      subject_matches: ".*new projects.*"
+                """,
+                "");
+
+        assertThatThrownBy(() -> ConfigFixtures.loaderFor(configDir, VALIDATOR).load())
+                .isInstanceOf(ConfigValidationException.class)
+                .hasMessageContaining("would read every message in 'INBOX'");
+    }
+
+    @Test
+    void rejectsADedicatedSourceInAFolderAnotherEnabledSourceReads() throws IOException {
+        // The loss this one prevents is the silent kind: the dedicated source flags the
+        // other's mail as taken before that source has run, and the run reports zero.
+        rewrite("sources.yaml", "id: sample-newsletter\n    enabled: false", "id: sample-newsletter\n    enabled: true");
+        rewrite(
+                "sources.yaml",
+                "id: sample-direct-enquiry\n    enabled: false",
+                "id: sample-direct-enquiry\n    enabled: true");
+        rewrite("sources.yaml", "subject_matches: \"(?i).*(enquiry|availability|opportunity).*\"", "match_all: true");
+
+        assertThatThrownBy(() -> ConfigFixtures.loaderFor(configDir, VALIDATOR).load())
+                .isInstanceOf(ConfigValidationException.class)
+                .hasMessageContaining("give one of them a folder of its own");
+    }
+
+    @Test
     void reportsAViolationWithItsPath() throws IOException {
         rewrite("matching-rules.yaml", "min_remote_percent: 80", "min_remote_percent: 180");
 

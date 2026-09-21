@@ -254,13 +254,27 @@ defaults carry a mailbox nobody has configured.
 | `exclude_from` | list | the local re-check |
 | `subject_matches` | regex | the local re-check |
 | `since_days` | int | the local re-check |
-| `match_all` | bool | takes every message that got past `since_days` and `exclude_from` |
+| `match_all` | bool | the local re-check, where it takes every message that got past `since_days` and `exclude_from` |
 | `mark_seen` | bool | nothing |
 | `state` | string | nothing — the UID cursor it documents was removed |
 
 `match_all: true` is the dedicated-folder case: the folder holds nothing but this
-newsletter, so no sender or subject filter is needed. It short-circuits `from` and
-`subject_matches` but **not** `since_days` or `exclude_from`, which still apply.
+newsletter, so no sender or subject filter is needed. It short-circuits `subject_matches`
+but **not** `since_days` or `exclude_from`, which still apply.
+
+**It does not short-circuit `from`, and cannot.** The senders are in the server-side
+`SEARCH` as well, and that is what lets several sources share one folder without marking
+each other's mail as taken. A selector that sets both therefore reads as "take everything"
+and behaves as a sender filter, so the load refuses the combination rather than picking one.
+
+Three arrangements are refused when the configuration is read, each because its failure is
+otherwise silent:
+
+| Refused | Why |
+|---|---|
+| `match_all: true` beside `from` | the two say opposite things and the sender wins |
+| an `imap` selector with no `from`, no `subject_matches` and no `match_all` | it reads the whole folder, which is dedicated mode by accident and looks identical to the deliberate kind until a second sort of mail lands there |
+| `match_all: true` in a folder another **enabled** source also reads | the dedicated source marks that source's mail as taken before it runs, and the run reports zero with no error |
 
 ### `extraction`
 

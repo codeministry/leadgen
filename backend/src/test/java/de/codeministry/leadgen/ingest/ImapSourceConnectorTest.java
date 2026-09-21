@@ -55,6 +55,12 @@ class ImapSourceConnectorTest {
     /** A second sender in the same folder, which is the case the user flag used to lose. */
     private static final String PORTAL = "portal@example.com";
 
+    /**
+     * Dedicated mode needs a folder of its own. `match_all` takes the sender out of the
+     * search term, so in a shared folder it would flag the other sources' mail.
+     */
+    private static final String DEDICATED_FOLDER = "Leadgen";
+
     @RegisterExtension
     static final GreenMailExtension MAIL = new GreenMailExtension(ServerSetupTest.IMAP).withPerMethodLifecycle(true);
 
@@ -89,6 +95,10 @@ class ImapSourceConnectorTest {
     @BeforeEach
     void setUp() {
         mailbox = MAIL.setUser(USER, USER, PASSWORD);
+        // The dedicated source reads this folder in every test, including the whole-pipeline
+        // one. A folder that does not exist is an unreachable source, and proving what an
+        // unreachable source does is ISC-34's job rather than a side effect of this setup.
+        createFolder(DEDICATED_FOLDER);
         jdbc.update("DELETE FROM offer");
         // The cursor has a foreign key on `source`, so the row has to exist. Reusing a
         // literal id here made the outcome depend on which test had run before.
@@ -224,11 +234,6 @@ class ImapSourceConnectorTest {
         assertThat(ingest.run().extracted()).isZero();
     }
 
-    /**
-     * Delivers the fixture itself, sender and subject overridden. Built from the raw `.eml`
-     * rather than assembled in code, so the message the connector sees has the same MIME
-     * structure as a real newsletter — which is the thing the HTML-part lookup depends on.
-     */
     @Test
     void twoSourcesInOneFolderDoNotBurnEachOthersMail() {
         // The user flag is one name for every source, and the receiver sets it on everything
@@ -249,15 +254,98 @@ class ImapSourceConnectorTest {
                 .hasSize(1);
     }
 
+    @Test
+    void dedicatedModeReadsTheFolderWithoutAskingWhoSentItOrWhatItIsCalled() {
+        // The other case entirely: the folder holds nothing but this newsletter, so there is
+        // nothing to tell apart and both filters are off. Neither of these two mails would
+        // survive `imap-newsletter` — one has the wrong sender, the other the wrong subject,
+        // and the third has both — which is what makes the count binary rather than
+        // suggestive.
+        deliverTo(DEDICATED_FOLDER, NEWSLETTER, "3 neue Projekte sind da!");
+        deliverTo(DEDICATED_FOLDER, "someone-else@example.com", "3 neue Projekte sind da!");
+        deliverTo(DEDICATED_FOLDER, "billing@example.com", "Ihre Rechnung");
+
+        Source dedicated = config.snapshot().sources().sources().stream()
+                .filter(s -> s.id().equals("imap-dedicated"))
+                .findFirst()
+                .orElseThrow();
+
+        assertThat(connector.read(dedicated, offers.sourceId("imap-dedicated", "imap")))
+                .as("every message in the dedicated folder, whoever sent it and whatever it is called")
+                .hasSize(3);
+    }
+
+    @Test
+    void matchAllShortCircuitsASubjectFilterThatWouldOtherwiseRejectEverything() {
+        // The test above passes with `match_all` on or off, because a filter that is not
+        // configured rejects nothing either way. This one is what the key actually does:
+        // `subject_matches` is the local re-check and never reaches IMAP SEARCH, so it is
+        // the one filter whose short-circuit is observable. `from` is not — it sits in the
+        // search term as well, and no flag in the selector takes it out again.
+        deliverTo(DEDICATED_FOLDER, NEWSLETTER, "3 neue Projekte sind da!");
+
+        Source filtered = config.snapshot().sources().sources().stream()
+                .filter(s -> s.id().equals("imap-dedicated-with-a-subject-filter"))
+                .findFirst()
+                .orElseThrow();
+
+        assertThat(connector.read(filtered, offers.sourceId("imap-dedicated-with-a-subject-filter", "imap")))
+                .as("the subject filter is short-circuited rather than applied")
+                .hasSize(1);
+    }
+
     private void deliver(String from, String subject) {
+        mailbox.deliver(fixture(from, subject));
+    }
+
+    /**
+     * The same fixture, appended to a folder of its own rather than delivered to the inbox.
+     */
+    private void deliverTo(String folderName, String from, String subject) {
+        Properties properties = new Properties();
+        properties.put("mail.store.protocol", "imap");
+        try (Store store = Session.getInstance(properties).getStore("imap")) {
+            store.connect("127.0.0.1", ServerSetupTest.IMAP.getPort(), USER, PASSWORD);
+            Folder folder = store.getFolder(folderName);
+            folder.open(Folder.READ_WRITE);
+            try {
+                folder.appendMessages(new jakarta.mail.Message[] {fixture(from, subject)});
+            } finally {
+                folder.close(false);
+            }
+        } catch (Exception e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    private void createFolder(String folderName) {
+        Properties properties = new Properties();
+        properties.put("mail.store.protocol", "imap");
+        try (Store store = Session.getInstance(properties).getStore("imap")) {
+            store.connect("127.0.0.1", ServerSetupTest.IMAP.getPort(), USER, PASSWORD);
+            Folder folder = store.getFolder(folderName);
+            if (!folder.exists()) {
+                folder.create(Folder.HOLDS_MESSAGES);
+            }
+        } catch (Exception e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    /**
+     * The fixture itself, sender and subject overridden. Built from the raw `.eml` rather
+     * than assembled in code, so the message the connector sees has the same MIME structure
+     * as a real newsletter — which is the thing the HTML-part lookup depends on.
+     */
+    private jakarta.mail.internet.MimeMessage fixture(String from, String subject) {
         try (var in = Files.newInputStream(Path.of("src/test/resources/ingest/mails/sample.eml"))) {
             var message = new jakarta.mail.internet.MimeMessage(Session.getInstance(new Properties()), in);
             message.setFrom(new jakarta.mail.internet.InternetAddress(from));
             message.setSubject(subject);
             message.saveChanges();
-            mailbox.deliver(message);
+            return message;
         } catch (IOException | jakarta.mail.MessagingException e) {
-            throw new IllegalStateException("cannot deliver the fixture", e);
+            throw new IllegalStateException("cannot build the fixture", e);
         }
     }
 
@@ -341,6 +429,25 @@ class ImapSourceConnectorTest {
                               from: ["%s"]
                             extraction:
                               inherit: imap-newsletter
+                          - id: imap-dedicated
+                            enabled: true
+                            type: imap
+                            connection: local-imap
+                            selector:
+                              folder: %s
+                              match_all: true
+                            extraction:
+                              inherit: imap-newsletter
+                          - id: imap-dedicated-with-a-subject-filter
+                            enabled: false
+                            type: imap
+                            connection: local-imap
+                            selector:
+                              folder: %s
+                              subject_matches: "^nothing carries this subject$"
+                              match_all: true
+                            extraction:
+                              inherit: imap-newsletter
                         """
                             .formatted(
                                     ServerSetupTest.IMAP.getPort(),
@@ -348,7 +455,9 @@ class ImapSourceConnectorTest {
                                     PASSWORD,
                                     NEWSLETTER,
                                     extraction,
-                                    PORTAL));
+                                    PORTAL,
+                                    DEDICATED_FOLDER,
+                                    DEDICATED_FOLDER));
             return dir;
         } catch (IOException e) {
             throw new UncheckedIOException(e);

@@ -133,6 +133,26 @@ upserts it. `POST /api/v1/ingest` runs one pass.
   only stopped a schema claiming a mechanism the code had abandoned.
 - **One failing source must not end the run.** `IngestService` catches `IngestException` per
   source, so an unreachable mailbox does not stop the file sources behind it.
+- **`match_all` is weaker than its documentation, and its obvious test proves nothing.** The key reads as "dedicated
+  folder: take everything", and `ImapSourceConnector.matches` does return early on it. But the selector's senders are
+  also in the IMAP `SEARCH` term, and `fromAnyOf` never looks at the flag, so a source with both `match_all: true` and
+  a `from` still reads only that sender's mail. `docs/ADDING-A-SOURCE.md` claims both filters are short-circuited;
+  only `subject_matches` is, because a Java regex cannot go into an IMAP search in the first place. The second half is
+  worse for testing: with neither filter configured, the early return and the fall-through reach the same answer, so a
+  test that configures a dedicated source the way the documentation describes it passes with the feature switched off.
+  `ImapSourceConnectorTest` therefore carries two cases: the claim's own end state, and a source whose
+  `subject_matches` matches nothing, which is the only arrangement in which the flag is observable at all.
+- **The sentence was corrected and the loader made the flag load-bearing, rather than the search term being changed.**
+  Putting `from` behind the flag was the other option and is the wrong one: it is precisely what lets a dedicated
+  source flag its neighbours' mail, which is the failure `from`-in-the-search exists to prevent. So the documentation
+  now says `subject_matches` only, and `ConfigLoader.checkSelectors` refuses three arrangements at load: `match_all`
+  beside `from`, because the two say opposite things and the sender wins; a selector naming no filter at all, because
+  reading the whole folder is both a legitimate intention and an accident that looks identical to it until a second
+  sort of mail arrives; and `match_all` in a folder another *enabled* source reads, because the dedicated source marks
+  that source's mail as taken before it runs. All three were previously accepted, so this is a breaking configuration
+  change, and pre-1.0 that is a PATCH. The alternative to the second rule was a warning, which is what the log already
+  does for an empty `onsite_cities` — refused here instead, because a warning at startup about a source that will read
+  the wrong mail is read once and then never again.
 - **The `<mark>` trap is not reproducible in the current corpus** — zero occurrences in all
   14 mails. jsoup's `text()` strips it regardless, and `ExtractionTest` guards it, but treat
   it as an expectation rather than a measurement.

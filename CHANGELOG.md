@@ -9,6 +9,22 @@ may change in any release. See the status note in the README.
 
 ## [Unreleased]
 
+### Changed
+
+- **An IMAP selector now has to say which messages are its own, and three arrangements are
+  refused when the configuration is read.** `match_all: true` short-circuits
+  `subject_matches` and never `from`, because the senders are part of the server-side
+  `SEARCH` and removing them there is exactly what lets one source mark another's mail as
+  taken. So the flag beside `from` is refused, because the two say opposite things and the
+  sender quietly wins; a selector naming no filter at all is refused, because reading the
+  whole folder is both a legitimate intention and an accident that looks identical to it
+  until a second sort of mail arrives; and `match_all` in a folder a second *enabled* source
+  reads is refused, because the dedicated source flags that source's mail before it runs and
+  the run then reports zero with no error anywhere. **Breaking:** all three were accepted
+  before. A configuration using one of them fails at startup with the source named, and the
+  fix is a filter, a `match_all: true`, or a folder of its own. `docs/ADDING-A-SOURCE.md`
+  documented the `from` short-circuit that never existed and is corrected.
+
 ## [0.4.0] — 2026-09-21
 
 The release that changes how the artifact runs: the image ships the jar unpacked with Spring

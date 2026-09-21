@@ -39,8 +39,10 @@ sources:
       subject_matches: ".*new projects.*"
       since_days: 360
       # Dedicated mode: set this when the folder holds nothing but this newsletter, and
-      # drop `from`/`subject_matches`. Never in a shared folder — it turns the sender check
-      # off, including the one in the search.
+      # drop `from`/`subject_matches`. It short-circuits the subject check only; `from`
+      # stays in the server-side search, so the two together are refused at load. Never in
+      # a folder another enabled source reads — that is refused too, because the dedicated
+      # source would mark the other's mail as taken before it ran.
       match_all: false
       mark_seen: false
       # The only accepted value, and deliberately so: the same mailbox is read on a
