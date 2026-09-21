@@ -63,6 +63,21 @@ describe('AuthService', () => {
         backend.verify();
     });
 
+    it('resolves rather than rejects when the API cannot be reached', async () => {
+        // This runs in an app initializer, and an initializer that rejects stops Angular
+        // bootstrapping. A backend that is down has to end as a screen reporting it, not
+        // as a blank page where the application should have been.
+        const {service, backend, spy} = setUp();
+
+        const done = service.initialise();
+        backend.expectOne('/api/v1/auth-config').error(new ProgressEvent('offline'));
+
+        await expect(done).resolves.toBeUndefined();
+        expect(spy.calls).toEqual([]);
+        expect(service.token()).toBeNull();
+        backend.verify();
+    });
+
     it('treats a mode of oidc with no issuer as nothing to do', async () => {
         // The server refuses that combination at load, so this is the belt to that brace:
         // a half-answer must not put the browser into a redirect loop against undefined.

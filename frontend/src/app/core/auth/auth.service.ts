@@ -1,7 +1,7 @@
 import {inject, Injectable, signal} from '@angular/core';
 import {AuthConfig as OidcConfig, OAuthService} from 'angular-oauth2-oidc';
 import {firstValueFrom} from 'rxjs';
-import {AuthConfigApi} from './auth-config.api';
+import {AuthConfig, AuthConfigApi} from './auth-config.api';
 
 /**
  * Whether anybody has to log in, and the token if they did.
@@ -33,12 +33,23 @@ export class AuthService {
     readonly name = signal<string | null>(null);
 
     /**
-     * Runs once, before the first route. Resolves whether or not a login happened: a
-     * failure to reach the identity provider must leave a readable error on the screen
-     * rather than a blank page, and the interceptor simply sends no header.
+     * Runs once, before the first route, and **never rejects**.
+     *
+     * <p>An initializer that rejects stops Angular bootstrapping, so every failure in here
+     * is a blank page rather than a screen with an error on it. Two of them are reachable
+     * and neither is this function's business to have an opinion about: an API that is
+     * down, and an identity provider that is. Both end as "not signed in", the interceptor
+     * sends no header, and the screens report their own failures the way they already do.
      */
     async initialise(): Promise<void> {
-        const config = await firstValueFrom(this.api.load());
+        let config: AuthConfig;
+        try {
+            config = await firstValueFrom(this.api.load());
+        } catch {
+            // The API being unreachable is a thing the screens show. It is not a reason
+            // for the application to not exist.
+            return;
+        }
         if (config.mode !== 'oidc' || !config.issuer || !config.clientId) {
             return;
         }
@@ -81,7 +92,11 @@ export class AuthService {
             // code came back to whoever asked for it.
             useSilentRefresh: false,
             showDebugInformation: false,
-            requireHttps: false,
+            // `remoteOnly` and not `false`: the dev server is plain HTTP on localhost and
+            // has to work, but anywhere else a code flow over HTTP puts the token on the
+            // wire. `false` would have allowed exactly that, silently, on the one
+            // deployment where it matters.
+            requireHttps: 'remoteOnly',
         };
     }
 }
