@@ -11,6 +11,28 @@ may change in any release. See the status note in the README.
 
 ### Added
 
+- **The browser signs in, when the instance asks it to.** `angular-oauth2-oidc`,
+  Authorization Code with PKCE, before the first route renders. Nothing about it is decided
+  at build time: the SPA asks `GET /api/v1/auth-config`, the one endpoint that answers
+  without a token, and learns the mode, the issuer and the public client id from the
+  instance it is talking to. One bundle therefore serves a laptop with no login and a
+  reachable instance behind Keycloak. Under `none` it makes no discovery request and adds
+  no header. The token is held in memory and not in `sessionStorage`, and the bearer goes
+  onto same-origin `/api/` requests and onto nothing else.
+
+- **`security.auth: oidc` exists and does something.** The value was accepted by the schema
+  and refused by the loader, so the setting looked like a choice and was not one. The
+  backend is now a resource server: under `oidc` every request carries a bearer token,
+  verified against the issuer's own keys, and `/actuator/health` plus the auth-config
+  endpoint are the only things left open. `none` is unchanged and stays the default, with
+  `SERVER_ADDRESS` as the guard. `OIDC_ISSUER` is required under `oidc` and refused empty
+  at load; `OIDC_CLIENT_ID` is optional and, when set, demands the client in `aud`. A
+  resource server rather than a login, because the API has two callers and only one is a
+  browser. The filter chain is assembled from the config value at startup rather than by a
+  bean condition, because Spring AOT decides conditions when the image is built. A reload
+  that would change `security.auth` is refused with a line asking for a restart, since the
+  chain is built once.
+
 - **`extraction.strategy: llm` works, for a document that never had a structure to
   select.** A direct enquiry somebody typed becomes one offer: no block splitting, because
   a mail a person wrote is not a list. It is not a fallback and does not fire when

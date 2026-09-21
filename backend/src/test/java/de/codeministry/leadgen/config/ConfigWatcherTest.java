@@ -68,6 +68,24 @@ class ConfigWatcherTest {
     }
 
     @Test
+    void refusesAChangeToTheAuthModeAndSaysToRestart() throws IOException {
+        var before = registry.snapshot();
+
+        // The issuer has to come with it, or the loader refuses the file first and this
+        // would pass without the guard it is about.
+        rewrite("pipeline.yaml", "auth: ${AUTH_MODE:none}", "auth: oidc");
+        rewrite("pipeline.yaml", "issuer: ${OIDC_ISSUER:}", "issuer: https://auth.example/realms/x");
+        settle();
+
+        // The filter chain is built once, at startup. Applying this would change what the
+        // configuration says about authentication without changing who may call the API,
+        // which is a reload that appears to work and does not. Nothing else in the same
+        // save is applied either: half a configuration is worse than none of it.
+        assertThat(registry.snapshot()).isSameAs(before);
+        assertThat(registry.snapshot().application().security().auth()).isEqualTo("none");
+    }
+
+    @Test
     void keepsTheLastGoodConfigurationWhenTheChangeIsInvalid() throws IOException {
         var before = registry.snapshot();
 

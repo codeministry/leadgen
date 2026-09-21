@@ -205,6 +205,26 @@ class ConfigLoaderTest {
     }
 
     @Test
+    void rejectsOidcWithNoIssuerToVerifyAgainst() throws IOException {
+        // The mode without the issuer is the shape that looks configured and protects
+        // nothing: a resource server would be assembled with nowhere to fetch keys from.
+        rewrite("pipeline.yaml", "auth: ${AUTH_MODE:none}", "auth: oidc");
+
+        assertThatThrownBy(() -> ConfigFixtures.loaderFor(configDir, VALIDATOR).load())
+                .isInstanceOf(ConfigValidationException.class)
+                .hasMessageContaining("security.oidc.issuer is empty");
+    }
+
+    @Test
+    void stillRejectsAModeNobodyImplemented() throws IOException {
+        rewrite("pipeline.yaml", "auth: ${AUTH_MODE:none}", "auth: basic");
+
+        assertThatThrownBy(() -> ConfigFixtures.loaderFor(configDir, VALIDATOR).load())
+                .isInstanceOf(ConfigValidationException.class)
+                .hasMessageContaining("implemented are 'none' and 'oidc'");
+    }
+
+    @Test
     void rejectsDedicatedModeBesideASenderFilter() throws IOException {
         // The two say opposite things and the sender wins, because `from` is in the IMAP
         // search term and no flag in the selector takes it out again.

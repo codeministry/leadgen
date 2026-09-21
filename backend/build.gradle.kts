@@ -99,6 +99,10 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
+    // Auth is a runtime decision, not a build one: `security.auth` in pipeline.yaml picks
+    // between `none` and `oidc`, and the filter chain is assembled from that value rather
+    // than from a bean condition. See SecurityConfig for why a condition would be wrong here.
+    implementation("org.springframework.boot:spring-boot-starter-oauth2-resource-server")
     // JDBC and not JPA: the pipeline writes offers in batches and upserts them by
     // `ON CONFLICT`, which is one statement of plain SQL against a schema Flyway owns.
     // An ORM would add a mapping layer over Postgres arrays for no gain here.

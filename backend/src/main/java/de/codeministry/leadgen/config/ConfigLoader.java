@@ -17,6 +17,7 @@ import de.codeministry.leadgen.config.model.MatchingRules;
 import de.codeministry.leadgen.config.model.PipelineConfig;
 import de.codeministry.leadgen.config.model.SkillProfile;
 import de.codeministry.leadgen.config.model.SourcesConfig;
+import de.codeministry.leadgen.security.SecurityConfig;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
 import lombok.extern.slf4j.Slf4j;
@@ -361,15 +362,27 @@ public class ConfigLoader {
                     "deduplication.merge_policy is '%s'; only 'keep_first_seen_as_primary' is implemented — any other value would be read, ignored, and silently do the first-seen thing anyway"
                             .formatted(mergePolicy));
         }
-        // The worst possible failure here is the quiet one: someone writes `basic`,
-        // believes the write endpoints are protected, and they are not. Only `none` is
-        // implemented, so only `none` is accepted — and `none` is safe because the service
-        // binds to 127.0.0.1 unless SERVER_ADDRESS says otherwise.
+        // The worst possible failure here is the quiet one: someone writes a mode, believes
+        // the write endpoints are protected, and they are not. So a mode that is not
+        // implemented is refused by name, and `oidc` without an issuer is refused too —
+        // there is nothing to verify a token against, and a resource server with no issuer
+        // would either reject everything or, worse, be assembled as if it were configured.
+        // `none` stays safe because the service binds to 127.0.0.1 unless SERVER_ADDRESS
+        // says otherwise.
         String auth = pipeline.security().auth();
-        if (!"none".equals(auth)) {
+        if (!SecurityConfig.NONE.equals(auth) && !SecurityConfig.OIDC.equals(auth)) {
             problems.add(
-                    "security.auth is '%s'; only 'none' is implemented — any other value would be read, ignored, and leave the write endpoints open while looking protected"
-                            .formatted(auth));
+                    "security.auth is '%s'; implemented are '%s' and '%s' — any other value would be read, ignored, and leave the write endpoints open while looking protected"
+                            .formatted(auth, SecurityConfig.NONE, SecurityConfig.OIDC));
+        }
+        if (SecurityConfig.OIDC.equals(auth)) {
+            String issuer = pipeline.security().oidc() == null
+                    ? null
+                    : pipeline.security().oidc().get("issuer");
+            if (issuer == null || issuer.isBlank()) {
+                problems.add(
+                        "security.auth is 'oidc' and security.oidc.issuer is empty; set OIDC_ISSUER to the realm's issuer URL, the one whose /.well-known/openid-configuration answers");
+            }
         }
         if (pipeline.enrichment().enabled()
                 && !"hard_filter".equals(pipeline.enrichment().after())) {
