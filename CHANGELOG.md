@@ -11,6 +11,17 @@ may change in any release. See the status note in the README.
 
 ### Added
 
+- **`extraction.strategy: llm` works, for a document that never had a structure to
+  select.** A direct enquiry somebody typed becomes one offer: no block splitting, because
+  a mail a person wrote is not a list. It is not a fallback and does not fire when
+  deterministic extraction failed — a source chooses it because it never had rules, and a
+  source with structure keeps `html-blocks`. The link a model reads goes through the same
+  proxy unwrap as every other path, because an address found by a model is still an
+  address. Without a reachable model the source yields nothing and the pass carries on.
+  Noted while wiring it: `sample-portal-feed` in the shipped example names `strategy:
+  single` and `type: rss`, and this build dispatches on neither, so that block cannot run.
+  It is now named in a test rather than left to be discovered.
+
 - **The tool can start a pass by itself.** `INGEST_CRON` takes a Spring cron expression in
   the JVM's timezone and defaults to `-`, which is no schedule at all, so the shipped image
   reads nobody's mailbox until it is asked to. A deployment that already schedules the run

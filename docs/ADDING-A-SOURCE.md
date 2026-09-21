@@ -19,9 +19,10 @@ interface ExtractionStrategy { List<ExtractedOffer> extract(RawDocument doc, Ext
 
 A **connector** is chosen by `type` and fetches documents. Two are implemented: `file`
 (a directory) and `imap` (a mailbox). A **strategy** is chosen by `extraction.strategy` and
-turns one document into zero or more offers. Two are implemented: `html-blocks` (one
-document holds many offers, the newsletter case) and `markdown-frontmatter` (one document
-is one offer, the by-hand case).
+turns one document into zero or more offers. Three are implemented: `html-blocks` (one
+document holds many offers, the newsletter case), `markdown-frontmatter` (one document is
+one offer, the by-hand case) and `llm` (one document is one offer and nothing in it is
+addressable, the direct-enquiry case).
 
 If your source is a directory of files or an IMAP folder, and its documents are HTML or
 Markdown, **you need no code at all.**
@@ -288,6 +289,20 @@ otherwise silent:
 | `date_format` | pattern | the fallback for a field without its own `format` |
 | `expect_count_from_subject` | regex | the count check |
 | `fallback` | `none` \| `llm` | **`markdown-frontmatter` only** |
+
+**Three strategies are dispatched on:** `html-blocks`, where the source's selectors
+describe the document; `markdown-frontmatter`, where one file is one offer and the
+frontmatter carries the eight fields; and `llm`, where the document has no structure to
+describe at all — a direct enquiry somebody typed, one mail, one project. The third is
+not a fallback and does not fire when the other two failed: a source chooses it because
+it never had rules to fall back from, and a source with structure keeps `html-blocks`.
+Without a reachable model an `llm` source yields nothing and the run carries on, which is
+the same rule as everywhere else here.
+
+`single` appears once in the shipped file, on `sample-portal-feed`. Nothing dispatches on
+it and nothing connects to `type: rss` either, so that block is a shape rather than a
+working example. `LlmStrategyTest` names it, so a *fourth* undispatched strategy fails the
+build instead of quietly joining it.
 
 Three behaviours that are not obvious from the key names:
 

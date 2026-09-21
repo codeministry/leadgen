@@ -28,6 +28,7 @@ import de.codeministry.leadgen.filter.FilterReport;
 import de.codeministry.leadgen.filter.FilterService;
 import de.codeministry.leadgen.ingest.connector.SourceConnector;
 import de.codeministry.leadgen.ingest.extract.HtmlBlockExtractor;
+import de.codeministry.leadgen.ingest.extract.LlmDocumentExtractor;
 import de.codeministry.leadgen.ingest.extract.MarkdownExtractor;
 import de.codeministry.leadgen.ingest.extract.OfferMapper;
 import de.codeministry.leadgen.ingest.store.OfferStore;
@@ -108,6 +109,7 @@ class IngestOrderTest {
                 List.of(connector),
                 mock(HtmlBlockExtractor.class),
                 mock(MarkdownExtractor.class),
+                mock(LlmDocumentExtractor.class),
                 mock(OfferMapper.class),
                 mock(OfferStore.class),
                 dedupe,

@@ -22,6 +22,7 @@ import de.codeministry.leadgen.fields.FieldsService;
 import de.codeministry.leadgen.filter.FilterService;
 import de.codeministry.leadgen.ingest.connector.SourceConnector;
 import de.codeministry.leadgen.ingest.extract.HtmlBlockExtractor;
+import de.codeministry.leadgen.ingest.extract.LlmDocumentExtractor;
 import de.codeministry.leadgen.ingest.extract.MarkdownExtractor;
 import de.codeministry.leadgen.ingest.extract.OfferMapper;
 import de.codeministry.leadgen.ingest.store.OfferStore;
@@ -55,11 +56,28 @@ public class IngestService {
      * One document is one offer, and the frontmatter carries the eight fields.
      */
     private static final String MARKDOWN_FRONTMATTER = "markdown-frontmatter";
+    /**
+     * One document is one offer here too, and nothing about it is addressable: prose a
+     * person wrote. See {@link LlmDocumentExtractor} for why this is not a fallback.
+     */
+    private static final String LLM = "llm";
+
+    /**
+     * The strategies this class dispatches on, named once.
+     *
+     * <p>Public because the test that matters is not "does the switch have three arms" but
+     * "does every strategy the shipped `sources.yaml` names have one". A value spelled
+     * differently in the configuration than in the code is extracted by nobody and logged
+     * as unimplemented, which reads like a deliberate gap rather than the typo it is.
+     */
+    public static final java.util.Set<String> IMPLEMENTED_STRATEGIES =
+            java.util.Set.of(HTML_BLOCKS, MARKDOWN_FRONTMATTER, LLM);
 
     private final ConfigRegistry config;
     private final Map<String, SourceConnector> connectors;
     private final HtmlBlockExtractor extractor;
     private final MarkdownExtractor markdown;
+    private final LlmDocumentExtractor prose;
     private final OfferMapper mapper;
     private final OfferStore store;
     private final DeduplicationService dedupe;
@@ -80,6 +98,7 @@ public class IngestService {
             List<SourceConnector> connectors,
             HtmlBlockExtractor extractor,
             MarkdownExtractor markdown,
+            LlmDocumentExtractor prose,
             OfferMapper mapper,
             OfferStore store,
             DeduplicationService dedupe,
@@ -98,6 +117,7 @@ public class IngestService {
         this.connectors = connectors.stream().collect(Collectors.toMap(SourceConnector::type, Function.identity()));
         this.extractor = extractor;
         this.markdown = markdown;
+        this.prose = prose;
         this.mapper = mapper;
         this.store = store;
         this.dedupe = dedupe;
@@ -346,7 +366,18 @@ public class IngestService {
                 switch (source.extraction().strategy()) {
                     case HTML_BLOCKS -> extractor.extract(document.html(), source.extraction());
                     case MARKDOWN_FRONTMATTER -> markdown.extract(document.html(), source.extraction());
-                    default -> List.of();
+                    case LLM -> prose.extract(document.html(), source.extraction());
+                    // Unreachable while the guard and this switch agree, which is the point
+                    // of saying it out loud: a strategy the guard lets through and no branch
+                    // reads would otherwise be a source that extracts nothing, in silence.
+                    default -> {
+                        log.error(
+                                "Source '{}' passed the strategy guard with '{}' and no branch read it;"
+                                        + " IMPLEMENTED_STRATEGIES and the dispatch disagree",
+                                source.id(),
+                                source.extraction().strategy());
+                        yield List.of();
+                    }
                 };
         return blocks.stream()
                 .map(block -> mapper.map(block, source.extraction(), document.receivedAt()))
@@ -371,7 +402,7 @@ public class IngestService {
 
     private SourceIngestResult ingest(Source source, SourceConnector connector) {
         String strategy = source.extraction().strategy();
-        if (!HTML_BLOCKS.equals(strategy) && !MARKDOWN_FRONTMATTER.equals(strategy)) {
+        if (!IMPLEMENTED_STRATEGIES.contains(strategy)) {
             log.warn(
                     "Source '{}' asks for extraction strategy '{}', which is not implemented yet",
                     source.id(),

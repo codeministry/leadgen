@@ -151,8 +151,12 @@ public class MarkdownExtractor {
      * The same privacy boundary as everywhere else: a file pasted out of the newsletter
      * carries the subscriber's address in every link, and it does not matter that this
      * document arrived by hand — nor that a model was the one that found the link.
+     *
+     * <p>Package-private rather than private because {@link LlmDocumentExtractor} is the
+     * other path a model-read block can arrive on, and a second copy of a privacy boundary
+     * is a second place for it to be forgotten.
      */
-    private static Map<String, Object> unwrapped(Map<String, Object> block, Extraction extraction) {
+    static Map<String, Object> unwrapped(Map<String, Object> block, Extraction extraction) {
         var url = extraction == null || extraction.fields() == null
             ? null
             : extraction.fields().get(OfferMapper.URL);
