@@ -206,9 +206,12 @@ public class DigestService {
                 out.append("<p>nothing</p>\n");
             }
             for (Offer offer : section.offers()) {
+                // The ad opens in a new tab, and `noopener` goes with the target: this URL came off a
+                // portal, and a page opened this way can otherwise reach back through `window.opener`.
+                // The same pair every link to the original ad carries in the frontend.
                 out.append("<article><p><span class=\"score\">")
                         .append(offer.score() == null ? "&mdash;" : offer.score())
-                        .append("</span> <a href=\"")
+                    .append("</span> <a target=\"_blank\" rel=\"noopener noreferrer\" href=\"")
                         .append(escape(offer.url()))
                         .append("\">")
                         .append(escape(offer.title()))
