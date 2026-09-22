@@ -9,6 +9,13 @@ may change in any release. See the status note in the README.
 
 ## [Unreleased]
 
+## [0.4.1] — 2026-09-22
+
+Four settings that looked like a choice and were not, and the one that now says out loud
+that it takes a restart. Nothing about how the artifact is built or run changed, so this is
+a patch — including the breaking configuration change, which pre-1.0 this repository keeps
+in the notes rather than in the number.
+
 ### Added
 
 - **The browser signs in, when the instance asks it to.** `angular-oauth2-oidc`,
