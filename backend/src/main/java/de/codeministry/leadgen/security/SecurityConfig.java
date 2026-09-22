@@ -100,6 +100,26 @@ public class SecurityConfig {
     @Bean
     SecurityFilterChain filterChain(HttpSecurity http, ConfigRegistry config, JwtDecoder decoder) throws Exception {
         PipelineConfig.Security security = config.snapshot().application().security();
+        // CodeQL flags this line as "Disabled Spring CSRF protection", High. The reasoning
+        // for keeping it is here rather than only in the dismissal, because a dismissal
+        // lives in a web UI and this decision has to survive the next reader of this file.
+        //
+        // CSRF is an attack on credentials the browser attaches *by itself*: a cookie, HTTP
+        // Basic, a client certificate. Under `oidc` there are none of those. The token
+        // travels in an `Authorization` header that a cross-site form cannot set, and the
+        // session policy below is STATELESS, so no cookie exists to be ridden. That is the
+        // documented reason to disable CSRF on a bearer API, not an oversight.
+        //
+        // Under `none` there are no credentials at all, so there is nothing for a CSRF
+        // token to protect either. What actually stands in front of the write paths there
+        // is named honestly: `SERVER_ADDRESS` binds to 127.0.0.1 unless a deployment says
+        // otherwise, and the preflight does the rest, because the write paths take JSON and
+        // PATCH and neither is a simple request while this application configures no CORS.
+        //
+        // A CSRF token would also not fit: with STATELESS there is nowhere to hold the
+        // expected value, so it would take `CookieCsrfTokenRepository` and a SPA that reads
+        // the cookie — frontend work to guard a mode whose real answer is `oidc`. The
+        // residual is written down in `docs/decisions/configuration.md`.
         http.csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
 

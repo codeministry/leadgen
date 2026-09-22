@@ -29,6 +29,21 @@ Every paragraph here was paid for once; none of it is a summary.
 - **The audience is checked only when `OIDC_CLIENT_ID` is set.** Keycloak puts the client in `azp` by default and
   `aud` carries `account`, so a client id checked against `aud` rejects every real token until an audience mapper is
   added. Empty means issuer and signature only, which is what works out of the box.
+- **CSRF is off, and CodeQL says so every time.** The alert is "Disabled Spring CSRF protection", High, on the one
+  line that disables it. It stays off, and the reasoning is in the code as well as here, because a dismissal lives in
+  a web UI and outlives nobody's memory of why.
+  - Under `oidc` the finding does not apply. CSRF is an attack on credentials the browser attaches by itself — a
+    cookie, HTTP Basic, a client certificate — and there are none: the token is in an `Authorization` header a
+    cross-site form cannot set, and the session policy is `STATELESS`, so no cookie exists to ride.
+  - Under `none` there are no credentials at all, so a CSRF token has nothing to protect. What does stand in front of
+    the write paths is worth naming rather than assuming: `SERVER_ADDRESS` binds to 127.0.0.1 unless a deployment
+    says otherwise, and the browser's preflight covers the rest, because the write paths take JSON and `PATCH` and
+    neither is a simple request while this application configures no CORS. **That is a thinner guard than a token
+    would be**, and it is the honest description of the residual rather than a claim that none exists.
+  - A token would not fit anyway. With `STATELESS` there is nowhere to hold the expected value, so it would take
+    `CookieCsrfTokenRepository` plus a SPA that reads the cookie: frontend work to guard the mode whose actual answer
+    is `oidc`. The alert is therefore dismissed as **won't fix** and not as a false positive, because half of it is
+    true.
 - **Switching the mode takes a restart.** `ConfigWatcher` reloads the file; a filter chain is not rebuilt when it does.
   The startup log names the mode in force so the gap between the file and the process is visible.
 
