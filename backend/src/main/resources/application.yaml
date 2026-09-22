@@ -29,6 +29,11 @@ leadgen:
   # by glob, so nothing else carries it either. The deploy sets it from the image tag.
   version: ${LEADGEN_VERSION:0.4.1}
   config-dir: ${LEADGEN_CONFIG_DIR:config}
+  security:
+    # Asserts that something outside this process decides who reaches the port, which is
+    # the only thing that makes `security.auth: none` survivable on a bind past loopback.
+    # Compose sets it and limits reach on the host side of its published ports instead.
+    allow-open-bind: ${ALLOW_OPEN_BIND:false}
   # How often the three files are checked for changes. Two polls are needed before a
   # change is applied, so the worst case is twice this value.
   config-poll-interval: ${CONFIG_POLL_INTERVAL:PT2S}
@@ -54,11 +59,12 @@ management:
 
 server:
   port: ${SERVER_PORT:8080}
-  # `security.auth` is `none` and only `none` is implemented, so this is what stands in
-  # front of the write endpoints: the service is reachable from this machine and nowhere
-  # else. A container has to bind every interface to be reachable through its published
-  # port, which is why docker-compose.yml overrides it — and publishing that port to
-  # anything but 127.0.0.1 is the decision that would need an auth mode first.
+  # While `security.auth` is `none` this is what stands in front of the write endpoints:
+  # the service is reachable from this machine and nowhere else. A container has to bind
+  # every interface to be reachable through its published port, which is why
+  # docker-compose.yml overrides it — and publishing that port to anything but 127.0.0.1
+  # is the decision that needs `oidc` first. `none` on a bind past loopback is refused at
+  # startup unless `leadgen.security.allow-open-bind` says the host side limits it.
   address: ${SERVER_ADDRESS:127.0.0.1}
 
 logging:

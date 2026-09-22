@@ -84,6 +84,12 @@ services:
       # A container is reachable only through its published port, and a process bound to
       # 127.0.0.1 inside it is reachable through nothing at all.
       SERVER_ADDRESS: 0.0.0.0
+      # Which is the combination the application otherwise refuses to start on: no auth
+      # and a bind past loopback. Here it is safe for a reason the process cannot see —
+      # both published ports below carry a host address, and `SERVER_BIND` defaults to
+      # 127.0.0.1. Change that default and this line becomes a lie, so change AUTH_MODE
+      # with it.
+      ALLOW_OPEN_BIND: "true"
     env_file:
       - path: .env
         required: false
@@ -96,7 +102,10 @@ services:
       - ./packages:/packages
       - ./data/inbox:/inbox
     ports:
-      - "${SERVER_PORT:-8080}:8080"
+      # The host side is what decides who can reach an unauthenticated instance, and it
+      # is the half no process can read. Loopback by default; `SERVER_BIND=0.0.0.0` opens
+      # it, and that is the decision that needs AUTH_MODE=oidc first.
+      - "${SERVER_BIND:-127.0.0.1}:${SERVER_PORT:-8080}:8080"
 
   web:
     build:
@@ -105,7 +114,10 @@ services:
     depends_on:
       - api
     ports:
-      - "${WEB_PORT:-4200}:80"
+      # Bound the same way, and not as a matter of symmetry: nginx proxies `/api/` to the
+      # api container, so a web port on every interface would hand out every write
+      # endpoint that the api's own loopback binding just took away.
+      - "${SERVER_BIND:-127.0.0.1}:${WEB_PORT:-4200}:80"
 
 volumes:
   postgres-data:

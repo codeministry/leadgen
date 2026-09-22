@@ -172,4 +172,53 @@ class SecurityConfigTest {
                     .build();
         }
     }
+
+    /**
+     * The one combination that looks configured and protects nothing: no authentication,
+     * and a socket bound past the loopback interface.
+     *
+     * <p>No Spring context here, deliberately. What the guard decides is a function of
+     * three values, and a booting application would prove the same thing at fifty times
+     * the cost while making the failing case awkward to assert.
+     */
+    @Nested
+    class TheOpenBindGuard {
+
+        @Test
+        void refusesNoAuthOnAnAddressAnybodyCanReach() {
+            Assertions.assertThatThrownBy(() -> SecurityConfig.refuseOpenBind(SecurityConfig.NONE, "10.0.0.5", false))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("10.0.0.5")
+                    .hasMessageContaining("AUTH_MODE=oidc");
+        }
+
+        @Test
+        void refusesNoAuthWithNoAddressAtAll() {
+            // Unset is not neutral: Spring's own default is every interface, so a
+            // deployment that simply never names an address is the same exposure with
+            // nothing in the configuration to show for it.
+            Assertions.assertThatThrownBy(() -> SecurityConfig.refuseOpenBind(SecurityConfig.NONE, "", false))
+                    .isInstanceOf(IllegalStateException.class);
+        }
+
+        @Test
+        void letsTheShippedLoopbackBindThrough() {
+            Assertions.assertThatCode(() -> SecurityConfig.refuseOpenBind(SecurityConfig.NONE, "127.0.0.1", false))
+                    .doesNotThrowAnyException();
+        }
+
+        @Test
+        void letsTheNamedExceptionThrough() {
+            // What Compose sets, because the host side of its published port is what
+            // actually limits who can reach this process and no process can read it.
+            Assertions.assertThatCode(() -> SecurityConfig.refuseOpenBind(SecurityConfig.NONE, "0.0.0.0", true))
+                    .doesNotThrowAnyException();
+        }
+
+        @Test
+        void saysNothingAboutTheBindWhenTokensAreRequired() {
+            Assertions.assertThatCode(() -> SecurityConfig.refuseOpenBind(SecurityConfig.OIDC, "0.0.0.0", false))
+                    .doesNotThrowAnyException();
+        }
+    }
 }

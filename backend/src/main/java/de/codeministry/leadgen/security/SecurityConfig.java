@@ -11,10 +11,12 @@ package de.codeministry.leadgen.security;
 import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.config.model.PipelineConfig;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
 import org.springframework.security.oauth2.core.OAuth2TokenValidator;
@@ -26,6 +28,8 @@ import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.web.SecurityFilterChain;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -98,8 +102,15 @@ public class SecurityConfig {
     }
 
     @Bean
-    SecurityFilterChain filterChain(HttpSecurity http, ConfigRegistry config, JwtDecoder decoder) throws Exception {
+    SecurityFilterChain filterChain(
+            HttpSecurity http,
+            ConfigRegistry config,
+            JwtDecoder decoder,
+            @Value("${server.address:}") String address,
+            @Value("${leadgen.security.allow-open-bind:false}") boolean allowOpenBind)
+            throws Exception {
         PipelineConfig.Security security = config.snapshot().application().security();
+        refuseOpenBind(security.auth(), address, allowOpenBind);
         // CodeQL flags this line as "Disabled Spring CSRF protection", High. The reasoning
         // for keeping it is here rather than only in the dismissal, because a dismissal
         // lives in a web UI and this decision has to survive the next reader of this file.
@@ -120,7 +131,7 @@ public class SecurityConfig {
         // expected value, so it would take `CookieCsrfTokenRepository` and a SPA that reads
         // the cookie — frontend work to guard a mode whose real answer is `oidc`. The
         // residual is written down in `docs/decisions/configuration.md`.
-        http.csrf(csrf -> csrf.disable())
+        http.csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
 
         if (!OIDC.equals(security.auth())) {
@@ -140,6 +151,51 @@ public class SecurityConfig {
                         .authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt.decoder(decoder)))
                 .build();
+    }
+
+    /**
+     * Refuses to start on the one combination that looks configured and protects nothing:
+     * no authentication, and a socket bound past the loopback interface.
+     *
+     * <p><b>Why this needs an exception rather than being absolute.</b> The process cannot
+     * tell the two cases apart by itself. Inside a container the bind has to be
+     * {@code 0.0.0.0} or the published port reaches nothing at all, and whether that port
+     * is published to the host's loopback or to a public interface is decided in
+     * {@code docker-compose.yml}, which nothing in here can read. So Compose names the
+     * exception with {@code ALLOW_OPEN_BIND} and limits reach on the host side instead,
+     * and everything hand-built gets the refusal. That is the half which would otherwise
+     * only ever be noticed from the outside.
+     *
+     * <p>An unset address is refused with the rest: Spring's own default is every
+     * interface, so a deployment that simply never names one is the same exposure with
+     * nothing in the configuration to show for it.
+     */
+    static void refuseOpenBind(String auth, String address, boolean allowOpenBind) {
+        if (OIDC.equals(auth) || allowOpenBind || isLoopback(address)) {
+            return;
+        }
+        throw new IllegalStateException(
+                ("security.auth is 'none' and server.address is %s, so every write endpoint would answer whoever can"
+                                + " reach this port. Require tokens with AUTH_MODE=oidc, bind SERVER_ADDRESS back to"
+                                + " 127.0.0.1, or set ALLOW_OPEN_BIND=true to say that something outside this process"
+                                + " limits who reaches it — which is what docker-compose.yml does")
+                        .formatted(
+                                address == null || address.isBlank()
+                                        ? "unset, which means every interface"
+                                        : "'" + address + "'"));
+    }
+
+    private static boolean isLoopback(String address) {
+        if (address == null || address.isBlank()) {
+            return false;
+        }
+        try {
+            return InetAddress.getByName(address).isLoopbackAddress();
+        } catch (UnknownHostException e) {
+            // A name nothing resolves is not a loopback bind, and guessing in the other
+            // direction is the guess that opens the port.
+            return false;
+        }
     }
 
     /**
@@ -170,8 +226,7 @@ public class SecurityConfig {
         String clientId = value(security, CLIENT_ID);
         if (clientId != null && !clientId.isBlank()) {
             log.info("Tokens must also name '{}' in their audience", clientId);
-            validators.add(new JwtClaimValidator<List<String>>(
-                    "aud", audience -> audience != null && audience.contains(clientId)));
+            validators.add(new JwtClaimValidator<List<String>>("aud", audience -> audience.contains(clientId)));
         }
         decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(validators));
         return decoder;
