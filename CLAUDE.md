@@ -237,10 +237,10 @@ an editor command aimed at the whole repository.
   `.editorconfig` switches the IntelliJ formatter off for `db/migration/*.sql` for exactly this reason.
 ## Settled
 
-- **License: Apache-2.0.** `LICENSE` and `NOTICE` at the root, SPDX headers on the Java sources. They used to be
-  enforced by Spotless; Spotless is off for now (the reason is in
-  `backend/build.gradle.kts`), so a new Java file needs its header copied by hand until it comes back.
-  Nothing enforces that today; `licenseHeaderIsOnEveryJavaFile` in `ci.yml` is the stopgap.
+- **License: Apache-2.0.** `LICENSE` and `NOTICE` at the root, SPDX headers on the Java sources, and Spotless
+  writes the header onto a new Java file rather than asking you to. It was off for a while and is on again since the
+  reformat in `c3fc67c`; a formatting disagreement is settled with one reviewed `spotlessApply`, never with
+  `-x spotlessCheck`.
 - **The repository is `codeministry/leadgen`**, which is why the Java package
   `de.codeministry.leadgen` stays as it is.
 - **No Helm chart in the repository.** Docker Compose is the supported way to run this;

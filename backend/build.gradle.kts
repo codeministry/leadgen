@@ -8,9 +8,9 @@ plugins {
     // free, though — it also registers the aotTest chain, which lands in `check`. That is
     // switched off below, and the block there says what it cost to find out.
     alias(libs.plugins.graalvm.native)
-    // Off with the block near the bottom of this file, which says why and what it costs.
-    // The version catalog entry stays, so re-enabling is this line and that block.
-    // alias(libs.plugins.spotless)
+    // On again since the reformat in `c3fc67c`. The block near the bottom of this file says
+    // what it enforces and why the SPDX header is no longer a grep step in CI.
+    alias(libs.plugins.spotless)
 }
 
 group = "de.codeministry"
@@ -63,7 +63,8 @@ graalvmNative {
  * stays the authority and a compiled image is checked by `backend/smoke/smoke.sh` rather
  * than by `nativeTest`. Re-enable it only together with that decision.
  */
-tasks.matching { it.name in setOf("processTestAot", "compileAotTestJava", "processAotTestResources") }
+tasks
+    .matching { it.name in setOf("processTestAot", "compileAotTestJava", "processAotTestResources") }
     .configureEach { enabled = false }
 
 /**
@@ -178,49 +179,58 @@ tasks.withType<Test>().configureEach {
      * alone leaves the task UP-TO-DATE and the guard reports nothing — measured exactly
      * that way: 5,000 characters appended past the budget, `BUILD SUCCESSFUL` in 572ms.
      */
-    inputs.files(
-        rootProject.file("CLAUDE.md"),
-        rootProject.file("README.md"),
-        rootProject.file("backend/CLAUDE.md"),
-        rootProject.file("frontend/CLAUDE.md"),
-    )
-        .withPropertyName("workingNotes")
+    inputs
+        .files(
+            rootProject.file("CLAUDE.md"),
+            rootProject.file("README.md"),
+            rootProject.file("backend/CLAUDE.md"),
+            rootProject.file("frontend/CLAUDE.md"),
+        ).withPropertyName("workingNotes")
         .withPathSensitivity(PathSensitivity.RELATIVE)
-    inputs.files(rootProject.fileTree("docs") { include("**/*.md") })
+    inputs
+        .files(rootProject.fileTree("docs") { include("**/*.md") })
         .withPropertyName("documentation")
         .withPathSensitivity(PathSensitivity.RELATIVE)
 }
 
 /*
- * Spotless is OFF, deliberately and temporarily.
+ * Spotless enforces the formatting and the SPDX header off `check`.
  *
- * It used to enforce formatting and the SPDX header off `check`. What it actually did was
- * disagree with the formatting already in the tree — 104 files on the last run — so the
- * gate failed on layout alone and told nobody anything about the code. CI had already
- * routed around it with `-x spotlessCheck`, which is the state where a gate exists, is
- * green nowhere, and is trusted by no one.
+ * It was off for a while, and the reason is worth keeping: it disagreed with the
+ * formatting already in the tree on 104 files, so `check` failed on layout and said
+ * nothing about the code, and CI routed around it with `-x spotlessCheck` — a gate that
+ * exists, is green nowhere, and is trusted by no one. What fixed that was settling the
+ * disagreement rather than arguing with it: one `spotlessApply` over 206 files in
+ * `c3fc67c`, reviewed as the formatting commit it is, with this block switched back on
+ * afterwards so no commit is both.
  *
- * Turning it off costs the SPDX header check, and the headers are therefore hand-kept
- * until this comes back. That is the known price, written down rather than discovered.
+ * `target` names the Java source sets and nothing else, and that is deliberate rather
+ * than incidental: the SQL under `db/migration` must never be reformatted, because Flyway
+ * hashes a migration's bytes and every database that already ran it then refuses to
+ * start. `.editorconfig` holds the same line for the IDE.
  *
- * TODO: re-enable. The disagreement between palantir-java-format and the committed
- * formatting has to be settled first, in its own change — one `spotlessApply` across the
- * repository, reviewed as the formatting commit it is, not smuggled into a feature.
- * Everything needed is below and in `libs.versions.toml`; uncommenting is the whole job.
+ * Note for the next editor of this comment: Kotlin block comments NEST, so a stray
+ * slash-star in the prose here opens one and silently swallows the block below it. That
+ * is not a compile error and not a warning; `spotlessCheck` simply passes with nothing
+ * configured, which is how this was nearly committed as a working gate.
+ *
+ * It also takes back the one job that was a grep step in `ci.yml` while this was off: a
+ * new Java file that arrives without the licence header gets it written rather than
+ * reported.
  */
-// spotless {
-//     java {
-//         target("src/*/java/**/*.java")
-//         palantirJavaFormat(libs.versions.palantirJavaFormat.get())
-//         removeUnusedImports()
-//         formatAnnotations()
-//         licenseHeaderFile(rootProject.file("gradle/spotless/java-license-header.txt"))
-//     }
-//     kotlinGradle {
-//         target("*.gradle.kts")
-//         ktlint()
-//     }
-// }
+spotless {
+    java {
+        target("src/*/java/**/*.java")
+        palantirJavaFormat(libs.versions.palantirJavaFormat.get())
+        removeUnusedImports()
+        formatAnnotations()
+        licenseHeaderFile(rootProject.file("gradle/spotless/java-license-header.txt"))
+    }
+    kotlinGradle {
+        target("*.gradle.kts")
+        ktlint()
+    }
+}
 
 /**
  * Coverage is measured and published, but nothing fails on it. A threshold set on the day
