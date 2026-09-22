@@ -235,23 +235,12 @@ an editor command aimed at the whole repository.
   The repair is to restore the files, not to repair the database, because the checksum has to match on every environment
   at once.
   `.editorconfig` switches the IntelliJ formatter off for `db/migration/*.sql` for exactly this reason.
-## Open
-
-- **Spotless is off, so a new Java file's SPDX header is copied by hand.** The reason is in
-  `backend/build.gradle.kts`. Nothing enforces the header today; `licenseHeaderIsOnEveryJavaFile`
-  in `ci.yml` is the stopgap, and re-enabling Spotless is the real answer.
-- Which folder in the IMAP mailbox the newsletter lands in — deployment detail, and it
-  does not belong in a committed file.
-- **Roughly fifteen configuration keys are bound, validated, rendered and read by nothing.**
-  They are now marked as such in the `read by` columns of `docs/WRITING-RULES.md` and
-  `docs/ADDING-A-SOURCE.md` rather than left to be discovered; removing them is the real
-  answer, and it is a schema change, so it is its own decision.
-
 ## Settled
 
 - **License: Apache-2.0.** `LICENSE` and `NOTICE` at the root, SPDX headers on the Java sources. They used to be
   enforced by Spotless; Spotless is off for now (the reason is in
   `backend/build.gradle.kts`), so a new Java file needs its header copied by hand until it comes back.
+  Nothing enforces that today; `licenseHeaderIsOnEveryJavaFile` in `ci.yml` is the stopgap.
 - **The repository is `codeministry/leadgen`**, which is why the Java package
   `de.codeministry.leadgen` stays as it is.
 - **No Helm chart in the repository.** Docker Compose is the supported way to run this;
