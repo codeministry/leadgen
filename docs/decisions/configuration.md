@@ -5,6 +5,48 @@ The two layers, the three files read as one snapshot, and the box that says whic
 These are working notes moved out of `CLAUDE.md` so the always-loaded file stays small.
 Every paragraph here was paid for once; none of it is a summary.
 
+## Who may call the API
+
+- **`security.auth` is `none` or `oidc`, and the loader refuses every other value including the ones the schema
+  suggests.** The comment in the shipped file used to read `none | basic | oidc` while only `none` loaded, which is the
+  worst arrangement available: a value that documents itself as supported, is accepted by the binder and protects
+  nothing. `basic` is still refused by name for the same reason.
+- **`oidc` with an empty issuer is refused too.** It is the shape that looks configured and cannot work: there is
+  nowhere to fetch signing keys from, and a resource server assembled anyway would reject every request in a way that
+  reads as a broken token rather than as a missing setting.
+- **A resource server, not a login, because the API has two callers.** The SPA is one and the MCP server is the other,
+  and a machine client cannot hold a browser session. Bearer tokens serve both: Authorization Code with PKCE for the
+  browser, client credentials for the machine. A BFF with a cookie session is the better default for a browser-only
+  application and was rejected here for exactly that reason.
+- **The mode is read at startup and the chain is built from it, rather than a `@ConditionalOnProperty` on the bean.**
+  This is the same AOT trap the scheduled pass documents: `processAot` evaluates conditions at build time, in CI, with
+  no operator environment, so a conditional security chain would be frozen into the image and `AUTH_MODE` in the
+  running container would change nothing at all. Spring Boot's own `spring.security.oauth2.resourceserver.jwt.issuer-uri`
+  auto-configuration has that shape, which is why the decoder is built by hand.
+- **Discovery happens at startup, so an unreachable issuer stops the application.** Deliberate: the alternative is a
+  process that starts, answers every request with a 401 and looks like a bad token. The cost is a hard dependency on
+  the realm being up when the container starts.
+- **The audience is checked only when `OIDC_CLIENT_ID` is set.** Keycloak puts the client in `azp` by default and
+  `aud` carries `account`, so a client id checked against `aud` rejects every real token until an audience mapper is
+  added. Empty means issuer and signature only, which is what works out of the box.
+- **CSRF is off, and CodeQL says so every time.** The alert is "Disabled Spring CSRF protection", High, on the one
+  line that disables it. It stays off, and the reasoning is in the code as well as here, because a dismissal lives in
+  a web UI and outlives nobody's memory of why.
+  - Under `oidc` the finding does not apply. CSRF is an attack on credentials the browser attaches by itself — a
+    cookie, HTTP Basic, a client certificate — and there are none: the token is in an `Authorization` header a
+    cross-site form cannot set, and the session policy is `STATELESS`, so no cookie exists to ride.
+  - Under `none` there are no credentials at all, so a CSRF token has nothing to protect. What does stand in front of
+    the write paths is worth naming rather than assuming: `SERVER_ADDRESS` binds to 127.0.0.1 unless a deployment
+    says otherwise, and the browser's preflight covers the rest, because the write paths take JSON and `PATCH` and
+    neither is a simple request while this application configures no CORS. **That is a thinner guard than a token
+    would be**, and it is the honest description of the residual rather than a claim that none exists.
+  - A token would not fit anyway. With `STATELESS` there is nowhere to hold the expected value, so it would take
+    `CookieCsrfTokenRepository` plus a SPA that reads the cookie: frontend work to guard the mode whose actual answer
+    is `oidc`. The alert is therefore dismissed as **won't fix** and not as a false positive, because half of it is
+    true.
+- **Switching the mode takes a restart.** `ConfigWatcher` reloads the file; a filter chain is not rebuilt when it does.
+  The startup log names the mode in force so the gap between the file and the process is visible.
+
 ## The configuration layer
 
 `backend/…/config/`. Everything else reads `ConfigRegistry.snapshot()` and nothing

@@ -17,6 +17,7 @@ import de.codeministry.leadgen.config.model.MatchingRules;
 import de.codeministry.leadgen.config.model.PipelineConfig;
 import de.codeministry.leadgen.config.model.SkillProfile;
 import de.codeministry.leadgen.config.model.SourcesConfig;
+import de.codeministry.leadgen.security.SecurityConfig;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
 import lombok.extern.slf4j.Slf4j;
@@ -82,8 +83,8 @@ public class ConfigLoader {
 
         PipelineConfig pipeline = read(source(dir, PIPELINE_FILE), PipelineConfig.class);
         MatchingRules rules = read(source(dir, fileName(pipeline.rules().path(), RULES_FILE)), MatchingRules.class);
-        SourcesConfig sources = resolveInheritance(
-                read(source(dir, fileName(sourcesPath(pipeline), SOURCES_FILE)), SourcesConfig.class));
+        SourcesConfig sources = checkSelectors(resolveInheritance(
+                read(source(dir, fileName(sourcesPath(pipeline), SOURCES_FILE)), SourcesConfig.class)));
         SkillProfile profile = read(source(dir, fileName(pipeline.profile().path(), PROFILE_FILE)), SkillProfile.class);
 
         checkConsistency(dir, pipeline, rules, sources);
@@ -229,6 +230,91 @@ public class ConfigLoader {
     }
 
     /**
+     * What an IMAP selector has to say about which messages are this source's.
+     *
+     * <p>Both checks exist because the failure is silent in the direction that costs mail.
+     * A selector naming no filter at all reads the whole folder, which is dedicated mode
+     * arrived at by accident: it looks identical to a deliberate one until the day a second
+     * kind of mail lands in that folder, and then the run extracts from it and nothing says
+     * so. And `from` beside `match_all` reads as "take everything" while behaving as a
+     * sender filter, because the senders are in the IMAP `SEARCH` term and no flag in the
+     * selector takes them out again — removing them there is what lets one source flag a
+     * neighbour's mail as taken. Saying so at load is the only place either can be said
+     * before it has already happened.
+     */
+    private static SourcesConfig checkSelectors(SourcesConfig sources) {
+        List<String> problems = new ArrayList<>();
+        for (SourcesConfig.Source source : sources.sources()) {
+            if (!"imap".equals(source.type())) {
+                continue;
+            }
+            SourcesConfig.Selector selector = source.selector();
+            if (selector == null) {
+                problems.add("source '%s' is an imap source and names no selector".formatted(source.id()));
+                continue;
+            }
+            boolean namesSenders = selector.from() != null && !selector.from().isEmpty();
+            boolean namesSubject =
+                    selector.subjectMatches() != null && !selector.subjectMatches().isBlank();
+            if (selector.matchAll() && namesSenders) {
+                problems.add(
+                        ("source '%s' sets both 'match_all: true' and 'from'. The senders stay in the IMAP search"
+                                        + " either way, so this reads as dedicated mode and behaves as a sender"
+                                        + " filter — name one or the other")
+                                .formatted(source.id()));
+            }
+            if (!selector.matchAll() && !namesSenders && !namesSubject) {
+                problems.add(
+                        ("source '%s' names neither 'from' nor 'subject_matches' nor 'match_all: true', so it would"
+                                        + " read every message in '%s'. Say 'match_all: true' if that is the"
+                                        + " intention")
+                                .formatted(source.id(), selector.folder()));
+            }
+        }
+        problems.addAll(dedicatedSourcesSharingAFolder(sources));
+        if (!problems.isEmpty()) {
+            throw new ConfigValidationException(SOURCES_FILE, problems);
+        }
+        return sources;
+    }
+
+    /**
+     * Dedicated mode in a folder somebody else reads, which is the one arrangement that
+     * loses mail rather than merely misreading it.
+     *
+     * <p>The progress flag is the single name {@code leadgen} and the receiver writes it to
+     * everything its search returned. A source with {@code match_all} asks for the whole
+     * folder, so it flags the other source's mail as taken before that source has run, and
+     * the other source is then told the folder is empty. There is no error and no counter:
+     * it looks exactly like a quiet week. Only enabled sources can do it to each other, so
+     * only they are compared, and enabling one later fails here rather than in the mailbox.
+     */
+    private static List<String> dedicatedSourcesSharingAFolder(SourcesConfig sources) {
+        List<SourcesConfig.Source> live = sources.sources().stream()
+                .filter(SourcesConfig.Source::enabled)
+                .filter(candidate -> "imap".equals(candidate.type()))
+                .filter(candidate -> candidate.selector() != null)
+                .toList();
+        List<String> problems = new ArrayList<>();
+        for (SourcesConfig.Source dedicated : live) {
+            if (!dedicated.selector().matchAll()) {
+                continue;
+            }
+            live.stream()
+                    .filter(other -> !other.id().equals(dedicated.id()))
+                    .filter(other -> Objects.equals(other.connection(), dedicated.connection()))
+                    .filter(other -> Objects.equals(
+                            other.selector().folder(), dedicated.selector().folder()))
+                    .forEach(other -> problems.add(
+                            ("source '%s' reads '%s' with 'match_all: true' while '%s' reads the same folder."
+                                            + " The dedicated source marks that source's mail as taken before it"
+                                            + " runs, and the loss is silent — give one of them a folder of its own")
+                                    .formatted(dedicated.id(), dedicated.selector().folder(), other.id())));
+        }
+        return problems;
+    }
+
+    /**
      * The checks no single file can make on its own — plus the one repo-wide invariant that
      * fails silently in both directions: the rate filter applied before enrichment discards
      * either every offer or none, because the sources state a rate in 0.0 % of them.
@@ -276,15 +362,27 @@ public class ConfigLoader {
                     "deduplication.merge_policy is '%s'; only 'keep_first_seen_as_primary' is implemented — any other value would be read, ignored, and silently do the first-seen thing anyway"
                             .formatted(mergePolicy));
         }
-        // The worst possible failure here is the quiet one: someone writes `basic`,
-        // believes the write endpoints are protected, and they are not. Only `none` is
-        // implemented, so only `none` is accepted — and `none` is safe because the service
-        // binds to 127.0.0.1 unless SERVER_ADDRESS says otherwise.
+        // The worst possible failure here is the quiet one: someone writes a mode, believes
+        // the write endpoints are protected, and they are not. So a mode that is not
+        // implemented is refused by name, and `oidc` without an issuer is refused too —
+        // there is nothing to verify a token against, and a resource server with no issuer
+        // would either reject everything or, worse, be assembled as if it were configured.
+        // `none` stays safe because the service binds to 127.0.0.1 unless SERVER_ADDRESS
+        // says otherwise.
         String auth = pipeline.security().auth();
-        if (!"none".equals(auth)) {
+        if (!SecurityConfig.NONE.equals(auth) && !SecurityConfig.OIDC.equals(auth)) {
             problems.add(
-                    "security.auth is '%s'; only 'none' is implemented — any other value would be read, ignored, and leave the write endpoints open while looking protected"
-                            .formatted(auth));
+                    "security.auth is '%s'; implemented are '%s' and '%s' — any other value would be read, ignored, and leave the write endpoints open while looking protected"
+                            .formatted(auth, SecurityConfig.NONE, SecurityConfig.OIDC));
+        }
+        if (SecurityConfig.OIDC.equals(auth)) {
+            String issuer = pipeline.security().oidc() == null
+                    ? null
+                    : pipeline.security().oidc().get("issuer");
+            if (issuer == null || issuer.isBlank()) {
+                problems.add(
+                        "security.auth is 'oidc' and security.oidc.issuer is empty; set OIDC_ISSUER to the realm's issuer URL, the one whose /.well-known/openid-configuration answers");
+            }
         }
         if (pipeline.enrichment().enabled()
                 && !"hard_filter".equals(pipeline.enrichment().after())) {

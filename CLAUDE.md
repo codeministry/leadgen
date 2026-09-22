@@ -242,8 +242,6 @@ an editor command aimed at the whole repository.
   in `ci.yml` is the stopgap, and re-enabling Spotless is the real answer.
 - Which folder in the IMAP mailbox the newsletter lands in — deployment detail, and it
   does not belong in a committed file.
-- **Retrieval is decided and not built.** The shape, and the four measurements to take
-  before switching it on, are in `docs/decisions/retrieval.md`.
 - **Roughly fifteen configuration keys are bound, validated, rendered and read by nothing.**
   They are now marked as such in the `read by` columns of `docs/WRITING-RULES.md` and
   `docs/ADDING-A-SOURCE.md` rather than left to be discovered; removing them is the real

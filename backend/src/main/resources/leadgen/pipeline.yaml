@@ -245,7 +245,10 @@ digest:
   include: [ shortlisted, review, follow_ups_due ]
 
 security:
-  auth: ${AUTH_MODE:none}               # none | basic | oidc
+  # `none` leaves every endpoint open and lets SERVER_ADDRESS be the guard; `oidc` makes
+  # this a resource server and requires `issuer`. Read once at startup: a reload of this
+  # file does not rebuild the filter chain, so switching takes a restart.
+  auth: ${AUTH_MODE:none}               # none | oidc
   oidc:
     issuer: ${OIDC_ISSUER:}
     client_id: ${OIDC_CLIENT_ID:}

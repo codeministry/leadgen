@@ -19,9 +19,10 @@ interface ExtractionStrategy { List<ExtractedOffer> extract(RawDocument doc, Ext
 
 A **connector** is chosen by `type` and fetches documents. Two are implemented: `file`
 (a directory) and `imap` (a mailbox). A **strategy** is chosen by `extraction.strategy` and
-turns one document into zero or more offers. Two are implemented: `html-blocks` (one
-document holds many offers, the newsletter case) and `markdown-frontmatter` (one document
-is one offer, the by-hand case).
+turns one document into zero or more offers. Three are implemented: `html-blocks` (one
+document holds many offers, the newsletter case), `markdown-frontmatter` (one document is
+one offer, the by-hand case) and `llm` (one document is one offer and nothing in it is
+addressable, the direct-enquiry case).
 
 If your source is a directory of files or an IMAP folder, and its documents are HTML or
 Markdown, **you need no code at all.**
@@ -254,13 +255,27 @@ defaults carry a mailbox nobody has configured.
 | `exclude_from` | list | the local re-check |
 | `subject_matches` | regex | the local re-check |
 | `since_days` | int | the local re-check |
-| `match_all` | bool | takes every message that got past `since_days` and `exclude_from` |
+| `match_all` | bool | the local re-check, where it takes every message that got past `since_days` and `exclude_from` |
 | `mark_seen` | bool | nothing |
 | `state` | string | nothing — the UID cursor it documents was removed |
 
 `match_all: true` is the dedicated-folder case: the folder holds nothing but this
-newsletter, so no sender or subject filter is needed. It short-circuits `from` and
-`subject_matches` but **not** `since_days` or `exclude_from`, which still apply.
+newsletter, so no sender or subject filter is needed. It short-circuits `subject_matches`
+but **not** `since_days` or `exclude_from`, which still apply.
+
+**It does not short-circuit `from`, and cannot.** The senders are in the server-side
+`SEARCH` as well, and that is what lets several sources share one folder without marking
+each other's mail as taken. A selector that sets both therefore reads as "take everything"
+and behaves as a sender filter, so the load refuses the combination rather than picking one.
+
+Three arrangements are refused when the configuration is read, each because its failure is
+otherwise silent:
+
+| Refused | Why |
+|---|---|
+| `match_all: true` beside `from` | the two say opposite things and the sender wins |
+| an `imap` selector with no `from`, no `subject_matches` and no `match_all` | it reads the whole folder, which is dedicated mode by accident and looks identical to the deliberate kind until a second sort of mail lands there |
+| `match_all: true` in a folder another **enabled** source also reads | the dedicated source marks that source's mail as taken before it runs, and the run reports zero with no error |
 
 ### `extraction`
 
@@ -274,6 +289,20 @@ newsletter, so no sender or subject filter is needed. It short-circuits `from` a
 | `date_format` | pattern | the fallback for a field without its own `format` |
 | `expect_count_from_subject` | regex | the count check |
 | `fallback` | `none` \| `llm` | **`markdown-frontmatter` only** |
+
+**Three strategies are dispatched on:** `html-blocks`, where the source's selectors
+describe the document; `markdown-frontmatter`, where one file is one offer and the
+frontmatter carries the eight fields; and `llm`, where the document has no structure to
+describe at all — a direct enquiry somebody typed, one mail, one project. The third is
+not a fallback and does not fire when the other two failed: a source chooses it because
+it never had rules to fall back from, and a source with structure keeps `html-blocks`.
+Without a reachable model an `llm` source yields nothing and the run carries on, which is
+the same rule as everywhere else here.
+
+`single` appears once in the shipped file, on `sample-portal-feed`. Nothing dispatches on
+it and nothing connects to `type: rss` either, so that block is a shape rather than a
+working example. `LlmStrategyTest` names it, so a *fourth* undispatched strategy fails the
+build instead of quietly joining it.
 
 Three behaviours that are not obvious from the key names:
 

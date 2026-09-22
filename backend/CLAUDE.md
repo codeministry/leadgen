@@ -118,6 +118,10 @@ The reasoning is in `docs/decisions/pipeline-scoring.md`.
   subject — so without that term the first source flags the others' mail and they read zero documents in silence.
   `subject_matches` cannot join it (Java regex vs. IMAP SEARCH), and `match_all: true` switches the check off: both mean
   separate folders. Reasoning in `docs/decisions/pipeline-ingest.md`.
+- **`match_all: true` short-circuits `subject_matches` and not `from`,** because `fromAnyOf` builds the IMAP `SEARCH`
+  term without looking at the flag, and with neither filter set it changes nothing at all.
+  `ConfigLoader.checkSelectors` refuses the three arrangements where that bites; reasoning in
+  `docs/decisions/pipeline-ingest.md`.
 - **`<mark>` reaches the title as text, and stripping the angle brackets is not stripping the tag.** `[^a-z0-9]+` turns
   `<` and `>` into spaces and leaves the word `mark` standing twice, so `<mark>DevOps</mark> Engineer` fingerprints as
   `mark devops mark engineer` and never meets its twin. Measured: 402 of 13240 titles carry it. `TitleNormalizer`

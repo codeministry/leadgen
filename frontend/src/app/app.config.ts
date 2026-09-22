@@ -1,6 +1,9 @@
-import {ApplicationConfig, provideBrowserGlobalErrorListeners} from '@angular/core';
-import {provideHttpClient, withFetch} from '@angular/common/http';
+import {ApplicationConfig, inject, provideAppInitializer, provideBrowserGlobalErrorListeners} from '@angular/core';
+import {provideHttpClient, withFetch, withInterceptors} from '@angular/common/http';
 import {provideRouter, withComponentInputBinding} from '@angular/router';
+import {provideOAuthClient} from 'angular-oauth2-oidc';
+import {AuthService} from '@core/auth/auth.service';
+import {bearerInterceptor} from '@core/auth/bearer.interceptor';
 import {provideI18n} from '@core/i18n/transloco.providers';
 import {provideChartPalette} from '@core/theme/chart-theme';
 import {provideScoreThresholds} from '@core/store/score-thresholds.provider';
@@ -21,7 +24,12 @@ import {routes} from './app.routes';
 export const appConfig: ApplicationConfig = {
     providers: [
         provideBrowserGlobalErrorListeners(),
-        provideHttpClient(withFetch()),
+        provideHttpClient(withFetch(), withInterceptors([bearerInterceptor])),
+        provideOAuthClient(),
+        // Before the first route, because a screen that renders and then redirects has
+        // already made requests that will come back 401. Under `auth: none` this resolves
+        // after one request and does nothing else.
+        provideAppInitializer(() => inject(AuthService).initialise()),
         provideI18n(),
         // The seam `shared/` reaches the theme through: a chart takes colour strings, and
         // only the layers above shared may know where they come from.
