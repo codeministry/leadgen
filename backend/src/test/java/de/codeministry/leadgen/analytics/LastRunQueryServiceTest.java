@@ -8,8 +8,14 @@
  */
 package de.codeministry.leadgen.analytics;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
+
 import de.codeministry.leadgen.Databases;
 import de.codeministry.leadgen.config.ConfigFixtures;
+import java.sql.Timestamp;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,13 +27,6 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
-
-import java.sql.Timestamp;
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.within;
 
 /**
  * What the dashboard reads when nobody has pressed the button in this browser.
@@ -266,7 +265,12 @@ class LastRunQueryServiceTest {
                     packaged, digest_written)
                 VALUES (?, ?, '1', ?, ?, 5, 169, 151, 18, 169, 73, 73, 0, 73, 0, 0, 67, 67, 0, 7, 13, 0, 7, true)
                 RETURNING id
-                """, Long.class, Timestamp.from(startedAt), Timestamp.from(finishedAt), scoreModel, status);
+                """,
+                Long.class,
+                Timestamp.from(startedAt),
+                Timestamp.from(finishedAt),
+                scoreModel,
+                status);
     }
 
     private void stage(long runId, String stage, int removed) {
@@ -277,7 +281,8 @@ class LastRunQueryServiceTest {
      * The row a run opens with: RUNNING, zeros, and no finished_at. See V15.
      */
     private void open(Instant startedAt) {
-        jdbc.update("""
+        jdbc.update(
+                """
             INSERT INTO pipeline_run (
                 started_at, ruleset_version, score_model, status,
                 documents, extracted, written, merged,
@@ -286,16 +291,17 @@ class LastRunQueryServiceTest {
                 score_considered, scored, unscored, shortlisted, review, submitted,
                 packaged, digest_written)
             VALUES (?, '1', 'in-flight', 'RUNNING', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, false)
-            """, Timestamp.from(startedAt));
+            """,
+                Timestamp.from(startedAt));
     }
 
     private void mark(String stage, int position, int total) {
         jdbc.update(
-            "UPDATE pipeline_run SET stage = ?, stage_position = ?, stage_total = ?, stage_started_at = now()"
-                + " WHERE finished_at IS NULL",
-            stage,
-            position,
-            total);
+                "UPDATE pipeline_run SET stage = ?, stage_position = ?, stage_total = ?, stage_started_at = now()"
+                        + " WHERE finished_at IS NULL",
+                stage,
+                position,
+                total);
     }
 
     private void sourceRun(long source, Instant ranAt, int documents, int extracted, int written, Integer announced) {

@@ -10,11 +10,6 @@ package de.codeministry.leadgen.enrich;
 
 import de.codeministry.leadgen.config.model.PipelineConfig.Enrichment.Extract;
 import de.codeministry.leadgen.ingest.extract.HtmlToMarkdown;
-import lombok.extern.slf4j.Slf4j;
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
-import org.jsoup.nodes.Element;
-
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -23,6 +18,10 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
+import lombok.extern.slf4j.Slf4j;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
 
 /**
  * Reads the configured fields out of an ad page.

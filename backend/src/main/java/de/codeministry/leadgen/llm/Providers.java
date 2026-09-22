@@ -24,8 +24,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 final class Providers {
 
-    private Providers() {
-    }
+    private Providers() {}
 
     /**
      * True when {@code model} is worth trying to build under {@code llm}.

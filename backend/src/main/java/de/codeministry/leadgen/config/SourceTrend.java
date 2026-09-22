@@ -36,10 +36,9 @@ import java.time.LocalDate;
  *                           alternative to an empty column.
  */
 public record SourceTrend(
-    LocalDate extractedChangedOn,
-    Integer extractedBefore,
-    Integer extractedNow,
-    LocalDate divergedOn,
-    Integer missing,
-    boolean announcedStated) {
-}
+        LocalDate extractedChangedOn,
+        Integer extractedBefore,
+        Integer extractedNow,
+        LocalDate divergedOn,
+        Integer missing,
+        boolean announcedStated) {}

@@ -9,7 +9,6 @@
 package de.codeministry.leadgen.packaging;
 
 import de.codeministry.leadgen.config.model.SkillProfile;
-
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
@@ -39,21 +38,19 @@ public record ProjectView(String title, String period, String pitch) {
 
     static ProjectView of(SkillProfile.ReferenceProject project, String language) {
         return new ProjectView(
-            title(project, language),
-            period(project.from(), project.to(), language),
-            pitch(project, language));
+                title(project, language), period(project.from(), project.to(), language), pitch(project, language));
     }
 
     static String title(SkillProfile.ReferenceProject project, String language) {
         return EN.equalsIgnoreCase(language)
-            ? firstOf(project.titleEn(), project.titleDe())
-            : firstOf(project.titleDe(), project.titleEn());
+                ? firstOf(project.titleEn(), project.titleDe())
+                : firstOf(project.titleDe(), project.titleEn());
     }
 
     static String pitch(SkillProfile.ReferenceProject project, String language) {
         return EN.equalsIgnoreCase(language)
-            ? firstOf(project.pitchEn(), project.pitchDe())
-            : firstOf(project.pitchDe(), project.pitchEn());
+                ? firstOf(project.pitchEn(), project.pitchDe())
+                : firstOf(project.pitchDe(), project.pitchEn());
     }
 
     /**

@@ -32,12 +32,12 @@ import java.util.Objects;
  * @param applyBy        that deadline as a calendar day, when it resolves to one
  */
 public record ExtractedFields(
-    String startText,
-    LocalDate startsOn,
-    String durationText,
-    Integer durationMonths,
-    String applyByText,
-    LocalDate applyBy) {
+        String startText,
+        LocalDate startsOn,
+        String durationText,
+        Integer durationMonths,
+        String applyByText,
+        LocalDate applyBy) {
 
     public static ExtractedFields none() {
         return new ExtractedFields(null, null, null, null, null, null);
@@ -50,11 +50,11 @@ public record ExtractedFields(
      */
     public boolean isEmpty() {
         return startText == null
-            && startsOn == null
-            && durationText == null
-            && durationMonths == null
-            && applyByText == null
-            && applyBy == null;
+                && startsOn == null
+                && durationText == null
+                && durationMonths == null
+                && applyByText == null
+                && applyBy == null;
     }
 
     /**
@@ -68,10 +68,10 @@ public record ExtractedFields(
      */
     public boolean changes(LocalDate startsOnNow, String durationNow) {
         return !Objects.equals(startsOn, startsOnNow)
-            || !Objects.equals(durationText, durationNow)
-            || startText != null
-            || durationMonths != null
-            || applyByText != null
-            || applyBy != null;
+                || !Objects.equals(durationText, durationNow)
+                || startText != null
+                || durationMonths != null
+                || applyByText != null
+                || applyBy != null;
     }
 }

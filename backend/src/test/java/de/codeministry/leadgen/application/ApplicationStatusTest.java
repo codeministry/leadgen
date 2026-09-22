@@ -8,12 +8,11 @@
  */
 package de.codeministry.leadgen.application;
 
-import org.junit.jupiter.api.Test;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.Arrays;
 import java.util.List;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.Test;
 
 /**
  * The two rules the rest of the application reads off this enum.
@@ -26,11 +25,11 @@ class ApplicationStatusTest {
     @Test
     void letsAnUndecidedApplicationBePreparedOrDecidedAgainstAndNothingElse() {
         List<ApplicationStatus> expected = List.of(
-            ApplicationStatus.NEW,
-            ApplicationStatus.SHORTLISTED,
-            ApplicationStatus.PACKAGED,
-            ApplicationStatus.REJECTED,
-            ApplicationStatus.EXPIRED);
+                ApplicationStatus.NEW,
+                ApplicationStatus.SHORTLISTED,
+                ApplicationStatus.PACKAGED,
+                ApplicationStatus.REJECTED,
+                ApplicationStatus.EXPIRED);
 
         assertThat(ApplicationStatus.NEW.allowedNext()).containsExactlyElementsOf(expected);
         assertThat(ApplicationStatus.SHORTLISTED.allowedNext()).containsExactlyElementsOf(expected);
@@ -41,13 +40,13 @@ class ApplicationStatusTest {
         // The states that mean work left the machine, plus the two ways of closing one that
         // did. Reaching any of them from NEW would claim a document that does not exist.
         assertThat(ApplicationStatus.NEW.allowedNext())
-            .doesNotContain(
-                ApplicationStatus.SENT,
-                ApplicationStatus.REPLIED,
-                ApplicationStatus.INTERVIEW,
-                ApplicationStatus.OFFER,
-                ApplicationStatus.WON,
-                ApplicationStatus.LOST);
+                .doesNotContain(
+                        ApplicationStatus.SENT,
+                        ApplicationStatus.REPLIED,
+                        ApplicationStatus.INTERVIEW,
+                        ApplicationStatus.OFFER,
+                        ApplicationStatus.WON,
+                        ApplicationStatus.LOST);
     }
 
     @Test

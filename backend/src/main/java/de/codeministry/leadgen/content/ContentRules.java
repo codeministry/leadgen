@@ -9,11 +9,10 @@
 package de.codeministry.leadgen.content;
 
 import de.codeministry.leadgen.config.model.PipelineConfig;
-import lombok.extern.slf4j.Slf4j;
-
 import java.util.*;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * The patterns that decide a block without asking anybody.
@@ -91,13 +90,12 @@ public class ContentRules {
             return ContentKind.valueOf(configured.trim().toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException e) {
             log.error(
-                "content.rules names kind '{}', which is not one of {}",
-                configured,
-                Arrays.toString(ContentKind.values()));
+                    "content.rules names kind '{}', which is not one of {}",
+                    configured,
+                    Arrays.toString(ContentKind.values()));
             return null;
         }
     }
 
-    private record Compiled(ContentKind kind, Pattern pattern) {
-    }
+    private record Compiled(ContentKind kind, Pattern pattern) {}
 }

@@ -29,14 +29,13 @@ import de.codeministry.leadgen.ingest.store.OfferStore;
 import de.codeministry.leadgen.packaging.PackagingService;
 import de.codeministry.leadgen.retrieval.RetrievalIndexService;
 import de.codeministry.leadgen.score.ScoringService;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
 
 /**
  * Runs one pass over every enabled source: fetch, extract, store.
@@ -216,16 +215,17 @@ public class IngestService {
         // skipped inside the loop, so "which sources count" is decided once — counted one way
         // and iterated another, the progress would say 6 of 8 and then stop at 7.
         var runnable = config.snapshot().sources().sources().stream()
-            .filter(Source::enabled)
-            .filter(source -> {
-                if (connectors.containsKey(source.type())) {
-                    return true;
-                }
-                // Not fatal: a config may declare a source type a later step implements.
-                log.warn("Source '{}' has type '{}', for which no connector exists yet", source.id(), source.type());
-                return false;
-            })
-            .toList();
+                .filter(Source::enabled)
+                .filter(source -> {
+                    if (connectors.containsKey(source.type())) {
+                        return true;
+                    }
+                    // Not fatal: a config may declare a source type a later step implements.
+                    log.warn(
+                            "Source '{}' has type '{}', for which no connector exists yet", source.id(), source.type());
+                    return false;
+                })
+                .toList();
         var runId = history.start(startedAt, scoringModel, runnable.size() + GLOBAL_STAGES);
         // Where the time went, collected as the run goes and written with the history row at
         // the end. A run whose counts look ordinary can still have spent four minutes in
@@ -235,9 +235,10 @@ public class IngestService {
         // where the run is right now. It overwrites the open row, so it is worth something
         // only while the run is going — which is exactly when the per-stage table has nothing
         // to say, because that one is written after the work.
-        var stages = new StageLog(runId.isPresent()
-            ? (position, stage) -> history.mark(runId.getAsLong(), position, stage)
-            : StageLog.Marker.NONE);
+        var stages = new StageLog(
+                runId.isPresent()
+                        ? (position, stage) -> history.mark(runId.getAsLong(), position, stage)
+                        : StageLog.Marker.NONE);
         List<SourceIngestResult> results = new ArrayList<>();
 
         for (Source source : runnable) {
@@ -308,12 +309,12 @@ public class IngestService {
                 filtered,
                 archived,
                 enriched,
-            segmented,
-            extractedFields,
+                segmented,
+                extractedFields,
                 scored,
                 indexed,
                 written,
-            opened,
+                opened,
                 packages,
                 java.time.Instant.now());
         // After the work, never before it: a run that failed halfway must not leave a row

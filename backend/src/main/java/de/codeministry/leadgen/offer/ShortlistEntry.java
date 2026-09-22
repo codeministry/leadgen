@@ -9,7 +9,6 @@
 package de.codeministry.leadgen.offer;
 
 import de.codeministry.leadgen.content.ContentBlock;
-
 import java.util.List;
 
 /**
@@ -27,9 +26,8 @@ import java.util.List;
  * to {@code offer.fullText}.
  */
 public record ShortlistEntry(
-    OfferView offer,
-    OfferScoreView score,
-    OfferFlags flags,
-    List<OfferSourceRef> sources,
-    List<ContentBlock> content) {
-}
+        OfferView offer,
+        OfferScoreView score,
+        OfferFlags flags,
+        List<OfferSourceRef> sources,
+        List<ContentBlock> content) {}

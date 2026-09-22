@@ -10,12 +10,11 @@ package de.codeministry.leadgen.retrieval;
 
 import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.config.model.PipelineConfig;
-import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.stereotype.Component;
-
-import javax.sql.DataSource;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import javax.sql.DataSource;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.stereotype.Component;
 
 /**
  * The relatedness filter as SQL: a bounded neighbourhood, and nothing about the order.
@@ -56,7 +55,8 @@ public class SemanticFilter {
      * are two spaces, so a row embedded by a different one is not far away — it is not
      * comparable at all, and a cosine against it is a number rather than an error.
      */
-    private static final String NEAREST = """
+    private static final String NEAREST =
+            """
          AND o.id IN (SELECT s.id
                         FROM offer s
                        WHERE s.retrieval_embedding IS NOT NULL
@@ -71,7 +71,8 @@ public class SemanticFilter {
      * its distance to itself is zero, which is what keeps it visible in the list the reader is
      * looking at when they ask.
      */
-    private static final String NEAREST_TO_OFFER = """
+    private static final String NEAREST_TO_OFFER =
+            """
          AND o.id IN (SELECT s.id
                         FROM offer s
                        WHERE s.retrieval_embedding IS NOT NULL

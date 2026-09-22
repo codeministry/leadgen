@@ -12,7 +12,6 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -22,9 +21,7 @@ import java.util.Map;
  * why the extraction rules are data down to the CSS selector.
  */
 public record SourcesConfig(
-        @Min(1) int version,
-        List<@Valid Connection> connections,
-        @NotNull List<@Valid Source> sources) {
+        @Min(1) int version, List<@Valid Connection> connections, @NotNull List<@Valid Source> sources) {
 
     /**
      * A missing `connections:` block is an empty one, not an error.

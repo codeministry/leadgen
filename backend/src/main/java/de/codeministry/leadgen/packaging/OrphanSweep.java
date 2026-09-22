@@ -11,14 +11,6 @@ package de.codeministry.leadgen.packaging;
 import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.config.Directories;
 import de.codeministry.leadgen.config.model.PipelineConfig;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.ApplicationArguments;
-import org.springframework.boot.ApplicationRunner;
-import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.stereotype.Component;
-
-import javax.sql.DataSource;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -26,6 +18,13 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Stream;
+import javax.sql.DataSource;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.ApplicationArguments;
+import org.springframework.boot.ApplicationRunner;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.stereotype.Component;
 
 /**
  * Removes package folders nothing points at any more.
@@ -80,9 +79,9 @@ class OrphanSweep implements ApplicationRunner {
 
         Set<String> referenced = new HashSet<>();
         for (String stored : JdbcClient.create(dataSource)
-            .sql("SELECT package_dir FROM offer WHERE package_dir IS NOT NULL")
-            .query(String.class)
-            .list()) {
+                .sql("SELECT package_dir FROM offer WHERE package_dir IS NOT NULL")
+                .query(String.class)
+                .list()) {
             try {
                 referenced.add(PackageArchive.folderName(stored));
             } catch (PackageArchive.Rejected e) {
@@ -94,10 +93,10 @@ class OrphanSweep implements ApplicationRunner {
         List<Path> orphans;
         try (Stream<Path> children = Files.list(root)) {
             orphans = children.filter(Files::isDirectory)
-                .filter(folder -> Files.isRegularFile(folder.resolve(MARKER)))
-                .filter(folder -> !referenced.contains(folder.getFileName().toString()))
-                .sorted()
-                .toList();
+                    .filter(folder -> Files.isRegularFile(folder.resolve(MARKER)))
+                    .filter(folder -> !referenced.contains(folder.getFileName().toString()))
+                    .sorted()
+                    .toList();
         }
         if (orphans.isEmpty()) {
             return;

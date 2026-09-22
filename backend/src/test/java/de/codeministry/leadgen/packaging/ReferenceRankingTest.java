@@ -8,15 +8,14 @@
  */
 package de.codeministry.leadgen.packaging;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import de.codeministry.leadgen.config.model.SkillProfile;
 import de.codeministry.leadgen.llm.Vectors;
-import org.junit.jupiter.api.Test;
-
 import java.time.YearMonth;
 import java.util.List;
 import java.util.Map;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.Test;
 
 /**
  * Which projects a letter pitches, decided without a database and without an endpoint.
@@ -124,7 +123,8 @@ class ReferenceRankingTest {
         // The sign trap this repository already carries a note about, one level down: a vector
         // against itself is 1 and not 0, and reading one as the other ranks everything
         // backwards while still returning plausible numbers.
-        assertThat(Vectors.similarity(direction(0), direction(0))).isEqualTo(1.0, org.assertj.core.data.Offset.offset(1e-6));
+        assertThat(Vectors.similarity(direction(0), direction(0)))
+                .isEqualTo(1.0, org.assertj.core.data.Offset.offset(1e-6));
         assertThat(Vectors.similarity(direction(0), direction(900)))
                 .isLessThan(Vectors.similarity(direction(0), direction(1)));
     }
@@ -151,8 +151,15 @@ class ReferenceRankingTest {
 
     private static SkillProfile.ReferenceProject project(String id, List<String> stack) {
         return new SkillProfile.ReferenceProject(
-                id, id + " Projekt", id + " project", YearMonth.of(2023, 4), YearMonth.of(2024, 11),
-                "Fullstack", stack, "de", "en");
+                id,
+                id + " Projekt",
+                id + " project",
+                YearMonth.of(2023, 4),
+                YearMonth.of(2024, 11),
+                "Fullstack",
+                stack,
+                "de",
+                "en");
     }
 
     private static SkillProfile profile(SkillProfile.ReferenceProject... projects) {

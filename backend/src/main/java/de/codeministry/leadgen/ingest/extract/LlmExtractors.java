@@ -13,13 +13,12 @@ import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.config.model.PipelineConfig;
 import de.codeministry.leadgen.llm.ChatModels;
 import de.codeministry.leadgen.llm.LlmBudget;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
-
 import java.time.Clock;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
 
 /**
  * Builds the extractor the {@code fallback: llm} case may ask, or none.
@@ -76,8 +75,7 @@ public class LlmExtractors implements ExtractionFallback {
         if (extractor.isEmpty()) {
             // The difference that matters to whoever pasted the file: the configuration asks
             // for a reading nobody can deliver, rather than the document being unreadable.
-            log.warn(
-                "A document has no frontmatter and its source asks for `fallback: llm`,"
+            log.warn("A document has no frontmatter and its source asks for `fallback: llm`,"
                     + " but no model is reachable; the document is left where it is");
             return Optional.empty();
         }

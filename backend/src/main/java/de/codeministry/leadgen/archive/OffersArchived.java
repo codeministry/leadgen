@@ -16,5 +16,4 @@ import java.util.List;
  * <p>Only the decision, never the age pass: that one reconciles and undoes itself, and what
  * listens for this deletes files.
  */
-public record OffersArchived(List<Long> offerIds) {
-}
+public record OffersArchived(List<Long> offerIds) {}

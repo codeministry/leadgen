@@ -14,13 +14,12 @@ import de.codeministry.leadgen.config.model.PipelineConfig;
 import de.codeministry.leadgen.content.ContentText;
 import de.codeministry.leadgen.llm.ChatModels;
 import de.codeministry.leadgen.llm.LlmBudget;
+import java.util.List;
+import java.util.Optional;
+import javax.sql.DataSource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
-
-import javax.sql.DataSource;
-import java.util.List;
-import java.util.Optional;
 
 /**
  * One question, one advert, one model call.
@@ -52,9 +51,11 @@ public class AdvertAskService {
 
     /** The questions this installation offers, or none when it cannot ask any. */
     public List<String> questions() {
-        return model() == null ? List.of() : java.util.Arrays.stream(AdvertQuestion.values())
-                .map(AdvertQuestion::key)
-                .toList();
+        return model() == null
+                ? List.of()
+                : java.util.Arrays.stream(AdvertQuestion.values())
+                        .map(AdvertQuestion::key)
+                        .toList();
     }
 
     /**

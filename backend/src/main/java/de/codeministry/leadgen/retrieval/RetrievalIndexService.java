@@ -13,15 +13,14 @@ import de.codeministry.leadgen.config.model.PipelineConfig;
 import de.codeministry.leadgen.llm.EmbeddingModels;
 import de.codeministry.leadgen.llm.LlmBudget;
 import de.codeministry.leadgen.llm.Vectors;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
+import javax.sql.DataSource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.ai.embedding.EmbeddingRequest;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
-
-import javax.sql.DataSource;
-import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Writes {@code offer.retrieval_embedding}: one vector per offer, over the whole de-furnitured
@@ -65,7 +64,8 @@ public class RetrievalIndexService {
      * 8 of them were still on the working list. The vector survives archiving — nothing nulls it
      * — so the searchable corpus still grows with every night.
      */
-    private static final String DUE = """
+    private static final String DUE =
+            """
         SELECT id, title, location, content_blocks, full_text
         FROM offer
         WHERE status = 'PASSED' AND duplicate_of_id IS NULL AND archived_at IS NULL
@@ -76,7 +76,8 @@ public class RetrievalIndexService {
         ORDER BY id
         """;
 
-    private static final String RECORD = """
+    private static final String RECORD =
+            """
         UPDATE offer
            SET retrieval_embedding = CAST(:vector AS vector),
                retrieval_embedding_model = :model,
@@ -175,11 +176,14 @@ public class RetrievalIndexService {
     private int embed(EmbeddingModel embeddings, String model, List<Pending> batch) {
         List<float[]> vectors;
         try {
-            vectors = embeddings.call(new EmbeddingRequest(batch.stream().map(Pending::text).toList(), null))
-                    .getResults()
-                    .stream()
-                    .map(result -> result.getOutput())
-                    .toList();
+            vectors =
+                    embeddings
+                            .call(new EmbeddingRequest(
+                                    batch.stream().map(Pending::text).toList(), null))
+                            .getResults()
+                            .stream()
+                            .map(result -> result.getOutput())
+                            .toList();
         } catch (RuntimeException e) {
             log.warn("Indexing {} adverts failed: {}", batch.size(), e.getMessage());
             return 0;

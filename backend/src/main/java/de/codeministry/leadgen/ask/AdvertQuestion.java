@@ -9,7 +9,6 @@
 package de.codeministry.leadgen.ask;
 
 import de.codeministry.leadgen.offer.BadShortlistRequest;
-
 import java.util.Arrays;
 import java.util.stream.Collectors;
 

@@ -11,7 +11,6 @@ package de.codeministry.leadgen.score;
 import de.codeministry.leadgen.config.model.MatchingRules;
 import de.codeministry.leadgen.config.model.SkillProfile;
 import de.codeministry.leadgen.filter.TextFold;
-
 import java.math.BigDecimal;
 import java.util.*;
 import java.util.regex.Pattern;

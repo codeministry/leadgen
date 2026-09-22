@@ -32,14 +32,14 @@ import java.util.List;
  * @param trend      when the numbers last moved, so the panel can say it in a sentence
  */
 public record SourceDetail(
-    String id,
-    String kind,
-    boolean enabled,
-    ConfigFile file,
-    YamlBlock block,
-    YamlBlock connection,
-    List<SourceRun> runs,
-    SourceTrend trend) {
+        String id,
+        String kind,
+        boolean enabled,
+        ConfigFile file,
+        YamlBlock block,
+        YamlBlock connection,
+        List<SourceRun> runs,
+        SourceTrend trend) {
 
     /**
      * @param name   the file's own name, which is the same in both layers
@@ -51,6 +51,5 @@ public record SourceDetail(
      *               panel one deliberate click away and never in a header line that is in
      *               every screenshot.
      */
-    public record ConfigFile(String name, String layer, String origin) {
-    }
+    public record ConfigFile(String name, String layer, String origin) {}
 }

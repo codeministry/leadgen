@@ -14,12 +14,11 @@ import de.codeministry.leadgen.digest.DigestService;
 import de.codeministry.leadgen.packaging.PackagingService;
 import de.codeministry.leadgen.score.ScoreBatchCollection;
 import de.codeministry.leadgen.score.ScoreBatchService;
+import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-
-import java.time.LocalDate;
 
 /**
  * The second half of a batched run, arriving minutes after the first.
@@ -75,10 +74,10 @@ class ScoreBatchCollector {
             // existed, and a row completed there would state the previous run's shortlist.
             history.complete(collected.scored(), packages.built(), written != null);
             log.info(
-                "Collected {} scoring batch(es), {} offers scored; {} card(s) opened, {} package(s) built, digest {}",
+                    "Collected {} scoring batch(es), {} offers scored; {} card(s) opened, {} package(s) built, digest {}",
                     collected.ended(),
                     collected.scored(),
-                opened.opened(),
+                    opened.opened(),
                     packages.built(),
                     written == null ? "not written" : written);
         } catch (RuntimeException e) {

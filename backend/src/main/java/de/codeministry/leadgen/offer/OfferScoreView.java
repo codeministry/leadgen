@@ -9,7 +9,6 @@
 package de.codeministry.leadgen.offer;
 
 import de.codeministry.leadgen.score.ScoreReason;
-
 import java.util.List;
 
 /**

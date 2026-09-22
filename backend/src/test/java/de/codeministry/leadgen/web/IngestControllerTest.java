@@ -8,6 +8,9 @@
  */
 package de.codeministry.leadgen.web;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.BDDMockito.given;
+
 import de.codeministry.leadgen.analytics.LastRunQueryService;
 import de.codeministry.leadgen.analytics.LastRunSource;
 import de.codeministry.leadgen.analytics.LastRunView;
@@ -24,19 +27,15 @@ import de.codeministry.leadgen.ingest.SourceIngestResult;
 import de.codeministry.leadgen.packaging.PackageReport;
 import de.codeministry.leadgen.retrieval.RetrievalReport;
 import de.codeministry.leadgen.score.ScoringReport;
+import java.time.Instant;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
-
-import java.time.Instant;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.BDDMockito.given;
 
 /**
  * What the run endpoints actually put on the wire.
@@ -112,12 +111,12 @@ class IngestControllerTest {
                         new FilterReport(Map.of(), 12, 31),
                         new ArchiveReport(0, 0, 0, 0),
                         new EnrichmentReport(12, 0, 12, 0, 0, 0),
-                    new ContentReport(12, 12, 96, 84, 12, 0),
-                    new FieldsReport(12, 12, 12, 9, 4),
+                        new ContentReport(12, 12, 96, 84, 12, 0),
+                        new FieldsReport(12, 12, 12, 9, 4),
                         new ScoringReport(12, 12, 0, 2, 3, 0, 0),
                         new RetrievalReport(12, 12, 1, "an-embedding-model"),
                         null,
-                    new OpenReport(12, 12),
+                        new OpenReport(12, 12),
                         new PackageReport(2, 2, 0, List.of()),
                         Instant.parse("2026-09-05T06:12:00Z")));
 
@@ -155,19 +154,19 @@ class IngestControllerTest {
     @Test
     void answersTheStageOfAPassThatIsGoing() {
         given(lastRun.currentRun())
-            .willReturn(java.util.Optional.of(new de.codeministry.leadgen.analytics.CurrentRunView(
-                31L,
-                Instant.parse("2026-09-15T07:17:35Z"),
-                "gpt-oss:20b",
-                "ENRICH",
-                4,
-                9,
-                Instant.parse("2026-09-15T07:20:00Z"))));
+                .willReturn(java.util.Optional.of(new de.codeministry.leadgen.analytics.CurrentRunView(
+                        31L,
+                        Instant.parse("2026-09-15T07:17:35Z"),
+                        "gpt-oss:20b",
+                        "ENRICH",
+                        4,
+                        9,
+                        Instant.parse("2026-09-15T07:20:00Z"))));
 
         assertThat(mvc.get().uri("/api/v1/ingest/current"))
-            .hasStatusOk()
-            .bodyJson()
-            .extractingPath("$.stage")
-            .isEqualTo("ENRICH");
+                .hasStatusOk()
+                .bodyJson()
+                .extractingPath("$.stage")
+                .isEqualTo("ENRICH");
     }
 }

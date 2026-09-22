@@ -16,5 +16,4 @@ package de.codeministry.leadgen.application;
  * dependency keeps running one way: packaging already knows about applications, and
  * applications must not learn about packaging to announce something about itself.
  */
-public record PackageRequested(long offerId) {
-}
+public record PackageRequested(long offerId) {}

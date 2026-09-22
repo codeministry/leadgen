@@ -13,15 +13,14 @@ import de.codeministry.leadgen.config.model.MatchingRules;
 import de.codeministry.leadgen.content.ContentText;
 import de.codeministry.leadgen.retrieval.SemanticFilter;
 import de.codeministry.leadgen.score.ScoreReason;
-import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.stereotype.Service;
-
-import javax.sql.DataSource;
 import java.math.BigDecimal;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.*;
+import javax.sql.DataSource;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.stereotype.Service;
 
 /**
  * The read side of the pipeline: what survived, why, and under how many portals.
@@ -44,7 +43,8 @@ public class OfferQueryService {
      * compare, and `id` last so two offers sharing a key and a second cannot straddle a page
      * boundary. What each sentinel is and why is on `ShortlistSort`.
      */
-    private static final String SHORTLIST = """
+    private static final String SHORTLIST =
+            """
         SELECT o.*, s.name AS source_name
         FROM offer o
         JOIN source s ON s.id = o.source_id
@@ -63,7 +63,8 @@ public class OfferQueryService {
      * statement about the whole list and shrinks as you scroll — the same defect the portal
      * dropdown had.
      */
-    private static final String MATCHED = """
+    private static final String MATCHED =
+            """
         SELECT count(*) AS matched,
                count(*) FILTER (WHERE o.score_value IS NULL) AS unscored
         FROM offer o
@@ -76,7 +77,8 @@ public class OfferQueryService {
      * is on screen. It carries the archive clause and none of the filters, so the sentence
      * beside the list reads "12 of 2219" and not "12 of 12".
      */
-    private static final String TOTAL = """
+    private static final String TOTAL =
+            """
         SELECT count(*) FROM offer o
         WHERE o.status = 'PASSED' AND o.duplicate_of_id IS NULL
         %s
@@ -87,7 +89,8 @@ public class OfferQueryService {
      * the filter matches those too, so offering fewer choices than it accepts would be a
      * filter that finds things it never listed.
      */
-    private static final String PORTALS = """
+    private static final String PORTALS =
+            """
         SELECT DISTINCT p.portal
         FROM offer o
         JOIN offer p ON p.id = o.id OR p.duplicate_of_id = o.id
@@ -121,7 +124,8 @@ public class OfferQueryService {
         // a relatedness question this installation cannot answer is a 400 with a sentence, never
         // a parameter quietly dropped. Dropped, the list would widen under a heading saying it
         // was narrowed, and the count beside it would be true about a set nobody asked for.
-        var narrowing = semantic.narrow(query.related().semantic(), query.related().similarTo());
+        var narrowing =
+                semantic.narrow(query.related().semantic(), query.related().similarTo());
         var filters = where(query, thresholds, narrowing);
 
         // The page clause on the list and deliberately not on the count. Formatted into
@@ -130,9 +134,10 @@ public class OfferQueryService {
         // defect that moved this count to the server in the first place, reappearing on the
         // other side of the wire.
         List<Row> rows = bind(
-            jdbc.sql(SHORTLIST.formatted(filters.sql() + filters.page(), query.sort().orderBy())),
-            filters.params(),
-            filters.pageParams())
+                        jdbc.sql(SHORTLIST.formatted(
+                                filters.sql() + filters.page(), query.sort().orderBy())),
+                        filters.params(),
+                        filters.pageParams())
                 .param("limit", query.limit())
                 .query(OfferQueryService::row)
                 .list();
@@ -149,14 +154,16 @@ public class OfferQueryService {
                 .list();
 
         return new ShortlistPage(
-            entries(rows),
-            cursorAfter(rows, query.limit(), query.sort()),
-            counts[0],
-            counts[1],
-            total,
-            portals,
-            semantic.coverage(),
-            query.related().similarTo() == null ? null : semantic.titleOf(query.related().similarTo()));
+                entries(rows),
+                cursorAfter(rows, query.limit(), query.sort()),
+                counts[0],
+                counts[1],
+                total,
+                portals,
+                semantic.coverage(),
+                query.related().similarTo() == null
+                        ? null
+                        : semantic.titleOf(query.related().similarTo()));
     }
 
     /**
@@ -176,13 +183,14 @@ public class OfferQueryService {
         // the build here, at the one place that has to change, instead of failing on a Tuesday
         // at a page boundary. It has already earned that twice — the two duration sorts share
         // an arm because they read one column, and FRESH needed one of its own.
-        long key = switch (sort) {
-            case SCORE -> sort.carried(last.scoreValue());
-            case START -> sort.carried(last.offer().startsOn());
-            case DEADLINE -> sort.carried(last.offer().applyBy());
-            case DURATION, DURATION_SHORT -> sort.carried(last.offer().durationMonths());
-            case FRESH -> sort.carried(last.ingestedAt());
-        };
+        long key =
+                switch (sort) {
+                    case SCORE -> sort.carried(last.scoreValue());
+                    case START -> sort.carried(last.offer().startsOn());
+                    case DEADLINE -> sort.carried(last.offer().applyBy());
+                    case DURATION, DURATION_SHORT -> sort.carried(last.offer().durationMonths());
+                    case FRESH -> sort.carried(last.ingestedAt());
+                };
         return new Cursor(sort, key, last.ingestedAt(), last.id()).encoded();
     }
 
@@ -216,8 +224,7 @@ public class OfferQueryService {
      *                   for the same reason — the count must not be handed parameters its SQL never names.
      */
     private record Filters(
-        String archive, String sql, String page, Map<String, Object> params, Map<String, Object> pageParams) {
-    }
+            String archive, String sql, String page, Map<String, Object> params, Map<String, Object> pageParams) {}
 
     @SafeVarargs
     private static JdbcClient.StatementSpec bind(JdbcClient.StatementSpec statement, Map<String, Object>... maps) {
@@ -245,7 +252,7 @@ public class OfferQueryService {
      * primary — the dropdown offers those portals, so the filter has to accept them.
      */
     private static Filters where(
-        ShortlistQuery query, MatchingRules.Scoring.Thresholds thresholds, SemanticFilter.Narrowing narrowing) {
+            ShortlistQuery query, MatchingRules.Scoring.Thresholds thresholds, SemanticFilter.Narrowing narrowing) {
         // The third part of "this is on my list today", beside PASSED and primaries-only.
         // It is a literal rather than a parameter because it is a choice between two
         // clauses, not a value: `archived_at = :x` cannot express "is null".
@@ -259,7 +266,8 @@ public class OfferQueryService {
             // or whose blocks were all furniture — through `full_text`, which is the only
             // text it has. `jsonb_array_elements` returns no rows for a null column, so an
             // offer enrichment never reached lands in the ELSE and matches on nothing.
-            sql.append("""
+            sql.append(
+                    """
                 AND (o.title ILIKE :q OR o.description ILIKE :q
                      OR EXISTS (SELECT 1 FROM unnest(o.tags) AS tag WHERE tag ILIKE :q)
                      OR CASE WHEN EXISTS (SELECT 1 FROM jsonb_array_elements(o.content_blocks) AS b
@@ -304,7 +312,8 @@ public class OfferQueryService {
             // `= ANY (?, ?, ?)`, a syntax error only a real Postgres reports. The two array
             // bindings in this file that do use ANY are positional for exactly that reason,
             // and this one cannot be: the rest of the clause is named.
-            sql.append("""
+            sql.append(
+                    """
                 AND EXISTS (SELECT 1 FROM offer p
                             WHERE (p.id = o.id OR p.duplicate_of_id = o.id) AND p.portal IN (:portals))
                 """);
@@ -378,7 +387,8 @@ public class OfferQueryService {
         // visibly wrong, which is the only reason it was caught. The archive is the same
         // trap a second time, and it is the larger of the two: after a week it holds most
         // of the table.
-        jdbc.sql("""
+        jdbc.sql(
+                        """
             SELECT filter_stage, count(*) AS removed FROM offer
             WHERE filter_stage IS NOT NULL AND duplicate_of_id IS NULL
               AND archived_at IS NULL
@@ -415,7 +425,8 @@ public class OfferQueryService {
     public Optional<ShortlistEntry> find(long id) {
         // Not restricted to PASSED: the detail is also how somebody looks at an offer the
         // filter rejected and asks whether the rule was right.
-        return jdbc.sql("""
+        return jdbc.sql(
+                        """
                 SELECT o.*, s.name AS source_name
                 FROM offer o JOIN source s ON s.id = o.source_id
                 WHERE o.id = ?
@@ -423,7 +434,7 @@ public class OfferQueryService {
                 .param(id)
                 .query(OfferQueryService::row)
                 .optional()
-            .map(row -> entry(row, reasonsFor(List.of(id)), clustersFor(List.of(id)), true));
+                .map(row -> entry(row, reasonsFor(List.of(id)), clustersFor(List.of(id)), true));
     }
 
     private ShortlistEntry entry(
@@ -437,10 +448,10 @@ public class OfferQueryService {
      *                    of every advert for a column no card renders.
      */
     private ShortlistEntry entry(
-        Row row,
-        Map<Long, List<ScoreReason>> reasons,
-        Map<Long, List<OfferSourceRef>> clusters,
-        boolean withContent) {
+            Row row,
+            Map<Long, List<ScoreReason>> reasons,
+            Map<Long, List<OfferSourceRef>> clusters,
+            boolean withContent) {
         var sources = new ArrayList<>(List.of(new OfferSourceRef(row.portal, row.agency, row.url)));
         sources.addAll(clusters.getOrDefault(row.id, List.of()));
         return new ShortlistEntry(
@@ -451,17 +462,18 @@ public class OfferQueryService {
                         reasons.getOrDefault(row.id, List.of()),
                         row.scoreModel,
                         row.rulesetVersion),
-            new OfferFlags(
-                row.enrichedAt == null || row.enrichmentNote != null,
-                row.remotePercent == null,
-                row.possibleDuplicateOfId != null),
-            sources,
-            withContent ? ContentText.parse(row.contentBlocks) : List.of());
+                new OfferFlags(
+                        row.enrichedAt == null || row.enrichmentNote != null,
+                        row.remotePercent == null,
+                        row.possibleDuplicateOfId != null),
+                sources,
+                withContent ? ContentText.parse(row.contentBlocks) : List.of());
     }
 
     private Map<Long, List<ScoreReason>> reasonsFor(List<Long> ids) {
         Map<Long, List<ScoreReason>> byOffer = new LinkedHashMap<>();
-        jdbc.sql("""
+        jdbc.sql(
+                        """
                     SELECT offer_id, factor, label, points, max_points FROM offer_score_reason
             WHERE offer_id = ANY (?) ORDER BY offer_id, position
             """)
@@ -486,7 +498,8 @@ public class OfferQueryService {
      */
     private Map<Long, List<OfferSourceRef>> clustersFor(List<Long> ids) {
         Map<Long, List<OfferSourceRef>> byPrimary = new LinkedHashMap<>();
-        jdbc.sql("""
+        jdbc.sql(
+                        """
             SELECT duplicate_of_id, portal, agency, url FROM offer
             WHERE duplicate_of_id = ANY (?) ORDER BY duplicate_of_id, id
             """)
@@ -523,8 +536,7 @@ public class OfferQueryService {
             /** Carried only so the cursor can name the row it stopped at. */
             java.time.Instant ingestedAt,
             /** The older offer the similarity pass thinks this might be, or null. */
-            Long possibleDuplicateOfId) {
-    }
+            Long possibleDuplicateOfId) {}
 
     private static Row row(ResultSet rs, int index) throws SQLException {
         long id = rs.getLong("id");
@@ -544,16 +556,16 @@ public class OfferQueryService {
                 rs.getObject("rate_eur", BigDecimal.class),
                 rs.getObject("remote_percent", Integer.class),
                 rs.getObject("starts_on", LocalDate.class),
-            rs.getString("start_text"),
+                rs.getString("start_text"),
                 rs.getString("duration"),
-            rs.getObject("duration_months", Integer.class),
-            rs.getObject("apply_by", LocalDate.class),
-            rs.getString("apply_by_text"),
+                rs.getObject("duration_months", Integer.class),
+                rs.getObject("apply_by", LocalDate.class),
+                rs.getString("apply_by_text"),
                 rs.getString("workload"),
                 rs.getString("language"),
                 rs.getString("full_text"),
                 rs.getString("package_dir"),
-            ingestedAt,
+                ingestedAt,
                 rs.getTimestamp("archived_at") == null
                         ? null
                         : rs.getTimestamp("archived_at").toInstant(),
@@ -571,11 +583,11 @@ public class OfferQueryService {
                 rs.getObject("remote_percent", Integer.class),
                 instant(rs),
                 rs.getString("enrichment_note"),
-            rs.getString("content_blocks"),
-            ingestedAt,
-            // `getObject` with the type, never `getLong`: that one answers 0 for SQL NULL
-            // and 0 is an offer id nobody has, so every row would carry a badge.
-            rs.getObject("possible_duplicate_of_id", Long.class));
+                rs.getString("content_blocks"),
+                ingestedAt,
+                // `getObject` with the type, never `getLong`: that one answers 0 for SQL NULL
+                // and 0 is an offer id nobody has, so every row would carry a badge.
+                rs.getObject("possible_duplicate_of_id", Long.class));
     }
 
     private static List<String> tags(ResultSet rs) throws SQLException {

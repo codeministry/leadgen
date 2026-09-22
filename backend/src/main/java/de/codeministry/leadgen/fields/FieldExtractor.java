@@ -11,14 +11,13 @@ package de.codeministry.leadgen.fields;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import de.codeministry.leadgen.llm.Answers;
+import java.io.IOException;
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
-
-import java.io.IOException;
-import java.time.LocalDate;
-import java.time.format.DateTimeParseException;
 
 /**
  * Asks a model when an advert starts, how long it runs, and by when it has to be answered.
@@ -60,7 +59,7 @@ public class FieldExtractor {
     static final LocalDate LATEST = LocalDate.of(2100, 1, 1);
 
     private static final String INSTRUCTIONS =
-        """
+            """
             You are reading a freelance project advert and pulling three facts out of it.
 
             START     when the engagement begins
@@ -125,12 +124,12 @@ public class FieldExtractor {
      */
     public static String exampleUser() {
         return describe(new Candidate(
-            0,
-            "<the offer's title>",
-            "<the newsletter's short description>",
-            "<the fetched advert, with the portal's furniture already removed>",
-            LocalDate.of(2026, 10, 1),
-            "<whatever the enrichment pattern captured, or nothing>"));
+                0,
+                "<the offer's title>",
+                "<the newsletter's short description>",
+                "<the fetched advert, with the portal's furniture already removed>",
+                LocalDate.of(2026, 10, 1),
+                "<whatever the enrichment pattern captured, or nothing>"));
     }
 
     /**
@@ -146,11 +145,11 @@ public class FieldExtractor {
         String content = null;
         try {
             ChatResponse response = ChatClient.create(chatModel)
-                .prompt()
-                .system(INSTRUCTIONS)
-                .user(describe(offer))
-                .call()
-                .chatResponse();
+                    .prompt()
+                    .system(INSTRUCTIONS)
+                    .user(describe(offer))
+                    .call()
+                    .chatResponse();
             content = Answers.textOf(response);
             return java.util.Optional.of(read(content));
         } catch (RuntimeException e) {
@@ -158,9 +157,9 @@ public class FieldExtractor {
             return java.util.Optional.empty();
         } catch (IOException e) {
             log.warn(
-                "The field extractor did not answer with usable JSON for offer {}. It said: {}",
-                offer.id(),
-                Answers.abbreviate(content));
+                    "The field extractor did not answer with usable JSON for offer {}. It said: {}",
+                    offer.id(),
+                    Answers.abbreviate(content));
             return java.util.Optional.empty();
         }
     }
@@ -182,7 +181,9 @@ public class FieldExtractor {
             text.append("\n\nAdvert:\n").append(offer.advert());
         }
         text.append("\n\nAlready read out of it by a pattern (may be wrong or empty):\n");
-        text.append("- start: ").append(offer.knownStart() == null ? "nothing" : offer.knownStart()).append('\n');
+        text.append("- start: ")
+                .append(offer.knownStart() == null ? "nothing" : offer.knownStart())
+                .append('\n');
         text.append("- duration: ").append(offer.knownDuration() == null ? "nothing" : offer.knownDuration());
         return text.toString();
     }
@@ -204,12 +205,12 @@ public class FieldExtractor {
         String applyByText = phrase(deadline.path("text"));
 
         return new ExtractedFields(
-            startText,
-            startText == null ? null : date(start.path("date")),
-            durationText,
-            durationText == null ? null : months(duration.path("months")),
-            applyByText,
-            applyByText == null ? null : date(deadline.path("date")));
+                startText,
+                startText == null ? null : date(start.path("date")),
+                durationText,
+                durationText == null ? null : months(duration.path("months")),
+                applyByText,
+                applyByText == null ? null : date(deadline.path("date")));
     }
 
     /**
@@ -264,6 +265,5 @@ public class FieldExtractor {
      * @param knownDuration the same, for the length of the engagement
      */
     public record Candidate(
-        long id, String title, String description, String advert, LocalDate knownStart, String knownDuration) {
-    }
+            long id, String title, String description, String advert, LocalDate knownStart, String knownDuration) {}
 }

@@ -8,9 +8,17 @@
  */
 package de.codeministry.leadgen.dedupe;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import de.codeministry.leadgen.Databases;
 import de.codeministry.leadgen.config.ConfigFixtures;
 import de.codeministry.leadgen.ingest.extract.TitleNormalizer;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.Duration;
+import java.time.Instant;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,15 +30,6 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
-
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.time.Duration;
-import java.time.Instant;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * The two similarity strategies, against a real pgvector.
@@ -74,8 +73,8 @@ class SimilarOffersTest {
     void reset() {
         jdbc.update("DELETE FROM offer");
         jdbc.update("DELETE FROM source");
-        sourceId = jdbc.queryForObject(
-            "INSERT INTO source (name, kind) VALUES ('test', 'file') RETURNING id", Long.class);
+        sourceId =
+                jdbc.queryForObject("INSERT INTO source (name, kind) VALUES ('test', 'file') RETURNING id", Long.class);
     }
 
     @Test
@@ -182,26 +181,26 @@ class SimilarOffersTest {
 
     private long insert(String title, double degrees, Instant ingestedAt) {
         long id = jdbc.queryForObject(
-            """
+                """
                 INSERT INTO offer (source_id, external_id, title, url, portal, fingerprint, ingested_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
                 RETURNING id
                 """,
-            Long.class,
-            sourceId,
-            "ext-" + title.hashCode() + "-" + degrees,
-            title,
-            "https://example.invalid/" + Math.round(degrees) + "-" + ingestedAt.toEpochMilli(),
-            "portal-a",
-            // Deliberately unique: what is under test is the similarity pass, and a shared
-            // fingerprint would let the exact strategy answer first in a real run.
-            TitleNormalizer.normalize(title),
-            java.sql.Timestamp.from(ingestedAt));
+                Long.class,
+                sourceId,
+                "ext-" + title.hashCode() + "-" + degrees,
+                title,
+                "https://example.invalid/" + Math.round(degrees) + "-" + ingestedAt.toEpochMilli(),
+                "portal-a",
+                // Deliberately unique: what is under test is the similarity pass, and a shared
+                // fingerprint would let the exact strategy answer first in a real run.
+                TitleNormalizer.normalize(title),
+                java.sql.Timestamp.from(ingestedAt));
         jdbc.update(
-            "UPDATE offer SET embedding = CAST(? AS vector), embedding_model = ? WHERE id = ?",
-            unit(degrees),
-            MODEL,
-            id);
+                "UPDATE offer SET embedding = CAST(? AS vector), embedding_model = ? WHERE id = ?",
+                unit(degrees),
+                MODEL,
+                id);
         return id;
     }
 

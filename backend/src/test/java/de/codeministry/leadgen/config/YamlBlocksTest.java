@@ -8,11 +8,10 @@
  */
 package de.codeministry.leadgen.config;
 
-import org.junit.jupiter.api.Test;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.Test;
 
 /**
  * Cutting one block out of a configuration file, against the file that actually ships.
@@ -20,7 +19,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class YamlBlocksTest {
 
     private static final String SHIPPED =
-        ConfigSource.fromClasspath(ConfigLoader.SOURCES_FILE).orElseThrow().content();
+            ConfigSource.fromClasspath(ConfigLoader.SOURCES_FILE).orElseThrow().content();
 
     @Test
     void findsASourceAndReportsWhereItIs() {
@@ -30,8 +29,10 @@ class YamlBlocksTest {
         assertThat(block.text()).contains("- id: manual-inbox").contains("strategy: markdown-frontmatter");
         // The range is what makes the excerpt checkable against `cat` rather than trusted, so
         // it is asserted against the file rather than against itself.
-        assertThat(lines.get(block.firstLine() - 1)).isEqualTo(block.text().lines().findFirst().orElseThrow());
-        assertThat(block.lastLine() - block.firstLine() + 1).isEqualTo((int) block.text().lines().count());
+        assertThat(lines.get(block.firstLine() - 1))
+                .isEqualTo(block.text().lines().findFirst().orElseThrow());
+        assertThat(block.lastLine() - block.firstLine() + 1)
+                .isEqualTo((int) block.text().lines().count());
     }
 
     @Test
@@ -79,7 +80,8 @@ class YamlBlocksTest {
         // A real state: a half-saved edit is refused by the loader, which keeps the last good
         // snapshot and logs. The application then runs on configuration the file no longer
         // contains, and there is nothing to show for it.
-        assertThat(YamlBlocks.item("sources:\n  - id: one\n   bad indent: [\n", "sources", "one")).isEmpty();
+        assertThat(YamlBlocks.item("sources:\n  - id: one\n   bad indent: [\n", "sources", "one"))
+                .isEmpty();
         assertThat(YamlBlocks.item("", "sources", "one")).isEmpty();
     }
 }

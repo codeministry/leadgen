@@ -8,24 +8,23 @@
  */
 package de.codeministry.leadgen.content;
 
+import static com.github.tomakehurst.wiremock.client.WireMock.*;
+import static org.assertj.core.api.Assertions.assertThat;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import de.codeministry.leadgen.config.model.PipelineConfig;
 import de.codeministry.leadgen.llm.ChatModels;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
-
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.stream.Stream;
-
-import static com.github.tomakehurst.wiremock.client.WireMock.*;
-import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * What the classifier sends and what it does with what comes back, at the byte level.
@@ -47,9 +46,9 @@ class ContentClassifierWireFormatTest {
     }
 
     private static final List<ContentClassifier.Candidate> BLOCKS = List.of(
-        new ContentClassifier.Candidate(0, "Apply now Save to watchlist"),
-        new ContentClassifier.Candidate(1, "Wir suchen eine/n Angular Entwickler."),
-        new ContentClassifier.Candidate(2, "Amtsgericht München, HRB 187777"));
+            new ContentClassifier.Candidate(0, "Apply now Save to watchlist"),
+            new ContentClassifier.Candidate(1, "Wir suchen eine/n Angular Entwickler."),
+            new ContentClassifier.Candidate(2, "Amtsgericht München, HRB 187777"));
 
     @AfterAll
     static void stop() {
@@ -72,15 +71,15 @@ class ContentClassifierWireFormatTest {
         // The advert's title for context, the blocks by index, and nothing that invites the
         // model to rewrite anything. Indices in, indices out is the whole contract.
         MODEL.verify(postRequestedFor(urlPathEqualTo("/chat/completions"))
-            .withRequestBody(matching("(?s).*Angular Entwickler.*"))
-            .withRequestBody(matching("(?s).*\\[0\\] Apply now Save to watchlist.*"))
-            .withRequestBody(matching("(?s).*\\[2\\] Amtsgericht.*")));
+                .withRequestBody(matching("(?s).*Angular Entwickler.*"))
+                .withRequestBody(matching("(?s).*\\[0\\] Apply now Save to watchlist.*"))
+                .withRequestBody(matching("(?s).*\\[2\\] Amtsgericht.*")));
     }
 
     @Test
     void keepsWhatItWasOfferedAndDropsWhatItWasNot() {
         answers(
-            """
+                """
                 {"blocks":[{"index":0,"kind":"CHROME","reason":"Portal buttons."},
                            {"index":2,"kind":"AGENCY","reason":"The recruiter's register entry."},
                            {"index":9,"kind":"CHROME","reason":"A block nobody asked about."},
@@ -88,7 +87,7 @@ class ContentClassifierWireFormatTest {
                 """);
 
         Map<Integer, ContentClassifier.Labelled> answered =
-            classifier().classify("Angular", BLOCKS).orElseThrow();
+                classifier().classify("Angular", BLOCKS).orElseThrow();
 
         assertThat(answered).containsOnlyKeys(0, 2);
         assertThat(answered.get(0).kind()).isEqualTo(ContentKind.CHROME);
@@ -100,7 +99,8 @@ class ContentClassifierWireFormatTest {
         // The instruction is to omit a block that belongs to the advert. A model that answers
         // CONTENT means the same thing, and acting on it would write a decision where the
         // honest state is "this is the ad".
-        answers("""
+        answers(
+                """
             {"blocks":[{"index":1,"kind":"CONTENT","reason":"This is the advert."}]}
             """);
 
@@ -110,7 +110,7 @@ class ContentClassifierWireFormatTest {
     @Test
     void findsTheObjectInsideAFenceAndInsideAnIntroduction() {
         answers(
-            """
+                """
                 Here is what I found:
                 ```json
                 {"blocks":[{"index":0,"kind":"FORM","reason":"A dialog."}]}
@@ -128,19 +128,19 @@ class ContentClassifierWireFormatTest {
     @MethodSource("disappointments")
     void answersNothingRatherThanSomethingWhenTheModelDoesNot(int status, String body) {
         MODEL.stubFor(post(anyUrl())
-            .willReturn(aResponse()
-                .withStatus(status)
-                .withHeader("Content-Type", "application/json")
-                .withBody(body)));
+                .willReturn(aResponse()
+                        .withStatus(status)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(body)));
 
         assertThat(classifier().classify("Angular", BLOCKS)).isEmpty();
     }
 
     static Stream<org.junit.jupiter.params.provider.Arguments> disappointments() {
         return Stream.of(
-            org.junit.jupiter.params.provider.Arguments.of(500, "{}"),
-            org.junit.jupiter.params.provider.Arguments.of(429, "{}"),
-            org.junit.jupiter.params.provider.Arguments.of(401, "{}"));
+                org.junit.jupiter.params.provider.Arguments.of(500, "{}"),
+                org.junit.jupiter.params.provider.Arguments.of(429, "{}"),
+                org.junit.jupiter.params.provider.Arguments.of(401, "{}"));
     }
 
     @Test
@@ -163,34 +163,39 @@ class ContentClassifierWireFormatTest {
         answers("""
             {"blocks":[]}
             """);
-        assertThat(classifier().classify("Angular", BLOCKS)).isPresent().get().asInstanceOf(
-            org.assertj.core.api.InstanceOfAssertFactories.MAP).isEmpty();
+        assertThat(classifier().classify("Angular", BLOCKS))
+                .isPresent()
+                .get()
+                .asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.MAP)
+                .isEmpty();
     }
 
     private static ContentClassifier classifier() {
         var llm = new PipelineConfig.Llm(
-            ChatModels.OPENAI_COMPATIBLE,
-            MODEL.baseUrl(),
-            "test-key",
-            null,
-            false,
-            new PipelineConfig.Llm.Models(null, "a-model", null, null, null),
-            null);
+                ChatModels.OPENAI_COMPATIBLE,
+                MODEL.baseUrl(),
+                "test-key",
+                null,
+                false,
+                new PipelineConfig.Llm.Models(null, "a-model", null, null, null),
+                null);
         Optional<org.springframework.ai.chat.model.ChatModel> chatModel = new ChatModels().of(llm, "a-model");
         return new ContentClassifier(chatModel.orElseThrow(), "a-model", new ObjectMapper());
     }
 
     private static void answers(String content) {
         MODEL.stubFor(post(urlPathEqualTo("/chat/completions"))
-            .willReturn(aResponse()
-                .withStatus(200)
-                .withHeader("Content-Type", "application/json")
-                .withBody(
-                    """
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(
+                                """
                         {"id":"chat-1","object":"chat.completion","created":1,"model":"a-model",
                          "choices":[{"index":0,"finish_reason":"stop",
                                      "message":{"role":"assistant","content":%s}}]}
                         """
-                        .formatted(new ObjectMapper().valueToTree(content).toString()))));
+                                        .formatted(new ObjectMapper()
+                                                .valueToTree(content)
+                                                .toString()))));
     }
 }

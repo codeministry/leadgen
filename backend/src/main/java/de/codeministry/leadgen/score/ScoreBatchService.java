@@ -11,15 +11,14 @@ package de.codeministry.leadgen.score;
 import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.config.model.MatchingRules;
 import de.codeministry.leadgen.llm.LlmBudget;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import javax.sql.DataSource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import javax.sql.DataSource;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 
 /**
  * The half of scoring that does not finish inside the run that started it.
@@ -39,7 +38,8 @@ import java.util.Optional;
 @Service
 public class ScoreBatchService {
 
-    private static final String OPEN = """
+    private static final String OPEN =
+            """
         SELECT id, provider_id, model, ruleset_version, offers
         FROM score_batch
         WHERE status = 'SUBMITTED'
@@ -56,7 +56,7 @@ public class ScoreBatchService {
     private final JdbcClient jdbc;
 
     ScoreBatchService(
-        ConfigRegistry config, Judges judges, ScoreWriter writer, LlmBudget budget, DataSource dataSource) {
+            ConfigRegistry config, Judges judges, ScoreWriter writer, LlmBudget budget, DataSource dataSource) {
         this.config = config;
         this.judges = judges;
         this.writer = writer;
@@ -92,7 +92,8 @@ public class ScoreBatchService {
         int autoShortlist = rules.scoring().thresholds().autoShortlist();
         int review = rules.scoring().thresholds().review();
 
-        Long batchId = jdbc.sql("""
+        Long batchId = jdbc.sql(
+                        """
             INSERT INTO score_batch (provider_id, model, ruleset_version, offers)
             VALUES (?, ?, ?, ?)
             RETURNING id

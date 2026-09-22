@@ -8,11 +8,10 @@
  */
 package de.codeministry.leadgen.dedupe;
 
+import javax.sql.DataSource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
-
-import javax.sql.DataSource;
 
 /**
  * The two strategies that compare adverts which are not identical.
@@ -45,7 +44,7 @@ public class SimilarOffers {
      * like a typo in an alias that is plainly there.
      */
     private static final String MERGE =
-        """
+            """
             WITH pair AS (
                 SELECT a.id AS id,
                        (SELECT b.id
@@ -76,7 +75,7 @@ public class SimilarOffers {
      * already, and a maybe beside a yes is noise.
      */
     private static final String FLAG =
-        """
+            """
             WITH pair AS (
                 SELECT a.id AS id,
                        (SELECT b.id
@@ -109,7 +108,7 @@ public class SimilarOffers {
      * the chain is shortened afterwards instead.
      */
     private static final String FLATTEN =
-        """
+            """
             UPDATE offer a
                SET duplicate_of_id = b.duplicate_of_id
               FROM offer b
@@ -139,9 +138,9 @@ public class SimilarOffers {
      */
     public int merge(int ttlDays, double similarity) {
         int moved = jdbc.sql(MERGE)
-            .param("ttl", ttlDays)
-            .param("limit", 1 - similarity)
-            .update();
+                .param("ttl", ttlDays)
+                .param("limit", 1 - similarity)
+                .update();
         if (moved > 0) {
             flatten();
         }
@@ -155,9 +154,9 @@ public class SimilarOffers {
      */
     public int flag(int ttlDays, double similarity) {
         return jdbc.sql(FLAG)
-            .param("ttl", ttlDays)
-            .param("limit", 1 - similarity)
-            .update();
+                .param("ttl", ttlDays)
+                .param("limit", 1 - similarity)
+                .update();
     }
 
     private void flatten() {
@@ -167,8 +166,8 @@ public class SimilarOffers {
             }
         }
         log.warn(
-            "Similarity merging still had chains to shorten after {} passes;"
-                + " some offers point at a primary that is itself attached",
-            FLATTEN_PASSES);
+                "Similarity merging still had chains to shorten after {} passes;"
+                        + " some offers point at a primary that is itself attached",
+                FLATTEN_PASSES);
     }
 }

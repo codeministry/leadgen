@@ -8,8 +8,14 @@
  */
 package de.codeministry.leadgen.ingest;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import de.codeministry.leadgen.Databases;
 import de.codeministry.leadgen.config.ConfigFixtures;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -20,13 +26,6 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
-
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * The wired pass: config, connector, extraction and the write into Postgres.
@@ -39,7 +38,8 @@ class IngestServiceTest {
     @ServiceConnection
     static final PostgreSQLContainer<?> POSTGRES = Databases.postgres();
 
-    private static final String MANUAL_OFFER = """
+    private static final String MANUAL_OFFER =
+            """
         ---
         title: Senior Java Entwickler, gefunden auf LinkedIn
         url: https://portal.example/p/98765

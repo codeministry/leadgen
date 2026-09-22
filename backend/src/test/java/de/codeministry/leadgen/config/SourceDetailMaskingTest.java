@@ -8,8 +8,15 @@
  */
 package de.codeministry.leadgen.config;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import de.codeministry.leadgen.Databases;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -19,14 +26,6 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
-
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * What happens when somebody writes a real credential into their own configuration file.
@@ -69,8 +68,8 @@ class SourceDetailMaskingTest {
             ConfigFixtures.materialize(dir);
             Path sources = dir.resolve(ConfigLoader.SOURCES_FILE);
             String own = Files.readString(sources, StandardCharsets.UTF_8)
-                .replace("${IMAP_PASSWORD}", PASSWORD)
-                .replace("${IMAP_USER}", MAILBOX);
+                    .replace("${IMAP_PASSWORD}", PASSWORD)
+                    .replace("${IMAP_USER}", MAILBOX);
             Files.writeString(sources, own, StandardCharsets.UTF_8);
             directory = dir;
             return dir;
@@ -104,7 +103,10 @@ class SourceDetailMaskingTest {
     void keepsEverythingAboutTheConnectionThatIsNotTheCredential() {
         // Masking the block into uselessness would be the other way to fail: the settings
         // beside the password are exactly what somebody opens this panel to check.
-        String block = details.detail("sample-newsletter", 30).orElseThrow().connection().text();
+        String block = details.detail("sample-newsletter", 30)
+                .orElseThrow()
+                .connection()
+                .text();
 
         assertThat(block).contains("type: imap").contains("mode: poll").contains("${IMAP_HOST}");
     }

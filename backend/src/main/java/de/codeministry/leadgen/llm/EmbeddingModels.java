@@ -10,18 +10,17 @@ package de.codeministry.leadgen.llm;
 
 import de.codeministry.leadgen.config.model.PipelineConfig;
 import io.micrometer.observation.ObservationRegistry;
+import java.time.Duration;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.ai.openai.OpenAiEmbeddingModel;
 import org.springframework.ai.openai.OpenAiEmbeddingOptions;
 import org.springframework.ai.openai.setup.OpenAiSetup;
 import org.springframework.stereotype.Component;
-
-import java.time.Duration;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Builds the embedding model a provider kind asks for, and caches it. {@link ChatModels}
@@ -62,17 +61,17 @@ public class EmbeddingModels {
                 Optional.of(openAi(llm.baseUrl(), ChatModels.key(llm), model, llm.timeout()));
             case ChatModels.ANTHROPIC -> {
                 log.warn(
-                    "llm.provider is '{}', which has no embedding endpoint;"
-                        + " deduplication keeps its deterministic strategy",
-                    ChatModels.ANTHROPIC);
+                        "llm.provider is '{}', which has no embedding endpoint;"
+                                + " deduplication keeps its deterministic strategy",
+                        ChatModels.ANTHROPIC);
                 yield Optional.empty();
             }
             default -> {
                 log.warn(
-                    "llm.provider is '{}'; embeddings are implemented for '{}' and '{}'",
-                    llm.provider(),
-                    ChatModels.OPENAI_COMPATIBLE,
-                    ChatModels.OLLAMA);
+                        "llm.provider is '{}'; embeddings are implemented for '{}' and '{}'",
+                        llm.provider(),
+                        ChatModels.OPENAI_COMPATIBLE,
+                        ChatModels.OLLAMA);
                 yield Optional.empty();
             }
         };
@@ -80,35 +79,38 @@ public class EmbeddingModels {
 
     private EmbeddingModel openAi(String baseUrl, String apiKey, String model, Duration timeout) {
         return models.computeIfAbsent(
-            baseUrl + SEPARATOR + Integer.toHexString(apiKey.hashCode()) + SEPARATOR + model + SEPARATOR + timeout,
-            ignored -> OpenAiEmbeddingModel.builder()
-                // No asynchronous client beside it, unlike the chat pair: this builder
-                // constructs only the one it is given and never reaches for a second.
-                .openAiClient(OpenAiSetup.setupSyncClient(
-                    baseUrl,
-                    apiKey,
-                    null,
-                    null,
-                    null,
-                    null,
-                    false,
-                    false,
-                    model,
-                    timeout,
-                    0,
-                    null,
-                    null,
-                    ObservationRegistry.NOOP,
-                    null,
-                    List.of()))
-                // The timeout belongs on the options as well, and this is not a duplicate of
-                // the one handed to the client above. `AbstractOpenAiOptions` substitutes its
-                // own DEFAULT_TIMEOUT of 60 s for a null one, so `getTimeout()` never answers
-                // null, so Spring AI always sets a per-call timeout — and a per-call timeout
-                // wins over the client's. Left out, `llm.timeout` is bound, validated, printed
-                // in the banner and read by nothing: measured on the deployed instance at
-                // PT120S, PT600S and PT20S, every request gave up after 60.03 s.
-                .options(OpenAiEmbeddingOptions.builder().model(model).timeout(timeout).build())
-                .build());
+                baseUrl + SEPARATOR + Integer.toHexString(apiKey.hashCode()) + SEPARATOR + model + SEPARATOR + timeout,
+                ignored -> OpenAiEmbeddingModel.builder()
+                        // No asynchronous client beside it, unlike the chat pair: this builder
+                        // constructs only the one it is given and never reaches for a second.
+                        .openAiClient(OpenAiSetup.setupSyncClient(
+                                baseUrl,
+                                apiKey,
+                                null,
+                                null,
+                                null,
+                                null,
+                                false,
+                                false,
+                                model,
+                                timeout,
+                                0,
+                                null,
+                                null,
+                                ObservationRegistry.NOOP,
+                                null,
+                                List.of()))
+                        // The timeout belongs on the options as well, and this is not a duplicate of
+                        // the one handed to the client above. `AbstractOpenAiOptions` substitutes its
+                        // own DEFAULT_TIMEOUT of 60 s for a null one, so `getTimeout()` never answers
+                        // null, so Spring AI always sets a per-call timeout — and a per-call timeout
+                        // wins over the client's. Left out, `llm.timeout` is bound, validated, printed
+                        // in the banner and read by nothing: measured on the deployed instance at
+                        // PT120S, PT600S and PT20S, every request gave up after 60.03 s.
+                        .options(OpenAiEmbeddingOptions.builder()
+                                .model(model)
+                                .timeout(timeout)
+                                .build())
+                        .build());
     }
 }

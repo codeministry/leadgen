@@ -11,10 +11,9 @@ package de.codeministry.leadgen.web;
 import de.codeministry.leadgen.config.*;
 import de.codeministry.leadgen.ingest.extract.LlmExtractors;
 import de.codeministry.leadgen.score.Judges;
+import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 /**
  * The configuration as the screens read it. Read-only, and deliberately so: the four YAML
@@ -30,8 +29,7 @@ class ConfigController {
     private final ConfigRegistry config;
     private final Judges judges;
 
-    ConfigController(
-        SourceQueryService sources, SourceDetailService details, ConfigRegistry config, Judges judges) {
+    ConfigController(SourceQueryService sources, SourceDetailService details, ConfigRegistry config, Judges judges) {
         this.sources = sources;
         this.details = details;
         this.config = config;
@@ -104,12 +102,12 @@ class ConfigController {
         var choices = judges.choices();
         var llm = snapshot.application().llm();
         return PromptView.all(
-            snapshot.rules(),
-            snapshot.profile(),
-            choices.isEmpty() ? null : choices.getFirst(),
-            // The stage's own choice, asked rather than reproduced: a copy of it here
-            // would name one model on the screen while the run used the other.
-            LlmExtractors.modelFor(llm == null ? null : llm.models()));
+                snapshot.rules(),
+                snapshot.profile(),
+                choices.isEmpty() ? null : choices.getFirst(),
+                // The stage's own choice, asked rather than reproduced: a copy of it here
+                // would name one model on the screen while the run used the other.
+                LlmExtractors.modelFor(llm == null ? null : llm.models()));
     }
 
     /**

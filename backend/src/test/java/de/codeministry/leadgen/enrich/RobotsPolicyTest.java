@@ -8,11 +8,10 @@
  */
 package de.codeministry.leadgen.enrich;
 
-import org.junit.jupiter.api.Test;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.net.URI;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.Test;
 
 /**
  * The small part of robots.txt this crawler needs, and the conventions around it.
@@ -45,7 +44,8 @@ class RobotsPolicyTest {
 
     @Test
     void prefersTheGroupThatNamesUsOverTheWildcard() {
-        var policy = serving("""
+        var policy = serving(
+                """
             User-agent: *
             Disallow: /
 

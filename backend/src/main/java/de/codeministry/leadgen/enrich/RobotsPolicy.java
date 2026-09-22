@@ -8,8 +8,6 @@
  */
 package de.codeministry.leadgen.enrich;
 
-import lombok.extern.slf4j.Slf4j;
-
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
@@ -17,6 +15,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Whether a path may be fetched, per host, from that host's {@code /robots.txt}.

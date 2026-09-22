@@ -8,8 +8,6 @@
  */
 package de.codeministry.leadgen.config;
 
-import lombok.extern.slf4j.Slf4j;
-
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
@@ -18,6 +16,7 @@ import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * The `.env` file: where it is and what it declares.

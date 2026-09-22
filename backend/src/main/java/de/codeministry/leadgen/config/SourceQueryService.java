@@ -8,15 +8,14 @@
  */
 package de.codeministry.leadgen.config;
 
-import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.stereotype.Service;
-
-import javax.sql.DataSource;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import javax.sql.DataSource;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.stereotype.Service;
 
 /**
  * What the sources screen reads: the configured sources, and what each one last did.
@@ -28,7 +27,8 @@ import java.util.Map;
 @Service
 public class SourceQueryService {
 
-    private static final String LAST_RUN = """
+    private static final String LAST_RUN =
+            """
         SELECT DISTINCT ON (s.name) s.name, r.ran_at, r.documents, r.extracted, r.announced
         FROM source s JOIN source_run r ON r.source_id = s.id
         ORDER BY s.name, r.ran_at DESC
@@ -41,7 +41,8 @@ public class SourceQueryService {
      * archive is the same argument a second time: this column answers "how many of this
      * source's offers are on my list", and an archived offer is not.
      */
-    private static final String SURVIVORS = """
+    private static final String SURVIVORS =
+            """
         SELECT s.name,
                count(*) FILTER (WHERE o.status = 'PASSED'
                                   AND o.duplicate_of_id IS NULL

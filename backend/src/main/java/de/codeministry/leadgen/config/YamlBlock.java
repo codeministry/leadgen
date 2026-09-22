@@ -16,5 +16,4 @@ package de.codeministry.leadgen.config;
  *                  print the range and the excerpt stays checkable against the file
  * @param lastLine  the last line's number, inclusive
  */
-public record YamlBlock(String text, int firstLine, int lastLine) {
-}
+public record YamlBlock(String text, int firstLine, int lastLine) {}

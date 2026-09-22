@@ -8,9 +8,9 @@
  */
 package de.codeministry.leadgen.retrieval;
 
-import org.junit.jupiter.api.Test;
-
 import static org.assertj.core.api.Assertions.assertThat;
+
+import org.junit.jupiter.api.Test;
 
 /**
  * What goes into a retrieval vector. No container: this is string composition, and it is

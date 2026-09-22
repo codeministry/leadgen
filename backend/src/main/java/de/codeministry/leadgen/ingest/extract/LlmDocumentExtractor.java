@@ -9,12 +9,11 @@
 package de.codeministry.leadgen.ingest.extract;
 
 import de.codeministry.leadgen.config.model.SourcesConfig.Extraction;
+import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
-
-import java.util.List;
-import java.util.Map;
 
 /**
  * {@code strategy: llm}: a document with no structure to address at all.

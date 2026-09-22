@@ -8,14 +8,25 @@
  */
 package de.codeministry.leadgen.retrieval;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import de.codeministry.leadgen.Databases;
 import de.codeministry.leadgen.config.ConfigFixtures;
 import de.codeministry.leadgen.ingest.extract.TitleNormalizer;
 import de.codeministry.leadgen.llm.Vectors;
+import de.codeministry.leadgen.offer.OfferQueryService;
 import de.codeministry.leadgen.offer.RelatedFilter;
 import de.codeministry.leadgen.offer.ShortlistQuery;
 import de.codeministry.leadgen.offer.ShortlistSort;
-import de.codeministry.leadgen.offer.OfferQueryService;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,18 +38,6 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
-
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * The relatedness filter on the read side: what it narrows, and what it must leave alone.
@@ -319,7 +318,8 @@ class SemanticFilterTest {
     }
 
     private static String set(String yaml, String key, String value) {
-        Matcher matcher = Pattern.compile("(?m)^([ \\t]*)" + Pattern.quote(key) + ":.*$").matcher(yaml);
+        Matcher matcher =
+                Pattern.compile("(?m)^([ \\t]*)" + Pattern.quote(key) + ":.*$").matcher(yaml);
         if (!matcher.find()) {
             throw new IllegalStateException("no `" + key + ":` in the shipped pipeline.yaml");
         }

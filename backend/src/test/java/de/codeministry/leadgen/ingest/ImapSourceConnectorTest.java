@@ -8,6 +8,8 @@
  */
 package de.codeministry.leadgen.ingest;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import com.icegreen.greenmail.junit5.GreenMailExtension;
 import com.icegreen.greenmail.util.ServerSetupTest;
 import de.codeministry.leadgen.Databases;
@@ -19,6 +21,11 @@ import jakarta.mail.Flags;
 import jakarta.mail.Folder;
 import jakarta.mail.Session;
 import jakarta.mail.Store;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Properties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -31,14 +38,6 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
-
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.Properties;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * A real IMAP server in-process. The UID semantics this connector rests on cannot be
@@ -398,7 +397,8 @@ class ImapSourceConnectorTest {
             Path sources = dir.resolve("sources.yaml");
             String extraction = extractionBlockOfSampleNewsletter(Files.readString(sources));
             Files.writeString(
-                    sources, """
+                    sources,
+                    """
                         version: 1
                         connections:
                           - id: local-imap

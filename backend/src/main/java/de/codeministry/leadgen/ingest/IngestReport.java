@@ -17,7 +17,6 @@ import de.codeministry.leadgen.filter.FilterReport;
 import de.codeministry.leadgen.packaging.PackageReport;
 import de.codeministry.leadgen.retrieval.RetrievalReport;
 import de.codeministry.leadgen.score.ScoringReport;
-
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.List;

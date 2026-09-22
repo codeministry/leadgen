@@ -9,7 +9,6 @@
 package de.codeministry.leadgen.config;
 
 import de.codeministry.leadgen.config.model.MatchingRules;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;

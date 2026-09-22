@@ -12,6 +12,10 @@ import de.codeministry.leadgen.config.ConfigLoader;
 import de.codeministry.leadgen.config.ConfigProperties;
 import de.codeministry.leadgen.config.DotEnv;
 import de.codeministry.leadgen.config.Secrets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.*;
+import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -20,11 +24,6 @@ import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.env.EnumerablePropertySource;
 import org.springframework.core.env.PropertySource;
 import org.springframework.stereotype.Component;
-
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.*;
-import java.util.regex.Pattern;
 
 /**
  * Prints the configuration the process actually came up with, once, as one box.

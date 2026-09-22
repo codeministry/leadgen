@@ -12,13 +12,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.config.model.PipelineConfig;
 import de.codeministry.leadgen.llm.ChatModels;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.ai.chat.model.ChatModel;
-import org.springframework.stereotype.Component;
-
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.ai.chat.model.ChatModel;
+import org.springframework.stereotype.Component;
 
 /**
  * Builds the judge the current configuration asks for, or none.
@@ -135,7 +134,7 @@ public class Judges {
         // batch half is still hand-rolled HTTP.
         if (ChatModels.ANTHROPIC.equals(llm.provider())) {
             return Optional.of(new AnthropicJudge(
-                chatModel.get(), llm.baseUrl(), ChatModels.key(llm), model, json, bounds(), profile()));
+                    chatModel.get(), llm.baseUrl(), ChatModels.key(llm), model, json, bounds(), profile()));
         }
         return Optional.of(new ChatClientJudge(chatModel.get(), model, json, bounds(), profile()));
     }

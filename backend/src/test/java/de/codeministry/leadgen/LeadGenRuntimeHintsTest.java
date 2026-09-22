@@ -8,18 +8,17 @@
  */
 package de.codeministry.leadgen;
 
-import de.codeministry.leadgen.config.ConfigFixtures;
-import org.junit.jupiter.api.Test;
-import org.springframework.aot.hint.RuntimeHints;
-import org.springframework.aot.hint.predicate.RuntimeHintsPredicates;
+import static org.assertj.core.api.Assertions.assertThat;
 
+import de.codeministry.leadgen.config.ConfigFixtures;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.stream.Stream;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.Test;
+import org.springframework.aot.hint.RuntimeHints;
+import org.springframework.aot.hint.predicate.RuntimeHintsPredicates;
 
 /**
  * Every shipped default is reachable under a name computed at runtime.
@@ -48,8 +47,8 @@ class LeadGenRuntimeHintsTest {
 
         // Guards the guard: a wrong path would make every assertion below vacuous.
         assertThat(resources).hasSizeGreaterThanOrEqualTo(7);
-        assertThat(resources).allSatisfy(resource -> assertThat(RuntimeHintsPredicates.resource()
-                        .forResource(resource))
+        assertThat(resources).allSatisfy(resource -> assertThat(
+                        RuntimeHintsPredicates.resource().forResource(resource))
                 .as(resource)
                 .accepts(hints));
     }

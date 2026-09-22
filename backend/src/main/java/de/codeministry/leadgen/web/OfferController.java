@@ -8,21 +8,20 @@
  */
 package de.codeministry.leadgen.web;
 
-import de.codeministry.leadgen.ask.AdvertAnswer;
-import de.codeministry.leadgen.ask.AdvertAskService;
-import de.codeministry.leadgen.ask.AdvertQuestion;
 import de.codeministry.leadgen.archive.ArchiveRequest;
 import de.codeministry.leadgen.archive.ArchiveResult;
 import de.codeministry.leadgen.archive.ArchiveService;
+import de.codeministry.leadgen.ask.AdvertAnswer;
+import de.codeministry.leadgen.ask.AdvertAskService;
+import de.codeministry.leadgen.ask.AdvertQuestion;
 import de.codeministry.leadgen.offer.*;
 import de.codeministry.leadgen.retrieval.SemanticFilter;
 import de.codeministry.leadgen.score.Judges;
 import de.codeministry.leadgen.score.ScoringService;
 import jakarta.validation.Valid;
+import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 /**
  * The shortlist and one offer of it.
@@ -41,8 +40,7 @@ class OfferController {
     private final ArchiveService archive;
     private final AdvertAskService asks;
 
-    OfferController(
-            OfferQueryService offers, ScoringService scoring, ArchiveService archive, AdvertAskService asks) {
+    OfferController(OfferQueryService offers, ScoringService scoring, ArchiveService archive, AdvertAskService asks) {
         this.offers = offers;
         this.scoring = scoring;
         this.archive = archive;
@@ -90,18 +88,18 @@ class OfferController {
         // the same reason one step further on — it refuses two spellings of the score axis
         // before anything has been read.
         return offers.shortlist(new ShortlistQuery(
-            q,
-            new ScoreFilter(band, minScore, maxScore, ScoreState.of(scoreState)),
-            portal,
-            archived,
-            ShortlistSort.of(sort),
-            StartWindow.of(startWindow),
-            new RelatedFilter(semantic, similar),
-            minMonths,
-            deadlineOpen,
-            possibleDuplicates,
-            cursor,
-            limit));
+                q,
+                new ScoreFilter(band, minScore, maxScore, ScoreState.of(scoreState)),
+                portal,
+                archived,
+                ShortlistSort.of(sort),
+                StartWindow.of(startWindow),
+                new RelatedFilter(semantic, similar),
+                minMonths,
+                deadlineOpen,
+                possibleDuplicates,
+                cursor,
+                limit));
     }
 
     /**
@@ -116,9 +114,9 @@ class OfferController {
     @PostMapping("/{id}/ask")
     AdvertAnswer ask(@PathVariable long id, @RequestParam String question) {
         return asks.ask(id, AdvertQuestion.of(question))
-            .orElseThrow(() -> new CannotAsk(
-                "this advert cannot be asked right now: no model is configured, it has no fetched text,"
-                    + " or today's llm.budget is spent"));
+                .orElseThrow(() -> new CannotAsk(
+                        "this advert cannot be asked right now: no model is configured, it has no fetched text,"
+                                + " or today's llm.budget is spent"));
     }
 
     /**

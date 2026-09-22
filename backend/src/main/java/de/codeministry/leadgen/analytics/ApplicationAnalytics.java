@@ -9,7 +9,6 @@
 package de.codeministry.leadgen.analytics;
 
 import de.codeministry.leadgen.application.ApplicationStatus;
-
 import java.time.LocalDate;
 import java.util.List;
 

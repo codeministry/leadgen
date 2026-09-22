@@ -8,14 +8,13 @@
  */
 package de.codeministry.leadgen.web;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import de.codeministry.leadgen.config.model.MatchingRules;
 import de.codeministry.leadgen.config.model.SkillProfile;
-import org.junit.jupiter.api.Test;
-
 import java.util.List;
 import java.util.Map;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.Test;
 
 /**
  * The prompts as the Rules screen shows them.
@@ -30,8 +29,7 @@ class PromptViewTest {
     private static final SkillProfile PROFILE = new SkillProfile(
             1,
             "de",
-            new SkillProfile.Identity(
-                    "Somebody", null, "Cologne", null, null, List.of("Backend developer"), "Senior"),
+            new SkillProfile.Identity("Somebody", null, "Cologne", null, null, List.of("Backend developer"), "Senior"),
             List.of(new SkillProfile.Skill("Quarkus", 9, null, null)),
             List.of(new SkillProfile.Skill("Kafka", 6, null, null)),
             null,
@@ -125,8 +123,8 @@ class PromptViewTest {
         // The order on screen is the order the pipeline asks them in, and the first question
         // is asked of a file nobody has read yet.
         assertThat(PromptView.all(null, null, "a-model", "a-model"))
-            .extracting(PromptView::id)
-            .containsExactly("extraction", "content", "scoring");
+                .extracting(PromptView::id)
+                .containsExactly("extraction", "content", "scoring");
     }
 
     @Test

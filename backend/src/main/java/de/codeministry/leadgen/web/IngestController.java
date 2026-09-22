@@ -60,9 +60,8 @@ public class IngestController {
         // would say the endpoint does not exist, and the browser would treat it as the
         // error it treats every other 404 as — while the truthful answer is that the
         // endpoint is fine and there is simply no run to report.
-        return lastRun.lastRun()
-                .map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.noContent().build());
+        return lastRun.lastRun().map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.noContent()
+                .build());
     }
 
     /**
@@ -82,9 +81,8 @@ public class IngestController {
      */
     @GetMapping("/ingest/current")
     ResponseEntity<CurrentRunView> current() {
-        return lastRun.currentRun()
-            .map(ResponseEntity::ok)
-            .orElseGet(() -> ResponseEntity.noContent().build());
+        return lastRun.currentRun().map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.noContent()
+                .build());
     }
 
     /**

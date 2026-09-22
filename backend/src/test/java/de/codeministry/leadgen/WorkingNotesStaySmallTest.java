@@ -8,9 +8,9 @@
  */
 package de.codeministry.leadgen;
 
-import de.codeministry.leadgen.config.ConfigFixtures;
-import org.junit.jupiter.api.Test;
+import static org.assertj.core.api.Assertions.assertThat;
 
+import de.codeministry.leadgen.config.ConfigFixtures;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
@@ -24,8 +24,7 @@ import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.Test;
 
 /**
  * The working notes are split so that what is loaded on every turn stays small, and this
@@ -53,9 +52,9 @@ class WorkingNotesStaySmallTest {
      * are allowed to be roughly half of it each rather than a share of it.
      */
     private static final Map<String, Integer> BUDGETS = new LinkedHashMap<>(Map.of(
-        "CLAUDE.md", 18_000,
-        "backend/CLAUDE.md", 12_000,
-        "frontend/CLAUDE.md", 12_000));
+            "CLAUDE.md", 18_000,
+            "backend/CLAUDE.md", 12_000,
+            "frontend/CLAUDE.md", 12_000));
 
     /**
      * A reference to a decision document, with or without the {@code docs/} prefix — the
@@ -77,13 +76,14 @@ class WorkingNotesStaySmallTest {
         BUDGETS.forEach((name, budget) -> {
             int size = read(ROOT.resolve(name)).length();
             if (size > budget) {
-                offenders.add("%s is %,d characters, %,d over its budget of %,d — move the reasoning into docs/decisions/"
-                    .formatted(name, size, size - budget, budget));
+                offenders.add(
+                        "%s is %,d characters, %,d over its budget of %,d — move the reasoning into docs/decisions/"
+                                .formatted(name, size, size - budget, budget));
             }
         });
         assertThat(offenders)
-            .as("what is loaded on every turn has to stay readable")
-            .isEmpty();
+                .as("what is loaded on every turn has to stay readable")
+                .isEmpty();
     }
 
     @Test
@@ -104,8 +104,8 @@ class WorkingNotesStaySmallTest {
             });
         }
         assertThat(offenders)
-            .as("a routing table that points at nothing is worse than no routing table")
-            .isEmpty();
+                .as("a routing table that points at nothing is worse than no routing table")
+                .isEmpty();
     }
 
     @Test
@@ -113,16 +113,17 @@ class WorkingNotesStaySmallTest {
         String table = sectionOf(read(ROOT.resolve("CLAUDE.md")), "## The decision records");
         var unreachable = new TreeSet<String>();
         try (Stream<Path> documents = Files.list(ROOT.resolve("docs/decisions"))) {
-            documents.map(document -> document.getFileName().toString())
-                .filter(name -> name.endsWith(".md"))
-                .filter(name -> !table.contains(name))
-                .forEach(unreachable::add);
+            documents
+                    .map(document -> document.getFileName().toString())
+                    .filter(name -> name.endsWith(".md"))
+                    .filter(name -> !table.contains(name))
+                    .forEach(unreachable::add);
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
         assertThat(unreachable)
-            .as("a document nothing links to is a document nobody opens — add it to the table in CLAUDE.md")
-            .isEmpty();
+                .as("a document nothing links to is a document nobody opens — add it to the table in CLAUDE.md")
+                .isEmpty();
     }
 
     /**
@@ -130,7 +131,9 @@ class WorkingNotesStaySmallTest {
      */
     private static String sectionOf(String content, String heading) {
         int start = content.indexOf(heading);
-        assertThat(start).as("CLAUDE.md must still carry the heading '%s'", heading).isNotNegative();
+        assertThat(start)
+                .as("CLAUDE.md must still carry the heading '%s'", heading)
+                .isNotNegative();
         int next = content.indexOf("\n## ", start + heading.length());
         return next < 0 ? content.substring(start) : content.substring(start, next);
     }
@@ -152,8 +155,8 @@ class WorkingNotesStaySmallTest {
         for (String directory : List.of("docs", "docs/decisions")) {
             try (Stream<Path> found = Files.list(ROOT.resolve(directory))) {
                 found.filter(Files::isRegularFile)
-                    .filter(file -> file.getFileName().toString().endsWith(".md"))
-                    .forEach(files::add);
+                        .filter(file -> file.getFileName().toString().endsWith(".md"))
+                        .forEach(files::add);
             } catch (IOException e) {
                 throw new UncheckedIOException(e);
             }

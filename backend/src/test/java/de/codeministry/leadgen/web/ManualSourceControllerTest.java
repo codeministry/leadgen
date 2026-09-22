@@ -8,10 +8,19 @@
  */
 package de.codeministry.leadgen.web;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
+
 import de.codeministry.leadgen.ingest.ExtractedOffer;
 import de.codeministry.leadgen.manual.ManualDocumentName;
 import de.codeministry.leadgen.manual.ManualUploadService;
 import de.codeministry.leadgen.manual.PendingDocument;
+import java.time.Instant;
+import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -19,16 +28,6 @@ import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
-
-import java.time.Instant;
-import java.util.List;
-import java.util.Optional;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.BDDMockito.given;
-import static org.mockito.BDDMockito.willThrow;
 
 /**
  * The upload endpoint: what it accepts, what it refuses, and with which status.
@@ -46,7 +45,10 @@ class ManualSourceControllerTest {
     void acceptsAMarkdownDocumentAndAnswersWithWhatTheExtractionRead() {
         given(uploads.store(anyString(), any())).willReturn(document());
 
-        assertThat(mvc.post().uri("/api/v1/sources/manual/documents").multipart().file(file("offer.md")))
+        assertThat(mvc.post()
+                        .uri("/api/v1/sources/manual/documents")
+                        .multipart()
+                        .file(file("offer.md")))
                 .hasStatus(201)
                 .bodyJson()
                 .extractingPath("$.offer.title")
@@ -60,12 +62,15 @@ class ManualSourceControllerTest {
         // exactly like one where the rules read everything.
         given(uploads.store(anyString(), any())).willReturn(document());
 
-        assertThat(mvc.post().uri("/api/v1/sources/manual/documents").multipart().file(file("offer.md")))
-            .hasStatus(201)
-            .bodyJson()
-            .extractingPath("$.fromModel")
-            .asArray()
-            .containsExactly("title", "location");
+        assertThat(mvc.post()
+                        .uri("/api/v1/sources/manual/documents")
+                        .multipart()
+                        .file(file("offer.md")))
+                .hasStatus(201)
+                .bodyJson()
+                .extractingPath("$.fromModel")
+                .asArray()
+                .containsExactly("title", "location");
     }
 
     @Test
@@ -75,7 +80,10 @@ class ManualSourceControllerTest {
                 .given(uploads)
                 .store(anyString(), any());
 
-        assertThat(mvc.post().uri("/api/v1/sources/manual/documents").multipart().file(file("payload.sh")))
+        assertThat(mvc.post()
+                        .uri("/api/v1/sources/manual/documents")
+                        .multipart()
+                        .file(file("payload.sh")))
                 .hasStatus(400)
                 .bodyText()
                 .contains(".md");
@@ -106,7 +114,8 @@ class ManualSourceControllerTest {
         given(uploads.reject(anyString())).willReturn(false);
 
         assertThat(mvc.get().uri("/api/v1/sources/manual/pending/nothing.md")).hasStatus(404);
-        assertThat(mvc.delete().uri("/api/v1/sources/manual/pending/nothing.md")).hasStatus(404);
+        assertThat(mvc.delete().uri("/api/v1/sources/manual/pending/nothing.md"))
+                .hasStatus(404);
     }
 
     private static MockMultipartFile file(String name) {
@@ -128,13 +137,13 @@ class ManualSourceControllerTest {
                 // A file dropped in by hand did not come in the post.
                 null);
         return new PendingDocument(
-            "offer.md",
-            128,
-            Instant.parse("2026-09-01T10:00:00Z"),
-            "---\n",
-            offer,
-            List.of("title", "location"),
-            null,
-            null);
+                "offer.md",
+                128,
+                Instant.parse("2026-09-01T10:00:00Z"),
+                "---\n",
+                offer,
+                List.of("title", "location"),
+                null,
+                null);
     }
 }

@@ -8,25 +8,24 @@
  */
 package de.codeministry.leadgen.fields;
 
+import static com.github.tomakehurst.wiremock.client.WireMock.*;
+import static org.assertj.core.api.Assertions.assertThat;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import de.codeministry.leadgen.config.model.PipelineConfig;
 import de.codeministry.leadgen.llm.ChatModels;
 import de.codeministry.leadgen.offer.ShortlistSort;
+import java.time.LocalDate;
+import java.util.Optional;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-
-import java.time.LocalDate;
-import java.util.Optional;
-import java.util.stream.Stream;
-
-import static com.github.tomakehurst.wiremock.client.WireMock.*;
-import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * What the field extractor sends and what it does with what comes back, at the byte level.
@@ -45,12 +44,12 @@ class FieldExtractorWireFormatTest {
     }
 
     private static final FieldExtractor.Candidate OFFER = new FieldExtractor.Candidate(
-        42,
-        "Senior Java Entwickler (m/w/d)",
-        "Kurzbeschreibung aus dem Newsletter.",
-        "Wir suchen ab sofort für zunächst 6 Monate mit Option auf Verlängerung.",
-        LocalDate.of(2026, 10, 1),
-        "6");
+            42,
+            "Senior Java Entwickler (m/w/d)",
+            "Kurzbeschreibung aus dem Newsletter.",
+            "Wir suchen ab sofort für zunächst 6 Monate mit Option auf Verlängerung.",
+            LocalDate.of(2026, 10, 1),
+            "6");
 
     @AfterAll
     static void stop() {
@@ -67,7 +66,8 @@ class FieldExtractorWireFormatTest {
         // The second half is the point: a model told to find a start date while the row
         // beside it already states one knows less than the application does, and the
         // correction it is asked for cannot be made against a value it cannot see.
-        answers("""
+        answers(
+                """
             {"start":{"text":"ab sofort","date":null},
              "duration":{"text":"6 Monate","months":6},
              "deadline":{"text":null,"date":null}}
@@ -76,14 +76,15 @@ class FieldExtractorWireFormatTest {
         extractor().extract(OFFER);
 
         MODEL.verify(postRequestedFor(urlPathEqualTo("/chat/completions"))
-            .withRequestBody(matching("(?s).*Senior Java Entwickler.*"))
-            .withRequestBody(matching("(?s).*Option auf Verl.*"))
-            .withRequestBody(matching("(?s).*start: 2026-10-01.*")));
+                .withRequestBody(matching("(?s).*Senior Java Entwickler.*"))
+                .withRequestBody(matching("(?s).*Option auf Verl.*"))
+                .withRequestBody(matching("(?s).*start: 2026-10-01.*")));
     }
 
     @Test
     void keepsThePhraseAndTheResolvedValueSideBySide() {
-        answers("""
+        answers(
+                """
             {"start":{"text":"ab sofort","date":null},
              "duration":{"text":"6 Monate mit Option auf Verlängerung","months":6},
              "deadline":{"text":"Bewerbungen bis 30.09.2026","date":"2026-09-30"}}
@@ -102,15 +103,18 @@ class FieldExtractorWireFormatTest {
     void treatsAnAdvertThatStatesNothingAsAnAnswer() {
         // Most adverts state no deadline at all. "Nothing" is a finished decision and has to
         // stay distinguishable from "the model did not answer", which leaves the offer due.
-        answers("""
+        answers(
+                """
             {"start":{"text":null,"date":null},
              "duration":{"text":null,"months":null},
              "deadline":{"text":null,"date":null}}
             """);
 
-        assertThat(extractor().extract(OFFER)).isPresent().get()
-            .extracting(ExtractedFields::isEmpty)
-            .isEqualTo(true);
+        assertThat(extractor().extract(OFFER))
+                .isPresent()
+                .get()
+                .extracting(ExtractedFields::isEmpty)
+                .isEqualTo(true);
     }
 
     @Test
@@ -121,15 +125,16 @@ class FieldExtractorWireFormatTest {
         // The prompt is where this belongs; a stripper in the browser would be a pattern
         // guessing at somebody else's prose.
         assertThat(FieldExtractor.instructions())
-            .contains("is the value, not the row")
-            .contains("printed twice");
+                .contains("is the value, not the row")
+                .contains("printed twice");
     }
 
     @Test
     void dropsAValueItCannotQuoteTheAdvertFor() {
         // A date with no phrase is a date the model inferred. Kept, it would be the one field
         // on the screen nobody can check against the advert beside it.
-        answers("""
+        answers(
+                """
             {"start":{"text":null,"date":"2026-11-01"},
              "duration":{"text":null,"months":12},
              "deadline":{"text":null,"date":"2026-10-01"}}
@@ -144,12 +149,12 @@ class FieldExtractorWireFormatTest {
     @MethodSource("outOfBounds")
     void dropsAValueOutsideTheBoundsAndKeepsTheRest(String duration, String deadline) {
         answers(
-            """
+                """
                 {"start":{"text":"ab sofort","date":null},
                  "duration":{"text":"lange","months":%s},
                  "deadline":{"text":"bald","date":%s}}
                 """
-                .formatted(duration, deadline));
+                        .formatted(duration, deadline));
 
         ExtractedFields fields = extractor().extract(OFFER).orElseThrow();
 
@@ -163,32 +168,32 @@ class FieldExtractorWireFormatTest {
 
     static Stream<Arguments> outOfBounds() {
         return Stream.of(
-            Arguments.of("0", "\"1970-01-01\""),
-            Arguments.of("999", "\"Q4/2026\""),
-            Arguments.of("-3", "\"01.10.2026\""),
-            // The sort keys use this exact day as their "not stated" sentinel, so a stored
-            // one would sort among the offers that said nothing.
-            Arguments.of("1200", "\"" + ShortlistSort.UNSTATED_DAY + "\""));
+                Arguments.of("0", "\"1970-01-01\""),
+                Arguments.of("999", "\"Q4/2026\""),
+                Arguments.of("-3", "\"01.10.2026\""),
+                // The sort keys use this exact day as their "not stated" sentinel, so a stored
+                // one would sort among the offers that said nothing.
+                Arguments.of("1200", "\"" + ShortlistSort.UNSTATED_DAY + "\""));
     }
 
     @Test
     void cutsAPhraseRatherThanLettingTheAdvertComeBackAsOne() {
         String wall = "x".repeat(500);
         answers(
-            """
+                """
                 {"start":{"text":"%s","date":null},
                  "duration":{"text":null,"months":null},
                  "deadline":{"text":null,"date":null}}
                 """
-                .formatted(wall));
+                        .formatted(wall));
 
-        assertThat(extractor().extract(OFFER).orElseThrow().startText())
-            .hasSize(FieldExtractor.MAX_PHRASE);
+        assertThat(extractor().extract(OFFER).orElseThrow().startText()).hasSize(FieldExtractor.MAX_PHRASE);
     }
 
     @Test
     void findsTheObjectInsideAFenceAndInsideAnIntroduction() {
-        answers("""
+        answers(
+                """
             Here is what the advert says:
             ```json
             {"start":{"text":"ab 01.12.2026","date":"2026-12-01"},
@@ -213,28 +218,30 @@ class FieldExtractorWireFormatTest {
 
     private static FieldExtractor extractor() {
         var llm = new PipelineConfig.Llm(
-            ChatModels.OPENAI_COMPATIBLE,
-            MODEL.baseUrl(),
-            "test-key",
-            null,
-            false,
-            new PipelineConfig.Llm.Models(null, "a-model", null, null, null),
-            null);
+                ChatModels.OPENAI_COMPATIBLE,
+                MODEL.baseUrl(),
+                "test-key",
+                null,
+                false,
+                new PipelineConfig.Llm.Models(null, "a-model", null, null, null),
+                null);
         Optional<org.springframework.ai.chat.model.ChatModel> chatModel = new ChatModels().of(llm, "a-model");
         return new FieldExtractor(chatModel.orElseThrow(), "a-model", new ObjectMapper());
     }
 
     private static void answers(String content) {
         MODEL.stubFor(post(urlPathEqualTo("/chat/completions"))
-            .willReturn(aResponse()
-                .withStatus(200)
-                .withHeader("Content-Type", "application/json")
-                .withBody(
-                    """
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(
+                                """
                         {"id":"chat-1","object":"chat.completion","created":1,"model":"a-model",
                          "choices":[{"index":0,"finish_reason":"stop",
                                      "message":{"role":"assistant","content":%s}}]}
                         """
-                        .formatted(new ObjectMapper().valueToTree(content).toString()))));
+                                        .formatted(new ObjectMapper()
+                                                .valueToTree(content)
+                                                .toString()))));
     }
 }

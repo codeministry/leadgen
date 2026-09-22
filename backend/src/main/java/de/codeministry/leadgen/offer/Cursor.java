@@ -52,22 +52,20 @@ record Cursor(ShortlistSort sort, long key, Instant at, long id) {
         String[] parts = raw.split(SEPARATOR);
         if (parts.length != 4) {
             throw new BadShortlistRequest(
-                "this cursor is not one this shortlist wrote; ask for the first page instead");
+                    "this cursor is not one this shortlist wrote; ask for the first page instead");
         }
         ShortlistSort minted = ShortlistSort.of(parts[0]);
         if (minted != sort) {
             throw new BadShortlistRequest(
-                "this cursor was minted for sort=%s and the request asks for sort=%s; the order decides what the cursor's key means, so it cannot be carried across"
-                    .formatted(minted.key(), sort.key()));
+                    "this cursor was minted for sort=%s and the request asks for sort=%s; the order decides what the cursor's key means, so it cannot be carried across"
+                            .formatted(minted.key(), sort.key()));
         }
         try {
             return new Cursor(
-                minted,
-                Long.parseLong(parts[1]),
-                instantOf(Long.parseLong(parts[2])),
-                Long.parseLong(parts[3]));
+                    minted, Long.parseLong(parts[1]), instantOf(Long.parseLong(parts[2])), Long.parseLong(parts[3]));
         } catch (NumberFormatException e) {
-            throw new BadShortlistRequest("this cursor is not one this shortlist wrote; ask for the first page instead");
+            throw new BadShortlistRequest(
+                    "this cursor is not one this shortlist wrote; ask for the first page instead");
         }
     }
 

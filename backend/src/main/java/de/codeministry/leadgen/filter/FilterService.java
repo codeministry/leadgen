@@ -10,13 +10,6 @@ package de.codeministry.leadgen.filter;
 
 import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.config.ConfigSnapshot;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import javax.sql.DataSource;
 import java.sql.Array;
 import java.sql.SQLException;
 import java.time.LocalDate;
@@ -24,6 +17,12 @@ import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
+import javax.sql.DataSource;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Applies {@link HardFilter} to everything stored and records the verdict on each row.
@@ -35,13 +34,15 @@ public class FilterService {
     /**
      * An offer that has never been judged, or was judged under rules that have since changed.
      */
-    private static final String SELECT_ALL = """
+    private static final String SELECT_ALL =
+            """
         SELECT id, title, description, location, tags, published_on
         FROM offer
         ORDER BY id
         """;
 
-    private static final String RECORD_VERDICT = """
+    private static final String RECORD_VERDICT =
+            """
         UPDATE offer SET status = ?, filter_stage = ?, filter_reason = ? WHERE id = ?
         """;
 

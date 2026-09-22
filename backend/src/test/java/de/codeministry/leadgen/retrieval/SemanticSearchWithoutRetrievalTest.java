@@ -8,12 +8,19 @@
  */
 package de.codeministry.leadgen.retrieval;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import de.codeministry.leadgen.Databases;
 import de.codeministry.leadgen.config.ConfigFixtures;
 import de.codeministry.leadgen.ingest.extract.TitleNormalizer;
 import de.codeministry.leadgen.offer.OfferQueryService;
 import de.codeministry.leadgen.offer.RelatedFilter;
 import de.codeministry.leadgen.offer.ShortlistQuery;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,14 +32,6 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
-
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * The shared link that arrives on an installation without the index.
@@ -86,8 +85,8 @@ class SemanticSearchWithoutRetrievalTest {
         offer("Senior Java Entwickler (m/w/d)");
         offer("Angular Entwickler (m/w/d)");
 
-        assertThatThrownBy(() -> offers.shortlist(
-                        ShortlistQuery.first().withRelated(new RelatedFilter("kubernetes", null))))
+        assertThatThrownBy(() ->
+                        offers.shortlist(ShortlistQuery.first().withRelated(new RelatedFilter("kubernetes", null))))
                 .isInstanceOf(SemanticFilter.RetrievalUnavailable.class)
                 .hasMessageContaining("does not search by meaning");
     }

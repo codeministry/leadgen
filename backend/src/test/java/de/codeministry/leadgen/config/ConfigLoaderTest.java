@@ -8,23 +8,22 @@
  */
 package de.codeministry.leadgen.config;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import de.codeministry.leadgen.config.model.PipelineConfig;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
 import jakarta.validation.ValidatorFactory;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
-
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Map;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 class ConfigLoaderTest {
 
@@ -108,13 +107,21 @@ class ConfigLoaderTest {
     void readsTheModelTimeoutAndFallsBackWhenTheKeyIsAbsent() throws IOException {
         // The shipped file names PT120S, because 30 s was a ceiling a local model loading a
         // 20B file cannot meet and no configuration could raise.
-        assertThat(ConfigFixtures.loaderFor(configDir, VALIDATOR).load().application().llm().timeout())
+        assertThat(ConfigFixtures.loaderFor(configDir, VALIDATOR)
+                        .load()
+                        .application()
+                        .llm()
+                        .timeout())
                 .isEqualTo(Duration.ofSeconds(120));
 
         // A configuration written before the key existed is not a broken one.
         rewrite("pipeline.yaml", "  timeout: ${LLM_TIMEOUT:PT120S}\n", "");
 
-        assertThat(ConfigFixtures.loaderFor(configDir, VALIDATOR).load().application().llm().timeout())
+        assertThat(ConfigFixtures.loaderFor(configDir, VALIDATOR)
+                        .load()
+                        .application()
+                        .llm()
+                        .timeout())
                 .isEqualTo(PipelineConfig.Llm.DEFAULT_TIMEOUT);
     }
 
@@ -256,7 +263,10 @@ class ConfigLoaderTest {
     void rejectsADedicatedSourceInAFolderAnotherEnabledSourceReads() throws IOException {
         // The loss this one prevents is the silent kind: the dedicated source flags the
         // other's mail as taken before that source has run, and the run reports zero.
-        rewrite("sources.yaml", "id: sample-newsletter\n    enabled: false", "id: sample-newsletter\n    enabled: true");
+        rewrite(
+                "sources.yaml",
+                "id: sample-newsletter\n    enabled: false",
+                "id: sample-newsletter\n    enabled: true");
         rewrite(
                 "sources.yaml",
                 "id: sample-direct-enquiry\n    enabled: false",

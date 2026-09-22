@@ -33,11 +33,10 @@ import java.time.Instant;
  *                      can be reloaded underneath it.
  */
 public record CurrentRunView(
-    long id,
-    Instant startedAt,
-    String scoreModel,
-    String stage,
-    Integer stagePosition,
-    Integer stageTotal,
-    Instant stageStartedAt) {
-}
+        long id,
+        Instant startedAt,
+        String scoreModel,
+        String stage,
+        Integer stagePosition,
+        Integer stageTotal,
+        Instant stageStartedAt) {}

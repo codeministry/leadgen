@@ -21,13 +21,6 @@ import jakarta.mail.search.FlagTerm;
 import jakarta.mail.search.FromStringTerm;
 import jakarta.mail.search.OrTerm;
 import jakarta.mail.search.SearchTerm;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.BeanFactory;
-import org.springframework.integration.mail.inbound.ImapMailReceiver;
-import org.springframework.integration.mail.inbound.SearchTermStrategy;
-import org.springframework.stereotype.Component;
-
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -39,6 +32,12 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Properties;
 import java.util.regex.Pattern;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.BeanFactory;
+import org.springframework.integration.mail.inbound.ImapMailReceiver;
+import org.springframework.integration.mail.inbound.SearchTermStrategy;
+import org.springframework.stereotype.Component;
 
 /**
  * Reads newsletter mails from an IMAP mailbox, through Spring Integration's
@@ -238,8 +237,7 @@ public class ImapSourceConnector implements SourceConnector {
         if (selector == null || selector.from() == null || selector.from().isEmpty()) {
             return null;
         }
-        SearchTerm[] senders =
-                selector.from().stream().map(FromStringTerm::new).toArray(SearchTerm[]::new);
+        SearchTerm[] senders = selector.from().stream().map(FromStringTerm::new).toArray(SearchTerm[]::new);
         return senders.length == 1 ? senders[0] : new OrTerm(senders);
     }
 

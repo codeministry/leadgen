@@ -132,10 +132,12 @@ public enum ShortlistSort {
             return SCORE;
         }
         return Arrays.stream(values())
-            .filter(sort -> sort.key.equalsIgnoreCase(name.trim()))
-            .findFirst()
-            .orElseThrow(() -> new BadShortlistRequest("'%s' is not a sort this shortlist offers; it has %s"
-                .formatted(name, Arrays.stream(values()).map(ShortlistSort::key).collect(Collectors.joining(", ")))));
+                .filter(sort -> sort.key.equalsIgnoreCase(name.trim()))
+                .findFirst()
+                .orElseThrow(() -> new BadShortlistRequest("'%s' is not a sort this shortlist offers; it has %s"
+                        .formatted(
+                                name,
+                                Arrays.stream(values()).map(ShortlistSort::key).collect(Collectors.joining(", ")))));
     }
 
     /**
@@ -187,8 +189,7 @@ public enum ShortlistSort {
      * same expression the {@code ORDER BY} is, so the two cannot disagree.
      */
     String pageClause() {
-        return " AND (%s, o.ingested_at, o.id) %s (:cKey, :cAt, :cId)\n"
-            .formatted(expression(), direction.comparison);
+        return " AND (%s, o.ingested_at, o.id) %s (:cKey, :cAt, :cId)\n".formatted(expression(), direction.comparison);
     }
 
     private enum Direction {

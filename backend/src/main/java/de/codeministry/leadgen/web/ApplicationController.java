@@ -10,14 +10,13 @@ package de.codeministry.leadgen.web;
 
 import de.codeministry.leadgen.application.*;
 import jakarta.validation.Valid;
-import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.*;
-
 import java.util.Arrays;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.*;
 
 /**
  * The first write endpoint in this application, and deliberately a small one: it records
@@ -59,11 +58,11 @@ class ApplicationController {
     @GetMapping("/transitions")
     Map<ApplicationStatus, List<ApplicationStatus>> transitions() {
         return Arrays.stream(ApplicationStatus.values())
-            .collect(Collectors.toMap(
-                status -> status,
-                ApplicationStatus::allowedNext,
-                (first, second) -> first,
-                () -> new EnumMap<>(ApplicationStatus.class)));
+                .collect(Collectors.toMap(
+                        status -> status,
+                        ApplicationStatus::allowedNext,
+                        (first, second) -> first,
+                        () -> new EnumMap<>(ApplicationStatus.class)));
     }
 
     @GetMapping("/{id}/history")

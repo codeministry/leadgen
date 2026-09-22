@@ -11,11 +11,6 @@ package de.codeministry.leadgen.digest;
 import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.config.model.MatchingRules;
 import de.codeministry.leadgen.config.model.PipelineConfig;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.stereotype.Service;
-
-import javax.sql.DataSource;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.math.BigDecimal;
@@ -24,6 +19,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.List;
+import javax.sql.DataSource;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.stereotype.Service;
 
 /**
  * The morning's one page, rendered to a file.
@@ -42,7 +41,8 @@ import java.util.List;
 @Service
 public class DigestService {
 
-    private static final String OFFERS = """
+    private static final String OFFERS =
+            """
         SELECT o.id, o.title, o.location, o.portal, o.agency, o.url, o.rate_eur,
                o.duration, o.score_value, o.score_band, o.enrichment_note
         FROM offer o
@@ -211,7 +211,7 @@ public class DigestService {
                 // The same pair every link to the original ad carries in the frontend.
                 out.append("<article><p><span class=\"score\">")
                         .append(offer.score() == null ? "&mdash;" : offer.score())
-                    .append("</span> <a target=\"_blank\" rel=\"noopener noreferrer\" href=\"")
+                        .append("</span> <a target=\"_blank\" rel=\"noopener noreferrer\" href=\"")
                         .append(escape(offer.url()))
                         .append("\">")
                         .append(escape(offer.title()))

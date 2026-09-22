@@ -8,6 +8,11 @@
  */
 package de.codeministry.leadgen.ingest;
 
+import static org.assertj.core.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.*;
+
 import de.codeministry.leadgen.analytics.PipelineRunRecorder;
 import de.codeministry.leadgen.application.ApplicationService;
 import de.codeministry.leadgen.application.OpenReport;
@@ -38,17 +43,11 @@ import de.codeministry.leadgen.retrieval.RetrievalIndexService;
 import de.codeministry.leadgen.retrieval.RetrievalReport;
 import de.codeministry.leadgen.score.ScoringReport;
 import de.codeministry.leadgen.score.ScoringService;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-
-import static org.assertj.core.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /**
  * The order of the pipeline, pinned as a contract rather than as a comment.
@@ -116,11 +115,11 @@ class IngestOrderTest {
                 filter,
                 archive,
                 enrich,
-            content,
-            fields,
+                content,
+                fields,
                 scoring,
                 retrieval,
-            applications,
+                applications,
                 packaging,
                 digest,
                 history);
@@ -161,8 +160,8 @@ class IngestOrderTest {
     void runsTheStagesInTheOrderTheirPlacementIsArguedFor() {
         service.run("some-model");
 
-        var order =
-            inOrder(scoring, dedupe, filter, archive, enrich, content, fields, applications, packaging, digest, history);
+        var order = inOrder(
+                scoring, dedupe, filter, archive, enrich, content, fields, applications, packaging, digest, history);
         // The model check is first because scoring is last: checked only where it is used,
         // an unknown name is refused after a whole pass has already been paid for.
         order.verify(scoring).checkModel("some-model");
@@ -207,18 +206,18 @@ class IngestOrderTest {
         // on walks the whole working list. In front of the judge that backfill spends the day
         // and the shortlist goes unjudged.
         assertThat(names.getAllValues())
-            .containsExactly(
-                "DEDUPE",
-                "FILTER",
-                "ARCHIVE",
-                "ENRICH",
-                "CONTENT",
-                "FIELDS",
-                "SCORE",
-                "RETRIEVAL",
-                "OPEN",
-                "PACKAGE",
-                "DIGEST");
+                .containsExactly(
+                        "DEDUPE",
+                        "FILTER",
+                        "ARCHIVE",
+                        "ENRICH",
+                        "CONTENT",
+                        "FIELDS",
+                        "SCORE",
+                        "RETRIEVAL",
+                        "OPEN",
+                        "PACKAGE",
+                        "DIGEST");
         assertThat(names.getAllValues()).hasSize(IngestService.GLOBAL_STAGES);
         assertThat(positions.getAllValues()).containsExactly(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11);
         verify(history).start(any(), any(), org.mockito.ArgumentMatchers.eq(IngestService.GLOBAL_STAGES));

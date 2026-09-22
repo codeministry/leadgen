@@ -12,15 +12,14 @@ import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.filter.FilterStage;
 import de.codeministry.leadgen.ingest.IngestReport;
 import de.codeministry.leadgen.score.Judges;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.stereotype.Service;
-
-import javax.sql.DataSource;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalLong;
+import javax.sql.DataSource;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.stereotype.Service;
 
 /**
  * Writes down what a run did, at the moment it is still true.
@@ -38,7 +37,8 @@ import java.util.OptionalLong;
 @Service
 public class PipelineRunRecorder {
 
-    private static final String INSERT = """
+    private static final String INSERT =
+            """
         INSERT INTO pipeline_run (
             started_at, ruleset_version, score_model, status,
             documents, extracted, written, merged,
@@ -59,7 +59,8 @@ public class PipelineRunRecorder {
      * still going, which is what bounds {@code source_run} correctly. See
      * {@code V15__pipeline_run_starts_open.sql}.
      */
-    private static final String OPEN = """
+    private static final String OPEN =
+            """
         INSERT INTO pipeline_run (
             started_at, ruleset_version, score_model, status, stage_total,
             documents, extracted, written, merged,
@@ -71,7 +72,8 @@ public class PipelineRunRecorder {
         RETURNING id
         """;
 
-    private static final String CLOSE = """
+    private static final String CLOSE =
+            """
         UPDATE pipeline_run SET
             finished_at = now(), ruleset_version = ?, score_model = ?, status = ?,
             documents = ?, extracted = ?, written = ?, merged = ?,
@@ -85,7 +87,8 @@ public class PipelineRunRecorder {
     private static final String INSERT_STAGE =
             "INSERT INTO pipeline_run_stage (run_id, stage, removed) VALUES (?, ?, ?)";
 
-    private static final String INSERT_TIMING = """
+    private static final String INSERT_TIMING =
+            """
         INSERT INTO pipeline_stage (run_id, position, stage, started_at, ended_at, status, note)
         VALUES (?, ?, ?, ?, ?, ?, ?)
         """;
@@ -96,7 +99,8 @@ public class PipelineRunRecorder {
      * is on for a run or it is not, and there is one operator: two rows awaiting a batch at
      * once would mean two runs overlapping, which nothing here can produce.
      */
-    private static final String COMPLETE_AWAITING = """
+    private static final String COMPLETE_AWAITING =
+            """
         UPDATE pipeline_run
         SET status = 'COMPLETE', finished_at = now(), packaged = ?, digest_written = ?,
             scored = scored + ?,
@@ -145,7 +149,8 @@ public class PipelineRunRecorder {
         return choices.isEmpty() ? null : choices.getFirst();
     }
 
-    private static final String ABANDON = """
+    private static final String ABANDON =
+            """
         UPDATE pipeline_run
         SET status = 'ABANDONED', finished_at = now()
         WHERE finished_at IS NULL
@@ -199,8 +204,8 @@ public class PipelineRunRecorder {
                     .params(
                             java.sql.Timestamp.from(startedAt),
                             String.valueOf(config.snapshot().rules().version()),
-                        effectiveModel(scoreModel),
-                        stageTotal)
+                            effectiveModel(scoreModel),
+                            stageTotal)
                     .query(Long.class)
                     .single();
             return OptionalLong.of(id);
@@ -210,7 +215,8 @@ public class PipelineRunRecorder {
         }
     }
 
-    private static final String MARK = """
+    private static final String MARK =
+            """
         UPDATE pipeline_run
         SET stage = ?, stage_position = ?, stage_started_at = now()
         WHERE id = ? AND finished_at IS NULL

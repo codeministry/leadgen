@@ -13,14 +13,13 @@ import de.codeministry.leadgen.config.model.PipelineConfig;
 import de.codeministry.leadgen.llm.EmbeddingModels;
 import de.codeministry.leadgen.llm.LlmBudget;
 import de.codeministry.leadgen.llm.Vectors;
+import java.util.List;
+import javax.sql.DataSource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.ai.embedding.EmbeddingRequest;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
-
-import javax.sql.DataSource;
-import java.util.List;
 
 /**
  * Gives every offer in the deduplication window a vector, once.
@@ -158,8 +157,8 @@ public class OfferEmbedder {
         List<float[]> vectors;
         try {
             vectors = embeddings.call(new EmbeddingRequest(texts, null)).getResults().stream()
-                .map(result -> result.getOutput())
-                .toList();
+                    .map(result -> result.getOutput())
+                    .toList();
         } catch (RuntimeException e) {
             log.warn("Embedding {} offers failed: {}", batch.size(), e.getMessage());
             return 0;
@@ -174,28 +173,28 @@ public class OfferEmbedder {
             float[] vector = vectors.get(index);
             if (vector.length < DIMENSIONS) {
                 log.warn(
-                    "Model '{}' returns {}-dimensional vectors and the offer.embedding column holds {}."
-                        + " Configure a model of at least {} dimensions in llm.models.embedding,"
-                        + " or nothing is compared.",
-                    model,
-                    vector.length,
-                    DIMENSIONS,
-                    DIMENSIONS);
+                        "Model '{}' returns {}-dimensional vectors and the offer.embedding column holds {}."
+                                + " Configure a model of at least {} dimensions in llm.models.embedding,"
+                                + " or nothing is compared.",
+                        model,
+                        vector.length,
+                        DIMENSIONS,
+                        DIMENSIONS);
                 return -1;
             }
             if (vector.length > DIMENSIONS && saidTruncating.compareAndSet(false, true)) {
                 log.info(
-                    "Model '{}' returns {} dimensions; the leading {} are stored, which is the widest"
-                        + " vector pgvector will index.",
-                    model,
-                    vector.length,
-                    DIMENSIONS);
+                        "Model '{}' returns {} dimensions; the leading {} are stored, which is the widest"
+                                + " vector pgvector will index.",
+                        model,
+                        vector.length,
+                        DIMENSIONS);
             }
             jdbc.sql("UPDATE offer SET embedding = CAST(:vector AS vector), embedding_model = :model WHERE id = :id")
-                .param("vector", literal(narrowed(vector)))
-                .param("model", model)
-                .param("id", batch.get(index).id())
-                .update();
+                    .param("vector", literal(narrowed(vector)))
+                    .param("model", model)
+                    .param("id", batch.get(index).id())
+                    .update();
             written++;
         }
         return written;
@@ -203,7 +202,7 @@ public class OfferEmbedder {
 
     private List<Pending> pending(int ttlDays, String model) {
         return jdbc.sql(
-                """
+                        """
                     SELECT id, title, location, description
                       FROM offer
                      WHERE ingested_at >= now() - make_interval(days => :ttl)
@@ -212,12 +211,12 @@ public class OfferEmbedder {
                        AND (embedding IS NULL OR embedding_model IS DISTINCT FROM :model)
                      ORDER BY id
                     """)
-            .param("ttl", ttlDays)
-            .param("model", model)
-            .query((rs, row) -> new Pending(
-                rs.getLong("id"),
-                text(rs.getString("title"), rs.getString("location"), rs.getString("description"))))
-            .list();
+                .param("ttl", ttlDays)
+                .param("model", model)
+                .query((rs, row) -> new Pending(
+                        rs.getLong("id"),
+                        text(rs.getString("title"), rs.getString("location"), rs.getString("description"))))
+                .list();
     }
 
     /**
@@ -236,7 +235,7 @@ public class OfferEmbedder {
         if (description != null && !description.isBlank()) {
             String opening = description.strip();
             text.append('\n')
-                .append(opening.length() <= DESCRIPTION_CHARS ? opening : opening.substring(0, DESCRIPTION_CHARS));
+                    .append(opening.length() <= DESCRIPTION_CHARS ? opening : opening.substring(0, DESCRIPTION_CHARS));
         }
         return text.toString();
     }
@@ -251,6 +250,5 @@ public class OfferEmbedder {
         return Vectors.literal(vector);
     }
 
-    private record Pending(long id, String text) {
-    }
+    private record Pending(long id, String text) {}
 }

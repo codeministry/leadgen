@@ -53,22 +53,22 @@ public record ScoreFilter(String band, Integer min, Integer max, ScoreState stat
         boolean ranged = min != null || max != null;
         if (band != null && ranged) {
             throw new BadShortlistRequest(
-                "a band and a score range are two spellings of one filter; ask for band=%s or for a range, not both"
-                    .formatted(band));
+                    "a band and a score range are two spellings of one filter; ask for band=%s or for a range, not both"
+                            .formatted(band));
         }
         if (band != null && state != ScoreState.ANY) {
             throw new BadShortlistRequest(
-                "band=%s and scoreState=%s cannot both hold: a band is a range of scores, so it already says an offer has one"
-                    .formatted(band, state.key()));
+                    "band=%s and scoreState=%s cannot both hold: a band is a range of scores, so it already says an offer has one"
+                            .formatted(band, state.key()));
         }
         if (ranged && state != ScoreState.ANY) {
             throw new BadShortlistRequest(
-                "a score range and scoreState=%s cannot both hold: a range already says an offer has a score"
-                    .formatted(state.key()));
+                    "a score range and scoreState=%s cannot both hold: a range already says an offer has a score"
+                            .formatted(state.key()));
         }
         if (ranged && min != null && max != null && min > max) {
             throw new BadShortlistRequest(
-                "minScore=%d is above maxScore=%d, so nothing can match it".formatted(min, max));
+                    "minScore=%d is above maxScore=%d, so nothing can match it".formatted(min, max));
         }
     }
 

@@ -22,12 +22,6 @@ import freemarker.template.Configuration;
 import freemarker.template.Template;
 import freemarker.template.TemplateException;
 import freemarker.template.TemplateExceptionHandler;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import javax.sql.DataSource;
 import java.io.IOException;
 import java.io.StringReader;
 import java.io.StringWriter;
@@ -43,6 +37,11 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.regex.Pattern;
+import javax.sql.DataSource;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Assembles the folder an application is sent from — by hand, by a person, later.
@@ -81,7 +80,8 @@ public class PackagingService {
      * <p>{@code packaged_at IS NULL} still carries "not built yet", so a restored offer whose
      * folder survived the archive is not rebuilt.
      */
-    private static final String REQUESTED = """
+    private static final String REQUESTED =
+            """
         SELECT id, title, description, full_text, url, location, portal, agency, tags,
                published_on, rate_eur, duration, workload, remote_percent, starts_on, contact,
                score_value, score_band, score_model, enrichment_note, content_blocks,
@@ -169,56 +169,56 @@ public class PackagingService {
      * the fourth, and now it is the same one.
      */
     private record Due(
-        long id,
-        String title,
-        String description,
-        String fullText,
-        String url,
-        String location,
-        String portal,
-        String agency,
-        List<String> tags,
-        LocalDate publishedOn,
-        BigDecimal rateEur,
-        String duration,
-        String workload,
-        Integer remotePercent,
-        LocalDate startsOn,
-        String contact,
-        Integer scoreValue,
-        String scoreBand,
-        String scoreModel,
-        String enrichmentNote,
-        String contentBlocks,
-        String retrievalEmbedding) {
+            long id,
+            String title,
+            String description,
+            String fullText,
+            String url,
+            String location,
+            String portal,
+            String agency,
+            List<String> tags,
+            LocalDate publishedOn,
+            BigDecimal rateEur,
+            String duration,
+            String workload,
+            Integer remotePercent,
+            LocalDate startsOn,
+            String contact,
+            Integer scoreValue,
+            String scoreBand,
+            String scoreModel,
+            String enrichmentNote,
+            String contentBlocks,
+            String retrievalEmbedding) {
 
         static Due of(ResultSet rs, int row) throws SQLException {
             return new Due(
-                rs.getLong("id"),
-                rs.getString("title"),
-                rs.getString("description"),
-                rs.getString("full_text"),
-                rs.getString("url"),
-                rs.getString("location"),
-                rs.getString("portal"),
-                rs.getString("agency"),
-                tags(rs),
-                rs.getObject("published_on", LocalDate.class),
-                rs.getBigDecimal("rate_eur"),
-                rs.getString("duration"),
-                rs.getString("workload"),
-                (Integer) rs.getObject("remote_percent"),
-                rs.getObject("starts_on", LocalDate.class),
-                rs.getString("contact"),
-                (Integer) rs.getObject("score_value"),
-                rs.getString("score_band"),
-                rs.getString("score_model"),
-                rs.getString("enrichment_note"),
-                rs.getString("content_blocks"),
-                // A `vector` column comes back as text, the way it went in. Read with
-                // `getString` and never through `listOfRows()`, where the driver hands over a
-                // `PGobject` and the cast that looks right is a 500.
-                rs.getString("retrieval_embedding"));
+                    rs.getLong("id"),
+                    rs.getString("title"),
+                    rs.getString("description"),
+                    rs.getString("full_text"),
+                    rs.getString("url"),
+                    rs.getString("location"),
+                    rs.getString("portal"),
+                    rs.getString("agency"),
+                    tags(rs),
+                    rs.getObject("published_on", LocalDate.class),
+                    rs.getBigDecimal("rate_eur"),
+                    rs.getString("duration"),
+                    rs.getString("workload"),
+                    (Integer) rs.getObject("remote_percent"),
+                    rs.getObject("starts_on", LocalDate.class),
+                    rs.getString("contact"),
+                    (Integer) rs.getObject("score_value"),
+                    rs.getString("score_band"),
+                    rs.getString("score_model"),
+                    rs.getString("enrichment_note"),
+                    rs.getString("content_blocks"),
+                    // A `vector` column comes back as text, the way it went in. Read with
+                    // `getString` and never through `listOfRows()`, where the driver hands over a
+                    // `PGobject` and the cast that looks right is a 500.
+                    rs.getString("retrieval_embedding"));
         }
 
         private static List<String> tags(ResultSet rs) throws SQLException {
@@ -336,7 +336,11 @@ public class PackagingService {
         // Views and not the profile's own records: the language is decided once, here,
         // rather than by each template guessing which of two title and two pitch fields
         // it wants. Both letters then read identically.
-        model.put("projects", projects.stream().map(project -> ProjectView.of(project, language)).toList());
+        model.put(
+                "projects",
+                projects.stream()
+                        .map(project -> ProjectView.of(project, language))
+                        .toList());
         model.put("matchedSkills", matchedSkills);
         // `offer.startsOn` is a LocalDate and Freemarker renders one as ISO, which reads as
         // a machine's date in a sentence written for a person. The archive keeps the ISO
@@ -355,7 +359,7 @@ public class PackagingService {
         }
 
         jdbc.sql("UPDATE offer SET package_dir = ?, packaged_at = now(), language = ? WHERE id = ?")
-            .params(folder.toString(), language, row.id())
+                .params(folder.toString(), language, row.id())
                 .update();
 
         // A no-op on the normal path: the PACKAGED application is what asked for this
@@ -460,7 +464,7 @@ public class PackagingService {
         meta.put(
                 "reasons",
                 jdbc.sql("SELECT factor, label, points FROM offer_score_reason WHERE offer_id = ? ORDER BY position")
-                    .param(row.id())
+                        .param(row.id())
                         .query()
                         .listOfRows());
         meta.put("matchedSkills", matchedSkills);
@@ -472,7 +476,7 @@ public class PackagingService {
         meta.put(
                 "sources",
                 jdbc.sql("SELECT portal, agency, url FROM offer WHERE id = ? OR duplicate_of_id = ?")
-                    .params(row.id(), row.id())
+                        .params(row.id(), row.id())
                         .query()
                         .listOfRows());
 
@@ -497,7 +501,9 @@ public class PackagingService {
                 profile,
                 project -> project.stack() == null
                         ? 0
-                        : project.stack().stream().filter(s -> names(haystack, s)).count(),
+                        : project.stack().stream()
+                                .filter(s -> names(haystack, s))
+                                .count(),
                 Vectors.parse(row.retrievalEmbedding()),
                 profileEmbeddings.forLanguage(profile, language),
                 REFERENCES);
@@ -522,8 +528,8 @@ public class PackagingService {
      */
     private static String haystack(Due row) {
         String advert = ContentText.of(row.contentBlocks(), row.fullText() == null ? "" : row.fullText());
-        return TextFold.fold("%s %s %s"
-            .formatted(row.title(), row.description() == null ? "" : row.description(), advert));
+        return TextFold.fold(
+                "%s %s %s".formatted(row.title(), row.description() == null ? "" : row.description(), advert));
     }
 
     private static boolean names(String haystack, String keyword) {
@@ -565,18 +571,18 @@ public class PackagingService {
             return null;
         }
         return "en".equalsIgnoreCase(language)
-            ? startsOn.format(DateTimeFormatter.ofPattern("d MMMM yyyy", Locale.ENGLISH))
-            : startsOn.format(DateTimeFormatter.ofPattern("dd.MM.yyyy", Locale.GERMAN));
+                ? startsOn.format(DateTimeFormatter.ofPattern("d MMMM yyyy", Locale.ENGLISH))
+                : startsOn.format(DateTimeFormatter.ofPattern("dd.MM.yyyy", Locale.GERMAN));
     }
 
     private static String folderName(String naming, Due row) {
         String date = row.publishedOn() == null
-            ? LocalDate.now().toString()
-            : row.publishedOn().toString();
+                ? LocalDate.now().toString()
+                : row.publishedOn().toString();
         return naming.replace("{date}", date)
-            .replace("{company}", safe(row.agency() == null ? "unknown" : row.agency()))
-            .replace("{slug}", safe(String.valueOf(row.title())))
-            .replace("{id}", String.valueOf(row.id()));
+                .replace("{company}", safe(row.agency() == null ? "unknown" : row.agency()))
+                .replace("{slug}", safe(String.valueOf(row.title())))
+                .replace("{id}", String.valueOf(row.id()));
     }
 
     private static String safe(String value) {

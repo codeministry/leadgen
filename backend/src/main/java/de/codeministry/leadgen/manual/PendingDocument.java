@@ -9,7 +9,6 @@
 package de.codeministry.leadgen.manual;
 
 import de.codeministry.leadgen.ingest.ExtractedOffer;
-
 import java.time.Instant;
 import java.util.List;
 

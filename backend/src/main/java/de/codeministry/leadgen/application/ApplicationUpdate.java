@@ -9,7 +9,6 @@
 package de.codeministry.leadgen.application;
 
 import jakarta.validation.constraints.NotNull;
-
 import java.time.LocalDate;
 
 /**

@@ -8,10 +8,17 @@
  */
 package de.codeministry.leadgen.manual;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import de.codeministry.leadgen.Databases;
 import de.codeministry.leadgen.ingest.extract.ExtractionFallback;
 import de.codeministry.leadgen.ingest.extract.LlmExtractor;
 import de.codeministry.leadgen.ingest.extract.OfferMapper;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,14 +33,6 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
-
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.*;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * The review queue: an upload waits in `pending/` until somebody confirms it, and the file
@@ -58,8 +57,7 @@ class ManualUploadServiceTest {
         /**
          * How often the model was asked, which is the whole point of the reading cache.
          */
-        static final java.util.concurrent.atomic.AtomicInteger ASKED =
-            new java.util.concurrent.atomic.AtomicInteger();
+        static final java.util.concurrent.atomic.AtomicInteger ASKED = new java.util.concurrent.atomic.AtomicInteger();
 
         @Bean
         @Primary
@@ -72,20 +70,21 @@ class ManualUploadServiceTest {
 
         private static Optional<LlmExtractor.Reading> reading(String document) {
             return Optional.of(new LlmExtractor.Reading(
-                new LinkedHashMap<>(Map.of(
-                    OfferMapper.TITLE,
-                    "Java-Entwickler",
-                    OfferMapper.LOCATION,
-                    "Remote",
-                    OfferMapper.DESCRIPTION,
-                    document)),
-                Set.of(OfferMapper.TITLE, OfferMapper.LOCATION)));
+                    new LinkedHashMap<>(Map.of(
+                            OfferMapper.TITLE,
+                            "Java-Entwickler",
+                            OfferMapper.LOCATION,
+                            "Remote",
+                            OfferMapper.DESCRIPTION,
+                            document)),
+                    Set.of(OfferMapper.TITLE, OfferMapper.LOCATION)));
         }
     }
 
     private static final String PASTED = "Wir suchen ab sofort einen Java-Entwickler. Remote möglich.";
 
-    private static final String DOCUMENT = """
+    private static final String DOCUMENT =
+            """
         ---
         title: Senior Java Entwickler (m/w/d)
         url: https://portal.example/p/12345
@@ -202,9 +201,8 @@ class ManualUploadServiceTest {
         uploads.store("gepasted.md", PASTED.getBytes(StandardCharsets.UTF_8));
 
         uploads.confirm(
-            "gepasted.md",
-            new ManualOfferFields(
-                "Java-Entwickler", null, PASTED, "Remote", null, null, null, List.of()));
+                "gepasted.md",
+                new ManualOfferFields("Java-Entwickler", null, PASTED, "Remote", null, null, null, List.of()));
 
         Path moved = inbox.inbox().orElseThrow().resolve("gepasted.md");
         assertThat(moved).content().doesNotContain("fromModel").doesNotContain("llm");
@@ -214,10 +212,12 @@ class ManualUploadServiceTest {
     void namesTheOfferAlreadyInThePipelineBeforeTheConfirmAndNotAfter() {
         long sourceId = jdbc.queryForObject(
                 "INSERT INTO source (name, kind) VALUES ('portal-a', 'rss') RETURNING id", Long.class);
-        jdbc.update("""
+        jdbc.update(
+                """
             INSERT INTO offer (source_id, external_id, title, fingerprint, status)
             VALUES (?, 'x', 'Senior Java Entwickler (m/w/d)', 'senior java entwickler', 'INGESTED')
-            """, sourceId);
+            """,
+                sourceId);
 
         var stored = uploads.store("offer.md", DOCUMENT.getBytes(StandardCharsets.UTF_8));
 

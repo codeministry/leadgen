@@ -8,8 +8,16 @@
  */
 package de.codeministry.leadgen.security;
 
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.when;
+
 import de.codeministry.leadgen.Databases;
 import de.codeministry.leadgen.config.ConfigFixtures;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.Instant;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -17,9 +25,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.security.oauth2.jwt.BadJwtException;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
-import org.springframework.security.oauth2.jwt.BadJwtException;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -27,15 +35,6 @@ import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
-
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.time.Instant;
-
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.when;
 
 /**
  * The two modes of {@code security.auth}, and the line between them.
@@ -129,9 +128,7 @@ class SecurityConfigTest {
             // kind, and it should not look to a caller like a rejected token.
             when(decoder.decode(anyString())).thenThrow(new BadJwtException("signature"));
 
-            Assertions.assertThat(mvc.get()
-                            .uri("/api/v1/status")
-                            .header("Authorization", "Bearer forged"))
+            Assertions.assertThat(mvc.get().uri("/api/v1/status").header("Authorization", "Bearer forged"))
                     .hasStatus(401);
         }
 
@@ -139,9 +136,7 @@ class SecurityConfigTest {
         void letsAVerifiedTokenThrough() {
             when(decoder.decode(anyString())).thenReturn(verified());
 
-            Assertions.assertThat(mvc.get()
-                            .uri("/api/v1/status")
-                            .header("Authorization", "Bearer good"))
+            Assertions.assertThat(mvc.get().uri("/api/v1/status").header("Authorization", "Bearer good"))
                     .hasStatusOk();
         }
 

@@ -39,8 +39,7 @@ public final class MarkdownBlocks {
     private static final Pattern FENCE = Pattern.compile("^ {0,3}(`{3,}|~{3,})");
     private static final Pattern BREAK = Pattern.compile("^ {0,3}(?:-{3,}|\\*{3,}|_{3,})\\s*$");
 
-    private MarkdownBlocks() {
-    }
+    private MarkdownBlocks() {}
 
     /**
      * The blocks of {@code markdown}, in order, with no empty ones.
@@ -75,7 +74,9 @@ public final class MarkdownBlocks {
                 continue;
             }
 
-            if (line.isBlank() || HEADING.matcher(line).find() || BREAK.matcher(line).find()) {
+            if (line.isBlank()
+                    || HEADING.matcher(line).find()
+                    || BREAK.matcher(line).find()) {
                 flush(blocks, current);
                 previousWasListItem = false;
                 if (!line.isBlank()) {

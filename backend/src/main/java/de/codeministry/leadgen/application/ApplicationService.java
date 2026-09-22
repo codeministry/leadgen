@@ -8,18 +8,17 @@
  */
 package de.codeministry.leadgen.application;
 
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import javax.sql.DataSource;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import javax.sql.DataSource;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * The half of the loop the system cannot observe.
@@ -34,7 +33,8 @@ import java.util.Optional;
 @Service
 public class ApplicationService {
 
-    private static final String SELECT = """
+    private static final String SELECT =
+            """
         SELECT a.id, a.offer_id, a.status, a.sent_on, a.follow_up_on, a.outcome, a.note,
                a.updated_at, o.title, o.agency, o.portal, o.url, o.score_value, o.rate_eur,
                o.package_dir
@@ -49,7 +49,8 @@ public class ApplicationService {
      * here — {@link ApplicationStatus#isLive()} exempts it — so what this hides is something a
      * person archived by hand, which is the clearest statement available that it is done with.
      */
-    private static final String BOARD = SELECT + """
+    private static final String BOARD = SELECT
+            + """
         WHERE o.archived_at IS NULL
         ORDER BY o.score_value DESC NULLS LAST, a.updated_at DESC
         """;
@@ -77,7 +78,8 @@ public class ApplicationService {
      * hundred rows after a first run, and the event row per opened application is the same
      * write either way.
      */
-    private static final String OPEN_SHORTLISTED = """
+    private static final String OPEN_SHORTLISTED =
+            """
         WITH opened AS (
             INSERT INTO application (offer_id, status)
             SELECT o.id, 'NEW'
@@ -96,7 +98,8 @@ public class ApplicationService {
     /**
      * How many offers the shortlist holds, whether or not they already have a card.
      */
-    private static final String SHORTLIST_STANDING = """
+    private static final String SHORTLIST_STANDING =
+            """
         SELECT count(*) FROM offer o
         WHERE o.status = 'PASSED'
           AND o.duplicate_of_id IS NULL
@@ -129,24 +132,24 @@ public class ApplicationService {
         LocalDate followUp = rs.getObject("follow_up_on", LocalDate.class);
         var status = ApplicationStatus.valueOf(rs.getString("status"));
         return new ApplicationView(
-            rs.getLong("id"),
-            rs.getLong("offer_id"),
-            status,
-            rs.getString("title"),
-            rs.getString("agency"),
-            rs.getString("portal"),
-            rs.getString("url"),
-            rs.getObject("score_value", Integer.class),
-            rs.getObject("rate_eur", java.math.BigDecimal.class),
-            rs.getString("package_dir"),
-            rs.getObject("sent_on", LocalDate.class),
-            followUp,
-            // Closed applications never chase: a lost project with a stale reminder
-            // is how a follow-up list stops being read.
-            followUp != null && !status.isClosed() && !followUp.isAfter(LocalDate.now()),
-            rs.getString("outcome"),
-            rs.getString("note"),
-            instant(rs, "updated_at"));
+                rs.getLong("id"),
+                rs.getLong("offer_id"),
+                status,
+                rs.getString("title"),
+                rs.getString("agency"),
+                rs.getString("portal"),
+                rs.getString("url"),
+                rs.getObject("score_value", Integer.class),
+                rs.getObject("rate_eur", java.math.BigDecimal.class),
+                rs.getString("package_dir"),
+                rs.getObject("sent_on", LocalDate.class),
+                followUp,
+                // Closed applications never chase: a lost project with a stale reminder
+                // is how a follow-up list stops being read.
+                followUp != null && !status.isClosed() && !followUp.isAfter(LocalDate.now()),
+                rs.getString("outcome"),
+                rs.getString("note"),
+                instant(rs, "updated_at"));
     }
 
     /**
@@ -247,7 +250,8 @@ public class ApplicationService {
         }
         String outcome = withdrawn ? null : (update.outcome() != null ? update.outcome() : before.outcome());
 
-        jdbc.sql("""
+        jdbc.sql(
+                        """
             UPDATE application
             SET status = ?, sent_on = ?, follow_up_on = ?, outcome = ?, note = ?, updated_at = now()
             WHERE id = ?
@@ -256,7 +260,7 @@ public class ApplicationService {
                         update.status().name(),
                         sentOn,
                         followUp,
-                    outcome,
+                        outcome,
                         update.note() != null ? update.note() : before.note(),
                         id)
                 .update();
@@ -277,7 +281,8 @@ public class ApplicationService {
     }
 
     public List<ApplicationEvent> history(long id) {
-        return jdbc.sql("""
+        return jdbc.sql(
+                        """
             SELECT from_status, to_status, note, recorded_at
             FROM application_event WHERE application_id = ? ORDER BY recorded_at DESC
             """)
@@ -310,7 +315,8 @@ public class ApplicationService {
     }
 
     private void record(long applicationId, ApplicationStatus from, ApplicationStatus to, String note) {
-        jdbc.sql("""
+        jdbc.sql(
+                        """
             INSERT INTO application_event (application_id, from_status, to_status, note)
             VALUES (?, ?, ?, ?)
             """)
@@ -334,8 +340,9 @@ public class ApplicationService {
      */
     public static class TransitionRefused extends RuntimeException {
         public TransitionRefused(long id, ApplicationStatus from, ApplicationStatus to) {
-            super("application %d cannot move from %s to %s: the application package is built when it reaches %s, so that state cannot be skipped"
-                .formatted(id, from, to, ApplicationStatus.PACKAGED));
+            super(
+                    "application %d cannot move from %s to %s: the application package is built when it reaches %s, so that state cannot be skipped"
+                            .formatted(id, from, to, ApplicationStatus.PACKAGED));
         }
     }
 }

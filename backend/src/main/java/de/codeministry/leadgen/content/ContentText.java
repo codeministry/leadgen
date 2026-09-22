@@ -11,10 +11,9 @@ package de.codeministry.leadgen.content;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.extern.slf4j.Slf4j;
-
 import java.util.List;
 import java.util.stream.Collectors;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Reading {@code offer.content_blocks} back, for everything that wants the advert without
@@ -33,13 +32,11 @@ import java.util.stream.Collectors;
 public final class ContentText {
 
     private static final ObjectMapper JSON =
-        new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+            new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
-    private static final TypeReference<List<ContentBlock>> BLOCKS = new TypeReference<>() {
-    };
+    private static final TypeReference<List<ContentBlock>> BLOCKS = new TypeReference<>() {};
 
-    private ContentText() {
-    }
+    private ContentText() {}
 
     /**
      * The blocks, or an empty list when the column is null or unreadable.
@@ -75,9 +72,9 @@ public final class ContentText {
             return fullText;
         }
         String kept = blocks.stream()
-            .filter(ContentBlock::isContent)
-            .map(ContentBlock::text)
-            .collect(Collectors.joining("\n\n"));
+                .filter(ContentBlock::isContent)
+                .map(ContentBlock::text)
+                .collect(Collectors.joining("\n\n"));
         // An advert that is entirely furniture is a reading nobody should act on. Falling
         // back to the whole text scores it on what is actually there rather than on nothing,
         // and `content_undecided` is where such a page shows up.

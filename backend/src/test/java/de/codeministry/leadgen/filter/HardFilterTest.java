@@ -8,13 +8,11 @@
  */
 package de.codeministry.leadgen.filter;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import de.codeministry.leadgen.config.ConfigFixtures;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
-
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
@@ -22,8 +20,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.List;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 /**
  * The stages, against a fictional rule set. The corpus numbers live in
@@ -135,8 +134,9 @@ class HardFilterTest {
         assertThat(verdict.stage()).isEqualTo(FilterStage.REMOTE_SHARE);
         assertThat(verdict.reason()).contains("no remote share stated");
         // A stated share is still judged by the minimum and not by the flag.
-        assertThat(strict.judge(offer("Barista", "Espresso, 80 % remote", "Beispielheim")).passed())
-            .isTrue();
+        assertThat(strict.judge(offer("Barista", "Espresso, 80 % remote", "Beispielheim"))
+                        .passed())
+                .isTrue();
     }
 
     @Test
@@ -238,20 +238,19 @@ class HardFilterTest {
         var filters = rules.hardFilters();
         var remote = filters.remote();
         return new de.codeministry.leadgen.config.model.MatchingRules(
-            rules.version(),
-            new de.codeministry.leadgen.config.model.MatchingRules.HardFilters(
-                new de.codeministry.leadgen.config.model.MatchingRules.HardFilters.Remote(
-                    remote.minRemotePercent(), accept, remote.rejectKeywordsDe(), remote.deriveFrom()),
-                filters.location(),
-                filters.rate(),
-                filters.role(),
-                filters.contract(),
-                filters.language(),
-                filters.freshness()),
-            rules.scoring(),
-            rules.antiSkills(),
-            rules.deduplication(),
-            rules.followUp());
+                rules.version(),
+                new de.codeministry.leadgen.config.model.MatchingRules.HardFilters(
+                        new de.codeministry.leadgen.config.model.MatchingRules.HardFilters.Remote(
+                                remote.minRemotePercent(), accept, remote.rejectKeywordsDe(), remote.deriveFrom()),
+                        filters.location(),
+                        filters.rate(),
+                        filters.role(),
+                        filters.contract(),
+                        filters.language(),
+                        filters.freshness()),
+                rules.scoring(),
+                rules.antiSkills(),
+                rules.deduplication(),
+                rules.followUp());
     }
-
 }

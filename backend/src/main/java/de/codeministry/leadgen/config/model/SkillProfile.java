@@ -15,7 +15,6 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-
 import java.time.YearMonth;
 import java.util.List;
 import java.util.Map;
@@ -62,8 +61,7 @@ public record SkillProfile(
      * @param since   the year it was first used in earnest. Not read by the filter; scoring
      *                turns it into depth.
      */
-    public record Skill(
-            @NotBlank String skill, @Min(1) @Max(10) int weight, Integer since, List<String> aliases) {}
+    public record Skill(@NotBlank String skill, @Min(1) @Max(10) int weight, Integer since, List<String> aliases) {}
 
     /**
      * @param match the words a job advert uses for this industry. The name is the
@@ -72,8 +70,7 @@ public record SkillProfile(
      *              Same shape and same reason as {@link Skill#aliases()}. Empty falls back to the
      *              name, so a profile written before this behaves as it did.
      */
-    public record Industry(
-            @NotBlank String name, @Min(1) @Max(10) int weight, String note, List<String> match) {}
+    public record Industry(@NotBlank String name, @Min(1) @Max(10) int weight, String note, List<String> match) {}
 
     /**
      * One project the cover letter may cite.
@@ -104,8 +101,7 @@ public record SkillProfile(
          * defect nobody sees until it is in front of a client. Fail at startup instead, where
          * every other malformed value in this file already fails.
          */
-        @AssertTrue(message = "needs a title_de or a title_en")
-        public boolean isTitled() {
+        @AssertTrue(message = "needs a title_de or a title_en") public boolean isTitled() {
             return !isBlank(titleDe) || !isBlank(titleEn);
         }
 
@@ -119,6 +115,5 @@ public record SkillProfile(
     /**
      * A fixed PDF. There is no per-offer tailoring; the language of the ad picks the file.
      */
-    public record CvVariant(
-            @NotBlank String file, @JsonProperty("default") boolean isDefault) {}
+    public record CvVariant(@NotBlank String file, @JsonProperty("default") boolean isDefault) {}
 }

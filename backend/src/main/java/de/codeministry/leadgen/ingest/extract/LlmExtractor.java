@@ -11,16 +11,15 @@ package de.codeministry.leadgen.ingest.extract;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import de.codeministry.leadgen.llm.Answers;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.chat.model.ChatModel;
-import org.springframework.ai.chat.model.ChatResponse;
-
 import java.io.IOException;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.*;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.model.ChatModel;
+import org.springframework.ai.chat.model.ChatResponse;
 
 /**
  * Reads one offer out of a document that has no frontmatter to read — the {@code fallback:
@@ -76,7 +75,7 @@ public class LlmExtractor {
     static final LocalDate EARLIEST = LocalDate.of(2000, 1, 1);
 
     private static final String INSTRUCTIONS =
-        """
+            """
             You are reading one freelance project advert that somebody pasted into a file.
             There is no structure to rely on: it may be a mail, a portal page copied by hand,
             or a few lines out of a chat.
@@ -164,11 +163,11 @@ public class LlmExtractor {
         String content = null;
         try {
             ChatResponse response = ChatClient.create(chatModel)
-                .prompt()
-                .system(INSTRUCTIONS)
-                .user(describe(document))
-                .call()
-                .chatResponse();
+                    .prompt()
+                    .system(INSTRUCTIONS)
+                    .user(describe(document))
+                    .call()
+                    .chatResponse();
             content = Answers.textOf(response);
             return build(document, json.readTree(Answers.objectIn(content)));
         } catch (RuntimeException e) {
@@ -176,8 +175,8 @@ public class LlmExtractor {
             return Optional.empty();
         } catch (IOException e) {
             log.warn(
-                "The extraction fallback did not answer with usable JSON. It said: {}",
-                Answers.abbreviate(content));
+                    "The extraction fallback did not answer with usable JSON. It said: {}",
+                    Answers.abbreviate(content));
             return Optional.empty();
         }
     }
@@ -339,6 +338,5 @@ public class LlmExtractor {
      * @param fromModel the keys in {@code block} the model filled. The description is never
      *                  among them; it is the document itself.
      */
-    public record Reading(Map<String, Object> block, Set<String> fromModel) {
-    }
+    public record Reading(Map<String, Object> block, Set<String> fromModel) {}
 }

@@ -11,12 +11,11 @@ package de.codeministry.leadgen.dedupe;
 import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.config.model.MatchingRules.Deduplication;
 import de.codeministry.leadgen.config.model.MatchingRules.Deduplication.Strategy;
+import java.util.List;
+import javax.sql.DataSource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
-
-import javax.sql.DataSource;
-import java.util.List;
 
 /**
  * Collapses the listings of one project into one cluster.
@@ -65,7 +64,8 @@ public class DeduplicationService {
      * <p>The final predicate restricts the write to rows whose assignment actually
      * changes, which is what makes the returned count mean "moved" rather than "seen".
      */
-    private static final String CLUSTER = """
+    private static final String CLUSTER =
+            """
         WITH ranked AS (
             SELECT id,
                    first_value(id) OVER (
@@ -89,8 +89,7 @@ public class DeduplicationService {
     private final SimilarOffers similar;
     private final JdbcClient jdbc;
 
-    DeduplicationService(
-        ConfigRegistry config, OfferEmbedder embedder, SimilarOffers similar, DataSource dataSource) {
+    DeduplicationService(ConfigRegistry config, OfferEmbedder embedder, SimilarOffers similar, DataSource dataSource) {
         this.config = config;
         this.embedder = embedder;
         this.similar = similar;
@@ -176,30 +175,34 @@ public class DeduplicationService {
             return null;
         }
         return rules.strategies().stream()
-            .filter(s -> EMBEDDING_COSINE.equals(s.type()) && action.equals(s.action()))
-            .map(Strategy::threshold)
-            .filter(value -> {
-                if (value == null || value <= 0 || value > 1) {
-                    log.warn(
-                        "Strategy '{}' with action '{}' has threshold {}, which is not a cosine"
-                            + " similarity between 0 and 1; it is skipped",
-                        EMBEDDING_COSINE,
-                        action,
-                        value);
-                    return false;
-                }
-                return true;
-            })
-            .findFirst()
-            .orElse(null);
+                .filter(s -> EMBEDDING_COSINE.equals(s.type()) && action.equals(s.action()))
+                .map(Strategy::threshold)
+                .filter(value -> {
+                    if (value == null || value <= 0 || value > 1) {
+                        log.warn(
+                                "Strategy '{}' with action '{}' has threshold {}, which is not a cosine"
+                                        + " similarity between 0 and 1; it is skipped",
+                                EMBEDDING_COSINE,
+                                action,
+                                value);
+                        return false;
+                    }
+                    return true;
+                })
+                .findFirst()
+                .orElse(null);
     }
 
     private int attached(int ttlDays) {
-        return jdbc.sql("""
+        return jdbc.sql(
+                        """
             SELECT count(*) FROM offer
             WHERE duplicate_of_id IS NOT NULL
               AND ingested_at >= now() - make_interval(days => :ttl)
-            """).param("ttl", ttlDays).query(Integer.class).single();
+            """)
+                .param("ttl", ttlDays)
+                .query(Integer.class)
+                .single();
     }
 
     private boolean mergesOnExactFingerprint(List<Strategy> strategies) {
@@ -218,7 +221,7 @@ public class DeduplicationService {
             return;
         }
         strategies.stream()
-            .filter(s -> !EXACT_FINGERPRINT.equals(s.type()) && !EMBEDDING_COSINE.equals(s.type()))
+                .filter(s -> !EXACT_FINGERPRINT.equals(s.type()) && !EMBEDDING_COSINE.equals(s.type()))
                 .forEach(s -> log.warn(
                         "Deduplication strategy '{}' is configured but not implemented; it is skipped", s.type()));
     }

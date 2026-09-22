@@ -56,8 +56,9 @@ public enum StartWindow {
      * {@code ConfigRegistry}, while this number is the definition of the filter's own name
      * and appears nowhere else.
      */
-    SOON("soon", " AND o.starts_on IS NOT NULL AND o.starts_on > current_date"
-        + " AND o.starts_on <= current_date + 30\n"),
+    SOON(
+            "soon",
+            " AND o.starts_on IS NOT NULL AND o.starts_on > current_date" + " AND o.starts_on <= current_date + 30\n"),
 
     /**
      * Further out than that.
@@ -95,9 +96,11 @@ public enum StartWindow {
             return ANY;
         }
         return Arrays.stream(values())
-            .filter(window -> window.key.equalsIgnoreCase(name.trim()))
-            .findFirst()
-            .orElseThrow(() -> new BadShortlistRequest("'%s' is not a start window; it has %s".formatted(
-                name, Arrays.stream(values()).map(StartWindow::key).collect(Collectors.joining(", ")))));
+                .filter(window -> window.key.equalsIgnoreCase(name.trim()))
+                .findFirst()
+                .orElseThrow(() -> new BadShortlistRequest("'%s' is not a start window; it has %s"
+                        .formatted(
+                                name,
+                                Arrays.stream(values()).map(StartWindow::key).collect(Collectors.joining(", ")))));
     }
 }

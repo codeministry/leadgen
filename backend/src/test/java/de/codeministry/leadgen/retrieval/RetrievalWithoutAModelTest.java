@@ -8,9 +8,15 @@
  */
 package de.codeministry.leadgen.retrieval;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import de.codeministry.leadgen.Databases;
 import de.codeministry.leadgen.config.ConfigFixtures;
 import de.codeministry.leadgen.ingest.extract.TitleNormalizer;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,13 +28,6 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
-
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Rules before model, on this stage: the state of a fresh clone on its first morning.
@@ -118,7 +117,8 @@ class RetrievalWithoutAModelTest {
                    SET content_blocks = CAST(? AS jsonb), full_text = ?, content_at = now(), status = 'PASSED'
                  WHERE id = ?
                 """,
-                "[{\"index\":0,\"kind\":\"CONTENT\",\"text\":\"%s\",\"reason\":\"t\",\"by\":\"RULE\"}]".formatted(advert),
+                "[{\"index\":0,\"kind\":\"CONTENT\",\"text\":\"%s\",\"reason\":\"t\",\"by\":\"RULE\"}]"
+                        .formatted(advert),
                 advert,
                 id);
         return id;

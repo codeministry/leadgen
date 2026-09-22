@@ -8,12 +8,11 @@
  */
 package de.codeministry.leadgen.content;
 
-import de.codeministry.leadgen.config.model.PipelineConfig;
-import org.junit.jupiter.api.Test;
-
-import java.util.List;
-
 import static org.assertj.core.api.Assertions.assertThat;
+
+import de.codeministry.leadgen.config.model.PipelineConfig;
+import java.util.List;
+import org.junit.jupiter.api.Test;
 
 /**
  * The deterministic half of content segmentation: splitting, identity, and the rules.
@@ -31,7 +30,7 @@ class ContentSegmentationTest {
      * thing.
      */
     private static final String ADVERT =
-        """
+            """
             # Angular Entwickler (m/w/d), remote
 
             [Contractor Consulting GmbH](https://example.invalid/company/471-contractor)
@@ -82,7 +81,8 @@ class ContentSegmentationTest {
 
     @Test
     void keepsAFencedBlockWholeAcrossItsBlankLines() {
-        List<String> blocks = MarkdownBlocks.split("""
+        List<String> blocks = MarkdownBlocks.split(
+                """
             Stack:
 
             ```
@@ -118,7 +118,7 @@ class ContentSegmentationTest {
     @Test
     void movesTheIdentityWhenTheWordsOnThePageChange() {
         assertThat(BlockDigest.of("Read our [privacy policy](https://example.invalid/p)."))
-            .isNotEqualTo(BlockDigest.of("Read our [terms of use](https://example.invalid/p)."));
+                .isNotEqualTo(BlockDigest.of("Read our [terms of use](https://example.invalid/p)."));
     }
 
     @Test
@@ -164,8 +164,8 @@ class ContentSegmentationTest {
         ContentRules rules = shippedRules();
 
         assertThat(rules.kindOf(BlockDigest.normalise(
-            "Wir suchen Unterstützung im Datenschutz und bei der Datenschutzerklärung des Portals.")))
-            .isEmpty();
+                        "Wir suchen Unterstützung im Datenschutz und bei der Datenschutzerklärung des Portals.")))
+                .isEmpty();
     }
 
     @Test
@@ -173,9 +173,9 @@ class ContentSegmentationTest {
         // A rule is an optimisation. A typo in one must cost the optimisation and nothing
         // else — not the stage, and not the run.
         ContentRules rules = new ContentRules(List.of(
-            new PipelineConfig.Content.Rule("CHROME", "(unclosed"),
-            new PipelineConfig.Content.Rule("NOT_A_KIND", "apply now"),
-            new PipelineConfig.Content.Rule("FORM", "apply now")));
+                new PipelineConfig.Content.Rule("CHROME", "(unclosed"),
+                new PipelineConfig.Content.Rule("NOT_A_KIND", "apply now"),
+                new PipelineConfig.Content.Rule("FORM", "apply now")));
 
         assertThat(rules.kindOf("apply now")).contains(ContentKind.FORM);
     }
@@ -183,7 +183,7 @@ class ContentSegmentationTest {
     @Test
     void readsBackWhatTheStageWroteAndFallsBackWhenItWroteNothing() {
         String json =
-            """
+                """
                 [{"index":0,"text":"Apply now","kind":"CHROME","reason":"A button.","by":"RULE"},
                  {"index":1,"text":"Wir suchen Angular.","kind":"CONTENT","reason":null,"by":"MODEL"}]
                 """;
@@ -198,7 +198,8 @@ class ContentSegmentationTest {
 
     @Test
     void keepsTheWholeTextWhenEverythingWasCalledFurniture() {
-        String json = """
+        String json =
+                """
             [{"index":0,"text":"Apply now","kind":"CHROME","reason":null,"by":"RULE"}]
             """;
 
@@ -211,17 +212,18 @@ class ContentSegmentationTest {
      */
     private static ContentRules shippedRules() {
         return new ContentRules(List.of(
-            new PipelineConfig.Content.Rule("CHROME", "apply now\\s+save to watchlist|jetzt bewerben\\s+zur merkliste"),
-            new PipelineConfig.Content.Rule("FORM", "reason for reporting this project"),
-            new PipelineConfig.Content.Rule("AGENCY", "amtsgericht\\s+\\S+,\\s*hrb\\s*\\d"),
-            new PipelineConfig.Content.Rule("LEGAL", "datenschutzerkl(?:ä|a)rung:\\s*https?://")));
+                new PipelineConfig.Content.Rule(
+                        "CHROME", "apply now\\s+save to watchlist|jetzt bewerben\\s+zur merkliste"),
+                new PipelineConfig.Content.Rule("FORM", "reason for reporting this project"),
+                new PipelineConfig.Content.Rule("AGENCY", "amtsgericht\\s+\\S+,\\s*hrb\\s*\\d"),
+                new PipelineConfig.Content.Rule("LEGAL", "datenschutzerkl(?:ä|a)rung:\\s*https?://")));
     }
 
     private static java.util.Optional<ContentKind> kindOf(ContentRules rules, List<String> blocks, String containing) {
         String block = blocks.stream()
-            .filter(candidate -> candidate.contains(containing))
-            .findFirst()
-            .orElseThrow(() -> new AssertionError("no block contains " + containing));
+                .filter(candidate -> candidate.contains(containing))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("no block contains " + containing));
         return rules.kindOf(BlockDigest.normalise(block));
     }
 }

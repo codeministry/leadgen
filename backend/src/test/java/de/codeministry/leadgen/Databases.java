@@ -37,8 +37,7 @@ public final class Databases {
      */
     public static final String IMAGE = "pgvector/pgvector:0.8.6-pg18";
 
-    private Databases() {
-    }
+    private Databases() {}
 
     /**
      * A container for a test class to declare {@code @Container static final} on. Not shared

@@ -8,7 +8,13 @@
  */
 package de.codeministry.leadgen.packaging;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import de.codeministry.leadgen.Databases;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,13 +26,6 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
-
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * The folders nothing points at any more.
@@ -63,7 +62,7 @@ class OrphanSweepTest {
         jdbc.update("DELETE FROM offer");
         jdbc.update("DELETE FROM source");
         sourceId =
-            jdbc.queryForObject("INSERT INTO source (name, kind) VALUES ('test', 'file') RETURNING id", Long.class);
+                jdbc.queryForObject("INSERT INTO source (name, kind) VALUES ('test', 'file') RETURNING id", Long.class);
     }
 
     @Test
@@ -114,13 +113,13 @@ class OrphanSweepTest {
 
     private void offerPointingAt(Path folder) {
         jdbc.update(
-            """
+                """
                 INSERT INTO offer (source_id, external_id, title, url, fingerprint, status, package_dir, packaged_at)
                 VALUES (?, ?, 'Referenziert', 'https://example.invalid/x', ?, 'PASSED', ?, now())
                 """,
-            sourceId,
-            folder.getFileName().toString(),
-            folder.getFileName().toString(),
-            folder.toString());
+                sourceId,
+                folder.getFileName().toString(),
+                folder.getFileName().toString(),
+                folder.toString());
     }
 }

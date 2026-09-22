@@ -8,12 +8,20 @@
  */
 package de.codeministry.leadgen.score;
 
+import static com.github.tomakehurst.wiremock.client.WireMock.*;
+import static org.assertj.core.api.Assertions.assertThat;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import de.codeministry.leadgen.Databases;
 import de.codeministry.leadgen.config.ConfigFixtures;
 import de.codeministry.leadgen.config.ConfigRegistry;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -26,15 +34,6 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
-
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-
-import static com.github.tomakehurst.wiremock.client.WireMock.*;
-import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * The judge is a parameter of the run, not a bean fixed at startup.
@@ -122,7 +121,8 @@ class JudgeIsBuiltPerRunTest {
         assertThat(reasonsOf(id)).isPositive();
 
         pointConfigAtTheStub();
-        answers("""
+        answers(
+                """
             {"reasons":[{"factor":"role_fit","label":"backend engagement, the target role","points":15}]}
             """);
 
@@ -186,11 +186,17 @@ class JudgeIsBuiltPerRunTest {
     }
 
     private long offer(String title, String description) {
-        return jdbc.queryForObject("""
+        return jdbc.queryForObject(
+                """
             INSERT INTO offer (source_id, external_id, title, description, url, fingerprint, status)
             VALUES (?, ?, ?, ?, 'https://example.invalid/x', 'fp', 'PASSED')
             RETURNING id
-            """, Long.class, sourceId, "ext-" + System.nanoTime(), title, description);
+            """,
+                Long.class,
+                sourceId,
+                "ext-" + System.nanoTime(),
+                title,
+                description);
     }
 
     /**

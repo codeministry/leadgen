@@ -8,7 +8,11 @@
  */
 package de.codeministry.leadgen.config;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+
 import de.codeministry.leadgen.Databases;
+import java.time.LocalDate;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,11 +24,6 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
-
-import java.time.LocalDate;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 
 /**
  * One source, opened: what defines it, and when its numbers last moved.
@@ -39,7 +38,8 @@ class SourceDetailServiceTest {
 
     @DynamicPropertySource
     static void configuration(DynamicPropertyRegistry registry) {
-        registry.add("leadgen.config-dir", () -> ConfigFixtures.shippedDefaults().toString());
+        registry.add(
+                "leadgen.config-dir", () -> ConfigFixtures.shippedDefaults().toString());
     }
 
     @Autowired
@@ -54,9 +54,9 @@ class SourceDetailServiceTest {
      * The time module is what a bare mapper is missing.
      */
     private final com.fasterxml.jackson.databind.ObjectMapper mapper =
-        com.fasterxml.jackson.databind.json.JsonMapper.builder()
-            .addModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule())
-            .build();
+            com.fasterxml.jackson.databind.json.JsonMapper.builder()
+                    .addModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule())
+                    .build();
 
     @BeforeEach
     void clean() {
@@ -98,7 +98,8 @@ class SourceDetailServiceTest {
         assertThat(imap.connection()).isNotNull();
         assertThat(imap.connection().text()).contains("- id: mailbox-primary").contains("type: imap");
 
-        assertThat(details.detail("manual-inbox", 30).orElseThrow().connection()).isNull();
+        assertThat(details.detail("manual-inbox", 30).orElseThrow().connection())
+                .isNull();
     }
 
     @Test
@@ -111,12 +112,13 @@ class SourceDetailServiceTest {
 
         var detail = details.detail("manual-inbox", 30).orElseThrow();
 
-        assertThat(detail.runs()).extracting(SourceRun::ranOn)
-            .containsExactly(
-                LocalDate.parse("2026-09-14"),
-                LocalDate.parse("2026-09-13"),
-                LocalDate.parse("2026-09-12"),
-                LocalDate.parse("2026-09-11"));
+        assertThat(detail.runs())
+                .extracting(SourceRun::ranOn)
+                .containsExactly(
+                        LocalDate.parse("2026-09-14"),
+                        LocalDate.parse("2026-09-13"),
+                        LocalDate.parse("2026-09-12"),
+                        LocalDate.parse("2026-09-11"));
         assertThat(detail.trend().extractedNow()).isEqualTo(169);
         assertThat(detail.trend().extractedChangedOn()).isEqualTo(LocalDate.parse("2026-09-12"));
         assertThat(detail.trend().extractedBefore()).isEqualTo(157);
@@ -182,7 +184,8 @@ class SourceDetailServiceTest {
         var detail = details.detail("manual-inbox", 30).orElseThrow();
         // The application's own mapper and not a bare one: what is under test is the JSON this
         // service actually answers with, and a mapper without the JSR-310 module is not it.
-        String json = assertDoesNotThrow(() -> mapper.writeValueAsString(detail.runs().getFirst()));
+        String json =
+                assertDoesNotThrow(() -> mapper.writeValueAsString(detail.runs().getFirst()));
 
         assertThat(json).contains("\"missing\":12");
     }
@@ -211,16 +214,20 @@ class SourceDetailServiceTest {
     }
 
     private long source(String name) {
-        return jdbc.queryForObject(
-            "INSERT INTO source (name, kind) VALUES (?, 'file') RETURNING id", Long.class, name);
+        return jdbc.queryForObject("INSERT INTO source (name, kind) VALUES (?, 'file') RETURNING id", Long.class, name);
     }
 
     private void ran(long sourceId, String day, int documents, int extracted, int written, Integer announced) {
         jdbc.update(
-            """
+                """
                 INSERT INTO source_run (source_id, ran_at, documents, extracted, written, announced)
                 VALUES (?, ?::timestamptz, ?, ?, ?, ?)
                 """,
-            sourceId, day + " 06:00:00+02", documents, extracted, written, announced);
+                sourceId,
+                day + " 06:00:00+02",
+                documents,
+                extracted,
+                written,
+                announced);
     }
 }

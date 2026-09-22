@@ -8,6 +8,8 @@
  */
 package de.codeministry.leadgen.ingest;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import de.codeministry.leadgen.config.ConfigFixtures;
 import de.codeministry.leadgen.config.ConfigProperties;
 import de.codeministry.leadgen.config.model.SourcesConfig;
@@ -19,10 +21,6 @@ import de.codeministry.leadgen.ingest.extract.OfferMapper;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
 import jakarta.validation.ValidatorFactory;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
-
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
@@ -30,8 +28,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.*;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 /**
  * The manual entry path: one Markdown file is one offer, read deterministically.
@@ -44,7 +43,8 @@ class MarkdownExtractionTest {
     private static final ValidatorFactory FACTORY = Validation.buildDefaultValidatorFactory();
     private static final Validator VALIDATOR = FACTORY.getValidator();
 
-    private static final String COMPLETE = """
+    private static final String COMPLETE =
+            """
         ---
         title: Senior Java Entwickler Spring Boot (m/w/d)
         url: https://tracking.example.com/proxy?target=https%3A%2F%2Fportal.example%2Fp%2F12345&email=someone%40example.com
@@ -93,7 +93,8 @@ class MarkdownExtractionTest {
 
     @Test
     void acceptsTagsAsTheCommaSeparatedLineSomeoneTypedInstead() {
-        var offer = only("""
+        var offer = only(
+                """
             ---
             title: Angular Entwickler
             tags: Angular, TypeScript , RxJS
@@ -108,7 +109,8 @@ class MarkdownExtractionTest {
     void identifiesAnOfferWithoutAUrlByItsContent() {
         // The upsert is on (source_id, external_id). Without this the same ad uploaded
         // twice is two offers, and deduplication would have to clean up after it.
-        String ad = """
+        String ad =
+                """
             ---
             title: Kubernetes Platform Engineer
             ---
@@ -140,17 +142,17 @@ class MarkdownExtractionTest {
         // block — a link a model found carries the subscriber's address just as one typed
         // by hand does.
         var offers = extract(
-            "Wir suchen ab sofort einen Java-Entwickler in Köln.",
-            document -> Optional.of(new LlmExtractor.Reading(
-                new LinkedHashMap<>(Map.of(
-                    OfferMapper.TITLE,
-                    "Java-Entwickler",
-                    OfferMapper.URL,
-                    "https://portal.example/proxy?target=https%3A%2F%2Fportal.example%2Fp%2F12345"
-                        + "&email=someone%40example.com",
-                    OfferMapper.DESCRIPTION,
-                    document)),
-                Set.of(OfferMapper.TITLE, OfferMapper.URL))));
+                "Wir suchen ab sofort einen Java-Entwickler in Köln.",
+                document -> Optional.of(new LlmExtractor.Reading(
+                        new LinkedHashMap<>(Map.of(
+                                OfferMapper.TITLE,
+                                "Java-Entwickler",
+                                OfferMapper.URL,
+                                "https://portal.example/proxy?target=https%3A%2F%2Fportal.example%2Fp%2F12345"
+                                        + "&email=someone%40example.com",
+                                OfferMapper.DESCRIPTION,
+                                document)),
+                        Set.of(OfferMapper.TITLE, OfferMapper.URL))));
 
         assertThat(offers).hasSize(1);
         assertThat(offers.getFirst().title()).isEqualTo("Java-Entwickler");
@@ -172,7 +174,8 @@ class MarkdownExtractionTest {
 
     @Test
     void ignoresAThematicBreakInTheBody() {
-        var offer = only("""
+        var offer = only(
+                """
             ---
             title: Java Entwickler
             ---

@@ -8,11 +8,24 @@
  */
 package de.codeministry.leadgen.dedupe;
 
+import static com.github.tomakehurst.wiremock.client.WireMock.*;
+import static org.assertj.core.api.Assertions.assertThat;
+
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import de.codeministry.leadgen.Databases;
 import de.codeministry.leadgen.config.ConfigFixtures;
 import de.codeministry.leadgen.ingest.extract.TitleNormalizer;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.Instant;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -25,20 +38,6 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
-
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.time.Instant;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
-
-import static com.github.tomakehurst.wiremock.client.WireMock.*;
-import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Filling the vector column: what is embedded, what is skipped, and what happens to an
@@ -87,8 +86,8 @@ class OfferEmbedderTest {
         MODEL.resetAll();
         jdbc.update("DELETE FROM offer");
         jdbc.update("DELETE FROM source");
-        sourceId = jdbc.queryForObject(
-            "INSERT INTO source (name, kind) VALUES ('test', 'file') RETURNING id", Long.class);
+        sourceId =
+                jdbc.queryForObject("INSERT INTO source (name, kind) VALUES ('test', 'file') RETURNING id", Long.class);
     }
 
     @Test
@@ -102,10 +101,10 @@ class OfferEmbedderTest {
         assertThat(embedder.embed(60)).isEqualTo(1);
 
         Double distance = jdbc.queryForObject(
-            "SELECT embedding <=> embedding FROM offer WHERE embedding IS NOT NULL", Double.class);
+                "SELECT embedding <=> embedding FROM offer WHERE embedding IS NOT NULL", Double.class);
         assertThat(distance).isEqualTo(0.0);
         assertThat(jdbc.queryForObject("SELECT embedding_model FROM offer", String.class))
-            .isEqualTo("test-embed");
+                .isEqualTo("test-embed");
     }
 
     @Test
@@ -134,7 +133,7 @@ class OfferEmbedderTest {
 
         assertThat(embedder.embed(60)).isEqualTo(1);
         assertThat(jdbc.queryForObject("SELECT embedding IS NULL FROM offer WHERE id = ?", Boolean.class, attached))
-            .isTrue();
+                .isTrue();
     }
 
     @Test
@@ -151,7 +150,7 @@ class OfferEmbedderTest {
 
         assertThat(embedder.embed(60)).isEqualTo(1);
         assertThat(jdbc.queryForObject("SELECT embedding IS NULL FROM offer WHERE id = ?", Boolean.class, archived))
-            .isTrue();
+                .isTrue();
     }
 
     @Test
@@ -162,11 +161,11 @@ class OfferEmbedderTest {
         embedder.embed(60);
 
         MODEL.verify(postRequestedFor(urlPathEqualTo("/embeddings"))
-            .withRequestBody(matching("(?s).*Senior Java Entwickler.*"))
-            // The field that cost the exact fingerprint 53 correct merges, because a
-            // place written two ways is one place and two strings.
-            .withRequestBody(matching("(?s).*K.{1,6}ln.*"))
-            .withRequestBody(matching("(?s).*Monolithen.*")));
+                .withRequestBody(matching("(?s).*Senior Java Entwickler.*"))
+                // The field that cost the exact fingerprint 53 correct merges, because a
+                // place written two ways is one place and two strings.
+                .withRequestBody(matching("(?s).*K.{1,6}ln.*"))
+                .withRequestBody(matching("(?s).*Monolithen.*")));
     }
 
     @Test
@@ -180,7 +179,7 @@ class OfferEmbedderTest {
 
         assertThat(embedder.embed(60)).isZero();
         assertThat(jdbc.queryForObject("SELECT count(*) FROM offer WHERE embedding IS NOT NULL", Integer.class))
-            .isZero();
+                .isZero();
     }
 
     @Test
@@ -195,11 +194,11 @@ class OfferEmbedderTest {
         assertThat(embedder.embed(60)).isEqualTo(1);
 
         Integer width = jdbc.queryForObject(
-            "SELECT vector_dims(embedding) FROM offer WHERE embedding IS NOT NULL", Integer.class);
+                "SELECT vector_dims(embedding) FROM offer WHERE embedding IS NOT NULL", Integer.class);
         assertThat(width).isEqualTo(OfferEmbedder.DIMENSIONS);
         assertThat(jdbc.queryForObject(
-                "SELECT embedding <=> embedding FROM offer WHERE embedding IS NOT NULL", Double.class))
-            .isEqualTo(0.0);
+                        "SELECT embedding <=> embedding FROM offer WHERE embedding IS NOT NULL", Double.class))
+                .isEqualTo(0.0);
     }
 
     @Test
@@ -226,25 +225,25 @@ class OfferEmbedderTest {
 
     @Test
     void writesTheVectorInPgvectorsOwnTextForm() {
-        assertThat(OfferEmbedder.literal(new float[]{1.5f, -0.25f, 0f})).isEqualTo("[1.5,-0.25,0.0]");
+        assertThat(OfferEmbedder.literal(new float[] {1.5f, -0.25f, 0f})).isEqualTo("[1.5,-0.25,0.0]");
     }
 
     private long insert(String title, String location, String description) {
         return jdbc.queryForObject(
-            """
+                """
                 INSERT INTO offer (source_id, external_id, title, description, url, location, portal, fingerprint)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 RETURNING id
                 """,
-            Long.class,
-            sourceId,
-            "ext-" + title.hashCode() + "-" + description.hashCode(),
-            title,
-            description,
-            "https://example.invalid/" + Instant.now().toEpochMilli(),
-            location,
-            "portal-a",
-            TitleNormalizer.normalize(title));
+                Long.class,
+                sourceId,
+                "ext-" + title.hashCode() + "-" + description.hashCode(),
+                title,
+                description,
+                "https://example.invalid/" + Instant.now().toEpochMilli(),
+                location,
+                "portal-a",
+                TitleNormalizer.normalize(title));
     }
 
     /**
@@ -254,23 +253,23 @@ class OfferEmbedderTest {
      */
     private static void answersWith(int width, int count) {
         String vector = IntStream.range(0, width)
-            .mapToObj(index -> String.valueOf(index / (double) width))
-            .collect(Collectors.joining(","));
+                .mapToObj(index -> String.valueOf(index / (double) width))
+                .collect(Collectors.joining(","));
         String data = IntStream.range(0, count)
-            .mapToObj(index -> "{\"object\":\"embedding\",\"index\":%d,\"embedding\":[%s]}"
-                .formatted(index, vector))
-            .collect(Collectors.joining(","));
+                .mapToObj(
+                        index -> "{\"object\":\"embedding\",\"index\":%d,\"embedding\":[%s]}".formatted(index, vector))
+                .collect(Collectors.joining(","));
         MODEL.stubFor(post(urlPathEqualTo("/embeddings"))
-            .willReturn(aResponse()
-                .withStatus(200)
-                .withHeader("Content-Type", "application/json")
-                .withBody(
-                    """
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(
+                                """
                         {"object":"list","model":"test-embed",
                          "usage":{"prompt_tokens":1,"total_tokens":1},
                          "data":[%s]}
                         """
-                        .formatted(data))));
+                                        .formatted(data))));
     }
 
     /**
@@ -303,10 +302,10 @@ class OfferEmbedderTest {
      */
     private static String set(String yaml, String key, String value) {
         Matcher matcher =
-            Pattern.compile("(?m)^([ \\t]*)" + Pattern.quote(key) + ":.*$").matcher(yaml);
+                Pattern.compile("(?m)^([ \\t]*)" + Pattern.quote(key) + ":.*$").matcher(yaml);
         if (!matcher.find()) {
             throw new IllegalStateException(
-                "no `" + key + ":` in the shipped pipeline.yaml — the fixture and the file have drifted");
+                    "no `" + key + ":` in the shipped pipeline.yaml — the fixture and the file have drifted");
         }
         // `$1` keeps the line's own indentation; the value is quoted because a URL carries
         // characters a replacement string would otherwise read as group references.

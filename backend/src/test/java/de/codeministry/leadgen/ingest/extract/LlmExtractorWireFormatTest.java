@@ -8,21 +8,20 @@
  */
 package de.codeministry.leadgen.ingest.extract;
 
+import static com.github.tomakehurst.wiremock.client.WireMock.*;
+import static org.assertj.core.api.Assertions.assertThat;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import de.codeministry.leadgen.config.model.PipelineConfig;
 import de.codeministry.leadgen.llm.ChatModels;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
-
-import static com.github.tomakehurst.wiremock.client.WireMock.*;
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /**
  * What the extraction fallback sends and what it does with what comes back, at the byte
@@ -45,7 +44,7 @@ class LlmExtractorWireFormatTest {
      * A pasted advert: no frontmatter, no markup, and the fields spread through the prose.
      */
     private static final String DOCUMENT =
-        """
+            """
             Senior Java Entwickler (m/w/d)
 
             Für einen Kunden aus dem Versicherungsumfeld suchen wir ab sofort Unterstützung
@@ -81,8 +80,8 @@ class LlmExtractorWireFormatTest {
         extractor().read(DOCUMENT);
 
         MODEL.verify(postRequestedFor(urlPathEqualTo("/chat/completions"))
-            .withRequestBody(matching("(?s).*Versicherungsumfeld.*"))
-            .withRequestBody(matching("(?s).*jobs.example.com.*")));
+                .withRequestBody(matching("(?s).*Versicherungsumfeld.*"))
+                .withRequestBody(matching("(?s).*jobs.example.com.*")));
     }
 
     @Test
@@ -92,18 +91,18 @@ class LlmExtractorWireFormatTest {
         var reading = extractor().read(DOCUMENT).orElseThrow();
 
         assertThat(reading.block())
-            .containsEntry(OfferMapper.TITLE, "Senior Java Entwickler (m/w/d)")
-            .containsEntry(OfferMapper.LOCATION, "Remote, gelegentlich vor Ort")
-            .containsEntry(OfferMapper.AGENCY, "Beispiel GmbH")
-            .containsEntry(OfferMapper.URL, "https://jobs.example.com/p/8831")
-            .containsEntry(OfferMapper.PUBLISHED, "2026-10-01")
-            .containsEntry(OfferMapper.TAGS, java.util.List.of("Java", "Spring Boot"));
+                .containsEntry(OfferMapper.TITLE, "Senior Java Entwickler (m/w/d)")
+                .containsEntry(OfferMapper.LOCATION, "Remote, gelegentlich vor Ort")
+                .containsEntry(OfferMapper.AGENCY, "Beispiel GmbH")
+                .containsEntry(OfferMapper.URL, "https://jobs.example.com/p/8831")
+                .containsEntry(OfferMapper.PUBLISHED, "2026-10-01")
+                .containsEntry(OfferMapper.TAGS, java.util.List.of("Java", "Spring Boot"));
 
         // The advert, not a reading of it. A summary here would be what the enrichment
         // stage, the classifier and the judge all read instead of the advert.
         assertThat((String) reading.block().get(OfferMapper.DESCRIPTION))
-            .contains("Versicherungsumfeld")
-            .doesNotContain("Zusammenfassung");
+                .contains("Versicherungsumfeld")
+                .doesNotContain("Zusammenfassung");
     }
 
     @Test
@@ -115,8 +114,8 @@ class LlmExtractorWireFormatTest {
         var reading = extractor().read(DOCUMENT).orElseThrow();
 
         assertThat(reading.fromModel())
-            .contains(OfferMapper.TITLE, OfferMapper.URL, OfferMapper.PUBLISHED, OfferMapper.TAGS)
-            .doesNotContain(OfferMapper.DESCRIPTION);
+                .contains(OfferMapper.TITLE, OfferMapper.URL, OfferMapper.PUBLISHED, OfferMapper.TAGS)
+                .doesNotContain(OfferMapper.DESCRIPTION);
     }
 
     @Test
@@ -170,10 +169,10 @@ class LlmExtractorWireFormatTest {
     void acceptsAQuoteThatOnlyDiffersInWhitespace() {
         // A pasted advert carries the line breaks of wherever it was copied from, so a quote
         // and its document disagree about whitespace without disagreeing about anything.
-        answers(withPublished("{\"text\":\"Eingestellt am 01.10.2026 von der\\n  Beispiel GmbH\",\"date\":\"2026-10-01\"}"));
+        answers(withPublished(
+                "{\"text\":\"Eingestellt am 01.10.2026 von der\\n  Beispiel GmbH\",\"date\":\"2026-10-01\"}"));
 
-        assertThat(extractor().read(DOCUMENT).orElseThrow().block())
-            .containsEntry(OfferMapper.PUBLISHED, "2026-10-01");
+        assertThat(extractor().read(DOCUMENT).orElseThrow().block()).containsEntry(OfferMapper.PUBLISHED, "2026-10-01");
     }
 
     @Test
@@ -196,15 +195,17 @@ class LlmExtractorWireFormatTest {
 
     @Test
     void findsTheObjectInsideAFence() {
-        answers("""
+        answers(
+                """
             Here is what the document says:
             ```json
             %s
             ```
-            """.formatted(full()));
+            """
+                        .formatted(full()));
 
         assertThat(extractor().read(DOCUMENT).orElseThrow().block())
-            .containsEntry(OfferMapper.TITLE, "Senior Java Entwickler (m/w/d)");
+                .containsEntry(OfferMapper.TITLE, "Senior Java Entwickler (m/w/d)");
     }
 
     @Test
@@ -213,18 +214,19 @@ class LlmExtractorWireFormatTest {
         answers(full().replace("\"Senior Java Entwickler (m/w/d)\"", "\"" + wall + "\""));
 
         assertThat((String) extractor().read(DOCUMENT).orElseThrow().block().get(OfferMapper.TITLE))
-            .hasSize(LlmExtractor.MAX_TITLE);
+                .hasSize(LlmExtractor.MAX_TITLE);
     }
 
     @Test
     void keepsAtMostTwelveTags() {
         String many = java.util.stream.IntStream.range(0, 30)
-            .mapToObj(index -> "\"tag" + index + "\"")
-            .collect(java.util.stream.Collectors.joining(","));
+                .mapToObj(index -> "\"tag" + index + "\"")
+                .collect(java.util.stream.Collectors.joining(","));
         answers(full().replace("[\"Java\",\"Spring Boot\"]", "[" + many + "]"));
 
-        assertThat((java.util.List<?>) extractor().read(DOCUMENT).orElseThrow().block().get(OfferMapper.TAGS))
-            .hasSize(LlmExtractor.MAX_TAGS);
+        assertThat((java.util.List<?>)
+                        extractor().read(DOCUMENT).orElseThrow().block().get(OfferMapper.TAGS))
+                .hasSize(LlmExtractor.MAX_TAGS);
     }
 
     @Test
@@ -232,9 +234,9 @@ class LlmExtractorWireFormatTest {
         // Both sentences are load-bearing, and the prompt is where they belong: a stripper
         // on this side would be a pattern guessing at somebody else's prose.
         assertThat(LlmExtractor.instructions())
-            .contains("Never translate")
-            .contains("Do not write a description")
-            .contains("character for character");
+                .contains("Never translate")
+                .contains("Do not write a description")
+                .contains("character for character");
     }
 
     private static String full() {
@@ -259,28 +261,30 @@ class LlmExtractorWireFormatTest {
 
     private static LlmExtractor extractor() {
         var llm = new PipelineConfig.Llm(
-            ChatModels.OPENAI_COMPATIBLE,
-            MODEL.baseUrl(),
-            "test-key",
-            null,
-            false,
-            new PipelineConfig.Llm.Models(null, "a-model", null, null, null),
-            null);
+                ChatModels.OPENAI_COMPATIBLE,
+                MODEL.baseUrl(),
+                "test-key",
+                null,
+                false,
+                new PipelineConfig.Llm.Models(null, "a-model", null, null, null),
+                null);
         var chatModel = new ChatModels().of(llm, "a-model");
         return new LlmExtractor(chatModel.orElseThrow(), "a-model", new ObjectMapper(), TODAY);
     }
 
     private static void answers(String content) {
         MODEL.stubFor(post(urlPathEqualTo("/chat/completions"))
-            .willReturn(aResponse()
-                .withStatus(200)
-                .withHeader("Content-Type", "application/json")
-                .withBody(
-                    """
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(
+                                """
                         {"id":"chat-1","object":"chat.completion","created":1,"model":"a-model",
                          "choices":[{"index":0,"finish_reason":"stop",
                                      "message":{"role":"assistant","content":%s}}]}
                         """
-                        .formatted(new ObjectMapper().valueToTree(content).toString()))));
+                                        .formatted(new ObjectMapper()
+                                                .valueToTree(content)
+                                                .toString()))));
     }
 }

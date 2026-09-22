@@ -8,20 +8,19 @@
  */
 package de.codeministry.leadgen;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import de.codeministry.leadgen.config.ConfigProperties;
 import de.codeministry.leadgen.config.DotEnv;
 import de.codeministry.leadgen.config.Secrets;
-import org.junit.jupiter.api.Test;
-import org.springframework.core.env.MapPropertySource;
-import org.springframework.core.env.StandardEnvironment;
-
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.Test;
+import org.springframework.core.env.MapPropertySource;
+import org.springframework.core.env.StandardEnvironment;
 
 class ConfigurationBannerTest {
 

@@ -10,13 +10,12 @@ package de.codeministry.leadgen.llm;
 
 import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.config.model.PipelineConfig;
+import java.time.LocalDate;
+import java.util.concurrent.atomic.AtomicReference;
+import javax.sql.DataSource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
-
-import javax.sql.DataSource;
-import java.time.LocalDate;
-import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * How many requests a day may leave for a language model, and whether this one may.
@@ -48,7 +47,7 @@ public class LlmBudget {
      * starts at zero and the caller has already refused a limit below one.
      */
     private static final String TAKE =
-        """
+            """
             INSERT INTO llm_call_budget (day, calls) VALUES (current_date, 1)
             ON CONFLICT (day) DO UPDATE SET calls = llm_call_budget.calls + 1
              WHERE llm_call_budget.calls < :limit
@@ -85,15 +84,15 @@ public class LlmBudget {
             return false;
         }
         boolean taken = jdbc.sql(TAKE)
-            .param("limit", limit)
-            .query(Integer.class)
-            .optional()
-            .isPresent();
+                .param("limit", limit)
+                .query(Integer.class)
+                .optional()
+                .isPresent();
         if (!taken) {
             announceOnce(
-                "llm.budget.max_calls_per_day of {} is spent for today;"
-                    + " what is left stays due and the next run finishes it",
-                limit);
+                    "llm.budget.max_calls_per_day of {} is spent for today;"
+                            + " what is left stays due and the next run finishes it",
+                    limit);
         }
         return taken;
     }
@@ -103,8 +102,8 @@ public class LlmBudget {
      */
     public int used() {
         return jdbc.sql("SELECT coalesce((SELECT calls FROM llm_call_budget WHERE day = current_date), 0)")
-            .query(Integer.class)
-            .single();
+                .query(Integer.class)
+                .single();
     }
 
     /**

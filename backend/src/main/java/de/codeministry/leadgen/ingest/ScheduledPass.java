@@ -81,10 +81,7 @@ class ScheduledPass {
     void run() {
         try {
             IngestReport report = ingest.run();
-            log.info(
-                    "Scheduled pass finished: {} extracted, {} written",
-                    report.extracted(),
-                    report.written());
+            log.info("Scheduled pass finished: {} extracted, {} written", report.extracted(), report.written());
         } catch (IngestService.AlreadyRunning e) {
             log.info("Scheduled pass skipped: {}", e.getMessage());
         } catch (RuntimeException e) {

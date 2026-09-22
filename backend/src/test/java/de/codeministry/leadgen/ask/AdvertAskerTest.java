@@ -8,12 +8,12 @@
  */
 package de.codeministry.leadgen.ask;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import de.codeministry.leadgen.offer.BadShortlistRequest;
 import org.junit.jupiter.api.Test;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * What survives the check, and what does not.
@@ -78,8 +78,7 @@ class AdvertAskerTest {
                 {"stated": true, "answer": "Voll remote.",
                  "quote": "der einsatz erfolgt zu 100 %  remote"}
                 """,
-                ADVERT,
-                AdvertQuestion.ONSITE);
+                ADVERT, AdvertQuestion.ONSITE);
 
         assertThat(answer.stated()).isTrue();
     }
@@ -112,7 +111,8 @@ class AdvertAskerTest {
     void survivesAnAnswerThatIsNotJsonAtAll() {
         // The shape every other reader of a model answer already tolerates: a model that
         // explains itself in prose gets read as silence rather than as an exception.
-        assertThat(asker.parse("I am afraid I cannot help with that.", ADVERT, AdvertQuestion.CLIENT).stated())
+        assertThat(asker.parse("I am afraid I cannot help with that.", ADVERT, AdvertQuestion.CLIENT)
+                        .stated())
                 .isFalse();
     }
 

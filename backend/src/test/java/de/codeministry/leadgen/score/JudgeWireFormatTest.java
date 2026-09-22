@@ -8,12 +8,17 @@
  */
 package de.codeministry.leadgen.score;
 
+import static com.github.tomakehurst.wiremock.client.WireMock.*;
+import static org.assertj.core.api.Assertions.assertThat;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.client.ResponseDefinitionBuilder;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import de.codeministry.leadgen.llm.Answers;
 import io.micrometer.observation.ObservationRegistry;
+import java.time.Duration;
+import java.util.List;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -26,12 +31,6 @@ import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.ai.openai.setup.OpenAiSetup;
-
-import java.time.Duration;
-import java.util.List;
-
-import static com.github.tomakehurst.wiremock.client.WireMock.*;
-import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Two providers, one question, asserted at the level of the bytes.
@@ -67,7 +66,8 @@ class JudgeWireFormatTest {
         MODEL.start();
     }
 
-    private static final String ANSWER = """
+    private static final String ANSWER =
+            """
         {"reasons":[{"factor":"role_fit","label":"Backend engagement on Spring Boot","points":15},
                     {"factor":"role_mismatch","label":"nope","points":-900},
                     {"factor":"invented","label":"nope","points":50}]}
@@ -78,7 +78,7 @@ class JudgeWireFormatTest {
             "Senior Java Entwickler Spring Boot (m/w/d)",
             "Ablösung eines Monolithen.",
             null,
-        null,
+            null,
             List.of("Java", "Spring Boot"),
             null,
             null,
@@ -87,7 +87,7 @@ class JudgeWireFormatTest {
             false);
 
     private static final ScoreCandidate OTHER = new ScoreCandidate(
-        2L, "Scrum Master (m/w/d)", "Kein Code.", null, null, List.of(), null, null, null, null, false);
+            2L, "Scrum Master (m/w/d)", "Kein Code.", null, null, List.of(), null, null, null, null, false);
 
     @AfterAll
     static void stop() {

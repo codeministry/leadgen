@@ -21,5 +21,4 @@ package de.codeministry.leadgen.offer;
  *                          same project and not close enough to merge. The row is still its own offer and
  *                          still on the working list; what the badge asks for is a second pair of eyes.
  */
-public record OfferFlags(boolean incomplete, boolean remoteUnknown, boolean possibleDuplicate) {
-}
+public record OfferFlags(boolean incomplete, boolean remoteUnknown, boolean possibleDuplicate) {}

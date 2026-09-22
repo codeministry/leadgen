@@ -9,13 +9,12 @@
 package de.codeministry.leadgen.config;
 
 import de.codeministry.leadgen.config.model.SourcesConfig;
-import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.stereotype.Service;
-
-import javax.sql.DataSource;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import javax.sql.DataSource;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.stereotype.Service;
 
 /**
  * One source, opened: the block that defines it and the runs it has had.
@@ -55,7 +54,8 @@ public class SourceDetailService {
      * <p>{@code ran_at::date} is deliberate. A mailbox read at 03:14 says when the operator's
      * cron runs and nothing this panel is for, and this screen's pictures get published.
      */
-    private static final String HISTORY = """
+    private static final String HISTORY =
+            """
         SELECT h.ran_on, h.documents, h.extracted, h.written, h.announced, h.previous_extracted
         FROM (SELECT r.ran_at,
                      r.ran_at::date AS ran_on,
@@ -91,8 +91,8 @@ public class SourceDetailService {
 
     public Optional<SourceDetail> detail(String id, int runs) {
         Optional<SourcesConfig.Source> configured = config.snapshot().sources().sources().stream()
-            .filter(source -> source.id().equals(id))
-            .findFirst();
+                .filter(source -> source.id().equals(id))
+                .findFirst();
         if (configured.isEmpty()) {
             return Optional.empty();
         }
@@ -115,22 +115,23 @@ public class SourceDetailService {
 
         YamlBlock block = masked(YamlBlocks.item(text, "sources", id).orElse(null));
         YamlBlock connection = source.connection() == null
-            ? null
-            : masked(YamlBlocks.item(text, "connections", source.connection()).orElse(null));
+                ? null
+                : masked(YamlBlocks.item(text, "connections", source.connection())
+                        .orElse(null));
 
         List<Row> history = history(id, Math.clamp(runs <= 0 ? DEFAULT_RUNS : runs, 1, MAX_RUNS));
         return Optional.of(new SourceDetail(
-            source.id(),
-            source.type(),
-            source.enabled(),
-            new SourceDetail.ConfigFile(
-                ConfigLoader.SOURCES_FILE,
-                file.map(ConfigSource::isDefault).orElse(true) ? "default" : "config-dir",
-                file.map(ConfigSource::origin).orElse(null)),
-            block,
-            connection,
-            history.stream().map(Row::run).toList(),
-            trend(history)));
+                source.id(),
+                source.type(),
+                source.enabled(),
+                new SourceDetail.ConfigFile(
+                        ConfigLoader.SOURCES_FILE,
+                        file.map(ConfigSource::isDefault).orElse(true) ? "default" : "config-dir",
+                        file.map(ConfigSource::origin).orElse(null)),
+                block,
+                connection,
+                history.stream().map(Row::run).toList(),
+                trend(history)));
     }
 
     /**
@@ -139,21 +140,21 @@ public class SourceDetailService {
      */
     private static YamlBlock masked(YamlBlock block) {
         return block == null
-            ? null
-            : new YamlBlock(YamlMask.apply(block.text()).stripTrailing(), block.firstLine(), block.lastLine());
+                ? null
+                : new YamlBlock(YamlMask.apply(block.text()).stripTrailing(), block.firstLine(), block.lastLine());
     }
 
     private List<Row> history(String id, int limit) {
         return jdbc.sql(HISTORY)
-            .params(id, limit)
-            .query((rs, row) -> new Row(
-                rs.getObject("ran_on", LocalDate.class),
-                rs.getInt("documents"),
-                rs.getInt("extracted"),
-                rs.getInt("written"),
-                (Integer) rs.getObject("announced"),
-                (Integer) rs.getObject("previous_extracted")))
-            .list();
+                .params(id, limit)
+                .query((rs, row) -> new Row(
+                        rs.getObject("ran_on", LocalDate.class),
+                        rs.getInt("documents"),
+                        rs.getInt("extracted"),
+                        rs.getInt("written"),
+                        (Integer) rs.getObject("announced"),
+                        (Integer) rs.getObject("previous_extracted")))
+                .list();
     }
 
     /**
@@ -200,7 +201,7 @@ public class SourceDetailService {
      * One history row, still carrying the previous run's count so the trend can be read off it.
      */
     private record Row(
-        LocalDate ranOn, int documents, int extracted, int written, Integer announced, Integer previous) {
+            LocalDate ranOn, int documents, int extracted, int written, Integer announced, Integer previous) {
 
         SourceRun run() {
             return new SourceRun(ranOn, documents, extracted, written, announced);

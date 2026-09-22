@@ -8,9 +8,9 @@
  */
 package de.codeministry.leadgen.ingest.extract;
 
-import org.junit.jupiter.api.Test;
-
 import static org.assertj.core.api.Assertions.assertThat;
+
+import org.junit.jupiter.api.Test;
 
 /**
  * The form every title comparison in this repository runs on.
@@ -27,8 +27,8 @@ class TitleNormalizerTest {
         // this used to fingerprint as "mark devops mark engineer" and never meet its twin.
         // Measured on 13240 live offers: 402 titles carried the tag and 384 were unmerged.
         assertThat(TitleNormalizer.normalize("<mark>DevOps</mark> Engineer"))
-            .isEqualTo(TitleNormalizer.normalize("DevOps Engineer"))
-            .isEqualTo("devops engineer");
+                .isEqualTo(TitleNormalizer.normalize("DevOps Engineer"))
+                .isEqualTo("devops engineer");
     }
 
     @Test
@@ -41,7 +41,7 @@ class TitleNormalizerTest {
         // A search term matching "w" arrives as `(m/<mark>w</mark>/d)`, and the suffix pattern
         // does not recognise its own shape until the tag is gone.
         assertThat(TitleNormalizer.normalize("Java Entwickler (m/<mark>w</mark>/d)"))
-            .isEqualTo(TitleNormalizer.normalize("Java Entwickler (m/w/d)"));
+                .isEqualTo(TitleNormalizer.normalize("Java Entwickler (m/w/d)"));
     }
 
     @Test
@@ -54,7 +54,7 @@ class TitleNormalizerTest {
     void stillFoldsTheGenderSuffixesAndTheDiacritics() {
         // The behaviour the markup strip had to leave untouched.
         assertThat(TitleNormalizer.normalize("Senior Java Entwickler (w/m/d)"))
-            .isEqualTo(TitleNormalizer.normalize("Senior Java Entwickler (m/f/d)"));
+                .isEqualTo(TitleNormalizer.normalize("Senior Java Entwickler (m/f/d)"));
         assertThat(TitleNormalizer.normalize("Entwickler München")).isEqualTo("entwickler mu nchen");
         assertThat(TitleNormalizer.normalize(null)).isEmpty();
     }

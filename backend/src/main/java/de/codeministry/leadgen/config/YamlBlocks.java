@@ -8,12 +8,11 @@
  */
 package de.codeministry.leadgen.config;
 
-import org.yaml.snakeyaml.Yaml;
-import org.yaml.snakeyaml.nodes.*;
-
 import java.io.StringReader;
 import java.util.List;
 import java.util.Optional;
+import org.yaml.snakeyaml.Yaml;
+import org.yaml.snakeyaml.nodes.*;
 
 /**
  * Finds one item of a configuration file inside the file's own text.
@@ -34,8 +33,7 @@ import java.util.Optional;
  */
 public final class YamlBlocks {
 
-    private YamlBlocks() {
-    }
+    private YamlBlocks() {}
 
     /**
      * One item of a top-level sequence, addressed by its {@code id}.
@@ -63,7 +61,7 @@ public final class YamlBlocks {
         List<String> lines = yaml.lines().toList();
         for (NodeTuple tuple : document.getValue()) {
             if (!section.equals(scalarValue(tuple.getKeyNode()))
-                || !(tuple.getValueNode() instanceof SequenceNode sequence)) {
+                    || !(tuple.getValueNode() instanceof SequenceNode sequence)) {
                 continue;
             }
             List<Node> elements = sequence.getValue();
@@ -72,8 +70,8 @@ public final class YamlBlocks {
                     // Bounded by the next item's first line rather than by this one's end
                     // mark — see `cut`.
                     int limit = i + 1 < elements.size()
-                        ? elements.get(i + 1).getStartMark().getLine()
-                        : lines.size();
+                            ? elements.get(i + 1).getStartMark().getLine()
+                            : lines.size();
                     return Optional.of(cut(lines, item, limit));
                 }
             }

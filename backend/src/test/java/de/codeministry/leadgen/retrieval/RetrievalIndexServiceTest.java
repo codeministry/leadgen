@@ -8,12 +8,25 @@
  */
 package de.codeministry.leadgen.retrieval;
 
+import static com.github.tomakehurst.wiremock.client.WireMock.*;
+import static org.assertj.core.api.Assertions.assertThat;
+
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import de.codeministry.leadgen.Databases;
 import de.codeministry.leadgen.config.ConfigFixtures;
 import de.codeministry.leadgen.ingest.extract.TitleNormalizer;
 import de.codeministry.leadgen.llm.Vectors;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.Instant;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -26,20 +39,6 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
-
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.time.Instant;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
-
-import static com.github.tomakehurst.wiremock.client.WireMock.*;
-import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Filling the retrieval column: which offers are due, what text goes out, and what the pass
@@ -96,8 +95,8 @@ class RetrievalIndexServiceTest {
         jdbc.update("DELETE FROM offer");
         jdbc.update("DELETE FROM source");
         jdbc.update("DELETE FROM llm_call_budget");
-        sourceId = jdbc.queryForObject(
-                "INSERT INTO source (name, kind) VALUES ('test', 'file') RETURNING id", Long.class);
+        sourceId =
+                jdbc.queryForObject("INSERT INTO source (name, kind) VALUES ('test', 'file') RETURNING id", Long.class);
     }
 
     @Test
@@ -184,16 +183,14 @@ class RetrievalIndexServiceTest {
         for (int index = 0; index < 40; index++) {
             segmented("Anzeige " + index, "Beschreibung " + index);
         }
-        jdbc.update(
-                "INSERT INTO llm_call_budget (day, calls) VALUES (current_date, ?)", limit() - 1);
+        jdbc.update("INSERT INTO llm_call_budget (day, calls) VALUES (current_date, ?)", limit() - 1);
 
         RetrievalReport report = index.run();
 
         assertThat(report.due()).isEqualTo(40);
         assertThat(report.embedded()).isEqualTo(32);
         assertThat(report.requests()).isEqualTo(1);
-        assertThat(jdbc.queryForObject(
-                        "SELECT count(*) FROM offer WHERE retrieval_embedded_at IS NULL", Integer.class))
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM offer WHERE retrieval_embedded_at IS NULL", Integer.class))
                 .isEqualTo(8);
     }
 
@@ -339,7 +336,8 @@ class RetrievalIndexServiceTest {
                 .mapToObj(index -> String.valueOf(index / (double) width))
                 .collect(Collectors.joining(","));
         String data = IntStream.range(0, count)
-                .mapToObj(index -> "{\"object\":\"embedding\",\"index\":%d,\"embedding\":[%s]}".formatted(index, vector))
+                .mapToObj(
+                        index -> "{\"object\":\"embedding\",\"index\":%d,\"embedding\":[%s]}".formatted(index, vector))
                 .collect(Collectors.joining(","));
         MODEL.stubFor(post(urlPathEqualTo("/embeddings"))
                 .willReturn(aResponse()
@@ -382,7 +380,8 @@ class RetrievalIndexServiceTest {
     }
 
     private static String set(String yaml, String key, String value) {
-        Matcher matcher = Pattern.compile("(?m)^([ \\t]*)" + Pattern.quote(key) + ":.*$").matcher(yaml);
+        Matcher matcher =
+                Pattern.compile("(?m)^([ \\t]*)" + Pattern.quote(key) + ":.*$").matcher(yaml);
         if (!matcher.find()) {
             throw new IllegalStateException(
                     "no `" + key + ":` in the shipped pipeline.yaml — the fixture and the file have drifted");

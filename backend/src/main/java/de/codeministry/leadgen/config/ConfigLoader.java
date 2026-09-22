@@ -20,15 +20,14 @@ import de.codeministry.leadgen.config.model.SourcesConfig;
 import de.codeministry.leadgen.security.SecurityConfig;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
-
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.*;
 import java.util.stream.Stream;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
 
 /**
  * Reads, resolves, binds and validates the configuration.
@@ -254,14 +253,13 @@ public class ConfigLoader {
                 continue;
             }
             boolean namesSenders = selector.from() != null && !selector.from().isEmpty();
-            boolean namesSubject =
-                    selector.subjectMatches() != null && !selector.subjectMatches().isBlank();
+            boolean namesSubject = selector.subjectMatches() != null
+                    && !selector.subjectMatches().isBlank();
             if (selector.matchAll() && namesSenders) {
-                problems.add(
-                        ("source '%s' sets both 'match_all: true' and 'from'. The senders stay in the IMAP search"
-                                        + " either way, so this reads as dedicated mode and behaves as a sender"
-                                        + " filter — name one or the other")
-                                .formatted(source.id()));
+                problems.add(("source '%s' sets both 'match_all: true' and 'from'. The senders stay in the IMAP search"
+                                + " either way, so this reads as dedicated mode and behaves as a sender"
+                                + " filter — name one or the other")
+                        .formatted(source.id()));
             }
             if (!selector.matchAll() && !namesSenders && !namesSubject) {
                 problems.add(
@@ -309,7 +307,8 @@ public class ConfigLoader {
                             ("source '%s' reads '%s' with 'match_all: true' while '%s' reads the same folder."
                                             + " The dedicated source marks that source's mail as taken before it"
                                             + " runs, and the loss is silent — give one of them a folder of its own")
-                                    .formatted(dedicated.id(), dedicated.selector().folder(), other.id())));
+                                    .formatted(
+                                            dedicated.id(), dedicated.selector().folder(), other.id())));
         }
         return problems;
     }

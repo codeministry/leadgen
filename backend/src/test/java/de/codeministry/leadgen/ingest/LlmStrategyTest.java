@@ -8,6 +8,8 @@
  */
 package de.codeministry.leadgen.ingest;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.json.JsonMapper;
@@ -19,8 +21,6 @@ import de.codeministry.leadgen.ingest.extract.ExtractionFallback;
 import de.codeministry.leadgen.ingest.extract.LlmDocumentExtractor;
 import de.codeministry.leadgen.ingest.extract.LlmExtractor;
 import de.codeministry.leadgen.ingest.extract.OfferMapper;
-import org.junit.jupiter.api.Test;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
@@ -30,8 +30,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.Test;
 
 /**
  * {@code strategy: llm}: the case where there was never anything to select.

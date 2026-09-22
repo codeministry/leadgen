@@ -8,9 +8,13 @@
  */
 package de.codeministry.leadgen.analytics;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
+
 import de.codeministry.leadgen.Databases;
 import de.codeministry.leadgen.application.ApplicationStatus;
 import de.codeministry.leadgen.config.ConfigFixtures;
+import java.time.LocalDate;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,11 +26,6 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
-
-import java.time.LocalDate;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.within;
 
 /**
  * What the analytics screen reads.
@@ -270,9 +269,9 @@ class AnalyticsQueryServiceTest {
         jdbc.update("UPDATE offer SET archived_at = now() WHERE id = ?", archived);
 
         assertThat(analytics.analytics().applications().byStatus())
-            .filteredOn(count -> count.status() == ApplicationStatus.NEW)
-            .singleElement()
-            .satisfies(count -> assertThat(count.applications()).isEqualTo(1));
+                .filteredOn(count -> count.status() == ApplicationStatus.NEW)
+                .singleElement()
+                .satisfies(count -> assertThat(count.applications()).isEqualTo(1));
     }
 
     @Test
@@ -428,7 +427,7 @@ class AnalyticsQueryServiceTest {
 
     private long opened(long offerId) {
         return jdbc.queryForObject(
-            "INSERT INTO application (offer_id, status) VALUES (?, 'NEW') RETURNING id", Long.class, offerId);
+                "INSERT INTO application (offer_id, status) VALUES (?, 'NEW') RETURNING id", Long.class, offerId);
     }
 
     private void moved(long applicationId, ApplicationStatus to) {
@@ -439,9 +438,13 @@ class AnalyticsQueryServiceTest {
     }
 
     private void movedOn(long applicationId, ApplicationStatus to, LocalDate day) {
-        jdbc.update("""
+        jdbc.update(
+                """
             INSERT INTO application_event (application_id, from_status, to_status, recorded_at)
             VALUES (?, 'SENT', ?, ?)
-            """, applicationId, to.name(), java.sql.Timestamp.valueOf(day.atTime(12, 0)));
+            """,
+                applicationId,
+                to.name(),
+                java.sql.Timestamp.valueOf(day.atTime(12, 0)));
     }
 }

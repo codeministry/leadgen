@@ -10,17 +10,16 @@ package de.codeministry.leadgen.archive;
 
 import de.codeministry.leadgen.application.ApplicationStatus;
 import de.codeministry.leadgen.config.ConfigRegistry;
+import java.time.LocalDate;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
+import javax.sql.DataSource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import javax.sql.DataSource;
-import java.time.LocalDate;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
 
 /**
  * Takes what has aged out off the working list, and puts back what belongs on it again.
@@ -55,7 +54,8 @@ public class ArchiveService {
      * the list whatever its date says, because the board is the only place that state
      * exists and archiving it away would make it invisible on the one screen that reads it.
      */
-    private static final String ARCHIVE_AGED_OUT = """
+    private static final String ARCHIVE_AGED_OUT =
+            """
         UPDATE offer SET archived_at = now(), archive_source = 'AGE'
         WHERE archived_at IS NULL
           AND archive_source IS NULL
@@ -68,7 +68,8 @@ public class ArchiveService {
     /**
      * Inside the window again, because the operator widened it. Only what the pass owns.
      */
-    private static final String RESTORE_INSIDE_WINDOW = """
+    private static final String RESTORE_INSIDE_WINDOW =
+            """
         UPDATE offer SET archived_at = NULL, archive_source = NULL
         WHERE archive_source = 'AGE'
           AND (:cutoff IS NULL OR published_on >= :cutoff)
@@ -98,7 +99,8 @@ public class ArchiveService {
      * a 404 on the single-offer path — contradicting that method's own rule that clicking
      * twice is not an error.
      */
-    private static final String SET_BY_HAND = """
+    private static final String SET_BY_HAND =
+            """
         WITH changed AS (
             UPDATE offer
             SET archived_at    = CASE WHEN ? THEN now() ELSE NULL END,
@@ -127,7 +129,8 @@ public class ArchiveService {
      * undoing its own archiving is not somebody changing their mind, and resetting a status
      * every time the freshness window widens would be a rule nobody asked for.
      */
-    private static final String RESET_TO_NEW = """
+    private static final String RESET_TO_NEW =
+            """
         WITH before AS (
             SELECT id, status FROM application
             WHERE offer_id = ANY (?) AND status <> 'NEW'
@@ -152,7 +155,8 @@ public class ArchiveService {
     /**
      * No date, no age. These stay on the list for as long as they exist.
      */
-    private static final String UNDATED = """
+    private static final String UNDATED =
+            """
         SELECT count(*) FROM offer
         WHERE published_on IS NULL AND archived_at IS NULL AND duplicate_of_id IS NULL
         """;
@@ -221,17 +225,17 @@ public class ArchiveService {
         // makes MAX_IDS mean distinct offers — this is the same rule for every other caller.
         Long[] ids = offerIds.stream().distinct().toArray(Long[]::new);
         ArchiveResult result = jdbc.sql(SET_BY_HAND)
-            .param(archived)
-            .param(archived)
-            .param(ids)
-            .query((rs, row) -> new ArchiveResult(ids.length, rs.getInt("archived"), rs.getInt("unscored")))
-            .single();
+                .param(archived)
+                .param(archived)
+                .param(ids)
+                .query((rs, row) -> new ArchiveResult(ids.length, rs.getInt("archived"), rs.getInt("unscored")))
+                .single();
         if (result.archived() > 0) {
             log.info(
-                "{} of {} offers were {} by hand",
-                result.archived(),
-                result.requested(),
-                archived ? "archived" : "restored");
+                    "{} of {} offers were {} by hand",
+                    result.archived(),
+                    result.requested(),
+                    archived ? "archived" : "restored");
         }
 
         if (archived) {

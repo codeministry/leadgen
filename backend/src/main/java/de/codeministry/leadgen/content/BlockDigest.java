@@ -59,8 +59,7 @@ public final class BlockDigest {
      */
     public static final int SAMPLE_LENGTH = 200;
 
-    private BlockDigest() {
-    }
+    private BlockDigest() {}
 
     /**
      * 32 hex characters of SHA-256 over the normalised block. Truncated because this is a

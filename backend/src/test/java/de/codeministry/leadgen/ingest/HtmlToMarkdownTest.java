@@ -8,11 +8,11 @@
  */
 package de.codeministry.leadgen.ingest;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import de.codeministry.leadgen.ingest.extract.HtmlToMarkdown;
 import org.jsoup.Jsoup;
 import org.junit.jupiter.api.Test;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * The advert's own structure, kept.
@@ -26,13 +26,15 @@ class HtmlToMarkdownTest {
 
     @Test
     void keepsHeadingsListsAndEmphasis() {
-        String markdown = HtmlToMarkdown.of(Jsoup.parseBodyFragment("""
+        String markdown = HtmlToMarkdown.of(Jsoup.parseBodyFragment(
+                        """
             <div>
               <h2>Ihre Aufgaben</h2>
               <p>Wir suchen einen <strong>Java-Entwickler</strong>.</p>
               <ul><li>Spring Boot</li><li>Kubernetes</li></ul>
             </div>
-            """).body());
+            """)
+                .body());
 
         assertThat(markdown).contains("## Ihre Aufgaben");
         assertThat(markdown).contains("**Java-Entwickler**");

@@ -67,9 +67,11 @@ public enum ScoreState {
             return ANY;
         }
         return Arrays.stream(values())
-            .filter(state -> state.key.equalsIgnoreCase(name.trim()))
-            .findFirst()
-            .orElseThrow(() -> new BadShortlistRequest("'%s' is not a score state; it has %s".formatted(
-                name, Arrays.stream(values()).map(ScoreState::key).collect(Collectors.joining(", ")))));
+                .filter(state -> state.key.equalsIgnoreCase(name.trim()))
+                .findFirst()
+                .orElseThrow(() -> new BadShortlistRequest("'%s' is not a score state; it has %s"
+                        .formatted(
+                                name,
+                                Arrays.stream(values()).map(ScoreState::key).collect(Collectors.joining(", ")))));
     }
 }

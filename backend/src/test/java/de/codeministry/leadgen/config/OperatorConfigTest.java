@@ -8,16 +8,15 @@
  */
 package de.codeministry.leadgen.config;
 
+import static org.assertj.core.api.Assertions.assertThatCode;
+
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
-import org.junit.jupiter.api.Assumptions;
-import org.junit.jupiter.api.Test;
-
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
-
-import static org.assertj.core.api.Assertions.assertThatCode;
+import org.junit.jupiter.api.Assumptions;
+import org.junit.jupiter.api.Test;
 
 /**
  * Binds the operator's own `config/` directory, when there is one.

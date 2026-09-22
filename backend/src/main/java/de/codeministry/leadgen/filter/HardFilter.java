@@ -10,7 +10,6 @@ package de.codeministry.leadgen.filter;
 
 import de.codeministry.leadgen.config.model.MatchingRules;
 import de.codeministry.leadgen.config.model.SkillProfile;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;

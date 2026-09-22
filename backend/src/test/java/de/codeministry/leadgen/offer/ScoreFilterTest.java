@@ -8,10 +8,10 @@
  */
 package de.codeministry.leadgen.offer;
 
-import org.junit.jupiter.api.Test;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import org.junit.jupiter.api.Test;
 
 /**
  * One filter, three spellings, and only one of them per request.
@@ -25,8 +25,8 @@ class ScoreFilterTest {
     @Test
     void refusesABandAndARangeTogether() {
         assertThatThrownBy(() -> new ScoreFilter("shortlist", 60, null, ScoreState.ANY))
-            .isInstanceOf(BadShortlistRequest.class)
-            .hasMessageContaining("two spellings");
+                .isInstanceOf(BadShortlistRequest.class)
+                .hasMessageContaining("two spellings");
     }
 
     @Test
@@ -34,22 +34,22 @@ class ScoreFilterTest {
         // Always empty rather than wrong, which is worse: an empty list is read as a quiet
         // day on the market and not as a request that cannot be answered.
         assertThatThrownBy(() -> new ScoreFilter("shortlist", null, null, ScoreState.UNSCORED))
-            .isInstanceOf(BadShortlistRequest.class)
-            .hasMessageContaining("scoreState=unscored");
+                .isInstanceOf(BadShortlistRequest.class)
+                .hasMessageContaining("scoreState=unscored");
     }
 
     @Test
     void refusesARangeAndAScoreStateTogether() {
         assertThatThrownBy(() -> new ScoreFilter(null, 40, 80, ScoreState.SCORED))
-            .isInstanceOf(BadShortlistRequest.class)
-            .hasMessageContaining("scoreState=scored");
+                .isInstanceOf(BadShortlistRequest.class)
+                .hasMessageContaining("scoreState=scored");
     }
 
     @Test
     void refusesARangeThatCannotMatchAnything() {
         assertThatThrownBy(() -> new ScoreFilter(null, 80, 40, ScoreState.ANY))
-            .isInstanceOf(BadShortlistRequest.class)
-            .hasMessageContaining("minScore=80");
+                .isInstanceOf(BadShortlistRequest.class)
+                .hasMessageContaining("minScore=80");
     }
 
     @Test

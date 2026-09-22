@@ -9,7 +9,6 @@
 package de.codeministry.leadgen.analytics;
 
 import de.codeministry.leadgen.offer.FunnelView;
-
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;

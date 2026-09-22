@@ -8,8 +8,16 @@
  */
 package de.codeministry.leadgen.digest;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import de.codeministry.leadgen.Databases;
 import de.codeministry.leadgen.config.ConfigFixtures;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.LocalDate;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,15 +29,6 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
-
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.time.LocalDate;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * ISC-49: the daily digest is a file, it lists both bands, and it is produced without a
@@ -130,13 +129,20 @@ class DigestServiceTest {
     }
 
     private long offer(String title, Integer score, String band) {
-        return jdbc.queryForObject("""
+        return jdbc.queryForObject(
+                """
             INSERT INTO offer (source_id, external_id, title, description, url, fingerprint,
                                status, score_value, score_band, location, portal, agency)
             VALUES (?, ?, ?, 'egal', 'https://example.invalid/x', 'fp', 'PASSED', ?, ?,
                     'Köln', 'portal-a', 'Acme Consulting GmbH')
             RETURNING id
-            """, Long.class, sourceId, "ext-" + System.nanoTime(), title, score, band);
+            """,
+                Long.class,
+                sourceId,
+                "ext-" + System.nanoTime(),
+                title,
+                score,
+                band);
     }
 
     private void reason(long offerId, String factor, String label, int points) {

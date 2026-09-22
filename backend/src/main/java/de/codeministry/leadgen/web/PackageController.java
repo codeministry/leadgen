@@ -10,12 +10,11 @@ package de.codeministry.leadgen.web;
 
 import de.codeministry.leadgen.packaging.PackageArchive;
 import de.codeministry.leadgen.packaging.PackageArchiveService;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
-
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Path;
 
 /**
  * The finished application package, as one file.

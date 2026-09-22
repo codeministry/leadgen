@@ -10,14 +10,13 @@ package de.codeministry.leadgen.ingest.extract;
 
 import de.codeministry.leadgen.config.model.SourcesConfig.Extraction;
 import de.codeministry.leadgen.ingest.ExtractedOffer;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
-
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
 
 /**
  * Turns one block's raw field values into an offer.

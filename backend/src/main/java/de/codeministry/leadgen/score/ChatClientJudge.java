@@ -13,15 +13,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import de.codeministry.leadgen.config.model.MatchingRules;
 import de.codeministry.leadgen.config.model.SkillProfile;
 import de.codeministry.leadgen.llm.Answers;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.chat.model.ChatModel;
-import org.springframework.ai.chat.model.ChatResponse;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.model.ChatModel;
+import org.springframework.ai.chat.model.ChatResponse;
 
 /**
  * Everything about judging that is not the wire format.
@@ -63,7 +62,8 @@ public class ChatClientJudge implements Judge {
      * application read `skill-profile.yaml`. Role fit was therefore judged against a
      * description of somebody else, and editing the profile could not move it.
      */
-    private static final String INSTRUCTIONS = """
+    private static final String INSTRUCTIONS =
+            """
                 You assess freelance project offers for one specific developer.
 
                 %s
@@ -352,7 +352,7 @@ public class ChatClientJudge implements Judge {
             log.warn(
                     "Offer {}: the scoring model did not answer with usable JSON. It said: {}",
                     offerId,
-                Answers.abbreviate(content));
+                    Answers.abbreviate(content));
             return List.of();
         }
         return reasons;

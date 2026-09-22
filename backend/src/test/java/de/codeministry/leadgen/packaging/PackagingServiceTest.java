@@ -8,10 +8,18 @@
  */
 package de.codeministry.leadgen.packaging;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import de.codeministry.leadgen.Databases;
 import de.codeministry.leadgen.config.ConfigFixtures;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,15 +31,6 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
-
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.stream.Stream;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * ISC-51: an offer above the threshold produces a folder with the cover letter, the CV
@@ -126,7 +125,8 @@ class PackagingServiceTest {
         // `agency` is the company writing the advert, so it is who the letter is addressed
         // to — not where it was found. Naming it after "über" told the recruiter that we
         // came across their own advert through them.
-        long id = requested("Senior Java Entwickler (m/w/d)", "Wir suchen einen Entwickler mit Erfahrung in Spring Boot.");
+        long id = requested(
+                "Senior Java Entwickler (m/w/d)", "Wir suchen einen Entwickler mit Erfahrung in Spring Boot.");
         packaging.run();
         assertThat(read(folderOf(id).resolve("cover_letter.txt")))
                 .contains("Über portal-a bin ich auf")
@@ -139,7 +139,8 @@ class PackagingServiceTest {
         // indentation of a text line inside an <#if> or a <#list>. Every paragraph of this
         // letter sits in one, so the whole body used to reach the client indented by four
         // spaces and nothing in the suite could see it.
-        long id = requested("Senior Java Entwickler (m/w/d)", "Für unseren Kunden suchen wir Spring Boot und Kubernetes.");
+        long id = requested(
+                "Senior Java Entwickler (m/w/d)", "Für unseren Kunden suchen wir Spring Boot und Kubernetes.");
         packaging.run();
         assertThat(read(folderOf(id).resolve("cover_letter.txt")).lines())
                 .noneMatch(line -> line.startsWith(" ") || line.startsWith("\t"));
@@ -147,7 +148,8 @@ class PackagingServiceTest {
 
     @Test
     void writesTheStartDateTheWayTheLanguageOfTheLetterWritesIt() {
-        long id = requested("Senior Java Entwickler (m/w/d)", "Wir suchen einen Entwickler, das Projekt startet fest terminiert.");
+        long id = requested(
+                "Senior Java Entwickler (m/w/d)", "Wir suchen einen Entwickler, das Projekt startet fest terminiert.");
         jdbc.update("UPDATE offer SET starts_on = DATE '2026-10-01' WHERE id = ?", id);
         packaging.run();
         assertThat(read(folderOf(id).resolve("cover_letter.txt")))
@@ -181,21 +183,21 @@ class PackagingServiceTest {
         // why the suite stayed green.
         long id = requested("Senior Entwickler (m/w/d)", "Kurzbeschreibung aus dem Newsletter.");
         jdbc.update(
-            """
+                """
                 UPDATE offer
                 SET full_text = ?, tags = ?::text[], content_blocks = ?::jsonb
                 WHERE id = ?
                 """,
-            "Wir suchen fuer unseren Kunden einen Entwickler mit Erfahrung in Spring Boot.\n\nJava",
-            "{Java,Angular}",
-            """
+                "Wir suchen fuer unseren Kunden einen Entwickler mit Erfahrung in Spring Boot.\n\nJava",
+                "{Java,Angular}",
+                """
                 [{"index":0,
                   "text":"Wir suchen fuer unseren Kunden einen Entwickler mit Erfahrung in Spring Boot.",
                   "kind":"CONTENT","reason":null,"by":"MODEL"},
                  {"index":1,"text":"Java","kind":"TAXONOMY",
                   "reason":"the portal's own tag cloud","by":"MODEL"}]
                 """,
-            id);
+                id);
 
         var report = packaging.run();
 
@@ -205,7 +207,9 @@ class PackagingServiceTest {
         // Spring Boot is in the advert, Java is only in the block the model called a tag
         // cloud. Read through `full_text` both would match, which is the defect segmentation
         // exists to fix and which packaging has to honour too.
-        assertThat(meta.path("matchedSkills").toString()).contains("Spring Boot").doesNotContain("Java");
+        assertThat(meta.path("matchedSkills").toString())
+                .contains("Spring Boot")
+                .doesNotContain("Java");
     }
 
     @Test
@@ -251,9 +255,9 @@ class PackagingServiceTest {
 
         assertThat(report.due()).isEqualTo(1);
         assertThat(jdbc.queryForObject("SELECT package_dir FROM offer WHERE id = ?", String.class, asked))
-            .isNotNull();
+                .isNotNull();
         assertThat(jdbc.queryForObject("SELECT package_dir FROM offer WHERE id = ?", String.class, waiting))
-            .isNull();
+                .isNull();
     }
 
     @Test
@@ -337,13 +341,19 @@ class PackagingServiceTest {
     }
 
     private long shortlisted(String title, String description) {
-        return jdbc.queryForObject("""
+        return jdbc.queryForObject(
+                """
             INSERT INTO offer (source_id, external_id, title, description, url, fingerprint, status,
                                score_value, score_band, location, portal, agency, published_on)
             VALUES (?, ?, ?, ?, 'https://example.invalid/projekt/1', 'fp', 'PASSED', 88, 'SHORTLISTED',
                     'Köln', 'portal-a', 'Acme Consulting GmbH', DATE '2026-08-31')
             RETURNING id
-            """, Long.class, sourceId, "ext-" + System.nanoTime(), title, description);
+            """,
+                Long.class,
+                sourceId,
+                "ext-" + System.nanoTime(),
+                title,
+                description);
     }
 
     private void reason(long offerId, String factor, String label, int points) {

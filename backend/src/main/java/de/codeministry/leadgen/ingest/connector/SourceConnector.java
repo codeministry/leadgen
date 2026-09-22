@@ -10,7 +10,6 @@ package de.codeministry.leadgen.ingest.connector;
 
 import de.codeministry.leadgen.config.model.SourcesConfig.Source;
 import de.codeministry.leadgen.ingest.RawDocument;
-
 import java.util.List;
 
 /**

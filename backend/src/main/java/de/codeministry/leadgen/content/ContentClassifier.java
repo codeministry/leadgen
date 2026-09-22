@@ -11,14 +11,13 @@ package de.codeministry.leadgen.content;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import de.codeministry.leadgen.llm.Answers;
+import java.io.IOException;
+import java.util.*;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
-
-import java.io.IOException;
-import java.util.*;
-import java.util.stream.Collectors;
 
 /**
  * Asks a model what the blocks nobody recognised are.
@@ -36,7 +35,7 @@ import java.util.stream.Collectors;
 public class ContentClassifier {
 
     private static final String INSTRUCTIONS =
-        """
+            """
             You are cleaning up job adverts that were scraped from freelance portals. The scrape
             keeps the advert, and it also keeps whatever the page had around it.
 
@@ -117,18 +116,19 @@ public class ContentClassifier {
         String content = null;
         try {
             ChatResponse response = ChatClient.create(chatModel)
-                .prompt()
-                .system(INSTRUCTIONS)
-                .user(describe(title, blocks))
-                .call()
-                .chatResponse();
+                    .prompt()
+                    .system(INSTRUCTIONS)
+                    .user(describe(title, blocks))
+                    .call()
+                    .chatResponse();
             content = Answers.textOf(response);
             return Optional.of(read(content, blocks));
         } catch (RuntimeException e) {
             log.warn("The content classifier failed: {}", e.getMessage());
             return Optional.empty();
         } catch (IOException e) {
-            log.warn("The content classifier did not answer with usable JSON. It said: {}", Answers.abbreviate(content));
+            log.warn(
+                    "The content classifier did not answer with usable JSON. It said: {}", Answers.abbreviate(content));
             return Optional.empty();
         }
     }
@@ -142,7 +142,11 @@ public class ContentClassifier {
         StringBuilder text = new StringBuilder("Advert: ").append(title == null ? "(untitled)" : title);
         text.append("\n\nBlocks:\n");
         for (Candidate block : blocks) {
-            text.append('[').append(block.index()).append("] ").append(block.sample()).append('\n');
+            text.append('[')
+                    .append(block.index())
+                    .append("] ")
+                    .append(block.sample())
+                    .append('\n');
         }
         return text.toString();
     }
@@ -176,23 +180,21 @@ public class ContentClassifier {
 
     private static ContentKind kindOf(String answered) {
         return Arrays.stream(ContentKind.values())
-            .filter(kind -> kind.name().equalsIgnoreCase(answered.trim()))
-            .findFirst()
-            .orElseGet(() -> {
-                log.debug("The classifier returned kind '{}', which is not one it was offered", answered);
-                return null;
-            });
+                .filter(kind -> kind.name().equalsIgnoreCase(answered.trim()))
+                .findFirst()
+                .orElseGet(() -> {
+                    log.debug("The classifier returned kind '{}', which is not one it was offered", answered);
+                    return null;
+                });
     }
 
     /**
      * One block, as it is offered to the model.
      */
-    public record Candidate(int index, String sample) {
-    }
+    public record Candidate(int index, String sample) {}
 
     /**
      * One block, as the model answered about it.
      */
-    public record Labelled(ContentKind kind, String reason) {
-    }
+    public record Labelled(ContentKind kind, String reason) {}
 }

@@ -13,7 +13,6 @@ import de.codeministry.leadgen.config.model.SkillProfile;
 import de.codeministry.leadgen.content.ContentClassifier;
 import de.codeministry.leadgen.ingest.extract.LlmExtractor;
 import de.codeministry.leadgen.score.ChatClientJudge;
-
 import java.util.List;
 
 /**
@@ -59,18 +58,10 @@ public record PromptView(String id, String model, String system, String user) {
      *                        why {@code PromptViewTest} pins both.
      */
     public static List<PromptView> all(
-        MatchingRules rules, SkillProfile profile, String model, String extractionModel) {
+            MatchingRules rules, SkillProfile profile, String model, String extractionModel) {
         return List.of(
-            new PromptView(
-                "extraction",
-                extractionModel,
-                LlmExtractor.instructions(),
-                LlmExtractor.exampleUser()),
-                new PromptView(
-                        "content",
-                        model,
-                        ContentClassifier.instructions(),
-                        ContentClassifier.exampleUser()),
+                new PromptView("extraction", extractionModel, LlmExtractor.instructions(), LlmExtractor.exampleUser()),
+                new PromptView("content", model, ContentClassifier.instructions(), ContentClassifier.exampleUser()),
                 new PromptView(
                         "scoring",
                         model,

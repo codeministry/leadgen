@@ -27,5 +27,4 @@ import java.util.List;
  * @param file  the file's own name, which is the same in both layers
  * @param layer {@code default} for the copy inside the jar, {@code config-dir} for one outside it
  */
-public record SourcesView(String file, String layer, List<SourceSummary> sources) {
-}
+public record SourcesView(String file, String layer, List<SourceSummary> sources) {}

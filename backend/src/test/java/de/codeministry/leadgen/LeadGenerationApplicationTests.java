@@ -8,7 +8,13 @@
  */
 package de.codeministry.leadgen;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import de.codeministry.leadgen.config.ConfigRegistry;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -19,13 +25,6 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
-
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * The two things the skeleton owes: the context starts, and Flyway actually ran.
@@ -82,9 +81,8 @@ class LeadGenerationApplicationTests {
         // also the ceiling: pgvector refuses an HNSW index on a wider `vector`, which is why a
         // model returning more is truncated at the seam instead of widening this.
         Integer width = jdbc.queryForObject(
-            "SELECT atttypmod FROM pg_attribute"
-                + " WHERE attrelid = 'offer'::regclass AND attname = 'embedding'",
-            Integer.class);
+                "SELECT atttypmod FROM pg_attribute" + " WHERE attrelid = 'offer'::regclass AND attname = 'embedding'",
+                Integer.class);
         assertThat(width).isEqualTo(2000);
     }
 

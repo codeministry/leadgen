@@ -8,8 +8,12 @@
  */
 package de.codeministry.leadgen.application;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import de.codeministry.leadgen.Databases;
 import de.codeministry.leadgen.config.ConfigFixtures;
+import java.time.LocalDate;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,11 +25,6 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
-
-import java.time.LocalDate;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * The half of the loop the system cannot observe: what happened after a package was
@@ -66,13 +65,16 @@ class ApplicationServiceTest {
         jdbc.update("DELETE FROM source");
         long sourceId =
                 jdbc.queryForObject("INSERT INTO source (name, kind) VALUES ('test', 'file') RETURNING id", Long.class);
-        offerId = jdbc.queryForObject("""
+        offerId = jdbc.queryForObject(
+                """
             INSERT INTO offer (source_id, external_id, title, url, fingerprint, status,
                                score_value, score_band, agency, portal)
             VALUES (?, 'ext-1', 'Senior Java Entwickler (m/w/d)', 'https://example.invalid/x', 'fp',
                     'PASSED', 88, 'SHORTLISTED', 'Acme Consulting GmbH', 'portal-a')
             RETURNING id
-            """, Long.class, sourceId);
+            """,
+                Long.class,
+                sourceId);
     }
 
     @Test
@@ -129,9 +131,9 @@ class ApplicationServiceTest {
         // outcome describe the same attempt and go with it.
         long id = applications.open(offerId, ApplicationStatus.PACKAGED);
         applications.update(
-            id,
-            new ApplicationUpdate(
-                ApplicationStatus.SENT, null, LocalDate.now().plusDays(7), null, "wartet auf Antwort", null));
+                id,
+                new ApplicationUpdate(
+                        ApplicationStatus.SENT, null, LocalDate.now().plusDays(7), null, "wartet auf Antwort", null));
         var sent = applications.find(id).orElseThrow();
         assertThat(sent.sentOn()).isNotNull();
         assertThat(sent.followUpOn()).isNotNull();
@@ -152,9 +154,9 @@ class ApplicationServiceTest {
         long id = applications.open(offerId, ApplicationStatus.PACKAGED);
 
         applications.update(
-            id,
-            new ApplicationUpdate(
-                ApplicationStatus.NEW, LocalDate.now(), LocalDate.now().plusDays(3), null, "offen", null));
+                id,
+                new ApplicationUpdate(
+                        ApplicationStatus.NEW, LocalDate.now(), LocalDate.now().plusDays(3), null, "offen", null));
 
         var back = applications.find(id).orElseThrow();
         assertThat(back.sentOn()).isNull();
@@ -275,7 +277,7 @@ class ApplicationServiceTest {
         // application whose status could no longer be moved would be a dead end.
         assertThat(applications.find(id)).isPresent();
         assertThat(applications.update(id, update(ApplicationStatus.LOST)).status())
-            .isEqualTo(ApplicationStatus.LOST);
+                .isEqualTo(ApplicationStatus.LOST);
     }
 
     @Test
@@ -293,8 +295,8 @@ class ApplicationServiceTest {
         long id = applications.open(offerId, ApplicationStatus.NEW);
 
         assertThatThrownBy(() -> applications.update(id, update(ApplicationStatus.SENT)))
-            .isInstanceOf(ApplicationService.TransitionRefused.class)
-            .hasMessageContaining("PACKAGED");
+                .isInstanceOf(ApplicationService.TransitionRefused.class)
+                .hasMessageContaining("PACKAGED");
 
         // And nothing happened: not the status, and not the event that would claim it did.
         assertThat(applications.find(id).orElseThrow().status()).isEqualTo(ApplicationStatus.NEW);
@@ -308,7 +310,7 @@ class ApplicationServiceTest {
         long id = applications.open(offerId, ApplicationStatus.NEW);
 
         assertThatThrownBy(() -> applications.update(id, update(ApplicationStatus.INTERVIEW)))
-            .isInstanceOf(ApplicationService.TransitionRefused.class);
+                .isInstanceOf(ApplicationService.TransitionRefused.class);
 
         assertThat(applications.find(id).orElseThrow().sentOn()).isNull();
     }
@@ -318,7 +320,7 @@ class ApplicationServiceTest {
         // Deciding against an offer must never need a package first. Marking it as one to
         // come back to must not either, or SHORTLISTED is a state nothing can reach.
         for (ApplicationStatus allowed : java.util.List.of(
-            ApplicationStatus.SHORTLISTED, ApplicationStatus.REJECTED, ApplicationStatus.EXPIRED)) {
+                ApplicationStatus.SHORTLISTED, ApplicationStatus.REJECTED, ApplicationStatus.EXPIRED)) {
             reset();
             long id = applications.open(offerId, ApplicationStatus.NEW);
             assertThat(applications.update(id, update(allowed)).status()).isEqualTo(allowed);
@@ -332,9 +334,9 @@ class ApplicationServiceTest {
         long id = applications.open(offerId, ApplicationStatus.PACKAGED);
 
         assertThat(applications.update(id, update(ApplicationStatus.LOST)).status())
-            .isEqualTo(ApplicationStatus.LOST);
+                .isEqualTo(ApplicationStatus.LOST);
         assertThat(applications.update(id, update(ApplicationStatus.NEW)).status())
-            .isEqualTo(ApplicationStatus.NEW);
+                .isEqualTo(ApplicationStatus.NEW);
     }
 
     @Test
@@ -344,21 +346,20 @@ class ApplicationServiceTest {
         assertThat(first.opened()).isEqualTo(1);
         assertThat(first.standing()).isEqualTo(1);
         assertThat(jdbc.queryForObject("SELECT status FROM application WHERE offer_id = ?", String.class, offerId))
-            .isEqualTo("NEW");
-        assertThat(jdbc.queryForObject(
-            "SELECT count(*) FROM application_event WHERE to_status = 'NEW'", Integer.class))
-            .isEqualTo(1);
+                .isEqualTo("NEW");
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM application_event WHERE to_status = 'NEW'", Integer.class))
+                .isEqualTo(1);
 
         // A second run in the same morning opens nothing, and resets nothing either.
         // Moved to SHORTLISTED rather than to PACKAGED on purpose: the latter publishes a
         // request for a folder, and this test has no business writing one to disk.
         applications.update(
-            jdbc.queryForObject("SELECT id FROM application WHERE offer_id = ?", Long.class, offerId),
-            update(ApplicationStatus.SHORTLISTED));
+                jdbc.queryForObject("SELECT id FROM application WHERE offer_id = ?", Long.class, offerId),
+                update(ApplicationStatus.SHORTLISTED));
 
         assertThat(applications.openShortlisted().opened()).isZero();
         assertThat(jdbc.queryForObject("SELECT status FROM application WHERE offer_id = ?", String.class, offerId))
-            .isEqualTo("SHORTLISTED");
+                .isEqualTo("SHORTLISTED");
     }
 
     @Test
@@ -367,7 +368,7 @@ class ApplicationServiceTest {
 
         assertThat(applications.openShortlisted().opened()).isZero();
         assertThat(jdbc.queryForObject("SELECT count(*) FROM application", Integer.class))
-            .isZero();
+                .isZero();
     }
 
     @Test

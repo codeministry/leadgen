@@ -13,14 +13,13 @@ import de.codeministry.leadgen.config.ConfigSnapshot;
 import de.codeministry.leadgen.config.model.MatchingRules;
 import de.codeministry.leadgen.config.model.PipelineConfig;
 import de.codeministry.leadgen.llm.LlmBudget;
+import java.util.List;
+import java.util.Optional;
+import javax.sql.DataSource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import javax.sql.DataSource;
-import java.util.List;
-import java.util.Optional;
 
 /**
  * Turns what survived the filter into a ranked shortlist, with the reason behind every
@@ -58,7 +57,8 @@ public class ScoringService {
      * job of `score_batch_id`: its answer is bought and on its way, so asking again would
      * be paying twice for it.
      */
-    private static final String DUE = "SELECT " + ScoreCandidate.COLUMNS + """
+    private static final String DUE = "SELECT " + ScoreCandidate.COLUMNS
+            + """
 
         FROM offer
         WHERE status = 'PASSED'
@@ -77,7 +77,8 @@ public class ScoringService {
      * run legitimately judges nothing, and a report of "0 shortlisted" reads as scoring
      * having stopped working rather than as there being nothing new to do.
      */
-    private static final String STANDING = """
+    private static final String STANDING =
+            """
         SELECT count(*)                                            AS considered,
                count(*) FILTER (WHERE score_value IS NULL)         AS unscored,
                count(*) FILTER (WHERE score_band = 'SHORTLISTED')  AS shortlisted,
@@ -91,7 +92,8 @@ public class ScoringService {
      * the shortlist's own two conditions: a rejected offer never entered scoring, and a
      * duplicate is judged through its primary.
      */
-    private static final String ONE = "SELECT " + ScoreCandidate.COLUMNS + """
+    private static final String ONE = "SELECT " + ScoreCandidate.COLUMNS
+            + """
 
         FROM offer
         WHERE id = ? AND status = 'PASSED' AND duplicate_of_id IS NULL AND archived_at IS NULL
@@ -300,7 +302,7 @@ public class ScoringService {
             // no-op — and the same exception the silent judge gets, because from the
             // screen's side both mean "no number today".
             throw new NoJudge("today's llm.budget.max_calls_per_day is spent; the offer keeps its"
-                + " deterministic reasons and the next run scores it");
+                    + " deterministic reasons and the next run scores it");
         }
         List<ScoreReason> answer = judge.judge(candidate);
         reasons.addAll(answer);

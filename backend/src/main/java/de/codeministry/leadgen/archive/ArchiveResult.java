@@ -32,5 +32,4 @@ package de.codeministry.leadgen.archive;
  *                  this the third one keeps standing after the offers behind it are gone —
  *                  invisible at one offer, obvious at twenty.
  */
-public record ArchiveResult(int requested, int archived, int unscored) {
-}
+public record ArchiveResult(int requested, int archived, int unscored) {}

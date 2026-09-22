@@ -9,7 +9,6 @@
 package de.codeministry.leadgen.score;
 
 import de.codeministry.leadgen.content.ContentText;
-
 import java.math.BigDecimal;
 import java.sql.Array;
 import java.sql.ResultSet;
@@ -50,7 +49,8 @@ public record ScoreCandidate(
      * request, and what a batch is waiting on — and a column added to only two of them is a
      * field that is null on some scoring paths and not on others.
      */
-    static final String COLUMNS = """
+    static final String COLUMNS =
+            """
         id, title, description, full_text, content_blocks, tags, rate_eur, duration,
         workload, starts_on, enrichment_note\
         """;
@@ -61,7 +61,7 @@ public record ScoreCandidate(
                 rs.getString("title"),
                 rs.getString("description"),
                 rs.getString("full_text"),
-            ContentText.of(rs.getString("content_blocks"), rs.getString("full_text")),
+                ContentText.of(rs.getString("content_blocks"), rs.getString("full_text")),
                 tags(rs.getArray("tags")),
                 rs.getObject("rate_eur", BigDecimal.class),
                 rs.getString("duration"),

@@ -12,13 +12,12 @@ import de.codeministry.leadgen.manual.ManualDocumentName;
 import de.codeministry.leadgen.manual.ManualOfferFields;
 import de.codeministry.leadgen.manual.ManualUploadService;
 import de.codeministry.leadgen.manual.PendingDocument;
-import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
-
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.List;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 /**
  * The first endpoint in this application that puts a file on disk.

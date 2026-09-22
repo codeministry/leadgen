@@ -52,8 +52,7 @@ public final class StageLog {
         /**
          * For a run nobody is watching — the tests, and any caller that has no open row.
          */
-        Marker NONE = (position, stage) -> {
-        };
+        Marker NONE = (position, stage) -> {};
     }
 
     private final List<StageTiming> timings = new ArrayList<>();

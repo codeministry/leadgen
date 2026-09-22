@@ -12,7 +12,6 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
@@ -136,8 +135,7 @@ public record PipelineConfig(
          *                       and {@code 0} means none at all. A primitive here bound an absent key to zero and
          *                       would have stopped every call in a file that merely names the block.
          */
-        public record Budget(@Min(0) Integer maxCallsPerDay) {
-        }
+        public record Budget(@Min(0) Integer maxCallsPerDay) {}
     }
 
     /**
@@ -165,8 +163,7 @@ public record PipelineConfig(
          *                fixed set of escapes, and the file then fails to parse with nothing
          *                pointing at the pattern.
          */
-        public record Rule(@NotBlank String kind, @NotBlank String matches) {
-        }
+        public record Rule(@NotBlank String kind, @NotBlank String matches) {}
     }
 
     /**
@@ -183,8 +180,7 @@ public record PipelineConfig(
      * {@code models.fields} key would be a third allowlist for a bounded question answered in
      * three lines of JSON.
      */
-    public record Fields(boolean enabled) {
-    }
+    public record Fields(boolean enabled) {}
 
     /**
      * The retrieval index: one vector per offer over the whole de-furnitured advert, which is
@@ -207,8 +203,7 @@ public record PipelineConfig(
      *                   and does not rank it, so nothing here has to be measured before the
      *                   stage can be switched on. A threshold would.
      */
-    public record Retrieval(boolean enabled, @Min(1) Integer neighbours) {
-    }
+    public record Retrieval(boolean enabled, @Min(1) Integer neighbours) {}
 
     public record Profile(@NotBlank String path) {}
 
@@ -220,10 +215,7 @@ public record PipelineConfig(
     public record Sources(String path) {}
 
     public record Enrichment(
-            boolean enabled,
-            @NotBlank String after,
-            @Valid @NotNull Fetch fetch,
-            @Valid Extract extract) {
+            boolean enabled, @NotBlank String after, @Valid @NotNull Fetch fetch, @Valid Extract extract) {
 
         /**
          * @param maxPerRun how many ads one pass is willing to wait for. The limiter
@@ -278,8 +270,7 @@ public record PipelineConfig(
         }
     }
 
-    public record Packaging(
-            @NotBlank String outputDir, @NotBlank String naming, List<@Valid Document> documents) {
+    public record Packaging(@NotBlank String outputDir, @NotBlank String naming, List<@Valid Document> documents) {
 
         /**
          * One entry per file in an application package. The fields are mutually

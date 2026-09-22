@@ -9,15 +9,6 @@
 package de.codeministry.leadgen.enrich;
 
 import de.codeministry.leadgen.config.model.PipelineConfig.Enrichment.Fetch;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.retry.RetryException;
-import org.springframework.core.retry.RetryPolicy;
-import org.springframework.core.retry.RetryTemplate;
-import org.springframework.http.ResponseEntity;
-import org.springframework.http.client.JdkClientHttpRequestFactory;
-import org.springframework.web.client.ResourceAccessException;
-import org.springframework.web.client.RestClient;
-
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.time.Clock;
@@ -26,6 +17,14 @@ import java.time.Instant;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.Optional;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.retry.RetryException;
+import org.springframework.core.retry.RetryPolicy;
+import org.springframework.core.retry.RetryTemplate;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
+import org.springframework.web.client.ResourceAccessException;
+import org.springframework.web.client.RestClient;
 
 /**
  * Fetches one original ad, and refuses to more often than it should.

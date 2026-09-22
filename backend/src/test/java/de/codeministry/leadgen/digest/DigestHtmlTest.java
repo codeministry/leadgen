@@ -8,8 +8,16 @@
  */
 package de.codeministry.leadgen.digest;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import de.codeministry.leadgen.Databases;
 import de.codeministry.leadgen.config.ConfigFixtures;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.LocalDate;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,15 +29,6 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
-
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.time.LocalDate;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * The HTML digest, which {@link DigestServiceTest} cannot see because that class runs the
@@ -67,7 +66,7 @@ class DigestHtmlTest {
         jdbc.update("DELETE FROM offer");
         jdbc.update("DELETE FROM source");
         sourceId =
-            jdbc.queryForObject("INSERT INTO source (name, kind) VALUES ('test', 'file') RETURNING id", Long.class);
+                jdbc.queryForObject("INSERT INTO source (name, kind) VALUES ('test', 'file') RETURNING id", Long.class);
     }
 
     @Test
@@ -80,7 +79,7 @@ class DigestHtmlTest {
         String html = read(digest.render(LocalDate.of(2026, 9, 1)).orElseThrow());
 
         assertThat(html)
-            .contains("<a target=\"_blank\" rel=\"noopener noreferrer\" href=\"https://example.invalid/x\">");
+                .contains("<a target=\"_blank\" rel=\"noopener noreferrer\" href=\"https://example.invalid/x\">");
     }
 
     @Test
@@ -88,10 +87,10 @@ class DigestHtmlTest {
         offer("Senior Java Entwickler (m/w/d)", 88, "SHORTLISTED");
 
         assertThat(digest.render(LocalDate.of(2026, 9, 1))
-            .orElseThrow()
-            .getFileName()
-            .toString())
-            .isEqualTo("digest-2026-09-01.html");
+                        .orElseThrow()
+                        .getFileName()
+                        .toString())
+                .isEqualTo("digest-2026-09-01.html");
     }
 
     private static String read(Path file) {
@@ -103,13 +102,20 @@ class DigestHtmlTest {
     }
 
     private long offer(String title, Integer score, String band) {
-        return jdbc.queryForObject("""
+        return jdbc.queryForObject(
+                """
             INSERT INTO offer (source_id, external_id, title, description, url, fingerprint,
                                status, score_value, score_band, location, portal, agency)
             VALUES (?, ?, ?, 'egal', 'https://example.invalid/x', 'fp', 'PASSED', ?, ?,
                     'Köln', 'portal-a', 'Acme Consulting GmbH')
             RETURNING id
-            """, Long.class, sourceId, "ext-" + System.nanoTime(), title, score, band);
+            """,
+                Long.class,
+                sourceId,
+                "ext-" + System.nanoTime(),
+                title,
+                score,
+                band);
     }
 
     private static Path configWritingHtmlTo() {
@@ -122,13 +128,13 @@ class DigestHtmlTest {
 
             Path pipeline = dir.resolve("pipeline.yaml");
             Files.writeString(
-                pipeline,
-                Files.readString(pipeline, StandardCharsets.UTF_8)
-                    // Pinned rather than left on the placeholder's default, so an exported
-                    // DIGEST_FORMAT in a shell cannot turn this class into a second text run.
-                    .replace("format: ${DIGEST_FORMAT:html}", "format: html")
-                    .replace("output_dir: ${DIGEST_DIR:./packages/digest}", "output_dir: " + outputDir),
-                StandardCharsets.UTF_8);
+                    pipeline,
+                    Files.readString(pipeline, StandardCharsets.UTF_8)
+                            // Pinned rather than left on the placeholder's default, so an exported
+                            // DIGEST_FORMAT in a shell cannot turn this class into a second text run.
+                            .replace("format: ${DIGEST_FORMAT:html}", "format: html")
+                            .replace("output_dir: ${DIGEST_DIR:./packages/digest}", "output_dir: " + outputDir),
+                    StandardCharsets.UTF_8);
             return dir;
         } catch (IOException e) {
             throw new UncheckedIOException(e);

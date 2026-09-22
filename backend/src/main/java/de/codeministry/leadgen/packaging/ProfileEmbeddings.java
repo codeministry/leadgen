@@ -14,10 +14,6 @@ import de.codeministry.leadgen.config.model.SkillProfile;
 import de.codeministry.leadgen.llm.EmbeddingModels;
 import de.codeministry.leadgen.llm.LlmBudget;
 import de.codeministry.leadgen.llm.Vectors;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.ai.embedding.EmbeddingRequest;
-import org.springframework.stereotype.Component;
-
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -27,6 +23,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.ai.embedding.EmbeddingRequest;
+import org.springframework.stereotype.Component;
 
 /**
  * The reference projects as vectors, so a cover letter can pitch the ones the advert is
@@ -74,7 +73,9 @@ public class ProfileEmbeddings {
      * projects would be harder to notice than one that pitched the same ones as yesterday.
      */
     public Map<String, float[]> forLanguage(SkillProfile profile, String language) {
-        if (profile == null || profile.referenceProjects() == null || profile.referenceProjects().isEmpty()) {
+        if (profile == null
+                || profile.referenceProjects() == null
+                || profile.referenceProjects().isEmpty()) {
             return Map.of();
         }
         String model = model();
@@ -117,16 +118,21 @@ public class ProfileEmbeddings {
                     .map(result -> result.getOutput())
                     .toList();
             if (answered.size() != missing.size()) {
-                log.warn("Asked for {} profile embeddings and got {}; the letter keeps the lexical choice",
-                        missing.size(), answered.size());
+                log.warn(
+                        "Asked for {} profile embeddings and got {}; the letter keeps the lexical choice",
+                        missing.size(),
+                        answered.size());
                 return vectors;
             }
             for (int index = 0; index < missing.size(); index++) {
                 float[] vector = answered.get(index);
                 if (vector.length < Vectors.DIMENSIONS) {
-                    log.warn("Model '{}' returns {} dimensions and the offer vectors hold {};"
-                            + " the letter keeps the lexical choice",
-                            model, vector.length, Vectors.DIMENSIONS);
+                    log.warn(
+                            "Model '{}' returns {} dimensions and the offer vectors hold {};"
+                                    + " the letter keeps the lexical choice",
+                            model,
+                            vector.length,
+                            Vectors.DIMENSIONS);
                     return vectors;
                 }
                 float[] narrowed = Vectors.narrowed(vector);

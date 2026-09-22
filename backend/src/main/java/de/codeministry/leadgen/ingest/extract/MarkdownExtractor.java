@@ -12,14 +12,13 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import de.codeministry.leadgen.config.model.SourcesConfig.Extraction;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
-
 import java.io.IOException;
 import java.time.temporal.TemporalAccessor;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
 
 /**
  * Reads one offer out of one Markdown file: YAML frontmatter carries the fields, the body
@@ -134,17 +133,17 @@ public class MarkdownExtractor {
         }
         if (!LLM.equalsIgnoreCase(configured)) {
             log.warn(
-                "A markdown document has no YAML frontmatter and the source asks for fallback '{}';"
-                    + " implemented are '{}' and '{}'",
-                configured,
-                NONE,
-                LLM);
+                    "A markdown document has no YAML frontmatter and the source asks for fallback '{}';"
+                            + " implemented are '{}' and '{}'",
+                    configured,
+                    NONE,
+                    LLM);
             return Document.nothing();
         }
         return fallback.read(text)
-            .map(reading -> new Document(
-                List.of(unwrapped(reading.block(), extraction)), List.copyOf(reading.fromModel())))
-            .orElseGet(Document::nothing);
+                .map(reading ->
+                        new Document(List.of(unwrapped(reading.block(), extraction)), List.copyOf(reading.fromModel())))
+                .orElseGet(Document::nothing);
     }
 
     /**
@@ -158,8 +157,8 @@ public class MarkdownExtractor {
      */
     static Map<String, Object> unwrapped(Map<String, Object> block, Extraction extraction) {
         var url = extraction == null || extraction.fields() == null
-            ? null
-            : extraction.fields().get(OfferMapper.URL);
+                ? null
+                : extraction.fields().get(OfferMapper.URL);
         if (url != null && url.unwrapQueryParam() != null && block.get(OfferMapper.URL) instanceof String raw) {
             block.put(OfferMapper.URL, ProxyLink.unwrap(raw, url.unwrapQueryParam()));
         }

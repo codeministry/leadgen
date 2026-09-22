@@ -8,9 +8,8 @@
  */
 package de.codeministry.leadgen.llm;
 
-import org.springframework.ai.chat.model.ChatResponse;
-
 import java.util.stream.Collectors;
+import org.springframework.ai.chat.model.ChatResponse;
 
 /**
  * Reading a language model's answer, once, for everything that asks one a question.
@@ -21,8 +20,7 @@ import java.util.stream.Collectors;
  */
 public final class Answers {
 
-    private Answers() {
-    }
+    private Answers() {}
 
     /**
      * Every generation's text, joined.
@@ -42,9 +40,11 @@ public final class Answers {
             return "";
         }
         return response.getResults().stream()
-            .map(generation -> generation.getOutput() == null ? "" : generation.getOutput().getText())
-            .filter(text -> text != null && !text.isBlank())
-            .collect(Collectors.joining("\n"));
+                .map(generation -> generation.getOutput() == null
+                        ? ""
+                        : generation.getOutput().getText())
+                .filter(text -> text != null && !text.isBlank())
+                .collect(Collectors.joining("\n"));
     }
 
     /**

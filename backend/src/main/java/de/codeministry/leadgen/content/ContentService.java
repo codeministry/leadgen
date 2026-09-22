@@ -13,15 +13,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.config.model.PipelineConfig;
 import de.codeministry.leadgen.llm.LlmBudget;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.stereotype.Service;
-
-import javax.sql.DataSource;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import javax.sql.DataSource;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.stereotype.Service;
 
 /**
  * Decides which parts of a fetched advert are the advert.
@@ -53,14 +52,16 @@ public class ContentService {
      * already uses: configure a key at five in the afternoon and the standing backlog becomes
      * due, with no migration and nothing to remember.
      */
-    private static final String DUE = """
+    private static final String DUE =
+            """
         SELECT id, portal, title, full_text FROM offer
         WHERE status = 'PASSED' AND archived_at IS NULL AND full_text IS NOT NULL
           AND content_at IS NULL
         ORDER BY id
         """;
 
-    private static final String DUE_WITH_A_MODEL = """
+    private static final String DUE_WITH_A_MODEL =
+            """
         SELECT id, portal, title, full_text FROM offer
         WHERE status = 'PASSED' AND archived_at IS NULL AND full_text IS NOT NULL
           AND (content_at IS NULL OR content_model IS NULL)
@@ -78,7 +79,7 @@ public class ContentService {
      * advert that is all advert costs no re-judge.
      */
     private static final String RECORD =
-        """
+            """
             UPDATE offer
             SET content_blocks = ?::jsonb,
                 content_at = CASE WHEN ?::boolean THEN now() ELSE NULL END,
@@ -96,11 +97,11 @@ public class ContentService {
     private final JdbcClient jdbc;
 
     ContentService(
-        ConfigRegistry config,
-        Classifiers classifiers,
-        BlockLabelStore labels,
-        LlmBudget budget,
-        DataSource dataSource) {
+            ConfigRegistry config,
+            Classifiers classifiers,
+            BlockLabelStore labels,
+            LlmBudget budget,
+            DataSource dataSource) {
         this.config = config;
         this.classifiers = classifiers;
         this.labels = labels;
@@ -121,9 +122,9 @@ public class ContentService {
         String model = classifier.map(ContentClassifier::model).orElse(null);
 
         List<Due> due = jdbc.sql(classifier.isPresent() ? DUE_WITH_A_MODEL : DUE)
-            .query((rs, row) -> new Due(
-                rs.getLong("id"), rs.getString("portal"), rs.getString("title"), rs.getString("full_text")))
-            .list();
+                .query((rs, row) -> new Due(
+                        rs.getLong("id"), rs.getString("portal"), rs.getString("title"), rs.getString("full_text")))
+                .list();
 
         int segmented = 0;
         int total = 0;
@@ -151,14 +152,14 @@ public class ContentService {
 
         var report = new ContentReport(due.size(), segmented, total, fromCache, requests, undecided);
         log.info(
-            "Content: {} due, {} segmented, {} blocks, {} already decided, {} asked a model,"
-                + " {} nobody had a label for",
-            report.considered(),
-            report.segmented(),
-            report.blocks(),
-            report.fromCache(),
-            report.requests(),
-            report.undecided());
+                "Content: {} due, {} segmented, {} blocks, {} already decided, {} asked a model,"
+                        + " {} nobody had a label for",
+                report.considered(),
+                report.segmented(),
+                report.blocks(),
+                report.fromCache(),
+                report.requests(),
+                report.undecided());
         return report;
     }
 
@@ -181,13 +182,13 @@ public class ContentService {
             if (byRule.isPresent()) {
                 blocks.add(new ContentBlock(index, text, byRule.get(), "A configured rule matched.", Decider.RULE));
                 labels.remember(
-                    offer.portal(),
-                    digest,
-                    byRule.get(),
-                    "A configured rule matched.",
-                    Decider.RULE,
-                    null,
-                    BlockDigest.sample(text));
+                        offer.portal(),
+                        digest,
+                        byRule.get(),
+                        "A configured rule matched.",
+                        Decider.RULE,
+                        null,
+                        BlockDigest.sample(text));
                 fromCache++;
                 continue;
             }
@@ -195,7 +196,7 @@ public class ContentService {
             Optional<BlockLabelStore.Label> cached = labels.find(offer.portal(), digest);
             if (cached.isPresent()) {
                 blocks.add(new ContentBlock(
-                    index, text, cached.get().kind(), cached.get().reason(), Decider.CACHE));
+                        index, text, cached.get().kind(), cached.get().reason(), Decider.CACHE));
                 labels.seenAgain(offer.portal(), digest);
                 fromCache++;
                 continue;
@@ -218,7 +219,7 @@ public class ContentService {
             return new Pass(blocks, fromCache, true, false);
         }
         Optional<Map<Integer, ContentClassifier.Labelled>> answered =
-            classifier.get().classify(offer.title(), unknown);
+                classifier.get().classify(offer.title(), unknown);
         if (answered.isEmpty()) {
             // A model was configured and did not answer. Keep what the rules and the cache
             // decided, but leave the offer due so the next run finishes it.
@@ -240,13 +241,13 @@ public class ContentService {
             }
             blocks.set(index, new ContentBlock(index, block.text(), answer.kind(), answer.reason(), Decider.MODEL));
             labels.remember(
-                offer.portal(),
-                BlockDigest.of(block.text()),
-                answer.kind(),
-                answer.reason(),
-                Decider.MODEL,
-                classifier.get().model(),
-                BlockDigest.sample(block.text()));
+                    offer.portal(),
+                    BlockDigest.of(block.text()),
+                    answer.kind(),
+                    answer.reason(),
+                    Decider.MODEL,
+                    classifier.get().model(),
+                    BlockDigest.sample(block.text()));
         }
         return new Pass(blocks, fromCache, true, true);
     }
@@ -257,8 +258,8 @@ public class ContentService {
         // score that cannot move.
         boolean changed = pass.blocks().stream().anyMatch(block -> !block.isContent());
         jdbc.sql(RECORD)
-            .params(write(pass.blocks()), pass.settled(), model, pass.undecided(), changed, id)
-            .update();
+                .params(write(pass.blocks()), pass.settled(), model, pass.undecided(), changed, id)
+                .update();
     }
 
     /**
@@ -275,8 +276,7 @@ public class ContentService {
         }
     }
 
-    private record Due(long id, String portal, String title, String fullText) {
-    }
+    private record Due(long id, String portal, String title, String fullText) {}
 
     /**
      * @param asked   whether a model was actually called, so the report counts requests and
@@ -288,8 +288,8 @@ public class ContentService {
 
         int undecided() {
             return (int) blocks.stream()
-                .filter(block -> block.by() == Decider.DEFAULT)
-                .count();
+                    .filter(block -> block.by() == Decider.DEFAULT)
+                    .count();
         }
     }
 }

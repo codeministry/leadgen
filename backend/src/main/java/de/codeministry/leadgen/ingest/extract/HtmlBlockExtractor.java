@@ -10,14 +10,13 @@ package de.codeministry.leadgen.ingest.extract;
 
 import de.codeministry.leadgen.config.model.SourcesConfig.Extraction;
 import de.codeministry.leadgen.config.model.SourcesConfig.Extraction.Field;
+import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.springframework.stereotype.Component;
-
-import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * Splits an HTML document into blocks and reads each block's fields, driven entirely by

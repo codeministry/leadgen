@@ -15,11 +15,6 @@ import de.codeministry.leadgen.config.model.SourcesConfig;
 import de.codeministry.leadgen.ingest.ExtractedOffer;
 import de.codeministry.leadgen.ingest.extract.MarkdownExtractor;
 import de.codeministry.leadgen.ingest.extract.OfferMapper;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.stereotype.Service;
-
-import javax.sql.DataSource;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
@@ -28,6 +23,10 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import javax.sql.DataSource;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.stereotype.Service;
 
 /**
  * The review queue: what an upload does before it is allowed to become an offer.
@@ -227,8 +226,7 @@ public class ManualUploadService {
         return document;
     }
 
-    private record Reading(long size, long modified, MarkdownExtractor.Document document) {
-    }
+    private record Reading(long size, long modified, MarkdownExtractor.Document document) {}
 
     private PendingDocument describe(Path file) {
         String text = read(file);
@@ -253,14 +251,14 @@ public class ManualUploadService {
             }
         }
         return new PendingDocument(
-            file.getFileName().toString(),
-            size(file),
-            modified(file),
-            text,
-            offer,
-            offer == null ? List.of() : document.fromModel(),
-            duplicateId,
-            duplicateTitle);
+                file.getFileName().toString(),
+                size(file),
+                modified(file),
+                text,
+                offer,
+                offer == null ? List.of() : document.fromModel(),
+                duplicateId,
+                duplicateTitle);
     }
 
     /**

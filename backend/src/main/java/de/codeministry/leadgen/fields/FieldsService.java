@@ -12,16 +12,15 @@ import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.config.model.PipelineConfig;
 import de.codeministry.leadgen.content.ContentText;
 import de.codeministry.leadgen.llm.LlmBudget;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.stereotype.Service;
-
-import javax.sql.DataSource;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import javax.sql.DataSource;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.stereotype.Service;
 
 /**
  * Reads the start, the duration and the application deadline out of an advert.
@@ -51,7 +50,8 @@ public class FieldsService {
      * way {@code ContentService} has one: there is no deterministic half that could decide
      * anything for free.
      */
-    private static final String DUE = """
+    private static final String DUE =
+            """
         SELECT id, title, description, full_text, content_blocks, starts_on, duration
         FROM offer
         WHERE status = 'PASSED' AND duplicate_of_id IS NULL AND archived_at IS NULL
@@ -70,7 +70,7 @@ public class FieldsService {
      * self-healing rather than a fourth staleness criterion invented for the scoring stage.
      */
     private static final String RECORD =
-        """
+            """
             UPDATE offer
             SET start_text = ?,
                 starts_on = ?,
@@ -147,45 +147,44 @@ public class FieldsService {
 
         var report = new FieldsReport(due.size(), extracted, requests, stated, rejudged);
         log.info(
-            "Fields: {} due, {} read, {} asked a model, {} stated something, {} have to be judged again",
-            report.considered(),
-            report.extracted(),
-            report.requests(),
-            report.stated(),
-            report.rejudged());
+                "Fields: {} due, {} read, {} asked a model, {} stated something, {} have to be judged again",
+                report.considered(),
+                report.extracted(),
+                report.requests(),
+                report.stated(),
+                report.rejudged());
         return report;
     }
 
     private void record(long id, ExtractedFields fields, String model, boolean changed) {
         jdbc.sql(RECORD)
-            .params(
-                fields.startText(),
-                fields.startsOn(),
-                fields.durationText(),
-                fields.durationMonths(),
-                fields.applyByText(),
-                fields.applyBy(),
-                model,
-                changed,
-                id)
-            .update();
+                .params(
+                        fields.startText(),
+                        fields.startsOn(),
+                        fields.durationText(),
+                        fields.durationMonths(),
+                        fields.applyByText(),
+                        fields.applyBy(),
+                        model,
+                        changed,
+                        id)
+                .update();
     }
 
     private static Due due(ResultSet rs, int row) throws SQLException {
         return new Due(
-            rs.getLong("id"),
-            rs.getString("title"),
-            rs.getString("description"),
-            // The advert as the content stage left it, never the raw page: a deadline
-            // read out of a portal footer is the same class of error as a tag cloud
-            // counted as skill overlap.
-            ContentText.of(rs.getString("content_blocks"), rs.getString("full_text")),
-            rs.getObject("starts_on", LocalDate.class),
-            rs.getString("duration"));
+                rs.getLong("id"),
+                rs.getString("title"),
+                rs.getString("description"),
+                // The advert as the content stage left it, never the raw page: a deadline
+                // read out of a portal footer is the same class of error as a tag cloud
+                // counted as skill overlap.
+                ContentText.of(rs.getString("content_blocks"), rs.getString("full_text")),
+                rs.getObject("starts_on", LocalDate.class),
+                rs.getString("duration"));
     }
 
-    private record Due(
-        long id, String title, String description, String advert, LocalDate startsOn, String duration) {
+    private record Due(long id, String title, String description, String advert, LocalDate startsOn, String duration) {
 
         FieldExtractor.Candidate asCandidate() {
             return new FieldExtractor.Candidate(id, title, description, advert, startsOn, duration);

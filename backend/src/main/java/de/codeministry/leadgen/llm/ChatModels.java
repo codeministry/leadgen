@@ -10,6 +10,11 @@ package de.codeministry.leadgen.llm;
 
 import de.codeministry.leadgen.config.model.PipelineConfig;
 import io.micrometer.observation.ObservationRegistry;
+import java.time.Duration;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.anthropic.AnthropicChatModel;
 import org.springframework.ai.anthropic.AnthropicChatOptions;
@@ -19,12 +24,6 @@ import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.ai.openai.setup.OpenAiSetup;
 import org.springframework.stereotype.Component;
-
-import java.time.Duration;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Builds the chat model a provider kind asks for, and caches it.
@@ -95,11 +94,11 @@ public class ChatModels {
             case ANTHROPIC -> Optional.of(anthropic(llm.baseUrl(), key(llm), model, llm.timeout()));
             default -> {
                 log.warn(
-                    "llm.provider is '{}'; implemented are '{}', '{}' and '{}'",
-                    llm.provider(),
-                    OPENAI_COMPATIBLE,
-                    OLLAMA,
-                    ANTHROPIC);
+                        "llm.provider is '{}'; implemented are '{}', '{}' and '{}'",
+                        llm.provider(),
+                        OPENAI_COMPATIBLE,
+                        OLLAMA,
+                        ANTHROPIC);
                 yield Optional.empty();
             }
         };
@@ -113,51 +112,53 @@ public class ChatModels {
      */
     private ChatModel openAi(String baseUrl, String apiKey, String model, Duration timeout) {
         return models.computeIfAbsent(
-            cacheKey(OPENAI_COMPATIBLE, baseUrl, apiKey, model, timeout),
-            ignored -> OpenAiChatModel.builder()
-                .openAiClient(OpenAiSetup.setupSyncClient(
-                    baseUrl,
-                    apiKey,
-                    null,
-                    null,
-                    null,
-                    null,
-                    false,
-                    false,
-                    model,
-                    timeout,
-                    0,
-                    null,
-                    null,
-                    ObservationRegistry.NOOP,
-                    null,
-                    List.of()))
-                // Both clients, and the asynchronous one is not optional: left unset, the
-                // builder makes its own from its own empty fields and fails with "at least
-                // one credential source must be specified" — a credential error naming a key
-                // that was in fact supplied, for a client nothing here ever calls.
-                .openAiClientAsync(OpenAiSetup.setupAsyncClient(
-                    baseUrl,
-                    apiKey,
-                    null,
-                    null,
-                    null,
-                    null,
-                    false,
-                    false,
-                    model,
-                    timeout,
-                    0,
-                    null,
-                    null,
-                    ObservationRegistry.NOOP,
-                    null,
-                    List.of()))
-                // Same trap as in `EmbeddingModels`: without this, `AbstractOpenAiOptions`
-                // fills in its 60 s DEFAULT_TIMEOUT and the per-call value overrides the
-                // client's. The Anthropic options below carry no such default.
-                .options(OpenAiChatOptions.builder().model(model).timeout(timeout).build())
-                .build());
+                cacheKey(OPENAI_COMPATIBLE, baseUrl, apiKey, model, timeout), ignored -> OpenAiChatModel.builder()
+                        .openAiClient(OpenAiSetup.setupSyncClient(
+                                baseUrl,
+                                apiKey,
+                                null,
+                                null,
+                                null,
+                                null,
+                                false,
+                                false,
+                                model,
+                                timeout,
+                                0,
+                                null,
+                                null,
+                                ObservationRegistry.NOOP,
+                                null,
+                                List.of()))
+                        // Both clients, and the asynchronous one is not optional: left unset, the
+                        // builder makes its own from its own empty fields and fails with "at least
+                        // one credential source must be specified" — a credential error naming a key
+                        // that was in fact supplied, for a client nothing here ever calls.
+                        .openAiClientAsync(OpenAiSetup.setupAsyncClient(
+                                baseUrl,
+                                apiKey,
+                                null,
+                                null,
+                                null,
+                                null,
+                                false,
+                                false,
+                                model,
+                                timeout,
+                                0,
+                                null,
+                                null,
+                                ObservationRegistry.NOOP,
+                                null,
+                                List.of()))
+                        // Same trap as in `EmbeddingModels`: without this, `AbstractOpenAiOptions`
+                        // fills in its 60 s DEFAULT_TIMEOUT and the per-call value overrides the
+                        // client's. The Anthropic options below carry no such default.
+                        .options(OpenAiChatOptions.builder()
+                                .model(model)
+                                .timeout(timeout)
+                                .build())
+                        .build());
     }
 
     /**
@@ -168,24 +169,22 @@ public class ChatModels {
      */
     private ChatModel anthropic(String baseUrl, String apiKey, String model, Duration timeout) {
         return models.computeIfAbsent(
-            cacheKey(ANTHROPIC, baseUrl, apiKey, model, timeout),
-            ignored -> AnthropicChatModel.builder()
-                .anthropicClient(AnthropicSetup.setupSyncClient(baseUrl, apiKey, timeout, 0, null, null))
-                // Same reason as the OpenAI pair above: the builder would otherwise
-                // construct an asynchronous client from nothing.
-                .anthropicClientAsync(AnthropicSetup.setupAsyncClient(baseUrl, apiKey, timeout, 0, null, null))
-                .options(AnthropicChatOptions.builder()
-                    .model(model)
-                    .maxTokens(MAX_TOKENS)
-                    .build())
-                .build());
+                cacheKey(ANTHROPIC, baseUrl, apiKey, model, timeout), ignored -> AnthropicChatModel.builder()
+                        .anthropicClient(AnthropicSetup.setupSyncClient(baseUrl, apiKey, timeout, 0, null, null))
+                        // Same reason as the OpenAI pair above: the builder would otherwise
+                        // construct an asynchronous client from nothing.
+                        .anthropicClientAsync(AnthropicSetup.setupAsyncClient(baseUrl, apiKey, timeout, 0, null, null))
+                        .options(AnthropicChatOptions.builder()
+                                .model(model)
+                                .maxTokens(MAX_TOKENS)
+                                .build())
+                        .build());
     }
 
     /**
      * The key is hashed rather than kept, so a heap dump does not hand out the API key.
      */
-    private static String cacheKey(
-            String provider, String baseUrl, String apiKey, String model, Duration timeout) {
+    private static String cacheKey(String provider, String baseUrl, String apiKey, String model, Duration timeout) {
         return provider
                 + SEPARATOR
                 + baseUrl

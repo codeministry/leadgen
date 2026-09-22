@@ -8,6 +8,8 @@
  */
 package de.codeministry.leadgen.ingest;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import de.codeministry.leadgen.config.ConfigFixtures;
 import de.codeministry.leadgen.config.ConfigProperties;
 import de.codeministry.leadgen.ingest.connector.FileSourceConnector;
@@ -16,12 +18,6 @@ import de.codeministry.leadgen.ingest.extract.OfferMapper;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
 import jakarta.validation.ValidatorFactory;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.Assumptions;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
-
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -30,8 +26,11 @@ import java.util.Map;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.Assumptions;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 /**
  * The acceptance test for step 3: the Java extraction has to reproduce what
@@ -131,11 +130,10 @@ class SampleCorpusAcceptanceTest {
         // The invariant with the sharpest consequence: every link in the corpus is a
         // tracking proxy carrying the address, and anything derived from an unwrapped
         // link would carry it into the database and into every exported package.
-        assertThat(offers)
-                .allSatisfy(offer -> assertThat(offer.url())
-                        .doesNotContain("email=")
-                        .doesNotContain("@")
-                        .doesNotContain("%40"));
+        assertThat(offers).allSatisfy(offer -> assertThat(offer.url())
+                .doesNotContain("email=")
+                .doesNotContain("@")
+                .doesNotContain("%40"));
     }
 
     @Test

@@ -12,15 +12,14 @@ import de.codeministry.leadgen.application.ApplicationStatus;
 import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.config.Directories;
 import de.codeministry.leadgen.config.model.PipelineConfig;
+import java.io.IOException;
+import java.nio.file.Path;
+import java.util.*;
+import javax.sql.DataSource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import javax.sql.DataSource;
-import java.io.IOException;
-import java.nio.file.Path;
-import java.util.*;
 
 /**
  * Reads a finished package folder back out, as one file.
@@ -53,7 +52,8 @@ public class PackageArchiveService {
      * <p>An offer with no application row at all has trivially never been sent, which is why
      * both halves are a {@code NOT EXISTS} rather than a join.
      */
-    private static final String DISCARDABLE = """
+    private static final String DISCARDABLE =
+            """
         SELECT o.id, o.package_dir
         FROM offer o
         WHERE o.id = ANY (?)
@@ -70,9 +70,9 @@ public class PackageArchiveService {
      * The states that mean the mail has left; decided by the enum, not here.
      */
     private static final String[] OUT = Arrays.stream(ApplicationStatus.values())
-        .filter(ApplicationStatus::isOut)
-        .map(Enum::name)
-        .toArray(String[]::new);
+            .filter(ApplicationStatus::isOut)
+            .map(Enum::name)
+            .toArray(String[]::new);
 
     private final ConfigRegistry config;
     private final JdbcClient jdbc;
@@ -125,11 +125,11 @@ public class PackageArchiveService {
             return 0;
         }
         List<Discardable> rows = jdbc.sql(DISCARDABLE)
-            .param(ids)
-            .param(OUT)
-            .param(OUT)
-            .query((rs, row) -> new Discardable(rs.getLong("id"), rs.getString("package_dir")))
-            .list();
+                .param(ids)
+                .param(OUT)
+                .param(OUT)
+                .query((rs, row) -> new Discardable(rs.getLong("id"), rs.getString("package_dir")))
+                .list();
         if (rows.isEmpty()) {
             return 0;
         }
@@ -156,8 +156,8 @@ public class PackageArchiveService {
             return 0;
         }
         jdbc.sql("UPDATE offer SET package_dir = NULL, packaged_at = NULL, language = NULL WHERE id = ANY (?)")
-            .param(cleared.toArray(Long[]::new))
-            .update();
+                .param(cleared.toArray(Long[]::new))
+                .update();
         log.info("{} of {} archived offers lost their package", cleared.size(), ids.length);
         return cleared.size();
     }
@@ -165,8 +165,7 @@ public class PackageArchiveService {
     /**
      * One offer whose package may go, as {@link #DISCARDABLE} returns it.
      */
-    private record Discardable(long id, String packageDir) {
-    }
+    private record Discardable(long id, String packageDir) {}
 
     /**
      * The same directory the packaging stage writes into, resolved the way every other

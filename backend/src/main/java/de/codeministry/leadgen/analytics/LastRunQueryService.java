@@ -8,16 +8,15 @@
  */
 package de.codeministry.leadgen.analytics;
 
-import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.stereotype.Service;
-
-import javax.sql.DataSource;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import javax.sql.DataSource;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.stereotype.Service;
 
 /**
  * The most recent run, read back from the two tables that survive it.
@@ -51,7 +50,8 @@ public class LastRunQueryService {
      * claim a pass that found nothing — the same reason a {@code RUNNING} row is not reported
      * here either.
      */
-    private static final String LAST_RUN = """
+    private static final String LAST_RUN =
+            """
         SELECT id, started_at, finished_at, status, score_model,
                extracted, written, merged,
                filter_considered, filter_passed,
@@ -75,7 +75,8 @@ public class LastRunQueryService {
      * lock and answers 409 to a second pass, but a process killed mid-run leaves its row open
      * forever, and the honest thing for a reader is the newest one rather than an error.
      */
-    private static final String CURRENT_RUN = """
+    private static final String CURRENT_RUN =
+            """
         SELECT id, started_at, score_model, stage, stage_position, stage_total, stage_started_at
         FROM pipeline_run
         WHERE finished_at IS NULL
@@ -105,7 +106,8 @@ public class LastRunQueryService {
      * <p>Joined to {@code source} for the name, which is the id the report and the screens
      * speak in. The numeric key is the database's business.
      */
-    private static final String SOURCES = """
+    private static final String SOURCES =
+            """
         SELECT s.name AS source_id, r.documents, r.extracted, r.written, r.announced
         FROM source_run r
         JOIN source s ON s.id = r.source_id
@@ -232,16 +234,16 @@ public class LastRunQueryService {
      */
     public Optional<CurrentRunView> currentRun() {
         return jdbc.sql(CURRENT_RUN)
-            .query((rs, row) -> new CurrentRunView(
-                rs.getLong("id"),
-                rs.getTimestamp("started_at").toInstant(),
-                rs.getString("score_model"),
-                rs.getString("stage"),
-                (Integer) rs.getObject("stage_position"),
-                (Integer) rs.getObject("stage_total"),
-                rs.getTimestamp("stage_started_at") == null
-                    ? null
-                    : rs.getTimestamp("stage_started_at").toInstant()))
-            .optional();
+                .query((rs, row) -> new CurrentRunView(
+                        rs.getLong("id"),
+                        rs.getTimestamp("started_at").toInstant(),
+                        rs.getString("score_model"),
+                        rs.getString("stage"),
+                        (Integer) rs.getObject("stage_position"),
+                        (Integer) rs.getObject("stage_total"),
+                        rs.getTimestamp("stage_started_at") == null
+                                ? null
+                                : rs.getTimestamp("stage_started_at").toInstant()))
+                .optional();
     }
 }

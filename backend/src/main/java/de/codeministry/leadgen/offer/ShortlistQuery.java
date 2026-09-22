@@ -59,18 +59,18 @@ import java.util.List;
  * @param limit        how many rows to return.
  */
 public record ShortlistQuery(
-    String q,
-    ScoreFilter score,
-    List<String> portals,
-    boolean archived,
-    ShortlistSort sort,
-    StartWindow startWindow,
-    RelatedFilter related,
-    Integer minMonths,
-    boolean deadlineOpen,
-    boolean possibleDuplicates,
-    String cursor,
-    int limit) {
+        String q,
+        ScoreFilter score,
+        List<String> portals,
+        boolean archived,
+        ShortlistSort sort,
+        StartWindow startWindow,
+        RelatedFilter related,
+        Integer minMonths,
+        boolean deadlineOpen,
+        boolean possibleDuplicates,
+        String cursor,
+        int limit) {
 
     /**
      * Fifty is a screenful and a bit, which is what the list loads as you scroll.
@@ -97,12 +97,12 @@ public record ShortlistQuery(
         // an empty option — and one blank name in the IN list matches nothing, so the filter
         // would silently return an empty page for a choice nobody made.
         portals = portals == null
-            ? List.of()
-            : portals.stream()
-            .filter(name -> name != null && !name.isBlank())
-            .map(String::trim)
-            .distinct()
-            .toList();
+                ? List.of()
+                : portals.stream()
+                        .filter(name -> name != null && !name.isBlank())
+                        .map(String::trim)
+                        .distinct()
+                        .toList();
     }
 
     /**
@@ -110,43 +110,102 @@ public record ShortlistQuery(
      * reason they do not each carry ten arguments.
      */
     public static ShortlistQuery first() {
-        return new ShortlistQuery(
-                null, null, null, false, null, null, null, null, false, false, null, DEFAULT_LIMIT);
+        return new ShortlistQuery(null, null, null, false, null, null, null, null, false, false, null, DEFAULT_LIMIT);
     }
 
     public ShortlistQuery withCursor(String next) {
         return new ShortlistQuery(
-            q, score, portals, archived, sort, startWindow, related, minMonths, deadlineOpen, possibleDuplicates,
-            next, limit);
+                q,
+                score,
+                portals,
+                archived,
+                sort,
+                startWindow,
+                related,
+                minMonths,
+                deadlineOpen,
+                possibleDuplicates,
+                next,
+                limit);
     }
 
     public ShortlistQuery withLimit(int rows) {
         return new ShortlistQuery(
-            q, score, portals, archived, sort, startWindow, related, minMonths, deadlineOpen, possibleDuplicates,
-            cursor, rows);
+                q,
+                score,
+                portals,
+                archived,
+                sort,
+                startWindow,
+                related,
+                minMonths,
+                deadlineOpen,
+                possibleDuplicates,
+                cursor,
+                rows);
     }
 
     public ShortlistQuery withSort(ShortlistSort order) {
         return new ShortlistQuery(
-            q, score, portals, archived, order, startWindow, related, minMonths, deadlineOpen, possibleDuplicates,
-            cursor, limit);
+                q,
+                score,
+                portals,
+                archived,
+                order,
+                startWindow,
+                related,
+                minMonths,
+                deadlineOpen,
+                possibleDuplicates,
+                cursor,
+                limit);
     }
 
     public ShortlistQuery withScore(ScoreFilter filter) {
         return new ShortlistQuery(
-            q, filter, portals, archived, sort, startWindow, related, minMonths, deadlineOpen, possibleDuplicates,
-            cursor, limit);
+                q,
+                filter,
+                portals,
+                archived,
+                sort,
+                startWindow,
+                related,
+                minMonths,
+                deadlineOpen,
+                possibleDuplicates,
+                cursor,
+                limit);
     }
 
     public ShortlistQuery withRelated(RelatedFilter filter) {
         return new ShortlistQuery(
-            q, score, portals, archived, sort, startWindow, filter, minMonths, deadlineOpen, possibleDuplicates,
-            cursor, limit);
+                q,
+                score,
+                portals,
+                archived,
+                sort,
+                startWindow,
+                filter,
+                minMonths,
+                deadlineOpen,
+                possibleDuplicates,
+                cursor,
+                limit);
     }
 
     public ShortlistQuery withPortals(List<String> names) {
         return new ShortlistQuery(
-            q, score, names, archived, sort, startWindow, related, minMonths, deadlineOpen, possibleDuplicates,
-            cursor, limit);
+                q,
+                score,
+                names,
+                archived,
+                sort,
+                startWindow,
+                related,
+                minMonths,
+                deadlineOpen,
+                possibleDuplicates,
+                cursor,
+                limit);
     }
 }

@@ -30,6 +30,6 @@ class StatusControllerTest {
         Assertions.assertThat(mvc.get().uri("/api/v1/status"))
                 .hasStatusOk()
                 .bodyJson()
-            .isEqualTo("{\"application\":\"lead-generation\",\"version\":\"0.4.1\"}");
+                .isEqualTo("{\"application\":\"lead-generation\",\"version\":\"0.4.1\"}");
     }
 }

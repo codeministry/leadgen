@@ -8,7 +8,13 @@
  */
 package de.codeministry.leadgen.packaging;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import de.codeministry.leadgen.Databases;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,13 +26,6 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
-
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.List;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * What archiving an offer does to its package.
@@ -62,7 +61,7 @@ class PackageArchiveServiceTest {
         jdbc.update("DELETE FROM offer");
         jdbc.update("DELETE FROM source");
         sourceId =
-            jdbc.queryForObject("INSERT INTO source (name, kind) VALUES ('test', 'file') RETURNING id", Long.class);
+                jdbc.queryForObject("INSERT INTO source (name, kind) VALUES ('test', 'file') RETURNING id", Long.class);
     }
 
     @Test
@@ -77,11 +76,11 @@ class PackageArchiveServiceTest {
         // PACKAGED build the folder again; leaving `package_dir` would keep a download link
         // that answers 404.
         assertThat(jdbc.queryForObject(
-            "SELECT package_dir IS NULL AND packaged_at IS NULL AND language IS NULL"
-                + " FROM offer WHERE id = ?",
-            Boolean.class,
-            id))
-            .isTrue();
+                        "SELECT package_dir IS NULL AND packaged_at IS NULL AND language IS NULL"
+                                + " FROM offer WHERE id = ?",
+                        Boolean.class,
+                        id))
+                .isTrue();
     }
 
     @Test
@@ -95,7 +94,7 @@ class PackageArchiveServiceTest {
 
         assertThat(Files.exists(folder)).isTrue();
         assertThat(jdbc.queryForObject("SELECT package_dir FROM offer WHERE id = ?", String.class, id))
-            .isNotNull();
+                .isNotNull();
     }
 
     @Test
@@ -112,7 +111,8 @@ class PackageArchiveServiceTest {
         long lostWithoutSending = packaged("Nie beantwortet", neverAnswered, "LOST");
         event(lostWithoutSending, "PACKAGED", "LOST");
 
-        assertThat(packages.discard(List.of(lostAfterSending, lostWithoutSending))).isEqualTo(1);
+        assertThat(packages.discard(List.of(lostAfterSending, lostWithoutSending)))
+                .isEqualTo(1);
 
         assertThat(Files.exists(answered)).isTrue();
         assertThat(Files.exists(neverAnswered)).isFalse();
@@ -129,7 +129,7 @@ class PackageArchiveServiceTest {
         assertThat(packages.discard(List.of(id))).isEqualTo(1);
 
         assertThat(jdbc.queryForObject("SELECT package_dir FROM offer WHERE id = ?", String.class, id))
-            .isNull();
+                .isNull();
     }
 
     @Test
@@ -141,30 +141,30 @@ class PackageArchiveServiceTest {
 
     private long packaged(String title, Path folder, String status) {
         long id = jdbc.queryForObject(
-            """
+                """
                 INSERT INTO offer (source_id, external_id, title, url, fingerprint, status, package_dir,
                                    packaged_at, language)
                 VALUES (?, ?, ?, 'https://example.invalid/x', ?, 'PASSED', ?, now(), 'de')
                 RETURNING id
                 """,
-            Long.class,
-            sourceId,
-            title,
-            title,
-            title.toLowerCase(),
-            folder == null ? null : folder.toString());
+                Long.class,
+                sourceId,
+                title,
+                title,
+                title.toLowerCase(),
+                folder == null ? null : folder.toString());
         jdbc.update("INSERT INTO application (offer_id, status) VALUES (?, ?)", id, status);
         return id;
     }
 
     private void event(long offerId, String from, String to) {
         jdbc.update(
-            """
+                """
                 INSERT INTO application_event (application_id, from_status, to_status)
                 SELECT id, ?, ? FROM application WHERE offer_id = ?
                 """,
-            from,
-            to,
-            offerId);
+                from,
+                to,
+                offerId);
     }
 }

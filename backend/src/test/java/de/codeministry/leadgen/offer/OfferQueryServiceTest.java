@@ -8,8 +8,14 @@
  */
 package de.codeministry.leadgen.offer;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import de.codeministry.leadgen.Databases;
 import de.codeministry.leadgen.config.ConfigFixtures;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -23,13 +29,6 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
-
-import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.List;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * What the shortlist screen reads: survivors, their reasons, and their duplicate cluster.
@@ -122,7 +121,8 @@ class OfferQueryServiceTest {
         passed("Angular Entwickler", 40);
         rejected("Java Entwickler in Zürich");
 
-        var page = offers.shortlist(new ShortlistQuery("angular", null, null, false, null, null, null, null, false, false, null, 0));
+        var page = offers.shortlist(
+                new ShortlistQuery("angular", null, null, false, null, null, null, null, false, false, null, 0));
 
         assertThat(page.matched()).isEqualTo(1);
         assertThat(page.total()).isEqualTo(2);
@@ -148,7 +148,8 @@ class OfferQueryServiceTest {
         jdbc.update("UPDATE offer SET tags = ARRAY['Kubernetes'] WHERE id = ?", tagged);
         passed("Anderer Entwickler", 60);
 
-        var page = offers.shortlist(new ShortlistQuery("kubernetes", null, null, false, null, null, null, null, false, false, null, 0));
+        var page = offers.shortlist(
+                new ShortlistQuery("kubernetes", null, null, false, null, null, null, null, false, false, null, 0));
 
         assertThat(page.entries()).extracting(entry -> entry.offer().id()).containsExactly(tagged);
     }
@@ -237,8 +238,7 @@ class OfferQueryServiceTest {
      * The unfiltered first page, which is what every case here was written against.
      */
     private List<ShortlistEntry> shortlist() {
-        return offers.shortlist(ShortlistQuery.first())
-                .entries();
+        return offers.shortlist(ShortlistQuery.first()).entries();
     }
 
     @BeforeEach
@@ -351,7 +351,8 @@ class OfferQueryServiceTest {
         jdbc.update("UPDATE offer SET archived_at = now(), archive_source = 'AGE' WHERE id = ?", archived);
 
         var list = offers.shortlist(ShortlistQuery.first());
-        var archive = offers.shortlist(new ShortlistQuery(null, null, null, true, null, null, null, null, false, false, null, 0));
+        var archive = offers.shortlist(
+                new ShortlistQuery(null, null, null, true, null, null, null, null, false, false, null, 0));
 
         assertThat(ids(list)).containsExactly(working);
         assertThat(list.matched()).isEqualTo(1);
@@ -367,18 +368,20 @@ class OfferQueryServiceTest {
         // The dropdown built from the working list must not offer a portal that only ever
         // appears in the archive: choosing it would produce an empty list and no reason.
         passed("Aktuell", 88);
-        long archived = jdbc.queryForObject("""
+        long archived = jdbc.queryForObject(
+                """
             INSERT INTO offer (source_id, external_id, title, url, fingerprint, status, portal,
                                archived_at, archive_source)
             VALUES (?, 'a', 'Archiviert', 'https://example.invalid/a', 'archiviert', 'PASSED', 'portal-c',
                     now(), 'AGE')
             RETURNING id
-            """, Long.class, sourceId);
+            """,
+                Long.class,
+                sourceId);
 
-        assertThat(offers.shortlist(ShortlistQuery.first())
-                        .portals())
-                .containsExactly("portal-a");
-        assertThat(offers.shortlist(new ShortlistQuery(null, null, null, true, null, null, null, null, false, false, null, 0))
+        assertThat(offers.shortlist(ShortlistQuery.first()).portals()).containsExactly("portal-a");
+        assertThat(offers.shortlist(new ShortlistQuery(
+                                null, null, null, true, null, null, null, null, false, false, null, 0))
                         .portals())
                 .containsExactly("portal-c");
         assertThat(archived).isPositive();
@@ -401,8 +404,7 @@ class OfferQueryServiceTest {
         assertThat(funnel.total()).isEqualTo(1);
         // The invariant worth checking whenever either number looks wrong.
         assertThat(funnel.survived())
-            .isEqualTo(offers.shortlist(ShortlistQuery.first())
-                        .total());
+                .isEqualTo(offers.shortlist(ShortlistQuery.first()).total());
     }
 
     @Test
@@ -437,7 +439,7 @@ class OfferQueryServiceTest {
 
         assertThat(ids(offers.shortlist(ShortlistQuery.first()))).containsExactly(later, soon);
         assertThat(ids(offers.shortlist(ShortlistQuery.first().withSort(ShortlistSort.START))))
-            .containsExactly(soon, later);
+                .containsExactly(soon, later);
     }
 
     @Test
@@ -474,7 +476,7 @@ class OfferQueryServiceTest {
         }
 
         assertThat(walk(ShortlistQuery.first().withSort(ShortlistSort.DEADLINE).withLimit(2)))
-            .containsExactlyInAnyOrderElementsOf(all);
+                .containsExactlyInAnyOrderElementsOf(all);
     }
 
     @Test
@@ -487,7 +489,7 @@ class OfferQueryServiceTest {
         }
 
         assertThat(walk(ShortlistQuery.first().withSort(ShortlistSort.DURATION).withLimit(2)))
-            .containsExactlyInAnyOrderElementsOf(all);
+                .containsExactlyInAnyOrderElementsOf(all);
     }
 
     @Test
@@ -505,10 +507,12 @@ class OfferQueryServiceTest {
         durationMonths(half, 6);
         long unstated = passed("Keine Dauer genannt", 50);
 
-        assertThat(walk(ShortlistQuery.first().withSort(ShortlistSort.DURATION_SHORT).withLimit(2)))
-            .containsExactly(quarter, half, year, unstated);
+        assertThat(walk(ShortlistQuery.first()
+                        .withSort(ShortlistSort.DURATION_SHORT)
+                        .withLimit(2)))
+                .containsExactly(quarter, half, year, unstated);
         assertThat(walk(ShortlistQuery.first().withSort(ShortlistSort.DURATION).withLimit(2)))
-            .containsExactly(year, half, quarter, unstated);
+                .containsExactly(year, half, quarter, unstated);
     }
 
     @Test
@@ -524,7 +528,7 @@ class OfferQueryServiceTest {
         }
 
         assertThat(walk(ShortlistQuery.first().withSort(ShortlistSort.FRESH).withLimit(2)))
-            .containsExactlyElementsOf(inserted.reversed());
+                .containsExactlyElementsOf(inserted.reversed());
     }
 
     @ParameterizedTest
@@ -556,8 +560,7 @@ class OfferQueryServiceTest {
         var walked = walk(ShortlistQuery.first().withSort(sort).withLimit(2));
 
         assertThat(walked).containsExactlyInAnyOrderElementsOf(concat(stated, unstated));
-        assertThat(walked.subList(walked.size() - 3, walked.size()))
-            .containsExactlyInAnyOrderElementsOf(unstated);
+        assertThat(walked.subList(walked.size() - 3, walked.size())).containsExactlyInAnyOrderElementsOf(unstated);
     }
 
     @Test
@@ -569,22 +572,23 @@ class OfferQueryServiceTest {
         }
         String cursor = offers.shortlist(ShortlistQuery.first().withLimit(2)).nextCursor();
 
-        assertThatThrownBy(() -> offers.shortlist(
-            ShortlistQuery.first().withSort(ShortlistSort.START).withLimit(2).withCursor(cursor)))
-            .isInstanceOf(BadShortlistRequest.class)
-            .hasMessageContaining("sort=score")
-            .hasMessageContaining("sort=start");
+        assertThatThrownBy(() -> offers.shortlist(ShortlistQuery.first()
+                        .withSort(ShortlistSort.START)
+                        .withLimit(2)
+                        .withCursor(cursor)))
+                .isInstanceOf(BadShortlistRequest.class)
+                .hasMessageContaining("sort=score")
+                .hasMessageContaining("sort=start");
     }
 
     @Test
     void treatsACursorFromTheOldThreePartFormAsABadRequest() {
         // A link somebody shared yesterday carries one. It used to be an
         // ArrayIndexOutOfBoundsException, which is a 500.
-        assertThatThrownBy(() -> offers.shortlist(
-            ShortlistQuery.first().withCursor("88|1756800000123456|4211")))
-            .isInstanceOf(BadShortlistRequest.class);
+        assertThatThrownBy(() -> offers.shortlist(ShortlistQuery.first().withCursor("88|1756800000123456|4211")))
+                .isInstanceOf(BadShortlistRequest.class);
         assertThatThrownBy(() -> offers.shortlist(ShortlistQuery.first().withCursor("score|x|y|z")))
-            .isInstanceOf(BadShortlistRequest.class);
+                .isInstanceOf(BadShortlistRequest.class);
     }
 
     // ---- the three filters ---------------------------------------------------------
@@ -625,7 +629,8 @@ class OfferQueryServiceTest {
         durationMonths(passed("Drei Monate", 50), 3);
         passed("Keine Dauer genannt", 50);
 
-        var page = offers.shortlist(new ShortlistQuery(null, null, null, false, null, null, null, 6, false, false, null, 0));
+        var page = offers.shortlist(
+                new ShortlistQuery(null, null, null, false, null, null, null, 6, false, false, null, 0));
 
         assertThat(page.matched()).isEqualTo(1);
         assertThat(page.entries().getFirst().offer().durationMonths()).isEqualTo(12);
@@ -639,7 +644,8 @@ class OfferQueryServiceTest {
         applyBy(passed("Frist vorbei", 50), LocalDate.now().minusDays(1));
         long unstated = passed("Keine Frist genannt", 50);
 
-        var page = offers.shortlist(new ShortlistQuery(null, null, null, false, null, null, null, null, true, false, null, 0));
+        var page = offers.shortlist(
+                new ShortlistQuery(null, null, null, false, null, null, null, null, true, false, null, 0));
 
         assertThat(page.matched()).isEqualTo(2);
         assertThat(ids(page)).contains(unstated);
@@ -670,7 +676,7 @@ class OfferQueryServiceTest {
         passed("Woanders", 70);
 
         assertThat(ids(offers.shortlist(ShortlistQuery.first().withPortals(List.of("portal-c")))))
-            .containsExactly(primary);
+                .containsExactly(primary);
     }
 
     @Test
@@ -696,7 +702,7 @@ class OfferQueryServiceTest {
         passed("Darunter", 39);
 
         assertThat(ids(offers.shortlist(ShortlistQuery.first().withScore(new ScoreFilter(null, 40, 80, null)))))
-            .containsExactlyInAnyOrder(low, high);
+                .containsExactlyInAnyOrder(low, high);
     }
 
     @Test
@@ -711,14 +717,14 @@ class OfferQueryServiceTest {
 
         int unscored = offers.shortlist(ShortlistQuery.first()).unscored();
         var page = offers.shortlist(
-            ShortlistQuery.first().withScore(new ScoreFilter(null, null, null, ScoreState.UNSCORED)));
+                ShortlistQuery.first().withScore(new ScoreFilter(null, null, null, ScoreState.UNSCORED)));
 
         assertThat(unscored).isEqualTo(2);
         assertThat(ids(page)).containsExactlyInAnyOrder(first, second);
         assertThat(page.matched()).isEqualTo(unscored);
         assertThat(ids(offers.shortlist(
-            ShortlistQuery.first().withScore(new ScoreFilter(null, null, null, ScoreState.SCORED)))))
-            .doesNotContain(first, second);
+                        ShortlistQuery.first().withScore(new ScoreFilter(null, null, null, ScoreState.SCORED)))))
+                .doesNotContain(first, second);
     }
 
     @Test
@@ -806,11 +812,12 @@ class OfferQueryServiceTest {
         var all = offers.shortlist(ShortlistQuery.first());
         assertThat(all.entries()).hasSize(2);
         assertThat(all.entries().stream()
-            .filter(entry -> entry.flags().possibleDuplicate())
-            .map(entry -> entry.offer().id()))
-            .containsExactly(suspected);
+                        .filter(entry -> entry.flags().possibleDuplicate())
+                        .map(entry -> entry.offer().id()))
+                .containsExactly(suspected);
 
-        var only = offers.shortlist(new ShortlistQuery(null, null, null, false, null, null, null, null, false, true, null, 0));
+        var only = offers.shortlist(
+                new ShortlistQuery(null, null, null, false, null, null, null, null, false, true, null, 0));
         assertThat(only.entries()).hasSize(1);
         assertThat(only.entries().getFirst().offer().id()).isEqualTo(suspected);
         // Still a working-list offer: the filter narrows what is shown and changes nothing
@@ -866,19 +873,32 @@ class OfferQueryServiceTest {
     }
 
     private long rejected(String title) {
-        return jdbc.queryForObject("""
+        return jdbc.queryForObject(
+                """
             INSERT INTO offer (source_id, external_id, title, url, fingerprint, status, filter_stage)
             VALUES (?, ?, ?, 'https://example.invalid/x', ?, 'REJECTED', 'ABROAD')
             RETURNING id
-            """, Long.class, sourceId, title, title, title.toLowerCase());
+            """,
+                Long.class,
+                sourceId,
+                title,
+                title,
+                title.toLowerCase());
     }
 
     private void duplicateOf(long primary, String portal, String agency) {
-        jdbc.update("""
+        jdbc.update(
+                """
             INSERT INTO offer (source_id, external_id, title, url, fingerprint, status, portal, agency,
                                duplicate_of_id)
             VALUES (?, ?, 'Senior Java Entwickler', ?, 'senior java entwickler', 'PASSED', ?, ?, ?)
-            """, sourceId, portal + primary, "https://" + portal + "/x", portal, agency, primary);
+            """,
+                sourceId,
+                portal + primary,
+                "https://" + portal + "/x",
+                portal,
+                agency,
+                primary);
     }
 
     private void reason(long offerId, String factor, String label, int points, int position) {

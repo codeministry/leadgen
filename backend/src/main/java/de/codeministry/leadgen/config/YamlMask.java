@@ -87,8 +87,7 @@ public final class YamlMask {
      */
     private static final Pattern QUERY_PARAM = Pattern.compile("([?&])([A-Za-z0-9_.\\-]+)=([^&\\s\"']*)");
 
-    private YamlMask() {
-    }
+    private YamlMask() {}
 
     /**
      * The text as it may be published.
@@ -129,12 +128,20 @@ public final class YamlMask {
                     out.append(line).append('\n');
                     continue;
                 }
-                out.append(indent).append(key).append(':').append(gap)
-                    .append(maskedValue(value)).append('\n');
+                out.append(indent)
+                        .append(key)
+                        .append(':')
+                        .append(gap)
+                        .append(maskedValue(value))
+                        .append('\n');
                 continue;
             }
-            out.append(indent).append(key).append(':').append(gap)
-                .append(maskedNonSecret(value)).append('\n');
+            out.append(indent)
+                    .append(key)
+                    .append(':')
+                    .append(gap)
+                    .append(maskedNonSecret(value))
+                    .append('\n');
         }
         return out.toString();
     }
@@ -169,8 +176,8 @@ public final class YamlMask {
         if (placeholder.matches()) {
             // The variable's name is not a secret; a default written beside it is.
             return placeholder.group(2) == null
-                ? body + comment
-                : "${" + placeholder.group(1) + ":" + Secrets.MASK + "}" + comment;
+                    ? body + comment
+                    : "${" + placeholder.group(1) + ":" + Secrets.MASK + "}" + comment;
         }
         return Secrets.MASK + comment;
     }
@@ -188,9 +195,9 @@ public final class YamlMask {
     private static String maskFlow(String value) {
         Matcher matcher = FLOW_ENTRY.matcher(value);
         return matcher.replaceAll(match -> Matcher.quoteReplacement(
-            secret(match.group(1))
-                ? match.group(1) + match.group(2) + Secrets.MASK
-                : match.group(1) + match.group(2) + match.group(3)));
+                secret(match.group(1))
+                        ? match.group(1) + match.group(2) + Secrets.MASK
+                        : match.group(1) + match.group(2) + match.group(3)));
     }
 
     /**
@@ -200,9 +207,7 @@ public final class YamlMask {
     private static String maskQueryParams(String value) {
         Matcher matcher = QUERY_PARAM.matcher(value);
         return matcher.replaceAll(match -> Matcher.quoteReplacement(
-            secret(match.group(2))
-                ? match.group(1) + match.group(2) + "=" + Secrets.MASK
-                : match.group()));
+                secret(match.group(2)) ? match.group(1) + match.group(2) + "=" + Secrets.MASK : match.group()));
     }
 
     private static boolean isBlockScalarHeader(String value) {

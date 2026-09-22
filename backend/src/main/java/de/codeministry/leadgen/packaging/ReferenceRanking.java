@@ -10,7 +10,6 @@ package de.codeministry.leadgen.packaging;
 
 import de.codeministry.leadgen.config.model.SkillProfile;
 import de.codeministry.leadgen.llm.Vectors;
-
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;

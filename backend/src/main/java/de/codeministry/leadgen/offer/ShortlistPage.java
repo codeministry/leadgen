@@ -9,7 +9,6 @@
 package de.codeministry.leadgen.offer;
 
 import de.codeministry.leadgen.retrieval.SemanticFilter;
-
 import java.util.List;
 
 /**

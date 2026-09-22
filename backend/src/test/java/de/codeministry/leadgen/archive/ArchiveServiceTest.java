@@ -8,9 +8,13 @@
  */
 package de.codeministry.leadgen.archive;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import de.codeministry.leadgen.Databases;
 import de.codeministry.leadgen.config.ConfigFixtures;
 import de.codeministry.leadgen.config.ConfigRegistry;
+import java.time.LocalDate;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,11 +26,6 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
-
-import java.time.LocalDate;
-import java.util.List;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * The age pass: what leaves the working list, what comes back, and what it must not touch.
@@ -325,14 +324,14 @@ class ArchiveServiceTest {
 
         assertThat(status(back)).isEqualTo("NEW");
         assertThat(jdbc.queryForObject(
-            """
+                        """
                 SELECT count(*) FROM application_event e JOIN application a ON a.id = e.application_id
                 WHERE a.offer_id = ? AND e.from_status = 'PACKAGED' AND e.to_status = 'NEW'
                   AND e.note = 'restored'
                 """,
-            Integer.class,
-            back))
-            .isEqualTo(1);
+                        Integer.class,
+                        back))
+                .isEqualTo(1);
     }
 
     @Test
@@ -343,20 +342,20 @@ class ArchiveServiceTest {
         long back = offer("Beworben und zurückgeholt", TODAY);
         application(back, "SENT");
         jdbc.update(
-            "UPDATE application SET sent_on = ?, follow_up_on = ?, outcome = 'kein Feedback' WHERE offer_id = ?",
-            TODAY.minusDays(7),
-            TODAY.plusDays(7),
-            back);
+                "UPDATE application SET sent_on = ?, follow_up_on = ?, outcome = 'kein Feedback' WHERE offer_id = ?",
+                TODAY.minusDays(7),
+                TODAY.plusDays(7),
+                back);
         archive.setArchived(List.of(back), true);
 
         archive.setArchived(List.of(back), false);
 
         assertThat(jdbc.queryForObject(
-            "SELECT sent_on IS NULL AND follow_up_on IS NULL AND outcome IS NULL"
-                + " FROM application WHERE offer_id = ?",
-            Boolean.class,
-            back))
-            .isTrue();
+                        "SELECT sent_on IS NULL AND follow_up_on IS NULL AND outcome IS NULL"
+                                + " FROM application WHERE offer_id = ?",
+                        Boolean.class,
+                        back))
+                .isTrue();
     }
 
     @Test
@@ -382,11 +381,18 @@ class ArchiveServiceTest {
     }
 
     private long offer(String title, LocalDate publishedOn) {
-        return jdbc.queryForObject("""
+        return jdbc.queryForObject(
+                """
             INSERT INTO offer (source_id, external_id, title, url, fingerprint, status, published_on)
             VALUES (?, ?, ?, 'https://example.invalid/x', ?, 'PASSED', ?)
             RETURNING id
-            """, Long.class, sourceId, title, title, title.toLowerCase(), publishedOn);
+            """,
+                Long.class,
+                sourceId,
+                title,
+                title,
+                title.toLowerCase(),
+                publishedOn);
     }
 
     private void application(long offerId, String status) {

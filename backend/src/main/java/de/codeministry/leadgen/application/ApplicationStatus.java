@@ -102,11 +102,8 @@ public enum ApplicationStatus {
             return ALL;
         }
         return Arrays.stream(values())
-            .filter(next -> next.isBeforePackage()
-                || next == PACKAGED
-                || next == REJECTED
-                || next == EXPIRED)
-            .toList();
+                .filter(next -> next.isBeforePackage() || next == PACKAGED || next == REJECTED || next == EXPIRED)
+                .toList();
     }
 
     /**

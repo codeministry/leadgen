@@ -8,8 +8,14 @@
  */
 package de.codeministry.leadgen.fields;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
+
 import de.codeministry.leadgen.Databases;
 import de.codeministry.leadgen.config.ConfigFixtures;
+import java.time.LocalDate;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,13 +28,6 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
-
-import java.time.LocalDate;
-import java.util.Optional;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.BDDMockito.given;
 
 /**
  * What the stage writes, what it leaves due, and what it makes scoring read again.
@@ -48,7 +47,8 @@ class FieldsServiceTest {
 
     @DynamicPropertySource
     static void configuration(DynamicPropertyRegistry registry) {
-        registry.add("leadgen.config-dir", () -> ConfigFixtures.shippedDefaults().toString());
+        registry.add(
+                "leadgen.config-dir", () -> ConfigFixtures.shippedDefaults().toString());
     }
 
     @Autowired
@@ -73,7 +73,7 @@ class FieldsServiceTest {
         jdbc.update("DELETE FROM offer");
         jdbc.update("DELETE FROM source");
         sourceId =
-            jdbc.queryForObject("INSERT INTO source (name, kind) VALUES ('test', 'file') RETURNING id", Long.class);
+                jdbc.queryForObject("INSERT INTO source (name, kind) VALUES ('test', 'file') RETURNING id", Long.class);
         given(extractor.model()).willReturn("a-model");
         given(extractors.current()).willReturn(Optional.of(extractor));
     }
@@ -90,16 +90,16 @@ class FieldsServiceTest {
         assertThat(fields.run().considered()).isZero();
 
         assertThat(jdbc.queryForObject("SELECT duration FROM offer WHERE id = ?", String.class, id))
-            .isEqualTo("6");
+                .isEqualTo("6");
         assertThat(jdbc.queryForObject("SELECT fields_at FROM offer WHERE id = ?", Object.class, id))
-            .isNull();
+                .isNull();
     }
 
     @Test
     void writesBothHalvesOfEveryPairAndStampsTheModel() {
         long id = passed("Java Entwickler", null, null);
         answers(new ExtractedFields(
-            "ab sofort", null, "6 Monate mit Option", 6, "Bewerbungen bis 30.09.2026", LocalDate.of(2026, 9, 30)));
+                "ab sofort", null, "6 Monate mit Option", 6, "Bewerbungen bis 30.09.2026", LocalDate.of(2026, 9, 30)));
 
         var report = fields.run();
 
@@ -107,9 +107,9 @@ class FieldsServiceTest {
         assertThat(report.extracted()).isEqualTo(1);
         assertThat(report.stated()).isEqualTo(1);
         var row = jdbc.queryForMap(
-            "SELECT start_text, starts_on, duration, duration_months, apply_by, apply_by_text, fields_model"
-                + " FROM offer WHERE id = ?",
-            id);
+                "SELECT start_text, starts_on, duration, duration_months, apply_by, apply_by_text, fields_model"
+                        + " FROM offer WHERE id = ?",
+                id);
         assertThat(row.get("start_text")).isEqualTo("ab sofort");
         assertThat(row.get("starts_on")).isNull();
         assertThat(row.get("duration")).isEqualTo("6 Monate mit Option");
@@ -152,7 +152,7 @@ class FieldsServiceTest {
         assertThat(report.requests()).isEqualTo(1);
         assertThat(report.extracted()).isZero();
         assertThat(jdbc.queryForObject("SELECT fields_at FROM offer WHERE id = ?", Object.class, id))
-            .isNull();
+                .isNull();
         // And it is handed to the next pass rather than remembered as read by nobody.
         answers(ExtractedFields.none());
         assertThat(fields.run().considered()).isEqualTo(1);
@@ -176,25 +176,26 @@ class FieldsServiceTest {
     }
 
     private long scored(long id) {
-        jdbc.update("UPDATE offer SET score_value = 80, score_band = 'REVIEW', score_model = 'a-judge' WHERE id = ?", id);
+        jdbc.update(
+                "UPDATE offer SET score_value = 80, score_band = 'REVIEW', score_model = 'a-judge' WHERE id = ?", id);
         return id;
     }
 
     private long passed(String title, LocalDate startsOn, String duration) {
         return jdbc.queryForObject(
-            """
+                """
                 INSERT INTO offer (source_id, external_id, title, description, url, fingerprint, status,
                                    full_text, starts_on, duration)
                 VALUES (?, ?, ?, 'Kurzbeschreibung.', 'https://example.invalid/1', ?, 'PASSED',
                         'Wir suchen ab sofort.', ?, ?)
                 RETURNING id
                 """,
-            Long.class,
-            sourceId,
-            title + System.nanoTime(),
-            title,
-            title.toLowerCase(),
-            startsOn,
-            duration);
+                Long.class,
+                sourceId,
+                title + System.nanoTime(),
+                title,
+                title.toLowerCase(),
+                startsOn,
+                duration);
     }
 }

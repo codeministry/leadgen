@@ -8,6 +8,8 @@
  */
 package de.codeministry.leadgen.ingest;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import de.codeministry.leadgen.config.ConfigFixtures;
 import de.codeministry.leadgen.config.ConfigProperties;
 import de.codeministry.leadgen.config.model.SourcesConfig;
@@ -17,17 +19,14 @@ import de.codeministry.leadgen.ingest.extract.OfferMapper;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
 import jakarta.validation.ValidatorFactory;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.Assumptions;
-import org.junit.jupiter.api.Test;
-
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.Assumptions;
+import org.junit.jupiter.api.Test;
 
 /**
  * The two search-agent tables, against the mails they were written for.
@@ -68,8 +67,10 @@ class SearchAgentCorpusTest {
                 "IMAP_HOST", "imap.invalid",
                 "IMAP_USER", "nobody",
                 "IMAP_PASSWORD", "unused",
-                "FREELANCE_DE_INBOX", root.resolve("docs/samples/emails-freelance-de").toString(),
-                "FREELANCERMAP_INBOX", root.resolve("docs/samples/emails-freelancermap").toString());
+                "FREELANCE_DE_INBOX",
+                        root.resolve("docs/samples/emails-freelance-de").toString(),
+                "FREELANCERMAP_INBOX",
+                        root.resolve("docs/samples/emails-freelancermap").toString());
     }
 
     /** Every offer the named file source extracts from its own corpus directory. */
@@ -93,8 +94,7 @@ class SearchAgentCorpusTest {
         var extractor = new HtmlBlockExtractor();
         var mapper = new OfferMapper();
         List<ExtractedOffer> offers = new ArrayList<>();
-        for (RawDocument document :
-                new FileSourceConnector(new ConfigProperties(config.toString())).read(source, 0L)) {
+        for (RawDocument document : new FileSourceConnector(new ConfigProperties(config.toString())).read(source, 0L)) {
             extractor.extract(document.html(), source.extraction()).stream()
                     .map(block -> mapper.map(block, source.extraction(), null))
                     .forEach(offers::add);
@@ -138,8 +138,8 @@ class SearchAgentCorpusTest {
             assertThat(offer.location()).isNull();
         });
         // An agency that never loses its tail to the location pattern.
-        assertThat(offers).anySatisfy(offer ->
-                assertThat(offer.agency()).isEqualTo("NEO - Professional Solutions GmbH"));
+        assertThat(offers)
+                .anySatisfy(offer -> assertThat(offer.agency()).isEqualTo("NEO - Professional Solutions GmbH"));
     }
 
     @Test
@@ -169,7 +169,9 @@ class SearchAgentCorpusTest {
     void neitherPortalStatesADescriptionAndThatIsTheMeasurement() {
         // The reason the hard filter judges these two on the title alone. If a description
         // ever appears, this fails and the filter's reach is worth rethinking.
-        assertThat(offersOf("freelance-de-eml")).allSatisfy(offer -> assertThat(offer.description()).isNull());
-        assertThat(offersOf("freelancermap-eml")).allSatisfy(offer -> assertThat(offer.description()).isNull());
+        assertThat(offersOf("freelance-de-eml"))
+                .allSatisfy(offer -> assertThat(offer.description()).isNull());
+        assertThat(offersOf("freelancermap-eml"))
+                .allSatisfy(offer -> assertThat(offer.description()).isNull());
     }
 }

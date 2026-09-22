@@ -72,8 +72,11 @@ class PackageWorker {
         try {
             packages.discard(event.offerIds());
         } catch (RuntimeException e) {
-            log.error("The packages of {} archived offers could not be discarded: {}",
-                event.offerIds().size(), e.getMessage(), e);
+            log.error(
+                    "The packages of {} archived offers could not be discarded: {}",
+                    event.offerIds().size(),
+                    e.getMessage(),
+                    e);
         }
     }
 }

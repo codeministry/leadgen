@@ -8,6 +8,13 @@
  */
 package de.codeministry.leadgen.web;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
+
 import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.config.SourceDetail;
 import de.codeministry.leadgen.config.SourceDetailService;
@@ -16,22 +23,14 @@ import de.codeministry.leadgen.config.SourceTrend;
 import de.codeministry.leadgen.config.SourcesView;
 import de.codeministry.leadgen.config.YamlBlock;
 import de.codeministry.leadgen.score.Judges;
+import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.HttpStatus;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
-
-import java.util.List;
-import java.util.Optional;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.BDDMockito.given;
-import static org.mockito.BDDMockito.then;
 
 /**
  * The edge of the one endpoint on this controller that serves file text.
@@ -61,9 +60,9 @@ class ConfigControllerTest {
         given(sources.summaries()).willReturn(new SourcesView("sources.yaml", "config-dir", List.of()));
 
         assertThat(mvc.get().uri("/api/v1/sources"))
-            .hasStatusOk()
-            .bodyJson()
-            .isEqualTo("{\"file\":\"sources.yaml\",\"layer\":\"config-dir\",\"sources\":[]}");
+                .hasStatusOk()
+                .bodyJson()
+                .isEqualTo("{\"file\":\"sources.yaml\",\"layer\":\"config-dir\",\"sources\":[]}");
     }
 
     @Test
@@ -88,7 +87,7 @@ class ConfigControllerTest {
         given(details.detail(any(), anyInt())).willReturn(Optional.empty());
 
         assertThat(mvc.get().uri("/api/v1/sources/{id}", "..%2F..%2Fetc%2Fpasswd"))
-            .hasStatus(HttpStatus.NOT_FOUND);
+                .hasStatus(HttpStatus.NOT_FOUND);
 
         then(details).should().detail("..%2F..%2Fetc%2Fpasswd", 0);
     }
@@ -97,20 +96,21 @@ class ConfigControllerTest {
     void asksForAsManyRunsAsTheRequestNamed() {
         given(details.detail(eq("manual-inbox"), eq(7))).willReturn(Optional.of(detail()));
 
-        assertThat(mvc.get().uri("/api/v1/sources/manual-inbox").param("runs", "7")).hasStatusOk();
+        assertThat(mvc.get().uri("/api/v1/sources/manual-inbox").param("runs", "7"))
+                .hasStatusOk();
 
         then(details).should().detail("manual-inbox", 7);
     }
 
     private static SourceDetail detail() {
         return new SourceDetail(
-            "manual-inbox",
-            "file",
-            true,
-            new SourceDetail.ConfigFile("sources.yaml", "config-dir", "/config/sources.yaml"),
-            new YamlBlock("- id: manual-inbox\n", 139, 163),
-            null,
-            List.of(),
-            new SourceTrend(null, null, null, null, null, false));
+                "manual-inbox",
+                "file",
+                true,
+                new SourceDetail.ConfigFile("sources.yaml", "config-dir", "/config/sources.yaml"),
+                new YamlBlock("- id: manual-inbox\n", 139, 163),
+                null,
+                List.of(),
+                new SourceTrend(null, null, null, null, null, false));
     }
 }

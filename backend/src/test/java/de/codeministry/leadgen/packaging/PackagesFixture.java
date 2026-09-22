@@ -9,7 +9,6 @@
 package de.codeministry.leadgen.packaging;
 
 import de.codeministry.leadgen.config.ConfigFixtures;
-
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
@@ -28,8 +27,7 @@ import java.nio.file.Path;
  */
 final class PackagesFixture {
 
-    private PackagesFixture() {
-    }
+    private PackagesFixture() {}
 
     private static Path configDirectory;
     private static Path packagesDirectory;
@@ -57,10 +55,10 @@ final class PackagesFixture {
 
             Path pipeline = dir.resolve("pipeline.yaml");
             Files.writeString(
-                pipeline,
-                Files.readString(pipeline, StandardCharsets.UTF_8)
-                    .replace("output_dir: ${PACKAGES_DIR:./packages}", "output_dir: " + packages),
-                StandardCharsets.UTF_8);
+                    pipeline,
+                    Files.readString(pipeline, StandardCharsets.UTF_8)
+                            .replace("output_dir: ${PACKAGES_DIR:./packages}", "output_dir: " + packages),
+                    StandardCharsets.UTF_8);
 
             packagesDirectory = packages;
             configDirectory = dir;
@@ -77,7 +75,8 @@ final class PackagesFixture {
         try {
             Path folder = Files.createDirectories(packages().resolve(name));
             Files.writeString(folder.resolve("meta.json"), "{\"offerId\":0}", StandardCharsets.UTF_8);
-            Files.writeString(folder.resolve("cover_letter.txt"), "Sehr geehrte Damen und Herren", StandardCharsets.UTF_8);
+            Files.writeString(
+                    folder.resolve("cover_letter.txt"), "Sehr geehrte Damen und Herren", StandardCharsets.UTF_8);
             return folder;
         } catch (IOException e) {
             throw new UncheckedIOException(e);
