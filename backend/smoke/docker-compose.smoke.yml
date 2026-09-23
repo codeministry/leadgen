@@ -62,6 +62,9 @@ services:
       INBOX_DIR: /corpus
       MANUAL_INBOX_DIR: /inbox
       SERVER_ADDRESS: 0.0.0.0
+      # `none` past loopback refuses to start without this since 0.4.2. The smoke network is
+      # the CI runner's own, which is exactly the "something outside the process limits reach".
+      ALLOW_OPEN_BIND: "true"
       IMAP_HOST: greenmail
       IMAP_PORT: "3143"
       IMAP_USER: smoke
