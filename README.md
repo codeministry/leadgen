@@ -67,13 +67,26 @@ is *configured* to run after it — the loader refuses any other value.
 
 ## How it works
 
+```mermaid
+%%{init: {"themeVariables": {"clusterBkg":"#fafafa","clusterBorder":"#c3c8cf","titleColor":"#374151","mainBkg":"#eef1f5","nodeBorder":"#9aa3ad","primaryTextColor":"#1f2937"}}}%%
+flowchart LR
+    classDef free fill:#dbe4ee,stroke:#4a6d8c,color:#1f2937
+    classDef model fill:#e2d5f1,stroke:#6f4aa8,color:#1f2937
+    classDef net fill:#d6ead8,stroke:#3d7a48,color:#1f2937
+    classDef file fill:#f6dccb,stroke:#b85c2a,color:#1f2937
+
+    s["Sources"] --> i["Ingest"] --> x["Extract"] --> d["Dedupe"] --> f["Filter"] --> a["Archive"] --> e["Enrich"] --> c["Content"] --> sc["Score"] --> p["Package"] --> g["Digest"]
+
+    class s,i,x,f,a free
+    class d,c,sc model
+    class e net
+    class p,g file
 ```
-Sources ─▶ Ingest ─▶ Extract ─▶ Dedupe ─▶ Filter ─▶ Archive ─▶ Enrich ─▶ Content ─▶ Score ─▶ Package ─▶ Digest
-                                          │                    │         │
-                      free, deterministic ┘                    │         │
-                        the only stage that leaves the machine ┘         │
-                                    this and scoring are what cost money ┘
-```
+
+Grey-blue is free and deterministic, violet may ask a model, green is the only stage that
+leaves the machine, peach writes a file. The chain is drawn in full, with what every stage
+reads and writes and where a rule decides against where a model speaks, in
+[`docs/BACKEND-FLOWS.md`](docs/BACKEND-FLOWS.md).
 
 Two rules decide the shape of everything above.
 
@@ -213,6 +226,11 @@ open for the question you have.
 
 - [Architecture](docs/ARCHITECTURE.md) — the pipeline stage by stage, and the reasoning
   behind the parts that are not obvious
+- [Data model](docs/DATA-MODEL.md) — the thirteen tables, their keys, and which class writes
+  each column
+- [Backend flows](docs/BACKEND-FLOWS.md) — the run as a sequence, the asynchronous side,
+  every write path from an endpoint down, the state machines, and where a rule decides
+  against where a model speaks
 - [Configuration](docs/CONFIGURATION.md) — the two layers, the four files, every variable
 - [Adding a source](docs/ADDING-A-SOURCE.md) — a new source is a YAML block, worked through
   line by line, then every key with what reads it
@@ -220,7 +238,8 @@ open for the question you have.
   thresholds, and which keys are read by nothing
 - [Development](docs/DEVELOPMENT.md) — prerequisites, commands, and the traps a newcomer
   hits first
-- [Concept](docs/CONCEPT.md) — the original design: domain model, module layout, order of work
+- [Concept](docs/CONCEPT.md) — the original design: module layout and order of work, historical
+  in places
 - [Sample analysis](docs/SAMPLE-ANALYSIS.md) — what 14 real newsletter mails contain, and
   what they do not
 - [The demo](demo/README.md) — the invented dataset and what it demonstrates

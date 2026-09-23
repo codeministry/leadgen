@@ -45,6 +45,30 @@ lint and Vitest for the frontend. The frontend is bracketed with plain `Exec` ta
 `package.json` stays the single list of frontend commands and `bun run <script>` behaves
 identically inside and outside Gradle.
 
+```mermaid
+%%{init: {"themeVariables": {"clusterBkg":"#fafafa","clusterBorder":"#c3c8cf","titleColor":"#374151","mainBkg":"#eef1f5","nodeBorder":"#9aa3ad","primaryTextColor":"#1f2937"}}}%%
+flowchart LR
+    classDef free fill:#dbe4ee,stroke:#4a6d8c,color:#1f2937
+    classDef row fill:#ffffff,stroke:#9aa3ad,color:#1f2937,stroke-dasharray:4 3
+    classDef zone fill:#fafafa,stroke:#c3c8cf,color:#374151
+
+    subgraph run["running it"]
+        direction LR
+        browser["browser"] --> dev["bun run start<br/>:4200"]
+        dev -- "/api → API_PROXY_TARGET" --> api["./gradlew :backend:bootRun<br/>:8080, reads .env"]
+        api --> pg[("docker compose up postgres<br/>host 55432 → container 5432")]
+    end
+    subgraph gate["./gradlew check, the gate"]
+        direction LR
+        bt["backend: Spring tests + JaCoCo"] --> tc[("Testcontainers<br/>the same pgvector image, its own port")]
+        ft["frontend: check:static + Vitest<br/>plain Exec tasks calling bun"]
+    end
+
+    class browser,dev,api,bt,ft free
+    class pg,tc row
+    class run,gate zone
+```
+
 ## Checking a finished image
 
 `./gradlew check` is the authority on behaviour. It cannot see the failures that are

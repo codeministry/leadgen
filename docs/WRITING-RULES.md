@@ -84,6 +84,10 @@ Four consequences when you write a list:
 
 ## The six knockouts
 
+The six as one funnel, each with the key that drives it, is drawn in
+[`ARCHITECTURE.md` § The hard filter](ARCHITECTURE.md#the-hard-filter); this section is the
+key-by-key detail behind that picture.
+
 They run in this fixed order, and an offer stops at the first rejection — which is the only
 reason the per-stage counts on the dashboard funnel sum to the total. The verdict written on
 the offer carries the stage *and* the reason, because a rejection without its reason is a
@@ -270,6 +274,31 @@ penalties  = Σ points     of the rows with maxPoints == 0   (the penalties, pro
 
 share = round(100 × earned ÷ attainable)
 total = clamp(0, 100, share + penalties)
+```
+
+```mermaid
+%%{init: {"themeVariables": {"clusterBkg":"#fafafa","clusterBorder":"#c3c8cf","titleColor":"#374151","mainBkg":"#eef1f5","nodeBorder":"#9aa3ad","primaryTextColor":"#1f2937"}}}%%
+flowchart LR
+    classDef free fill:#dbe4ee,stroke:#4a6d8c,color:#1f2937
+    classDef model fill:#e2d5f1,stroke:#6f4aa8,color:#1f2937
+    classDef pass fill:#f3e6c4,stroke:#a4781b,color:#1f2937
+    classDef gone fill:#e9e9e9,stroke:#6b7280,color:#1f2937
+
+    rows["every reason row of one offer<br/>a factor with nothing to say writes none"] --> split{"maxPoints > 0?"}
+    split -- "yes: the shares" --> share["share = round(100 × Σ points ÷ Σ maxPoints)"]
+    split -- "no: the penalties, project_setup,<br/>interest_fit, disinterest_fit" --> abs["absolute points, added as they are"]
+    share --> total["total = clamp(0, 100, share + absolute)"]
+    abs --> total
+    total --> band{"scoring.thresholds"}
+    band -- "value ≥ auto_shortlist" --> S["SHORTLISTED<br/>a card on the board, at NEW"]
+    band -- "value ≥ review" --> R["REVIEW<br/>in the digest, a person decides"]
+    band -- "below review" --> D["DISCARDED"]
+    judge["the judge answered nothing usable"] -.-> U["UNSCORED<br/>the rule rows are written, the total is withheld"]
+
+    class rows,split,share,abs,total,band free
+    class S,R pass
+    class D gone
+    class judge,U model
 ```
 
 Two things follow from that and are worth having in mind while tuning:

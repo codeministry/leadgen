@@ -179,6 +179,8 @@ docs/samples/simulate_filter.py   simulation of the hard filters
 docs/decisions/*.md               the reasoning per stage, moved out of this file
 docs/ADDING-A-SOURCE.md           the worked example, then every sources.yaml key
 docs/WRITING-RULES.md             every matching-rules.yaml key and what reads it
+docs/DATA-MODEL.md                the 13 tables, their keys, who writes each column
+docs/BACKEND-FLOWS.md             the run as a sequence, the async tails, the write paths
 backend/CLAUDE.md                 backend conventions and the traps of that tree
 frontend/CLAUDE.md                frontend conventions and the traps of that tree
 

@@ -27,6 +27,33 @@ addressable, the direct-enquiry case).
 If your source is a directory of files or an IMAP folder, and its documents are HTML or
 Markdown, **you need no code at all.**
 
+The whole path of a document, and which YAML key decides each step of it:
+
+```mermaid
+%%{init: {"themeVariables": {"clusterBkg":"#fafafa","clusterBorder":"#c3c8cf","titleColor":"#374151","mainBkg":"#eef1f5","nodeBorder":"#9aa3ad","primaryTextColor":"#1f2937"}}}%%
+flowchart LR
+    classDef free fill:#dbe4ee,stroke:#4a6d8c,color:#1f2937
+    classDef model fill:#e2d5f1,stroke:#6f4aa8,color:#1f2937
+    classDef row fill:#ffffff,stroke:#9aa3ad,color:#1f2937,stroke-dasharray:4 3
+
+    conn["connections[]<br/>an IMAP account, by id"] --> src
+    src["sources[]<br/>id · type · enabled"] -- "type: imap → selector<br/>folder, from, subject_matches, since_days" --> docs
+    src -- "type: file → path, glob" --> docs
+    docs[("RawDocument<br/>one mail, or one file")] --> strat{"extraction.strategy"}
+    strat -- "html-blocks" --> blocks["block_selector,<br/>then fields.*.css per block"]
+    strat -- "markdown-frontmatter" --> fm["the front-matter keys,<br/>fields.* only for what needs unwrapping"]
+    strat -- "llm" --> prose["the model reads the prose"]
+    blocks --> eight
+    fm --> eight
+    prose --> eight
+    eight["the eight field names<br/>title · url · description · location · portal · agency · published · tags"]
+    eight --> mapper["OfferMapper + defaults<br/>language, channel"] --> offer[("offer row<br/>upsert on source_id + external_id")]
+
+    class conn,src,strat,blocks,fm,eight,mapper free
+    class prose model
+    class docs,offer row
+```
+
 ## The contract you are filling in
 
 Eight field names, and they are the contract between `sources.yaml` and `OfferMapper`:

@@ -7,7 +7,9 @@ What this is, stage by stage, and the reasoning behind the parts that are not ob
 and [`docs/decisions/`](decisions/)
 holds the reasoning stage by stage — every rule with the measurement behind it, written for an
 agent working in the tree. This document is the same material arranged for somebody reading
-the repository for the first time.
+the repository for the first time. The tables and who writes each column are in
+[`DATA-MODEL.md`](DATA-MODEL.md); the run as a sequence, the asynchronous side and every
+write path from an endpoint down are in [`BACKEND-FLOWS.md`](BACKEND-FLOWS.md).
 
 ## Shape
 
@@ -19,6 +21,56 @@ frontend/   Angular 22 zoneless · @ngrx/signals · Tailwind 4 / DaisyUI · Tran
 demo/       an invented dataset, so a fresh clone opens on a populated application
 config/     yours — overrides the shipped defaults file by file (gitignored)
 docs/
+```
+
+Three processes, three things outside the machine, and three places on disk. Everything the
+tool reads or writes is in this picture, and the colours are the ones every diagram in
+`docs/` uses: green leaves the machine, violet asks a model, peach is a file.
+
+```mermaid
+%%{init: {"themeVariables": {"clusterBkg":"#fafafa","clusterBorder":"#c3c8cf","titleColor":"#374151","mainBkg":"#eef1f5","nodeBorder":"#9aa3ad","primaryTextColor":"#1f2937"}}}%%
+flowchart LR
+    classDef free fill:#dbe4ee,stroke:#4a6d8c,color:#1f2937
+    classDef model fill:#e2d5f1,stroke:#6f4aa8,color:#1f2937
+    classDef net fill:#d6ead8,stroke:#3d7a48,color:#1f2937
+    classDef file fill:#f6dccb,stroke:#b85c2a,color:#1f2937
+    classDef row fill:#ffffff,stroke:#9aa3ad,color:#1f2937,stroke-dasharray:4 3
+    classDef zone fill:#fafafa,stroke:#c3c8cf,color:#374151
+
+    person["the operator's browser"]
+    subgraph stack["the stack: docker compose, or bootRun and bun start"]
+        direction TB
+        web["web<br/>nginx serving the Angular build,<br/>/api proxied to api:8080"]
+        api["api<br/>Spring Boot: the pipeline,<br/>the REST API, the schedulers"]
+        db[("postgres<br/>pgvector/pgvector:0.8.6-pg18")]
+        web --> api --> db
+    end
+    subgraph outside["outside the machine"]
+        direction TB
+        mail[("an IMAP mailbox")]
+        portals["the portals' advert pages"]
+        llm["one model endpoint<br/>Ollama, Anthropic or OpenAI-compatible"]
+    end
+    subgraph disk["on disk beside the process, gitignored"]
+        direction TB
+        cfg["config/ and .env<br/>override the shipped YAML file by file"]
+        inbox["inbox/<br/>the manual source's files"]
+        out["packages/<br/>one folder per application, and the digest"]
+    end
+    person --> web
+    api -- "INGEST: read, flag" --> mail
+    api -- "ENRICH: GET, politely" --> portals
+    api -- "judge, classifier, fields,<br/>embeddings, one budget" --> llm
+    cfg -. "read at start, watched every 2 s" .-> api
+    inbox --> api
+    api --> out
+
+    class person,web,api free
+    class mail,portals net
+    class llm model
+    class cfg,inbox,out file
+    class db row
+    class stack,outside,disk zone
 ```
 
 The root Gradle build brackets both modules: `./gradlew check` runs the Spring tests and the
@@ -46,11 +98,17 @@ thing that touches the schema.
 | 6   | Archive      | `archive.ArchiveService`          | After the filter so a restored offer carries a current verdict; before enrichment so an offer off the list pays for neither the fetch nor the model. |
 | 7   | Enrich       | `enrich.EnrichmentService`        | The only stage that leaves the machine, and only for survivors.                                                                                      |
 | 8   | Content      | `content.ContentService`          | After enrichment because it reads the fetched advert; before scoring because scoring has to judge the advert and not the portal around it.           |
+| 8a  | Fields       | `fields.FieldsService`            | After content because it reads the advert the content stage left; before scoring because what it writes feeds `project_setup` and the judge's view.  |
 | 9   | Score        | `score.ScoringService`            | Deterministic factors always; a model for four of them.                                                                                              |
+| 9a  | Retrieval    | `retrieval.RetrievalIndexService` | After scoring on purpose: its first pass over a corpus is hundreds of requests, and in front of the judge it would starve the stage the tool is for. |
 | 10  | Open         | `application.ApplicationService`  | A card at `NEW` per offer above the shortlist threshold. What reaching the shortlist buys; the folder waits for a person.                            |
 | 10a | Package      | `packaging.PackagingService`      | The retry for a folder somebody asked for and did not get. Normally zero: a package is built when an application reaches `PACKAGED`.                 |
 | 11  | Digest       | `digest.DigestService`            | A file, and the last thing a run does.                                                                                                               |
 | 12  | Record       | `analytics.PipelineRunRecorder`   | Last, and it cannot throw: a history row is worth less than the run. Writes the per-stage timings `StageLog` collected as the run went.              |
+
+What each stage selects and which columns it writes is the table in
+[`BACKEND-FLOWS.md` § 1a](BACKEND-FLOWS.md#1a-stage-by-stage); where a rule decides and where
+a model speaks, per stage, is § 1e of the same document.
 
 ### Ingest and extraction
 
@@ -93,6 +151,37 @@ They are different things and the words are worth keeping apart.
 - **Deduplication** collapses one *project* several portals advertise at once. That is
   14.0 % of the measured corpus, and it is the reason the shortlist is readable.
 
+```mermaid
+%%{init: {"themeVariables": {"clusterBkg":"#fafafa","clusterBorder":"#c3c8cf","titleColor":"#374151","mainBkg":"#eef1f5","nodeBorder":"#9aa3ad","primaryTextColor":"#1f2937"}}}%%
+flowchart LR
+    classDef free fill:#dbe4ee,stroke:#4a6d8c,color:#1f2937
+    classDef model fill:#e2d5f1,stroke:#6f4aa8,color:#1f2937
+    classDef row fill:#ffffff,stroke:#9aa3ad,color:#1f2937,stroke-dasharray:4 3
+    classDef zone fill:#fafafa,stroke:#c3c8cf,color:#374151
+
+    subgraph listing["one listing seen twice: the upsert, at INGEST"]
+        direction LR
+        m1["Monday's newsletter<br/>job 4711"] --> row1[("one offer row<br/>keyed by source_id + external_id")]
+        m2["Thursday's newsletter<br/>job 4711 again"] --> row1
+    end
+    subgraph project["one project on three portals: deduplication, at DEDUPE"]
+        direction LR
+        p[("the primary<br/>first seen, on the list")]
+        a1[("portal B's copy<br/>duplicate_of_id = primary")] -- "same fingerprint" --> p
+        a2[("portal C's copy<br/>duplicate_of_id = primary")] -- "cosine above the merge threshold" --> p
+        f[("a similar advert<br/>possible_duplicate_of_id = primary")] -. "cosine above the flag threshold:<br/>shown, not hidden" .-> p
+    end
+
+    class m1,m2 free
+    class row1,p,a1,f row
+    class a2 model
+    class listing,project zone
+```
+
+An attached copy stays a row and keeps its own portal and URL; the shortlist shows the
+primary with every portal of its cluster beside it. The flag is the honest answer between
+the threshold that is safe to act on and the one that is not, and a person resolves it.
+
 The fingerprint is the normalized title and nothing else, and that is measured rather than
 lazy: adding the one other field that exists at this point — the stated location — collapses
 127 instead of 180, and the 53 it gives up are overwhelmingly correct merges lost to the
@@ -106,6 +195,33 @@ Six stages in a fixed order: abroad → remote share → out of reach → role o
 skill → contract form. An offer stops at the first rejection, which is the only reason the
 per-stage counts sum to the total. The verdict — stage *and* reason — is written on the
 offer, because a rejection without its reason is a number nobody trusts a week later.
+
+```mermaid
+%%{init: {"themeVariables": {"clusterBkg":"#fafafa","clusterBorder":"#c3c8cf","titleColor":"#374151","mainBkg":"#eef1f5","nodeBorder":"#9aa3ad","primaryTextColor":"#1f2937"}}}%%
+flowchart TB
+    classDef free fill:#dbe4ee,stroke:#4a6d8c,color:#1f2937
+    classDef gone fill:#e9e9e9,stroke:#6b7280,color:#1f2937
+    classDef pass fill:#f3e6c4,stroke:#a4781b,color:#1f2937
+
+    in[("every offer row, every run")] --> s1{"1 · ABROAD<br/>hard_filters.location"}
+    s1 --> s2{"2 · REMOTE_SHARE<br/>hard_filters.remote"}
+    s2 --> s3{"3 · OUT_OF_REACH<br/>hard_filters.location.onsite_*"}
+    s3 --> s4{"4 · ROLE_OR_STACK<br/>hard_filters.role.rejected_title_keywords"}
+    s4 --> s5{"5 · NO_CORE_SKILL<br/>skill-profile.yaml core"}
+    s5 --> s6{"6 · CONTRACT_FORM<br/>hard_filters.contract.rejected"}
+    s6 --> pass["PASSED<br/>filter_stage and filter_reason null"]
+    s1 -- "names a place abroad" --> out
+    s2 -- "states a share below the minimum" --> out
+    s3 -- "on site, and no city in reach" --> out
+    s4 -- "the title names a foreign stack or role" --> out
+    s5 -- "names none of the core skills" --> out
+    s6 -- "names a rejected form" --> out
+    out["FILTERED_OUT<br/>filter_stage names the stage, filter_reason the sentence"]
+
+    class in,s1,s2,s3,s4,s5,s6 free
+    class out gone
+    class pass pass
+```
 
 Not one keyword is in Java. `docs/samples/simulate_filter.py` is the reference
 implementation and a corpus test asserts the two still agree. Which key drives which stage,
@@ -135,7 +251,8 @@ filter reads the whole table with no `WHERE` and writes a verdict onto every row
 the offers that still pass. Two columns, because there are four states: `archived_at` with
 `AGE` or `MANUAL` is off the list, both null is on it, and `archived_at` null with
 `RESTORED` is on it *deliberately* — which is what stops the age pass taking it back off
-tomorrow morning.
+tomorrow morning. Both axes, with every move between the four states, are drawn in
+[`BACKEND-FLOWS.md` § 4](BACKEND-FLOWS.md#the-offers-verdict-and-its-archive-axis).
 
 The working-set predicate is therefore three parts —
 `status = 'PASSED' AND duplicate_of_id IS NULL AND archived_at IS NULL` — at every one of
@@ -184,6 +301,35 @@ unknown one costs one model call and is free from then on. A portal repeats the 
 ads, so it is paid for once and covers the rest. **A header form nobody has seen is a digest nobody has seen: one call,
 then free again, which is how new furniture gets noticed by construction rather than mislabelled in silence.**
 
+```mermaid
+%%{init: {"themeVariables": {"clusterBkg":"#fafafa","clusterBorder":"#c3c8cf","titleColor":"#374151","mainBkg":"#eef1f5","nodeBorder":"#9aa3ad","primaryTextColor":"#1f2937"}}}%%
+flowchart TB
+    classDef content fill:#f3e6c4,stroke:#a4781b,color:#1f2937
+    classDef furniture fill:#e9e9e9,stroke:#6b7280,color:#1f2937
+    classDef free fill:#dbe4ee,stroke:#4a6d8c,color:#1f2937
+    classDef zone fill:#fafafa,stroke:#c3c8cf,color:#374151
+
+    subgraph page["one fetched advert, split into blocks"]
+        direction TB
+        b1["apply now · save to watchlist<br/>CHROME, decided by RULE"]
+        b2["Senior Java developer, remote, from October<br/>CONTENT, decided by CACHE"]
+        b3["Your tasks … Your profile … The project …<br/>CONTENT, decided by MODEL"]
+        b4["Java · Spring · Kafka · AWS · … sixty names from the site's own tag cloud<br/>TAXONOMY, decided by MODEL"]
+        b5["reason for reporting this project · spam · offensive · …<br/>FORM, decided by RULE"]
+        b6["Example Recruiting GmbH · register court · HRB …<br/>AGENCY, decided by RULE"]
+        b7["the privacy-policy link<br/>LEGAL, decided by RULE"]
+        b1 ~~~ b2 ~~~ b3 ~~~ b4 ~~~ b5 ~~~ b6 ~~~ b7
+    end
+    page --> score["what scoring reads:<br/>the CONTENT blocks, joined"]
+    page --> screen["what the detail shows:<br/>everything, the furniture folded away with its reason"]
+    page --> cache["what is remembered:<br/>content_block_label by portal and digest, so the next advert pays nothing"]
+
+    class b2,b3 content
+    class b1,b4,b5,b6,b7 furniture
+    class score,screen,cache free
+    class page zone
+```
+
 **Fail open, always.** A block no rule matched, that the cache does not know and that no model answered about stays
 `CONTENT` and stays on the screen. `content_undecided` counts exactly those, and it is the number to watch: it is what a
 changed markup looks like from here.
@@ -209,7 +355,9 @@ undone, rather than something to take on trust.
 Rules before model, again. `RuleScorer` decides everything the profile and the offer's own
 fields can decide, for free. A `Judge` is asked about role fit and three penalties, and
 nothing else. The weight table itself, the arithmetic behind the total and the three
-thresholds are in [WRITING-RULES.md](WRITING-RULES.md).
+thresholds are in [WRITING-RULES.md](WRITING-RULES.md), with the arithmetic drawn; which
+factor belongs to which half is the picture in
+[`BACKEND-FLOWS.md` § 1e](BACKEND-FLOWS.md#1e-where-a-rule-decides-and-where-a-model-speaks).
 
 - **Unscored is not zero, and not nothing.** With no key the deterministic reasons are still
   written. What is withheld is the *total*: computed from five of nine weights it would not
@@ -263,6 +411,25 @@ in `meta.json`.
 `offer.OfferQueryService`, `analytics.AnalyticsQueryService`, `config.SourceQueryService`.
 Read-only, and separate from the stages that write — each stage owns a narrow slice of the
 `offer` row, this owns the whole row as a person reads it.
+
+```mermaid
+%%{init: {"themeVariables": {"clusterBkg":"#fafafa","clusterBorder":"#c3c8cf","titleColor":"#374151","mainBkg":"#eef1f5","nodeBorder":"#9aa3ad","primaryTextColor":"#1f2937"}}}%%
+flowchart LR
+    classDef free fill:#dbe4ee,stroke:#4a6d8c,color:#1f2937
+    classDef row fill:#ffffff,stroke:#9aa3ad,color:#1f2937,stroke-dasharray:4 3
+    classDef pass fill:#f3e6c4,stroke:#a4781b,color:#1f2937
+
+    all[("every offer row")] --> c1["status = 'PASSED'"] --> c2["duplicate_of_id IS NULL"] --> c3["archived_at IS NULL"]
+    c3 --> list["the shortlist<br/>keyset paged, primaries only"]
+    c3 --> numbers["every number beside the list<br/>counted by the server, over the match"]
+    c3 --> funnel["the funnel's survivors<br/>the same predicate on both sides of the subtraction"]
+    all --> detail["the detail<br/>any row: rejected and archived offers open too"]
+    c2 -. "an attached row folds into its primary's cluster" .-> list
+
+    class all row
+    class c1,c2,c3,detail free
+    class list,numbers,funnel pass
+```
 
 - **The shortlist is primaries only**, and so is everything counted against it. Counting
   duplicates as survivors made the sources screen say 104 where the shortlist showed 96.
@@ -324,6 +491,27 @@ aliases, because that is what the `no-restricted-imports` rule matches on — a 
 types; where it needs one (the score thresholds, the chart palette) it takes a token provided
 from `core`.
 
+```mermaid
+%%{init: {"themeVariables": {"clusterBkg":"#fafafa","clusterBorder":"#c3c8cf","titleColor":"#374151","mainBkg":"#eef1f5","nodeBorder":"#9aa3ad","primaryTextColor":"#1f2937"}}}%%
+flowchart BT
+    classDef free fill:#dbe4ee,stroke:#4a6d8c,color:#1f2937
+    classDef pass fill:#f3e6c4,stroke:#a4781b,color:#1f2937
+
+    shared["shared/ · @shared<br/>icon, brand mark, score, funnel rail, badge, stat tile, empty state<br/>imports nothing from above, not even a type"]
+    core["core/ · @core<br/>api seams, stores, models, theme, shell state"]
+    layout["layout/ · @layout<br/>shell, header, nav rail, theme toggle"]
+    features["features/ · @features<br/>dashboard, shortlist, offer detail, pipeline, review, sources, rules"]
+    shared --> core --> layout --> features
+    ports["shared/shared.ports.ts<br/>DI tokens a lower layer needs from a higher one"] -.-> shared
+
+    class shared,core,layout free
+    class features pass
+    class ports free
+```
+
+An arrow is an allowed import direction, and each layer's `no-restricted-imports` entry
+names exactly the aliases above it.
+
 Standalone components, signals, `OnPush`, zoneless. RxJS only at the I/O boundary, bridged in
 with `toSignal`. NgRx stores are a `*.store.ts` + `*.events.ts` pair with `withReducer` and
 `withEventHandlers`; where the I/O is the DOM rather than HTTP — theme, language — `withHooks`
@@ -378,6 +566,8 @@ preference before first paint.
 |---|---|
 | how an offer becomes a row | `ingest/IngestService.java`, then `ingest/extract/HtmlBlockExtractor.java` |
 | why four in five are discarded | `filter/HardFilter.java` and `matching-rules.yaml` |
-| how a score is made | `score/RuleScorer.java` and `score/HttpJudge.java` |
+| how a score is made | `score/RuleScorer.java`, then `score/ChatClientJudge.java` and `score/AnthropicJudge.java` |
 | how configuration is loaded | `config/ConfigRegistry.java` and `config/ConfigLoader.java` |
 | how a screen gets its data | `offer/OfferQueryService.java` and `core/store/` |
+| which table a stage writes, and who else reads it | [`DATA-MODEL.md`](DATA-MODEL.md) § 3 and § 4 |
+| what happens after `PATCH /api/v1/applications/{id}` | [`BACKEND-FLOWS.md`](BACKEND-FLOWS.md) § 2b and § 3 |

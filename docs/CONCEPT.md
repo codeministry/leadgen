@@ -105,22 +105,13 @@ tool runs purely rule-based with no external call at all.
 
 ## 5. Domain model
 
-```
-RawDocument        source_id, external_id, raw, fetched_at, processed_at
-  └─ RawOffer      the slice of one offer within a document
-       └─ Offer    canonical: title, description, skills[], city, remote_percent,
-                   start_date, duration, rate, language, industry, contact, url, fingerprint
-            ├─ OfferSource   channel, sender, url, first_seen   (n per Offer = duplicate cluster)
-            ├─ Score         hard_pass, value, reasons[], model, ruleset_version
-            └─ Application   status, cv_variant, cover_letter, sent_at, follow_up_at, outcome
-Digest             date, offers[]
-```
-
-`Application` state machine:
-`NEW → SHORTLISTED → PACKAGED → SENT → REPLIED → INTERVIEW → OFFER → WON | LOST | REJECTED | EXPIRED`
-
-The status list is configuration, not an enum chain in the code — a different workflow
-should be possible without a fork.
+Historical. The entity tree that stood here (`RawDocument`, `RawOffer`, `Offer`,
+`OfferSource`, `Score`, `Application`, `Digest`) was never built as such: the backend is JDBC
+over a schema Flyway owns, one wide `offer` row carries what those types split, a duplicate
+cluster is a self-reference rather than an `OfferSource` table, and the application status is
+an enum with one enforced transition rather than configuration. The tables as they exist are
+in [DATA-MODEL.md](DATA-MODEL.md); the application state machine, with the rule the code does
+enforce, is in [BACKEND-FLOWS.md § 4](BACKEND-FLOWS.md#4-state-machines).
 
 ## 6. Backend module layout
 

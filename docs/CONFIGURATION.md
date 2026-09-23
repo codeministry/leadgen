@@ -30,6 +30,51 @@ config/                                yours, gitignored, overriding the above f
 .env                                    the values behind the placeholders, gitignored
 ```
 
+With two of the four files overridden, the resolution looks like this. A file in the
+directory shadows the whole shipped file of the same name; the two that are not there come
+from the jar; `.env` fills the placeholders in whichever four were chosen; and the result is
+one snapshot the watcher swaps whole.
+
+```mermaid
+%%{init: {"themeVariables": {"clusterBkg":"#fafafa","clusterBorder":"#c3c8cf","titleColor":"#374151","mainBkg":"#eef1f5","nodeBorder":"#9aa3ad","primaryTextColor":"#1f2937"}}}%%
+flowchart LR
+    classDef file fill:#f6dccb,stroke:#b85c2a,color:#1f2937
+    classDef gone fill:#e9e9e9,stroke:#6b7280,color:#1f2937
+    classDef free fill:#dbe4ee,stroke:#4a6d8c,color:#1f2937
+    classDef row fill:#ffffff,stroke:#9aa3ad,color:#1f2937,stroke-dasharray:4 3
+    classDef zone fill:#fafafa,stroke:#c3c8cf,color:#374151
+
+    subgraph jar["in the jar: classpath:/leadgen/"]
+        direction TB
+        j1["pipeline.yaml"]
+        j2["matching-rules.yaml"]
+        j3["sources.yaml"]
+        j4["skill-profile.yaml"]
+    end
+    subgraph dir["leadgen.config-dir: yours, gitignored"]
+        direction TB
+        d2["matching-rules.yaml"]
+        d4["skill-profile.yaml"]
+    end
+    env[".env<br/>the values behind every ${PLACEHOLDER}"]
+    snap[("ConfigSnapshot<br/>one object, swapped whole")]
+    j1 --> snap
+    j3 --> snap
+    d2 --> snap
+    d4 --> snap
+    j2 -. "shadowed: the directory has one" .- d2
+    j4 -. "shadowed" .- d4
+    env -- "fills the placeholders in all four" --> snap
+    snap --> banner["startup banner:<br/>per file, which layer won"]
+    watcher["ConfigWatcher, every 2 s"] -- "a file moved on disk: reload" --> snap
+
+    class j1,j3,d2,d4,env file
+    class j2,j4 gone
+    class banner,watcher free
+    class snap row
+    class jar,dir zone
+```
+
 ## The four files
 
 | File                  | Bound to         | What it decides                                                                                                                                                               |
