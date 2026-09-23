@@ -35,7 +35,15 @@
     "close": "Schließen",
     "open": "Öffnen",
     "archived": "Archiviert: {title}",
-    "restored": "Wiederhergestellt: {title}"
+    "restored": "Wiederhergestellt: {title}",
+    "countArchived": "{count, plural, =0 {Nichts archiviert} one {1 Offer archiviert} other {# Offers archiviert}}",
+    "statusChanged": "{state}: {title}",
+    "rescored": "Bewertet mit {score}: {title}",
+    "rescoredUnscored": "Erneut bewertet, weiterhin ohne Score: {title}",
+    "documentConfirmed": "Bestätigt: {name}",
+    "documentRejected": "Abgelehnt: {name}",
+    "runStarted": "Ein Lauf hat begonnen",
+    "runFinished": "Lauf beendet: {written, plural, =0 {nichts geschrieben} one {1 Offer geschrieben} other {# Offers geschrieben}}, {shortlisted, plural, =0 {keins auf der Shortlist} one {1 auf der Shortlist} other {# auf der Shortlist}}"
   },
   "theme": {
     "legend": "Farbschema",

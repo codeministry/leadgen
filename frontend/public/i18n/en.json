@@ -35,7 +35,15 @@
     "close": "Dismiss",
     "open": "Open",
     "archived": "Archived: {title}",
-    "restored": "Restored: {title}"
+    "restored": "Restored: {title}",
+    "countArchived": "{count, plural, =0 {Nothing was archived} one {1 offer archived} other {# offers archived}}",
+    "statusChanged": "{state}: {title}",
+    "rescored": "Scored {score}: {title}",
+    "rescoredUnscored": "Judged again, still unscored: {title}",
+    "documentConfirmed": "Confirmed: {name}",
+    "documentRejected": "Rejected: {name}",
+    "runStarted": "A run has started",
+    "runFinished": "Run finished: {written, plural, =0 {nothing written} one {1 offer written} other {# offers written}}, {shortlisted, plural, =0 {none shortlisted} one {1 shortlisted} other {# shortlisted}}"
   },
   "theme": {
     "legend": "Colour theme",

@@ -53,7 +53,7 @@ export const ManualStore = signalStore(
         on(manualEvents.confirmed, ({payload}) => ({busy: payload.name, error: null})),
         on(manualEvents.rejected, ({payload}) => ({busy: payload, error: null})),
         on(manualEvents.settled, ({payload}, state) => ({
-            documents: state.documents.filter((document) => document.name !== payload),
+            documents: state.documents.filter((document) => document.name !== payload.name),
             busy: null,
         })),
     ),
@@ -85,7 +85,7 @@ export const ManualStore = signalStore(
             events.on(manualEvents.confirmed).pipe(
                 concatMap(({payload}) =>
                     api.confirm(payload.name, payload.fields).pipe(
-                        map(() => manualEvents.settled(payload.name)),
+                        map(() => manualEvents.settled({name: payload.name, outcome: 'confirmed'})),
                         catchError((error: { error?: unknown }) =>
                             of(manualEvents.failed(serverMessage(error, 'The document was not confirmed.'))),
                         ),
@@ -95,7 +95,7 @@ export const ManualStore = signalStore(
             events.on(manualEvents.rejected).pipe(
                 concatMap(({payload}) =>
                     api.reject(payload).pipe(
-                        map(() => manualEvents.settled(payload)),
+                        map(() => manualEvents.settled({name: payload, outcome: 'rejected'})),
                         catchError(() => of(manualEvents.failed('The document was not deleted.'))),
                     ),
                 ),

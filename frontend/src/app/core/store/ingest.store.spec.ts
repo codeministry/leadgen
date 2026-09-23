@@ -92,7 +92,10 @@ describe('IngestStore', () => {
       http.expectOne('/api/v1/ingest/current').flush(null, {status: 204, statusText: 'No Content'});
     });
 
-    afterEach(() => http.verify());
+    afterEach(() => {
+        vi.useRealTimers();
+        http.verify();
+    });
 
     it('asks what ran last as soon as it exists, without anyone opening a screen', () => {
         // The defect this replaces: the dashboard knew about a run only if this browser had
@@ -118,6 +121,9 @@ describe('IngestStore', () => {
         // lose the only thing that names which document came up short.
         http.expectOne('/api/v1/ingest/last').flush(lastRun());
         dispatch.requested();
+        // The request asks the heartbeat once, at once; answered so `verify` counts only
+        // the run itself.
+        http.expectOne('/api/v1/ingest/current').flush(null, {status: 204, statusText: 'No Content'});
         // Matched by method and path: the run carries the chosen model as a query parameter,
         // so a plain URL match misses it.
         http
@@ -138,6 +144,9 @@ describe('IngestStore', () => {
     // pass, another tab or a second machine all answer 409 with a sentence saying what
     // happened and what it did not do, and "The ingest run did not answer" said neither.
     dispatch.requested();
+        // The request asks the heartbeat once, at once; answered so `verify` counts only
+        // the run itself.
+        http.expectOne('/api/v1/ingest/current').flush(null, {status: 204, statusText: 'No Content'});
     http
       .expectOne((request) => request.url === '/api/v1/ingest')
       .flush('an ingest run is already in progress; this one was not started', {
@@ -156,11 +165,34 @@ describe('IngestStore', () => {
     // A network failure carries no sentence, and a raw `null` on screen is worse than a
     // generic line. The same pair `serverMessage` is written for.
     dispatch.requested();
+        // The request asks the heartbeat once, at once; answered so `verify` counts only
+        // the run itself.
+        http.expectOne('/api/v1/ingest/current').flush(null, {status: 204, statusText: 'No Content'});
     http
       .expectOne((request) => request.url === '/api/v1/ingest')
       .error(new ProgressEvent('network'));
 
     expect(store.error()).toBe('error.ingestRun');
+  });
+
+  it('asks the heartbeat the moment a run is requested, and keeps asking fast while it is out', () => {
+    // The run toast is raised from the heartbeat's first sight of a run, never from the
+    // request, so one path covers a click here and a CronJob elsewhere. Without this the
+    // operator's own toast would arrive at the idle cadence, up to thirty seconds late.
+    vi.useFakeTimers();
+    http.expectOne('/api/v1/ingest/last').flush(null, {status: 204, statusText: 'No Content'});
+
+    dispatch.requested();
+    http.expectOne('/api/v1/ingest/current').flush(null, {status: 204, statusText: 'No Content'});
+
+    // Still nothing running as far as the server says, but this browser is waiting on its
+    // own request: the next beat comes at the fast cadence, not after thirty seconds.
+    vi.advanceTimersByTime(5_000);
+    http.expectOne('/api/v1/ingest/current').flush(null, {status: 204, statusText: 'No Content'});
+
+    http.expectOne((request) => request.method === 'POST' && request.url === '/api/v1/ingest').flush(report());
+    expect(store.running()).toBe(false);
+    vi.useRealTimers();
   });
 
   it('knows about a pass nobody in this browser started', () => {
