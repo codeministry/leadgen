@@ -68,9 +68,6 @@ keeps in the notes rather than in the number.
 - **The formatting gate is on again.** One reviewed `spotlessApply` reformatted every Java file
   the way palantir-java-format wants it, and Spotless now writes the SPDX licence header onto a
   new file.
-- **CI runs Gradle on JDK 21 and compiles with the JDK 25 toolchain.** palantir-java-format
-  calls the javac of the JVM Gradle runs on and fails every file on 25 and 27; the release run
-  for this tag failed on exactly that before the workflows said so.
 
 ## [0.4.1] — 2026-09-22
 

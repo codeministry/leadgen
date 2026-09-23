@@ -38,19 +38,13 @@ jobs:
         with:
           fetch-depth: 0
 
-      # Two JDKs, and the order matters. 25 is the toolchain the code compiles and runs on;
-      # there is no toolchain resolver in `settings.gradle.kts`, so it is handed to Gradle by
-      # path below. 21 is what Gradle itself runs on, the last one listed becomes JAVA_HOME,
-      # because palantir-java-format calls the javac of the JVM it runs in: on 25 and on 27 it
-      # fails with NoSuchMethodError on every file, and a newer formatter that does run on 25
-      # formats 235 files differently from the tree. Measured 2026-09-23; the tree was formatted
-      # by a Gradle running on 21, which is what a local jenv default gives.
+      # Pinned to 25 to match the Gradle toolchain. There is no toolchain resolver in
+      # `settings.gradle.kts`, so Gradle cannot download a JDK of its own: this step is
+      # what puts the toolchain's version on the runner, and a mismatch is loud.
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
-          java-version: |
-            25
-            21
+          java-version: '25'
 
       - uses: gradle/actions/setup-gradle@v5
 
@@ -69,7 +63,7 @@ jobs:
       # the gate came to be green nowhere; it is not coming back, and a formatting
       # disagreement is settled with one reviewed `spotlessApply` instead.
       - name: Check
-        run: ./gradlew check --no-daemon --stacktrace -Porg.gradle.java.installations.paths=$JAVA_HOME_25_X64
+        run: ./gradlew check --no-daemon --stacktrace
 
       # An applied migration is immutable: Flyway hashes the file's bytes, so editing one
       # that a database already ran changes its checksum and every such database refuses to
