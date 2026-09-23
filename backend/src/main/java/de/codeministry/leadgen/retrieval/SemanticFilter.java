@@ -199,6 +199,45 @@ public class SemanticFilter {
     }
 
     /** Whether this offer has a vector from the model now configured. */
+    /**
+     * The paraphrase half of the topic filter: adverts whose retrieval vector sits within the
+     * measured floor of the topic's own name, meant to be OR-ed onto the stored alias match.
+     *
+     * <p><b>Empty is an answer, never an error.</b> Unlike {@code semantic=}, a topic has a
+     * complete answer without the index — the alias matches the scorer stored — so an
+     * installation without retrieval, without a floor, without a model or out of budget
+     * simply gets that answer. Refusing with a 400 would throw away a filter that works.
+     *
+     * <p>The phrase is embedded through {@link QueryEmbedder}, which caches it per model and
+     * takes from the day's budget only on a miss, so a topic costs one call per process and
+     * not one per page. A floor and not a count, because this is a similarity on a column,
+     * measured before it acts; and it only ever widens the filter — nothing here reaches a score.
+     */
+    public java.util.Optional<Narrowing> topicNeighbourhood(String topic) {
+        PipelineConfig application = config.snapshot().application();
+        PipelineConfig.Retrieval retrieval = application.retrieval();
+        if (topic == null || retrieval == null || !retrieval.enabled() || retrieval.topicFloor() == null) {
+            return java.util.Optional.empty();
+        }
+        String model = model(application);
+        if (model == null) {
+            return java.util.Optional.empty();
+        }
+        return queries.vectorFor(topic, model).map(vector -> {
+            Map<String, Object> params = new LinkedHashMap<>();
+            params.put("topicModel", model);
+            params.put("topicVector", vector);
+            // A similarity in the file, a distance in the query — the sign trap the class note names.
+            params.put("topicMaxDistance", 1.0 - retrieval.topicFloor());
+            return new Narrowing(
+                    """
+                     OR (o.retrieval_embedding IS NOT NULL
+                         AND o.retrieval_embedding_model = :topicModel
+                         AND o.retrieval_embedding <=> CAST(:topicVector AS vector) <= :topicMaxDistance)""",
+                    params);
+        });
+    }
+
     private boolean indexed(long offer, String model) {
         return Boolean.TRUE.equals(jdbc.sql(
                         """

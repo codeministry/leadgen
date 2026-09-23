@@ -22,7 +22,6 @@ public record MatchingRules(
         @Min(1) int version,
         @Valid @NotNull HardFilters hardFilters,
         @Valid @NotNull Scoring scoring,
-        List<String> antiSkills,
         @Valid @NotNull Deduplication deduplication,
         @Valid FollowUp followUp) {
 
@@ -78,10 +77,10 @@ public record MatchingRules(
 
         /**
          * @param rejectedTitleKeywords roles and stacks that end the assessment on the
-         *                              title alone. Deliberately not {@code anti_skills}: that list is documented
-         *                              as a scoring penalty worth -30, and reading it as a knockout as well would
-         *                              mean anyone tuning the score silently changes what reaches the shortlist.
-         *                              The lists also differ — this one rejects roles, not only stacks.
+         *                              title alone. Deliberately not the profile's {@code disinterest_topics}: those
+         *                              sink a score and never end an assessment, and reading them as a knockout
+         *                              as well would mean anyone tuning the score silently changes what reaches
+         *                              the shortlist. The lists also differ — this one rejects roles.
          */
         public record Role(List<String> rejectedTitleKeywords) {}
 

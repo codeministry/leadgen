@@ -45,8 +45,6 @@ scoring:
   penalties: { vague_description: -10 }
   thresholds: { auto_shortlist: 70, review: 50, discard: 0 }
 
-anti_skills: [ ]
-
 deduplication:
   fingerprint_fields: [ normalized_title ]
   strategies:

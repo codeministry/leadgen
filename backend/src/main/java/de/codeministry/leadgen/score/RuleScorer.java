@@ -38,8 +38,14 @@ public class RuleScorer {
     /**
      * The factors this scorer can decide. The rest belong to a {@link Judge}.
      */
-    public static final Set<String> DETERMINISTIC =
-            Set.of("core_skill_overlap", "rate_fit", "seniority_fit", "project_setup", "industry_fit");
+    public static final Set<String> DETERMINISTIC = Set.of(
+            "core_skill_overlap",
+            "rate_fit",
+            "seniority_fit",
+            "project_setup",
+            "industry_fit",
+            ScoreReason.INTEREST,
+            ScoreReason.DISINTEREST);
 
     /**
      * A seniority the profile is written for. {@code architekt} carries its compounds
@@ -67,6 +73,7 @@ public class RuleScorer {
     private static final double PERIPHERAL_SHARE = 0.5;
 
     private final Map<String, Integer> weights;
+    private final Map<String, Integer> penalties;
     private final SkillProfile profile;
     private final BigDecimal rateFloor;
     private final Integer saturationCoreCount;
@@ -75,6 +82,9 @@ public class RuleScorer {
         this.weights = rules.scoring() == null || rules.scoring().weights() == null
                 ? Map.of()
                 : rules.scoring().weights();
+        this.penalties = rules.scoring() == null || rules.scoring().penalties() == null
+                ? Map.of()
+                : rules.scoring().penalties();
         this.saturationCoreCount =
                 rules.scoring() == null ? null : rules.scoring().saturationCoreCount();
         this.profile = profile;
@@ -92,6 +102,8 @@ public class RuleScorer {
         seniority(haystack, reasons);
         projectSetup(offer, reasons);
         industries(haystack, reasons);
+        interest(haystack, reasons);
+        disinterest(haystack, reasons);
         return reasons;
     }
 
@@ -350,6 +362,55 @@ public class RuleScorer {
             return true;
         }
         return spellings(industry.name()).stream().anyMatch(spelling -> matches(haystack, spelling));
+    }
+
+    /**
+     * The heaviest interest topic the advert names, as an absolute bonus of
+     * `weights.interest_fit` scaled by the topic's own weight. Absolute and not a share of
+     * the attainable pool, for the reason `project_setup` left it: inside the pool a match
+     * lowers every offer whose existing share is above the topic's weight. The heaviest
+     * topic counts and nothing adds up, the industries precedent, so the reason names one.
+     */
+    private void interest(String haystack, List<ScoreReason> reasons) {
+        Integer weight = weights.get(ScoreReason.INTEREST);
+        if (weight == null || profile == null) {
+            return;
+        }
+        heaviest(haystack, profile.interestTopicsOrEmpty())
+                .ifPresent(topic -> reasons.add(
+                        ScoreReason.interest(topic.name(), (int) Math.round(weight * topic.weight() / 10.0))));
+    }
+
+    /**
+     * The heaviest disinterest topic the advert names, charged once however many of its
+     * spellings the advert uses.
+     */
+    private void disinterest(String haystack, List<ScoreReason> reasons) {
+        Integer penalty = penalties.get(ScoreReason.DISINTEREST);
+        if (penalty == null || profile == null) {
+            return;
+        }
+        heaviest(haystack, profile.disinterestTopicsOrEmpty())
+                .ifPresent(topic -> reasons.add(
+                        ScoreReason.disinterest(topic.name(), (int) Math.round(penalty * topic.weight() / 10.0))));
+    }
+
+    private static java.util.Optional<SkillProfile.Topic> heaviest(String haystack, List<SkillProfile.Topic> topics) {
+        SkillProfile.Topic best = null;
+        for (SkillProfile.Topic topic : topics) {
+            if (namesTopic(haystack, topic) && (best == null || topic.weight() > best.weight())) {
+                best = topic;
+            }
+        }
+        return java.util.Optional.ofNullable(best);
+    }
+
+    /**
+     * The public face of the matcher for anything that must answer exactly as the scorer
+     * does, so there is one matcher and not two.
+     */
+    public static boolean namesTopic(String haystack, SkillProfile.Topic topic) {
+        return topic.spellings().stream().flatMap(s -> spellings(s).stream()).anyMatch(s -> matches(haystack, s));
     }
 
     private static boolean isEmpty(List<?> list) {

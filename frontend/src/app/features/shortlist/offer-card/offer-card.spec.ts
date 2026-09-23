@@ -173,4 +173,24 @@ describe('OfferCard', () => {
 
     expect(checkbox(fixture).getAttribute('aria-label')).toContain('Senior Java Entwickler');
   });
+
+  it('shows a topic reason even when four larger positives outrank it', async () => {
+    // The reason a weak title was lifted is never hidden, the same way the reason a strong one
+    // sank is never hidden. Twelve points would otherwise lose the third slot every time.
+    const base = entry(2);
+    const reasons = [
+      {factor: 'core_skill_overlap', label: 'skills', points: 45, maxPoints: 45},
+      {factor: 'role_fit', label: 'role', points: 15, maxPoints: 15},
+      {factor: 'industry_fit', label: 'industry', points: 14, maxPoints: 15},
+      {factor: 'seniority_fit', label: 'senior', points: 13, maxPoints: 15},
+      {factor: 'interest_fit', label: 'interest: Wanted topic', points: 12, maxPoints: 0, topic: 'Wanted topic'},
+    ];
+    const fixture = await render(false, {entry: {...base, score: {...base.score, reasons}}});
+
+    const shown: string[] = Array.from(
+      fixture.nativeElement.querySelectorAll('.reason') as NodeListOf<HTMLElement>,
+    ).map((item) => item.textContent ?? '');
+    expect(shown.some((text) => text.includes('interest: Wanted topic'))).toBe(true);
+    expect(shown.some((text) => text.includes('senior'))).toBe(false);
+  });
 });

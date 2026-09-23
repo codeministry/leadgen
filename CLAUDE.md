@@ -34,6 +34,8 @@ Violating one of these is expensive, and most of them fail silently.
   A new source is a YAML block, not a deploy.
 - **Rules before model.** The hard filter runs deterministically and for free before any
   LLM call. Without a language model the tool must still run, only weaker.
+- **A profile topic moves a score and never passes a knockout, and the scorer stores the match.** The
+  topic filter reads `offer_score_reason.topic`; it never matches text itself.
 - **Ollama is the provider, and there is no automatic fallback.** Scoring, classification and
   embeddings run locally and for free. Anthropic is never wired in as a fallback for a failed
   or slow local call — it is used only when Marcello sets it for that specific run. A silent

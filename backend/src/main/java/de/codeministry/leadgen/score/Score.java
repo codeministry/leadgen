@@ -26,7 +26,38 @@ import java.util.List;
 public record Score(Integer value, boolean hardPass, List<ScoreReason> reasons, String model, String rulesetVersion) {
 
     public static Score unscored(List<ScoreReason> deterministic, String rulesetVersion) {
-        return new Score(null, true, deterministic, null, rulesetVersion);
+        return new Score(null, true, oneEffectPerTopic(deterministic), null, rulesetVersion);
+    }
+
+    /**
+     * A topic the alias and the judge both found is one effect, not two. Per family the row
+     * with the larger effect stays, and on a tie the alias row, because a rule is what a
+     * re-total can recompute without asking anybody.
+     */
+    static List<ScoreReason> oneEffectPerTopic(List<ScoreReason> reasons) {
+        java.util.Map<String, ScoreReason> kept = new java.util.HashMap<>();
+        for (ScoreReason reason : reasons) {
+            String family = reason.family();
+            if (!ScoreReason.INTEREST.equals(family) && !ScoreReason.DISINTEREST.equals(family)) {
+                continue;
+            }
+            ScoreReason held = kept.get(family);
+            boolean stronger = held == null
+                    || Math.abs(reason.points()) > Math.abs(held.points())
+                    || (Math.abs(reason.points()) == Math.abs(held.points())
+                            && held.judgedTopic()
+                            && !reason.judgedTopic());
+            if (stronger) {
+                kept.put(family, reason);
+            }
+        }
+        return reasons.stream()
+                .filter(reason -> {
+                    String family = reason.family();
+                    return (!ScoreReason.INTEREST.equals(family) && !ScoreReason.DISINTEREST.equals(family))
+                            || kept.get(family) == reason;
+                })
+                .toList();
     }
 
     /**
@@ -55,6 +86,7 @@ public record Score(Integer value, boolean hardPass, List<ScoreReason> reasons, 
      * normalise differently is not a ranking.
      */
     public static Score of(List<ScoreReason> reasons, String model, String rulesetVersion) {
+        reasons = oneEffectPerTopic(reasons);
         int attainable = reasons.stream()
                 .filter(Score::counts)
                 .mapToInt(ScoreReason::maxPoints)

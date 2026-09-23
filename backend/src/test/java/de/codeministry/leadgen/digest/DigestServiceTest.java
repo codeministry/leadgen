@@ -101,6 +101,36 @@ class DigestServiceTest {
     }
 
     @Test
+    void listsADiscardedOfferThatNamesAnInterestTopicAndNoOtherDiscardedOne() {
+        // Being interesting and scoring high are two claims. A discarded offer that names an
+        // interest topic gets a section of its own; a discarded offer that names none still
+        // gets no section at all, which is what the band means.
+        long onTopic = offer("KI-Plattform mit Java (m/w/d)", 38, "DISCARDED");
+        jdbc.update(
+                "INSERT INTO offer_score_reason (offer_id, factor, label, points, max_points, topic, position)"
+                        + " VALUES (?, 'interest_fit', 'interest: Wanted topic', 12, 0, 'Wanted topic', 0)",
+                onTopic);
+        offer("Wartung eines Altsystems", 22, "DISCARDED");
+
+        String text = read(digest.render(LocalDate.of(2026, 9, 1)).orElseThrow());
+
+        assertThat(text)
+                .contains("On topic, below the line")
+                .contains("KI-Plattform mit Java")
+                .contains("interest: Wanted topic")
+                .doesNotContain("Wartung eines Altsystems");
+    }
+
+    @Test
+    void printsNoTopicSectionWhenNothingBelowTheLineNamesATopic() {
+        offer("Senior Java Entwickler (m/w/d)", 88, "SHORTLISTED");
+        offer("Wartung eines Altsystems", 22, "DISCARDED");
+
+        assertThat(read(digest.render(LocalDate.of(2026, 9, 1)).orElseThrow()))
+                .doesNotContain("On topic, below the line");
+    }
+
+    @Test
     void saysWhatItIsNot() {
         // The tool has no send path at all, and the digest is where someone would most
         // expect one. Saying so in the artefact is cheaper than explaining it later.

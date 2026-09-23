@@ -43,7 +43,20 @@ public record SkillProfile(
         List<@Valid Industry> industries,
         List<@Valid ReferenceProject> referenceProjects,
         List<@Valid Language> languages,
-        Map<String, @Valid CvVariant> cvVariants) {
+        Map<String, @Valid CvVariant> cvVariants,
+        List<@Valid Topic> interestTopics,
+        List<@Valid Topic> disinterestTopics) {
+
+    /**
+     * Never null, so a profile written before the two topic lists existed scores as it did.
+     */
+    public List<Topic> interestTopicsOrEmpty() {
+        return interestTopics == null ? List.of() : interestTopics;
+    }
+
+    public List<Topic> disinterestTopicsOrEmpty() {
+        return disinterestTopics == null ? List.of() : disinterestTopics;
+    }
 
     public record Identity(
             String name,
@@ -71,6 +84,30 @@ public record SkillProfile(
      *              name, so a profile written before this behaves as it did.
      */
     public record Industry(@NotBlank String name, @Min(1) @Max(10) int weight, String note, List<String> match) {}
+
+    /**
+     * Something the operator wants more of, or none of, whatever the stack. A skill says what
+     * he can do and an industry where he has done it; a topic says what he is looking for,
+     * which neither of the other two can express and which an advert states in its own words.
+     *
+     * @param aliases the words an advert uses for it. The name is always tried as well, the
+     *                same fallback {@link Industry#match()} has, so a topic written as a single
+     *                word needs no list at all.
+     */
+    public record Topic(@NotBlank String name, @Min(1) @Max(10) int weight, List<String> aliases) {
+
+        /**
+         * The name first, then every alias, without blanks or repeats.
+         */
+        public List<String> spellings() {
+            var all = new java.util.LinkedHashSet<String>();
+            all.add(name);
+            if (aliases != null) {
+                aliases.stream().filter(a -> a != null && !a.isBlank()).forEach(all::add);
+            }
+            return List.copyOf(all);
+        }
+    }
 
     /**
      * One project the cover letter may cite.

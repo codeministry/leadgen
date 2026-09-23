@@ -751,7 +751,44 @@ class OfferQueryServiceTest {
         assertThat(narrowed.portals()).isEqualTo(first.portals());
     }
 
+    @Test
+    void narrowsToOffersWhoseStoredReasonsNameTheTopicInEveryBand() {
+        // The point of the filter: an offer the topic makes interesting is findable whether
+        // or not the score carried it over the line. The rows are written the way ScoreWriter
+        // writes them, topic in its own column; the scorer's half is ScoringWithTopicsTest.
+        long shortlisted = passed("Oben", 82);
+        long review = passed("Mitte", 55);
+        long discarded = passed("Unten", 31);
+        long unscored = bare("Nie bewertet");
+        long other = passed("Anderes Thema", 60);
+        jdbc.update("UPDATE offer SET score_band = 'SHORTLISTED' WHERE id = ?", shortlisted);
+        jdbc.update("UPDATE offer SET score_band = 'REVIEW' WHERE id = ?", review);
+        jdbc.update("UPDATE offer SET score_band = 'DISCARDED' WHERE id = ?", discarded);
+        for (long id : List.of(shortlisted, review, discarded, unscored)) {
+            topicReason(id, "interest_fit", "Wanted topic", 12);
+        }
+        topicReason(other, "interest_fit", "Another topic", 12);
+
+        var query = ShortlistQuery.first().withLimit(2).withTopic("Wanted topic");
+
+        assertThat(walk(query)).containsExactlyInAnyOrder(shortlisted, review, discarded, unscored);
+        assertThat(offers.shortlist(query).matched()).isEqualTo(4);
+        assertThat(ids(offers.shortlist(ShortlistQuery.first().withTopic("Nobody's topic"))))
+                .isEmpty();
+    }
+
     // ---- fixtures ------------------------------------------------------------------
+
+    private void topicReason(long offerId, String factor, String topic, int points) {
+        jdbc.update(
+                "INSERT INTO offer_score_reason (offer_id, factor, label, points, max_points, topic, position)"
+                        + " VALUES (?, ?, ?, ?, 0, ?, 0)",
+                offerId,
+                factor,
+                "interest: " + topic,
+                points,
+                topic);
+    }
 
     private static ShortlistQuery inWindow(StartWindow window) {
         return new ShortlistQuery(null, null, null, false, null, window, null, null, false, false, null, 0);

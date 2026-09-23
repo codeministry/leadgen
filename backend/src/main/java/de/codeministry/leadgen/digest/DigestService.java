@@ -51,6 +51,22 @@ public class DigestService {
         ORDER BY o.score_value DESC NULLS LAST, o.id
         """;
 
+    /**
+     * Below the review line and still worth a look: a discarded offer that names an interest
+     * topic. The score and the interest are two claims, and the digest is where the second
+     * one would otherwise disappear.
+     */
+    private static final String ON_TOPIC_BELOW_THE_LINE =
+            """
+        SELECT o.id, o.title, o.location, o.portal, o.agency, o.url, o.rate_eur,
+               o.duration, o.score_value, o.score_band, o.enrichment_note
+        FROM offer o
+        WHERE o.status = 'PASSED' AND o.duplicate_of_id IS NULL AND o.archived_at IS NULL
+          AND o.score_band = 'DISCARDED'
+          AND EXISTS (SELECT 1 FROM offer_score_reason r WHERE r.offer_id = o.id AND r.topic IS NOT NULL AND r.points > 0)
+        ORDER BY o.score_value DESC NULLS LAST, o.id
+        """;
+
     private static final String REASONS =
             "SELECT label, points FROM offer_score_reason WHERE offer_id = ? ORDER BY position";
 
@@ -92,6 +108,17 @@ public class DigestService {
                                     scoring.thresholds().autoShortlist() - 1),
                     offers("REVIEW")));
         }
+        // Not behind a flag either, and for the reason the Unscored section is not: the topic is
+        // the operator's own statement that such an offer matters, and a digest that only knows
+        // bands is the one place it would silently vanish. Empty, it is not printed.
+        List<Offer> onTopic = offers(ON_TOPIC_BELOW_THE_LINE, null);
+        if (!onTopic.isEmpty()) {
+            sections.add(new Section(
+                    "On topic, below the line",
+                    "under %d, but naming an interest topic"
+                            .formatted(scoring.thresholds().review()),
+                    onTopic));
+        }
         // Always, and not behind a flag: an unscored offer is invisible in a digest that
         // only knows bands, and invisible is exactly what it must not be.
         List<Offer> unscored = offers("UNSCORED");
@@ -122,8 +149,12 @@ public class DigestService {
     }
 
     private List<Offer> offers(String band) {
-        return jdbc.sql(OFFERS)
-                .param(band)
+        return offers(OFFERS, band);
+    }
+
+    private List<Offer> offers(String sql, String band) {
+        var statement = jdbc.sql(sql);
+        return (band == null ? statement : statement.param(band))
                 .query((rs, row) -> new Offer(
                         rs.getLong("id"),
                         rs.getString("title"),

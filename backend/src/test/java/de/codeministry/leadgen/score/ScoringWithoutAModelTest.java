@@ -96,6 +96,26 @@ class ScoringWithoutAModelTest {
     }
 
     @Test
+    void writesTheTopicRowsWithNoModelAsItWouldWithOne() {
+        // Rules before model: the topic half is decided by the profile and the advert. The
+        // same row, the same points and the same stored topic as ScoringWithTopicsTest reads
+        // back with a judge answering, only the total is withheld.
+        long id = offer("Senior Java Entwickler (m/w/d)", "Spring Boot, ein Beispielthema und viel Unwanted field");
+
+        scoring.run();
+
+        var rows = jdbc.queryForList(
+                "SELECT factor, points, topic FROM offer_score_reason WHERE offer_id = ? AND topic IS NOT NULL"
+                        + " ORDER BY position",
+                id);
+        assertThat(rows)
+                .extracting(r -> r.get("factor") + " " + r.get("points") + " " + r.get("topic"))
+                .containsExactly("interest_fit 12 Example topic", "disinterest_fit -12 Example unwanted topic");
+        assertThat(jdbc.queryForObject("SELECT score_value FROM offer WHERE id = ?", Integer.class, id))
+                .isNull();
+    }
+
+    @Test
     void writesNoReasonForSomethingTheOfferNeverStated() {
         // The difference this whole scale rests on. "12 Monate" in the prose is not a
         // stated duration — the column is what enrichment fills, and it is empty here — so

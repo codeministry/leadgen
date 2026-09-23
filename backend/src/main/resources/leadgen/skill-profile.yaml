@@ -35,6 +35,15 @@ peripheral:
 industries:
   - { name: Example industry, weight: 6, note: "one line of justification", match: [ Example, Beispiel ] }
 
+# What you want more of, and what you want none of, whatever the stack. An advert that names
+# an interest topic gets a bonus, one that names a disinterest topic a penalty; the heaviest
+# match in each list counts, once. The name is always tried as a spelling, `aliases` adds the
+# words an advert uses instead. A topic lifts or sinks a score and never passes a hard filter.
+interest_topics:
+  - { name: Example topic, weight: 8, aliases: [ Example field, Beispielthema ] }
+disinterest_topics:
+  - { name: Example unwanted topic, weight: 6, aliases: [ Unwanted field ] }
+
 # Raw material for cover letters: the language model picks the projects that match
 # the skills an offer asks for.
 reference_projects:

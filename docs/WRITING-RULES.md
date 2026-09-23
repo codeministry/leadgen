@@ -46,10 +46,13 @@ path.
 wrote is worse than not running. But a half-saved file must not take a running instance
 down, so the last good snapshot stays and the problem is logged.
 
-**`skill-profile.yaml` is not hot-reloaded.** `rules.hot_reload` covers `pipeline.yaml`,
-`matching-rules.yaml` and `sources.yaml` — they are read together and swapped atomically,
-which is why one switch governs all three. The profile is not in that watch list, so a
-change to a core skill or an alias needs a restart. This surprises everybody once.
+**`skill-profile.yaml` is hot-reloaded too, and a change to it costs no model call.** All four
+files are read together and swapped atomically under `rules.hot_reload`. On the next run every
+scored offer whose deterministic half was computed against another profile is re-totalled: the
+rules half is recomputed and added to the judged rows as they were stored, with `score_model`
+and `ruleset_version` left alone. An alias, a topic or a skill weight is therefore live by the
+next run and free. Note what else follows the file: the hard filter's core-skill list and the
+judge's profile summary change between runs as well.
 
 **Bumping `version:` re-scores the whole standing shortlist at full price.** A score is
 considered stale when it was never written, when its `ruleset_version` differs, or when its
@@ -155,9 +158,9 @@ role:
                             Tester, COBOL, Embedded, iOS, Android, Flutter, Support]
 ```
 
-**This is not `anti_skills`.** That list is documented as a scoring penalty; reading it as a
-knockout as well would mean anyone tuning the score silently changes what reaches the
-shortlist. Keep the two apart even where they overlap.
+**This is not the profile's `disinterest_topics`.** Those sink a score and never end an
+assessment; reading them as a knockout as well would mean anyone tuning the score silently
+changes what reaches the shortlist. Keep the two apart even where they overlap.
 
 ### 5. `NO_CORE_SKILL` — `skill-profile.yaml → core`
 
@@ -228,10 +231,12 @@ scoring:
     seniority_fit: 10
     project_setup: 10
     rate_fit: 10
+    interest_fit: 15
   penalties:
     stack_mismatch_dominant: -30
     role_mismatch: -25
     vague_description: -10
+    disinterest_fit: -20
 ```
 
 Both maps are open: the keys below are the ones something answers, and a key nothing answers
@@ -244,6 +249,8 @@ is simply never earned.
 | `seniority_fit` | rules, free | Full weight for senior/lead/architect, 0 for junior/Werkstudent, **no row** when the ad names neither. |
 | `project_setup` | rules, free | **A bonus, not a share:** `round(weight × stated ÷ 3)` over duration, workload and start. |
 | `industry_fit` | rules, free | `round(weight × industry.weight ÷ 10)` for the heaviest industry that matched. |
+| `interest_fit` | rules, free, and the model | **A bonus, not a share:** `round(weight × topic.weight ÷ 10)` for the heaviest `interest_topics` entry the advert names. The judge may find a topic no alias caught; its row is worth the same and the two never add up. |
+| `disinterest_fit` | rules, free, and the model | The same as a penalty, for the heaviest `disinterest_topics` entry, charged once whatever the number of aliases hit. |
 | `role_fit` | the model | Judged, then clamped to this weight. |
 | `stack_mismatch_dominant` | the model | Penalty, clamped to this value. |
 | `role_mismatch` | the model | Penalty. |
@@ -259,7 +266,7 @@ exactly what `role_fit` says, and a factor it invents is dropped.
 ```
 attainable = Σ maxPoints  of every factor that wrote a row with maxPoints > 0
 earned     = Σ points     of those same factors
-penalties  = Σ points     of the rows with maxPoints == 0   (the three penalties, and project_setup)
+penalties  = Σ points     of the rows with maxPoints == 0   (the penalties, project_setup and the two topic rows)
 
 share = round(100 × earned ÷ attainable)
 total = clamp(0, 100, share + penalties)
@@ -375,7 +382,6 @@ key you are about to tune is one that does something.
 | `scoring.thresholds.auto_shortlist` | int 0..100 | the band, the package gate, the digest |
 | `scoring.thresholds.review` | int 0..100 | the band and the digest |
 | `scoring.thresholds.discard` | int ≥ 0 | Rules screen only |
-| `anti_skills` | list | Rules screen only |
 | `deduplication.strategies[]` | list | the dedupe pass |
 | `deduplication.merge_policy` | string | the loader |
 | `deduplication.ttl_days` | int ≥ 1 | the dedupe window |
@@ -397,6 +403,7 @@ file itself — [`demo/skill-profile.yaml`](../demo/skill-profile.yaml) is a com
 | `core[].weight` | `core_skill_overlap` and `saturation_core_count` |
 | `strong[]`, `peripheral[]` | `core_skill_overlap` only — invisible to the filter |
 | `industries[].name`, `.match`, `.weight` | `industry_fit`. Without `match:`, the name is compared against German ad text. |
+| `interest_topics[]`, `disinterest_topics[]` (`name`, `weight` 1-10, `aliases`) | `interest_fit` and `disinterest_fit`, the judge's topic question when the weight row exists, and the shortlist's topic filter. With `retrieval.topic_floor` set in `pipeline.yaml`, the filter also finds adverts whose retrieval vector sits within that cosine of the topic's name; the floor is measured with `docs/samples/measure_topic_floor.ts`, never chosen, and never moves a score. The name is always tried as an alias. A topic lifts or sinks a score and never ends an assessment. |
 | `reference_projects[].title_de`, `.title_en`, `.pitch_de`, `.pitch_en` | the cover letter. One of each pair is enough; the other language falls back to it. |
 | `reference_projects[].from`, `.to` | the cover letter's period. Months (`"2024-01"`). No `to` means still running, and the letter writes "seit" or "since" itself. |
 | `reference_projects[].role`, `.stack` | `ReferenceRanking`, which picks the two projects a letter cites |

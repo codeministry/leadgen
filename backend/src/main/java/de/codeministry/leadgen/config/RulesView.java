@@ -9,6 +9,7 @@
 package de.codeministry.leadgen.config;
 
 import de.codeministry.leadgen.config.model.MatchingRules;
+import de.codeministry.leadgen.config.model.SkillProfile;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -33,9 +34,17 @@ public record RulesView(
         Thresholds thresholds,
         Integer archiveAfterDays,
         List<KnockoutRule> knockouts,
-        List<String> antiSkills) {
+        List<TopicWeight> interestTopics,
+        List<TopicWeight> disinterestTopics) {
 
     public record RuleWeight(String key, int points) {}
+
+    /**
+     * A topic as the screen shows it: what it is called and how much it moves a score. The
+     * aliases stay in the file; the screen answers "what am I steering towards", not "which
+     * words count".
+     */
+    public record TopicWeight(String name, int weight) {}
 
     public record Thresholds(int autoShortlist, int review, int discard) {}
 
@@ -62,7 +71,7 @@ public record RulesView(
         }
     }
 
-    public static RulesView of(MatchingRules rules) {
+    public static RulesView of(MatchingRules rules, SkillProfile profile) {
         var filters = rules.hardFilters();
         var knockouts = new ArrayList<KnockoutRule>();
         knockouts.add(KnockoutRule.list(
@@ -107,7 +116,14 @@ public record RulesView(
                         rules.scoring().thresholds().discard()),
                 filters.freshness() == null ? null : filters.freshness().maxAgeDays(),
                 knockouts,
-                rules.antiSkills() == null ? List.of() : rules.antiSkills());
+                topics(profile == null ? List.of() : profile.interestTopicsOrEmpty()),
+                topics(profile == null ? List.of() : profile.disinterestTopicsOrEmpty()));
+    }
+
+    private static List<TopicWeight> topics(List<SkillProfile.Topic> configured) {
+        return configured.stream()
+                .map(topic -> new TopicWeight(topic.name(), topic.weight()))
+                .toList();
     }
 
     /**

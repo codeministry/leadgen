@@ -139,6 +139,20 @@
     </select>
   </div>
 
+  @if (topics().length > 0) {
+    <div class="panel-row">
+      <label class="type-caption text-muted" [attr.for]="panelId + '-topic'">
+        {{ 'shortlist.topic' | transloco }}
+      </label>
+      <select class="select select-sm" [id]="panelId + '-topic'" (change)="onTopic($event)">
+        <option value="" [selected]="topic() === ''">{{ 'shortlist.anyTopic' | transloco }}</option>
+        @for (name of topics(); track name) {
+          <option [value]="name" [selected]="topic() === name">{{ name }}</option>
+        }
+      </select>
+    </div>
+  }
+
   <div class="panel-row">
     <button
       type="button"

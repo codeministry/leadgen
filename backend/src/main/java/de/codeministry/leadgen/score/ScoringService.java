@@ -99,6 +99,24 @@ public class ScoringService {
         WHERE id = ? AND status = 'PASSED' AND duplicate_of_id IS NULL AND archived_at IS NULL
         """;
 
+    /**
+     * The working set whose deterministic half was computed against another profile. Only
+     * offers that were written at all: one never scored is {@link #DUE}'s business, and
+     * one sitting in a batch keeps the reasons its answer will be joined with.
+     */
+    private static final String STALE_PROFILE = "SELECT " + ScoreCandidate.COLUMNS
+            + """
+        , score_value, score_model, ruleset_version
+        FROM offer
+        WHERE status = 'PASSED'
+          AND duplicate_of_id IS NULL
+          AND archived_at IS NULL
+          AND score_batch_id IS NULL
+          AND scored_at IS NOT NULL
+          AND profile_digest IS DISTINCT FROM CAST(? AS TEXT)
+        ORDER BY id
+        """;
+
     private final ConfigRegistry config;
     private final Judges judges;
     private final ScoreBatchService batches;
@@ -173,6 +191,11 @@ public class ScoringService {
         String rulesetVersion = String.valueOf(rules.version());
         int autoShortlist = scoring.thresholds().autoShortlist();
         int review = scoring.thresholds().review();
+        String profileDigest = digestOf(snapshot.profile());
+        int retotalled = retotal(scorer, profileDigest, autoShortlist, review);
+        if (retotalled > 0) {
+            log.info("Scoring: {} offers re-totalled against a changed profile, without a model call", retotalled);
+        }
 
         Optional<Judge> judge = judges.current(requestedModel);
         if (judge.isEmpty()) {
@@ -233,6 +256,7 @@ public class ScoringService {
                 }
             }
             writer.write(candidate.id(), score, autoShortlist, review);
+            markProfile(candidate.id(), profileDigest);
         }
 
         var report = standing(judged, unusable, 0);
@@ -247,6 +271,78 @@ public class ScoringService {
                 report.shortlisted(),
                 report.review());
         return report;
+    }
+
+    /**
+     * Re-totals every scored offer whose deterministic half was computed against another
+     * profile: a fresh deterministic half, the judged rows as they are stored, and the
+     * model and ruleset the score already carried. A topic edit changes what the rules say
+     * and nothing the judge said, so paying the judge again would buy the same answer. Only
+     * a rules `version:` bump makes an offer due for the judge, which is the contract
+     * `docs/WRITING-RULES.md` states.
+     *
+     * @return how many offers were re-totalled.
+     */
+    int retotal(RuleScorer scorer, String profileDigest, int autoShortlist, int review) {
+        record Stale(ScoreCandidate candidate, Integer value, String model, String rulesetVersion) {}
+        List<Stale> stale = jdbc.sql(STALE_PROFILE)
+                .param(profileDigest)
+                .query((rs, row) -> new Stale(
+                        ScoreCandidate.of(rs, row),
+                        (Integer) rs.getObject("score_value"),
+                        rs.getString("score_model"),
+                        rs.getString("ruleset_version")))
+                .list();
+        for (Stale offer : stale) {
+            List<ScoreReason> reasons = new java.util.ArrayList<>(scorer.score(offer.candidate()));
+            reasons.addAll(judgedRows(offer.candidate().id()));
+            Score score = offer.value() == null
+                    ? Score.unscored(reasons, offer.rulesetVersion())
+                    : Score.of(reasons, offer.model(), offer.rulesetVersion());
+            writer.write(offer.candidate().id(), score, autoShortlist, review);
+            markProfile(offer.candidate().id(), profileDigest);
+        }
+        return stale.size();
+    }
+
+    private List<ScoreReason> judgedRows(long offerId) {
+        return jdbc
+                .sql(
+                        """
+                SELECT factor, label, points, max_points, topic FROM offer_score_reason
+                WHERE offer_id = ? ORDER BY position
+                """)
+                .param(offerId)
+                .query((rs, row) -> new ScoreReason(
+                        rs.getString("factor"),
+                        rs.getString("label"),
+                        rs.getInt("points"),
+                        rs.getInt("max_points"),
+                        rs.getString("topic")))
+                .list()
+                .stream()
+                .filter(reason -> !RuleScorer.DETERMINISTIC.contains(reason.factor()))
+                .toList();
+    }
+
+    private void markProfile(long offerId, String profileDigest) {
+        jdbc.sql("UPDATE offer SET profile_digest = ? WHERE id = ?")
+                .params(profileDigest, offerId)
+                .update();
+    }
+
+    /**
+     * The profile as the deterministic half saw it. A record's string form lists every
+     * component in declaration order, which is exactly "anything the scorer could read".
+     */
+    static String digestOf(de.codeministry.leadgen.config.model.SkillProfile profile) {
+        try {
+            byte[] hash = java.security.MessageDigest.getInstance("SHA-256")
+                    .digest(String.valueOf(profile).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            return java.util.HexFormat.of().formatHex(hash);
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 is part of every JDK", e);
+        }
     }
 
     /**
@@ -319,6 +415,7 @@ public class ScoringService {
                 score,
                 scoring.thresholds().autoShortlist(),
                 scoring.thresholds().review());
+        markProfile(candidate.id(), digestOf(snapshot.profile()));
         log.info("Offer {} judged again on request: {} by {}", offerId, score.value(), judge.model());
         return Optional.of(score);
     }

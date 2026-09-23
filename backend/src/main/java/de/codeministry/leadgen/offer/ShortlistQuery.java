@@ -55,6 +55,9 @@ import java.util.List;
  *                     project as an older one. A reason to look at two offers side by side, never a
  *                     reason to hide one: the merging threshold already took everything it was sure
  *                     about, and what is left is the band where a person decides.
+ * @param topic        only offers whose stored score reasons name this profile topic, in any band. The
+ *                     scorer decided the match and wrote it down; this reads the column and matches
+ *                     nothing itself, so the filter and the score cannot disagree about an alias.
  * @param cursor       the last row of the previous page, or null for the first.
  * @param limit        how many rows to return.
  */
@@ -69,6 +72,7 @@ public record ShortlistQuery(
         Integer minMonths,
         boolean deadlineOpen,
         boolean possibleDuplicates,
+        String topic,
         String cursor,
         int limit) {
 
@@ -82,12 +86,46 @@ public record ShortlistQuery(
      */
     public static final int MAX_LIMIT = 200;
 
+    /**
+     * Everything but the topic, which is what every caller written before topics existed passes.
+     */
+    public ShortlistQuery(
+            String q,
+            ScoreFilter score,
+            List<String> portals,
+            boolean archived,
+            ShortlistSort sort,
+            StartWindow startWindow,
+            RelatedFilter related,
+            Integer minMonths,
+            boolean deadlineOpen,
+            boolean possibleDuplicates,
+            String cursor,
+            int limit) {
+        this(
+                q,
+                score,
+                portals,
+                archived,
+                sort,
+                startWindow,
+                related,
+                minMonths,
+                deadlineOpen,
+                possibleDuplicates,
+                null,
+                cursor,
+                limit);
+    }
+
     public ShortlistQuery {
         limit = limit <= 0 ? DEFAULT_LIMIT : Math.min(limit, MAX_LIMIT);
         // Null rather than zero, so every reader asks one question — "is there a minimum" —
         // instead of two. Zero would also be a filter that removes nothing while looking
         // like one that is switched on.
         minMonths = minMonths == null || minMonths <= 0 ? null : minMonths;
+        // Blank is no filter, for the same reason a blank portal name is dropped below.
+        topic = topic == null || topic.isBlank() ? null : topic.strip();
         sort = sort == null ? ShortlistSort.SCORE : sort;
         startWindow = startWindow == null ? StartWindow.ANY : startWindow;
         score = score == null ? ScoreFilter.ANY : score;
@@ -110,7 +148,25 @@ public record ShortlistQuery(
      * reason they do not each carry ten arguments.
      */
     public static ShortlistQuery first() {
-        return new ShortlistQuery(null, null, null, false, null, null, null, null, false, false, null, DEFAULT_LIMIT);
+        return new ShortlistQuery(
+                null, null, null, false, null, null, null, null, false, false, null, null, DEFAULT_LIMIT);
+    }
+
+    public ShortlistQuery withTopic(String name) {
+        return new ShortlistQuery(
+                q,
+                score,
+                portals,
+                archived,
+                sort,
+                startWindow,
+                related,
+                minMonths,
+                deadlineOpen,
+                possibleDuplicates,
+                name,
+                cursor,
+                limit);
     }
 
     public ShortlistQuery withCursor(String next) {
@@ -125,6 +181,7 @@ public record ShortlistQuery(
                 minMonths,
                 deadlineOpen,
                 possibleDuplicates,
+                topic,
                 next,
                 limit);
     }
@@ -141,6 +198,7 @@ public record ShortlistQuery(
                 minMonths,
                 deadlineOpen,
                 possibleDuplicates,
+                topic,
                 cursor,
                 rows);
     }
@@ -157,6 +215,7 @@ public record ShortlistQuery(
                 minMonths,
                 deadlineOpen,
                 possibleDuplicates,
+                topic,
                 cursor,
                 limit);
     }
@@ -173,6 +232,7 @@ public record ShortlistQuery(
                 minMonths,
                 deadlineOpen,
                 possibleDuplicates,
+                topic,
                 cursor,
                 limit);
     }
@@ -189,6 +249,7 @@ public record ShortlistQuery(
                 minMonths,
                 deadlineOpen,
                 possibleDuplicates,
+                topic,
                 cursor,
                 limit);
     }
@@ -205,6 +266,7 @@ public record ShortlistQuery(
                 minMonths,
                 deadlineOpen,
                 possibleDuplicates,
+                topic,
                 cursor,
                 limit);
     }

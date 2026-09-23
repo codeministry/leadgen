@@ -9,6 +9,47 @@ may change in any release. See the status note in the README.
 
 ## [Unreleased]
 
+### Added
+
+- **The profile says what you are looking for.** `skill-profile.yaml` carries
+  `interest_topics` and `disinterest_topics`, each entry a name, a weight 1-10 and optional
+  aliases, with the name always tried as a spelling. The Rules screen shows both lists. A
+  topic can lift or sink a score and never passes a hard filter. The profile is now watched
+  like the other three files, so a change applies without a restart.
+- **A topic moves the score by a stated amount.** `scoring.weights.interest_fit` is an
+  absolute bonus and `scoring.penalties.disinterest_fit` an absolute penalty, each scaled by
+  the heaviest matching topic's weight and charged once per list. Absolute rather than a share
+  of the attainable pool, where a match would have lowered any offer already scoring above the
+  topic's weight. The reason names the topic, and the shortlist card always shows it.
+- **The judge is asked about topics, when the weight table prices the answer.** A topic the
+  judge finds without an alias is worth exactly what an alias match is worth, and the two never
+  add up. Without an `interest_fit` or `disinterest_fit` row the prompt does not ask.
+- **A profile change re-totals the scores without a model call.** The next run recomputes the
+  rules half of every scored offer whose profile changed and adds the judged rows as they were
+  stored; only a rules `version:` bump asks the judge again.
+- **The shortlist filters by topic, in every band.** `GET /api/v1/offers?topic=<name>` and a
+  topic control in the filter panel. It reads the match the scorer stored rather than searching
+  the text again. With `retrieval.topic_floor` set it also finds adverts within that cosine of the
+  topic's name; unset, which is the default, it reads the stored matches alone. The floor is
+  measured with `docs/samples/measure_topic_floor.ts`.
+- **The digest lists discarded offers that name an interest topic**, under a heading of their
+  own, printed only when there is one.
+
+### Schema
+
+- **`V28` adds `offer_score_reason.topic` and `offer.profile_digest`**, both nullable. The first
+  run after the upgrade re-totals every scored offer once, without a model call, to fill them.
+
+### Changed — breaking
+
+- **`anti_skills` is gone from `matching-rules.yaml`, and a file that still has it is
+  refused at startup** with a message naming its new home, `disinterest_topics` in the
+  profile. The list was loaded, shown on the Rules screen and read by no scorer, so moving
+  it changes nothing that ran; once moved, its entries start to sink a score, which is why
+  the move is left to you rather than done silently. `GET /api/v1/rules` loses `antiSkills`
+  and gains `interestTopics` and `disinterestTopics` (`{name, weight}`); anything binding
+  the old field, the MCP server included, needs the same change.
+
 ## [0.4.1] — 2026-09-22
 
 Four settings that looked like a choice and were not, and the one that now says out loud

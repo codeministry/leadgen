@@ -36,7 +36,7 @@ config/                                yours, gitignored, overriding the above f
 |-----------------------|------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `sources.yaml`        | `SourcesConfig`  | Where offers come from and how a document is read, down to the CSS selector and the date format. A new source is a block here — see [ADDING-A-SOURCE.md](ADDING-A-SOURCE.md). |
 | `matching-rules.yaml` | `MatchingRules`  | The six knockout stages, the scoring weights and penalties, the three thresholds, deduplication, freshness, follow-up — see [WRITING-RULES.md](WRITING-RULES.md).             |
-| `skill-profile.yaml`  | `SkillProfile`   | Who is applying: skills with weights and aliases, industries, reference projects, and which CV goes with which language.                                                      |
+| `skill-profile.yaml`  | `SkillProfile`   | Who is applying: skills with weights and aliases, industries, reference projects, topics, CVs.                                                    |
 | `pipeline.yaml`       | `PipelineConfig` | The process itself: provider and model, enrichment, content segmentation, packaging, digest, auth.                                                                            |
 
 **`pipeline.yaml` is not `application.yaml`.** The latter is Spring's and only Spring's: it
@@ -61,9 +61,15 @@ to share a name, which meant a stack trace naming it could mean either file.
   advert, and a bare `datenschutz` would delete exactly the offers a data-protection contractor is looking for. Regexes
   need **single quotes** in YAML — a double-quoted scalar allows only a fixed set of escapes, `\-` is not among them,
   and the file then fails to parse with nothing pointing at the pattern.
-- **The three files are one snapshot**, read together and swapped atomically, which is why
+- **The four files are one snapshot**, read together and swapped atomically, which is why
   `rules.hot_reload` is one switch for all of them. Reloading one without the others would
-  hand the pipeline a picture that never existed on disk.
+  hand the pipeline a picture that never existed on disk. The profile joined the watch list
+  with the topic lists; a change to it re-totals the scored offers on the next run without a
+  model call, which is described in `docs/WRITING-RULES.md`.
+- **`retrieval.topic_floor` is a similarity, so it is measured before it is set.** Unset, the
+  shortlist's topic filter reads the stored alias matches alone. Set, it also returns adverts
+  whose retrieval vector lies within that cosine of the topic's name. It widens that one filter
+  and nothing else; `docs/samples/measure_topic_floor.ts` turns a labelled sample into the number.
 - **Binding is strict.** An unknown property fails the file. A misspelled
   `min_remote_percent` would otherwise disable a hard filter in silence, and the only
   visible effect is a longer shortlist — which looks exactly like a good day on the market.

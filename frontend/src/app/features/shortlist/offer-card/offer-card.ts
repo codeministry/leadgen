@@ -2,6 +2,7 @@ import {ChangeDetectionStrategy, Component, computed, input, output} from '@angu
 import {RouterLink} from '@angular/router';
 import {TranslocoPipe} from '@jsverse/transloco';
 import {ShortlistEntry} from '@core/model/shortlist-entry';
+import {ScoreReason} from '@core/model/score';
 import {Badge} from '@shared/badge/badge';
 import {Icon} from '@shared/icon/icon';
 import {Score} from '@shared/score/score';
@@ -77,17 +78,21 @@ export class OfferCard {
   }
 
     /**
-     * The three factors that moved the score most, plus every penalty. A penalty is
-     * never hidden behind a cut-off: it is the reason a promising title scored low,
-     * and that is exactly what the reader is scanning for.
+     * The three factors that moved the score most, plus every penalty and every topic. A
+     * penalty is never hidden behind a cut-off: it is the reason a promising title scored low,
+     * and that is exactly what the reader is scanning for. A topic is not either, by the same
+     * argument turned round: it is the reason a weak title was lifted, and a bonus of twelve
+     * would otherwise lose its slot to the skill overlap every time.
      */
     protected readonly shownReasons = computed(() => {
         const reasons = this.entry().score.reasons;
+        const isTopic = (reason: ScoreReason): boolean => reason.topic != null;
         const penalties = reasons.filter((reason) => reason.points < 0);
-        const positives = [...reasons.filter((reason) => reason.points > 0)]
+        const topics = reasons.filter((reason) => reason.points >= 0 && isTopic(reason));
+        const positives = [...reasons.filter((reason) => reason.points > 0 && !isTopic(reason))]
             .sort((a, b) => b.points - a.points)
             .slice(0, 3);
-        return [...positives, ...penalties];
+        return [...positives, ...topics, ...penalties];
     });
 
     /** Everyone advertising this project. One entry means no duplicate cluster. */

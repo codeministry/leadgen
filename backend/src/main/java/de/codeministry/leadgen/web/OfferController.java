@@ -80,6 +80,7 @@ class OfferController {
             @RequestParam(required = false) Integer minMonths,
             @RequestParam(required = false, defaultValue = "false") boolean deadlineOpen,
             @RequestParam(required = false, defaultValue = "false") boolean possibleDuplicates,
+            @RequestParam(required = false) String topic,
             @RequestParam(required = false) String cursor,
             @RequestParam(required = false, defaultValue = "0") int limit) {
         // Resolved here and not inside the query, because this is where a string stops being
@@ -98,6 +99,7 @@ class OfferController {
                 minMonths,
                 deadlineOpen,
                 possibleDuplicates,
+                topic,
                 cursor,
                 limit));
     }

@@ -35,5 +35,12 @@ export interface RulesView {
      */
     readonly archiveAfterDays: number | null;
     readonly knockouts: readonly KnockoutRule[];
-    readonly antiSkills: readonly string[];
+    /** What the profile steers towards and away from; a topic lifts or sinks a score, never ends an assessment. */
+    readonly interestTopics: readonly TopicWeight[];
+    readonly disinterestTopics: readonly TopicWeight[];
+}
+
+export interface TopicWeight {
+    readonly name: string;
+    readonly weight: number;
 }

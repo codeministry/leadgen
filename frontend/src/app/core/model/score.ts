@@ -13,6 +13,11 @@ export interface ScoreReason {
      * column existed — in both cases there is no denominator to show.
      */
     readonly maxPoints: number;
+    /**
+     * The profile topic this reason was scored for, on `interest_fit` and `disinterest_fit`
+     * rows only. Stored by the scorer so the topic filter reads it instead of matching again.
+     */
+    readonly topic?: string | null;
 }
 
 export interface Score {

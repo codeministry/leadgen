@@ -74,6 +74,7 @@ class SemanticSearchWithoutRetrievalTest {
 
     @BeforeEach
     void reset() {
+        jdbc.update("DELETE FROM offer_score_reason");
         jdbc.update("DELETE FROM offer");
         jdbc.update("DELETE FROM source");
         sourceId =
@@ -108,6 +109,24 @@ class SemanticSearchWithoutRetrievalTest {
         assertThat(filter.available()).isFalse();
         assertThat(filter.coverage()).isNull();
         assertThat(offers.shortlist(ShortlistQuery.first()).related()).isNull();
+    }
+
+    @Test
+    void answersATopicWithTheAliasMatchesRatherThanRefusingIt() {
+        // Unlike `semantic=`, a topic has an answer that needs no index: the scorer already
+        // stored which offers name it. Without an embedder the paraphrase half is absent and
+        // the alias half is the whole answer, so this is a list and not a 400.
+        long named = offer("Senior Java Entwickler (m/w/d)");
+        offer("Angular Entwickler (m/w/d)");
+        jdbc.update(
+                "INSERT INTO offer_score_reason (offer_id, factor, label, points, max_points, topic, position)"
+                        + " VALUES (?, 'interest_fit', 'interest: Wanted topic', 12, 0, 'Wanted topic', 0)",
+                named);
+
+        var page = offers.shortlist(ShortlistQuery.first().withTopic("Wanted topic"));
+
+        assertThat(page.entries()).extracting(entry -> entry.offer().id()).containsExactly(named);
+        assertThat(page.matched()).isEqualTo(1);
     }
 
     @Test

@@ -70,10 +70,17 @@ class ScoreWriter {
             ScoreReason reason = reasons.get(position);
             jdbc.sql(
                             """
-                        INSERT INTO offer_score_reason (offer_id, factor, label, points, max_points, position)
-                        VALUES (?, ?, ?, ?, ?, ?)
+                        INSERT INTO offer_score_reason (offer_id, factor, label, points, max_points, topic, position)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
                 """)
-                    .params(offerId, reason.factor(), reason.label(), reason.points(), reason.maxPoints(), position)
+                    .params(
+                            offerId,
+                            reason.factor(),
+                            reason.label(),
+                            reason.points(),
+                            reason.maxPoints(),
+                            reason.topic(),
+                            position)
                     .update();
         }
     }

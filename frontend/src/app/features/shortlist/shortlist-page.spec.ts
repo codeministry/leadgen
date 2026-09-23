@@ -3,7 +3,8 @@ import {HttpTestingController, provideHttpClientTesting} from '@angular/common/h
 import {ComponentFixture, TestBed} from '@angular/core/testing';
 import {provideRouter, Router} from '@angular/router';
 import {signal} from '@angular/core';
-import {injectDispatch} from '@ngrx/signals/events';
+import {Dispatcher, injectDispatch} from '@ngrx/signals/events';
+import {configEvents} from '@core/store/config.events';
 import {shortlistEvents} from '@core/store/shortlist.events';
 import {ShortlistEntry} from '@core/model/shortlist-entry';
 import {ShortlistPage as ShortlistPayload} from '@core/model/shortlist-page';
@@ -323,6 +324,62 @@ describe('ShortlistPage', () => {
     for (const order of orders) {
       expect(order.textContent?.trim()).not.toMatch(/^shortlist\./);
     }
+  });
+
+  describe('the topic filter', () => {
+    /** The rules as the app loads them at startup, with one topic in each list. */
+    function withTopics(fixture: ComponentFixture<ShortlistPage>): void {
+      TestBed.inject(Dispatcher).dispatch(configEvents.rulesOpened());
+      http.expectOne('/api/v1/rules').flush({
+        version: '1',
+        weights: [],
+        penalties: [],
+        thresholds: {autoShortlist: 70, review: 50, discard: 0},
+        archiveAfterDays: null,
+        knockouts: [],
+        interestTopics: [{name: 'Wanted topic', weight: 8}],
+        disinterestTopics: [{name: 'Unwanted topic', weight: 6}],
+      });
+      for (const request of http.match((r) => r.url !== '/api/v1/offers')) {
+        request.flush([]);
+      }
+      fixture.detectChanges();
+    }
+
+    it('offers the configured topics, interest first, and writes the one picked', () => {
+      const fixture = render();
+      withTopics(fixture);
+      const navigate = vi.spyOn(TestBed.inject(Router), 'navigate');
+
+      const select = fixture.nativeElement.querySelector('lg-facet-panel select[id$="-topic"]') as HTMLSelectElement;
+      const names = Array.from(select.options).map((option) => option.value);
+      expect(names).toEqual(['', 'Wanted topic', 'Unwanted topic']);
+
+      select.value = 'Wanted topic';
+      select.dispatchEvent(new Event('change'));
+
+      expect(navigate).toHaveBeenCalledWith(
+        [],
+        expect.objectContaining({queryParams: {topic: 'Wanted topic'}}),
+      );
+    });
+
+    it('asks the server for the topic and keeps it through a saved view', () => {
+      const fixture = render();
+      fixture.componentRef.setInput('topic', 'Wanted topic');
+      fixture.detectChanges();
+      const request = expectPage();
+      expect(request.request.params.get('topic')).toBe('Wanted topic');
+      request.flush(page());
+      fixture.detectChanges();
+
+      const chips: HTMLButtonElement[] = Array.from(fixture.nativeElement.querySelectorAll('.facets .facet'));
+      expect(chips.map((chip) => chip.textContent)).toContainEqual(expect.stringContaining('Wanted topic'));
+
+      const navigate = vi.spyOn(TestBed.inject(Router), 'navigate');
+      fixture.componentInstance['applyView']('topic=Wanted+topic&band=review');
+      expect(navigate).toHaveBeenCalledWith([], {queryParams: {topic: 'Wanted topic', band: 'review'}});
+    });
   });
 
   it('applies a saved view by replacing the query string, repeated parameters included', () => {

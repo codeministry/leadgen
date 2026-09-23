@@ -43,6 +43,10 @@ export class FacetPanel {
   readonly deadlineOpen = input.required<boolean>();
   readonly possibleDuplicates = input.required<boolean>();
 
+  /** The configured topic names, interest first, and the one picked or ''. */
+  readonly topics = input<readonly string[]>([]);
+  readonly topic = input('');
+
   /** How many of the five are on. The badge on the trigger, and the chips agree with it. */
   readonly activeCount = input.required<number>();
 
@@ -53,6 +57,7 @@ export class FacetPanel {
   readonly minMonthsChanged = output<number>();
   readonly deadlineToggled = output<void>();
   readonly possibleDuplicatesToggled = output<void>();
+  readonly topicChanged = output<string>();
 
   protected readonly panelId = `lg-facet-panel-${++panels}`;
   protected readonly open = signal(false);
@@ -103,6 +108,10 @@ export class FacetPanel {
 
   protected onStartWindow(event: Event): void {
     this.startWindowChanged.emit((event.target as HTMLSelectElement).value);
+  }
+
+  protected onTopic(event: Event): void {
+    this.topicChanged.emit((event.target as HTMLSelectElement).value);
   }
 
   protected onMinMonths(event: Event): void {

@@ -83,7 +83,7 @@ class ConfigController {
 
     @GetMapping("/rules")
     RulesView rules() {
-        return RulesView.of(config.snapshot().rules());
+        return RulesView.of(config.snapshot().rules(), config.snapshot().profile());
     }
 
     /**

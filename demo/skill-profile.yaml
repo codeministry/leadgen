@@ -49,6 +49,11 @@ industries:
   - { name: Logistik,   weight: 5, note: "order management for a manufacturer" }
   - { name: Versicherung, weight: 4, note: "one long-running mandate" }
 
+interest_topics:
+  - { name: Data platform, weight: 8, aliases: [ Datenplattform, Data Mesh ] }
+disinterest_topics:
+  - { name: Legacy maintenance, weight: 6, aliases: [ Wartung, Altsystem ] }
+
 # Raw material for the cover letter: the packager picks the projects whose stack the
 # offer's own skills matched, so these are written to be quotable as they stand.
 reference_projects:

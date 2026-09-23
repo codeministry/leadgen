@@ -124,6 +124,37 @@ Every paragraph here was paid for once; none of it is a summary.
   there was nothing to write in `.env`, so the judge was silently never built. The rule is
   about the value, which is why the provider is listed separately from
   `openai-compatible` even though it gets the same judge.
+- **A topic is a bonus or a penalty, never a share.** The profile's `interest_topics` and
+  `disinterest_topics` say what the operator wants to work on, which neither a skill nor an
+  industry can. Inside the attainable pool a matched topic moves the total by
+  (w/(A+w))·(p/w − E/A): it lifts a weak offer most, a strong one barely, and *lowers* one whose
+  existing share is above the topic's weight — measured on the shipped table, a 60 fell to 54 on a
+  weight-3 match. `project_setup` left the pool for the same shape. Additive, the effect is the
+  number on the card, and with the shipped `review: 50` a +15 moves a 47 into review and never into
+  a package, which is what "possibly interesting" asks for. A topic never passes a hard-filter
+  knockout: it moves a score, it does not decide what reaches scoring.
+- **The scorer stores the match and the filter reads it.** A topic filter written as `ILIKE` would
+  be a second matcher with its own idea of a word boundary, and the two would answer the same alias
+  differently. So the matched topic goes into `offer_score_reason.topic` (V28) and `topic=` is a
+  column predicate: any band, no model call, and the digest and `meta.json` carry the topic for free.
+- **A profile change re-totals without the judge.** The judged rows are stored per offer and a topic
+  edit changes nothing the judge said, so `offer.profile_digest` (V28) marks which profile an
+  offer's deterministic half was computed against, and a mismatch re-runs that half and adds the
+  stored judged rows at zero model calls. Folding the profile into `ruleset_version` was the
+  alternative and was declined: nothing would move without a bump, and everything would be paid for
+  with one. Only a rules `version:` bump re-judges.
+- **The judge asks about topics only when the weight table prices the answer.** Its answer becomes
+  `interest_judged` / `disinterest_judged`, its own factor so a re-total can tell a stored answer
+  from a rule it recomputes, worth exactly what an alias match is worth; `Score` keeps one effect per
+  family, the alias row on a tie. Without an `interest_fit` or `disinterest_fit` row the prompt does
+  not ask, because a changed prompt sits on no staleness key, and adding the row is a rules change
+  shipped with the `version:` bump that re-judges on one scale. The review of the spec argued to drop
+  the question; it was kept because the operator asked for matching "through the AI", under these
+  three guards.
+- **`anti_skills` is refused by name rather than read as the disinterest list.** Read as an alias it
+  would have silently activated a list that never applied and charged a foreign stack twice, beside
+  the judge's `stack_mismatch_dominant`. Refused with a message naming `disinterest_topics`, the
+  operator moves the entries once, on purpose.
 
 ## How long one request may take
 

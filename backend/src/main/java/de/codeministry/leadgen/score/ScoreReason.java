@@ -30,7 +30,67 @@ package de.codeministry.leadgen.score;
  *                  <p>Zero for a penalty. Penalties are absolute deductions on the 0-100 scale, applied
  *                  after the share is computed, so they never belong in what was attainable.
  */
-public record ScoreReason(String factor, String label, int points, int maxPoints) {
+public record ScoreReason(String factor, String label, int points, int maxPoints, String topic) {
+
+    public static final String INTEREST = "interest_fit";
+    public static final String DISINTEREST = "disinterest_fit";
+
+    /**
+     * The same two effects when the judge found the topic rather than an alias did. A factor
+     * of their own so a re-total can tell a stored answer from a rule it recomputes, and
+     * worth exactly what the alias row is worth: {@link Score} keeps one per family.
+     */
+    public static final String INTEREST_JUDGED = "interest_judged";
+
+    public static final String DISINTEREST_JUDGED = "disinterest_judged";
+
+    /**
+     * Every reason that is not about a profile topic, which is every reason but two.
+     */
+    public ScoreReason(String factor, String label, int points, int maxPoints) {
+        this(factor, label, points, maxPoints, null);
+    }
+
+    /**
+     * A bonus for the heaviest interest topic the advert names. Absolute, like
+     * {@link #bonus}, because inside the attainable pool a matched topic would lower any
+     * offer whose existing share is higher than the topic's weight: a 60 dropped to 54 on
+     * a weight-3 match when it was measured.
+     */
+    public static ScoreReason interest(String topic, int points) {
+        return new ScoreReason(INTEREST, "interest: " + topic, points, 0, topic);
+    }
+
+    public static ScoreReason judgedInterest(String topic, int points) {
+        return new ScoreReason(INTEREST_JUDGED, "interest (judged): " + topic, points, 0, topic);
+    }
+
+    public static ScoreReason judgedDisinterest(String topic, int points) {
+        return new ScoreReason(DISINTEREST_JUDGED, "disinterest (judged): " + topic, points, 0, topic);
+    }
+
+    /**
+     * Which effect this row is, whoever found it: the interest bonus, the disinterest penalty,
+     * or its own factor for everything else.
+     */
+    public String family() {
+        return switch (factor) {
+            case INTEREST_JUDGED -> INTEREST;
+            case DISINTEREST_JUDGED -> DISINTEREST;
+            default -> factor;
+        };
+    }
+
+    public boolean judgedTopic() {
+        return INTEREST_JUDGED.equals(factor) || DISINTEREST_JUDGED.equals(factor);
+    }
+
+    /**
+     * A penalty for the heaviest disinterest topic the advert names, charged once.
+     */
+    public static ScoreReason disinterest(String topic, int points) {
+        return new ScoreReason(DISINTEREST, "disinterest: " + topic, points, 0, topic);
+    }
 
     /**
      * A judged deduction: subtracted from the finished share, never part of it.

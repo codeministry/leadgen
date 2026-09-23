@@ -36,6 +36,8 @@ class PromptViewTest {
             null,
             null,
             null,
+            null,
+            null,
             null);
 
     private static MatchingRules.Scoring scoring(int roleFit, int vague) {
@@ -136,7 +138,7 @@ class PromptViewTest {
     }
 
     private static PromptView prompt(String id, MatchingRules.Scoring scoring) {
-        var rules = new MatchingRules(1, null, scoring, null, null, null);
+        var rules = new MatchingRules(1, null, scoring, null, null);
         return prompt(PromptView.all(rules, PROFILE, "a-model", "a-model"), id);
     }
 

@@ -65,6 +65,9 @@ export class ShortlistApi {
       if (filters.possibleDuplicates) {
         params = params.set('possibleDuplicates', 'true');
       }
+      if (filters.topic !== '') {
+        params = params.set('topic', filters.topic);
+      }
       if (filters.deadlineOpen) {
         params = params.set('deadlineOpen', 'true');
       }

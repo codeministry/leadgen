@@ -65,6 +65,10 @@ class SemanticFilterTest {
     @Autowired
     private SemanticFilter filter;
 
+    /** The topic phrase's vector, decided by the test rather than by a model. */
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    private QueryEmbedder queries;
+
     @Autowired
     private JdbcTemplate jdbc;
 
@@ -77,10 +81,45 @@ class SemanticFilterTest {
 
     @BeforeEach
     void reset() {
+        jdbc.update("DELETE FROM offer_score_reason");
         jdbc.update("DELETE FROM offer");
         jdbc.update("DELETE FROM source");
         sourceId =
                 jdbc.queryForObject("INSERT INTO source (name, kind) VALUES ('test', 'file') RETURNING id", Long.class);
+    }
+
+    @Test
+    void findsAParaphraseWithinTheTopicFloorBesideTheStoredAliasMatches() {
+        org.mockito.Mockito.when(queries.vectorFor("Wanted topic", "test-embed"))
+                .thenReturn(java.util.Optional.of(Vectors.literal(direction(0))));
+        long named = offer("Nennt den Alias", 40, direction(900));
+        jdbc.update(
+                "INSERT INTO offer_score_reason (offer_id, factor, label, points, max_points, topic, position)"
+                        + " VALUES (?, 'interest_fit', 'interest: Wanted topic', 12, 0, 'Wanted topic', 0)",
+                named);
+        long paraphrase = offer("Umschreibt das Thema", 20, direction(1));
+        long unrelated = offer("Etwas anderes", 90, direction(900));
+
+        var page = offers.shortlist(ShortlistQuery.first().withTopic("Wanted topic"));
+
+        assertThat(ids(page)).containsExactlyInAnyOrder(named, paraphrase);
+        assertThat(ids(page)).doesNotContain(unrelated);
+    }
+
+    @Test
+    void answersATopicWithItsAliasMatchesAloneWhenThePhraseCannotBeEmbedded() {
+        // A spent budget or an unreachable model: the paraphrase half is absent, the rest stands.
+        org.mockito.Mockito.when(queries.vectorFor("Wanted topic", "test-embed"))
+                .thenReturn(java.util.Optional.empty());
+        long named = offer("Nennt den Alias", 40, direction(900));
+        jdbc.update(
+                "INSERT INTO offer_score_reason (offer_id, factor, label, points, max_points, topic, position)"
+                        + " VALUES (?, 'interest_fit', 'interest: Wanted topic', 12, 0, 'Wanted topic', 0)",
+                named);
+        offer("Umschreibt das Thema", 20, direction(1));
+
+        assertThat(ids(offers.shortlist(ShortlistQuery.first().withTopic("Wanted topic"))))
+                .containsExactly(named);
     }
 
     @Test
@@ -310,6 +349,9 @@ class SemanticFilterTest {
             // 200 would put every fixture row inside it and turn every assertion below into a
             // statement about the page size instead.
             text = text.replace("neighbours: 200", "neighbours: " + NEIGHBOURS);
+            // A floor these fixtures can reason about: direction(1) is at cosine ~1 to direction(0),
+            // direction(900) at ~0.16. The real number is measured, not chosen like this one.
+            text = text.replace("${RETRIEVAL_TOPIC_FLOOR:}", "0.9");
             Files.writeString(pipeline, text, StandardCharsets.UTF_8);
             return dir;
         } catch (IOException e) {

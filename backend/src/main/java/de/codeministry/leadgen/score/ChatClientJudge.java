@@ -121,7 +121,8 @@ public class ChatClientJudge implements Judge {
             return Map.of();
         }
         Map<String, Integer> bounds = new java.util.LinkedHashMap<>();
-        for (String factor : List.of(ROLE_FIT, STACK_MISMATCH, ROLE_MISMATCH, VAGUE)) {
+        for (String factor : List.of(
+                ROLE_FIT, STACK_MISMATCH, ROLE_MISMATCH, VAGUE, ScoreReason.INTEREST, ScoreReason.DISINTEREST)) {
             Integer weight =
                     scoring.weights() == null ? null : scoring.weights().get(factor);
             Integer penalty =
@@ -203,11 +204,49 @@ public class ChatClientJudge implements Judge {
 
     private static String instructions(Map<String, Integer> bounds, SkillProfile profile) {
         return INSTRUCTIONS.formatted(
-                describe(profile),
-                bounds.getOrDefault(ROLE_FIT, 0),
-                bounds.getOrDefault(STACK_MISMATCH, 0),
-                bounds.getOrDefault(ROLE_MISMATCH, 0),
-                bounds.getOrDefault(VAGUE, 0));
+                        describe(profile),
+                        bounds.getOrDefault(ROLE_FIT, 0),
+                        bounds.getOrDefault(STACK_MISMATCH, 0),
+                        bounds.getOrDefault(ROLE_MISMATCH, 0),
+                        bounds.getOrDefault(VAGUE, 0))
+                + topicQuestion(bounds, profile);
+    }
+
+    /**
+     * The topic question, and only when the weight table prices an answer to it. Without an
+     * `interest_fit` or `disinterest_fit` row there is nothing the answer could be worth, and a
+     * prompt that asked anyway would be a different judge under the same `ruleset_version`:
+     * adding the row is a rules change, shipped with the `version:` bump that re-judges the
+     * whole working set on one scale.
+     */
+    private static String topicQuestion(Map<String, Integer> bounds, SkillProfile profile) {
+        if (!asksAboutTopics(bounds, profile)) {
+            return "";
+        }
+        StringBuilder text =
+                new StringBuilder("\nAlso list, under \"topics\", every topic below that the advert is actually about,"
+                        + " by its exact name, and none it merely mentions in passing:\n"
+                        + "{\"reasons\":[...],\"topics\":[\"<topic name>\"]}\n");
+        if (bounds.getOrDefault(ScoreReason.INTEREST, 0) > 0) {
+            profile.interestTopicsOrEmpty()
+                    .forEach(t -> text.append("  topic: ").append(t.name()).append('\n'));
+        }
+        if (bounds.getOrDefault(ScoreReason.DISINTEREST, 0) < 0) {
+            profile.disinterestTopicsOrEmpty()
+                    .forEach(t -> text.append("  topic: ").append(t.name()).append('\n'));
+        }
+        return text.toString();
+    }
+
+    private static boolean asksAboutTopics(Map<String, Integer> bounds, SkillProfile profile) {
+        if (profile == null) {
+            return false;
+        }
+        boolean interest = bounds.getOrDefault(ScoreReason.INTEREST, 0) > 0
+                && !profile.interestTopicsOrEmpty().isEmpty();
+        boolean disinterest = bounds.getOrDefault(ScoreReason.DISINTEREST, 0) < 0
+                && !profile.disinterestTopicsOrEmpty().isEmpty();
+        return interest || disinterest;
     }
 
     /**
@@ -345,6 +384,9 @@ public class ChatClientJudge implements Judge {
                     reasons.add(ScoreReason.penalty(factor, label, points));
                 }
             }
+            if (asksAboutTopics(bounds, profile)) {
+                topicsNamed(parsed.path("topics"), offerId, reasons);
+            }
         } catch (IOException e) {
             // The text itself, truncated, because "did not answer with usable JSON" on its
             // own is unactionable: it is the same line whether the model wrote prose, hit
@@ -356,6 +398,42 @@ public class ChatClientJudge implements Judge {
             return List.of();
         }
         return reasons;
+    }
+
+    /**
+     * The topics the judge says the advert is about, turned into the same effect an alias
+     * match has: the heaviest named topic per list, worth `bound × weight / 10`. A name that is
+     * not a configured topic is ignored, the way an invented factor is, and nothing the answer
+     * says about a list whose row the weight table lacks is read at all.
+     */
+    private void topicsNamed(JsonNode named, long offerId, List<ScoreReason> reasons) {
+        java.util.Set<String> names = new java.util.HashSet<>();
+        for (JsonNode node : named) {
+            names.add(node.asText("").strip().toLowerCase(java.util.Locale.ROOT));
+        }
+        if (names.isEmpty()) {
+            return;
+        }
+        int interest = bound(ScoreReason.INTEREST);
+        if (interest > 0) {
+            heaviestNamed(profile.interestTopicsOrEmpty(), names)
+                    .ifPresent(topic -> reasons.add(ScoreReason.judgedInterest(
+                            topic.name(), (int) Math.round(interest * topic.weight() / 10.0))));
+        }
+        int disinterest = bound(ScoreReason.DISINTEREST);
+        if (disinterest < 0) {
+            heaviestNamed(profile.disinterestTopicsOrEmpty(), names)
+                    .ifPresent(topic -> reasons.add(ScoreReason.judgedDisinterest(
+                            topic.name(), (int) Math.round(disinterest * topic.weight() / 10.0))));
+        }
+        log.debug("Offer {}: the judge named topics {}", offerId, names);
+    }
+
+    private static java.util.Optional<SkillProfile.Topic> heaviestNamed(
+            List<SkillProfile.Topic> topics, java.util.Set<String> names) {
+        return topics.stream()
+                .filter(topic -> names.contains(topic.name().strip().toLowerCase(java.util.Locale.ROOT)))
+                .max(java.util.Comparator.comparingInt(SkillProfile.Topic::weight));
     }
 
     /**

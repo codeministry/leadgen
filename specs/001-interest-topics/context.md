@@ -62,9 +62,7 @@ master is untracked.
 
 ## Still open
 
-- fog: the similarity floor for a topic paraphrase. It has to be measured with `docs/samples/measure_embeddings.ts`
-  before it can act.
-
+Nothing. The similarity floor was measured on 2026-09-23 and closed in spec.md § Decisions.
 ## Round 1b: draft marks, 2026-09-22
 
 ### Q1 · Where do the topics live? (the profile is not hot-reloaded today)

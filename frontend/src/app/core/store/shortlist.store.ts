@@ -106,6 +106,7 @@ const NO_FILTERS: ShortlistFilters = {
   minMonths: 0,
   deadlineOpen: false,
   possibleDuplicates: false,
+  topic: '',
   semantic: '',
   similarTo: null,
 };

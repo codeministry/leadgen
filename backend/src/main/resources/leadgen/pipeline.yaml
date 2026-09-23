@@ -216,6 +216,11 @@ retrieval:
   # similarity: the search narrows the set and never reorders it, so no band has to be measured
   # before this can be switched on. A threshold would have to be.
   neighbours: 200
+  # The similarity at which a profile topic's name counts as naming an advert in the shortlist's
+  # topic filter, for adverts that use none of its aliases. Unset means the filter reads the stored
+  # alias matches alone, which is the safe default: this number is a property of the model and
+  # the market and is measured with docs/samples/measure_topic_floor.ts before it is set.
+  topic_floor: ${RETRIEVAL_TOPIC_FLOOR:}
 
 packaging:
   output_dir: ${PACKAGES_DIR:./packages}

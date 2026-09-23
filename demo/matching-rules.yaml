@@ -98,33 +98,16 @@ scoring:
     seniority_fit: 10
     project_setup: 10
     rate_fit: 10
+    interest_fit: 15
   penalties:
     stack_mismatch_dominant: -30
     role_mismatch: -25
     vague_description: -10
+    disinterest_fit: -20
   thresholds:
     auto_shortlist: 70
     review: 50
     discard: 0
-
-anti_skills:
-  - .NET
-  - C#
-  - PHP
-  - Symfony
-  - Laravel
-  - SAP
-  - ABAP
-  - Salesforce CRM
-  - ServiceNow
-  - React Native
-  - Flutter
-  - iOS
-  - Swift
-  - Android native
-  - Data Science
-  - Machine Learning Engineering
-  - Embedded C
 
 # --- Deduplication --------------------------------------------------------
 deduplication:

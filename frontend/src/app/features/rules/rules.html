@@ -71,10 +71,21 @@
                 </p>
             }
 
-            <h3 class="type-h4 sub">{{ 'rules.antiSkills' | transloco }}</h3>
+            <h3 class="type-h4 sub">{{ 'rules.interestTopics' | transloco }}</h3>
             <div class="anti">
-                @for (skill of rules.antiSkills; track skill) {
-                    <lg-badge tone="ghost" [outline]="true">{{ skill }}</lg-badge>
+                @for (topic of rules.interestTopics; track topic.name) {
+                    <lg-badge tone="ghost" [outline]="true">{{ topic.name }} · {{ topic.weight }}</lg-badge>
+                } @empty {
+                    <span class="type-small text-muted">{{ 'rules.noTopics' | transloco }}</span>
+                }
+            </div>
+
+            <h3 class="type-h4 sub">{{ 'rules.disinterestTopics' | transloco }}</h3>
+            <div class="anti">
+                @for (topic of rules.disinterestTopics; track topic.name) {
+                    <lg-badge tone="ghost" [outline]="true">{{ topic.name }} · {{ topic.weight }}</lg-badge>
+                } @empty {
+                    <span class="type-small text-muted">{{ 'rules.noTopics' | transloco }}</span>
                 }
             </div>
         </section>

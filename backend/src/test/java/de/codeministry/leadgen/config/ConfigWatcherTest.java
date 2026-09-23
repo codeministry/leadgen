@@ -67,6 +67,26 @@ class ConfigWatcherTest {
     }
 
     @Test
+    void picksUpAChangedTopicInTheProfileWithoutARestart() throws IOException {
+        assertThat(registry.snapshot()
+                        .profile()
+                        .interestTopicsOrEmpty()
+                        .getFirst()
+                        .spellings())
+                .doesNotContain("Another field");
+
+        rewrite("skill-profile.yaml", "aliases: [ Example field, Beispielthema ]", "aliases: [ Another field ]");
+        settle();
+
+        assertThat(registry.snapshot()
+                        .profile()
+                        .interestTopicsOrEmpty()
+                        .getFirst()
+                        .spellings())
+                .contains("Another field");
+    }
+
+    @Test
     void refusesAChangeToTheAuthModeAndSaysToRestart() throws IOException {
         var before = registry.snapshot();
 

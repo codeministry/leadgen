@@ -11,6 +11,10 @@ package de.codeministry.leadgen.config;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import de.codeministry.leadgen.config.model.PipelineConfig;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
@@ -24,6 +28,7 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.slf4j.LoggerFactory;
 
 class ConfigLoaderTest {
 
@@ -285,6 +290,72 @@ class ConfigLoaderTest {
         assertThatThrownBy(() -> ConfigFixtures.loaderFor(configDir, VALIDATOR).load())
                 .isInstanceOf(ConfigValidationException.class)
                 .hasMessageContaining("hardFilters.remote.minRemotePercent");
+    }
+
+    @Test
+    void bindsBothTopicListsAndTriesANameWithoutAliasesAsItsOwnSpelling() throws IOException {
+        rewrite(
+                "skill-profile.yaml",
+                "  - { name: Example unwanted topic, weight: 6, aliases: [ Unwanted field ] }",
+                "  - { name: Example unwanted topic, weight: 6 }");
+
+        var profile = ConfigFixtures.loaderFor(configDir, VALIDATOR).load().profile();
+
+        assertThat(profile.interestTopicsOrEmpty()).singleElement().satisfies(topic -> {
+            assertThat(topic.weight()).isEqualTo(8);
+            assertThat(topic.spellings()).containsExactly("Example topic", "Example field", "Beispielthema");
+        });
+        assertThat(profile.disinterestTopicsOrEmpty()).singleElement().satisfies(topic -> assertThat(topic.spellings())
+                .containsExactly("Example unwanted topic"));
+    }
+
+    @Test
+    void refusesTheRetiredAntiSkillsKeyByNamingWhereItWent() throws IOException {
+        // A configuration that loaded yesterday. Jackson alone would say "Unrecognized
+        // field", which names the key and not where its entries belong now.
+        rewrite("matching-rules.yaml", "\ndeduplication:", "\nanti_skills:\n  - .NET\n\ndeduplication:");
+
+        assertThatThrownBy(() -> ConfigFixtures.loaderFor(configDir, VALIDATOR).load())
+                .isInstanceOf(ConfigValidationException.class)
+                .hasMessageContaining("disinterest_topics")
+                .hasMessageContaining("skill-profile.yaml")
+                .hasMessageNotContaining("Unrecognized field");
+    }
+
+    @Test
+    void refusesATopicThatIsBothWantedAndUnwanted() throws IOException {
+        rewrite("skill-profile.yaml", "name: Example unwanted topic", "name: example TOPIC");
+
+        assertThatThrownBy(() -> ConfigFixtures.loaderFor(configDir, VALIDATOR).load())
+                .isInstanceOf(ConfigValidationException.class)
+                .hasMessageContaining("topic 'example TOPIC' is in both");
+    }
+
+    @Test
+    void acceptsATopicSpelledLikeASkillAndSaysSo() throws IOException {
+        rewrite("skill-profile.yaml", "aliases: [ Example field, Beispielthema ]", "aliases: [ Postgres ]");
+
+        ListAppender<ILoggingEvent> log = new ListAppender<>();
+        Logger loaderLog = (Logger) LoggerFactory.getLogger(ConfigLoader.class);
+        log.start();
+        loaderLog.addAppender(log);
+        try {
+            assertThat(ConfigFixtures.loaderFor(configDir, VALIDATOR)
+                            .load()
+                            .profile()
+                            .interestTopicsOrEmpty())
+                    .hasSize(1);
+        } finally {
+            loaderLog.detachAppender(log);
+        }
+
+        assertThat(log.list)
+                .filteredOn(event -> event.getLevel() == Level.WARN)
+                .extracting(ILoggingEvent::getFormattedMessage)
+                .filteredOn(message -> message.contains("move the score twice"))
+                .singleElement()
+                .satisfies(
+                        message -> assertThat(message).contains("Example topic").contains("PostgreSQL"));
     }
 
     private void rewrite(String file, String from, String to) throws IOException {

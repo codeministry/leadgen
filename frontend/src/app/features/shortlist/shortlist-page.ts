@@ -18,6 +18,7 @@ import {debounceTime, filter, map, Subject} from 'rxjs';
 import {injectDispatch} from '@ngrx/signals/events';
 import {TranslocoPipe} from '@jsverse/transloco';
 import {shortlistEvents} from '@core/store/shortlist.events';
+import {ConfigStore} from '@core/store/config.store';
 import {ShortlistStore} from '@core/store/shortlist.store';
 import {ShortlistFilters} from '@core/model/shortlist-page';
 import {SCORE_THRESHOLDS} from '@shared/shared.ports';
@@ -204,6 +205,22 @@ export class ShortlistPage {
   /** Only offers the similarity pass marked as possibly the same project as an older one. */
   readonly possibleDuplicates = input(false, {transform: (value: string | undefined) => value === '1'});
 
+  /** A profile topic: offers the scorer found naming it, in every band. */
+  readonly topic = input('', {transform: (value: string | undefined) => value ?? ''});
+
+  private readonly config = inject(ConfigStore);
+
+  /**
+   * The configured topics, interest first, straight from the rules the app loads at startup.
+   * The names are the profile's own, so a filter picked here is exactly what the scorer stored.
+   */
+  protected readonly topicOptions = computed<readonly string[]>(() => {
+    const rules = this.config.rules();
+    return rules === null
+      ? []
+      : [...rules.interestTopics, ...rules.disinterestTopics].map((topic) => topic.name);
+  });
+
   /**
    * Words to find offers near.
    *
@@ -293,6 +310,7 @@ export class ShortlistPage {
       minMonths: this.minMonths(),
       deadlineOpen: this.deadlineOpen(),
       possibleDuplicates: this.possibleDuplicates(),
+      topic: this.topic(),
       semantic: this.semantic(),
       similarTo: this.similar(),
     }));
@@ -612,6 +630,16 @@ export class ShortlistPage {
       });
     }
 
+    if (this.topic() !== '') {
+      chips.push({
+        id: 'topic',
+        label: 'shortlist.facet.topic',
+        valueKey: null,
+        params: {value: this.topic()},
+        clear: {topic: null},
+      });
+    }
+
     return chips;
   });
 
@@ -827,6 +855,13 @@ export class ShortlistPage {
         });
     }
 
+  protected setTopic(name: string): void {
+    void this.router.navigate([], {
+      queryParams: {topic: name === '' ? null : name},
+      queryParamsHandling: 'merge',
+    });
+  }
+
   protected togglePossibleDuplicates(): void {
     void this.router.navigate([], {
       queryParams: {possibleDuplicates: this.possibleDuplicates() ? null : '1'},
@@ -937,6 +972,7 @@ export class ShortlistPage {
       minMonths: null,
       deadlineOpen: null,
       possibleDuplicates: null,
+      topic: null,
       semantic: null,
       similar: null,
     });

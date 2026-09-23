@@ -17,6 +17,7 @@ import de.codeministry.leadgen.config.model.MatchingRules;
 import de.codeministry.leadgen.config.model.PipelineConfig;
 import de.codeministry.leadgen.config.model.SkillProfile;
 import de.codeministry.leadgen.config.model.SourcesConfig;
+import de.codeministry.leadgen.filter.TextFold;
 import de.codeministry.leadgen.security.SecurityConfig;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
@@ -86,7 +87,7 @@ public class ConfigLoader {
                 read(source(dir, fileName(sourcesPath(pipeline), SOURCES_FILE)), SourcesConfig.class)));
         SkillProfile profile = read(source(dir, fileName(pipeline.profile().path(), PROFILE_FILE)), SkillProfile.class);
 
-        checkConsistency(dir, pipeline, rules, sources);
+        checkConsistency(dir, pipeline, rules, sources, profile);
         return new ConfigSnapshot(pipeline, rules, sources, profile, Instant.now());
     }
 
@@ -112,7 +113,8 @@ public class ConfigLoader {
         return Stream.of(
                         PIPELINE_FILE,
                         fileName(pipeline.rules().path(), RULES_FILE),
-                        fileName(sourcesPath(pipeline), SOURCES_FILE))
+                        fileName(sourcesPath(pipeline), SOURCES_FILE),
+                        fileName(pipeline.profile().path(), PROFILE_FILE))
                 .distinct()
                 .map(dir::resolve)
                 .toList();
@@ -157,7 +159,8 @@ public class ConfigLoader {
         try {
             bound = mapper.readValue(placeholders.resolve(file.content()), type);
         } catch (IOException e) {
-            throw new ConfigValidationException(file.origin(), List.of(rootCause(e)));
+            throw new ConfigValidationException(
+                    file.origin(), List.of(retired(e).orElseGet(() -> rootCause(e))));
         }
 
         Set<ConstraintViolation<T>> violations = validator.validate(bound);
@@ -318,8 +321,11 @@ public class ConfigLoader {
      * fails silently in both directions: the rate filter applied before enrichment discards
      * either every offer or none, because the sources state a rate in 0.0 % of them.
      */
-    private void checkConsistency(Path dir, PipelineConfig pipeline, MatchingRules rules, SourcesConfig sources) {
+    private void checkConsistency(
+            Path dir, PipelineConfig pipeline, MatchingRules rules, SourcesConfig sources, SkillProfile profile) {
         List<String> problems = new ArrayList<>();
+
+        checkTopics(profile, problems);
 
         if (!"enrichment".equals(rules.hardFilters().rate().applyAfter())) {
             problems.add(
@@ -428,6 +434,57 @@ public class ConfigLoader {
 
     private static boolean isBlank(String value) {
         return value == null || value.isBlank();
+    }
+
+    /**
+     * Keys that used to exist and now live somewhere else. Jackson would refuse them anyway,
+     * as "Unrecognized field", which names the key but not where it went, and the person
+     * reading it has a configuration that worked yesterday.
+     */
+    private static final Map<String, String> RETIRED = Map.of(
+            "anti_skills",
+            "anti_skills is gone from matching-rules.yaml: move its entries to skill-profile.yaml as disinterest_topics,"
+                    + " each with a name, a weight 1-10 and optional aliases. It was read by nothing; there they sink a score");
+
+    private static Optional<String> retired(IOException e) {
+        return e instanceof com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException unknown
+                ? Optional.ofNullable(RETIRED.get(unknown.getPropertyName()))
+                : Optional.empty();
+    }
+
+    /**
+     * A topic in both lists would lift and sink the same offer, and which one wins would be
+     * a question of weights nobody set with that in mind, so it is refused. A topic spelled
+     * like a skill is allowed, because wanting more of a thing you can already do is the
+     * normal case, but it is said out loud: the same word then moves a score twice.
+     */
+    private static void checkTopics(SkillProfile profile, List<String> problems) {
+        Set<String> interest = new HashSet<>();
+        profile.interestTopicsOrEmpty().forEach(t -> interest.add(TextFold.fold(t.name())));
+        profile.disinterestTopicsOrEmpty().stream()
+                .filter(t -> interest.contains(TextFold.fold(t.name())))
+                .forEach(t -> problems.add(
+                        "topic '%s' is in both interest_topics and disinterest_topics; it can lift an offer or sink it, not both"
+                                .formatted(t.name())));
+
+        Map<String, String> skillSpellings = new HashMap<>();
+        Stream.of(profile.core(), profile.strong(), profile.peripheral())
+                .filter(Objects::nonNull)
+                .flatMap(List::stream)
+                .forEach(skill -> {
+                    skillSpellings.put(TextFold.fold(skill.skill()), skill.skill());
+                    if (skill.aliases() != null) {
+                        skill.aliases().forEach(a -> skillSpellings.put(TextFold.fold(a), skill.skill()));
+                    }
+                });
+        Stream.concat(profile.interestTopicsOrEmpty().stream(), profile.disinterestTopicsOrEmpty().stream())
+                .forEach(topic -> topic.spellings().stream()
+                        .filter(s -> skillSpellings.containsKey(TextFold.fold(s)))
+                        .forEach(s -> log.warn(
+                                "topic '{}' uses '{}', which is also a spelling of the skill '{}'; the same word will move the score twice",
+                                topic.name(),
+                                s,
+                                skillSpellings.get(TextFold.fold(s)))));
     }
 
     private static String rootCause(Throwable e) {

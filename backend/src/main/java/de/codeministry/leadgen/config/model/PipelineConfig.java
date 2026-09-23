@@ -203,7 +203,16 @@ public record PipelineConfig(
      *                   and does not rank it, so nothing here has to be measured before the
      *                   stage can be switched on. A threshold would.
      */
-    public record Retrieval(boolean enabled, @Min(1) Integer neighbours) {}
+    /**
+     * @param topicFloor the cosine similarity at which a topic's own name counts as matching an
+     *                   advert's retrieval vector in the shortlist's topic filter. A similarity and
+     *                   not a count, so it is measured before it acts; unset, the topic filter reads
+     *                   the stored alias matches alone. It narrows the filter and never moves a score.
+     */
+    public record Retrieval(
+            boolean enabled,
+            @Min(1) Integer neighbours,
+            @jakarta.validation.constraints.DecimalMin("0.0") @jakarta.validation.constraints.DecimalMax("1.0") Double topicFloor) {}
 
     public record Profile(@NotBlank String path) {}
 

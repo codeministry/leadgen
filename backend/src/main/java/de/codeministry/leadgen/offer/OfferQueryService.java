@@ -126,7 +126,9 @@ public class OfferQueryService {
         // was narrowed, and the count beside it would be true about a set nobody asked for.
         var narrowing =
                 semantic.narrow(query.related().semantic(), query.related().similarTo());
-        var filters = where(query, thresholds, narrowing);
+        // Never refuses: without the index a topic is answered by its stored alias matches alone.
+        var topicNeighbourhood = semantic.topicNeighbourhood(query.topic()).orElse(null);
+        var filters = where(query, thresholds, narrowing, topicNeighbourhood);
 
         // The page clause on the list and deliberately not on the count. Formatted into
         // MATCHED as well — which is what shipped — it counted the rows *after* the cursor,
@@ -252,7 +254,10 @@ public class OfferQueryService {
      * primary — the dropdown offers those portals, so the filter has to accept them.
      */
     private static Filters where(
-            ShortlistQuery query, MatchingRules.Scoring.Thresholds thresholds, SemanticFilter.Narrowing narrowing) {
+            ShortlistQuery query,
+            MatchingRules.Scoring.Thresholds thresholds,
+            SemanticFilter.Narrowing narrowing,
+            SemanticFilter.Narrowing topicNeighbourhood) {
         // The third part of "this is on my list today", beside PASSED and primaries-only.
         // It is a literal rather than a parameter because it is a choice between two
         // clauses, not a value: `archived_at = :x` cannot express "is null".
@@ -336,6 +341,22 @@ public class OfferQueryService {
             // A reason to look rather than a verdict, so it narrows the list instead of
             // changing what the list is: the archive axis and the score bands still apply.
             sql.append(" AND o.possible_duplicate_of_id IS NOT NULL\n");
+        }
+        if (query.topic() != null) {
+            // A column predicate and nothing else. The scorer matched the alias against the
+            // advert and stored the topic it found; a text search here would be a second matcher
+            // with its own idea of a word boundary, and the two would disagree. Any band, the
+            // unscored and the discarded included, because the band is a filter of its own.
+            sql.append(
+                    " AND (EXISTS (SELECT 1 FROM offer_score_reason r WHERE r.offer_id = o.id AND r.topic = :topic)");
+            params.put("topic", query.topic());
+            // The paraphrase half, when a measured floor exists: an advert that names none of the
+            // aliases but sits near the topic's name. It widens this one filter and nothing else.
+            if (topicNeighbourhood != null) {
+                sql.append(topicNeighbourhood.sql());
+                params.putAll(topicNeighbourhood.params());
+            }
+            sql.append(")\n");
         }
         if (query.deadlineOpen()) {
             // The opposite treatment of null from the clause immediately above, on purpose:
@@ -474,7 +495,7 @@ public class OfferQueryService {
         Map<Long, List<ScoreReason>> byOffer = new LinkedHashMap<>();
         jdbc.sql(
                         """
-                    SELECT offer_id, factor, label, points, max_points FROM offer_score_reason
+                    SELECT offer_id, factor, label, points, max_points, topic FROM offer_score_reason
             WHERE offer_id = ANY (?) ORDER BY offer_id, position
             """)
                 .param(ids.toArray(Long[]::new))
@@ -486,7 +507,8 @@ public class OfferQueryService {
                                     rs.getInt("points"),
                                     // Zero for a row written before the column existed, which
                                     // renders as no denominator rather than as "0 of 0".
-                                    rs.getInt("max_points")));
+                                    rs.getInt("max_points"),
+                                    rs.getString("topic")));
                     return null;
                 })
                 .list();

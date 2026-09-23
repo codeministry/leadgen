@@ -165,6 +165,6 @@ class ReferenceRankingTest {
     private static SkillProfile profile(SkillProfile.ReferenceProject... projects) {
         // version, localePrimary, identity, core, strong, peripheral, industries,
         // referenceProjects, languages, cvVariants — only the one this class is about is set.
-        return new SkillProfile(1, "de", null, null, null, null, null, List.of(projects), null, null);
+        return new SkillProfile(1, "de", null, null, null, null, null, List.of(projects), null, null, null, null);
     }
 }

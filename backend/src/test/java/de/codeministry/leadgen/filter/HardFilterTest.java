@@ -161,6 +161,39 @@ class HardFilterTest {
     }
 
     @Test
+    void aTopicNeverChangesAVerdict() {
+        // A topic lifts or sinks a score and nothing else. An offer that names an interest
+        // topic and no core skill still ends at NO_CORE_SKILL, and one that passes still passes
+        // when it names a disinterest topic.
+        var p = snapshot.profile();
+        var withTopics = new HardFilter(
+                snapshot.rules(),
+                new de.codeministry.leadgen.config.model.SkillProfile(
+                        p.version(),
+                        p.localePrimary(),
+                        p.identity(),
+                        p.core(),
+                        p.strong(),
+                        p.peripheral(),
+                        p.industries(),
+                        p.referenceProjects(),
+                        p.languages(),
+                        p.cvVariants(),
+                        java.util.List.of(new de.codeministry.leadgen.config.model.SkillProfile.Topic(
+                                "Hufbeschlag", 10, java.util.List.of("Pferden"))),
+                        java.util.List.of(
+                                new de.codeministry.leadgen.config.model.SkillProfile.Topic("Handaufguss", 10, null))));
+
+        var noCoreSkill = offer("Hufschmied", "Beschlagen von Pferden", "Musterstadt");
+        var passing = offer("Barista (m/w/d)", "Espresso und Handaufguss", "Musterstadt");
+
+        assertThat(withTopics.judge(noCoreSkill).stage()).isEqualTo(FilterStage.NO_CORE_SKILL);
+        assertThat(withTopics.judge(passing).passed()).isTrue();
+        assertThat(withTopics.judge(noCoreSkill)).isEqualTo(judge(noCoreSkill));
+        assertThat(withTopics.judge(passing)).isEqualTo(judge(passing));
+    }
+
+    @Test
     void countsAnAliasAsTheCoreSkill() {
         // Eight bare skill names would answer "no" to an ad asking for Springboot or k8s.
         // Over the corpus the aliases are worth twelve offers.
@@ -249,7 +282,6 @@ class HardFilterTest {
                         filters.language(),
                         filters.freshness()),
                 rules.scoring(),
-                rules.antiSkills(),
                 rules.deduplication(),
                 rules.followUp());
     }
