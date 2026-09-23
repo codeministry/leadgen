@@ -1,7 +1,7 @@
 ---
 spec: 002-action-feedback-toasts
 plan: plan.md
-updated: 2026-09-23 (stage 1 closed)
+updated: 2026-09-23 (stages 1 to 4 built; T36 awaits the operator's word)
 ---
 
 # Tasks 002 — Feedback after an action, and for a run whoever started it
@@ -44,33 +44,33 @@ dispatch time; this column is a hint.
 
 ### Stage 2 — the remaining action mappings
 
-- [ ] T20 · ISC-207 — handler: `bulkArchived` → one toast naming `payload.archived` (after: T7) · `frontend/src/app/core/toast/toast.store.ts`
-- [ ] T21 · ISC-207 — spec block: five ids, `archived: 3`, the toast names 3; the plural keys in both catalogs (after: T20) · `frontend/src/app/core/toast/toast.store.spec.ts`, `frontend/public/i18n/en.json`, `frontend/public/i18n/de.json`
-- [ ] T22 · ISC-208 — handler: `applicationEvents.updated` → title, state label, `/pipeline/:id`; nothing on `changed` (after: T7) · `frontend/src/app/core/toast/toast.store.ts`
-- [ ] T23 · ISC-208 — spec block: `changed` then `updated` raises one; `changed` then `changeFailed` raises none; the keys (after: T22) · `frontend/src/app/core/toast/toast.store.spec.ts`, `frontend/public/i18n/en.json`, `frontend/public/i18n/de.json`
-- [ ] T24 · ISC-209 — handler: `rescored` → title and stored score (after: T7) · `frontend/src/app/core/toast/toast.store.ts`
-- [ ] T25 · ISC-209 — spec block and the keys (after: T24) · `frontend/src/app/core/toast/toast.store.spec.ts`, `frontend/public/i18n/en.json`, `frontend/public/i18n/de.json`
-- [ ] T26 · ISC-210 — `settled` carries `{name, outcome}`; both handlers dispatch it; the reducer reads `payload.name`; the dispatching spec follows (after: T3) · `frontend/src/app/core/store/manual.events.ts`, `manual.store.ts`, `manual.store.spec.ts`
-- [ ] T27 · ISC-210 — handler: `settled` → document and outcome (after: T26, T7) · `frontend/src/app/core/toast/toast.store.ts`
-- [ ] T28 · ISC-210 — spec block, both outcomes, and the keys (after: T27) · `frontend/src/app/core/toast/toast.store.spec.ts`, `frontend/public/i18n/en.json`, `frontend/public/i18n/de.json`
-- [ ] T29 · ISC-213 — anti spec block: the five failure events raise nothing; record the `role="alert"` count before and after (after: T7) · `frontend/src/app/core/toast/toast.store.spec.ts`
-- [ ] T30 · ISC-218 — spec block: the stack's only dispatch is `dismissed`; every link the store can raise resolves against `app.routes.ts` (after: T22) · `frontend/src/app/layout/toast-stack/toast-stack.spec.ts`
+- [x] T20 · ISC-207 — handler: `bulkArchived` → one toast naming `payload.archived` (after: T7) · `frontend/src/app/core/toast/toast.store.ts`
+- [x] T21 · ISC-207 — spec block: five ids, `archived: 3`, the toast names 3; the plural keys in both catalogs (after: T20) · `frontend/src/app/core/toast/toast.store.spec.ts`, `frontend/public/i18n/en.json`, `frontend/public/i18n/de.json`
+- [x] T22 · ISC-208 — handler: `applicationEvents.updated` → title, state label, `/pipeline/:id`; nothing on `changed` (after: T7) · `frontend/src/app/core/toast/toast.store.ts`
+- [x] T23 · ISC-208 — spec block: `changed` then `updated` raises one; `changed` then `changeFailed` raises none; the keys (after: T22) · `frontend/src/app/core/toast/toast.store.spec.ts`, `frontend/public/i18n/en.json`, `frontend/public/i18n/de.json`
+- [x] T24 · ISC-209 — handler: `rescored` → title and stored score (after: T7) · `frontend/src/app/core/toast/toast.store.ts`
+- [x] T25 · ISC-209 — spec block and the keys (after: T24) · `frontend/src/app/core/toast/toast.store.spec.ts`, `frontend/public/i18n/en.json`, `frontend/public/i18n/de.json`
+- [x] T26 · ISC-210 — `settled` carries `{name, outcome}`; both handlers dispatch it; the reducer reads `payload.name`; the dispatching spec follows (after: T3) · `frontend/src/app/core/store/manual.events.ts`, `manual.store.ts`, `manual.store.spec.ts`
+- [x] T27 · ISC-210 — handler: `settled` → document and outcome (after: T26, T7) · `frontend/src/app/core/toast/toast.store.ts`
+- [x] T28 · ISC-210 — spec block, both outcomes, and the keys (after: T27) · `frontend/src/app/core/toast/toast.store.spec.ts`, `frontend/public/i18n/en.json`, `frontend/public/i18n/de.json`
+- [x] T29 · ISC-213 — anti spec block: the five failure events raise nothing; record the `role="alert"` count before and after (after: T7) · `frontend/src/app/core/toast/toast.store.spec.ts`
+- [x] T30 · ISC-218 — spec block: the stack's only dispatch is `dismissed`; every link the store can raise resolves against `app.routes.ts` (after: T22) · `frontend/src/app/toast-links.spec.ts` (app level: it needs the route table and the store, and neither layer may import the other)
 
 ### Stage 3 — the runs
 
-- [ ] T31 · ISC-211 — `IngestStore`: `requested` also dispatches `currentRequested`; spec for the immediate ask (after: T3) · `frontend/src/app/core/store/ingest.store.ts`, `ingest.store.spec.ts`
-- [ ] T32 · ISC-211 — handler: `currentLoaded` non-null with a new id → one toast; `lastRunStarted` keyed on the id; nothing on `requested` (after: T31, T7) · `frontend/src/app/core/toast/toast.store.ts`
-- [ ] T33 · ISC-211 — spec block: `requested` then run 7 twice, run 8 alone; the keys (after: T32) · `frontend/src/app/core/toast/toast.store.spec.ts`, `frontend/public/i18n/en.json`, `frontend/public/i18n/de.json`
-- [ ] T34 · ISC-212 — handler: `finished` → toast keyed on `finishedAt`; `refreshEvents.requested('run-ended')` sets `awaitingRunEnd`; the next `lastRunLoaded` raises when its `finishedAt` is new and clears the flag; a `lastRunLoaded` with no flag raises nothing (after: T32) · `frontend/src/app/core/toast/toast.store.ts`
-- [ ] T35 · ISC-212 — spec block: the three cases from the Test Strategy, written and shortlisted named; the keys with two plurals (after: T34) · `frontend/src/app/core/toast/toast.store.spec.ts`, `frontend/public/i18n/en.json`, `frontend/public/i18n/de.json`
+- [x] T31 · ISC-211 — `IngestStore`: `requested` also dispatches `currentRequested`; spec for the immediate ask (after: T3) · `frontend/src/app/core/store/ingest.store.ts`, `ingest.store.spec.ts`
+- [x] T32 · ISC-211 — handler: `currentLoaded` non-null with a new id → one toast; `lastRunStarted` keyed on the id; nothing on `requested` (after: T31, T7) · `frontend/src/app/core/toast/toast.store.ts`
+- [x] T33 · ISC-211 — spec block: `requested` then run 7 twice, run 8 alone; the keys (after: T32) · `frontend/src/app/core/toast/toast.store.spec.ts`, `frontend/public/i18n/en.json`, `frontend/public/i18n/de.json`
+- [x] T34 · ISC-212 — handler: `finished` → toast keyed on `finishedAt`; `refreshEvents.requested('run-ended')` sets `awaitingRunEnd`; the next `lastRunLoaded` raises when its `finishedAt` is new and clears the flag; a `lastRunLoaded` with no flag raises nothing (after: T32) · `frontend/src/app/core/toast/toast.store.ts`
+- [x] T35 · ISC-212 — spec block: the three cases from the Test Strategy, written and shortlisted named; the keys with two plurals (after: T34) · `frontend/src/app/core/toast/toast.store.spec.ts`, `frontend/public/i18n/en.json`, `frontend/public/i18n/de.json`
 
 ### Stage 4 — motion and the record
 
 - [ ] T36 · ISC-216 — reduced-motion gate on the stack's own enter and leave, beside DaisyUI's; the foregrounded browser pass through `VerifyViewport.ts` with the preference off and on, plus VoiceOver reading one raise (after: T19, T35) · `frontend/src/app/layout/toast-stack/toast-stack.css`
-- [ ] T37 · ISC-220 — the toast decisions in the interface-language section: one mechanism, answers not requests, a link never an undo, failures inline (after: T35) · `docs/decisions/frontend-design-system.md`
-- [ ] T38 · ISC-220 — one rule line in the frontend notes (after: T37) · `frontend/CLAUDE.md`
-- [ ] T39 · ISC-220 — § Unreleased: the feature, the `settled` shape, the parity spec (after: T37) · `CHANGELOG.md`
-- [ ] T40 · ISC-220 — run `WorkingNotesStaySmallTest` after the three edits (after: T38, T39) · `backend/src/test/java/de/codeministry/leadgen/WorkingNotesStaySmallTest.java`
+- [x] T37 · ISC-220 — the toast decisions in the interface-language section: one mechanism, answers not requests, a link never an undo, failures inline (after: T35) · `docs/decisions/frontend-design-system.md`
+- [x] T38 · ISC-220 — one rule line in the frontend notes (after: T37) · `frontend/CLAUDE.md`
+- [x] T39 · ISC-220 — § Unreleased: the feature, the `settled` shape, the parity spec (after: T37) · `CHANGELOG.md`
+- [x] T40 · ISC-220 — run `WorkingNotesStaySmallTest` after the three edits (after: T38, T39) · `backend/src/test/java/de/codeministry/leadgen/WorkingNotesStaySmallTest.java`
 
 ## Probe Mapping
 

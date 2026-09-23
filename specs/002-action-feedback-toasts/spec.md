@@ -6,9 +6,9 @@ isa_master: ../../ISA.md
 isa_feature: F30
 constitution: ../constitution.md
 phase: scoping
-progress: 6/16
+progress: 15/16
 started: 2026-09-23T16:40:00Z
-updated: 2026-09-23T19:05:00Z
+updated: 2026-09-23T21:55:00Z
 principal_stated_goal: "Der User soll in der App Feedback über Aktionen oder Ereignisse erhalten"
 principal_stated_goal_source: prompt
 principal_stated_goal_signal: 3
@@ -105,20 +105,20 @@ that ends while nobody is on the dashboard is news to no one; the shell has no p
 
 - [x] ISC-205: One mechanism: `core/toast/` (`toast.store.ts` + `toast.events.ts`, events dialect) is the only place a domain event becomes a message, and `layout/toast-stack/`, rendered once by the app shell, is the only place one is painted; no screen dispatches a toast for its own action.
 - [x] ISC-206: An archive or a restore of one offer raises one toast that names the direction and the offer's title and links to `/shortlist/:id`, raised from `shortlistEvents.archived` so the detail and the card produce the same toast. (after: ISC-205)
-- [ ] ISC-207: A bulk archive raises one toast naming the count the server wrote, never the count asked for, through the catalog's ICU plural. (after: ISC-205)
-- [ ] ISC-208: A status change raises one toast naming the application's title and its new state and linking to `/pipeline/:id`, from `applicationEvents.updated` and never from the optimistic `changed`, so a refused move raises none. (after: ISC-205)
-- [ ] ISC-209: A rescore raises one toast naming the offer's title and the score the server stored, from `shortlistEvents.rescored`. (after: ISC-205)
-- [ ] ISC-210: A manual document leaving the inbox raises one toast naming the document and whether it was confirmed or rejected; `manualEvents.settled` carries the outcome for it. (after: ISC-205)
-- [ ] ISC-211: A run beginning raises one toast, whether this browser pressed the button or the heartbeat first saw a run in flight, and never a second one for the same run id; a run this browser starts is seen by the heartbeat at once rather than at the idle cadence. (after: ISC-205)
-- [ ] ISC-212: A run ending raises one toast naming what it wrote and shortlisted and linking to `/dashboard`, from the report when this browser started it and from the recorded last run that `run-ended` reads back otherwise, keyed by `finishedAt` so a run this browser started raises one toast although both paths fire, and a last run read on startup raises none. (after: ISC-205)
-- [ ] ISC-213: Anti: a load failure or a refused write raises a toast; the inline `role="alert"` paragraphs stay where they are. (after: ISC-205)
+- [x] ISC-207: A bulk archive raises one toast naming the count the server wrote, never the count asked for, through the catalog's ICU plural. (after: ISC-205)
+- [x] ISC-208: A status change raises one toast naming the application's title and its new state and linking to `/pipeline/:id`, from `applicationEvents.updated` and never from the optimistic `changed`, so a refused move raises none. (after: ISC-205)
+- [x] ISC-209: A rescore raises one toast naming the offer's title and the score the server stored, from `shortlistEvents.rescored`. (after: ISC-205)
+- [x] ISC-210: A manual document leaving the inbox raises one toast naming the document and whether it was confirmed or rejected; `manualEvents.settled` carries the outcome for it. (after: ISC-205)
+- [x] ISC-211: A run beginning raises one toast, whether this browser pressed the button or the heartbeat first saw a run in flight, and never a second one for the same run id; a run this browser starts is seen by the heartbeat at once rather than at the idle cadence. (after: ISC-205)
+- [x] ISC-212: A run ending raises one toast naming what it wrote and shortlisted and linking to `/dashboard`, from the report when this browser started it and from the recorded last run that `run-ended` reads back otherwise, keyed by `finishedAt` so a run this browser started raises one toast although both paths fire, and a last run read on startup raises none. (after: ISC-205)
+- [x] ISC-213: Anti: a load failure or a refused write raises a toast; the inline `role="alert"` paragraphs stay where they are. (after: ISC-205)
 - [x] ISC-214: A toast leaves by itself after a duration held as a token, stays while hovered or focused, closes on its button, and no more stand at once than the cap held beside the duration, the oldest leaving first. (after: ISC-205)
 - [x] ISC-215: The stack is a polite live region — `role="status"`, `aria-live="polite"`, a new toast appended into it — its close button has an accessible name, and no toast takes focus. (after: ISC-205)
 - [ ] ISC-216: Entering and leaving are gated by `prefers-reduced-motion`, and the reveal is verified in a foregrounded real browser. (after: ISC-214)
 - [x] ISC-217: Every toast text is a key under one `toast` group present in both catalogs with the same key set, and every count in them is an ICU plural. (after: ISC-205)
-- [ ] ISC-218: Anti: a toast carries a control that writes; its only control closes it, and its link is a router navigation to a route that already exists. (after: ISC-205)
+- [x] ISC-218: Anti: a toast carries a control that writes; its only control closes it, and its link is a router navigation to a route that already exists. (after: ISC-205)
 - [x] ISC-219: The toast takes its tones from spelled-out DaisyUI `alert` classes, holds no colour literal, and takes the accent nowhere. (after: ISC-205)
-- [ ] ISC-220: `docs/decisions/frontend-design-system.md` carries the toast decisions, `frontend/CLAUDE.md` gains at most one rule line, `CHANGELOG.md` § Unreleased names the feature, and `WorkingNotesStaySmallTest` stays green. (after: ISC-205)
+- [x] ISC-220: `docs/decisions/frontend-design-system.md` carries the toast decisions, `frontend/CLAUDE.md` gains at most one rule line, `CHANGELOG.md` § Unreleased names the feature, and `WorkingNotesStaySmallTest` stays green. (after: ISC-205)
 
 ## Test Strategy
 
@@ -137,7 +137,7 @@ that ends while nobody is on the dashboard is news to no one; the shell has no p
 | ISC-215 | bun-test | render the stack with one toast | `role="status"` and `aria-live="polite"` on the region, close button named, `document.activeElement` unchanged | Vitest | `toast-stack.spec.ts` |
 | ISC-216 | manual | archive an offer in a real foregrounded browser, once with reduced motion on | animates; does not with the preference set | Interceptor `VerifyViewport.ts` | `toast-stack.css` |
 | ISC-217 | bun-test | compare the `toast` key sets of `en.json` and `de.json` | identical; every count key carries `plural` | Vitest | `i18n-parity.spec.ts`, `public/i18n/` |
-| ISC-218 | bun-test | `rg -n 'injectDispatch\|Dispatcher' frontend/src/app/layout/toast-stack`; resolve every toast link against `app.routes.ts` | only `toastEvents.dismissed`; every link a configured path | rg, Vitest | `toast-stack.ts`, `app.routes.ts` |
+| ISC-218 | bun-test | `rg -n 'injectDispatch\|Dispatcher' frontend/src/app/layout/toast-stack`; resolve every toast link against `app.routes.ts` | only `toastEvents` (dismissed, held, released), no domain event; every link a configured path | rg, Vitest | `toast-stack.ts`, `toast-links.spec.ts`, `app.routes.ts` |
 | ISC-219 | bash | `bun run lint:css`; `rg -n "'alert-' \+" frontend/src/app`; `rg -n accent frontend/src/app/layout/toast-stack` | green; 0; 0 | stylelint, rg | `toast-stack.css`, `src/styles.css` |
 | ISC-220 | bun-test | `./gradlew :backend:test --tests WorkingNotesStaySmallTest`; `rg -n -i toast docs/decisions/frontend-design-system.md CHANGELOG.md` | green; ≥ 1 each | JUnit, rg | `WorkingNotesStaySmallTest`, `frontend-design-system.md`, `CHANGELOG.md` |
 
@@ -168,6 +168,11 @@ that ends while nobody is on the dashboard is news to no one; the shell has no p
   raising the start from the heartbeat alone is up to thirty seconds of delay for the operator's own click at the idle
   cadence, so `requested` asks the heartbeat once immediately — one extra indexed read, and the toast is where the
   click is.
+- **2026-09-23 — The reveal measured under both preferences, in a live lifecycle; ISC-216 waits for the operator's
+  word.** Over CDP with `prefers-reduced-motion` emulated, rAF ticking at 28–29 per 400ms and the page visible: without
+  the preference the `toast` animation runs 0.25s ease-out (opacity 0.11 → 1, scale 0.91 → 1); with it
+  `animationName: none`, opacity 1 from the first frame, no running animation. The claim is `manual` and closes on
+  the principal's own assessment, not on this measurement; a VoiceOver pass was not made.
 - **2026-09-23 — The container is `.lg-toasts`, because `.stack` is a DaisyUI component.** The operator saw three
   quick toasts as one card with two edges behind it. Measured over CDP: the container computed as `display: grid`
   with the three alerts fanned by 11px, which is DaisyUI 5's `stack` component doing exactly what it is for. Renamed
@@ -197,3 +202,12 @@ that ends while nobody is on the dashboard is news to no one; the shell has no p
 - ISC-215 — toast-stack.spec 'is a polite live region that is in the DOM before it has anything to say', 'paints a raised toast … and steals no focus'; live: role=status aria-live=polite read over CDP
 - ISC-217 — i18n-parity.spec 'hold the same keys in English and German' over the whole catalog, plus the count-key plural check
 - ISC-219 — bun run lint:css green; rg "'alert-' +" over frontend/src/app: 0; rg accent in layout/toast-stack: 0 (2026-09-23)
+- ISC-207 — toast.store.spec 'names the count the server wrote, never the count asked for'; red when the count was mutated to the ids asked for
+- ISC-208 — toast.store.spec 'is confirmed from the row the server returned, naming the state and linking to the card' and 'raises nothing for a move the server refused'; a handler on `changed` does not type-check (no title on the request)
+- ISC-209 — toast.store.spec 'names the score the server stored' and 'says so when nothing judged it'
+- ISC-210 — toast.store.spec 'names the document and whether it was confirmed or rejected'; red when the outcome branch was mutated; `manualEvents.settled` carries `{name, outcome}`
+- ISC-213 — toast.store.spec 'raises no toast at all' over seven failure events; `rg -c 'role="alert"'` = 14 before and after
+- ISC-218 — rg over toast-stack.ts: `injectDispatch(toastEvents)` only, dismissed/held/released; toast-links.spec 'all resolve against the configured routes' (3 links)
+- ISC-211 — toast.store.spec 'is announced once per run id, from the heartbeat and never from the request' (red without `distinctUntilChanged`); ingest.store.spec 'asks the heartbeat the moment a run is requested, and keeps asking fast while it is out'
+- ISC-212 — toast.store.spec 'is announced once for a run this browser started, although both paths fire' (red without `distinctUntilKeyChanged`), '… from the last run read back', 'says nothing about a last run read for any other reason'
+- ISC-220 — WorkingNotesStaySmallTest green (frontend/CLAUDE.md 10,740 of 12,000); rg -i toast: frontend-design-system.md 16, CHANGELOG.md 4, frontend/CLAUDE.md 2 (2026-09-23)

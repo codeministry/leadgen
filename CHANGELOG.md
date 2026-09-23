@@ -9,6 +9,24 @@ may change in any release. See the status note in the README.
 
 ## [Unreleased]
 
+### Added
+
+- Every write a person makes in the browser and every ingest run that begins or ends,
+  whoever started it, is confirmed by one toast: archive and restore, a bulk archive with
+  the count the server wrote, a status change on the board, a rescore, a manual document
+  confirmed or rejected, a run beginning and a run ending with what it wrote and shortlisted.
+  Failures keep their inline place; a toast links to the thing it names and never undoes.
+  One store in `core/toast/` listens to the other stores' answer events, one stack in the
+  shell paints them as a polite live region (spec `002-action-feedback-toasts`).
+- A parity spec holds the English and German catalogs to the same key set.
+- `src/styles/motion.css`, the first motion tokens.
+
+### Changed
+
+- `manualEvents.settled` carries the outcome beside the document name (internal).
+- The ingest store asks the run heartbeat once at the moment a run is requested and polls
+  at the fast cadence while its own request is out.
+
 ## [0.4.3] — 2026-09-23
 
 Each instance keeps its own place in a shared mailbox, and the shortlist archives from the

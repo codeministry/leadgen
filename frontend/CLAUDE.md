@@ -17,6 +17,8 @@ Carried over from a sibling Angular project, which is the house style:
   on — a relative `../../core/...` slips past the rule. Relative imports only between
   siblings. **No barrels** (`index.ts`).
 - **`shared/` imports nothing from the layers above it**, not even types.
+- **A toast is raised in `core/toast/` from a store's answer event, never from a screen.**
+  Failures stay inline; the toast links and never undoes — `docs/decisions/frontend-design-system.md` § Toasts.
 - **Standalone components, signals, `OnPush`, zoneless.** `input()`/`output()`/`model()`,
   `signal`/`computed`, `inject()`, `@if`/`@for`. No `@Input/@Output`, no `*ngIf`, no
   `| async`. RxJS only at the I/O boundary, bridged in with `toSignal`.

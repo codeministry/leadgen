@@ -153,3 +153,44 @@ two languages, English the fallback.
   sentences from the API and stay English in both languages. Translating them means the API
   handing over an id and the browser holding a catalog keyed by it — which is the one thing
   the read side deliberately does not do today.
+
+### Toasts
+
+One line at the edge of the screen after a write or a run, and the decisions that shaped it
+(spec `002-action-feedback-toasts`, 2026-09-23):
+
+- **One mechanism, and it listens.** `core/toast/` turns a store's *answer* event into a
+  message — `archived`, `updated`, `rescored`, `settled`, `finished`, the heartbeat's first
+  sight of a run — and `layout/toast-stack/` paints it once, from the shell. No screen
+  dispatches a toast for its own action. The same write has two or three callers already
+  (archive from the detail and from a card, status from the board and from the detail), and
+  a toast written per caller disagrees the first time one of them changes. Raised from the
+  answer, "a refused move raises none" is free: `updated` fires only when the server said yes.
+- **Failures stay inline.** Every refused write already paints a `role="alert"` paragraph
+  beside the control that can retry it, and each placement was argued for when it was made.
+  A toast beside that paragraph is one failure said twice. The stack is a `role="status"`
+  region with `aria-live="polite"`, and nothing in it is an error.
+- **A link, never an undo.** "Restore" on an archive toast reads as a lossless undo and is
+  not one: the package is discarded on archive unless the application was ever sent, and
+  a status change back over `PACKAGED` is a 409. The toast links to the offer, the card or
+  the dashboard, and the reversal happens there under the rules that already hold. That is
+  also what keeps the stack free of a second write path — its one control closes it.
+- **One toast per run, whoever started it.** The operator's own run fires both paths, the
+  report and the `run-ended` read-back; both carry `finishedAt`, and the stream keys on it.
+  The start is keyed on the run id and raised only from the heartbeat, which `IngestStore`
+  asks at once on a click so the operator's own toast is not an idle cadence late. The
+  dedupe lives in the stream, not in state, because the order in which a reducer and a
+  handler see one event is not something to depend on.
+- **The container is `.lg-toasts`.** It was `.stack`, and DaisyUI 5 ships a `stack`
+  component that fans its children over one another in one grid cell — three quick toasts
+  showed as one card with two edges behind it. The `.status` trap again; the stack's spec
+  now refuses any unprefixed class that is not `toast` or `alert*`.
+- **Below 48rem the pile sits above the bottom bar.** At the top it covered the page title
+  and the Views/Archive controls, the row a person reads first; above the bar it covers
+  advert prose, which scrolls. The reveal's duration and easing are the first tokens in
+  `src/styles/motion.css`, off under `prefers-reduced-motion`; the lifetime and the cap
+  are constants beside the model, because the timer that reads them is TypeScript.
+- **The DOM-render screenshot never paints the fixed stack.** The toast stood in the DOM
+  with a measured rectangle while the capture showed nothing. The pictures in the spec
+  come from a pixel capture over CDP, taken past the reveal; a frame inside it reads as a
+  translucent toast and is not one.
