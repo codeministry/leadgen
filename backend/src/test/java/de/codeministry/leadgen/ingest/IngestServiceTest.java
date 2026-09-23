@@ -162,7 +162,11 @@ class IngestServiceTest {
         // was slow, and nothing in the counts says so.
         ingest.run();
 
-        var stages = jdbc.queryForList("SELECT stage, status FROM pipeline_stage ORDER BY run_id DESC, position ASC");
+        // This run's rows only: the container is shared by the class, and a run another
+        // test ends in a FAILED stage must not turn this one's `OK` assertion red.
+        var stages = jdbc.queryForList(
+                "SELECT stage, status FROM pipeline_stage WHERE run_id = (SELECT max(id) FROM pipeline_run)"
+                        + " ORDER BY position ASC");
 
         assertThat(stages).isNotEmpty();
         assertThat(stages).allSatisfy(row -> assertThat(row.get("status")).isEqualTo("OK"));

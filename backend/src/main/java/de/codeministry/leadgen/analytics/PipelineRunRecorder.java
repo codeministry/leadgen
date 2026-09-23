@@ -37,6 +37,19 @@ import org.springframework.stereotype.Service;
 @Service
 public class PipelineRunRecorder {
 
+    /**
+     * The values {@code pipeline_run.status} takes. A row opens {@code RUNNING} and closes
+     * {@code COMPLETE}, or {@code AWAITING_BATCH} until the collector completes it, or
+     * {@code FAILED} when a stage threw; {@code ABANDONED} is what the next start writes over a
+     * row a dead process left open. There is no CHECK constraint: these five are the contract.
+     */
+    static final String RUNNING = "RUNNING";
+
+    static final String COMPLETE = "COMPLETE";
+    static final String AWAITING_BATCH = "AWAITING_BATCH";
+    static final String FAILED = "FAILED";
+    static final String ABANDONED = "ABANDONED";
+
     private static final String INSERT = """
         INSERT INTO pipeline_run (
             started_at, ruleset_version, score_model, status,
@@ -238,26 +251,61 @@ public class PipelineRunRecorder {
      */
     public void record(
             OptionalLong runId, IngestReport report, Instant startedAt, String scoreModel, List<StageTiming> stages) {
+        // A run that submitted a batch has not packaged anything yet and has not written a
+        // digest. Recorded as COMPLETE it would state a shortlist belonging to the previous
+        // run, and look entirely normal doing it.
+        write(
+                runId,
+                report,
+                startedAt,
+                scoreModel,
+                stages,
+                report.scored().submitted() > 0 ? AWAITING_BATCH : COMPLETE);
+    }
+
+    /**
+     * The run that stopped in a stage.
+     *
+     * <p>Closed as {@code FAILED} with the counts the run had reached and every timing, the
+     * failed one last: "the run stopped here" is the single most useful thing the stage table
+     * can say, and until this existed the row stayed {@code RUNNING} and the timings went down
+     * with the exception. The status is stated by the caller and never read off the timings,
+     * because a source that fails is caught per source and leaves a FAILED timing under a run
+     * that completes.
+     *
+     * <p>Never {@code AWAITING_BATCH}, even when SCORE had submitted a batch before a later
+     * stage threw: nothing after the failure packages or writes, so there is nothing for the
+     * collector to finish here. It still collects the batch and scores the offers; only this
+     * row does not move, and its status says why.
+     */
+    public void recordFailure(
+            OptionalLong runId, IngestReport partial, Instant startedAt, String scoreModel, List<StageTiming> stages) {
+        write(runId, partial, startedAt, scoreModel, stages, FAILED);
+    }
+
+    private void write(
+            OptionalLong runId,
+            IngestReport report,
+            Instant startedAt,
+            String scoreModel,
+            List<StageTiming> stages,
+            String status) {
         try {
-            // A run that submitted a batch has not packaged anything yet and has not
-            // written a digest. Recorded as COMPLETE it would state a shortlist belonging
-            // to the previous run, and look entirely normal doing it.
-            boolean awaiting = report.scored().submitted() > 0;
             // The row opened at the start, filled in. Falling back to an insert keeps a run
             // whose opening failed from losing its history as well — one lost row is a gap,
             // two are a pattern nobody can read.
             long id = runId.isPresent()
-                    ? close(runId.getAsLong(), report, effectiveModel(scoreModel), awaiting)
-                    : insert(report, startedAt, effectiveModel(scoreModel), awaiting);
+                    ? close(runId.getAsLong(), report, effectiveModel(scoreModel), status)
+                    : insert(report, startedAt, effectiveModel(scoreModel), status);
             for (Map.Entry<FilterStage, Integer> stage :
                     report.filtered().removed().entrySet()) {
                 jdbc.sql(INSERT_STAGE)
                         .params(id, stage.getKey().name(), stage.getValue())
                         .update();
             }
-            // Where the time went. Written here rather than as each stage finishes, because
-            // the row they reference does not exist until the run is over — the history row
-            // is deliberately the last thing a run writes.
+            // Where the time went. Written together with the close, on success and on failure
+            // alike, and not as each stage finishes: the timings are one list the run collected,
+            // and the row is the last thing a run writes.
             for (StageTiming timing : stages) {
                 jdbc.sql(INSERT_TIMING)
                         .params(
@@ -307,7 +355,7 @@ public class PipelineRunRecorder {
      * moves it forward later, which is exactly why the next run's {@code started_at}, and
      * not this column, is the upper bound of a run's window.
      */
-    private long close(long runId, IngestReport report, String scoreModel, boolean awaiting) {
+    private long close(long runId, IngestReport report, String scoreModel, String status) {
         var filtered = report.filtered();
         var enriched = report.enriched();
         var scored = report.scored();
@@ -315,7 +363,7 @@ public class PipelineRunRecorder {
                 .params(
                         String.valueOf(config.snapshot().rules().version()),
                         scoreModel,
-                        awaiting ? "AWAITING_BATCH" : "COMPLETE",
+                        status,
                         report.sources().stream()
                                 .mapToInt(source -> source.details().size())
                                 .sum(),
@@ -335,8 +383,10 @@ public class PipelineRunRecorder {
                         scored.shortlisted(),
                         scored.review(),
                         scored.submitted(),
-                        awaiting ? 0 : report.packaged().built(),
-                        !awaiting && report.digest() != null,
+                        // Only a completed run packaged and wrote; a batched one has not yet,
+                        // and a failed one never did whatever its placeholders say.
+                        COMPLETE.equals(status) ? report.packaged().built() : 0,
+                        COMPLETE.equals(status) && report.digest() != null,
                         runId)
                 .update();
         if (updated == 0) {
@@ -345,7 +395,7 @@ public class PipelineRunRecorder {
         return runId;
     }
 
-    private long insert(IngestReport report, Instant startedAt, String scoreModel, boolean awaiting) {
+    private long insert(IngestReport report, Instant startedAt, String scoreModel, String status) {
         var filtered = report.filtered();
         var enriched = report.enriched();
         var scored = report.scored();
@@ -354,7 +404,7 @@ public class PipelineRunRecorder {
                         java.sql.Timestamp.from(startedAt),
                         String.valueOf(config.snapshot().rules().version()),
                         scoreModel,
-                        awaiting ? "AWAITING_BATCH" : "COMPLETE",
+                        status,
                         report.sources().stream()
                                 .mapToInt(source -> source.details().size())
                                 .sum(),
@@ -374,8 +424,10 @@ public class PipelineRunRecorder {
                         scored.shortlisted(),
                         scored.review(),
                         scored.submitted(),
-                        awaiting ? 0 : report.packaged().built(),
-                        !awaiting && report.digest() != null)
+                        // Only a completed run packaged and wrote; a batched one has not yet,
+                        // and a failed one never did whatever its placeholders say.
+                        COMPLETE.equals(status) ? report.packaged().built() : 0,
+                        COMPLETE.equals(status) && report.digest() != null)
                 .query(Long.class)
                 .optional()
                 .map(OptionalLong::of)

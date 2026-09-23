@@ -71,4 +71,24 @@ class PipelineRunRecorderTest {
                         recorder.record(java.util.OptionalLong.empty(), REPORT, Instant.now(), "some-model", List.of()))
                 .doesNotThrowAnyException();
     }
+
+    @Test
+    void swallowsADatabaseThatWillNotAnswerWhenRecordingAFailureToo() throws SQLException {
+        // The failure path is called from a catch block that is about to rethrow. A recorder
+        // throwing there would replace the stage's own exception with a database one, and
+        // the sentence the operator reads would name the wrong problem.
+        DataSource broken = mock(DataSource.class);
+        when(broken.getConnection()).thenThrow(new SQLException("the history table is gone"));
+
+        var recorder = new PipelineRunRecorder(broken, mock(ConfigRegistry.class), mock(Judges.class));
+
+        assertThatCode(() -> recorder.recordFailure(
+                        java.util.OptionalLong.empty(),
+                        REPORT,
+                        Instant.now(),
+                        "some-model",
+                        List.of(new StageTiming(
+                                0, "DEDUPE", Instant.EPOCH, Instant.EPOCH, StageTiming.FAILED, "gone"))))
+                .doesNotThrowAnyException();
+    }
 }

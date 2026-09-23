@@ -12,10 +12,22 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 
 import de.codeministry.leadgen.Databases;
+import de.codeministry.leadgen.application.OpenReport;
+import de.codeministry.leadgen.archive.ArchiveReport;
 import de.codeministry.leadgen.config.ConfigFixtures;
+import de.codeministry.leadgen.content.ContentReport;
+import de.codeministry.leadgen.enrich.EnrichmentReport;
+import de.codeministry.leadgen.fields.FieldsReport;
+import de.codeministry.leadgen.filter.FilterReport;
+import de.codeministry.leadgen.ingest.IngestReport;
+import de.codeministry.leadgen.packaging.PackageReport;
+import de.codeministry.leadgen.retrieval.RetrievalReport;
+import de.codeministry.leadgen.score.ScoringReport;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -68,6 +80,7 @@ class LastRunQueryServiceTest {
 
     @BeforeEach
     void reset() {
+        jdbc.update("DELETE FROM pipeline_stage");
         jdbc.update("DELETE FROM pipeline_run_stage");
         jdbc.update("DELETE FROM pipeline_run");
         jdbc.update("DELETE FROM source_run");
@@ -240,6 +253,89 @@ class LastRunQueryServiceTest {
             assertThat(source.documents()).isEqualTo(5);
             assertThat(source.extracted()).isEqualTo(169);
         });
+    }
+
+    @Test
+    void reportsAFailedRunAsTheLastRunWithItsTimings() {
+        // Deliberately the last run, not hidden like ABANDONED: the counts are real up to the
+        // stage that threw, and the row says which one. Written through the recorder rather
+        // than seeded, so this is the same row `IngestService` leaves behind.
+        Instant startedAt = Instant.now().minus(4, ChronoUnit.MINUTES);
+        var runId = recorder.start(startedAt, "some-model", 5);
+        assertThat(runId).isPresent();
+        Instant t = startedAt.plusSeconds(1);
+
+        recorder.recordFailure(
+                runId,
+                partialReport(),
+                startedAt,
+                "some-model",
+                List.of(
+                        new StageTiming(0, "DEDUPE", t, t.plusSeconds(2), StageTiming.OK, null),
+                        new StageTiming(1, "FILTER", t.plusSeconds(2), t.plusSeconds(7), StageTiming.OK, null),
+                        new StageTiming(
+                                2, "ENRICH", t.plusSeconds(7), t.plusSeconds(8), StageTiming.FAILED, "portal down")));
+
+        var last = runs.lastRun().orElseThrow();
+
+        assertThat(last.status()).isEqualTo(PipelineRunRecorder.FAILED);
+        assertThat(last.filterConsidered()).isEqualTo(31);
+        assertThat(last.filterPassed()).isEqualTo(12);
+        assertThat(last.packaged()).isZero();
+        assertThat(last.digestWritten()).isFalse();
+        assertThat(last.stages()).extracting(LastRunStage::stage).containsExactly("DEDUPE", "FILTER", "ENRICH");
+        assertThat(last.stages().get(1).millis()).isEqualTo(5000);
+        assertThat(last.stages().getLast().status()).isEqualTo(StageTiming.FAILED);
+        assertThat(last.stages().getLast().note()).isEqualTo("portal down");
+        // Closed, so nothing is running any more and the next start has nothing to abandon.
+        assertThat(runs.currentRun()).isEmpty();
+    }
+
+    @Test
+    void readsTheStagesInRunOrder() {
+        // `position` is the order the stages ran in, and the browser sorts by nothing else.
+        Instant startedAt = Instant.now().minus(5, ChronoUnit.MINUTES);
+        long id = run(startedAt, startedAt.plusSeconds(90), "COMPLETE", "claude-haiku-4-5");
+        timing(id, 2, "ARCHIVE", startedAt.plusSeconds(20), startedAt.plusSeconds(21));
+        timing(id, 0, "DEDUPE", startedAt, startedAt.plusSeconds(10));
+        timing(id, 1, "FILTER", startedAt.plusSeconds(10), startedAt.plusSeconds(20));
+
+        var stages = runs.lastRun().orElseThrow().stages();
+
+        assertThat(stages).extracting(LastRunStage::position).containsExactly(0, 1, 2);
+        assertThat(stages).extracting(LastRunStage::millis).containsExactly(10_000L, 10_000L, 1_000L);
+    }
+
+    /**
+     * What a run that threw in ENRICH hands the recorder: the filter's real counts, and for
+     * every stage behind it the value that stage answers when it is switched off.
+     */
+    private static IngestReport partialReport() {
+        return new IngestReport(
+                List.of(),
+                0,
+                new FilterReport(Map.of(), 12, 31),
+                new ArchiveReport(0, 0, 0, 0),
+                EnrichmentReport.skipped(),
+                ContentReport.skipped(),
+                FieldsReport.skipped(),
+                ScoringReport.nothing(),
+                RetrievalReport.skipped(),
+                null,
+                OpenReport.nothing(),
+                PackageReport.nothing(),
+                Instant.now());
+    }
+
+    private void timing(long runId, int position, String stage, Instant startedAt, Instant endedAt) {
+        jdbc.update(
+                "INSERT INTO pipeline_stage (run_id, position, stage, started_at, ended_at, status, note)"
+                        + " VALUES (?, ?, ?, ?, ?, 'OK', NULL)",
+                runId,
+                position,
+                stage,
+                Timestamp.from(startedAt),
+                Timestamp.from(endedAt));
     }
 
     @Test

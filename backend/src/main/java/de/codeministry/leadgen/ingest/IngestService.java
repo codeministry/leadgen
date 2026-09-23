@@ -10,15 +10,22 @@ package de.codeministry.leadgen.ingest;
 
 import de.codeministry.leadgen.analytics.PipelineRunRecorder;
 import de.codeministry.leadgen.analytics.StageLog;
+import de.codeministry.leadgen.analytics.StageTiming;
 import de.codeministry.leadgen.application.ApplicationService;
+import de.codeministry.leadgen.application.OpenReport;
+import de.codeministry.leadgen.archive.ArchiveReport;
 import de.codeministry.leadgen.archive.ArchiveService;
 import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.config.model.SourcesConfig.Source;
+import de.codeministry.leadgen.content.ContentReport;
 import de.codeministry.leadgen.content.ContentService;
 import de.codeministry.leadgen.dedupe.DeduplicationService;
 import de.codeministry.leadgen.digest.DigestService;
+import de.codeministry.leadgen.enrich.EnrichmentReport;
 import de.codeministry.leadgen.enrich.EnrichmentService;
+import de.codeministry.leadgen.fields.FieldsReport;
 import de.codeministry.leadgen.fields.FieldsService;
+import de.codeministry.leadgen.filter.FilterReport;
 import de.codeministry.leadgen.filter.FilterService;
 import de.codeministry.leadgen.ingest.connector.SourceConnector;
 import de.codeministry.leadgen.ingest.extract.HtmlBlockExtractor;
@@ -26,8 +33,11 @@ import de.codeministry.leadgen.ingest.extract.LlmDocumentExtractor;
 import de.codeministry.leadgen.ingest.extract.MarkdownExtractor;
 import de.codeministry.leadgen.ingest.extract.OfferMapper;
 import de.codeministry.leadgen.ingest.store.OfferStore;
+import de.codeministry.leadgen.packaging.PackageReport;
 import de.codeministry.leadgen.packaging.PackagingService;
 import de.codeministry.leadgen.retrieval.RetrievalIndexService;
+import de.codeministry.leadgen.retrieval.RetrievalReport;
+import de.codeministry.leadgen.score.ScoringReport;
 import de.codeministry.leadgen.score.ScoringService;
 import java.util.ArrayList;
 import java.util.List;
@@ -159,6 +169,25 @@ public class IngestService {
     }
 
     /**
+     * Thrown when a stage threw. The cause is the stage's own exception, untouched; the
+     * message names the stage, because that is the one thing the reader has to act on and
+     * the one thing the cause cannot say about itself. Raised after the history row has been
+     * closed as FAILED, so the request fails loudly and the row still says where.
+     */
+    public static class StageFailed extends RuntimeException {
+        private final String stage;
+
+        public StageFailed(String stage, RuntimeException cause) {
+            super("the ingest run failed in stage " + stage + ": " + cause.getMessage(), cause);
+            this.stage = stage;
+        }
+
+        public String stage() {
+            return stage;
+        }
+    }
+
+    /**
      * One pass at a time, and this is not caution.
      *
      * <p>Every stage rewrites the same table: the filter alone writes a verdict on all
@@ -240,67 +269,114 @@ public class IngestService {
                         ? (position, stage) -> history.mark(runId.getAsLong(), position, stage)
                         : StageLog.Marker.NONE);
         List<SourceIngestResult> results = new ArrayList<>();
+        // Declared ahead of the work and at "nothing happened", so a stage that throws still
+        // leaves a report to write: the counts up to that stage, and for the stages it never
+        // reached the same value each of them answers when it is switched off. That is what
+        // lets the history row say where a run stopped instead of saying RUNNING forever.
+        int deduplicated = 0;
+        FilterReport filtered = FilterReport.nothing();
+        ArchiveReport archived = ArchiveReport.nothing();
+        EnrichmentReport enriched = EnrichmentReport.skipped();
+        ContentReport segmented = ContentReport.skipped();
+        FieldsReport extractedFields = FieldsReport.skipped();
+        ScoringReport scored = ScoringReport.nothing();
+        RetrievalReport indexed = RetrievalReport.skipped();
+        OpenReport opened = OpenReport.nothing();
+        PackageReport packages = PackageReport.nothing();
+        java.nio.file.Path written = null;
 
-        for (Source source : runnable) {
-            SourceConnector connector = connectors.get(source.type());
-            try {
-                // Timed per source rather than as one block: "ingest took four minutes" is
-                // not actionable, "the mailbox took four minutes and the two file sources
-                // took nothing" is.
-                results.add(stages.time("INGEST " + source.id(), () -> ingest(source, connector)));
-            } catch (IngestException e) {
-                // One unreachable mailbox must not stop the file sources behind it.
-                log.error("Source '{}' failed: {}", source.id(), e.getMessage(), e);
-                results.add(new SourceIngestResult(source.id(), 0, 0, 0, List.of()));
+        try {
+            for (Source source : runnable) {
+                SourceConnector connector = connectors.get(source.type());
+                try {
+                    // Timed per source rather than as one block: "ingest took four minutes" is
+                    // not actionable, "the mailbox took four minutes and the two file sources
+                    // took nothing" is.
+                    results.add(stages.time("INGEST " + source.id(), () -> ingest(source, connector)));
+                } catch (IngestException e) {
+                    // One unreachable mailbox must not stop the file sources behind it. The
+                    // timing stays FAILED under a run that goes on to COMPLETE, which is why
+                    // the run's own status is never read off the timings.
+                    log.error("Source '{}' failed: {}", source.id(), e.getMessage(), e);
+                    results.add(new SourceIngestResult(source.id(), 0, 0, 0, List.of()));
+                }
             }
+            // After every source, never per source: the whole point is that one project
+            // reaches the pipeline through several portals, so a pass scoped to one source
+            // would never see the pair it exists to collapse. The hard filter follows, in
+            // that order, because a cluster judged twice under two verdicts is worse than a
+            // cluster judged once. Enrichment comes last and only touches what survived:
+            // fetching a thousand ads to then discard eight hundred would be rude to the
+            // portals and slow for nothing.
+            deduplicated = stages.time("DEDUPE", dedupe::run);
+            filtered = stages.time("FILTER", filter::run);
+            // After the filter, so an offer somebody restores carries a current verdict; before
+            // enrichment, because that is the stage that leaves the machine and scoring is the
+            // one that costs money. An offer that has aged off the working list must pay for
+            // neither.
+            archived = stages.time("ARCHIVE", archive::run);
+            enriched = stages.time("ENRICH", enrich::run);
+            // Between the two on purpose. After enrichment because it reads `full_text`, and
+            // before scoring because scoring has to judge the advert rather than the portal's
+            // furniture around it — a tag cloud of sixty technology names the client never asked
+            // for otherwise counts as skill overlap.
+            segmented = stages.time("CONTENT", content::run);
+            // After content because it reads the advert the content stage left, not the page the
+            // portal wrapped it in — a deadline found in a footer is the same class of error as a
+            // tag cloud counted as skill overlap. Before scoring because what it writes feeds
+            // `project_setup` and the judge's description of an offer, and because it nulls
+            // `score_model` on the offers whose values actually moved.
+            extractedFields = stages.time("FIELDS", fields::run);
+            scored = stages.time("SCORE", () -> scoring.run(scoringModel));
+            // After scoring and not after content, where its input is ready — and the order is the
+            // whole argument, so it is written here rather than left to be rediscovered.
+            // `LlmBudget` is one allowance shared by every stage, and the first pass after this is
+            // switched on walks the whole working list: a few thousand offers is over a hundred
+            // requests at a batch of thirty-two. In front of SCORE that backfill spends the day and
+            // the shortlist goes unjudged, which is a new and unproven stage starving the one the
+            // tool exists for. Behind it, the same backfill degrades only the semantic search, and
+            // the search has a deterministic fallback. Nothing between CONTENT and SCORE reads the
+            // column, so waiting costs nothing.
+            indexed = stages.time("RETRIEVAL", retrieval::run);
+            // What the run owes a person: a card for everything it decided to recommend. It used
+            // to build the folder here as well, for all of them, which is how the deployed
+            // instance came to hold 93 packages against 2 applications ever sent. The folder now
+            // waits for somebody to agree, and this stage costs one statement.
+            opened = stages.time("OPEN", applications::openShortlisted);
+            // And the retry for anything whose folder was asked for and not built — normally
+            // nothing. Before the digest because both write files, and neither sends anything.
+            packages = stages.time("PACKAGE", packaging::run);
+            written = stages.time(
+                    "DIGEST", () -> digest.render(java.time.LocalDate.now()).orElse(null));
+        } catch (RuntimeException e) {
+            // A stage threw. `StageLog` has recorded it as FAILED and rethrown; what is left is
+            // to close the row with what the run had counted up to here, so the history says
+            // where it stopped. The stage is the last timing, because `StageLog.time` appends
+            // before it rethrows and nothing runs after a throw. Logged here with the trace:
+            // the controller answers this with a sentence, and then Boot logs nothing itself.
+            var partial = new IngestReport(
+                    results,
+                    deduplicated,
+                    filtered,
+                    archived,
+                    enriched,
+                    segmented,
+                    extractedFields,
+                    scored,
+                    indexed,
+                    written,
+                    opened,
+                    packages,
+                    java.time.Instant.now());
+            var timings = stages.timings();
+            String stage = timings.isEmpty()
+                            || !StageTiming.FAILED.equals(timings.getLast().status())
+                    ? "?"
+                    : timings.getLast().stage();
+            log.error("The run failed in stage {}: {}", stage, e.getMessage(), e);
+            history.recordFailure(runId, partial, startedAt, scoringModel, timings);
+            throw new StageFailed(stage, e);
         }
-        // After every source, never per source: the whole point is that one project
-        // reaches the pipeline through several portals, so a pass scoped to one source
-        // would never see the pair it exists to collapse. The hard filter follows, in
-        // that order, because a cluster judged twice under two verdicts is worse than a
-        // cluster judged once. Enrichment comes last and only touches what survived:
-        // fetching a thousand ads to then discard eight hundred would be rude to the
-        // portals and slow for nothing.
-        var deduplicated = stages.time("DEDUPE", dedupe::run);
-        var filtered = stages.time("FILTER", filter::run);
-        // After the filter, so an offer somebody restores carries a current verdict; before
-        // enrichment, because that is the stage that leaves the machine and scoring is the
-        // one that costs money. An offer that has aged off the working list must pay for
-        // neither.
-        var archived = stages.time("ARCHIVE", archive::run);
-        var enriched = stages.time("ENRICH", enrich::run);
-        // Between the two on purpose. After enrichment because it reads `full_text`, and
-        // before scoring because scoring has to judge the advert rather than the portal's
-        // furniture around it — a tag cloud of sixty technology names the client never asked
-        // for otherwise counts as skill overlap.
-        var segmented = stages.time("CONTENT", content::run);
-        // After content because it reads the advert the content stage left, not the page the
-        // portal wrapped it in — a deadline found in a footer is the same class of error as a
-        // tag cloud counted as skill overlap. Before scoring because what it writes feeds
-        // `project_setup` and the judge's description of an offer, and because it nulls
-        // `score_model` on the offers whose values actually moved.
-        var extractedFields = stages.time("FIELDS", fields::run);
-        var scored = stages.time("SCORE", () -> scoring.run(scoringModel));
-        // After scoring and not after content, where its input is ready — and the order is the
-        // whole argument, so it is written here rather than left to be rediscovered.
-        // `LlmBudget` is one allowance shared by every stage, and the first pass after this is
-        // switched on walks the whole working list: a few thousand offers is over a hundred
-        // requests at a batch of thirty-two. In front of SCORE that backfill spends the day and
-        // the shortlist goes unjudged, which is a new and unproven stage starving the one the
-        // tool exists for. Behind it, the same backfill degrades only the semantic search, and
-        // the search has a deterministic fallback. Nothing between CONTENT and SCORE reads the
-        // column, so waiting costs nothing.
-        var indexed = stages.time("RETRIEVAL", retrieval::run);
-        // What the run owes a person: a card for everything it decided to recommend. It used
-        // to build the folder here as well, for all of them, which is how the deployed
-        // instance came to hold 93 packages against 2 applications ever sent. The folder now
-        // waits for somebody to agree, and this stage costs one statement.
-        var opened = stages.time("OPEN", applications::openShortlisted);
-        // And the retry for anything whose folder was asked for and not built — normally
-        // nothing. Before the digest because both write files, and neither sends anything.
-        var packages = stages.time("PACKAGE", packaging::run);
-        var written = stages.time(
-                "DIGEST", () -> digest.render(java.time.LocalDate.now()).orElse(null));
         // `now()` here and not `startedAt`: the panel answers "when did this finish", the
         // history row answers "how long did it take", and they are different questions.
         var report = new IngestReport(
@@ -318,8 +394,9 @@ public class IngestService {
                 packages,
                 java.time.Instant.now());
         // After the work, never before it: a run that failed halfway must not leave a row
-        // claiming a clean pass. The same placement rule the per-source row follows, and
-        // the recorder cannot throw — a history row is worth less than the run.
+        // claiming a clean pass — it leaves one saying FAILED instead, from the catch above.
+        // The same placement rule the per-source row follows, and the recorder cannot throw:
+        // a history row is worth less than the run.
         history.record(runId, report, startedAt, scoringModel, stages.timings());
         return report;
     }

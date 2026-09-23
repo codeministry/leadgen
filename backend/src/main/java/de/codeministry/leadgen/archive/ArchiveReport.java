@@ -21,4 +21,14 @@ package de.codeministry.leadgen.archive;
  * @param undated  offers with no publication date, which no age rule can judge. They stay
  *                 on the working list forever, and that is worth a number rather than a silence.
  */
-public record ArchiveReport(int archived, int restored, int standing, int undated) {}
+public record ArchiveReport(int archived, int restored, int standing, int undated) {
+
+    /**
+     * The report of a pass that never ran. What a run that failed before this stage writes
+     * into its history row; the standing totals are unknown rather than zero, and zero is
+     * the honest placeholder a row with NOT NULL columns can carry.
+     */
+    public static ArchiveReport nothing() {
+        return new ArchiveReport(0, 0, 0, 0);
+    }
+}

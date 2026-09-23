@@ -37,9 +37,11 @@ import java.util.Map;
  * @param finishedAt when the run ended. The reason this record is worth having at all: it
  *                   is what tells the reader whether they are looking at tonight's pass or at their own
  *                   click.
- * @param status     {@code COMPLETE}, or {@code AWAITING_BATCH} while the scores of a batched
- *                   run are still in flight — in which case the packaging and the digest have not
- *                   happened yet and the counts below say so.
+ * @param status     {@code COMPLETE}; {@code AWAITING_BATCH} while the scores of a batched
+ *                   run are still in flight, in which case the packaging and the digest have not
+ *                   happened yet and the counts below say so; or {@code FAILED} when a stage threw,
+ *                   in which case the counts stop at that stage and the last entry of
+ *                   {@code stages} names it.
  * @param scoreModel which judge produced the scores. A run without its scale is a number
  *                   with nothing behind it, and two runs under two models are not comparable.
  * @param merged     the standing total inside the deduplication window, exactly as
@@ -49,6 +51,8 @@ import java.util.Map;
  *                   stages that rejected something appear, and the enum is not restated here: it has
  *                   grown once already.
  * @param sources    what each source contributed, ordered by name.
+ * @param stages     where the time went, in the order the stages ran. Empty for a run recorded
+ *                   before {@code V14} and for one whose recorder could not write.
  */
 public record LastRunView(
         Instant finishedAt,
@@ -65,4 +69,5 @@ public record LastRunView(
         int review,
         int packaged,
         boolean digestWritten,
-        List<LastRunSource> sources) {}
+        List<LastRunSource> sources,
+        List<LastRunStage> stages) {}

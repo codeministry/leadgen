@@ -22,6 +22,14 @@ import java.util.Map;
  */
 public record FilterReport(Map<FilterStage, Integer> removed, int passed, int considered) {
 
+    /**
+     * The report of a pass that never ran: nothing judged, nothing removed. What a run
+     * that failed before this stage writes into its history row.
+     */
+    public static FilterReport nothing() {
+        return new FilterReport(Map.of(), 0, 0);
+    }
+
     public int removedTotal() {
         return removed.values().stream().mapToInt(Integer::intValue).sum();
     }

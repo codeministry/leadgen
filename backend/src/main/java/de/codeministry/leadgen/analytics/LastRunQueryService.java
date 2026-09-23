@@ -82,8 +82,19 @@ public class LastRunQueryService {
         LIMIT 1
         """;
 
-    private static final String STAGES =
+    private static final String REMOVED =
             "SELECT stage, removed FROM pipeline_run_stage WHERE run_id = :id ORDER BY stage";
+
+    /**
+     * Where the time went, in run order. Read after the row for the same pool reason as the
+     * other two follow-ups; {@code position} is what the recorder wrote, from zero.
+     */
+    private static final String TIMINGS = """
+        SELECT position, stage, started_at, ended_at, status, note
+        FROM pipeline_stage
+        WHERE run_id = :id
+        ORDER BY position
+        """;
 
     /**
      * The source rows of that run, addressed by time because they carry no run id.
@@ -159,7 +170,7 @@ public class LastRunQueryService {
                 run.extracted(),
                 run.written(),
                 run.merged(),
-                stagesOf(run.id()),
+                removedOf(run.id()),
                 run.filterConsidered(),
                 run.filterPassed(),
                 run.scored(),
@@ -167,7 +178,8 @@ public class LastRunQueryService {
                 run.review(),
                 run.packaged(),
                 run.digestWritten(),
-                sourcesSince(run.startedAt())));
+                sourcesSince(run.startedAt()),
+                stagesOf(run.id())));
     }
 
     /**
@@ -190,12 +202,25 @@ public class LastRunQueryService {
             int packaged,
             boolean digestWritten) {}
 
+    private List<LastRunStage> stagesOf(long runId) {
+        return jdbc.sql(TIMINGS)
+                .param("id", runId)
+                .query((rs, index) -> new LastRunStage(
+                        rs.getInt("position"),
+                        rs.getString("stage"),
+                        rs.getTimestamp("started_at").toInstant(),
+                        rs.getTimestamp("ended_at").toInstant(),
+                        rs.getString("status"),
+                        rs.getString("note")))
+                .list();
+    }
+
     /**
      * Insertion-ordered, so the stages arrive in the order the SQL sorted them.
      */
-    private Map<String, Integer> stagesOf(long runId) {
+    private Map<String, Integer> removedOf(long runId) {
         Map<String, Integer> removed = new LinkedHashMap<>();
-        for (Map.Entry<String, Integer> stage : jdbc.sql(STAGES)
+        for (Map.Entry<String, Integer> stage : jdbc.sql(REMOVED)
                 .param("id", runId)
                 .query((rs, index) -> Map.entry(rs.getString("stage"), rs.getInt("removed")))
                 .list()) {
