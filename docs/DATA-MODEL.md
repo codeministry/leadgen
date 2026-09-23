@@ -335,10 +335,11 @@ run from submitting the same offer twice while its answer is on its way.
 about itself: the counts per stage (`documents` through `packaged`), `ruleset_version` and
 `score_model` so two runs can be told apart on a chart, `status`, and since `V19` the four
 live columns `stage`, `stage_position`, `stage_total` and `stage_started_at`. Written only by
-`PipelineRunRecorder`, in four moves: `start` opens the row at `RUNNING` with zeros;
+`PipelineRunRecorder`, in five moves: `start` opens the row at `RUNNING` with zeros;
 `mark` overwrites the live stage as each one begins; `record` fills in the counts and closes
-at `COMPLETE` or `AWAITING_BATCH`; and `complete`, called by the batch collector, moves an
-`AWAITING_BATCH` row to `COMPLETE`. A fifth write, `abandonOpenRuns` at startup, closes any
+at `COMPLETE` or `AWAITING_BATCH`; `recordFailure` closes it at `FAILED` with the counts the
+run had reached when a stage threw; and `complete`, called by the batch collector, moves an
+`AWAITING_BATCH` row to `COMPLETE`. A sixth write, `abandonOpenRuns` at startup, closes any
 row still open from a process that is gone as `ABANDONED`. Read into `analytics/LastRunView`
 and `analytics/CurrentRunView` by `LastRunQueryService` for the dashboard, and into
 `analytics/RunSeries.Pass` by `AnalyticsQueryService`. Not derivable afterwards: the next run
@@ -351,10 +352,11 @@ key `(run_id, stage)`, cascades from `pipeline_run`.
 
 **`pipeline_stage`** (`V14`). Where the time went: one row per timed stage of a run with
 `position`, `stage`, `started_at`, `ended_at`, `status` (`OK` or `FAILED`) and a `note` with
-the failure. Written by `PipelineRunRecorder.record` from the `analytics/StageTiming` list the
-run collected, after the work and together with the run row. Nothing in the application reads
-it yet; it is there to be queried when a run took eleven minutes and the counts do not say
-why. Not to be confused with `pipeline_run_stage` above, which counts offers, not seconds, and
+the failure. Written by `PipelineRunRecorder.record`, or by `recordFailure` when a stage threw,
+from the `analytics/StageTiming` list the run collected, after the work and together with the
+run row. Read by `LastRunQueryService` into `analytics/LastRunStage` and
+`LastRunView.stages`, which the dashboard's last-run panel shows with the slowest stage and a
+failed one marked. Not to be confused with `pipeline_run_stage` above, which counts offers, not seconds, and
 with the live `stage` columns on `pipeline_run`, which say what is happening right now and
 overwrite themselves. Primary key `(run_id, position)`, cascades from `pipeline_run`.
 
@@ -377,7 +379,7 @@ the transitions.
 | `application.status` | `NEW`, `SHORTLISTED`, `PACKAGED`, `SENT`, `REPLIED`, `INTERVIEW`, `OFFER`, `WON`, `LOST`, `REJECTED`, `EXPIRED` | `application/ApplicationStatus`, an enum | the application state machine |
 | `application_event.from_status`, `to_status` | the same eleven, `from_status` null on the opening row | `ApplicationStatus` | |
 | `score_batch.status` | `SUBMITTED`, `COLLECTED`, `FAILED` | string literals in `ScoreBatchService` | the batch state machine |
-| `pipeline_run.status` | `RUNNING`, `COMPLETE`, `AWAITING_BATCH`, `ABANDONED` | string literals in `PipelineRunRecorder` | the run state machine |
+| `pipeline_run.status` | `RUNNING`, `COMPLETE`, `AWAITING_BATCH`, `FAILED`, `ABANDONED` | string literals in `PipelineRunRecorder` | the run state machine |
 | `pipeline_stage.status` | `OK`, `FAILED` | `analytics/StageTiming` constants | |
 | `content_block_label.kind` and the `kind` inside `offer.content_blocks` | `CONTENT`, `CHROME`, `FORM`, `TAXONOMY`, `AGENCY`, `LEGAL` | `content/ContentKind` | |
 | `content_block_label.decided_by` and the `by` inside `offer.content_blocks` | `RULE`, `CACHE`, `MODEL` | `content/Decider` | |

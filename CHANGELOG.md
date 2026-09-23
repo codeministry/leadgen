@@ -22,6 +22,21 @@ may change in any release. See the status note in the README.
   amber for what is taken off the list or closed against us, blue for a run.
 - A parity spec holds the English and German catalogs to the same key set.
 - `src/styles/motion.css`, the first motion tokens.
+- The dashboard's last-run panel shows where the run spent its time, stage by stage, with the
+  slowest stage marked and a failed one named with its reason. `GET /api/v1/ingest/last`
+  carries the timings as `stages`, each with a derived `millis`; `pipeline_stage` is read for
+  the first time.
+- `docs/DATA-MODEL.md` and `docs/BACKEND-FLOWS.md`, and a Mermaid diagram in every guide.
+
+### Fixed
+
+- A run whose stage threw left its history row `RUNNING` with zeros until the next start
+  closed it as `ABANDONED`, and its timings were lost. It now closes as `FAILED` with the
+  counts it had reached and every timing, the failed one last; `POST /api/v1/ingest` answers
+  500 with a sentence naming the stage, the dashboard says where the run stopped, and the
+  run-ended toast says so instead of reporting counts.
+- The runs chart on the analytics screen no longer reads a run that is still going, which
+  reached the browser without a finish date.
 
 ### Changed
 

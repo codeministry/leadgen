@@ -104,7 +104,7 @@ thing that touches the schema.
 | 10  | Open         | `application.ApplicationService`  | A card at `NEW` per offer above the shortlist threshold. What reaching the shortlist buys; the folder waits for a person.                            |
 | 10a | Package      | `packaging.PackagingService`      | The retry for a folder somebody asked for and did not get. Normally zero: a package is built when an application reaches `PACKAGED`.                 |
 | 11  | Digest       | `digest.DigestService`            | A file, and the last thing a run does.                                                                                                               |
-| 12  | Record       | `analytics.PipelineRunRecorder`   | Last, and it cannot throw: a history row is worth less than the run. Writes the per-stage timings `StageLog` collected as the run went.              |
+| 12  | Record       | `analytics.PipelineRunRecorder`   | Last, and it cannot throw: a history row is worth less than the run. Writes the per-stage timings `StageLog` collected, as `COMPLETE` or `AWAITING_BATCH`, or as `FAILED` after a stage threw. |
 
 What each stage selects and which columns it writes is the table in
 [`BACKEND-FLOWS.md` § 1a](BACKEND-FLOWS.md#1a-stage-by-stage); where a rule decides and where

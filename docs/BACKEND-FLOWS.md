@@ -95,12 +95,20 @@ flowchart TB
 Every stage runs inside `analytics/StageLog.time(name, body)`, which does three things: it
 marks the open `pipeline_run` row with the stage's name and position before the work, so the
 dashboard can say what is happening; it records a `StageTiming` after the work; and on a
-`RuntimeException` it records the timing as `FAILED` and rethrows. The rethrow matters. A
-stage that throws ends the run, the request answers 500, and `history.record` at the end of
-`runOnce` is never reached, so the timings are lost with it and the run's row stays
-`RUNNING`. The next start closes such rows as `ABANDONED` (§ 2c). The one exception is a
-source: an `IngestException` from one connector is caught per source, logged, and the run goes
-on with the next one.
+`RuntimeException` it records the timing as `FAILED` and rethrows. The rethrow matters, and
+`runOnce` catches it exactly once, around all the stages. It builds the report from the counts
+the run had reached, with each stage it never got to at the value that stage answers when it is
+switched off, and calls `history.recordFailure`, which closes the row as `FAILED` with every
+timing, the failed one last. Then it logs the trace and rethrows as `IngestService.StageFailed`,
+whose message names the stage. The request answers 500 with that sentence, and `ScheduledPass`
+logs it. Only a process that dies mid-run still leaves a `RUNNING` row, for the next start to
+close as `ABANDONED` (§ 2c).
+
+> [!IMPORTANT]
+> The run's status is stated by the caller and never read off the timings. A source is the
+> exception to the rule above: an `IngestException` from one connector is caught per source,
+> logged, and the run goes on with the next one. Its timing stays `FAILED` under a run that
+> closes `COMPLETE`, and the dashboard shows it as a red row under a run that completed.
 
 ### 1a. Stage by stage
 
@@ -464,7 +472,7 @@ others (no `@Order` anywhere), and none of them fatal:
 | Runs on | Class and method | Does |
 |---|---|---|
 | `ApplicationRunner`, before the ready event | `packaging/OrphanSweep.run` | deletes every folder under `packaging.output_dir` that no `offer.package_dir` names |
-| `ApplicationReadyEvent` | `analytics/PipelineRunRecorder.abandonOpenRuns` | closes every `pipeline_run` with `finished_at IS NULL` as `ABANDONED`; a process that died mid-run left it `RUNNING` |
+| `ApplicationReadyEvent` | `analytics/PipelineRunRecorder.abandonOpenRuns` | closes every `pipeline_run` with `finished_at IS NULL` as `ABANDONED`; a process that died mid-run left it `RUNNING`. A run whose stage threw is already `FAILED` and is not touched |
 | `ApplicationReadyEvent` | `manual/ManualInbox.ensure` | creates the `pending/` and inbox directories of the `manual-inbox` source, if one is configured |
 | `ApplicationReadyEvent` | `ingest/ScheduledPass.announce` | logs whether a cron is configured and in which timezone it will fire |
 | `ApplicationReadyEvent` | `ConfigurationBanner` | logs, per YAML file, which layer won: the classpath default or the file in `leadgen.config-dir` |
@@ -507,7 +515,7 @@ side of the house and are described in [decisions/read-side.md](decisions/read-s
 
 | Endpoint | Controller → service | Writes | Event | Errors |
 |---|---|---|---|---|
-| `POST /api/v1/ingest?model=` | `IngestController.run` → `IngestService.run` | the whole of § 1 | | 409 `AlreadyRunning`, 400 `Judges.UnknownModel` |
+| `POST /api/v1/ingest?model=` | `IngestController.run` → `IngestService.run` | the whole of § 1 | | 409 `AlreadyRunning`, 400 `Judges.UnknownModel`, 500 `StageFailed` naming the stage |
 | `POST /api/v1/offers/{id}/score?model=` | `OfferController.rescore` → `ScoringService.rescore` | the five score columns and the reasons of one offer, without the staleness guard | | 409 `NotOnTheShortlist` or `NoJudge`, 400 `UnknownModel`, 404 |
 | `POST /api/v1/offers/{id}/ask?question=` | `OfferController.ask` → `ask/AdvertAskService.ask` | nothing; reads `content_blocks` and `full_text`, spends one budget call | | 409 `CannotAsk` when no model, no text, or no budget |
 | `PATCH /api/v1/offers/{id}` `{archived}` | `OfferController.patch` → `ArchiveService.setArchived(id, flag)` | `archived_at`, `archive_source` (`MANUAL` or `RESTORED`); on restore, the application back to `NEW` with an event | `OffersArchived` on archive | 404 |
@@ -656,20 +664,25 @@ stateDiagram-v2
     RUNNING --> COMPLETE : record, nothing submitted
     RUNNING --> AWAITING_BATCH : record, a batch submitted
     AWAITING_BATCH --> COMPLETE : ScoreBatchCollector, complete
+    RUNNING --> FAILED : recordFailure, a stage threw
     RUNNING --> ABANDONED : next start, finished_at was null
     COMPLETE --> [*]
+    FAILED --> [*]
     ABANDONED --> [*]
 
     class RUNNING,AWAITING_BATCH live
     class COMPLETE done
-    class ABANDONED dead
+    class FAILED,ABANDONED dead
 ```
 
 `record` stamps `finished_at` on an `AWAITING_BATCH` row too, and `complete` moves it forward
 again; that is why the reporting query bounds a run's source rows by the next run's
-`started_at` rather than by this column. A run that threw never reaches `record` and stays
-`RUNNING` until the next start; the dashboard's "last run" reader excludes `ABANDONED` because
-the row carries zeros and would claim a pass that found nothing.
+`started_at` rather than by this column. A run whose stage threw closes as `FAILED` with its
+counts up to that stage and all its timings, and the "last run" reader includes it, because
+those counts are real and the stage table says where it stopped. It excludes `ABANDONED`,
+because that row carries zeros and would claim a pass that found nothing. A batch submitted
+before a later stage threw is still collected and its offers scored; only the `FAILED` row
+does not move, because `complete` looks for `AWAITING_BATCH`.
 
 ### `score_batch.status`
 
