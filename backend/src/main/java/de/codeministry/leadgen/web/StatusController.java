@@ -28,7 +28,7 @@ public class StatusController {
     // generate a constructor without them.
     StatusController(
             @Value("${spring.application.name}") String application,
-            @Value("${leadgen.version:0.4.2}") String version) {
+            @Value("${leadgen.version:0.4.3}") String version) {
         this.application = application;
         this.version = version;
     }

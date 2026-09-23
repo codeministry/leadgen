@@ -19,7 +19,7 @@ import org.springframework.test.web.servlet.assertj.MockMvcTester;
 // into the `spring-boot-webmvc-test` module. The old import compiles against
 // Boot 3 and simply does not exist here.
 @WebMvcTest(StatusController.class)
-@TestPropertySource(properties = {"spring.application.name=lead-generation", "leadgen.version=0.4.2"})
+@TestPropertySource(properties = {"spring.application.name=lead-generation", "leadgen.version=0.4.3"})
 class StatusControllerTest {
 
     @Autowired
@@ -30,6 +30,6 @@ class StatusControllerTest {
         Assertions.assertThat(mvc.get().uri("/api/v1/status"))
                 .hasStatusOk()
                 .bodyJson()
-                .isEqualTo("{\"application\":\"lead-generation\",\"version\":\"0.4.2\"}");
+                .isEqualTo("{\"application\":\"lead-generation\",\"version\":\"0.4.3\"}");
     }
 }

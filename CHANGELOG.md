@@ -9,6 +9,12 @@ may change in any release. See the status note in the README.
 
 ## [Unreleased]
 
+## [0.4.3] — 2026-09-23
+
+Each instance keeps its own place in a shared mailbox, and the shortlist archives from the
+keyboard. Nothing about how the artifact is built or run changed, so this is a patch, with one
+breaking configuration change in it.
+
 ### Added
 
 - **Each instance keeps its own place in the mailbox.** The IMAP progress flag was the constant
@@ -1116,7 +1122,8 @@ Found while building the demo, all of them in paths only a container exercises:
   left six.
 - The shortlist card printed the description's Markdown syntax in its teaser.
 
-[Unreleased]: https://github.com/codeministry/leadgen/compare/v0.4.2...HEAD
+[Unreleased]: https://github.com/codeministry/leadgen/compare/v0.4.3...HEAD
+[0.4.3]: https://github.com/codeministry/leadgen/releases/tag/v0.4.3
 [0.4.2]: https://github.com/codeministry/leadgen/releases/tag/v0.4.2
 [0.4.1]: https://github.com/codeministry/leadgen/releases/tag/v0.4.1
 [0.4.0]: https://github.com/codeministry/leadgen/releases/tag/v0.4.0
