@@ -1,0 +1,45 @@
+<!--
+  A polite live region, and a `status` rather than an `alert`: nothing here is an error, so
+  nothing interrupts. Each toast is its own child, which is what gets a new one announced
+  on its own rather than the whole region read again. The region is always in the DOM,
+  empty or not — a live region that appears together with its first message is not
+  announced, because assistive technology watches for changes inside a region it already
+  knows.
+
+  The container itself is DaisyUI's `toast`, fixed to a corner; which corner is the
+  stylesheet's business, because it depends on where the navigation is.
+-->
+<div
+  class="toast lg-toasts"
+  role="status"
+  aria-live="polite"
+  [attr.aria-label]="'toast.region' | transloco"
+>
+  @for (toast of store.toasts(); track toast.id) {
+    <!-- The hold is the pointer's or the focus's, and the button inside is what takes focus,
+         so `focusin`/`focusout` on the row covers the keyboard the way `pointerenter` covers
+         the mouse. Nothing calls `.focus()`: a toast that stole the cursor from a search box
+         would be worse than no toast. -->
+    <div
+      [class]="'alert alert-soft ' + toneClass[toast.tone]"
+      (pointerenter)="hold(toast.id)"
+      (pointerleave)="release(toast.id)"
+      (focusin)="hold(toast.id)"
+      (focusout)="release(toast.id)"
+    >
+      <span class="type-small line">{{ toast.key | transloco: toast.params }}</span>
+      @if (toast.link; as link) {
+        <a class="btn btn-ghost btn-xs" [routerLink]="link">{{ 'toast.open' | transloco }}</a>
+      }
+      <button
+        type="button"
+        class="btn btn-ghost btn-xs btn-square"
+        [attr.aria-label]="'toast.close' | transloco"
+        [attr.title]="'toast.close' | transloco"
+        (click)="dismiss(toast.id)"
+      >
+        <lg-icon name="x" [size]="14"/>
+      </button>
+    </div>
+  }
+</div>

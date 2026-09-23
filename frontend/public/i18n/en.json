@@ -30,6 +30,13 @@
     "runSince": "A run has been going since {time}",
     "runSinceStage": "A run has been going since {time} — {stage}"
   },
+  "toast": {
+    "region": "Notifications",
+    "close": "Dismiss",
+    "open": "Open",
+    "archived": "Archived: {title}",
+    "restored": "Restored: {title}"
+  },
   "theme": {
     "legend": "Colour theme",
     "system": "Match the system",

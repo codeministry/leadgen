@@ -30,6 +30,13 @@
     "runSince": "Ein Lauf läuft seit {time}",
     "runSinceStage": "Ein Lauf läuft seit {time} — {stage}"
   },
+  "toast": {
+    "region": "Benachrichtigungen",
+    "close": "Schließen",
+    "open": "Öffnen",
+    "archived": "Archiviert: {title}",
+    "restored": "Wiederhergestellt: {title}"
+  },
   "theme": {
     "legend": "Farbschema",
     "system": "Wie das System",

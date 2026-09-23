@@ -5,10 +5,11 @@ import {filter, map} from 'rxjs';
 import {injectDispatch} from '@ngrx/signals/events';
 import {statusEvents} from '@core/store/status.events';
 import {AppHeader} from '../app-header/app-header';
+import {ToastStack} from '../toast-stack/toast-stack';
 
 @Component({
     selector: 'lg-app-shell',
-  imports: [AppHeader, RouterOutlet],
+  imports: [AppHeader, RouterOutlet, ToastStack],
     templateUrl: './app-shell.html',
     styleUrl: './app-shell.css',
     changeDetection: ChangeDetectionStrategy.OnPush,

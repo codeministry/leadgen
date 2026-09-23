@@ -1,0 +1,12 @@
+/* Motion tokens. Durations and easings live here as custom properties and nowhere else as
+   literals, the same rule `tokens.css` holds for colour aliases and layout constants. A
+   stylesheet that needs a transition reads one of these; a new one is added here first.
+
+   The toast's reveal is DaisyUI's own quarter second, kept, and its easing. The lifetime
+   the toast stands for is not a motion and lives in `core/toast/toast.model.ts`, because
+   the timer that reads it is TypeScript. */
+
+:root {
+    --lg-toast-enter: 0.25s;
+    --lg-toast-ease: ease-out;
+}
