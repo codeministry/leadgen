@@ -121,8 +121,7 @@ class JudgeIsBuiltPerRunTest {
         assertThat(reasonsOf(id)).isPositive();
 
         pointConfigAtTheStub();
-        answers(
-                """
+        answers("""
             {"reasons":[{"factor":"role_fit","label":"backend engagement, the target role","points":15}]}
             """);
 
@@ -186,17 +185,11 @@ class JudgeIsBuiltPerRunTest {
     }
 
     private long offer(String title, String description) {
-        return jdbc.queryForObject(
-                """
+        return jdbc.queryForObject("""
             INSERT INTO offer (source_id, external_id, title, description, url, fingerprint, status)
             VALUES (?, ?, ?, ?, 'https://example.invalid/x', 'fp', 'PASSED')
             RETURNING id
-            """,
-                Long.class,
-                sourceId,
-                "ext-" + System.nanoTime(),
-                title,
-                description);
+            """, Long.class, sourceId, "ext-" + System.nanoTime(), title, description);
     }
 
     /**

@@ -19,8 +19,7 @@ import org.junit.jupiter.api.Test;
  */
 class AdvertTextTest {
 
-    private static final String BLOCKS =
-            """
+    private static final String BLOCKS = """
             [{"index":0,"kind":"CONTENT","text":"Ablösung eines Monolithen.","reason":"t","by":"RULE"},
              {"index":1,"kind":"AGENCY","text":"Acme Consulting GmbH, HRB 12345.","reason":"t","by":"MODEL"}]
             """;

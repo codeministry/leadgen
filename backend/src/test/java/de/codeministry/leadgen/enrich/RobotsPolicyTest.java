@@ -44,8 +44,7 @@ class RobotsPolicyTest {
 
     @Test
     void prefersTheGroupThatNamesUsOverTheWildcard() {
-        var policy = serving(
-                """
+        var policy = serving("""
             User-agent: *
             Disallow: /
 

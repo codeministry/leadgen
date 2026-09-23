@@ -323,15 +323,11 @@ class ArchiveServiceTest {
         archive.setArchived(List.of(back), false);
 
         assertThat(status(back)).isEqualTo("NEW");
-        assertThat(jdbc.queryForObject(
-                        """
+        assertThat(jdbc.queryForObject("""
                 SELECT count(*) FROM application_event e JOIN application a ON a.id = e.application_id
                 WHERE a.offer_id = ? AND e.from_status = 'PACKAGED' AND e.to_status = 'NEW'
                   AND e.note = 'restored'
-                """,
-                        Integer.class,
-                        back))
-                .isEqualTo(1);
+                """, Integer.class, back)).isEqualTo(1);
     }
 
     @Test
@@ -381,18 +377,11 @@ class ArchiveServiceTest {
     }
 
     private long offer(String title, LocalDate publishedOn) {
-        return jdbc.queryForObject(
-                """
+        return jdbc.queryForObject("""
             INSERT INTO offer (source_id, external_id, title, url, fingerprint, status, published_on)
             VALUES (?, ?, ?, 'https://example.invalid/x', ?, 'PASSED', ?)
             RETURNING id
-            """,
-                Long.class,
-                sourceId,
-                title,
-                title,
-                title.toLowerCase(),
-                publishedOn);
+            """, Long.class, sourceId, title, title, title.toLowerCase(), publishedOn);
     }
 
     private void application(long offerId, String status) {

@@ -54,8 +54,7 @@ public class SourceDetailService {
      * <p>{@code ran_at::date} is deliberate. A mailbox read at 03:14 says when the operator's
      * cron runs and nothing this panel is for, and this screen's pictures get published.
      */
-    private static final String HISTORY =
-            """
+    private static final String HISTORY = """
         SELECT h.ran_on, h.documents, h.extracted, h.written, h.announced, h.previous_extracted
         FROM (SELECT r.ran_at,
                      r.ran_at::date AS ran_on,

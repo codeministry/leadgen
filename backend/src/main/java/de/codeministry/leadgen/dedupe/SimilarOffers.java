@@ -43,8 +43,7 @@ public class SimilarOffers {
      * it: Postgres answers "invalid reference to FROM-clause entry for table a", which reads
      * like a typo in an alias that is plainly there.
      */
-    private static final String MERGE =
-            """
+    private static final String MERGE = """
             WITH pair AS (
                 SELECT a.id AS id,
                        (SELECT b.id
@@ -74,8 +73,7 @@ public class SimilarOffers {
      * The same shape, one column over. A row that was merged is skipped: it has an answer
      * already, and a maybe beside a yes is noise.
      */
-    private static final String FLAG =
-            """
+    private static final String FLAG = """
             WITH pair AS (
                 SELECT a.id AS id,
                        (SELECT b.id
@@ -107,8 +105,7 @@ public class SimilarOffers {
      * transitive, so there is no equivalence class to compute the way the exact pass does —
      * the chain is shortened afterwards instead.
      */
-    private static final String FLATTEN =
-            """
+    private static final String FLATTEN = """
             UPDATE offer a
                SET duplicate_of_id = b.duplicate_of_id
               FROM offer b

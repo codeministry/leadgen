@@ -42,8 +42,7 @@ import org.junit.jupiter.api.Test;
 class LlmStrategyTest {
 
     /** A direct enquiry: one mail, one project, no structure anywhere in it. */
-    private static final String PROSE =
-            """
+    private static final String PROSE = """
             Hallo,
 
             wir suchen ab Oktober Unterstützung für die Ablösung eines Monolithen,

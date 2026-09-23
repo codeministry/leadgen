@@ -46,15 +46,12 @@ public class PageCache {
 
     @Transactional
     public void store(String url, int status, String body) {
-        jdbc.sql(
-                        """
+        jdbc.sql("""
             INSERT INTO fetched_page (url, status, body, fetched_at)
             VALUES (?, ?, ?, now())
             ON CONFLICT (url) DO UPDATE
             SET status = EXCLUDED.status, body = EXCLUDED.body, fetched_at = now()
-            """)
-                .params(url, status, body)
-                .update();
+            """).params(url, status, body).update();
     }
 
     /**

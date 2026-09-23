@@ -101,8 +101,7 @@ class ScoringWithAModelTest {
 
     @Test
     void scoresWithTheConfiguredWeightsAndStatesAReasonPerFactor() {
-        answers(
-                """
+        answers("""
             {"reasons":[
               {"factor":"role_fit","label":"backend engagement, the target role","points":15},
               {"factor":"vague_description","label":"team size and scope are left open","points":-10}
@@ -138,8 +137,7 @@ class ScoringWithAModelTest {
     void dropsAFactorTheModelInvented() {
         // The weight table decides, not the answer. A factor nobody asked about is an
         // answer to a different question.
-        answers(
-                """
+        answers("""
             {"reasons":[
               {"factor":"role_fit","label":"fits","points":15},
               {"factor":"vibes","label":"feels right","points":40}
@@ -215,8 +213,7 @@ class ScoringWithAModelTest {
         // absence is not an opinion — it is a model that did not follow the instruction.
         // Measured before this rule existed: 63 of 101 scored offers had no judged factor
         // at all and every one of them still carried a number.
-        answers(
-                """
+        answers("""
             {"reasons":[
               {"factor":"vague_description","label":"says almost nothing","points":-10}
             ]}
@@ -235,8 +232,7 @@ class ScoringWithAModelTest {
         // A weight is a share of what was attainable, so a role that genuinely does not fit
         // has to stay in the denominator. Dropped, the offer would be scored as though role
         // fit had never been asked about, and a bad match would read as a good one.
-        answers(
-                """
+        answers("""
             {"reasons":[
               {"factor":"role_fit","label":"a QA role, not an engineering one","points":0}
             ]}
@@ -257,8 +253,7 @@ class ScoringWithAModelTest {
      */
     @Test
     void judgesWithTheModelTheRunNames() {
-        answers(
-                """
+        answers("""
             {"reasons":[{"factor":"role_fit","label":"backend engagement","points":15}]}
             """);
         long id = offer("Senior Java Entwickler (m/w/d)", "Java 21 und Spring Boot");
@@ -348,17 +343,11 @@ class ScoringWithAModelTest {
     }
 
     private long offer(String title, String description) {
-        return jdbc.queryForObject(
-                """
+        return jdbc.queryForObject("""
             INSERT INTO offer (source_id, external_id, title, description, url, fingerprint, status)
             VALUES (?, ?, ?, ?, 'https://example.invalid/x', 'fp', 'PASSED')
             RETURNING id
-            """,
-                Long.class,
-                sourceId,
-                "ext-" + System.nanoTime(),
-                title,
-                description);
+            """, Long.class, sourceId, "ext-" + System.nanoTime(), title, description);
     }
 
     /**

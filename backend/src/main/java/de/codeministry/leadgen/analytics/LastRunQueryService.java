@@ -50,8 +50,7 @@ public class LastRunQueryService {
      * claim a pass that found nothing — the same reason a {@code RUNNING} row is not reported
      * here either.
      */
-    private static final String LAST_RUN =
-            """
+    private static final String LAST_RUN = """
         SELECT id, started_at, finished_at, status, score_model,
                extracted, written, merged,
                filter_considered, filter_passed,
@@ -75,8 +74,7 @@ public class LastRunQueryService {
      * lock and answers 409 to a second pass, but a process killed mid-run leaves its row open
      * forever, and the honest thing for a reader is the newest one rather than an error.
      */
-    private static final String CURRENT_RUN =
-            """
+    private static final String CURRENT_RUN = """
         SELECT id, started_at, score_model, stage, stage_position, stage_total, stage_started_at
         FROM pipeline_run
         WHERE finished_at IS NULL
@@ -106,8 +104,7 @@ public class LastRunQueryService {
      * <p>Joined to {@code source} for the name, which is the id the report and the screens
      * speak in. The numeric key is the database's business.
      */
-    private static final String SOURCES =
-            """
+    private static final String SOURCES = """
         SELECT s.name AS source_id, r.documents, r.extracted, r.written, r.announced
         FROM source_run r
         JOIN source s ON s.id = r.source_id

@@ -68,8 +68,7 @@ class YamlMaskTest {
 
     @Test
     void masksAWholeBlockScalarUnderASecretKey() {
-        String masked = YamlMask.apply(
-                """
+        String masked = YamlMask.apply("""
             connections:
               - id: one
                 password: >

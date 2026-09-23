@@ -34,15 +34,13 @@ public class FilterService {
     /**
      * An offer that has never been judged, or was judged under rules that have since changed.
      */
-    private static final String SELECT_ALL =
-            """
+    private static final String SELECT_ALL = """
         SELECT id, title, description, location, tags, published_on
         FROM offer
         ORDER BY id
         """;
 
-    private static final String RECORD_VERDICT =
-            """
+    private static final String RECORD_VERDICT = """
         UPDATE offer SET status = ?, filter_stage = ?, filter_reason = ? WHERE id = ?
         """;
 

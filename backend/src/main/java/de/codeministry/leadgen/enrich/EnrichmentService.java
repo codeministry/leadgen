@@ -32,16 +32,14 @@ import org.springframework.stereotype.Service;
 @Service
 public class EnrichmentService {
 
-    private static final String DUE =
-            """
+    private static final String DUE = """
         SELECT id, url FROM offer
         WHERE status = 'PASSED' AND archived_at IS NULL
           AND enriched_at IS NULL AND url IS NOT NULL
         ORDER BY id
         """;
 
-    private static final String RECORD =
-            """
+    private static final String RECORD = """
         UPDATE offer
         SET rate_eur = ?, duration = ?, workload = ?, remote_percent = ?, starts_on = ?,
             contact = ?, full_text = ?, enriched_at = now(), enrichment_note = ?

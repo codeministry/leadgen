@@ -38,8 +38,7 @@ class IngestServiceTest {
     @ServiceConnection
     static final PostgreSQLContainer<?> POSTGRES = Databases.postgres();
 
-    private static final String MANUAL_OFFER =
-            """
+    private static final String MANUAL_OFFER = """
         ---
         title: Senior Java Entwickler, gefunden auf LinkedIn
         url: https://portal.example/p/98765

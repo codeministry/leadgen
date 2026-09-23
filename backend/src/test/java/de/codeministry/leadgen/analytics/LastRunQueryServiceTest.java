@@ -265,12 +265,7 @@ class LastRunQueryServiceTest {
                     packaged, digest_written)
                 VALUES (?, ?, '1', ?, ?, 5, 169, 151, 18, 169, 73, 73, 0, 73, 0, 0, 67, 67, 0, 7, 13, 0, 7, true)
                 RETURNING id
-                """,
-                Long.class,
-                Timestamp.from(startedAt),
-                Timestamp.from(finishedAt),
-                scoreModel,
-                status);
+                """, Long.class, Timestamp.from(startedAt), Timestamp.from(finishedAt), scoreModel, status);
     }
 
     private void stage(long runId, String stage, int removed) {
@@ -281,8 +276,7 @@ class LastRunQueryServiceTest {
      * The row a run opens with: RUNNING, zeros, and no finished_at. See V15.
      */
     private void open(Instant startedAt) {
-        jdbc.update(
-                """
+        jdbc.update("""
             INSERT INTO pipeline_run (
                 started_at, ruleset_version, score_model, status,
                 documents, extracted, written, merged,
@@ -291,8 +285,7 @@ class LastRunQueryServiceTest {
                 score_considered, scored, unscored, shortlisted, review, submitted,
                 packaged, digest_written)
             VALUES (?, '1', 'in-flight', 'RUNNING', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, false)
-            """,
-                Timestamp.from(startedAt));
+            """, Timestamp.from(startedAt));
     }
 
     private void mark(String stage, int position, int total) {

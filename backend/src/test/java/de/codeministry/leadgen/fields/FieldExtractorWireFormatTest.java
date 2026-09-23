@@ -66,8 +66,7 @@ class FieldExtractorWireFormatTest {
         // The second half is the point: a model told to find a start date while the row
         // beside it already states one knows less than the application does, and the
         // correction it is asked for cannot be made against a value it cannot see.
-        answers(
-                """
+        answers("""
             {"start":{"text":"ab sofort","date":null},
              "duration":{"text":"6 Monate","months":6},
              "deadline":{"text":null,"date":null}}
@@ -83,8 +82,7 @@ class FieldExtractorWireFormatTest {
 
     @Test
     void keepsThePhraseAndTheResolvedValueSideBySide() {
-        answers(
-                """
+        answers("""
             {"start":{"text":"ab sofort","date":null},
              "duration":{"text":"6 Monate mit Option auf Verlängerung","months":6},
              "deadline":{"text":"Bewerbungen bis 30.09.2026","date":"2026-09-30"}}
@@ -103,8 +101,7 @@ class FieldExtractorWireFormatTest {
     void treatsAnAdvertThatStatesNothingAsAnAnswer() {
         // Most adverts state no deadline at all. "Nothing" is a finished decision and has to
         // stay distinguishable from "the model did not answer", which leaves the offer due.
-        answers(
-                """
+        answers("""
             {"start":{"text":null,"date":null},
              "duration":{"text":null,"months":null},
              "deadline":{"text":null,"date":null}}
@@ -133,8 +130,7 @@ class FieldExtractorWireFormatTest {
     void dropsAValueItCannotQuoteTheAdvertFor() {
         // A date with no phrase is a date the model inferred. Kept, it would be the one field
         // on the screen nobody can check against the advert beside it.
-        answers(
-                """
+        answers("""
             {"start":{"text":null,"date":"2026-11-01"},
              "duration":{"text":null,"months":12},
              "deadline":{"text":null,"date":"2026-10-01"}}
@@ -148,13 +144,11 @@ class FieldExtractorWireFormatTest {
     @ParameterizedTest
     @MethodSource("outOfBounds")
     void dropsAValueOutsideTheBoundsAndKeepsTheRest(String duration, String deadline) {
-        answers(
-                """
+        answers("""
                 {"start":{"text":"ab sofort","date":null},
                  "duration":{"text":"lange","months":%s},
                  "deadline":{"text":"bald","date":%s}}
-                """
-                        .formatted(duration, deadline));
+                """.formatted(duration, deadline));
 
         ExtractedFields fields = extractor().extract(OFFER).orElseThrow();
 
@@ -179,21 +173,18 @@ class FieldExtractorWireFormatTest {
     @Test
     void cutsAPhraseRatherThanLettingTheAdvertComeBackAsOne() {
         String wall = "x".repeat(500);
-        answers(
-                """
+        answers("""
                 {"start":{"text":"%s","date":null},
                  "duration":{"text":null,"months":null},
                  "deadline":{"text":null,"date":null}}
-                """
-                        .formatted(wall));
+                """.formatted(wall));
 
         assertThat(extractor().extract(OFFER).orElseThrow().startText()).hasSize(FieldExtractor.MAX_PHRASE);
     }
 
     @Test
     void findsTheObjectInsideAFenceAndInsideAnIntroduction() {
-        answers(
-                """
+        answers("""
             Here is what the advert says:
             ```json
             {"start":{"text":"ab 01.12.2026","date":"2026-12-01"},
@@ -234,14 +225,11 @@ class FieldExtractorWireFormatTest {
                 .willReturn(aResponse()
                         .withStatus(200)
                         .withHeader("Content-Type", "application/json")
-                        .withBody(
-                                """
+                        .withBody("""
                         {"id":"chat-1","object":"chat.completion","created":1,"model":"a-model",
                          "choices":[{"index":0,"finish_reason":"stop",
                                      "message":{"role":"assistant","content":%s}}]}
-                        """
-                                        .formatted(new ObjectMapper()
-                                                .valueToTree(content)
-                                                .toString()))));
+                        """.formatted(
+                                        new ObjectMapper().valueToTree(content).toString()))));
     }
 }

@@ -29,8 +29,7 @@ class DotEnvTest {
 
     @Test
     void readsAssignments() throws IOException {
-        DotEnv dotenv = write(
-                """
+        DotEnv dotenv = write("""
             # a comment
             IMAP_HOST=imap.example.org
             IMAP_PORT=993   # a trailing comment is not part of the value

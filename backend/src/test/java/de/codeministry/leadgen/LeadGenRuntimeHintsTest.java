@@ -47,9 +47,10 @@ class LeadGenRuntimeHintsTest {
 
         // Guards the guard: a wrong path would make every assertion below vacuous.
         assertThat(resources).hasSizeGreaterThanOrEqualTo(7);
-        assertThat(resources).allSatisfy(resource -> assertThat(
-                        RuntimeHintsPredicates.resource().forResource(resource))
-                .as(resource)
-                .accepts(hints));
+        assertThat(resources)
+                .allSatisfy(
+                        resource -> assertThat(RuntimeHintsPredicates.resource().forResource(resource))
+                                .as(resource)
+                                .accepts(hints));
     }
 }

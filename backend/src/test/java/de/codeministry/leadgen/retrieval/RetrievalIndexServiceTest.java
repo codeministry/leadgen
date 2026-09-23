@@ -201,21 +201,17 @@ class RetrievalIndexServiceTest {
         // every advert from one agency look alike.
         answersWith(Vectors.DIMENSIONS, 1);
         long offer = insert("Senior Java Entwickler (m/w/d)", "Köln");
-        jdbc.update(
-                """
+        jdbc.update("""
                 UPDATE offer
                    SET content_blocks = CAST(? AS jsonb),
                        full_text = ?,
                        content_at = now(),
                        status = 'PASSED'
                  WHERE id = ?
-                """,
-                """
+                """, """
                 [{"index":0,"kind":"CONTENT","text":"Ablösung eines Kernbankensystems.","reason":"t","by":"RULE"},
                  {"index":1,"kind":"AGENCY","text":"Acme Consulting GmbH, Amtsgericht Köln HRB 12345.","reason":"t","by":"RULE"}]
-                """,
-                "Acme Consulting GmbH, Amtsgericht Köln HRB 12345. Jetzt bewerben.",
-                offer);
+                """, "Acme Consulting GmbH, Amtsgericht Köln HRB 12345. Jetzt bewerben.", offer);
 
         index.run();
 
@@ -343,13 +339,11 @@ class RetrievalIndexServiceTest {
                 .willReturn(aResponse()
                         .withStatus(200)
                         .withHeader("Content-Type", "application/json")
-                        .withBody(
-                                """
+                        .withBody("""
                                 {"object":"list","model":"test-embed",
                                  "usage":{"prompt_tokens":1,"total_tokens":1},
                                  "data":[%s]}
-                                """
-                                        .formatted(data))));
+                                """.formatted(data))));
     }
 
     /**

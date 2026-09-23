@@ -33,8 +33,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class ApplicationService {
 
-    private static final String SELECT =
-            """
+    private static final String SELECT = """
         SELECT a.id, a.offer_id, a.status, a.sent_on, a.follow_up_on, a.outcome, a.note,
                a.updated_at, o.title, o.agency, o.portal, o.url, o.score_value, o.rate_eur,
                o.package_dir
@@ -49,8 +48,7 @@ public class ApplicationService {
      * here — {@link ApplicationStatus#isLive()} exempts it — so what this hides is something a
      * person archived by hand, which is the clearest statement available that it is done with.
      */
-    private static final String BOARD = SELECT
-            + """
+    private static final String BOARD = SELECT + """
         WHERE o.archived_at IS NULL
         ORDER BY o.score_value DESC NULLS LAST, a.updated_at DESC
         """;
@@ -78,8 +76,7 @@ public class ApplicationService {
      * hundred rows after a first run, and the event row per opened application is the same
      * write either way.
      */
-    private static final String OPEN_SHORTLISTED =
-            """
+    private static final String OPEN_SHORTLISTED = """
         WITH opened AS (
             INSERT INTO application (offer_id, status)
             SELECT o.id, 'NEW'
@@ -98,8 +95,7 @@ public class ApplicationService {
     /**
      * How many offers the shortlist holds, whether or not they already have a card.
      */
-    private static final String SHORTLIST_STANDING =
-            """
+    private static final String SHORTLIST_STANDING = """
         SELECT count(*) FROM offer o
         WHERE o.status = 'PASSED'
           AND o.duplicate_of_id IS NULL
@@ -250,8 +246,7 @@ public class ApplicationService {
         }
         String outcome = withdrawn ? null : (update.outcome() != null ? update.outcome() : before.outcome());
 
-        jdbc.sql(
-                        """
+        jdbc.sql("""
             UPDATE application
             SET status = ?, sent_on = ?, follow_up_on = ?, outcome = ?, note = ?, updated_at = now()
             WHERE id = ?
@@ -281,8 +276,7 @@ public class ApplicationService {
     }
 
     public List<ApplicationEvent> history(long id) {
-        return jdbc.sql(
-                        """
+        return jdbc.sql("""
             SELECT from_status, to_status, note, recorded_at
             FROM application_event WHERE application_id = ? ORDER BY recorded_at DESC
             """)
@@ -315,8 +309,7 @@ public class ApplicationService {
     }
 
     private void record(long applicationId, ApplicationStatus from, ApplicationStatus to, String note) {
-        jdbc.sql(
-                        """
+        jdbc.sql("""
             INSERT INTO application_event (application_id, from_status, to_status, note)
             VALUES (?, ?, ?, ?)
             """)

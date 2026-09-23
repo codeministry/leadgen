@@ -78,8 +78,7 @@ class ContentClassifierWireFormatTest {
 
     @Test
     void keepsWhatItWasOfferedAndDropsWhatItWasNot() {
-        answers(
-                """
+        answers("""
                 {"blocks":[{"index":0,"kind":"CHROME","reason":"Portal buttons."},
                            {"index":2,"kind":"AGENCY","reason":"The recruiter's register entry."},
                            {"index":9,"kind":"CHROME","reason":"A block nobody asked about."},
@@ -99,8 +98,7 @@ class ContentClassifierWireFormatTest {
         // The instruction is to omit a block that belongs to the advert. A model that answers
         // CONTENT means the same thing, and acting on it would write a decision where the
         // honest state is "this is the ad".
-        answers(
-                """
+        answers("""
             {"blocks":[{"index":1,"kind":"CONTENT","reason":"This is the advert."}]}
             """);
 
@@ -109,8 +107,7 @@ class ContentClassifierWireFormatTest {
 
     @Test
     void findsTheObjectInsideAFenceAndInsideAnIntroduction() {
-        answers(
-                """
+        answers("""
                 Here is what I found:
                 ```json
                 {"blocks":[{"index":0,"kind":"FORM","reason":"A dialog."}]}
@@ -188,14 +185,11 @@ class ContentClassifierWireFormatTest {
                 .willReturn(aResponse()
                         .withStatus(200)
                         .withHeader("Content-Type", "application/json")
-                        .withBody(
-                                """
+                        .withBody("""
                         {"id":"chat-1","object":"chat.completion","created":1,"model":"a-model",
                          "choices":[{"index":0,"finish_reason":"stop",
                                      "message":{"role":"assistant","content":%s}}]}
-                        """
-                                        .formatted(new ObjectMapper()
-                                                .valueToTree(content)
-                                                .toString()))));
+                        """.formatted(
+                                        new ObjectMapper().valueToTree(content).toString()))));
     }
 }

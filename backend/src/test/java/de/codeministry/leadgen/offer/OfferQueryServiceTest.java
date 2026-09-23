@@ -368,16 +368,13 @@ class OfferQueryServiceTest {
         // The dropdown built from the working list must not offer a portal that only ever
         // appears in the archive: choosing it would produce an empty list and no reason.
         passed("Aktuell", 88);
-        long archived = jdbc.queryForObject(
-                """
+        long archived = jdbc.queryForObject("""
             INSERT INTO offer (source_id, external_id, title, url, fingerprint, status, portal,
                                archived_at, archive_source)
             VALUES (?, 'a', 'Archiviert', 'https://example.invalid/a', 'archiviert', 'PASSED', 'portal-c',
                     now(), 'AGE')
             RETURNING id
-            """,
-                Long.class,
-                sourceId);
+            """, Long.class, sourceId);
 
         assertThat(offers.shortlist(ShortlistQuery.first()).portals()).containsExactly("portal-a");
         assertThat(offers.shortlist(new ShortlistQuery(
@@ -873,8 +870,7 @@ class OfferQueryServiceTest {
      */
     private static String block(String kind, String text) {
         return """
-            {"index": 0, "kind": "%s", "text": "%s", "reason": "fixture", "by": "RULE"}"""
-                .formatted(kind, text);
+            {"index": 0, "kind": "%s", "text": "%s", "reason": "fixture", "by": "RULE"}""".formatted(kind, text);
     }
 
     private void segment(long offer, String... blocks) {
@@ -910,32 +906,19 @@ class OfferQueryServiceTest {
     }
 
     private long rejected(String title) {
-        return jdbc.queryForObject(
-                """
+        return jdbc.queryForObject("""
             INSERT INTO offer (source_id, external_id, title, url, fingerprint, status, filter_stage)
             VALUES (?, ?, ?, 'https://example.invalid/x', ?, 'REJECTED', 'ABROAD')
             RETURNING id
-            """,
-                Long.class,
-                sourceId,
-                title,
-                title,
-                title.toLowerCase());
+            """, Long.class, sourceId, title, title, title.toLowerCase());
     }
 
     private void duplicateOf(long primary, String portal, String agency) {
-        jdbc.update(
-                """
+        jdbc.update("""
             INSERT INTO offer (source_id, external_id, title, url, fingerprint, status, portal, agency,
                                duplicate_of_id)
             VALUES (?, ?, 'Senior Java Entwickler', ?, 'senior java entwickler', 'PASSED', ?, ?, ?)
-            """,
-                sourceId,
-                portal + primary,
-                "https://" + portal + "/x",
-                portal,
-                agency,
-                primary);
+            """, sourceId, portal + primary, "https://" + portal + "/x", portal, agency, primary);
     }
 
     private void reason(long offerId, String factor, String label, int points, int position) {

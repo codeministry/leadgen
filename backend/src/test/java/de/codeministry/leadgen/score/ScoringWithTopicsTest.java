@@ -194,8 +194,9 @@ class ScoringWithTopicsTest {
             assertThat(row).containsEntry("factor", "interest_judged");
             assertThat(row).containsEntry("points", 12);
         });
-        assertThat(topicRows(both)).singleElement().satisfies(row -> assertThat(row)
-                .containsEntry("factor", "interest_fit"));
+        assertThat(topicRows(both))
+                .singleElement()
+                .satisfies(row -> assertThat(row).containsEntry("factor", "interest_fit"));
         assertThat(scoreOf(both)).isEqualTo(scoreOf(paraphrased));
         assertThat(scoreOf(plain)).isEqualTo(scoreOf(paraphrased));
         MODEL.verify(postRequestedFor(urlPathEqualTo("/chat/completions"))
@@ -301,17 +302,11 @@ class ScoringWithTopicsTest {
     }
 
     private long offer(String title, String description) {
-        return jdbc.queryForObject(
-                """
+        return jdbc.queryForObject("""
             INSERT INTO offer (source_id, external_id, title, description, url, fingerprint, status)
             VALUES (?, ?, ?, ?, 'https://example.invalid/x', 'fp', 'PASSED')
             RETURNING id
-            """,
-                Long.class,
-                sourceId,
-                "ext-" + System.nanoTime(),
-                title,
-                description);
+            """, Long.class, sourceId, "ext-" + System.nanoTime(), title, description);
     }
 
     /**

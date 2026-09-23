@@ -112,7 +112,8 @@ public class ChatModels {
      */
     private ChatModel openAi(String baseUrl, String apiKey, String model, Duration timeout) {
         return models.computeIfAbsent(
-                cacheKey(OPENAI_COMPATIBLE, baseUrl, apiKey, model, timeout), ignored -> OpenAiChatModel.builder()
+                cacheKey(OPENAI_COMPATIBLE, baseUrl, apiKey, model, timeout),
+                ignored -> OpenAiChatModel.builder()
                         .openAiClient(OpenAiSetup.setupSyncClient(
                                 baseUrl,
                                 apiKey,
@@ -169,7 +170,8 @@ public class ChatModels {
      */
     private ChatModel anthropic(String baseUrl, String apiKey, String model, Duration timeout) {
         return models.computeIfAbsent(
-                cacheKey(ANTHROPIC, baseUrl, apiKey, model, timeout), ignored -> AnthropicChatModel.builder()
+                cacheKey(ANTHROPIC, baseUrl, apiKey, model, timeout),
+                ignored -> AnthropicChatModel.builder()
                         .anthropicClient(AnthropicSetup.setupSyncClient(baseUrl, apiKey, timeout, 0, null, null))
                         // Same reason as the OpenAI pair above: the builder would otherwise
                         // construct an asynchronous client from nothing.

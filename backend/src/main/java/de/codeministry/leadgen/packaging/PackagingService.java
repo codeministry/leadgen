@@ -80,8 +80,7 @@ public class PackagingService {
      * <p>{@code packaged_at IS NULL} still carries "not built yet", so a restored offer whose
      * folder survived the archive is not rebuilt.
      */
-    private static final String REQUESTED =
-            """
+    private static final String REQUESTED = """
         SELECT id, title, description, full_text, url, location, portal, agency, tags,
                published_on, rate_eur, duration, workload, remote_percent, starts_on, contact,
                score_value, score_band, score_model, enrichment_note, content_blocks,

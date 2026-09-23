@@ -83,8 +83,7 @@ class ManualUploadServiceTest {
 
     private static final String PASTED = "Wir suchen ab sofort einen Java-Entwickler. Remote möglich.";
 
-    private static final String DOCUMENT =
-            """
+    private static final String DOCUMENT = """
         ---
         title: Senior Java Entwickler (m/w/d)
         url: https://portal.example/p/12345
@@ -212,12 +211,10 @@ class ManualUploadServiceTest {
     void namesTheOfferAlreadyInThePipelineBeforeTheConfirmAndNotAfter() {
         long sourceId = jdbc.queryForObject(
                 "INSERT INTO source (name, kind) VALUES ('portal-a', 'rss') RETURNING id", Long.class);
-        jdbc.update(
-                """
+        jdbc.update("""
             INSERT INTO offer (source_id, external_id, title, fingerprint, status)
             VALUES (?, 'x', 'Senior Java Entwickler (m/w/d)', 'senior java entwickler', 'INGESTED')
-            """,
-                sourceId);
+            """, sourceId);
 
         var stored = uploads.store("offer.md", DOCUMENT.getBytes(StandardCharsets.UTF_8));
 

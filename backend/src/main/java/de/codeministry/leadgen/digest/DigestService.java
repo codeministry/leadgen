@@ -41,8 +41,7 @@ import org.springframework.stereotype.Service;
 @Service
 public class DigestService {
 
-    private static final String OFFERS =
-            """
+    private static final String OFFERS = """
         SELECT o.id, o.title, o.location, o.portal, o.agency, o.url, o.rate_eur,
                o.duration, o.score_value, o.score_band, o.enrichment_note
         FROM offer o
@@ -56,8 +55,7 @@ public class DigestService {
      * topic. The score and the interest are two claims, and the digest is where the second
      * one would otherwise disappear.
      */
-    private static final String ON_TOPIC_BELOW_THE_LINE =
-            """
+    private static final String ON_TOPIC_BELOW_THE_LINE = """
         SELECT o.id, o.title, o.location, o.portal, o.agency, o.url, o.rate_eur,
                o.duration, o.score_value, o.score_band, o.enrichment_note
         FROM offer o

@@ -64,8 +64,7 @@ public class DeduplicationService {
      * <p>The final predicate restricts the write to rows whose assignment actually
      * changes, which is what makes the returned count mean "moved" rather than "seen".
      */
-    private static final String CLUSTER =
-            """
+    private static final String CLUSTER = """
         WITH ranked AS (
             SELECT id,
                    first_value(id) OVER (
@@ -194,15 +193,11 @@ public class DeduplicationService {
     }
 
     private int attached(int ttlDays) {
-        return jdbc.sql(
-                        """
+        return jdbc.sql("""
             SELECT count(*) FROM offer
             WHERE duplicate_of_id IS NOT NULL
               AND ingested_at >= now() - make_interval(days => :ttl)
-            """)
-                .param("ttl", ttlDays)
-                .query(Integer.class)
-                .single();
+            """).param("ttl", ttlDays).query(Integer.class).single();
     }
 
     private boolean mergesOnExactFingerprint(List<Strategy> strategies) {

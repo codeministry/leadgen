@@ -68,6 +68,9 @@ keeps in the notes rather than in the number.
 - **The formatting gate is on again.** One reviewed `spotlessApply` reformatted every Java file
   the way palantir-java-format wants it, and Spotless now writes the SPDX licence header onto a
   new file.
+- **palantir-java-format 2.98.0, applied once.** 2.68.0 calls a javac method current JDKs no
+  longer have and failed every file on 21.0.12, 25 and 27; it only ever ran on an old local
+  21.0.1. The bump reformats 78 files, text-block openings mostly, and changes no behaviour.
 
 ## [0.4.1] — 2026-09-22
 

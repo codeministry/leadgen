@@ -57,8 +57,7 @@ public class ScoringService {
      * job of `score_batch_id`: its answer is bought and on its way, so asking again would
      * be paying twice for it.
      */
-    private static final String DUE = "SELECT " + ScoreCandidate.COLUMNS
-            + """
+    private static final String DUE = "SELECT " + ScoreCandidate.COLUMNS + """
 
         FROM offer
         WHERE status = 'PASSED'
@@ -77,8 +76,7 @@ public class ScoringService {
      * run legitimately judges nothing, and a report of "0 shortlisted" reads as scoring
      * having stopped working rather than as there being nothing new to do.
      */
-    private static final String STANDING =
-            """
+    private static final String STANDING = """
         SELECT count(*)                                            AS considered,
                count(*) FILTER (WHERE score_value IS NULL)         AS unscored,
                count(*) FILTER (WHERE score_band = 'SHORTLISTED')  AS shortlisted,
@@ -92,8 +90,7 @@ public class ScoringService {
      * the shortlist's own two conditions: a rejected offer never entered scoring, and a
      * duplicate is judged through its primary.
      */
-    private static final String ONE = "SELECT " + ScoreCandidate.COLUMNS
-            + """
+    private static final String ONE = "SELECT " + ScoreCandidate.COLUMNS + """
 
         FROM offer
         WHERE id = ? AND status = 'PASSED' AND duplicate_of_id IS NULL AND archived_at IS NULL
@@ -104,8 +101,7 @@ public class ScoringService {
      * offers that were written at all: one never scored is {@link #DUE}'s business, and
      * one sitting in a batch keeps the reasons its answer will be joined with.
      */
-    private static final String STALE_PROFILE = "SELECT " + ScoreCandidate.COLUMNS
-            + """
+    private static final String STALE_PROFILE = "SELECT " + ScoreCandidate.COLUMNS + """
         , score_value, score_model, ruleset_version
         FROM offer
         WHERE status = 'PASSED'
@@ -307,8 +303,7 @@ public class ScoringService {
 
     private List<ScoreReason> judgedRows(long offerId) {
         return jdbc
-                .sql(
-                        """
+                .sql("""
                 SELECT factor, label, points, max_points, topic FROM offer_score_reason
                 WHERE offer_id = ? ORDER BY position
                 """)

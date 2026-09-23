@@ -43,8 +43,7 @@ class LlmExtractorWireFormatTest {
     /**
      * A pasted advert: no frontmatter, no markup, and the fields spread through the prose.
      */
-    private static final String DOCUMENT =
-            """
+    private static final String DOCUMENT = """
             Senior Java Entwickler (m/w/d)
 
             Für einen Kunden aus dem Versicherungsumfeld suchen wir ab sofort Unterstützung
@@ -195,14 +194,12 @@ class LlmExtractorWireFormatTest {
 
     @Test
     void findsTheObjectInsideAFence() {
-        answers(
-                """
+        answers("""
             Here is what the document says:
             ```json
             %s
             ```
-            """
-                        .formatted(full()));
+            """.formatted(full()));
 
         assertThat(extractor().read(DOCUMENT).orElseThrow().block())
                 .containsEntry(OfferMapper.TITLE, "Senior Java Entwickler (m/w/d)");
@@ -277,14 +274,11 @@ class LlmExtractorWireFormatTest {
                 .willReturn(aResponse()
                         .withStatus(200)
                         .withHeader("Content-Type", "application/json")
-                        .withBody(
-                                """
+                        .withBody("""
                         {"id":"chat-1","object":"chat.completion","created":1,"model":"a-model",
                          "choices":[{"index":0,"finish_reason":"stop",
                                      "message":{"role":"assistant","content":%s}}]}
-                        """
-                                        .formatted(new ObjectMapper()
-                                                .valueToTree(content)
-                                                .toString()))));
+                        """.formatted(
+                                        new ObjectMapper().valueToTree(content).toString()))));
     }
 }

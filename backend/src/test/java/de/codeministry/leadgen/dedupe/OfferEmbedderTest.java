@@ -263,13 +263,11 @@ class OfferEmbedderTest {
                 .willReturn(aResponse()
                         .withStatus(200)
                         .withHeader("Content-Type", "application/json")
-                        .withBody(
-                                """
+                        .withBody("""
                         {"object":"list","model":"test-embed",
                          "usage":{"prompt_tokens":1,"total_tokens":1},
                          "data":[%s]}
-                        """
-                                        .formatted(data))));
+                        """.formatted(data))));
     }
 
     /**

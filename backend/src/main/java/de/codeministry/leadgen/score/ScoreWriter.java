@@ -48,8 +48,7 @@ class ScoreWriter {
      */
     @Transactional
     void write(long offerId, Score score, int autoShortlist, int review) {
-        jdbc.sql(
-                        """
+        jdbc.sql("""
             UPDATE offer
             SET score_value = ?, score_band = ?, score_model = ?, ruleset_version = ?, scored_at = now()
             WHERE id = ?
@@ -68,8 +67,7 @@ class ScoreWriter {
         List<ScoreReason> reasons = score.reasons();
         for (int position = 0; position < reasons.size(); position++) {
             ScoreReason reason = reasons.get(position);
-            jdbc.sql(
-                            """
+            jdbc.sql("""
                         INSERT INTO offer_score_reason (offer_id, factor, label, points, max_points, topic, position)
                         VALUES (?, ?, ?, ?, ?, ?, ?)
                 """)

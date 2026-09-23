@@ -54,8 +54,7 @@ public class ArchiveService {
      * the list whatever its date says, because the board is the only place that state
      * exists and archiving it away would make it invisible on the one screen that reads it.
      */
-    private static final String ARCHIVE_AGED_OUT =
-            """
+    private static final String ARCHIVE_AGED_OUT = """
         UPDATE offer SET archived_at = now(), archive_source = 'AGE'
         WHERE archived_at IS NULL
           AND archive_source IS NULL
@@ -68,8 +67,7 @@ public class ArchiveService {
     /**
      * Inside the window again, because the operator widened it. Only what the pass owns.
      */
-    private static final String RESTORE_INSIDE_WINDOW =
-            """
+    private static final String RESTORE_INSIDE_WINDOW = """
         UPDATE offer SET archived_at = NULL, archive_source = NULL
         WHERE archive_source = 'AGE'
           AND (:cutoff IS NULL OR published_on >= :cutoff)
@@ -99,8 +97,7 @@ public class ArchiveService {
      * a 404 on the single-offer path — contradicting that method's own rule that clicking
      * twice is not an error.
      */
-    private static final String SET_BY_HAND =
-            """
+    private static final String SET_BY_HAND = """
         WITH changed AS (
             UPDATE offer
             SET archived_at    = CASE WHEN ? THEN now() ELSE NULL END,
@@ -129,8 +126,7 @@ public class ArchiveService {
      * undoing its own archiving is not somebody changing their mind, and resetting a status
      * every time the freshness window widens would be a rule nobody asked for.
      */
-    private static final String RESET_TO_NEW =
-            """
+    private static final String RESET_TO_NEW = """
         WITH before AS (
             SELECT id, status FROM application
             WHERE offer_id = ANY (?) AND status <> 'NEW'
@@ -155,8 +151,7 @@ public class ArchiveService {
     /**
      * No date, no age. These stay on the list for as long as they exist.
      */
-    private static final String UNDATED =
-            """
+    private static final String UNDATED = """
         SELECT count(*) FROM offer
         WHERE published_on IS NULL AND archived_at IS NULL AND duplicate_of_id IS NULL
         """;

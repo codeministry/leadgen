@@ -189,13 +189,6 @@ class FieldsServiceTest {
                 VALUES (?, ?, ?, 'Kurzbeschreibung.', 'https://example.invalid/1', ?, 'PASSED',
                         'Wir suchen ab sofort.', ?, ?)
                 RETURNING id
-                """,
-                Long.class,
-                sourceId,
-                title + System.nanoTime(),
-                title,
-                title.toLowerCase(),
-                startsOn,
-                duration);
+                """, Long.class, sourceId, title + System.nanoTime(), title, title.toLowerCase(), startsOn, duration);
     }
 }

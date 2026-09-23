@@ -438,13 +438,9 @@ class AnalyticsQueryServiceTest {
     }
 
     private void movedOn(long applicationId, ApplicationStatus to, LocalDate day) {
-        jdbc.update(
-                """
+        jdbc.update("""
             INSERT INTO application_event (application_id, from_status, to_status, recorded_at)
             VALUES (?, 'SENT', ?, ?)
-            """,
-                applicationId,
-                to.name(),
-                java.sql.Timestamp.valueOf(day.atTime(12, 0)));
+            """, applicationId, to.name(), java.sql.Timestamp.valueOf(day.atTime(12, 0)));
     }
 }

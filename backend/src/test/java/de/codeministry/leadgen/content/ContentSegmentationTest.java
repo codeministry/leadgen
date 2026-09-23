@@ -29,8 +29,7 @@ class ContentSegmentationTest {
      * then the recruiter's standing footer. Trimmed, and structurally identical to the real
      * thing.
      */
-    private static final String ADVERT =
-            """
+    private static final String ADVERT = """
             # Angular Entwickler (m/w/d), remote
 
             [Contractor Consulting GmbH](https://example.invalid/company/471-contractor)
@@ -81,8 +80,7 @@ class ContentSegmentationTest {
 
     @Test
     void keepsAFencedBlockWholeAcrossItsBlankLines() {
-        List<String> blocks = MarkdownBlocks.split(
-                """
+        List<String> blocks = MarkdownBlocks.split("""
             Stack:
 
             ```
@@ -182,8 +180,7 @@ class ContentSegmentationTest {
 
     @Test
     void readsBackWhatTheStageWroteAndFallsBackWhenItWroteNothing() {
-        String json =
-                """
+        String json = """
                 [{"index":0,"text":"Apply now","kind":"CHROME","reason":"A button.","by":"RULE"},
                  {"index":1,"text":"Wir suchen Angular.","kind":"CONTENT","reason":null,"by":"MODEL"}]
                 """;
@@ -198,8 +195,7 @@ class ContentSegmentationTest {
 
     @Test
     void keepsTheWholeTextWhenEverythingWasCalledFurniture() {
-        String json =
-                """
+        String json = """
             [{"index":0,"text":"Apply now","kind":"CHROME","reason":null,"by":"RULE"}]
             """;
 

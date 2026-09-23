@@ -52,16 +52,14 @@ public class ContentService {
      * already uses: configure a key at five in the afternoon and the standing backlog becomes
      * due, with no migration and nothing to remember.
      */
-    private static final String DUE =
-            """
+    private static final String DUE = """
         SELECT id, portal, title, full_text FROM offer
         WHERE status = 'PASSED' AND archived_at IS NULL AND full_text IS NOT NULL
           AND content_at IS NULL
         ORDER BY id
         """;
 
-    private static final String DUE_WITH_A_MODEL =
-            """
+    private static final String DUE_WITH_A_MODEL = """
         SELECT id, portal, title, full_text FROM offer
         WHERE status = 'PASSED' AND archived_at IS NULL AND full_text IS NOT NULL
           AND (content_at IS NULL OR content_model IS NULL)
@@ -78,8 +76,7 @@ public class ContentService {
      * for the scoring stage — and it fires only when something was actually taken out, so an
      * advert that is all advert costs no re-judge.
      */
-    private static final String RECORD =
-            """
+    private static final String RECORD = """
             UPDATE offer
             SET content_blocks = ?::jsonb,
                 content_at = CASE WHEN ?::boolean THEN now() ELSE NULL END,

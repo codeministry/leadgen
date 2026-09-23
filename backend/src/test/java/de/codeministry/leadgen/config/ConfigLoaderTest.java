@@ -251,13 +251,10 @@ class ConfigLoaderTest {
     void rejectsASelectorThatNamesNoFilterAndDoesNotSaySoOutLoud() throws IOException {
         // Reading the whole folder is a legitimate thing to want and an accident that looks
         // identical to it. `match_all: true` is how the intention gets written down.
-        rewrite(
-                "sources.yaml",
-                """
+        rewrite("sources.yaml", """
                       from: [ "newsletter@example.com" ]
                       subject_matches: ".*new projects.*"
-                """,
-                "");
+                """, "");
 
         assertThatThrownBy(() -> ConfigFixtures.loaderFor(configDir, VALIDATOR).load())
                 .isInstanceOf(ConfigValidationException.class)
@@ -305,8 +302,9 @@ class ConfigLoaderTest {
             assertThat(topic.weight()).isEqualTo(8);
             assertThat(topic.spellings()).containsExactly("Example topic", "Example field", "Beispielthema");
         });
-        assertThat(profile.disinterestTopicsOrEmpty()).singleElement().satisfies(topic -> assertThat(topic.spellings())
-                .containsExactly("Example unwanted topic"));
+        assertThat(profile.disinterestTopicsOrEmpty())
+                .singleElement()
+                .satisfies(topic -> assertThat(topic.spellings()).containsExactly("Example unwanted topic"));
     }
 
     @Test

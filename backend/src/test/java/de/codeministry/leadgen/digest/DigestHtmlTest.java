@@ -102,20 +102,13 @@ class DigestHtmlTest {
     }
 
     private long offer(String title, Integer score, String band) {
-        return jdbc.queryForObject(
-                """
+        return jdbc.queryForObject("""
             INSERT INTO offer (source_id, external_id, title, description, url, fingerprint,
                                status, score_value, score_band, location, portal, agency)
             VALUES (?, ?, ?, 'egal', 'https://example.invalid/x', 'fp', 'PASSED', ?, ?,
                     'Köln', 'portal-a', 'Acme Consulting GmbH')
             RETURNING id
-            """,
-                Long.class,
-                sourceId,
-                "ext-" + System.nanoTime(),
-                title,
-                score,
-                band);
+            """, Long.class, sourceId, "ext-" + System.nanoTime(), title, score, band);
     }
 
     private static Path configWritingHtmlTo() {

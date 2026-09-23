@@ -24,8 +24,7 @@ import org.junit.jupiter.api.Test;
  */
 class AdvertAskerTest {
 
-    private static final String ADVERT =
-            """
+    private static final String ADVERT = """
             Lead Java Backend Entwickler (m/w/d)
 
             Für ein langfristig angelegtes Projekt suchen wir einen erfahrenen Entwickler.
@@ -37,12 +36,9 @@ class AdvertAskerTest {
 
     @Test
     void keepsAClaimTheAdvertActuallyCarries() {
-        var answer = asker.parse(
-                """
+        var answer = asker.parse("""
                 {"stated": true, "answer": "95 EUR pro Stunde.", "quote": "Die Vergütung liegt bei 95 EUR pro Stunde."}
-                """,
-                ADVERT,
-                AdvertQuestion.RATE);
+                """, ADVERT, AdvertQuestion.RATE);
 
         assertThat(answer.stated()).isTrue();
         assertThat(answer.answer()).isEqualTo("95 EUR pro Stunde.");
@@ -55,13 +51,10 @@ class AdvertAskerTest {
         // The whole reason the quote is required. This answer is fluent, specific, plausible
         // and about a rate the advert never names — and without the check it would be
         // indistinguishable on screen from the case above.
-        var answer = asker.parse(
-                """
+        var answer = asker.parse("""
                 {"stated": true, "answer": "Der Satz liegt bei 110 EUR.",
                  "quote": "Wir zahlen 110 EUR pro Stunde bei voller Remote-Arbeit."}
-                """,
-                ADVERT,
-                AdvertQuestion.RATE);
+                """, ADVERT, AdvertQuestion.RATE);
 
         assertThat(answer.stated()).isFalse();
         assertThat(answer.answer()).isNull();
@@ -73,12 +66,10 @@ class AdvertAskerTest {
         // Folding both sides is what keeps the check from rejecting a faithful quote: a model
         // that normalises a dash, a quotation mark or collapsed whitespace has not invented
         // anything, and a check that fails those would be a check nobody could satisfy.
-        var answer = asker.parse(
-                """
+        var answer = asker.parse("""
                 {"stated": true, "answer": "Voll remote.",
                  "quote": "der einsatz erfolgt zu 100 %  remote"}
-                """,
-                ADVERT, AdvertQuestion.ONSITE);
+                """, ADVERT, AdvertQuestion.ONSITE);
 
         assertThat(answer.stated()).isTrue();
     }
@@ -120,14 +111,11 @@ class AdvertAskerTest {
     void readsTheAnswerOutOfProseAroundIt() {
         // `Answers.objectIn` takes the first brace to the last, because a model that wraps its
         // JSON in a sentence has still answered.
-        var answer = asker.parse(
-                """
+        var answer = asker.parse("""
                 Sure! Here is the answer:
                 {"stated": true, "answer": "95 EUR.", "quote": "Die Vergütung liegt bei 95 EUR pro Stunde."}
                 Hope that helps.
-                """,
-                ADVERT,
-                AdvertQuestion.RATE);
+                """, ADVERT, AdvertQuestion.RATE);
 
         assertThat(answer.stated()).isTrue();
     }

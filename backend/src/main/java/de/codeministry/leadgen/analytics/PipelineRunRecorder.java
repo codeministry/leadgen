@@ -37,8 +37,7 @@ import org.springframework.stereotype.Service;
 @Service
 public class PipelineRunRecorder {
 
-    private static final String INSERT =
-            """
+    private static final String INSERT = """
         INSERT INTO pipeline_run (
             started_at, ruleset_version, score_model, status,
             documents, extracted, written, merged,
@@ -59,8 +58,7 @@ public class PipelineRunRecorder {
      * still going, which is what bounds {@code source_run} correctly. See
      * {@code V15__pipeline_run_starts_open.sql}.
      */
-    private static final String OPEN =
-            """
+    private static final String OPEN = """
         INSERT INTO pipeline_run (
             started_at, ruleset_version, score_model, status, stage_total,
             documents, extracted, written, merged,
@@ -72,8 +70,7 @@ public class PipelineRunRecorder {
         RETURNING id
         """;
 
-    private static final String CLOSE =
-            """
+    private static final String CLOSE = """
         UPDATE pipeline_run SET
             finished_at = now(), ruleset_version = ?, score_model = ?, status = ?,
             documents = ?, extracted = ?, written = ?, merged = ?,
@@ -87,8 +84,7 @@ public class PipelineRunRecorder {
     private static final String INSERT_STAGE =
             "INSERT INTO pipeline_run_stage (run_id, stage, removed) VALUES (?, ?, ?)";
 
-    private static final String INSERT_TIMING =
-            """
+    private static final String INSERT_TIMING = """
         INSERT INTO pipeline_stage (run_id, position, stage, started_at, ended_at, status, note)
         VALUES (?, ?, ?, ?, ?, ?, ?)
         """;
@@ -99,8 +95,7 @@ public class PipelineRunRecorder {
      * is on for a run or it is not, and there is one operator: two rows awaiting a batch at
      * once would mean two runs overlapping, which nothing here can produce.
      */
-    private static final String COMPLETE_AWAITING =
-            """
+    private static final String COMPLETE_AWAITING = """
         UPDATE pipeline_run
         SET status = 'COMPLETE', finished_at = now(), packaged = ?, digest_written = ?,
             scored = scored + ?,
@@ -149,8 +144,7 @@ public class PipelineRunRecorder {
         return choices.isEmpty() ? null : choices.getFirst();
     }
 
-    private static final String ABANDON =
-            """
+    private static final String ABANDON = """
         UPDATE pipeline_run
         SET status = 'ABANDONED', finished_at = now()
         WHERE finished_at IS NULL
@@ -215,8 +209,7 @@ public class PipelineRunRecorder {
         }
     }
 
-    private static final String MARK =
-            """
+    private static final String MARK = """
         UPDATE pipeline_run
         SET stage = ?, stage_position = ?, stage_started_at = now()
         WHERE id = ? AND finished_at IS NULL

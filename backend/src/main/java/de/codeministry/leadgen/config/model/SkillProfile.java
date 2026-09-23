@@ -74,7 +74,8 @@ public record SkillProfile(
      * @param since   the year it was first used in earnest. Not read by the filter; scoring
      *                turns it into depth.
      */
-    public record Skill(@NotBlank String skill, @Min(1) @Max(10) int weight, Integer since, List<String> aliases) {}
+    public record Skill(
+            @NotBlank String skill, @Min(1) @Max(10) int weight, Integer since, List<String> aliases) {}
 
     /**
      * @param match the words a job advert uses for this industry. The name is the
@@ -83,7 +84,8 @@ public record SkillProfile(
      *              Same shape and same reason as {@link Skill#aliases()}. Empty falls back to the
      *              name, so a profile written before this behaves as it did.
      */
-    public record Industry(@NotBlank String name, @Min(1) @Max(10) int weight, String note, List<String> match) {}
+    public record Industry(
+            @NotBlank String name, @Min(1) @Max(10) int weight, String note, List<String> match) {}
 
     /**
      * Something the operator wants more of, or none of, whatever the stack. A skill says what
@@ -94,7 +96,8 @@ public record SkillProfile(
      *                same fallback {@link Industry#match()} has, so a topic written as a single
      *                word needs no list at all.
      */
-    public record Topic(@NotBlank String name, @Min(1) @Max(10) int weight, List<String> aliases) {
+    public record Topic(
+            @NotBlank String name, @Min(1) @Max(10) int weight, List<String> aliases) {
 
         /**
          * The name first, then every alias, without blanks or repeats.
@@ -152,5 +155,6 @@ public record SkillProfile(
     /**
      * A fixed PDF. There is no per-offer tailoring; the language of the ad picks the file.
      */
-    public record CvVariant(@NotBlank String file, @JsonProperty("default") boolean isDefault) {}
+    public record CvVariant(
+            @NotBlank String file, @JsonProperty("default") boolean isDefault) {}
 }

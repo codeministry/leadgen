@@ -128,17 +128,28 @@ public record MatchingRules(
          *                      of the two.
          */
         public record Thresholds(
-                @Min(0) @Max(100) int autoShortlist, @Min(0) @Max(100) int review, @Min(0) int discard) {}
+                @Min(0) @Max(100) int autoShortlist,
+                @Min(0) @Max(100) int review,
+                @Min(0) int discard) {}
     }
 
     public record Deduplication(
-            List<String> fingerprintFields, List<@Valid Strategy> strategies, String mergePolicy, @Min(1) int ttlDays) {
+            List<String> fingerprintFields,
+            List<@Valid Strategy> strategies,
+            String mergePolicy,
+            @Min(1) int ttlDays) {
 
         /**
          * {@code threshold} applies to the embedding strategies only.
          */
-        public record Strategy(@NotBlank String type, Double threshold, @NotBlank String action) {}
+        public record Strategy(
+                @NotBlank String type,
+                Double threshold,
+                @NotBlank String action) {}
     }
 
-    public record FollowUp(@Min(1) int afterDays, @Min(0) int maxReminders, @Min(1) int autoExpireDays) {}
+    public record FollowUp(
+            @Min(1) int afterDays,
+            @Min(0) int maxReminders,
+            @Min(1) int autoExpireDays) {}
 }

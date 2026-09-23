@@ -46,13 +46,10 @@ public class OfferStore {
      */
     @Transactional
     public void recordRun(long sourceId, int documents, int extracted, int written, Integer announced) {
-        jdbc.sql(
-                        """
+        jdbc.sql("""
             INSERT INTO source_run (source_id, documents, extracted, written, announced)
             VALUES (?, ?, ?, ?, ?)
-            """)
-                .params(sourceId, documents, extracted, written, announced)
-                .update();
+            """).params(sourceId, documents, extracted, written, announced).update();
     }
 
     /**
@@ -60,15 +57,11 @@ public class OfferStore {
      */
     @Transactional
     public long sourceId(String name, String kind) {
-        return jdbc.sql(
-                        """
+        return jdbc.sql("""
             INSERT INTO source (name, kind) VALUES (?, ?)
             ON CONFLICT (name) DO UPDATE SET kind = EXCLUDED.kind
             RETURNING id
-            """)
-                .params(name, kind)
-                .query(Long.class)
-                .single();
+            """).params(name, kind).query(Long.class).single();
     }
 
     /**
@@ -79,8 +72,7 @@ public class OfferStore {
         if (offers.isEmpty()) {
             return 0;
         }
-        int[][] affected = template.batchUpdate(
-                """
+        int[][] affected = template.batchUpdate("""
             INSERT INTO offer (source_id, external_id, title, description, url, location,
                                portal, agency, published_on, fingerprint, tags, received_at)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -100,37 +92,32 @@ public class OfferStore {
                           -- imported before this column existed is backfilled by the
                           -- next re-read rather than staying empty.
                           received_at = LEAST(offer.received_at, EXCLUDED.received_at)
-            """,
-                offers,
-                offers.size(),
-                (statement, offer) -> {
-                    statement.setLong(1, sourceId);
-                    statement.setString(2, offer.externalId());
-                    statement.setString(3, offer.title());
-                    statement.setString(4, offer.description());
-                    statement.setString(5, offer.url());
-                    statement.setString(6, offer.location());
-                    statement.setString(7, offer.portal());
-                    statement.setString(8, offer.agency());
-                    if (offer.publishedOn() == null) {
-                        statement.setNull(9, Types.DATE);
-                    } else {
-                        statement.setObject(9, offer.publishedOn());
-                    }
-                    statement.setString(10, offer.fingerprint());
-                    statement.setArray(
-                            11,
-                            statement
-                                    .getConnection()
-                                    .createArrayOf("text", offer.tags().toArray()));
-                    // Null rather than now(): a source that is not a mail has no arrival
-                    // date, and the file's own timestamp would be the run's, dressed up.
-                    if (offer.receivedAt() == null) {
-                        statement.setNull(12, Types.TIMESTAMP_WITH_TIMEZONE);
-                    } else {
-                        statement.setTimestamp(12, java.sql.Timestamp.from(offer.receivedAt()));
-                    }
-                });
+            """, offers, offers.size(), (statement, offer) -> {
+            statement.setLong(1, sourceId);
+            statement.setString(2, offer.externalId());
+            statement.setString(3, offer.title());
+            statement.setString(4, offer.description());
+            statement.setString(5, offer.url());
+            statement.setString(6, offer.location());
+            statement.setString(7, offer.portal());
+            statement.setString(8, offer.agency());
+            if (offer.publishedOn() == null) {
+                statement.setNull(9, Types.DATE);
+            } else {
+                statement.setObject(9, offer.publishedOn());
+            }
+            statement.setString(10, offer.fingerprint());
+            statement.setArray(
+                    11,
+                    statement.getConnection().createArrayOf("text", offer.tags().toArray()));
+            // Null rather than now(): a source that is not a mail has no arrival
+            // date, and the file's own timestamp would be the run's, dressed up.
+            if (offer.receivedAt() == null) {
+                statement.setNull(12, Types.TIMESTAMP_WITH_TIMEZONE);
+            } else {
+                statement.setTimestamp(12, java.sql.Timestamp.from(offer.receivedAt()));
+            }
+        });
 
         return java.util.Arrays.stream(affected)
                 .flatMapToInt(java.util.Arrays::stream)

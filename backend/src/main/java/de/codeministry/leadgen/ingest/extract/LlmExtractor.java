@@ -74,8 +74,7 @@ public class LlmExtractor {
      */
     static final LocalDate EARLIEST = LocalDate.of(2000, 1, 1);
 
-    private static final String INSTRUCTIONS =
-            """
+    private static final String INSTRUCTIONS = """
             You are reading one freelance project advert that somebody pasted into a file.
             There is no structure to rely on: it may be a mail, a portal page copied by hand,
             or a few lines out of a chat.

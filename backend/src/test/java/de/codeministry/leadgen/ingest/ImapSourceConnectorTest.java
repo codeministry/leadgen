@@ -396,9 +396,7 @@ class ImapSourceConnectorTest {
 
             Path sources = dir.resolve("sources.yaml");
             String extraction = extractionBlockOfSampleNewsletter(Files.readString(sources));
-            Files.writeString(
-                    sources,
-                    """
+            Files.writeString(sources, """
                         version: 1
                         connections:
                           - id: local-imap
@@ -448,16 +446,15 @@ class ImapSourceConnectorTest {
                               match_all: true
                             extraction:
                               inherit: imap-newsletter
-                        """
-                            .formatted(
-                                    ServerSetupTest.IMAP.getPort(),
-                                    USER,
-                                    PASSWORD,
-                                    NEWSLETTER,
-                                    extraction,
-                                    PORTAL,
-                                    DEDICATED_FOLDER,
-                                    DEDICATED_FOLDER));
+                        """.formatted(
+                            ServerSetupTest.IMAP.getPort(),
+                            USER,
+                            PASSWORD,
+                            NEWSLETTER,
+                            extraction,
+                            PORTAL,
+                            DEDICATED_FOLDER,
+                            DEDICATED_FOLDER));
             return dir;
         } catch (IOException e) {
             throw new UncheckedIOException(e);

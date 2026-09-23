@@ -52,8 +52,7 @@ public class PackageArchiveService {
      * <p>An offer with no application row at all has trivially never been sent, which is why
      * both halves are a {@code NOT EXISTS} rather than a join.
      */
-    private static final String DISCARDABLE =
-            """
+    private static final String DISCARDABLE = """
         SELECT o.id, o.package_dir
         FROM offer o
         WHERE o.id = ANY (?)

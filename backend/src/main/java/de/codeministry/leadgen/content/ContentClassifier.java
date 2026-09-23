@@ -34,8 +34,7 @@ import org.springframework.ai.chat.model.ChatResponse;
 @Slf4j
 public class ContentClassifier {
 
-    private static final String INSTRUCTIONS =
-            """
+    private static final String INSTRUCTIONS = """
             You are cleaning up job adverts that were scraped from freelance portals. The scrape
             keeps the advert, and it also keeps whatever the page had around it.
 

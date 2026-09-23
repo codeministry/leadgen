@@ -78,8 +78,7 @@ public class AnalyticsQueryService {
      * a gap claims a quiet market on a day when nothing ran, and filling them in SQL keeps
      * the browser's week aggregation a plain sum with no gap logic in it.
      */
-    private static final String INTAKE_BY_INGESTED =
-            """
+    private static final String INTAKE_BY_INGESTED = """
         WITH bounds AS (
             SELECT min((ingested_at AT TIME ZONE :zone)::date) AS lo,
                    max((ingested_at AT TIME ZONE :zone)::date) AS hi
@@ -121,8 +120,7 @@ public class AnalyticsQueryService {
      * days. A drifted format has to be visible, and so does an offer the window left out —
      * "nine offers outside the window" is how both become so.
      */
-    private static final String INTAKE_BY_PUBLISHED =
-            """
+    private static final String INTAKE_BY_PUBLISHED = """
         WITH windowed AS (
             SELECT * FROM offer
             WHERE published_on BETWEEN (CURRENT_DATE - make_interval(days => :days))::date AND CURRENT_DATE
@@ -166,8 +164,7 @@ public class AnalyticsQueryService {
      * <p>Not clamped: a mail is as old as it is, there is no format to misparse, and the
      * mailbox is not going to hand over a message from 1970.
      */
-    private static final String INTAKE_BY_RECEIVED =
-            """
+    private static final String INTAKE_BY_RECEIVED = """
         WITH dated AS (SELECT * FROM offer WHERE received_at IS NOT NULL),
         bounds AS (
             SELECT min((received_at AT TIME ZONE :zone)::date) AS lo,
@@ -204,8 +201,7 @@ public class AnalyticsQueryService {
     /**
      * What the published axis cannot show, stated rather than silently missing.
      */
-    private static final String PUBLISHED_COVERAGE =
-            """
+    private static final String PUBLISHED_COVERAGE = """
         SELECT count(*) FILTER (WHERE published_on IS NULL) AS without_published,
                count(*) FILTER (WHERE received_at IS NULL) AS without_received,
                count(*) FILTER (
@@ -228,8 +224,7 @@ public class AnalyticsQueryService {
      * it brought in, and the survival rate is computed on `projects` because that is the set
      * the funnel and the shortlist count.
      */
-    private static final String PORTALS =
-            """
+    private static final String PORTALS = """
         SELECT o.portal,
                count(*)                                                                           AS listings,
                count(*) FILTER (WHERE o.duplicate_of_id IS NULL)                                  AS projects,
@@ -247,8 +242,7 @@ public class AnalyticsQueryService {
      * Primaries only: one project filed under "Java" by three portals is one project's worth
      * of demand.
      */
-    private static final String TAGS =
-            """
+    private static final String TAGS = """
         SELECT tag,
                count(*)                                    AS projects,
                count(*) FILTER (WHERE o.status = 'PASSED') AS passed
@@ -265,8 +259,7 @@ public class AnalyticsQueryService {
      * before it can be compared, and half a normalisation inside a chart query is worse than
      * none.
      */
-    private static final String LOCATIONS =
-            """
+    private static final String LOCATIONS = """
         SELECT o.location,
                count(*)                                    AS projects,
                count(*) FILTER (WHERE o.status = 'PASSED') AS passed
@@ -280,8 +273,7 @@ public class AnalyticsQueryService {
     /**
      * The location question that is decided rather than guessed.
      */
-    private static final String REACH =
-            """
+    private static final String REACH = """
         SELECT count(*) FILTER (WHERE filter_stage = 'OUT_OF_REACH') AS out_of_reach,
                count(*) FILTER (WHERE filter_stage = 'ABROAD')       AS abroad,
                count(*) FILTER (WHERE filter_stage = 'REMOTE_SHARE') AS remote_share
@@ -301,8 +293,7 @@ public class AnalyticsQueryService {
      * written on duplicates too, and counting them against a primaries-only total once made
      * the rail claim minus forty-five survivors.
      */
-    private static final String STAGE_MIX =
-            """
+    private static final String STAGE_MIX = """
         SELECT (o.ingested_at AT TIME ZONE :zone)::date AS day,
                o.filter_stage,
                count(*) AS removed
@@ -319,8 +310,7 @@ public class AnalyticsQueryService {
      * exactly 100, so a perfect score would land in an eleventh bucket nothing draws and
      * would disappear without a trace.
      */
-    private static final String SCORES =
-            """
+    private static final String SCORES = """
         SELECT LEAST(width_bucket(o.score_value, 0, 100, 10), 10) AS bucket, count(*) AS offers
         FROM offer o
         WHERE o.duplicate_of_id IS NULL AND o.score_value IS NOT NULL
@@ -350,8 +340,7 @@ public class AnalyticsQueryService {
      * <p>{@code TRANSITIONS} deliberately keeps no such filter: it is history, and a move
      * that happened does not stop having happened when the offer is archived afterwards.
      */
-    private static final String APPLICATIONS_BY_STATUS =
-            """
+    private static final String APPLICATIONS_BY_STATUS = """
         SELECT a.status, count(*) AS applications
         FROM application a
         JOIN offer o ON o.id = a.offer_id
@@ -359,8 +348,7 @@ public class AnalyticsQueryService {
         GROUP BY 1
         """;
 
-    private static final String TRANSITIONS =
-            """
+    private static final String TRANSITIONS = """
         SELECT (e.recorded_at AT TIME ZONE :zone)::date AS day, e.to_status, count(*) AS moves
         FROM application_event e
         GROUP BY 1, 2
@@ -381,8 +369,7 @@ public class AnalyticsQueryService {
      * application must count neither as zero days nor as infinity, so it counts as nothing
      * and `answered` says how many the median was computed over.
      */
-    private static final String RESPONSE =
-            """
+    private static final String RESPONSE = """
         WITH first_reply AS (
             SELECT e.application_id,
                    min(e.recorded_at) FILTER (
@@ -412,8 +399,7 @@ public class AnalyticsQueryService {
     /**
      * The one series on this screen that nothing recomputes.
      */
-    private static final String RUNS =
-            """
+    private static final String RUNS = """
         WITH bounds AS (
             SELECT min((ran_at AT TIME ZONE :zone)::date) AS lo,
                    max((ran_at AT TIME ZONE :zone)::date) AS hi
@@ -449,8 +435,7 @@ public class AnalyticsQueryService {
      * a month of daily use. The cap is here rather than in the browser because the payload
      * would otherwise grow without limit for a chart that cannot draw it.
      */
-    private static final String PASSES =
-            """
+    private static final String PASSES = """
         SELECT finished_at, status, ruleset_version, score_model,
                extracted, written, filter_considered, filter_passed,
                scored, shortlisted, packaged
@@ -464,8 +449,7 @@ public class AnalyticsQueryService {
      */
     private static final String HISTORY_SINCE = "SELECT min(finished_at) FROM pipeline_run";
 
-    private static final String SCALES =
-            """
+    private static final String SCALES = """
         SELECT ruleset_version, score_model, count(*) AS offers,
                min(scored_at) AS first_scored_at, max(scored_at) AS last_scored_at
         FROM offer

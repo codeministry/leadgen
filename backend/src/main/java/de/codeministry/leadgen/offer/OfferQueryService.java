@@ -43,8 +43,7 @@ public class OfferQueryService {
      * compare, and `id` last so two offers sharing a key and a second cannot straddle a page
      * boundary. What each sentinel is and why is on `ShortlistSort`.
      */
-    private static final String SHORTLIST =
-            """
+    private static final String SHORTLIST = """
         SELECT o.*, s.name AS source_name
         FROM offer o
         JOIN source s ON s.id = o.source_id
@@ -63,8 +62,7 @@ public class OfferQueryService {
      * statement about the whole list and shrinks as you scroll — the same defect the portal
      * dropdown had.
      */
-    private static final String MATCHED =
-            """
+    private static final String MATCHED = """
         SELECT count(*) AS matched,
                count(*) FILTER (WHERE o.score_value IS NULL) AS unscored
         FROM offer o
@@ -77,8 +75,7 @@ public class OfferQueryService {
      * is on screen. It carries the archive clause and none of the filters, so the sentence
      * beside the list reads "12 of 2219" and not "12 of 12".
      */
-    private static final String TOTAL =
-            """
+    private static final String TOTAL = """
         SELECT count(*) FROM offer o
         WHERE o.status = 'PASSED' AND o.duplicate_of_id IS NULL
         %s
@@ -89,8 +86,7 @@ public class OfferQueryService {
      * the filter matches those too, so offering fewer choices than it accepts would be a
      * filter that finds things it never listed.
      */
-    private static final String PORTALS =
-            """
+    private static final String PORTALS = """
         SELECT DISTINCT p.portal
         FROM offer o
         JOIN offer p ON p.id = o.id OR p.duplicate_of_id = o.id
@@ -271,8 +267,7 @@ public class OfferQueryService {
             // or whose blocks were all furniture — through `full_text`, which is the only
             // text it has. `jsonb_array_elements` returns no rows for a null column, so an
             // offer enrichment never reached lands in the ELSE and matches on nothing.
-            sql.append(
-                    """
+            sql.append("""
                 AND (o.title ILIKE :q OR o.description ILIKE :q
                      OR EXISTS (SELECT 1 FROM unnest(o.tags) AS tag WHERE tag ILIKE :q)
                      OR CASE WHEN EXISTS (SELECT 1 FROM jsonb_array_elements(o.content_blocks) AS b
@@ -317,8 +312,7 @@ public class OfferQueryService {
             // `= ANY (?, ?, ?)`, a syntax error only a real Postgres reports. The two array
             // bindings in this file that do use ANY are positional for exactly that reason,
             // and this one cannot be: the rest of the clause is named.
-            sql.append(
-                    """
+            sql.append("""
                 AND EXISTS (SELECT 1 FROM offer p
                             WHERE (p.id = o.id OR p.duplicate_of_id = o.id) AND p.portal IN (:portals))
                 """);
@@ -408,8 +402,7 @@ public class OfferQueryService {
         // visibly wrong, which is the only reason it was caught. The archive is the same
         // trap a second time, and it is the larger of the two: after a week it holds most
         // of the table.
-        jdbc.sql(
-                        """
+        jdbc.sql("""
             SELECT filter_stage, count(*) AS removed FROM offer
             WHERE filter_stage IS NOT NULL AND duplicate_of_id IS NULL
               AND archived_at IS NULL
@@ -446,8 +439,7 @@ public class OfferQueryService {
     public Optional<ShortlistEntry> find(long id) {
         // Not restricted to PASSED: the detail is also how somebody looks at an offer the
         // filter rejected and asks whether the rule was right.
-        return jdbc.sql(
-                        """
+        return jdbc.sql("""
                 SELECT o.*, s.name AS source_name
                 FROM offer o JOIN source s ON s.id = o.source_id
                 WHERE o.id = ?
@@ -493,8 +485,7 @@ public class OfferQueryService {
 
     private Map<Long, List<ScoreReason>> reasonsFor(List<Long> ids) {
         Map<Long, List<ScoreReason>> byOffer = new LinkedHashMap<>();
-        jdbc.sql(
-                        """
+        jdbc.sql("""
                     SELECT offer_id, factor, label, points, max_points, topic FROM offer_score_reason
             WHERE offer_id = ANY (?) ORDER BY offer_id, position
             """)
@@ -520,8 +511,7 @@ public class OfferQueryService {
      */
     private Map<Long, List<OfferSourceRef>> clustersFor(List<Long> ids) {
         Map<Long, List<OfferSourceRef>> byPrimary = new LinkedHashMap<>();
-        jdbc.sql(
-                        """
+        jdbc.sql("""
             SELECT duplicate_of_id, portal, agency, url FROM offer
             WHERE duplicate_of_id = ANY (?) ORDER BY duplicate_of_id, id
             """)

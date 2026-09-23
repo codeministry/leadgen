@@ -62,8 +62,7 @@ public class ChatClientJudge implements Judge {
      * application read `skill-profile.yaml`. Role fit was therefore judged against a
      * description of somebody else, and editing the profile could not move it.
      */
-    private static final String INSTRUCTIONS =
-            """
+    private static final String INSTRUCTIONS = """
                 You assess freelance project offers for one specific developer.
 
                 %s

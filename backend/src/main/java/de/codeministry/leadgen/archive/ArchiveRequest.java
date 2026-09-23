@@ -33,7 +33,8 @@ import java.util.List;
  *            {@code [1,1,2]} would answer {@code requested 3, archived 2} and read as an
  *            offer that got away.
  */
-public record ArchiveRequest(@NotEmpty @Size(max = ArchiveRequest.MAX_IDS) List<@NotNull Long> ids) {
+public record ArchiveRequest(
+        @NotEmpty @Size(max = ArchiveRequest.MAX_IDS) List<@NotNull Long> ids) {
 
     /**
      * A ceiling against a hand-written request, the way {@code ShortlistQuery.MAX_LIMIT} is —

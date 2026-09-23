@@ -51,8 +51,7 @@ class AdvertAsker {
      * <p>It says what to do when the advert is silent, because that is the answer that
      * matters most and the one a model will otherwise fill in from what adverts usually say.
      */
-    private static final String INSTRUCTIONS =
-            """
+    private static final String INSTRUCTIONS = """
             You are reading one job advert and answering one question about it.
 
             Answer only from the advert's own text. Do not use what such adverts usually say,

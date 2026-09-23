@@ -158,13 +158,9 @@ class PackageArchiveServiceTest {
     }
 
     private void event(long offerId, String from, String to) {
-        jdbc.update(
-                """
+        jdbc.update("""
                 INSERT INTO application_event (application_id, from_status, to_status)
                 SELECT id, ?, ? FROM application WHERE offer_id = ?
-                """,
-                from,
-                to,
-                offerId);
+                """, from, to, offerId);
     }
 }

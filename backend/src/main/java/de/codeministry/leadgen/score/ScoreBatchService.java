@@ -38,8 +38,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class ScoreBatchService {
 
-    private static final String OPEN =
-            """
+    private static final String OPEN = """
         SELECT id, provider_id, model, ruleset_version, offers
         FROM score_batch
         WHERE status = 'SUBMITTED'
@@ -92,8 +91,7 @@ public class ScoreBatchService {
         int autoShortlist = rules.scoring().thresholds().autoShortlist();
         int review = rules.scoring().thresholds().review();
 
-        Long batchId = jdbc.sql(
-                        """
+        Long batchId = jdbc.sql("""
             INSERT INTO score_batch (provider_id, model, ruleset_version, offers)
             VALUES (?, ?, ?, ?)
             RETURNING id

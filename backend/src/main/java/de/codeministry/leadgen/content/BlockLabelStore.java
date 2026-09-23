@@ -39,8 +39,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Component
 public class BlockLabelStore {
 
-    private static final String FIND =
-            """
+    private static final String FIND = """
         SELECT kind, reason FROM content_block_label
         WHERE portal = ? AND digest = ?
         """;
@@ -50,8 +49,7 @@ public class BlockLabelStore {
      * cache, so a rule somebody wrote after the fact overwrites what a model once said, which
      * is the right way round: the rule is the explicit decision.
      */
-    private static final String REMEMBER =
-            """
+    private static final String REMEMBER = """
             INSERT INTO content_block_label (portal, digest, kind, reason, decided_by, model, sample)
             VALUES (?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT (portal, digest) DO UPDATE
@@ -62,8 +60,7 @@ public class BlockLabelStore {
                 times_seen = content_block_label.times_seen + 1
             """;
 
-    private static final String SEEN_AGAIN =
-            """
+    private static final String SEEN_AGAIN = """
         UPDATE content_block_label SET times_seen = times_seen + 1
         WHERE portal = ? AND digest = ?
         """;

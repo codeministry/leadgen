@@ -50,8 +50,7 @@ public class FieldsService {
      * way {@code ContentService} has one: there is no deterministic half that could decide
      * anything for free.
      */
-    private static final String DUE =
-            """
+    private static final String DUE = """
         SELECT id, title, description, full_text, content_blocks, starts_on, duration
         FROM offer
         WHERE status = 'PASSED' AND duplicate_of_id IS NULL AND archived_at IS NULL
@@ -69,8 +68,7 @@ public class FieldsService {
      * the row already said, costs no re-judge. It is the mechanism already documented as
      * self-healing rather than a fourth staleness criterion invented for the scoring stage.
      */
-    private static final String RECORD =
-            """
+    private static final String RECORD = """
             UPDATE offer
             SET start_text = ?,
                 starts_on = ?,

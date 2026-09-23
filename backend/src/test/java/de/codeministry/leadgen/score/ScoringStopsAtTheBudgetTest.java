@@ -122,15 +122,10 @@ class ScoringStopsAtTheBudgetTest {
     }
 
     private void offer(String title) {
-        jdbc.update(
-                """
+        jdbc.update("""
                 INSERT INTO offer (source_id, external_id, title, description, url, fingerprint, status)
                 VALUES (?, ?, ?, 'Java 21 und Spring Boot, 12 Monate', 'https://example.invalid/x', ?, 'PASSED')
-                """,
-                sourceId,
-                "ext-" + System.nanoTime(),
-                title,
-                title.toLowerCase());
+                """, sourceId, "ext-" + System.nanoTime(), title, title.toLowerCase());
     }
 
     private void answers() {

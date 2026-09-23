@@ -58,8 +58,7 @@ public class FieldExtractor {
 
     static final LocalDate LATEST = LocalDate.of(2100, 1, 1);
 
-    private static final String INSTRUCTIONS =
-            """
+    private static final String INSTRUCTIONS = """
             You are reading a freelance project advert and pulling three facts out of it.
 
             START     when the engagement begins

@@ -43,8 +43,7 @@ class MarkdownExtractionTest {
     private static final ValidatorFactory FACTORY = Validation.buildDefaultValidatorFactory();
     private static final Validator VALIDATOR = FACTORY.getValidator();
 
-    private static final String COMPLETE =
-            """
+    private static final String COMPLETE = """
         ---
         title: Senior Java Entwickler Spring Boot (m/w/d)
         url: https://tracking.example.com/proxy?target=https%3A%2F%2Fportal.example%2Fp%2F12345&email=someone%40example.com
@@ -93,8 +92,7 @@ class MarkdownExtractionTest {
 
     @Test
     void acceptsTagsAsTheCommaSeparatedLineSomeoneTypedInstead() {
-        var offer = only(
-                """
+        var offer = only("""
             ---
             title: Angular Entwickler
             tags: Angular, TypeScript , RxJS
@@ -109,8 +107,7 @@ class MarkdownExtractionTest {
     void identifiesAnOfferWithoutAUrlByItsContent() {
         // The upsert is on (source_id, external_id). Without this the same ad uploaded
         // twice is two offers, and deduplication would have to clean up after it.
-        String ad =
-                """
+        String ad = """
             ---
             title: Kubernetes Platform Engineer
             ---
@@ -174,8 +171,7 @@ class MarkdownExtractionTest {
 
     @Test
     void ignoresAThematicBreakInTheBody() {
-        var offer = only(
-                """
+        var offer = only("""
             ---
             title: Java Entwickler
             ---

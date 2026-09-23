@@ -218,16 +218,9 @@ class SourceDetailServiceTest {
     }
 
     private void ran(long sourceId, String day, int documents, int extracted, int written, Integer announced) {
-        jdbc.update(
-                """
+        jdbc.update("""
                 INSERT INTO source_run (source_id, ran_at, documents, extracted, written, announced)
                 VALUES (?, ?::timestamptz, ?, ?, ?, ?)
-                """,
-                sourceId,
-                day + " 06:00:00+02",
-                documents,
-                extracted,
-                written,
-                announced);
+                """, sourceId, day + " 06:00:00+02", documents, extracted, written, announced);
     }
 }

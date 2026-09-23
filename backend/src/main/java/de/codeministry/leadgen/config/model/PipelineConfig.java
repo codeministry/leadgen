@@ -212,6 +212,7 @@ public record PipelineConfig(
     public record Retrieval(
             boolean enabled,
             @Min(1) Integer neighbours,
+
             @jakarta.validation.constraints.DecimalMin("0.0") @jakarta.validation.constraints.DecimalMax("1.0") Double topicFloor) {}
 
     public record Profile(@NotBlank String path) {}
@@ -224,7 +225,10 @@ public record PipelineConfig(
     public record Sources(String path) {}
 
     public record Enrichment(
-            boolean enabled, @NotBlank String after, @Valid @NotNull Fetch fetch, @Valid Extract extract) {
+            boolean enabled,
+            @NotBlank String after,
+            @Valid @NotNull Fetch fetch,
+            @Valid Extract extract) {
 
         /**
          * @param maxPerRun how many ads one pass is willing to wait for. The limiter
@@ -279,7 +283,8 @@ public record PipelineConfig(
         }
     }
 
-    public record Packaging(@NotBlank String outputDir, @NotBlank String naming, List<@Valid Document> documents) {
+    public record Packaging(
+            @NotBlank String outputDir, @NotBlank String naming, List<@Valid Document> documents) {
 
         /**
          * One entry per file in an application package. The fields are mutually

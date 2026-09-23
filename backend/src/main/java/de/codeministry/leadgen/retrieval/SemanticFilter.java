@@ -55,8 +55,7 @@ public class SemanticFilter {
      * are two spaces, so a row embedded by a different one is not far away — it is not
      * comparable at all, and a cosine against it is a number rather than an error.
      */
-    private static final String NEAREST =
-            """
+    private static final String NEAREST = """
          AND o.id IN (SELECT s.id
                         FROM offer s
                        WHERE s.retrieval_embedding IS NOT NULL
@@ -71,8 +70,7 @@ public class SemanticFilter {
      * its distance to itself is zero, which is what keeps it visible in the list the reader is
      * looking at when they ask.
      */
-    private static final String NEAREST_TO_OFFER =
-            """
+    private static final String NEAREST_TO_OFFER = """
          AND o.id IN (SELECT s.id
                         FROM offer s
                        WHERE s.retrieval_embedding IS NOT NULL
@@ -123,8 +121,7 @@ public class SemanticFilter {
             return null;
         }
         String model = model(config.snapshot().application());
-        return jdbc.sql(
-                        """
+        return jdbc.sql("""
                         SELECT count(*) FILTER (WHERE retrieval_embedding IS NOT NULL
                                                   AND retrieval_embedding_model = :model) AS readable,
                                count(*) AS total
@@ -229,18 +226,15 @@ public class SemanticFilter {
             params.put("topicVector", vector);
             // A similarity in the file, a distance in the query — the sign trap the class note names.
             params.put("topicMaxDistance", 1.0 - retrieval.topicFloor());
-            return new Narrowing(
-                    """
+            return new Narrowing("""
                      OR (o.retrieval_embedding IS NOT NULL
                          AND o.retrieval_embedding_model = :topicModel
-                         AND o.retrieval_embedding <=> CAST(:topicVector AS vector) <= :topicMaxDistance)""",
-                    params);
+                         AND o.retrieval_embedding <=> CAST(:topicVector AS vector) <= :topicMaxDistance)""", params);
         });
     }
 
     private boolean indexed(long offer, String model) {
-        return Boolean.TRUE.equals(jdbc.sql(
-                        """
+        return Boolean.TRUE.equals(jdbc.sql("""
                         SELECT retrieval_embedding IS NOT NULL
                                AND retrieval_embedding_model = :model
                           FROM offer WHERE id = :id

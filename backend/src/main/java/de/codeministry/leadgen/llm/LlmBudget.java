@@ -46,8 +46,7 @@ public class LlmBudget {
      * <p>The insert for a day's first call is not guarded by that {@code WHERE} — a fresh day
      * starts at zero and the caller has already refused a limit below one.
      */
-    private static final String TAKE =
-            """
+    private static final String TAKE = """
             INSERT INTO llm_call_budget (day, calls) VALUES (current_date, 1)
             ON CONFLICT (day) DO UPDATE SET calls = llm_call_budget.calls + 1
              WHERE llm_call_budget.calls < :limit

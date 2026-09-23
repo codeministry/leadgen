@@ -201,8 +201,7 @@ public class OfferEmbedder {
     }
 
     private List<Pending> pending(int ttlDays, String model) {
-        return jdbc.sql(
-                        """
+        return jdbc.sql("""
                     SELECT id, title, location, description
                       FROM offer
                      WHERE ingested_at >= now() - make_interval(days => :ttl)
