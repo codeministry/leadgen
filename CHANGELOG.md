@@ -9,6 +9,24 @@ may change in any release. See the status note in the README.
 
 ## [Unreleased]
 
+### Added
+
+- **Each instance keeps its own place in the mailbox.** The IMAP progress flag was the constant
+  `leadgen`, so two instances reading one mailbox split its mail between them: whichever
+  searched first took a mail and the other never saw it, with nothing in either log. It is now
+  the connection's `progress_flag` (`IMAP_PROGRESS_FLAG`, default `leadgen`, so an installation
+  that sets nothing behaves as before). A new name re-reads the folder once; the upsert keeps
+  that from duplicating anything, and an `llm` source pays one extraction call per mail.
+- **`a` archives the open offer from the shortlist**, or restores it on the archive side, and
+  the next offer opens. An offer with an application package asks first, because archiving
+  deletes an unsent package and a restore resets the application to NEW.
+
+### Changed — breaking
+
+- **`state` and `mark_seen` are gone from the source selector, and a `sources.yaml` that still
+  carries them is refused at startup** with a message naming `progress_flag`. Both were read by
+  nothing; `state` described the UID cursor dropped in V21.
+
 ## [0.4.2] — 2026-09-23
 
 Profile topics steer the score and the shortlist, and an unauthenticated instance no longer

@@ -321,6 +321,48 @@ class ConfigLoaderTest {
     }
 
     @Test
+    void refusesTheRetiredSelectorKeysByNamingWhatReplacedThem() throws IOException {
+        for (String retired : new String[] {"state: uid", "mark_seen: false"}) {
+            materializeTheShippedExamples();
+            rewrite("sources.yaml", "      match_all: false\n", "      match_all: false\n      " + retired + "\n");
+
+            assertThatThrownBy(
+                            () -> ConfigFixtures.loaderFor(configDir, VALIDATOR).load())
+                    .as(retired)
+                    .isInstanceOf(ConfigValidationException.class)
+                    .hasMessageContaining("progress_flag")
+                    .hasMessageNotContaining("Unrecognized field");
+        }
+    }
+
+    @Test
+    void readsTheProgressFlagAndRefusesOneThatIsNoImapKeyword() throws IOException {
+        var env = Map.of("IMAP_PROGRESS_FLAG", "leadgen-dev");
+        var connection = ConfigFixtures.loaderFor(configDir, VALIDATOR, env)
+                .load()
+                .sources()
+                .connections()
+                .getFirst();
+        assertThat(connection.progressFlagOrDefault()).isEqualTo("leadgen-dev");
+
+        // Unset, it is what every instance wrote before the key existed.
+        assertThat(ConfigFixtures.loaderFor(configDir, VALIDATOR)
+                        .load()
+                        .sources()
+                        .connections()
+                        .getFirst()
+                        .progressFlagOrDefault())
+                .isEqualTo("leadgen");
+
+        // A space or a parenthesis would end the keyword inside the IMAP SEARCH itself.
+        var broken = Map.of("IMAP_PROGRESS_FLAG", "leadgen dev");
+        assertThatThrownBy(() ->
+                        ConfigFixtures.loaderFor(configDir, VALIDATOR, broken).load())
+                .isInstanceOf(ConfigValidationException.class)
+                .hasMessageContaining("progressFlag");
+    }
+
+    @Test
     void refusesATopicThatIsBothWantedAndUnwanted() throws IOException {
         rewrite("skill-profile.yaml", "name: Example unwanted topic", "name: example TOPIC");
 

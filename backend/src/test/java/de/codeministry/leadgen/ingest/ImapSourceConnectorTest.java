@@ -234,6 +234,28 @@ class ImapSourceConnectorTest {
     }
 
     @Test
+    void twoInstancesOnOneMailboxEachGetTheMailUnderTheirOwnFlag() {
+        // The local and the deployed instance read the same mailbox. Under one flag name the
+        // first to search took the mail and the other never saw it, with nothing in either log.
+        // Under two names both hand it over, and the mail carries both marks.
+        deliver(NEWSLETTER, "3 neue Projekte sind da!");
+
+        Source elsewhere = config.snapshot().sources().sources().stream()
+                .filter(s -> s.id().equals("imap-newsletter-elsewhere"))
+                .findFirst()
+                .orElseThrow();
+
+        assertThat(connector.read(source, sourceId)).hasSize(1);
+        assertThat(connector.read(elsewhere, offers.sourceId("imap-newsletter-elsewhere", "imap")))
+                .as("the second instance still gets the mail the first one took")
+                .hasSize(1);
+        assertThat(flagsOfTheOnlyMessage().getUserFlags()).containsExactlyInAnyOrder("leadgen", "leadgen-elsewhere");
+        assertThat(connector.read(elsewhere, offers.sourceId("imap-newsletter-elsewhere", "imap")))
+                .as("and only once")
+                .isEmpty();
+    }
+
+    @Test
     void twoSourcesInOneFolderDoNotBurnEachOthersMail() {
         // The user flag is one name for every source, and the receiver sets it on everything
         // its *search* returned — before the sender is looked at. Without the sender in the
@@ -406,6 +428,14 @@ class ImapSourceConnectorTest {
                             ssl: false
                             username: %s
                             password: %s
+                          - id: another-instance
+                            type: imap
+                            host: 127.0.0.1
+                            port: %d
+                            ssl: false
+                            username: %s
+                            password: %s
+                            progress_flag: leadgen-elsewhere
                         sources:
                           - id: imap-newsletter
                             enabled: true
@@ -415,13 +445,22 @@ class ImapSourceConnectorTest {
                               folder: INBOX
                               from: ["%s"]
                               subject_matches: "^\\\\d+ neue Projekte sind da!$"
-                              mark_seen: false
-                              state: uid
                         %s\
                           - id: imap-portal
                             enabled: true
                             type: imap
                             connection: local-imap
+                            selector:
+                              folder: INBOX
+                              from: ["%s"]
+                            extraction:
+                              inherit: imap-newsletter
+                          # The same newsletter read by a second instance of the tool: same mailbox, same
+                          # search, its own progress flag. Disabled, so the whole-pipeline run leaves it alone.
+                          - id: imap-newsletter-elsewhere
+                            enabled: false
+                            type: imap
+                            connection: another-instance
                             selector:
                               folder: INBOX
                               from: ["%s"]
@@ -450,9 +489,13 @@ class ImapSourceConnectorTest {
                             ServerSetupTest.IMAP.getPort(),
                             USER,
                             PASSWORD,
+                            ServerSetupTest.IMAP.getPort(),
+                            USER,
+                            PASSWORD,
                             NEWSLETTER,
                             extraction,
                             PORTAL,
+                            NEWSLETTER,
                             DEDICATED_FOLDER,
                             DEDICATED_FOLDER));
             return dir;

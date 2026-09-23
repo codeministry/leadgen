@@ -114,7 +114,7 @@ The reasoning is in `docs/decisions/pipeline-scoring.md`.
   the one person who had finished configuring it. It empties the `${LLM_*}` placeholders in
   the materialised copy: what is under test is the code path, not whose machine it runs on.
 - **Several IMAP sources may share a folder only because `selector.from` is in the `SearchTerm`.** The progress flag is
-  the one name `leadgen` and the receiver writes it to whatever its *search* returned, before `matches()` sees sender or
+  one `progress_flag` per connection and the receiver writes it to whatever its *search* returned, before `matches()` sees sender or
   subject — so without that term the first source flags the others' mail and they read zero documents in silence.
   `subject_matches` cannot join it (Java regex vs. IMAP SEARCH), and `match_all: true` switches the check off: both mean
   separate folders. Reasoning in `docs/decisions/pipeline-ingest.md`.

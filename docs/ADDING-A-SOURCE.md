@@ -224,6 +224,7 @@ one, not an error.
 | `host`, `port`, `ssl`, `username`, `password` | | | the IMAP connector |
 | `mode` | string | | nothing |
 | `poll_interval` | duration | | nothing |
+| `progress_flag` | IMAP keyword | `leadgen` | the receiver: written on every mail the search returns, and `NOT KEYWORD` it next time. One name per instance on a shared mailbox |
 
 One cross-file check is fatal: an **enabled** source pointing at an `imap` connection whose
 host, username or password is blank fails at load, naming `IMAP_HOST`, `IMAP_USER` and
@@ -256,8 +257,6 @@ defaults carry a mailbox nobody has configured.
 | `subject_matches` | regex | the local re-check |
 | `since_days` | int | the local re-check |
 | `match_all` | bool | the local re-check, where it takes every message that got past `since_days` and `exclude_from` |
-| `mark_seen` | bool | nothing |
-| `state` | string | nothing — the UID cursor it documents was removed |
 
 `match_all: true` is the dedicated-folder case: the folder holds nothing but this
 newsletter, so no sender or subject filter is needed. It short-circuits `subject_matches`

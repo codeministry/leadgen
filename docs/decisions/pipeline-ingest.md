@@ -126,6 +126,14 @@ upserts it. `POST /api/v1/ingest` runs one pass.
   recreated folder has no equivalent of the `UIDVALIDITY` reset. `flaggedAsFallback` is off,
   so a server without user flags gets no marker rather than a `\Flagged` the owner would see.
   What still holds: no `\Seen`, no `\Flagged`, no `\Deleted`.
+- **The flag is one name per instance, not one name for the tool.** It was the constant `leadgen`, and a laptop and
+  the deployed server read the same mailbox: whichever searched first flagged a mail, and the other never saw it, with
+  nothing in either log. The deployed instance simply had fewer offers, which looks like a quiet week. The name is now
+  the connection's `progress_flag` (`IMAP_PROGRESS_FLAG`, default `leadgen`, so an installation that sets nothing
+  behaves as before), and the connector logs it per run so two instances can be told apart. A new name re-reads the
+  folder once: every mail from the selected senders comes back, `since_days` is applied only afterwards, the upsert
+  keeps it from duplicating anything, and an `llm` source pays one extraction call per mail. The `state` and
+  `mark_seen` selector keys, which described the dropped UID cursor and were read by nothing, are refused by name.
 - **`IngestCursor`, `IngestCursorStore` and the `ingest_cursor` table are gone** (`V21`). They
   were read by nobody once the connector moved to the user flag, and two ways to remember the
   same thing is one too many — the one nobody reads is the one that rots. The three guarantees

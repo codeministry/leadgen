@@ -14,6 +14,10 @@ connections:
     password: ${IMAP_PASSWORD}
     mode: poll              # poll | idle
     poll_interval: PT15M
+    # The IMAP keyword this instance writes on every mail it takes, and the whole of its progress
+    # through the mailbox. Two instances reading one mailbox need two names, or whichever
+    # searches first takes the mail and the other never sees it. A new name re-reads once.
+    progress_flag: ${IMAP_PROGRESS_FLAG:leadgen}
 
 # --- Sources ---------------------------------------------------------------
 sources:
@@ -44,11 +48,6 @@ sources:
       # a folder another enabled source reads — that is refused too, because the dedicated
       # source would mark the other's mail as taken before it ran.
       match_all: false
-      mark_seen: false
-      # The only accepted value, and deliberately so: the same mailbox is read on a
-      # phone, and a cursor based on seen/unseen would skip whatever was opened there
-      # first. Progress is UIDVALIDITY/UID.
-      state: uid
     # Same extraction as `local-eml` below — a mail is a mail, whether it arrives over
     # IMAP or lies in a folder. Only the way of getting at it differs.
     extraction:
@@ -112,7 +111,6 @@ sources:
       folder: INBOX
       subject_matches: "(?i).*(enquiry|availability|opportunity).*"
       exclude_from: [ "newsletter@example.com" ]
-      state: uid
     extraction:
       strategy: llm                  # free-form prose, no structure to expect
     defaults:

@@ -444,7 +444,13 @@ public class ConfigLoader {
     private static final Map<String, String> RETIRED = Map.of(
             "anti_skills",
             "anti_skills is gone from matching-rules.yaml: move its entries to skill-profile.yaml as disinterest_topics,"
-                    + " each with a name, a weight 1-10 and optional aliases. It was read by nothing; there they sink a score");
+                    + " each with a name, a weight 1-10 and optional aliases. It was read by nothing; there they sink a score",
+            "state",
+            "state is gone from the source selector in sources.yaml: it was read by nothing. Progress through a mailbox"
+                    + " is the connection's progress_flag, an IMAP keyword, one name per instance",
+            "mark_seen",
+            "mark_seen is gone from the source selector in sources.yaml: it was read by nothing, and nothing is ever"
+                    + " marked seen. Progress is the connection's progress_flag");
 
     private static Optional<String> retired(IOException e) {
         return e instanceof com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException unknown

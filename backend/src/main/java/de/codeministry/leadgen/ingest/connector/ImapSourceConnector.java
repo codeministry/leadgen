@@ -77,13 +77,6 @@ public class ImapSourceConnector implements SourceConnector {
 
     private static final Duration TIMEOUT = Duration.ofSeconds(30);
 
-    /**
-     * The flag the receiver writes to remember a message. Named after the tool rather than
-     * left at the library default, so somebody looking at their mailbox can tell what put it
-     * there.
-     */
-    private static final String USER_FLAG = "leadgen";
-
     private final ConfigRegistry config;
 
     /**
@@ -183,7 +176,7 @@ public class ImapSourceConnector implements SourceConnector {
      * {@code \Recent}.
      *
      * <p>{@link SearchTermStrategy} is the only place this can be said. The receiver marks
-     * what it hands over with {@link #USER_FLAG}, so that flag is the whole of the progress
+     * what it hands over with the connection's {@code progress_flag}, so that flag is the whole of the progress
      * state and every other flag belongs to the owner of the mailbox.
      *
      * <p>{@code \Deleted} is the one exception, and it is not progress: a message the owner
@@ -197,7 +190,7 @@ public class ImapSourceConnector implements SourceConnector {
      * anybody thinks.
      *
      * <p><b>The selector's senders are part of the search, and that is what lets several
-     * sources share one folder.</b> {@link #USER_FLAG} is one name for all of them, and the
+     * sources share one folder.</b> The connection's {@code progress_flag} is one name for all of them, and the
      * receiver flags everything its search returned — before {@link #matches} has looked at
      * sender or subject. A source that merely <em>sees</em> another's mail therefore burns
      * it: the other source asks for {@code NOT KEYWORD leadgen} the next minute and is told
@@ -210,7 +203,7 @@ public class ImapSourceConnector implements SourceConnector {
      * IMAP SEARCH knows only substrings — so two sources told apart by subject alone still
      * have to live in separate folders.
      */
-    private static SearchTerm notAlreadyTaken(Flags supportedFlags, Folder folder, Selector selector) {
+    private static SearchTerm notAlreadyTaken(Flags supportedFlags, Folder folder, Selector selector, String flag) {
         SearchTerm notDeleted = new FlagTerm(new Flags(Flags.Flag.DELETED), false);
         notDeleted = and(notDeleted, fromAnyOf(selector));
         if (supportedFlags == null || !supportedFlags.contains(Flags.Flag.USER)) {
@@ -221,7 +214,7 @@ public class ImapSourceConnector implements SourceConnector {
             return notDeleted;
         }
         Flags taken = new Flags();
-        taken.add(USER_FLAG);
+        taken.add(flag);
         return new AndTerm(notDeleted, new FlagTerm(taken, false));
     }
 
@@ -260,8 +253,12 @@ public class ImapSourceConnector implements SourceConnector {
         receiver.setShouldMarkMessagesAsRead(false);
         receiver.setShouldDeleteMessages(false);
         receiver.setFlaggedAsFallback(false);
-        receiver.setUserFlag(USER_FLAG);
-        receiver.setSearchTermStrategy((flags, folder) -> notAlreadyTaken(flags, folder, selector));
+        // The connection's flag and not a constant: it is this instance's whole progress through
+        // the mailbox, and two instances sharing one name split the mail between them in silence.
+        String flag = connection.progressFlagOrDefault();
+        log.info("Source '{}' reads '{}' and marks what it takes with '{}'", source.id(), selector.folder(), flag);
+        receiver.setUserFlag(flag);
+        receiver.setSearchTermStrategy((flags, folder) -> notAlreadyTaken(flags, folder, selector, flag));
         // The whole message, not the headers: the body is the document.
         receiver.setSimpleContent(false);
         // The folder must outlive `receive()`. The receiver hands back messages whose content

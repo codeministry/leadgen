@@ -60,9 +60,7 @@ sources:
     selector:
       folder: INBOX
       match_all: true
-      mark_seen: false
       since_days: 3650
-      state: uid
     extraction:
       inherit: smoke-corpus
     defaults:

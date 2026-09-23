@@ -43,6 +43,14 @@ public record SourcesConfig(
 
     /**
      * Credentials arrive exclusively as `${ENV}` placeholders, never as literals.
+     *
+     * @param progressFlag the IMAP keyword this instance writes on every message it takes, and
+     *                     the whole of its progress through the mailbox. <b>One name per instance</b>:
+     *                     two instances reading one mailbox under the same name split its mail
+     *                     between them, whichever searched first taking it, and neither says so.
+     *                     A new name re-reads the folder once; the upsert makes that harmless.
+     *                     Unset means {@value #DEFAULT_PROGRESS_FLAG}, which is what every instance
+     *                     wrote before this existed.
      */
     public record Connection(
             @NotBlank String id,
@@ -53,7 +61,19 @@ public record SourcesConfig(
             String username,
             String password,
             String mode,
-            Duration pollInterval) {}
+            Duration pollInterval,
+
+            @jakarta.validation.constraints.Pattern(
+                    regexp = "[A-Za-z0-9._-]+",
+                    message = "must be an IMAP keyword: letters, digits, dot, dash or underscore")
+            String progressFlag) {
+
+        public static final String DEFAULT_PROGRESS_FLAG = "leadgen";
+
+        public String progressFlagOrDefault() {
+            return progressFlag == null || progressFlag.isBlank() ? DEFAULT_PROGRESS_FLAG : progressFlag;
+        }
+    }
 
     public record Source(
             @NotBlank String id,
@@ -74,9 +94,11 @@ public record SourcesConfig(
      * @param matchAll dedicated mode: the folder holds nothing but this newsletter, so no
      *                 sender or subject filter is needed. Filter mode is the other case, where the
      *                 newsletter sits in a mixed folder.
-     * @param state    {@code uid} is the only supported value, and deliberately so. Progress
-     *                 must not be tracked by seen/unseen: the same mailbox is read on a phone, and a
-     *                 flag-based cursor would skip everything opened there first.
+     *
+     * <p>Progress is not a selector setting. It is the connection's {@code progress_flag}, never
+     * {@code \Seen}: the same mailbox is read on a phone, and a seen-based cursor would skip
+     * everything opened there first. The `state` and `mark_seen` keys that used to sit here were
+     * read by nothing and are refused by name.
      */
     public record Selector(
             String folder,
@@ -84,9 +106,7 @@ public record SourcesConfig(
             List<String> excludeFrom,
             String subjectMatches,
             Integer sinceDays,
-            boolean matchAll,
-            boolean markSeen,
-            String state) {}
+            boolean matchAll) {}
 
     /**
      * {@code fallback} names what happens to the fields the deterministic rules did
