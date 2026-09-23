@@ -81,6 +81,17 @@ export class ShortlistPage {
     private readonly listPane = viewChild<ElementRef<HTMLElement>>('listPane');
 
   private readonly confirmArchive = viewChild<ElementRef<HTMLDialogElement>>('confirmArchive');
+  private readonly confirmOne = viewChild<ElementRef<HTMLDialogElement>>('confirmOne');
+
+  /** The single-offer write `a` is waiting to have confirmed, because the offer has a package. */
+  protected readonly pendingOne = signal<{ readonly id: number; readonly archived: boolean } | null>(null);
+
+  /**
+   * The offer `a` just took off this side of the list, and the one to open once it is gone.
+   * Kept until the write settles: on success the neighbour opens, on failure the reader stays
+   * on the offer and reads the error where it has always been shown.
+   */
+  private readonly afterArchive = signal<{ readonly id: number; readonly next: number | null } | null>(null);
   private readonly document = inject(DOCUMENT);
     private readonly injector = inject(Injector);
 
@@ -367,6 +378,22 @@ export class ShortlistPage {
                 queryParamsHandling: 'preserve',
                 replaceUrl: true,
             });
+        });
+
+        // After `a`: the write settled when `archiving` is clear again. Gone from the list means it
+        // worked, and the neighbour opens the way j/k would open it; still listed means it failed.
+        effect(() => {
+            const pending = this.afterArchive();
+            if (pending === null || this.store.archiving() !== null) {
+                return;
+            }
+            this.afterArchive.set(null);
+            const stillListed = this.visible().some((entry) => entry.offer.id === pending.id);
+            if (stillListed || pending.next === null) {
+                return;
+            }
+            this.focusWanted.set(pending.next);
+            void this.router.navigate(['/shortlist', pending.next], {queryParamsHandling: 'preserve'});
         });
 
         // The focus follows a key press, which is what makes the browser scroll the card into
@@ -715,6 +742,58 @@ export class ShortlistPage {
     this.listPane()?.nativeElement.focus?.();
   }
 
+  /**
+   * `a`: the open offer leaves the side being read — archived from the working list, restored
+   * from the archive, by the same rule as the detail's button.
+   *
+   * <p><b>Direct unless the offer has a package.</b> Archiving deletes a package nobody sent, and a
+   * restore resets the application to NEW without rebuilding it, so one stray key would cost a
+   * document. The browser cannot see whether it was ever sent; a package on disk stands in for
+   * that, which asks once too often rather than once too rarely.
+   */
+  private archiveOpenOffer(): void {
+    const entry = this.store.selected();
+    const id = this.selectedId();
+    if (entry === null || id === null || entry.offer.id !== id || this.store.archiving() !== null) {
+      return;
+    }
+    const archived = entry.offer.archivedAt === null;
+    if (entry.offer.packageDir !== null) {
+      this.pendingOne.set({id, archived});
+      this.confirmOne()?.nativeElement.showModal?.();
+      return;
+    }
+    this.archiveOne(id, archived);
+  }
+
+  /**
+   * The neighbour is decided before the row goes: below, or above when it was the last. Like a
+   * mail client, triage continues where the reader already is.
+   */
+  private archiveOne(id: number, archived: boolean): void {
+    const entries = this.visible();
+    const index = entries.findIndex((entry) => entry.offer.id === id);
+    const next = index === -1 ? null : (entries[index + 1] ?? entries[index - 1])?.offer.id ?? null;
+    this.dispatch.archiveRequested({id, archived});
+    this.afterArchive.set({id, next});
+  }
+
+  protected confirmOneArchive(): void {
+    const pending = this.pendingOne();
+    this.confirmOne()?.nativeElement.close?.();
+    this.pendingOne.set(null);
+    if (pending !== null) {
+      this.archiveOne(pending.id, pending.archived);
+    }
+    this.listPane()?.nativeElement.focus?.();
+  }
+
+  protected cancelOneArchive(): void {
+    this.confirmOne()?.nativeElement.close?.();
+    this.pendingOne.set(null);
+    this.listPane()?.nativeElement.focus?.();
+  }
+
   /** A cancelled confirmation is not a cleared selection. */
   protected cancelArchivePicked(): void {
     this.confirmArchive()?.nativeElement.close?.();
@@ -887,6 +966,11 @@ export class ShortlistPage {
      */
     protected onListKey(event: KeyboardEvent): void {
         if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) {
+            return;
+        }
+        if (event.key === 'a') {
+            event.preventDefault();
+            this.archiveOpenOffer();
             return;
         }
         const step =

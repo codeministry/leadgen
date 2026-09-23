@@ -555,7 +555,7 @@ describe('ShortlistPage', () => {
         const navigate = vi.spyOn(router, 'navigate').mockResolvedValue(true);
         const fixture = render();
 
-        press(fixture, 'a');
+        press(fixture, 'x');
         press(fixture, 'Enter');
 
         expect(navigate).not.toHaveBeenCalled();
@@ -714,6 +714,102 @@ describe('ShortlistPage', () => {
     expect(fixture.nativeElement.querySelector('.bulk-bar')).toBeNull();
   });
 
+  describe('`a` on the open offer', () => {
+    /**
+     * The open offer is a child route in the app, and a spec has no active child route. So the
+     * id is given the way the route would give it, and the entry the way the detail loads it.
+     */
+    function open(fixture: ComponentFixture<ShortlistPage>, entry: ShortlistEntry): void {
+      Object.defineProperty(fixture.componentInstance, 'selectedId', {value: () => entry.offer.id});
+      TestBed.inject(Dispatcher).dispatch(shortlistEvents.offerLoaded(entry));
+      fixture.detectChanges();
+    }
+
+    function patch(id: number): ReturnType<HttpTestingController['expectOne']> {
+      return http.expectOne((request) => request.method === 'PATCH' && request.url === `/api/v1/offers/${id}`);
+    }
+
+    function withPackage(entry: ShortlistEntry): ShortlistEntry {
+      return {...entry, offer: {...entry.offer, packageDir: 'packages/2026-09-23_acme_java'}};
+    }
+
+    it('archives an offer without a package at once and opens the one below it', () => {
+      widthAllowsBothColumns(false);
+      const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+      const fixture = render();
+      open(fixture, ENTRIES[0]!);
+
+      press(fixture, 'a');
+      const request = patch(ENTRIES[0]!.offer.id);
+      expect(request.request.body).toEqual({archived: true});
+      request.flush({...ENTRIES[0]!, offer: {...ENTRIES[0]!.offer, archivedAt: '2026-09-23T10:00:00Z'}});
+      fixture.detectChanges();
+
+      expect(navigate).toHaveBeenLastCalledWith(['/shortlist', ENTRIES[1]!.offer.id], {queryParamsHandling: 'preserve'});
+    });
+
+    it('opens the one above when the archived offer was the last', () => {
+      widthAllowsBothColumns(false);
+      const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+      const fixture = render();
+      open(fixture, ENTRIES[2]!);
+
+      press(fixture, 'a');
+      patch(ENTRIES[2]!.offer.id).flush({...ENTRIES[2]!, offer: {...ENTRIES[2]!.offer, archivedAt: '2026-09-23T10:00:00Z'}});
+      fixture.detectChanges();
+
+      expect(navigate).toHaveBeenLastCalledWith(['/shortlist', ENTRIES[1]!.offer.id], {queryParamsHandling: 'preserve'});
+    });
+
+    it('stays on the offer when the write fails', () => {
+      widthAllowsBothColumns(false);
+      const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+      const fixture = render();
+      open(fixture, ENTRIES[0]!);
+
+      press(fixture, 'a');
+      patch(ENTRIES[0]!.offer.id).flush('nope', {status: 500, statusText: 'Server Error'});
+      fixture.detectChanges();
+
+      expect(navigate).not.toHaveBeenCalled();
+    });
+
+    it('asks first when the offer has a package, and writes only on confirm', () => {
+      widthAllowsBothColumns(false);
+      const fixture = render();
+      open(fixture, withPackage(ENTRIES[0]!));
+
+      press(fixture, 'a');
+      http.expectNone((request) => request.method === 'PATCH');
+      expect(fixture.componentInstance['pendingOne']()).toEqual({id: ENTRIES[0]!.offer.id, archived: true});
+
+      fixture.componentInstance['confirmOneArchive']();
+      expect(patch(ENTRIES[0]!.offer.id).request.body).toEqual({archived: true});
+    });
+
+    it('writes nothing when the confirmation is cancelled', () => {
+      widthAllowsBothColumns(false);
+      const fixture = render();
+      open(fixture, withPackage(ENTRIES[0]!));
+
+      press(fixture, 'a');
+      fixture.componentInstance['cancelOneArchive']();
+
+      http.expectNone((request) => request.method === 'PATCH');
+      expect(fixture.componentInstance['pendingOne']()).toBeNull();
+    });
+
+    it('restores an archived offer', () => {
+      widthAllowsBothColumns(false);
+      const fixture = render();
+      open(fixture, {...ENTRIES[1]!, offer: {...ENTRIES[1]!.offer, archivedAt: '2026-09-20T10:00:00Z'}});
+
+      press(fixture, 'a');
+
+      expect(patch(ENTRIES[1]!.offer.id).request.body).toEqual({archived: false});
+    });
+  });
+
   it('leaves a Shift-modified key press alone', () => {
     // The range gesture is a Shift-click and never a Shift-keypress, so the bail on every
     // modifier stays — and it is load-bearing for a second reason now.
@@ -723,6 +819,7 @@ describe('ShortlistPage', () => {
     const fixture = render();
 
     press(fixture, 'j', {shiftKey: true});
+    press(fixture, 'A', {shiftKey: true});
 
         expect(navigate).not.toHaveBeenCalled();
     });

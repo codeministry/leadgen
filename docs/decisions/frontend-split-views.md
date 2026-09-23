@@ -271,6 +271,14 @@ underneath all three. One list on the left, one thing being read on the right, a
   anywhere. The pane carries `tabindex="0"` because a scrollable region has to be reachable by keyboard at all. Past the
   last loaded entry the key asks for the next page and stays put: the list is keyset-paged, so "next" beyond what is
   loaded does not exist yet.
+- **`a` takes the open offer off the side being read, and asks first only when that could cost a document.** It
+  archives from the working list and restores from the archive, by the rule the detail's button already uses, and on
+  the same pane so it stays a letter everywhere else. Lowercase only: the handler's bail on every modifier stays, so a
+  Shift+A typed by accident does nothing. An offer with a package opens a confirmation instead, because archiving
+  deletes a package nobody sent and a restore resets the application to NEW without rebuilding it; the browser cannot
+  tell a sent application from an unsent one, so a package on disk stands in for both and asks once too often rather
+  than once too rarely. After the write the neighbour opens — the one below, or above when it was the last — decided
+  before the row goes, and only on success, so a failed write leaves the reader on the offer beside its error.
 - **`applicationEvents.opened()` stays in `OfferDetail.ngOnInit`, and the split made it cheaper.** The component is now
   created once and reused across ids, so the whole board is fetched once per session instead of once per offer opened.
   The accepted consequence: a status changed elsewhere mid-session is not picked up.

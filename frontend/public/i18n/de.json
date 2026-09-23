@@ -135,6 +135,10 @@
     "confirmArchiveTitle": "Diese Angebote archivieren?",
     "confirmArchiveBody": "{count, plural, one {# Angebot verlässt die Arbeitsliste. Du kannst es jederzeit aus dem Archiv zurückholen.} other {# Angebote verlassen die Arbeitsliste. Du kannst sie jederzeit aus dem Archiv zurückholen.}}",
     "confirmArchiveConfirm": "{count, plural, one {# Angebot archivieren} other {# Angebote archivieren}}",
+    "confirmArchiveOneTitle": "Angebot samt Paket archivieren?",
+    "confirmArchiveOneBody": "Zu diesem Angebot gibt es ein Bewerbungspaket. Archivieren löscht das Paket, sofern die Bewerbung nicht versendet wurde, und Zurückholen bringt es nicht wieder.",
+    "confirmRestoreOneTitle": "Angebot zurückholen?",
+    "confirmRestoreOneBody": "Die Bewerbung springt auf NEU zurück, und das Paket einer versendeten Bewerbung wird für die neue Runde nicht neu gebaut.",
     "sortBy": "Sortierung",
     "sort": {
       "score": "Höchste Punktzahl",

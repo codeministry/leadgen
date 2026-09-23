@@ -34,6 +34,7 @@
                 type="button"
                 class="btn btn-sm btn-ghost"
                 [disabled]="store.archiving() === entry.offer.id"
+                aria-keyshortcuts="a"
                 (click)="setArchived(entry.offer.id, entry.offer.archivedAt === null)"
         >
             <lg-icon [name]="entry.offer.archivedAt ? 'archive-restore' : 'archive'" [size]="16"/>

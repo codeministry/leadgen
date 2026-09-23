@@ -135,6 +135,10 @@
     "confirmArchiveTitle": "Archive these offers?",
     "confirmArchiveBody": "{count, plural, one {# offer leaves the working list. You can put it back from the archive at any time.} other {# offers leave the working list. You can put them back from the archive at any time.}}",
     "confirmArchiveConfirm": "{count, plural, one {Archive # offer} other {Archive # offers}}",
+    "confirmArchiveOneTitle": "Archive this offer and its package?",
+    "confirmArchiveOneBody": "The offer has an application package. Archiving deletes the package unless the application was sent, and restoring it later does not bring the package back.",
+    "confirmRestoreOneTitle": "Restore this offer?",
+    "confirmRestoreOneBody": "Its application goes back to NEW, and the package kept for a sent application is not rebuilt for the new round.",
     "sortBy": "Sort by",
     "sort": {
       "score": "Highest score",

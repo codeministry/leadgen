@@ -420,3 +420,31 @@
     </div>
   </div>
 </dialog>
+
+<!-- The same dialog for one offer, opened by `a` when that offer has a package. Archiving
+     deletes a package nobody sent and a restore resets the application to NEW, so the one key
+     that can cost a document is the one that asks. Cancel is focused, as above. -->
+<dialog
+  #confirmOne
+  class="modal"
+  aria-labelledby="lg-confirm-one-title"
+  aria-describedby="lg-confirm-one-body"
+  (cancel)="cancelOneArchive()"
+>
+  <div class="modal-box" role="document">
+    <h2 class="type-h3" id="lg-confirm-one-title">
+      {{ (pendingOne()?.archived === false ? 'shortlist.confirmRestoreOneTitle' : 'shortlist.confirmArchiveOneTitle') | transloco }}
+    </h2>
+    <p class="type-small confirm-body" id="lg-confirm-one-body">
+      {{ (pendingOne()?.archived === false ? 'shortlist.confirmRestoreOneBody' : 'shortlist.confirmArchiveOneBody') | transloco }}
+    </p>
+    <div class="modal-action">
+      <button type="button" class="btn btn-sm btn-ghost" autofocus (click)="cancelOneArchive()">
+        {{ 'common.cancel' | transloco }}
+      </button>
+      <button type="button" class="btn btn-sm btn-primary" (click)="confirmOneArchive()">
+        {{ (pendingOne()?.archived === false ? 'detail.restore' : 'detail.archive') | transloco }}
+      </button>
+    </div>
+  </div>
+</dialog>
