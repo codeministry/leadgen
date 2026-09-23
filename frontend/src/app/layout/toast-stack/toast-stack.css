@@ -1,9 +1,19 @@
-/* The tones are DaisyUI's `alert-success` and `alert-info`, set from a literal lookup in
-   `core/toast/toast.model.ts`. Nothing here names a colour, and nothing takes the ochre:
-   it means "this cleared the threshold" and a toast is not that. */
+/* The tones are DaisyUI's `alert-success`, `alert-warning` and `alert-info`, set from a
+   literal lookup in `core/toast/toast.model.ts`, one per action family. Nothing here names
+   a colour, and nothing takes the ochre: it means "this cleared the threshold" and a toast
+   is not that. */
 
 :host {
     display: contents;
+}
+
+/* `alert-soft` writes the text in the tone colour itself, and the light theme's amber
+   measured 4.05:1 on its own tint — under the 4.5:1 body text needs. The text variant the
+   app already keeps for amber on light surfaces is the answer, unlayered so it beats the
+   plugin's layered rule; measured 4.92:1 on the tint after the token was darkened one step
+   (`src/styles.css`). The dark theme's amber stood at 6.21:1 and the same token holds there. */
+.alert-warning {
+    color: var(--lg-warning-text);
 }
 
 /* Named with the prefix on purpose: this was `.stack` once, and DaisyUI 5 ships a `stack`

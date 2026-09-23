@@ -5,10 +5,10 @@ spec_type: feature
 isa_master: ../../ISA.md
 isa_feature: F30
 constitution: ../constitution.md
-phase: scoping
-progress: 15/16
+phase: complete
+progress: 17/17
 started: 2026-09-23T16:40:00Z
-updated: 2026-09-23T21:55:00Z
+updated: 2026-09-23T23:20:00Z
 principal_stated_goal: "Der User soll in der App Feedback über Aktionen oder Ereignisse erhalten"
 principal_stated_goal_source: prompt
 principal_stated_goal_signal: 3
@@ -114,11 +114,12 @@ that ends while nobody is on the dashboard is news to no one; the shell has no p
 - [x] ISC-213: Anti: a load failure or a refused write raises a toast; the inline `role="alert"` paragraphs stay where they are. (after: ISC-205)
 - [x] ISC-214: A toast leaves by itself after a duration held as a token, stays while hovered or focused, closes on its button, and no more stand at once than the cap held beside the duration, the oldest leaving first. (after: ISC-205)
 - [x] ISC-215: The stack is a polite live region — `role="status"`, `aria-live="polite"`, a new toast appended into it — its close button has an accessible name, and no toast takes focus. (after: ISC-205)
-- [ ] ISC-216: Entering and leaving are gated by `prefers-reduced-motion`, and the reveal is verified in a foregrounded real browser. (after: ISC-214)
+- [x] ISC-216: Entering and leaving are gated by `prefers-reduced-motion`, and the reveal is verified in a foregrounded real browser. (after: ISC-214)
 - [x] ISC-217: Every toast text is a key under one `toast` group present in both catalogs with the same key set, and every count in them is an ICU plural. (after: ISC-205)
 - [x] ISC-218: Anti: a toast carries a control that writes; its only control closes it, and its link is a router navigation to a route that already exists. (after: ISC-205)
 - [x] ISC-219: The toast takes its tones from spelled-out DaisyUI `alert` classes, holds no colour literal, and takes the accent nowhere. (after: ISC-205)
 - [x] ISC-220: `docs/decisions/frontend-design-system.md` carries the toast decisions, `frontend/CLAUDE.md` gains at most one rule line, `CHANGELOG.md` § Unreleased names the feature, and `WorkingNotesStaySmallTest` stays green. (after: ISC-205)
+- [x] ISC-221: Every toast carries the tone of its action family and no other: success for a restore, a confirmed document, a scored rescore and a status change into any state but LOST, REJECTED and EXPIRED; warning for an archive, a bulk archive, a rejected document and a status change into one of those three; info for a run beginning or ending and a rescore still unscored; error never. (after: ISC-205)
 
 ## Test Strategy
 
@@ -140,6 +141,7 @@ that ends while nobody is on the dashboard is news to no one; the shell has no p
 | ISC-218 | bun-test | `rg -n 'injectDispatch\|Dispatcher' frontend/src/app/layout/toast-stack`; resolve every toast link against `app.routes.ts` | only `toastEvents` (dismissed, held, released), no domain event; every link a configured path | rg, Vitest | `toast-stack.ts`, `toast-links.spec.ts`, `app.routes.ts` |
 | ISC-219 | bash | `bun run lint:css`; `rg -n "'alert-' \+" frontend/src/app`; `rg -n accent frontend/src/app/layout/toast-stack` | green; 0; 0 | stylelint, rg | `toast-stack.css`, `src/styles.css` |
 | ISC-220 | bun-test | `./gradlew :backend:test --tests WorkingNotesStaySmallTest`; `rg -n -i toast docs/decisions/frontend-design-system.md CHANGELOG.md` | green; ≥ 1 each | JUnit, rg | `WorkingNotesStaySmallTest`, `frontend-design-system.md`, `CHANGELOG.md` |
+| ISC-221 | bun-test | dispatch one answer event per family, and a status change into LOST and into WON | tones as the family table says; `rg -n alert-error frontend/src/app/core/toast frontend/src/app/layout/toast-stack` = 0 | Vitest, rg | `toast.store.spec.ts`, `toast.model.ts` |
 
 ## Decisions
 
@@ -168,6 +170,19 @@ that ends while nobody is on the dashboard is news to no one; the shell has no p
   raising the start from the heartbeat alone is up to thirty seconds of delay for the operator's own click at the idle
   cadence, so `requested` asks the heartbeat once immediately — one extra indexed read, and the toast is where the
   click is.
+- **2026-09-23 — A tone per action family, and amber over neutral.** Two tones made an archive and its restore
+  identical, and the operator asked for the actions to be told apart by colour. The families: success for what
+  is brought back, confirmed or moved forward (restore, confirmed document, scored rescore, a status change into
+  any state but LOST, REJECTED and EXPIRED); warning for what is taken off the list or closed against us
+  (archive, bulk archive, rejected document, those three states); info for news nobody here asked for (runs, a
+  rescore still unscored); error never, because the stack is a `status` region. Neutral (DaisyUI's `alert` with
+  no modifier) was the recommendation, following "everything discarded is muted"; the operator chose amber for
+  the contrast, knowing that amber has meant "wants attention" elsewhere in the app, and the record says the
+  toast widens it. No icons, no fourth tone. Minted as ISC-221 in the master first. Measured over CDP after the
+  build: `alert-soft` writes the text in the tone colour, and the light theme's amber stood at 4.05:1 on its own
+  tint, under the 4.5:1 body text needs (green 4.72:1, dark theme 6.21:1 and 6.39:1). The toast's amber text takes
+  the app's `--lg-warning-text` instead, and that token went one step darker for the light theme, 55.5% to 53%
+  lightness (5.13:1 on sand, 4.92:1 on the tint), which lifts every other amber text with it.
 - **2026-09-23 — The reveal measured under both preferences, in a live lifecycle; ISC-216 waits for the operator's
   word.** Over CDP with `prefers-reduced-motion` emulated, rAF ticking at 28–29 per 400ms and the page visible: without
   the preference the `toast` animation runs 0.25s ease-out (opacity 0.11 → 1, scale 0.91 → 1); with it
@@ -211,3 +226,5 @@ that ends while nobody is on the dashboard is news to no one; the shell has no p
 - ISC-211 — toast.store.spec 'is announced once per run id, from the heartbeat and never from the request' (red without `distinctUntilChanged`); ingest.store.spec 'asks the heartbeat the moment a run is requested, and keeps asking fast while it is out'
 - ISC-212 — toast.store.spec 'is announced once for a run this browser started, although both paths fire' (red without `distinctUntilKeyChanged`), '… from the last run read back', 'says nothing about a last run read for any other reason'
 - ISC-220 — WorkingNotesStaySmallTest green (frontend/CLAUDE.md 10,740 of 12,000); rg -i toast: frontend-design-system.md 16, CHANGELOG.md 4, frontend/CLAUDE.md 2 (2026-09-23)
+- ISC-216 — manual, the operator's word on 2026-09-23: "passt, ISC-216 schliessen"; the measurement stands in § Decisions (0.25s ease-out without the preference, animationName none with it, rAF live)
+- ISC-221 — toast.store.spec 'the tone per family' (amber ×6 events, green ×3, blue ×2) plus the archive block's tones; red under a bulk-tone and a closing-set mutation; rg alert-error over core/toast and toast-stack: 0; pixel capture archive amber beside restore green, light 4.92:1 / 4.72:1, dark 6.21:1 / 6.39:1 (2026-09-23)

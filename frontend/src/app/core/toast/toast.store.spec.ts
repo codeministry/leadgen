@@ -194,6 +194,34 @@ describe('ToastStore', () => {
         });
     });
 
+    describe('the tone per family', () => {
+        it('is amber for what is taken off the list or closed against us', () => {
+            shortlist.archived(archiveAnswer(7, 'x', '2026-09-23T10:00:00Z'));
+            shortlist.bulkArchived({ids: [1, 2], archived: 2, unscored: 0});
+            manual.settled({name: 'spam.md', outcome: 'rejected'});
+            applications.updated(application({id: 1, status: 'LOST'}));
+            applications.updated(application({id: 2, status: 'REJECTED'}));
+            applications.updated(application({id: 3, status: 'EXPIRED'}));
+
+            expect(store.toasts().map((standing) => standing.tone)).toEqual(['warning', 'warning', 'warning']);
+        });
+
+        it('is green for what is brought back, confirmed or moved forward, WON included', () => {
+            shortlist.archived(archiveAnswer(7, 'x', null));
+            manual.settled({name: 'inbox.md', outcome: 'confirmed'});
+            applications.updated(application({id: 1, status: 'WON'}));
+
+            expect(store.toasts().map((standing) => standing.tone)).toEqual(['success', 'success', 'success']);
+        });
+
+        it('is blue for news nobody here asked for', () => {
+            ingest.currentLoaded({id: 5, startedAt: '', scoreModel: null, stage: null, stagePosition: null, stageTotal: null, stageStartedAt: null});
+            shortlist.rescored(scoreAnswer(9, 'x', null));
+
+            expect(store.toasts().map((standing) => standing.tone)).toEqual(['info', 'info']);
+        });
+    });
+
     describe('a failure', () => {
         it('raises no toast at all — the inline alert beside the control is the message', () => {
             shortlist.archiveFailed('error.archive');
@@ -216,12 +244,13 @@ describe('ToastStore', () => {
             const [archived, restored] = store.toasts();
             expect(store.toasts().length).toBe(2);
             expect(archived).toMatchObject({
-                tone: 'success',
+                tone: 'warning',
                 key: 'toast.archived',
                 params: {title: 'Senior Java Entwickler (m/w/d)'},
                 link: '/shortlist/7',
             });
             expect(restored).toMatchObject({
+                tone: 'success',
                 key: 'toast.restored',
                 params: {title: 'Angular Frontend Developer'},
                 link: '/shortlist/9',

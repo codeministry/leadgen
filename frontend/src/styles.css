@@ -100,7 +100,7 @@
 :where(:root) {
     --lg-muted: oklch(54.5% 0.02 178.83); /* #647470, 4.62:1 on sand */
     --lg-accent-text: oklch(55% 0.118 73.82); /* #9A6500, 4.68:1 on sand */
-    --lg-warning-text: oklch(55.5% 0.123 67.99); /* #A16300, 4.61:1 on sand */
+    --lg-warning-text: oklch(53% 0.12 68); /* #985C00, 5.13:1 on sand, 4.92:1 on the soft amber tint a toast sits on; was 55.5% (4.61:1 on sand) until the toast text measured 4.43:1 on its tint */
 
     /* The chart palette. A charting library cannot read a custom property, so these are
        resolved once with getComputedStyle and handed over as flat strings — which also

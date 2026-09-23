@@ -1,7 +1,7 @@
 ---
 spec: 002-action-feedback-toasts
 plan: plan.md
-updated: 2026-09-23 (stages 1 to 4 built; T36 awaits the operator's word)
+updated: 2026-09-23 (all five stages closed)
 ---
 
 # Tasks 002 — Feedback after an action, and for a run whoever started it
@@ -66,11 +66,19 @@ dispatch time; this column is a hint.
 
 ### Stage 4 — motion and the record
 
-- [ ] T36 · ISC-216 — reduced-motion gate on the stack's own enter and leave, beside DaisyUI's; the foregrounded browser pass through `VerifyViewport.ts` with the preference off and on, plus VoiceOver reading one raise (after: T19, T35) · `frontend/src/app/layout/toast-stack/toast-stack.css`
+- [x] T36 · ISC-216 — reduced-motion gate on the stack's own enter and leave, beside DaisyUI's; the foregrounded browser pass through `VerifyViewport.ts` with the preference off and on, plus VoiceOver reading one raise (after: T19, T35) · `frontend/src/app/layout/toast-stack/toast-stack.css`
 - [x] T37 · ISC-220 — the toast decisions in the interface-language section: one mechanism, answers not requests, a link never an undo, failures inline (after: T35) · `docs/decisions/frontend-design-system.md`
 - [x] T38 · ISC-220 — one rule line in the frontend notes (after: T37) · `frontend/CLAUDE.md`
 - [x] T39 · ISC-220 — § Unreleased: the feature, the `settled` shape, the parity spec (after: T37) · `CHANGELOG.md`
 - [x] T40 · ISC-220 — run `WorkingNotesStaySmallTest` after the three edits (after: T38, T39) · `backend/src/test/java/de/codeministry/leadgen/WorkingNotesStaySmallTest.java`
+
+### Stage 5 — a tone per action family
+
+- [x] T41 · ISC-221 — the tone union gains `warning`, the literal map its class, the comment the three families · `frontend/src/app/core/toast/toast.model.ts`
+- [x] T42 · ISC-221 — the family per handler: archive/bulk/rejected/closing states warning, restore/confirmed/scored/forward success, runs and unscored info; `CLOSED_AGAINST_US` literal set (after: T41) · `frontend/src/app/core/toast/toast.store.ts`
+- [x] T43 · ISC-221 — spec blocks assert the tone on every mapping; a move into LOST is warning, into WON success (after: T42) · `frontend/src/app/core/toast/toast.store.spec.ts`
+- [x] T44 · ISC-221 — the record: a bullet in the Toasts section on the families and the widening of amber; a changelog line (after: T42) · `docs/decisions/frontend-design-system.md`, `CHANGELOG.md`
+- [x] T45 · ISC-221 — pixel capture of an archive toast beside a restore toast, both themes' legibility of `alert-soft alert-warning` read off the image (after: T42) · `frontend/src/app/layout/toast-stack/toast-stack.css`
 
 ## Probe Mapping
 
@@ -92,3 +100,4 @@ dispatch time; this column is a hint.
 | T31–T33 | ISC-211 | `requested` then `currentLoaded(run 7)` twice; `currentLoaded(run 8)` alone |
 | T34, T35 | ISC-212 | `finished(@T)` then `run-ended` + `lastRunLoaded(@T)`; `run-ended` + `lastRunLoaded(@U)`; `lastRunLoaded(@V)` alone |
 | T37–T40 | ISC-220 | `WorkingNotesStaySmallTest`; rg for `toast` in the decision doc and the changelog |
+| T41–T45 | ISC-221 | dispatch one answer event per family, and a status change into LOST and into WON; rg for `alert-error` |

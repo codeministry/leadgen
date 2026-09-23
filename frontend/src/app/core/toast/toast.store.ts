@@ -2,7 +2,7 @@ import {inject} from '@angular/core';
 import {signalStore, withState} from '@ngrx/signals';
 import {Events, on, withEventHandlers, withReducer} from '@ngrx/signals/events';
 import {distinctUntilChanged, distinctUntilKeyChanged, filter, map, merge, mergeMap, switchMap, take, takeUntil, timer} from 'rxjs';
-import {statusLabel} from '@core/model/application';
+import {ApplicationStatus, statusLabel} from '@core/model/application';
 import {LastRunView} from '@core/model/last-run';
 import {refreshEvents} from '@core/refresh/refresh.events';
 import {applicationEvents} from '@core/store/applications.events';
@@ -18,6 +18,12 @@ interface ToastState {
 }
 
 const initialState: ToastState = {toasts: []};
+
+/**
+ * The states that close an application against us. A move into one of them is "taken
+ * away" and takes the warning tone; every other move, WON included, is forward and green.
+ */
+const CLOSED_AGAINST_US: ReadonlySet<ApplicationStatus> = new Set<ApplicationStatus>(['LOST', 'REJECTED', 'EXPIRED']);
 
 /**
  * The one place a domain event becomes a message.
@@ -77,12 +83,9 @@ export const ToastStore = signalStore(
             events.on(shortlistEvents.archived).pipe(
                 map(({payload}) =>
                     toastEvents.raised(
-                        toast(
-                            'success',
-                            payload.offer.archivedAt === null ? 'toast.restored' : 'toast.archived',
-                            {title: payload.offer.title},
-                            `/shortlist/${payload.offer.id}`,
-                        ),
+                        payload.offer.archivedAt === null
+                            ? toast('success', 'toast.restored', {title: payload.offer.title}, `/shortlist/${payload.offer.id}`)
+                            : toast('warning', 'toast.archived', {title: payload.offer.title}, `/shortlist/${payload.offer.id}`),
                     ),
                 ),
             ),
@@ -90,17 +93,18 @@ export const ToastStore = signalStore(
             // named no row was not archived, and the sentence must not say it was.
             events.on(shortlistEvents.bulkArchived).pipe(
                 map(({payload}) =>
-                    toastEvents.raised(toast('success', 'toast.countArchived', {count: payload.archived})),
+                    toastEvents.raised(toast('warning', 'toast.countArchived', {count: payload.archived})),
                 ),
             ),
             // From `updated`, the row the server returned, and never from the optimistic
             // `changed`: the board moves the card before the answer is back, and a refused
             // move puts it back. A toast for that move would confirm what did not happen.
+            // Amber for a move that closes the application against us, green for every other.
             events.on(applicationEvents.updated).pipe(
                 map(({payload}) =>
                     toastEvents.raised(
                         toast(
-                            'success',
+                            CLOSED_AGAINST_US.has(payload.status) ? 'warning' : 'success',
                             'toast.statusChanged',
                             {title: payload.title, state: statusLabel(payload.status)},
                             `/pipeline/${payload.id}`,
@@ -171,11 +175,9 @@ export const ToastStore = signalStore(
             events.on(manualEvents.settled).pipe(
                 map(({payload}) =>
                     toastEvents.raised(
-                        toast(
-                            'success',
-                            payload.outcome === 'confirmed' ? 'toast.documentConfirmed' : 'toast.documentRejected',
-                            {name: payload.name},
-                        ),
+                        payload.outcome === 'confirmed'
+                            ? toast('success', 'toast.documentConfirmed', {name: payload.name})
+                            : toast('warning', 'toast.documentRejected', {name: payload.name}),
                     ),
                 ),
             ),

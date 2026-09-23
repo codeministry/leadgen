@@ -1,12 +1,20 @@
 /**
  * One line at the edge of the screen, saying what just happened.
  *
- * <p>Two tones and no third: nothing here is an error, because every refused write already
- * has a `role="alert"` paragraph beside the control that can retry it, and a toast on top
- * would be one failure said twice. `success` is a write the server accepted; `info` is a run
- * beginning or ending, which nobody in this browser necessarily asked for.
+ * <p>Three tones, one per action family, so an archive and its restore are told apart at a
+ * glance and not by reading. `success` is something brought back, confirmed or moved
+ * forward: a restore, a confirmed document, a scored rescore, a status change into any state
+ * but the three that close against us. `warning` is something taken off the list or closed
+ * against us: an archive, a bulk archive, a rejected document, LOST, REJECTED, EXPIRED. Amber
+ * meant "wants attention" elsewhere in this app; here it means "taken away", the operator's
+ * choice over the neutral alert (2026-09-23). `info` is news nobody in this browser
+ * necessarily asked for: a run beginning or ending, a rescore that is still unscored.
+ *
+ * <p>Never `error`: every refused write already has a `role="alert"` paragraph beside the
+ * control that can retry it, a toast on top would be one failure said twice, and the stack
+ * is a polite `status` region in which nothing is an error.
  */
-export type ToastTone = 'success' | 'info';
+export type ToastTone = 'success' | 'warning' | 'info';
 
 export interface Toast {
     /** Monotonic, the stack's track key and what the timer and the close button name. */
@@ -28,6 +36,7 @@ export interface Toast {
  */
 export const TOAST_TONE_CLASS: Readonly<Record<ToastTone, string>> = {
     success: 'alert-success',
+    warning: 'alert-warning',
     info: 'alert-info',
 };
 

@@ -18,12 +18,16 @@ may change in any release. See the status note in the README.
   Failures keep their inline place; a toast links to the thing it names and never undoes.
   One store in `core/toast/` listens to the other stores' answer events, one stack in the
   shell paints them as a polite live region (spec `002-action-feedback-toasts`).
+- Each toast carries the tone of its action family: green for what is brought back or confirmed,
+  amber for what is taken off the list or closed against us, blue for a run.
 - A parity spec holds the English and German catalogs to the same key set.
 - `src/styles/motion.css`, the first motion tokens.
 
 ### Changed
 
 - `manualEvents.settled` carries the outcome beside the document name (internal).
+- The light theme's amber text token is one step darker (5.13:1 on sand, was 4.61:1), so a
+  toast's amber text clears 4.5:1 on its tint; every other amber text takes the step with it.
 - The ingest store asks the run heartbeat once at the moment a run is requested and polls
   at the fast cadence while its own request is out.
 

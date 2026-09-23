@@ -194,3 +194,12 @@ One line at the edge of the screen after a write or a run, and the decisions tha
   with a measured rectangle while the capture showed nothing. The pictures in the spec
   come from a pixel capture over CDP, taken past the reveal; a frame inside it reads as a
   translucent toast and is not one.
+- **A tone per action family, and amber means "taken away" here.** Two tones made an archive
+  and its restore identical. Now: green for what is brought back, confirmed or moved forward
+  (restore, confirmed document, scored rescore, a status change into any state but LOST,
+  REJECTED and EXPIRED); amber for what is taken off the list or closed against us (archive,
+  bulk archive, rejected document, those three states); blue for news nobody here asked for
+  (runs, a rescore still unscored); never red. Amber has meant "wants attention" elsewhere
+  (`shared/badge`, the rescore refusal); the neutral alert was the recommendation, following
+  "everything discarded is muted", and the operator chose amber for the contrast, knowing the
+  widening (2026-09-23). No icons: the colour and the sentence are enough at three tones.
