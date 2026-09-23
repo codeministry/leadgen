@@ -226,8 +226,8 @@ came out of them.
 ## Traps that have already cost money
 
 The list is split by tree: `backend/CLAUDE.md` and `frontend/CLAUDE.md` each carry their own,
-and each arrives with the code it is about. One trap belongs to neither, because it fires on
-an editor command aimed at the whole repository.
+and each arrives with the code it is about. Two traps belong to neither, because each fires on
+something aimed at the whole repository: an editor command, and the JVM the build runs on.
 
 - **Reformatting an applied migration takes every deployed database down.** Flyway hashes the file's bytes, so
   realigning a column list or moving a `(` to its own line changes the checksum of a migration that ran months ago, and
@@ -237,6 +237,9 @@ an editor command aimed at the whole repository.
   The repair is to restore the files, not to repair the database, because the checksum has to match on every environment
   at once.
   `.editorconfig` switches the IntelliJ formatter off for `db/migration/*.sql` for exactly this reason.
+- **palantir-java-format runs on the javac of the JVM Gradle runs on, and only 21 works.** On 25 and 27
+  `spotlessCheck` fails every file with `NoSuchMethodError`, and a warm spotless index hides it locally.
+  CI runs Gradle on 21 and hands the 25 toolchain over by path; reasoning in `.github/workflows/ci.yml`.
 ## Settled
 
 - **License: Apache-2.0.** `LICENSE` and `NOTICE` at the root, SPDX headers on the Java sources, and Spotless
