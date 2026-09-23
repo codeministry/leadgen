@@ -185,6 +185,25 @@ describe('ToastStore', () => {
             expect(store.toasts()[0]).toMatchObject({params: {written: 112, shortlisted: 4}});
         });
 
+        it('says where a run stopped rather than reporting counts that end there', () => {
+            refresh.requested('run-ended');
+            ingest.lastRunLoaded({
+                finishedAt: '2026-09-24T03:00:00Z',
+                written: 112,
+                shortlisted: 0,
+                status: 'FAILED',
+                stages: [{stage: 'DEDUPE'}, {stage: 'ENRICH'}],
+            } as unknown as LastRunView);
+
+            expect(store.toasts().length).toBe(1);
+            expect(store.toasts()[0]).toMatchObject({
+                tone: 'warning',
+                key: 'toast.runFailed',
+                params: {stage: 'ENRICH'},
+                link: '/dashboard',
+            });
+        });
+
         it('says nothing about a last run read for any other reason', () => {
             ingest.lastRunLoaded(lastRun('2026-09-22T03:00:00Z'));
             refresh.requested('tab-focused');

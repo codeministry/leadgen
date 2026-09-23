@@ -6,6 +6,7 @@ import {shortlistEvents} from '@core/store/shortlist.events';
 import {ShortlistStore} from '@core/store/shortlist.store';
 import {ApplicationsStore} from '@core/store/applications.store';
 import {IngestStore} from '@core/store/ingest.store';
+import {LastRunStage} from '@core/model/last-run';
 import {Badge} from '@shared/badge/badge';
 import {EmptyState} from '@shared/empty-state/empty-state';
 import {FunnelRail} from '@shared/funnel-rail/funnel-rail';
@@ -192,6 +193,61 @@ export class Dashboard implements OnInit {
       total: run.stageTotal,
     });
   });
+
+    /**
+     * Where the recorded run spent its time, stage by stage.
+     *
+     * <p>From the recorded run only: an `IngestReport` carries no timings. After this
+     * browser's own run the run-ended refresh reads the recorded one back a moment later, so
+     * the table and the rest of the panel describe the same pass.
+     */
+    protected readonly runStages = computed<readonly LastRunStage[]>(() => this.ingest.lastRun()?.stages ?? []);
+
+    /**
+     * The position of the stage that took longest, or null when there is nothing to compare.
+     * Marked because "the run took eleven minutes" is not actionable and "enrichment took
+     * nine of them" is.
+     */
+    protected readonly slowestStage = computed<number | null>(() => {
+        const stages = this.runStages();
+        if (stages.length < 2) {
+            return null;
+        }
+        const slowest = stages.reduce((longest, stage) => (stage.millis > longest.millis ? stage : longest));
+        return slowest.millis > 0 ? slowest.position : null;
+    });
+
+    /**
+     * The stage the recorded run stopped in, when it stopped in one. The last timing,
+     * because the server appends the failed one last; the run's own status and not the
+     * timings decides, since a failed source leaves a FAILED row under a run that completed.
+     */
+    protected readonly failedStage = computed<LastRunStage | null>(() => {
+        const run = this.ingest.lastRun();
+        return run?.status === 'FAILED' ? (run.stages.at(-1) ?? null) : null;
+    });
+
+    /**
+     * A duration in the unit a person reads it in. `Intl` names the unit, so there is no
+     * prose here; the locale follows the chosen language like every date on this panel.
+     */
+    protected duration(millis: number): string {
+        const lang = this.transloco.getActiveLang();
+        const [unit, value, digits] =
+            millis < 1000
+                ? (['millisecond', millis, 0] as const)
+                : millis < 60_000
+                  ? (['second', millis / 1000, 1] as const)
+                  : (['minute', millis / 60_000, 1] as const);
+        return new Intl.NumberFormat(lang, {
+            style: 'unit',
+            unit,
+            // `short` and not `narrow`: CLDR's narrow German form drops the space for exactly
+            // one (`1ms` beside `3 ms`), which reads as a typo in a column of numbers.
+            unitDisplay: 'short',
+            maximumFractionDigits: digits,
+        }).format(value);
+    }
 
     /**
      * Whether that run is one this browser watched. Only the sentence changes: a recorded run

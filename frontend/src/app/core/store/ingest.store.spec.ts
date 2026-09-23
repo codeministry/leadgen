@@ -61,6 +61,17 @@ function lastRun(overrides: Partial<LastRunView> = {}): LastRunView {
                 complete: true,
             },
         ],
+        stages: [
+            {
+                position: 0,
+                stage: 'DEDUPE',
+                startedAt: '2026-09-02T04:10:00Z',
+                endedAt: '2026-09-02T04:10:02Z',
+                millis: 2000,
+                status: 'OK',
+                note: null,
+            },
+        ],
         ...overrides,
     };
 }

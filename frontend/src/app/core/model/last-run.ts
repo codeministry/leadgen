@@ -25,10 +25,33 @@ export interface LastRunSource {
     readonly complete: boolean;
 }
 
+/**
+ * One timed stage of the recorded run. Mirrors `de.codeministry.leadgen.analytics.LastRunStage`.
+ *
+ * `stage` and `note` are the server's prose and stay English on every screen, like a score
+ * reason. `status` is `OK` or `FAILED`: a failed source under a run that completed is normal,
+ * a failed stage last under a run whose own status is `FAILED` is where that run stopped.
+ */
+export interface LastRunStage {
+    /** The order the stage ran in, from zero. */
+    readonly position: number;
+    readonly stage: string;
+    readonly startedAt: string;
+    readonly endedAt: string;
+    /** Derived on the server, so the browser never subtracts two ISO strings. */
+    readonly millis: number;
+    readonly status: string;
+    readonly note: string | null;
+}
+
 export interface LastRunView {
     /** What tells the reader whether this is tonight's pass or their own click. */
     readonly finishedAt: string;
-    /** `COMPLETE`, or `AWAITING_BATCH` while a batched run's scores are still in flight. */
+    /**
+     * `COMPLETE`; `AWAITING_BATCH` while a batched run's scores are still in flight; or
+     * `FAILED` when a stage threw, in which case the counts stop at that stage and the last
+     * entry of `stages` names it. A string and not a union: the server owns the list.
+     */
     readonly status: string;
     /** Which judge produced the scores. A run without its scale is a number with nothing behind it. */
     readonly scoreModel: string | null;
@@ -46,4 +69,6 @@ export interface LastRunView {
     readonly packaged: number;
     readonly digestWritten: boolean;
     readonly sources: readonly LastRunSource[];
+    /** Where the time went, in run order. Empty for a run recorded before the table existed. */
+    readonly stages: readonly LastRunStage[];
 }

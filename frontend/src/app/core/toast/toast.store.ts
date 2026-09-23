@@ -149,6 +149,10 @@ export const ToastStore = signalStore(
              * key as the first and is dropped. A last run read for any other reason — the
              * store's own startup ask, a tab coming back — names no ending and raises nothing:
              * only a `run-ended` opens the window, and only the next answer closes it.
+             *
+             * A run that stopped in a stage is only ever seen on the second path — its request
+             * answered 500, so `finished` never fired — and says where it stopped rather than
+             * reporting counts that end there. Amber: something was taken away, the run.
              */
             merge(
                 events.on(ingestEvents.finished).pipe(
@@ -156,6 +160,7 @@ export const ToastStore = signalStore(
                         key: payload.finishedAt,
                         written: payload.written,
                         shortlisted: payload.scored.shortlisted,
+                        failedIn: null as string | null,
                     })),
                 ),
                 events.on(refreshEvents.requested).pipe(
@@ -163,12 +168,21 @@ export const ToastStore = signalStore(
                     switchMap(() => events.on(ingestEvents.lastRunLoaded).pipe(take(1))),
                     map(({payload}) => payload),
                     filter((run): run is LastRunView => run !== null),
-                    map((run) => ({key: run.finishedAt, written: run.written, shortlisted: run.shortlisted})),
+                    map((run) => ({
+                        key: run.finishedAt,
+                        written: run.written,
+                        shortlisted: run.shortlisted,
+                        failedIn: run.status === 'FAILED' ? (run.stages?.at(-1)?.stage ?? '?') : null,
+                    })),
                 ),
             ).pipe(
                 distinctUntilKeyChanged('key'),
-                map(({written, shortlisted}) =>
-                    toastEvents.raised(toast('info', 'toast.runFinished', {written, shortlisted}, '/dashboard')),
+                map(({written, shortlisted, failedIn}) =>
+                    toastEvents.raised(
+                        failedIn === null
+                            ? toast('info', 'toast.runFinished', {written, shortlisted}, '/dashboard')
+                            : toast('warning', 'toast.runFailed', {stage: failedIn}, '/dashboard'),
+                    ),
                 ),
             ),
             // The inbox's own answer carries the outcome, so one event names both sentences.

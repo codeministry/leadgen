@@ -43,7 +43,8 @@
     "documentConfirmed": "Confirmed: {name}",
     "documentRejected": "Rejected: {name}",
     "runStarted": "A run has started",
-    "runFinished": "Run finished: {written, plural, =0 {nothing written} one {1 offer written} other {# offers written}}, {shortlisted, plural, =0 {none shortlisted} one {1 shortlisted} other {# shortlisted}}"
+    "runFinished": "Run finished: {written, plural, =0 {nothing written} one {1 offer written} other {# offers written}}, {shortlisted, plural, =0 {none shortlisted} one {1 shortlisted} other {# shortlisted}}",
+    "runFailed": "Run failed in stage {stage}"
   },
   "theme": {
     "legend": "Colour theme",
@@ -116,7 +117,15 @@
     "colAnnounced": "Announced",
     "ofAnnounced": "{extracted} of {announced}",
     "archivedNote": "{count, plural, one {# offer is} other {# offers are}} archived and outside these numbers.",
-    "runningSince": "A run has been going since {time}"
+    "runningSince": "A run has been going since {time}",
+    "stages": "Where the time went",
+    "colStage": "Stage",
+    "colDuration": "Duration",
+    "colStatus": "Status",
+    "stageFailed": "failed",
+    "slowestStage": "slowest",
+    "runFailed": "Failed",
+    "runFailedIn": "This run stopped in stage {stage}. The counts on this panel are what it had reached."
   },
   "shortlist": {
     "title": "Shortlist",

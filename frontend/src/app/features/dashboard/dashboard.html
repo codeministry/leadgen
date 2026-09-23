@@ -100,6 +100,20 @@
             </p>
         }
 
+        <!-- The one fact about a failed run the panel must not bury: where it stopped. The
+             counts below are real up to that stage and stop there. The stage name and the
+             reason are the server's and stay English. -->
+        @if (failedStage(); as failed) {
+            <p class="type-small run-error run-failed" role="alert">
+                <lg-icon name="triangle-alert" [size]="16"/>
+                <lg-badge tone="error">{{ 'dashboard.runFailed' | transloco }}</lg-badge>
+                <span>{{ 'dashboard.runFailedIn' | transloco: {stage: failed.stage} }}</span>
+                @if (failed.note) {
+                    <span class="type-mono-data failure-note">{{ failed.note }}</span>
+                }
+            </p>
+        }
+
         <!-- What the run judged, beside which judge judged it. Two keys rather than one
              sentence with an optional tail: a live report carries no model, and "· model null"
              is worse than a sentence that does not mention one. -->
@@ -163,6 +177,46 @@
                 </tbody>
             </table>
         </div>
+
+        <!-- Where the time went. Fed by the recorded run only, which the run-ended refresh
+             reads back after this browser's own run too. A failed source is a red row under a
+             run that completed; a failed stage last is where a failed run stopped. -->
+        @if (runStages().length > 0) {
+            <h3 class="type-small text-muted stages-heading">{{ 'dashboard.stages' | transloco }}</h3>
+            <div class="table-scroll">
+                <table class="table table-sm">
+                    <thead>
+                    <tr>
+                        <th scope="col">{{ 'dashboard.colStage' | transloco }}</th>
+                        <th scope="col" class="num">{{ 'dashboard.colDuration' | transloco }}</th>
+                        <th scope="col">{{ 'dashboard.colStatus' | transloco }}</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                        @for (stage of runStages(); track stage.position) {
+                            <tr [class.slowest-stage]="stage.position === slowestStage()">
+                                <th scope="row" class="type-mono-data">{{ stage.stage }}</th>
+                                <td class="type-mono-data num">{{ duration(stage.millis) }}</td>
+                                <td>
+                                    <span class="stage-status">
+                                        @if (stage.status === 'FAILED') {
+                                            <lg-badge tone="error">{{ 'dashboard.stageFailed' | transloco }}</lg-badge>
+                                            @if (stage.note) {
+                                                <span class="type-small text-muted">{{ stage.note }}</span>
+                                            }
+                                        } @else if (stage.position === slowestStage()) {
+                                            <lg-badge tone="warning">{{ 'dashboard.slowestStage' | transloco }}</lg-badge>
+                                        } @else {
+                                            <span class="type-small text-muted">—</span>
+                                        }
+                                    </span>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
 
         <!-- Only a run this browser started carries the per-document breakdown. The recorded
              one is not missing it by accident, and saying so beats a column that is always a

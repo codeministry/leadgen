@@ -64,3 +64,35 @@ lg-empty-state {
 .running-stage {
   font-weight: 600;
 }
+
+/* The failure line carries a server exception in monospace, which is one unbreakable word
+   of eighty characters: measured at 320 px it pushed the page 168 px sideways. It wraps, and
+   the note may break anywhere, because a path has no better place to break. */
+.run-failed {
+  flex-wrap: wrap;
+}
+
+.failure-note {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* The same rhythm as the panel note above the first table: the second table is a second
+   question about the same run, not a new section. */
+.stages-heading {
+  margin: 1.5rem 0 0;
+}
+
+/* Weight and not colour for the slowest row: the badge beside it already carries the tone,
+   and a tinted row would read as an error. */
+.slowest-stage .num {
+  font-weight: 600;
+}
+
+/* Not `.status`: DaisyUI 5 ships a component of that name and it would restyle the cell. */
+.stage-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}

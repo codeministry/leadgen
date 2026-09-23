@@ -43,7 +43,8 @@
     "documentConfirmed": "Bestätigt: {name}",
     "documentRejected": "Abgelehnt: {name}",
     "runStarted": "Ein Lauf hat begonnen",
-    "runFinished": "Lauf beendet: {written, plural, =0 {nichts geschrieben} one {1 Offer geschrieben} other {# Offers geschrieben}}, {shortlisted, plural, =0 {keins auf der Shortlist} one {1 auf der Shortlist} other {# auf der Shortlist}}"
+    "runFinished": "Lauf beendet: {written, plural, =0 {nichts geschrieben} one {1 Offer geschrieben} other {# Offers geschrieben}}, {shortlisted, plural, =0 {keins auf der Shortlist} one {1 auf der Shortlist} other {# auf der Shortlist}}",
+    "runFailed": "Lauf in Stufe {stage} fehlgeschlagen"
   },
   "theme": {
     "legend": "Farbschema",
@@ -116,7 +117,15 @@
     "colAnnounced": "Angekündigt",
     "ofAnnounced": "{extracted} von {announced}",
     "archivedNote": "{count, plural, one {# Angebot ist} other {# Angebote sind}} archiviert und in diesen Zahlen nicht enthalten.",
-    "runningSince": "Ein Lauf läuft seit {time}"
+    "runningSince": "Ein Lauf läuft seit {time}",
+    "stages": "Wo die Zeit blieb",
+    "colStage": "Stufe",
+    "colDuration": "Dauer",
+    "colStatus": "Status",
+    "stageFailed": "fehlgeschlagen",
+    "slowestStage": "langsamste",
+    "runFailed": "Fehlgeschlagen",
+    "runFailedIn": "Dieser Lauf brach in Stufe {stage} ab. Die Zahlen hier sind der Stand bis dahin."
   },
   "shortlist": {
     "title": "Auswahl",
