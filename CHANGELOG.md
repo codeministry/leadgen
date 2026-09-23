@@ -9,6 +9,13 @@ may change in any release. See the status note in the README.
 
 ## [Unreleased]
 
+## [0.4.2] — 2026-09-23
+
+Profile topics steer the score and the shortlist, and an unauthenticated instance no longer
+reaches the network by accident. Nothing about how the artifact is built or run changed, so
+this is a patch, with two breaking configuration changes in it, which pre-1.0 this repository
+keeps in the notes rather than in the number.
+
 ### Added
 
 - **The profile says what you are looking for.** `skill-profile.yaml` carries
@@ -49,6 +56,18 @@ may change in any release. See the status note in the README.
   the move is left to you rather than done silently. `GET /api/v1/rules` loses `antiSkills`
   and gains `interestTopics` and `disinterestTopics` (`{name, weight}`); anything binding
   the old field, the MCP server included, needs the same change.
+- **`security.auth: none` on a bind past loopback is refused at startup**, an unset
+  `server.address` included, because Spring's default there is every interface. A container
+  cannot tell 0.0.0.0 published to loopback from 0.0.0.0 on a host NIC, so the exception is
+  named: `ALLOW_OPEN_BIND=true` (`leadgen.security.allow-open-bind`) says the host side limits
+  reach. Compose sets it and now publishes both ports as `${SERVER_BIND:-127.0.0.1}:…`; any
+  other deployment running `none` in a container has to set it too, or the pod will not start.
+
+### Internal
+
+- **The formatting gate is on again.** One reviewed `spotlessApply` reformatted every Java file
+  the way palantir-java-format wants it, and Spotless now writes the SPDX licence header onto a
+  new file.
 
 ## [0.4.1] — 2026-09-22
 
@@ -1076,7 +1095,9 @@ Found while building the demo, all of them in paths only a container exercises:
   left six.
 - The shortlist card printed the description's Markdown syntax in its teaser.
 
-[Unreleased]: https://github.com/codeministry/leadgen/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/codeministry/leadgen/compare/v0.4.2...HEAD
+[0.4.2]: https://github.com/codeministry/leadgen/releases/tag/v0.4.2
+[0.4.1]: https://github.com/codeministry/leadgen/releases/tag/v0.4.1
 [0.4.0]: https://github.com/codeministry/leadgen/releases/tag/v0.4.0
 [0.3.2]: https://github.com/codeministry/leadgen/releases/tag/v0.3.2
 [0.3.1]: https://github.com/codeministry/leadgen/releases/tag/v0.3.1
