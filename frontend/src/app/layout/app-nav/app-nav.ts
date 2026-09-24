@@ -14,15 +14,15 @@ interface NavItem {
 }
 
 /**
- * Five destinations in two groups, separated by a hairline rather than by a heading: the
+ * Six destinations in three groups, separated by a hairline rather than by a heading: the
  * row is icons only below 64rem and a bottom bar below 48rem, and at neither width does a
  * group heading have anywhere to go.
  *
- * <p>The groups answer three different questions. <b>Today</b> is the morning's work in the
- * order it runs — what came in, what survived, and what is out with a client. <b>Over
- * time</b> is the same archive asked a longer question. <b>What goes in</b> is where the
- * offers come from, what is waiting to be let in by hand, and why the filter decides as it
- * does — the three screens that are about the pipeline's input rather than its output.
+ * <p>The dashboard stands alone, as the overview of everything after it. <b>Today</b> is the
+ * morning's work in the order it runs — what survived and what is out with a client. The
+ * last group is the same archive asked a longer question, followed by the pipeline's input:
+ * why the filter decides as it does and where the offers come from. Sources moved back here
+ * from the settings panel (the operator's call, 2026-09-24).
  *
  * <p>Offer detail is reached from the shortlist and is deliberately not here.
  */
@@ -36,9 +36,10 @@ interface NavItem {
 export class AppNav {
     protected readonly items: readonly NavItem[] = [
         {path: '/dashboard', label: 'nav.dashboard', icon: 'layout-dashboard'},
-        {path: '/shortlist', label: 'nav.shortlist', icon: 'list-checks'},
+        {path: '/shortlist', label: 'nav.shortlist', icon: 'list-checks', opensGroup: true},
         {path: '/pipeline', label: 'nav.pipeline', icon: 'columns-3'},
         {path: '/analytics', label: 'nav.analytics', icon: 'chart-line', opensGroup: true},
         {path: '/rules', label: 'nav.rules', icon: 'sliders-horizontal'},
+        {path: '/sources', label: 'nav.sources', icon: 'database'},
     ];
 }

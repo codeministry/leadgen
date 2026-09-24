@@ -79,12 +79,13 @@ a.is-active::before {
     background-color: var(--lg-section);
 }
 
-/* Icons only below 64rem, which keeps the labels on a landscape tablet. It was 90rem while
-   there were seven destinations; with five, the row with labels, the brand and the ops group
-   left 180px spare at 1024 (measured with the English and the German catalog, which run
-   the same length). Media queries resolve against 16px, not against the 93.75 % on `html`,
-   so this flips at 1024 — the portrait tablet below it keeps the icon row. */
-@media (width < 64rem) {
+/* Icons only below 75rem. It was 90rem with seven destinations and 64rem with five; the
+   sixth (sources, back from the settings panel) and its third group made the row with
+   labels 1119px wide in English and 1163px in German, so at 64rem the list ran under the
+   model select on a landscape tablet. `ul` is `min-width: 0` and does not clip, so an
+   overflow here is an overlap, not a scrollbar. Media queries resolve against 16px, not
+   against the 93.75 % on `html`, so this flips at 1200. */
+@media (width < 75rem) {
   .nav-label {
     position: absolute;
     width: 1px;

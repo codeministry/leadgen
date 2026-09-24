@@ -124,15 +124,6 @@
         class="settings-panel"
         (toggle)="onSettingsToggle($event)"
       >
-        <!-- The sources screen lives behind the gear rather than in the navigation (the
-             operator's call, 2026-09-24): sources are configured once and read rarely, and the
-             row is the tightest thing on the screen. The link closes the panel itself, because
-             a navigation is not a light dismiss. -->
-        <a class="btn btn-sm btn-ghost panel-link" routerLink="/sources" (click)="closeSettings()">
-          <lg-icon name="database" [size]="16"/>
-          {{ 'nav.sources' | transloco }}
-        </a>
-
         <p class="type-small text-muted panel-label">{{ 'theme.legend' | transloco }}</p>
         <lg-theme-toggle/>
 

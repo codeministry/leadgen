@@ -134,11 +134,6 @@
 
 /* The one link in the panel sits above the two toggles, left-aligned like a menu row and
    set off from them by the panel's own gap. */
-.panel-link {
-  justify-content: flex-start;
-  margin-bottom: 0.25rem;
-}
-
 .panel-label {
   margin: 0;
 }

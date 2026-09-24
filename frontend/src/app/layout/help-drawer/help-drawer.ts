@@ -32,9 +32,9 @@ export type HelpPart = {kind: 'text'; text: string} | {kind: 'diagram'; id: Help
 
 /**
  * The icon each chapter wears in the contents. A screen's icon is the one its entry carries in the
- * main navigation (`layout/app-nav/app-nav.ts`) or the settings panel, so a reader recognises the
- * screen. The overview gets a book because it is the one chapter that is not a screen. Review is
- * parked and has no entry anywhere, so it borrows the inbox it reviews.
+ * main navigation (`layout/app-nav/app-nav.ts`), so a reader recognises the screen. The overview
+ * gets a book because it is the one chapter that is not a screen. Review is parked and has no
+ * entry anywhere, so it borrows the inbox it reviews.
  */
 export const CHAPTER_ICONS: Record<HelpChapter, LgIconName> = {
     'how-it-works': 'book-open',
