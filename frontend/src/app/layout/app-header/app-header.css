@@ -73,8 +73,8 @@
 
 /* A ghost button has no ground at rest, so its ink sits about 10px inside the row's edge
    while the filled run button beside it is flush. The negative margin makes the right edge
-   read as an edge. */
-.settings-button {
+   read as an edge. It sits on the help button because that is the last control in the row. */
+.help-button {
   margin-inline-end: -0.5rem;
 }
 

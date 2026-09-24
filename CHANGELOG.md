@@ -11,6 +11,12 @@ may change in any release. See the status note in the README.
 
 ### Added
 
+- Help, behind a button at the right of the header: a drawer that opens at the chapter of the
+  current screen, a short chapter per screen and a how-it-works chapter with three diagrams (the
+  phases of a run, how the parts work together, the path of an application), in English and
+  German. The diagrams are rendered to SVG by `bun run help:diagrams` and committed.
+- "Run ingest" asks for confirmation before a run starts.
+
 - The cover letter is written against the ad. With `LLM_MODEL_WRITING` set, the package build asks
   that model once for a structured draft and `CoverLetterGuard` checks it before a byte is written:
   every skill it names is in the profile and in the ad or the stack of a chosen reference project,

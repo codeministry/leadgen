@@ -259,6 +259,30 @@ what was on the page or took the reader to a section. The claims and the measure
   rules panels had lost their section edge and both screens had a padding of their own. Removed;
   `offer-detail.css` carries the same copy and is left for its own change.
 
+### The help drawer and the run confirmation (spec 010, 2026-09-24)
+
+- **A native `<dialog>`, opened modally, is the drawer.** The platform gives Escape, the
+  backdrop and the focus trap; the drawer only adds the side placement and the slide-in from the
+  motion tokens, off under reduced motion. Focus returns to the help button on every close.
+- **It opens at the chapter of the screen it was opened from**, read from the route's
+  `data.section`; anything without a section opens the how-it-works chapter. "← All chapters"
+  leads to a contents list, one full-width row per chapter with an icon and a one-line hint, so
+  no chapter name has to fit a button. The drawer is `--lg-help-w` wide and never wider than the
+  window; the chapter title is the drawer's own heading, so the Markdown carries none.
+- **The texts are static Markdown per language under `public/help/`**, fetched only while the
+  drawer is open and rendered by `shared/markdown`. They name no product and no configured value,
+  and a spec keeps English and German in step.
+- **The diagrams are built, not rendered in the browser.** Mermaid sources under
+  `src/help/diagrams/` are rendered by `bun run help:diagrams` into one SVG each, committed, and
+  stamped with the hash of their source and the script; a spec fails when either changes without
+  a re-render. The render feeds Mermaid's `base` theme placeholder colours and rewrites them to
+  `var(--…)` tokens, and the drawer inlines the SVG, so it takes the app's font and follows the
+  theme with no second file. No Mermaid code ships in the bundle, and neither Docker nor CI needs
+  a browser.
+- **"Run ingest" asks first.** The run starts from the confirm action of its own dialog, so the
+  header keeps its one primary button and the dialog has its own; cancel and Escape start
+  nothing.
+
 ## The interface language
 
 `frontend/src/app/core/i18n/` plus the two catalogs in `frontend/public/i18n/`. Transloco,

@@ -1,0 +1,18 @@
+/* `::ng-deep` because the SVG is appended at runtime: emulated encapsulation never stamps its
+   attribute on it, so a plain selector here would not reach it. `:host` keeps it to this one. */
+:host {
+  display: block;
+}
+
+/* The ground and the frame belong to the figure, not to the file: the SVG is transparent and
+   its colours are theme tokens, so this is the only surface it is drawn on. */
+:host ::ng-deep > svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  padding: 0.75rem;
+  border: 1px solid var(--color-base-300);
+  border-radius: var(--radius-box);
+  background-color: var(--color-base-100);
+  font-family: var(--font-sans);
+}

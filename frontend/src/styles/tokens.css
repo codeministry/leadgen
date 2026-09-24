@@ -95,6 +95,10 @@
        against. */
   --lg-list-w: 36rem;
 
+  /* The help drawer (spec 010): wider than the list column, so a diagram reads at a useful size
+     and a chapter row never wraps; the drawer still caps itself at the window. */
+  --lg-help-w: 48rem;
+
   /* The anchor rail beside the four long screens (spec 007): wide enough for the longest
      section name in German ("Anwendungen", "Schwellenwerte"), narrow enough to leave a
      36rem list and a reading column beside it. */

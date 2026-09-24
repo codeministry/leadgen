@@ -28,7 +28,46 @@
     "runStage": "{stage} · Stufe {position} von {total}",
     "runStageUnknown": "startet…",
     "runSince": "Ein Lauf läuft seit {time}",
-    "runSinceStage": "Ein Lauf läuft seit {time} — {stage}"
+    "runSinceStage": "Ein Lauf läuft seit {time} — {stage}",
+    "help": "Hilfe",
+    "confirmRun": {
+      "title": "Jetzt einen Lauf starten?",
+      "body": "Ein Lauf liest das Postfach, ruft die konfigurierten Modelle auf und verbraucht einen Teil des Aufrufbudgets.",
+      "start": "Lauf starten"
+    }
+  },
+  "help": {
+    "title": "Hilfe",
+    "close": "Hilfe schließen",
+    "chapters": "Kapitel",
+    "allChapters": "Alle Kapitel",
+    "chapterHint": {
+      "how-it-works": "Wie die Teile zusammenspielen, von der Mail bis zum Paket.",
+      "dashboard": "Was der letzte Lauf gefunden hat und was heute ansteht.",
+      "shortlist": "Die Angebote, die sich lohnen, und wie du sie eingrenzt.",
+      "pipeline": "Deine Bewerbungen, von neu bis gewonnen oder verloren.",
+      "analytics": "Wo Angebote herausfallen und welche Quellen sich lohnen.",
+      "rules": "Was als passend gilt und was ein Angebot ausschließt.",
+      "sources": "Woher die Angebote kommen und wie du eine Quelle hinzufügst.",
+      "review": "Von Hand hinzugefügte Anzeigen prüfen."
+    },
+    "loading": "Lade das Kapitel…",
+    "failed": "Dieses Kapitel konnte nicht geladen werden.",
+    "chapter": {
+      "how-it-works": "So funktioniert es",
+      "dashboard": "Dashboard",
+      "shortlist": "Shortlist",
+      "pipeline": "Pipeline",
+      "analytics": "Auswertung",
+      "rules": "Regeln",
+      "sources": "Quellen",
+      "review": "Prüfung"
+    },
+    "diagram": {
+      "run-phases": "Die fünf Phasen eines Laufs, vom Postfach bis zum bewerteten Angebot",
+      "parts": "Wie Quellen, Pipeline, Modell, Datenbank und Oberfläche zusammenspielen",
+      "application-states": "Der Weg einer Bewerbung durch ihre Zustände"
+    }
   },
   "toast": {
     "region": "Benachrichtigungen",
@@ -388,7 +427,7 @@
     "statusOf": "Status von {title}",
     "laneEmpty": "Nichts hier",
     "emptyTitle": "Noch keine Bewerbungen",
-    "emptyHint": "Eine Bewerbung entsteht, sobald ihr Paket gebaut ist. Lies die Quellen ein, dann landet alles oberhalb der Auswahlschwelle in Vorbereitet.",
+    "emptyHint": "Lies die Quellen ein, dann erscheint jedes Angebot oberhalb der Auswahlschwelle hier als Bewerbung in New. Schieb sie nach Packaged, wenn ihr Paket gebaut werden soll.",
     "backToBoard": "Zurück zum Board",
     "detailLabel": "Ausgewähltes Angebot"
   },
@@ -471,7 +510,7 @@
     "knockouts": "Ausschlusskriterien",
     "knockoutsNote": "Diese laufen deterministisch und kostenlos, vor jedem Modellaufruf. Ohne Sprachmodell arbeitet das Werkzeug weiter, nur schwächer.",
     "thresholds": "Schwellen",
-    "bandStrong": "in der Auswahl, ein Paket entsteht",
+    "bandStrong": "in der Auswahl, eine Bewerbung wird angelegt",
     "bandReview": "zur Prüfung, die Zusammenfassung fragt nach",
     "bandOut": "verworfen",
     "interestTopics": "Interessen",
@@ -605,7 +644,7 @@
     "unscored": "{count, plural, one {# Angebot blieb ohne Punktzahl} other {# Angebote blieben ohne Punktzahl}} — die deterministischen Gründe stehen, die Summe wurde zurückgehalten.",
     "applications": "Bewerbungen",
     "applicationsCaption": "Wie viele Bewerbungen in welchem Zustand stehen.",
-    "applicationsEmpty": "Noch keine Bewerbung angelegt. Eine entsteht, sobald ein Paket gebaut wird.",
+    "applicationsEmpty": "Noch keine Bewerbung angelegt. Eine entsteht für jedes Angebot, das in die Auswahl kommt.",
     "response": "{sent} gesendet, {answered} beantwortet.",
     "medianDays": "im Mittel {days} Tage bis zur ersten Antwort",
     "tooFewToAverage": "zu wenige Antworten für einen Mittelwert",

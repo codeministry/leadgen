@@ -1,0 +1,46 @@
+%% The five phases of a run and the stages inside them.
+%% Classes are roles, coloured with the app tokens by tools/build-help-diagrams.ts:
+%% model asks the language model, net leaves the machine, free is rules only.
+flowchart TB
+    classDef model fill:#e2d5f1,stroke:#6f4aa8,color:#1f2937
+    classDef net fill:#d6ead8,stroke:#3d7a48,color:#1f2937
+    classDef free fill:#dbe4ee,stroke:#4a6d8c,color:#1f2937
+
+    start(["Run button or schedule"])
+
+    subgraph read["1 · Read"]
+        direction TB
+        r1["Read every enabled source"]
+    end
+    subgraph sort["2 · Sort"]
+        direction TB
+        s1["Merge duplicates"] --> s2["Hard filter:<br/>knockouts, no model"]
+        s2 --> s3["Archive what is too old"]
+    end
+    subgraph understand["3 · Understand the survivors"]
+        direction TB
+        u1["Fetch the full advert"] --> u2["Separate advert<br/>from portal clutter"]
+        u2 --> u3["Read start, duration,<br/>apply-by date"]
+    end
+    subgraph judge["4 · Judge"]
+        direction TB
+        j1["Score: rules plus<br/>the model's judgement"] --> j2["Index for search"]
+    end
+    subgraph hand["5 · Hand over"]
+        direction TB
+        h1["Open an application<br/>per shortlisted offer"] --> h2["Build packages<br/>still owed"]
+        h2 --> h3["Write the daily digest"]
+    end
+
+    start --> read --> sort --> understand --> judge --> hand
+    hand --> done(["Dashboard shows counts and timings"])
+
+    subgraph legend["Legend"]
+        direction LR
+        l1["asks the model"] ~~~ l2["leaves the machine"] ~~~ l3["rules only"]
+    end
+    done ~~~ legend
+
+    class s1,u2,u3,j1,j2,l1 model
+    class u1,l2 net
+    class r1,s2,s3,h1,h2,h3,l3 free
