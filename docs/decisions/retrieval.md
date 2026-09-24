@@ -2,6 +2,9 @@
 
 What a vector is allowed to decide in this tool, and what it is not.
 
+The guide to what was built from it — both columns, every reader, the diagrams — is
+[`docs/EMBEDDINGS.md`](../EMBEDDINGS.md); this file keeps the reasoning and the measurements.
+
 This document is a decision, not a report: at the time of writing nothing below has been
 built. **All four measurements named in § *Before any of this is switched on* have now been
 taken**, on 2026-09-17, and each carries its result inline. One of them refuted a prediction this

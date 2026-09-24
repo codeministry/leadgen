@@ -24,6 +24,7 @@ The root [`README.md`](../README.md) is the front door and stays shorter than an
 | know which table a stage writes, and how they relate | [DATA-MODEL.md](DATA-MODEL.md)          |
 | follow a run, a batch, or a write from the endpoint down | [BACKEND-FLOWS.md](BACKEND-FLOWS.md) |
 | see where a rule decides and where a model speaks   | [BACKEND-FLOWS.md § 1e](BACKEND-FLOWS.md#1e-where-a-rule-decides-and-where-a-model-speaks) |
+| know what the vectors hold, and what they may not decide | [EMBEDDINGS.md](EMBEDDINGS.md)      |
 | point it at your own mailbox or portal              | [ADDING-A-SOURCE.md](ADDING-A-SOURCE.md) |
 | change what survives the filter, or what scores     | [WRITING-RULES.md](WRITING-RULES.md)     |
 | know where a value comes from, or why it is missing | [CONFIGURATION.md](CONFIGURATION.md)     |
@@ -45,6 +46,12 @@ The root [`README.md`](../README.md) is the front door and stays shorter than an
   decides and where a model speaks, the batch collector and the package worker, every write
   path from an endpoint down to a table, and the four state machines. Entry points are named
   by file and method so a breakpoint can go where the text says.
+- **[EMBEDDINGS.md](EMBEDDINGS.md)** — the two vector columns and the three vectors kept in
+  memory: what text each one holds and which stage writes it, the path from text through the
+  width check into pgvector and its index, the band that merges or flags a duplicate, how the
+  search narrows without ranking and how the letter picks its reference projects, which
+  numbers are thresholds and what measures them, what a vector may never decide, and what
+  every reader does without an embedding model.
 - **[DEVELOPMENT.md](DEVELOPMENT.md)** — prerequisites with pinned versions, the commands,
   and the traps a newcomer hits first (Docker is required for the backend tests; Postgres is
   published on 55432, not 5432).
@@ -80,7 +87,7 @@ room.
 | [pipeline-enrich-content.md](decisions/pipeline-enrich-content.md) | The only fetch that leaves the machine, block labelling, start/duration/deadline                   |
 | [pipeline-scoring.md](decisions/pipeline-scoring.md)               | Rules before model, the weight table that outranks the judge, the digest and the package folder    |
 | [read-side.md](decisions/read-side.md)                             | The working-set predicate, keyset paging, the six sort keys, the filters                           |
-| [retrieval.md](decisions/retrieval.md)                             | What a vector may decide and what it may not. **Decided, not built** — read its last section first |
+| [retrieval.md](decisions/retrieval.md)                             | What a vector may decide and what it may not; built, and walked through in [EMBEDDINGS.md](EMBEDDINGS.md) |
 | [configuration.md](decisions/configuration.md)                     | The two layers, the three files read as one snapshot, the startup banner                           |
 | [frontend-split-views.md](decisions/frontend-split-views.md)       | The three split screens, the shell, and the first screen that writes                               |
 | [frontend-design-system.md](decisions/frontend-design-system.md)   | Both themes, the accent's one meaning, the navigation, the catalogs                                |
@@ -106,7 +113,8 @@ be measured with before it is changed — the bands are a property of the model 
 not of the number. Its `embedding-observed-*.md` reports and `embedding-cache-*.json` stay
 out of the repository for size, and the conclusions drawn from them live in
 [decisions/retrieval.md](decisions/retrieval.md) and
-[decisions/pipeline-dedupe-filter.md](decisions/pipeline-dedupe-filter.md).
+[decisions/pipeline-dedupe-filter.md](decisions/pipeline-dedupe-filter.md); which number each
+script guards is [EMBEDDINGS.md § 6](EMBEDDINGS.md#6-thresholds-and-how-they-are-measured).
 
 `screenshots/` holds what the root README renders; the light and dark ones are chosen per
 screen there, not by theme.

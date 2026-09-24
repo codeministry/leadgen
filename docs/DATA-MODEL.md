@@ -250,7 +250,8 @@ scoring again.
 
 `V22` first added `embedding` at 768 dimensions; `V25` dropped and re-created it at 2000, so
 both vector columns are the same width. Why 2000 and not 4096 is in
-[decisions/retrieval.md](decisions/retrieval.md).
+[decisions/retrieval.md](decisions/retrieval.md); what each column holds, who reads it and
+what it may decide is in [EMBEDDINGS.md](EMBEDDINGS.md).
 
 </details>
 

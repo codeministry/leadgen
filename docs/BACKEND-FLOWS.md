@@ -291,7 +291,8 @@ flowchart TD
 
 `DEDUPE`, `FILTER`, `ARCHIVE`, `FIELDS`, `RETRIEVAL`, `OPEN`, `PACKAGE` and `DIGEST` are
 straight lines and get table rows only; their reasoning is in the decision records the table
-links.
+links. The vectors that `DEDUPE` and `RETRIEVAL` write, and everything that reads them, are
+drawn in [EMBEDDINGS.md](EMBEDDINGS.md).
 
 ### 1e. Where a rule decides and where a model speaks
 
@@ -574,8 +575,6 @@ sequenceDiagram
 
 `GET /api/v1/applications/transitions` serves `allowedNext()` for all eleven states, and the
 board greys out what it names, so the browser never carries a second copy of the rule.
-
-![The review screen: an upload becomes an offer only once somebody has seen what was read from it](screenshots/review-light.png)
 
 ```mermaid
 %%{init: {"themeVariables": {"actorBkg":"#dbe4ee","actorBorder":"#4a6d8c","actorTextColor":"#1f2937","noteBkgColor":"#fff3c4","noteBorderColor":"#a4781b","noteTextColor":"#1f2937","labelBoxBkgColor":"#eef1f5","labelBoxBorderColor":"#9aa3ad","labelTextColor":"#1f2937"}}}%%
