@@ -9,6 +9,14 @@ may change in any release. See the status note in the README.
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-09-24
+
+The rules screen becomes the workflow view, the app explains itself in a help drawer, a
+package carries a cover letter written against the ad, and the frontend is renovated in one
+pass. No configuration key changes meaning: `LLM_MODEL_WRITING` and `cover-letter.yaml` are new
+and optional, and `GET /api/v1/ingest/last` and `GET /api/v1/prompts` grow additively. The
+minor moves because the interface was redesigned end to end, not because the runtime changed.
+
 ### Added
 
 - Help, behind a button at the right of the header: a drawer that opens at the chapter of the
@@ -16,7 +24,6 @@ may change in any release. See the status note in the README.
   phases of a run, how the parts work together, the path of an application), in English and
   German. The diagrams are rendered to SVG by `bun run help:diagrams` and committed.
 - "Run ingest" asks for confirmation before a run starts.
-
 - The cover letter is written against the ad. With `LLM_MODEL_WRITING` set, the package build asks
   that model once for a structured draft and `CoverLetterGuard` checks it before a byte is written:
   every skill it names is in the profile and in the ad or the stack of a chosen reference project,
@@ -71,9 +78,17 @@ may change in any release. See the status note in the README.
   `GET /api/v1/workflow`; `GET /api/v1/ingest/last` additionally carries `enriched`, and
   `GET /api/v1/prompts` additionally serves the fields prompt — both additive (spec
   `008-rules-workflow-view`).
+- `docs/EMBEDDINGS.md`: the guide to the vectors — the two columns and the three kept in
+  memory, the path from text through the width check into pgvector, the dedupe bands, the
+  search that narrows and the letter's reference ranking, which numbers are thresholds and
+  what measures them, what a vector may never decide, and the tool without an embedding
+  model — with four diagrams.
 
 ### Fixed
 
+- "Fetch the ad again" on a page that still failed stored nulls over the duration, rate and
+  workload the offer already had, so the card forgot them; a failed fetch now keeps every value
+  it could not read. A refused connection no longer leaves the note "unreachable: null".
 - A run whose stage threw left its history row `RUNNING` with zeros until the next start
   closed it as `ABANDONED`, and its timings were lost. It now closes as `FAILED` with the
   counts it had reached and every timing, the failed one last; `POST /api/v1/ingest` answers
@@ -84,6 +99,10 @@ may change in any release. See the status note in the README.
 
 ### Changed
 
+- The stores connect to the Redux DevTools extension in a dev build and to a stub in a
+  production one, so a deployed instance exposes no state.
+- The header holds five destinations; the labelled navigation row and the wordmark stay down to
+  1024 px, and the wordmark reads LEADgen / AI.
 - The frontend was renovated in one pass (spec `003-visual-renovation`): a new palette in
   both themes — teal and a cool neutral by day, lavender on indigo-black by night, magenta as
   the one signal colour that means "this survived the filter" — with the dark theme as the
@@ -1220,7 +1239,8 @@ Found while building the demo, all of them in paths only a container exercises:
   left six.
 - The shortlist card printed the description's Markdown syntax in its teaser.
 
-[Unreleased]: https://github.com/codeministry/leadgen/compare/v0.4.3...HEAD
+[Unreleased]: https://github.com/codeministry/leadgen/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/codeministry/leadgen/releases/tag/v0.5.0
 [0.4.3]: https://github.com/codeministry/leadgen/releases/tag/v0.4.3
 [0.4.2]: https://github.com/codeministry/leadgen/releases/tag/v0.4.2
 [0.4.1]: https://github.com/codeministry/leadgen/releases/tag/v0.4.1
