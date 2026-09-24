@@ -101,3 +101,8 @@ demo/inbox/
 # matches under every specs/NNN-slug/.
 specs/*/rounds.jsonl
 specs/*/report.html
+
+# The spec folders themselves, beside ISA.md: the Spec skill's claims, plans, tasks and round
+# logs. Local working state like the master, not part of the published repository (the
+# operator's call, 2026-09-24). The files stay on disk; git stops tracking them.
+specs/
