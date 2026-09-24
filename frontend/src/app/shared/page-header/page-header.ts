@@ -3,6 +3,7 @@ import {ChangeDetectionStrategy, Component, input} from '@angular/core';
 @Component({
     selector: 'lg-page-header',
     templateUrl: './page-header.html',
+    styleUrl: './page-header.css',
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PageHeader {

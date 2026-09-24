@@ -10,7 +10,7 @@
              "related", and deliberately not "similar" — the list already badges possible
              duplicates, and those two mean different things. -->
         @if (canFindRelated()) {
-            <button type="button" class="btn btn-sm btn-ghost" (click)="findRelated(entry.offer.id)">
+            <button type="button" class="btn btn-sm btn-soft btn-primary" (click)="findRelated(entry.offer.id)">
                 <lg-icon name="scan-search" [size]="16"/>
                 {{ 'detail.findRelated' | transloco }}
             </button>
@@ -19,7 +19,7 @@
             <!-- Out of the application, so a new tab, and `noopener` with it: a page opened
                  this way can otherwise reach back through `window.opener`, and this URL came off
                  a portal. The same pair the rendered advert's own links carry. -->
-            <a class="btn btn-sm btn-ghost" [href]="url" target="_blank" rel="noopener noreferrer">
+            <a class="btn btn-sm btn-soft btn-primary" [href]="url" target="_blank" rel="noopener noreferrer">
                 <lg-icon name="external-link" [size]="16"/>
                 {{ 'detail.originalAd' | transloco }}
             </a>
@@ -32,7 +32,7 @@
         -->
         <button
                 type="button"
-                class="btn btn-sm btn-ghost"
+                class="btn btn-sm btn-soft btn-primary"
                 [disabled]="store.archiving() === entry.offer.id"
                 aria-keyshortcuts="a"
                 (click)="setArchived(entry.offer.id, entry.offer.archivedAt === null)"
@@ -74,7 +74,13 @@
         </p>
     }
 
-    <div class="grid">
+    <!--
+      Two blocks, and the status decides which comes first. Before a package exists the page is
+      read: the advert, why it scored, what was extracted. Once it exists the page is worked:
+      the letter, the application, the folder. Moved by rendering order rather than CSS `order`,
+      so the tab order and the reading order stay the same thing.
+    -->
+    <ng-template #readingBlock>
         <!--
           The summary the source states about the advert, above the advert itself, because it is
           what the shortlist card showed and the reason somebody opened this offer. It only
@@ -82,14 +88,14 @@
           *is* this description, and the same paragraph twice says nothing the second time.
         -->
         @if (entry.offer.fullText && entry.offer.description; as summary) {
-            <section class="panel panel-wide">
+            <section class="lg-panel panel-wide">
                 <h2 class="type-h2">{{ 'detail.summary' | transloco }}</h2>
                 <lg-markdown [text]="summary"/>
                 <p class="type-caption text-muted">{{ 'detail.summaryNote' | transloco }}</p>
             </section>
         }
 
-        <section class="panel panel-wide">
+        <section class="lg-panel panel-wide">
             <h2 class="type-h2">{{ 'detail.theAd' | transloco }}</h2>
             <!--
               The enriched full text when enrichment reached the portal, the newsletter's own
@@ -149,8 +155,36 @@
                     {{ (adFolded() ? 'detail.showMore' : 'detail.showLess') | transloco }}
                 </button>
             }
+            <!--
+              The caption says what is missing; the note says why, in the words enrichment
+              recorded; the button asks the page again. The button is there only where the run
+              would fetch too — a passed, unarchived offer with somewhere to ask — so it never
+              offers what the server would refuse.
+            -->
             @if (!entry.offer.fullText) {
-                <p class="type-caption text-muted">{{ 'detail.fromSource' | transloco }}</p>
+                <div class="from-source">
+                    <p class="type-caption text-muted">{{ 'detail.fromSource' | transloco }}</p>
+                    @if (entry.offer.enrichmentNote; as note) {
+                        <p class="type-caption text-muted">{{ 'detail.fetchReason' | transloco: {reason: note} }}</p>
+                    }
+                    @if (canFetch(entry)) {
+                        <button
+                                type="button"
+                                class="btn btn-sm btn-soft btn-primary fetch-again"
+                                [disabled]="store.fetching() !== null"
+                                (click)="refetch(entry.offer.id)"
+                        >
+                            <lg-icon name="refresh" [size]="14"/>
+                            {{
+                                (store.fetching() === entry.offer.id ? 'detail.fetching' : 'detail.fetchAgain')
+                                    | transloco
+                            }}
+                        </button>
+                    }
+                    @if (store.fetchError(); as refusal) {
+                        <p class="type-small fetch-refusal">{{ refusal | transloco }}</p>
+                    }
+                </div>
             }
 
             <div class="tags">
@@ -160,22 +194,7 @@
             </div>
         </section>
 
-        <!-- Absent, not disabled, where nothing is configured to answer: the scoring model list
-             already crosses the wire for the header's select, so the capability needs no second
-             field. It asks the advert this page is showing and nothing else — which is why it
-             needs no retrieval at all, and why `docs/decisions/retrieval.md` names it as the
-             carve-out worth having. -->
-        @if (canAsk()) {
-            <section class="panel">
-                <div class="section-head">
-                    <h2 class="type-h2">{{ 'detail.ask.title' | transloco }}</h2>
-                </div>
-                <p class="type-small text-muted panel-note">{{ 'detail.ask.note' | transloco }}</p>
-                <lg-ask-panel [offerId]="entry.offer.id"/>
-            </section>
-        }
-
-        <section class="panel">
+        <section class="lg-panel">
             <div class="section-head">
                 <h2 class="type-h2">{{ 'detail.whyScored' | transloco }}</h2>
                 <!--
@@ -187,7 +206,7 @@
                 @if (entry.score.hardPass) {
                     <button
                             type="button"
-                            class="btn btn-sm btn-ghost"
+                            class="btn btn-sm btn-soft btn-primary"
                             [disabled]="store.rescoring() === entry.offer.id"
                             (click)="rescore(entry.offer.id)"
                     >
@@ -237,7 +256,7 @@
             </ul>
         </section>
 
-        <section class="panel">
+        <section class="lg-panel">
             <h2 class="type-h2">{{ 'detail.extractedFields' | transloco }}</h2>
             <dl class="fields">
                 @for (field of fields(); track field.label) {
@@ -278,7 +297,59 @@
             }
         </section>
 
-        <section class="panel">
+        <!-- Absent, not disabled, where nothing is configured to answer: the scoring model list
+             already crosses the wire for the header's select, so the capability needs no second
+             field. It asks the advert this page is showing and nothing else — which is why it
+             needs no retrieval at all, and why `docs/decisions/retrieval.md` names it as the
+             carve-out worth having. -->
+        @if (canAsk()) {
+            <section class="lg-panel">
+                <div class="section-head">
+                    <h2 class="type-h2">{{ 'detail.ask.title' | transloco }}</h2>
+                </div>
+                <p class="type-small text-muted panel-note">{{ 'detail.ask.note' | transloco }}</p>
+                <lg-ask-panel [offerId]="entry.offer.id"/>
+            </section>
+        }
+    </ng-template>
+
+    <ng-template #actingBlock>
+        @if (application(); as application) {
+            <!-- Full width like the summary: a letter is read as a page, not as a side note. -->
+            @if (application.packageDir !== null) {
+                <section class="lg-panel panel-wide">
+                    <lg-cover-letter
+                            [status]="application.status"
+                            [hasPackage]="application.packageDir !== null"
+                            [letter]="letter()"
+                            [loading]="coverLetters.loading()"
+                            [saving]="coverLetters.saving()"
+                            [drafting]="coverLetters.drafting()"
+                            [error]="coverLetters.error()"
+                            (saved)="saveLetter($event)"
+                            (regenerate)="redraftLetter()"
+                    />
+                </section>
+            }
+
+            <section class="lg-panel">
+                <lg-application-panel
+                        [application]="application"
+                        [statusChoices]="applications.choicesFor(application.status)"
+                        [history]="history()"
+                        [saving]="applications.saving() === application.id"
+                        (changed)="record($event)"
+                />
+                @if (applications.error(); as error) {
+                    <p class="type-small record-error" role="alert">
+                        <lg-icon name="triangle-alert" [size]="16"/>
+                        {{ error | transloco }}
+                    </p>
+                }
+            </section>
+        }
+
+        <section class="lg-panel">
             <h2 class="type-h2">{{ 'detail.package' | transloco }}</h2>
             <p class="type-small text-muted panel-note">
                 {{ 'detail.packageNote' | transloco }}
@@ -291,7 +362,7 @@
                   behaves identically through the dev proxy and through nginx.
                 -->
                 <a
-                        class="btn btn-sm btn-outline package-download"
+                        class="btn btn-sm btn-soft btn-primary package-download"
                         [href]="packageUrl(entry.offer.id)"
                         download
                 >
@@ -317,23 +388,15 @@
                 </p>
             }
         </section>
+    </ng-template>
 
-        @if (application(); as application) {
-            <section class="panel">
-                <lg-application-panel
-                        [application]="application"
-                        [statusChoices]="applications.choicesFor(application.status)"
-                        [history]="history()"
-                        [saving]="applications.saving() === application.id"
-                        (changed)="record($event)"
-                />
-                @if (applications.error(); as error) {
-                    <p class="type-small record-error" role="alert">
-                        <lg-icon name="triangle-alert" [size]="16"/>
-                        {{ error | transloco }}
-                    </p>
-                }
-            </section>
+    <div class="grid">
+        @if (working()) {
+            <ng-container [ngTemplateOutlet]="actingBlock"/>
+            <ng-container [ngTemplateOutlet]="readingBlock"/>
+        } @else {
+            <ng-container [ngTemplateOutlet]="readingBlock"/>
+            <ng-container [ngTemplateOutlet]="actingBlock"/>
         }
     </div>
 } @else if (store.detailLoading()) {

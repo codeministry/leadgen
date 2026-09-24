@@ -20,6 +20,9 @@ import {TranslocoPipe} from '@jsverse/transloco';
 import {shortlistEvents} from '@core/store/shortlist.events';
 import {ConfigStore} from '@core/store/config.store';
 import {ShortlistStore} from '@core/store/shortlist.store';
+import {applicationEvents} from '@core/store/applications.events';
+import {ApplicationsStore} from '@core/store/applications.store';
+import {ApplicationStatus} from '@core/model/application';
 import {ShortlistFilters} from '@core/model/shortlist-page';
 import {SCORE_THRESHOLDS} from '@shared/shared.ports';
 import {EmptyState} from '@shared/empty-state/empty-state';
@@ -77,6 +80,16 @@ export class ShortlistPage {
     private readonly route = inject(ActivatedRoute);
     private readonly dispatch = injectDispatch(shortlistEvents);
     protected readonly store = inject(ShortlistStore);
+    private readonly applicationDispatch = injectDispatch(applicationEvents);
+    private readonly applications = inject(ApplicationsStore);
+
+    /** Where each offer's application stands, so every card shows it, picked or not. */
+    protected readonly statusByOffer = computed(
+        () =>
+            new Map<number, ApplicationStatus>(
+                this.applications.applications().map((application) => [application.offerId, application.status]),
+            ),
+    );
 
     private readonly listPane = viewChild<ElementRef<HTMLElement>>('listPane');
 
@@ -354,6 +367,8 @@ export class ShortlistPage {
         }
 
         effect(() => this.dispatch.opened(this.filters()));
+        // The board is the source of every status; read it once for the cards.
+        this.applicationDispatch.opened();
 
       this.typed
         .pipe(debounceTime(250), takeUntilDestroyed())

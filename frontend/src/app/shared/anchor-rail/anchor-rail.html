@@ -1,0 +1,26 @@
+@if (sections().length > 0) {
+    <nav class="rail" [attr.aria-label]="label()">
+        <ul class="links">
+            @for (section of sections(); track section.id) {
+                <li>
+                    <!-- A router link with a fragment, not `href="#id"`: the app's `<base href="/">`
+                         is what a bare fragment resolves against, so `#scores` would navigate to
+                         the dashboard. The router keeps the path and the query and sets the hash;
+                         the click handler does the scroll and the focus. -->
+                    <a
+                            class="link"
+                            [routerLink]="[]"
+                            [fragment]="section.id"
+                            queryParamsHandling="preserve"
+                            [class.is-current]="current() === section.id"
+                            [attr.aria-current]="current() === section.id ? 'location' : null"
+                            (click)="jump(section.id)"
+                    >{{ section.key | transloco }}</a>
+                </li>
+            }
+        </ul>
+    </nav>
+}
+<div class="body">
+    <ng-content/>
+</div>

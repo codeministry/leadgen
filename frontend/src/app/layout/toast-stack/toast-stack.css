@@ -1,0 +1,69 @@
+/* The tones are DaisyUI's `alert-success`, `alert-warning` and `alert-info`, set from a
+   literal lookup in `core/toast/toast.model.ts`, one per action family. Nothing here names
+   a colour, and nothing takes the signal: it means "this cleared the threshold" and a toast
+   is not that. */
+
+:host {
+    display: contents;
+}
+
+/* `alert-soft` writes the text in the tone colour itself, and the light theme's amber
+   measured 4.05:1 on its own tint — under the 4.5:1 body text needs. The text variant the
+   app already keeps for amber on light surfaces is the answer, unlayered so it beats the
+   plugin's layered rule; measured 4.92:1 on the tint after the token was darkened one step
+   (`src/styles.css`). The dark theme's amber stood at 6.21:1 and the same token holds there. */
+.alert-warning {
+    color: var(--lg-warning-text);
+}
+
+/* Named with the prefix on purpose: this was `.stack` once, and DaisyUI 5 ships a `stack`
+   component that lays its children over one another in one grid cell, fanned by a few
+   pixels. Three toasts in quick succession then showed as one card with two edges behind
+   it, and nothing reported a problem (the trap `frontend/CLAUDE.md` records for `.status`).
+
+   Above the sticky header (30) and the bottom navigation bar (20): a toast is the one
+   thing that may sit over chrome, because it is the newest thing on the screen. */
+.lg-toasts {
+    z-index: 40;
+}
+
+/* Below 48rem the navigation is a fixed bottom bar and owns that edge, so the stack sits
+   just above it, full width. Measured at 390px: at the top it covered the page title and
+   the Views/Archive controls, which is the one row a person reads first. Above the bar it
+   covers advert prose, which scrolls. The 4.5rem is the shell's own clearance for the bar
+   (`.content` reserves 5rem) minus the gap. */
+@media (width < 48rem) {
+    .lg-toasts {
+        inset-inline: 1rem;
+        bottom: calc(4.5rem + env(safe-area-inset-bottom));
+    }
+
+    .alert {
+        width: 100%;
+    }
+}
+
+.alert {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    width: min(28rem, calc(100vw - 2rem));
+}
+
+.line {
+    flex: 1;
+    min-width: 0;
+}
+
+/* DaisyUI's own reveal, on the repo's motion tokens, and off under reduced motion. Written
+   unlayered, so it beats the layered rule the plugin ships. There is no leave animation:
+   the element is removed, and removing is the one motion nobody has to wait for. */
+.lg-toasts > * {
+    animation: var(--lg-toast-enter) var(--lg-toast-ease) toast;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .lg-toasts > * {
+        animation: none;
+    }
+}

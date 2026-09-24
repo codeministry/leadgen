@@ -29,6 +29,7 @@ import {applicationEvents} from './applications.events';
 import {ingestEvents} from './ingest.events';
 import {refreshEvents} from '@core/refresh/refresh.events';
 import {shortlistEvents} from './shortlist.events';
+import {withAppDevtools} from '@core/store/devtools';
 
 export interface BoardColumn {
     readonly lane: PipelineLane;
@@ -123,6 +124,7 @@ const initialState: ApplicationsState = {
 export const ApplicationsStore = signalStore(
     {providedIn: 'root'},
     withState(initialState),
+    withAppDevtools('applications'),
     withComputed(({applications, lanes}) => ({
         columns: computed<readonly BoardColumn[]>(() =>
             lanes().map((lane) => {

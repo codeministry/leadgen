@@ -9,6 +9,7 @@ import {LastRunView} from '@core/model/last-run';
 import {refreshEvents} from '@core/refresh/refresh.events';
 import {ingestEvents} from './ingest.events';
 import {ScoringModelStore} from './scoring-model.store';
+import {withAppDevtools} from '@core/store/devtools';
 
 interface IngestState {
     /** What a run this browser started handed back. Null until somebody presses the button. */
@@ -50,6 +51,7 @@ const initialState: IngestState = {
 export const IngestStore = signalStore(
     {providedIn: 'root'},
     withState(initialState),
+    withAppDevtools('ingest'),
   withComputed(({report, lastRun, current, running}) => ({
     /**
      * Whether a pass is going on at all, started here or anywhere else. What the button
@@ -90,7 +92,7 @@ export const IngestStore = signalStore(
         // the archive totals, exactly as they did before this existed.
         on(ingestEvents.lastRunFailed, () => ({lastRun: null})),
     ),
-    withEventHandlers(() => {
+    withEventHandlers((store) => {
         const events = inject(Events);
         const api = inject(IngestApi);
         // Read here rather than carried on the event: the choice belongs to the moment the
@@ -125,6 +127,14 @@ export const IngestStore = signalStore(
            * the API twelve times a minute forever. `timer` restarts on every answer rather
            * than `interval` firing regardless, so a slow reply cannot stack requests.
            */
+          /*
+           * The operator's own click asks the heartbeat once, at once. The run toast is
+           * raised from the heartbeat's first sight of a run and never from the request, so
+           * one path covers a click here and a CronJob elsewhere; without this ask the
+           * click's own toast would wait for the idle cadence. The row may not be open yet
+           * when the answer comes back, and then the fast cadence below has it within seconds.
+           */
+          events.on(ingestEvents.requested).pipe(map(() => ingestEvents.currentRequested())),
           events.on(ingestEvents.currentRequested).pipe(
             switchMap(() =>
               api.current().pipe(
@@ -145,7 +155,10 @@ export const IngestStore = signalStore(
            */
           events.on(ingestEvents.currentLoaded).pipe(
             switchMap(({payload}) =>
-              timer(payload === null ? 30_000 : 5_000).pipe(map(() => ingestEvents.currentRequested())),
+              // Fast while a pass is going *or while this browser is waiting on its own*: the
+              // request has left and the row is about to open, and thirty seconds is how late
+              // the operator's own run toast would otherwise be.
+              timer(payload === null && !store.running() ? 30_000 : 5_000).pipe(map(() => ingestEvents.currentRequested())),
             ),
           ),
           /*

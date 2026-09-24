@@ -9,6 +9,123 @@ may change in any release. See the status note in the README.
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-09-24
+
+The rules screen becomes the workflow view, the app explains itself in a help drawer, a
+package carries a cover letter written against the ad, and the frontend is renovated in one
+pass. No configuration key changes meaning: `LLM_MODEL_WRITING` and `cover-letter.yaml` are new
+and optional, and `GET /api/v1/ingest/last` and `GET /api/v1/prompts` grow additively. The
+minor moves because the interface was redesigned end to end, not because the runtime changed.
+
+### Added
+
+- Help, behind a button at the right of the header: a drawer that opens at the chapter of the
+  current screen, a short chapter per screen and a how-it-works chapter with three diagrams (the
+  phases of a run, how the parts work together, the path of an application), in English and
+  German. The diagrams are rendered to SVG by `bun run help:diagrams` and committed.
+- "Run ingest" asks for confirmation before a run starts.
+- The cover letter is written against the ad. With `LLM_MODEL_WRITING` set, the package build asks
+  that model once for a structured draft and `CoverLetterGuard` checks it before a byte is written:
+  every skill it names is in the profile and in the ad or the stack of a chosen reference project,
+  every project is one the ranking chose, no banned phrase, within the word limit. The greeting
+  names a person only when the ad names them with an honorific. A rejected, failed or unbudgeted
+  draft falls back to the template, never to another model; `meta.json` says who wrote it. The new
+  `cover-letter.yaml` holds the style rules, the salutations, the closing and your example letters
+  (tone only), overridable file by file like the other four. The offer detail shows the letter from
+  PACKAGED on, saves an edit into the package and drafts it again at one model call; once an
+  application was ever sent, both are refused. `GET`/`PUT /api/v1/offers/{id}/cover-letter`,
+  `POST …/cover-letter/draft`; `V29` adds three columns to `offer`. `llm.models.writing` is read at
+  last (spec `005-tailored-cover-letter`).
+- An offer whose original ad was never fetched offers to fetch it again, from the ad card: the note says why the
+  last attempt failed, the button asks the page once more past the cached refusal (robots.txt and the rate limit
+  still apply), and a page that answers brings the advert, its sections, its fields and a fresh score with it.
+  `POST /api/v1/offers/{id}/fetch`; `OfferView` carries `enrichmentNote`. The run and the button now share one
+  fetch window (spec `004-refetch-original-ad`).
+- Every write a person makes in the browser and every ingest run that begins or ends,
+  whoever started it, is confirmed by one toast: archive and restore, a bulk archive with
+  the count the server wrote, a status change on the board, a rescore, a manual document
+  confirmed or rejected, a run beginning and a run ending with what it wrote and shortlisted.
+  Failures keep their inline place; a toast links to the thing it names and never undoes.
+  One store in `core/toast/` listens to the other stores' answer events, one stack in the
+  shell paints them as a polite live region (spec `002-action-feedback-toasts`).
+- Each toast carries the tone of its action family: green for what is brought back or confirmed,
+  amber for what is taken off the list or closed against us, blue for a run.
+- A parity spec holds the English and German catalogs to the same key set.
+- `src/styles/motion.css`, the first motion tokens.
+- The dashboard's last-run panel shows where the run spent its time, stage by stage, with the
+  slowest stage marked and a failed one named with its reason. `GET /api/v1/ingest/last`
+  carries the timings as `stages`, each with a derived `millis`; `pipeline_stage` is read for
+  the first time.
+- `docs/DATA-MODEL.md` and `docs/BACKEND-FLOWS.md`, and a Mermaid diagram in every guide.
+- The dashboard is a control room: one hero cell with the survivor count, the funnel in one line
+  and a button to the shortlist, four cells around it — fourteen days of intake, how the scores
+  fall, follow-ups due, run health — and the run's per-source table, stage timings and model name
+  in a machine room that stays collapsed, shows a one-line preview while closed and opens by
+  itself when the run failed or a source mismatched. Fed by the new
+  `GET /api/v1/analytics/summary` (spec `006-dashboard-control-room`).
+- Analytics, sources, review and rules carry a left column of anchor links to their sections,
+  sticky under the header and marking the section in view in the screen's own colour; on a
+  phone it is a row of chips under the title. A click lands the section under the header and
+  moves focus into it, and the hash follows so a section is a link (spec
+  `007-anchor-navigation`).
+- The rules screen is now the workflow view: the run in order, from ingest to digest, as a
+  split view — a rail of phases and stages on the left, held against `IngestService` and
+  `FilterStage` so a stage the code times is a stage the screen names; the selected stage's
+  settings, knockouts, weights, bands, topics and prompt on the right, routed through
+  `?stage=`. Every key the shipped configuration declares appears at the stage that reads it,
+  or under a closing "read by nothing" entry. A stage a model takes part in carries an AI
+  marker and, in the detail pane, a head band in the new `--lg-ai` colour. Fed by the new
+  `GET /api/v1/workflow`; `GET /api/v1/ingest/last` additionally carries `enriched`, and
+  `GET /api/v1/prompts` additionally serves the fields prompt — both additive (spec
+  `008-rules-workflow-view`).
+- `docs/EMBEDDINGS.md`: the guide to the vectors — the two columns and the three kept in
+  memory, the path from text through the width check into pgvector, the dedupe bands, the
+  search that narrows and the letter's reference ranking, which numbers are thresholds and
+  what measures them, what a vector may never decide, and the tool without an embedding
+  model — with four diagrams.
+
+### Fixed
+
+- "Fetch the ad again" on a page that still failed stored nulls over the duration, rate and
+  workload the offer already had, so the card forgot them; a failed fetch now keeps every value
+  it could not read. A refused connection no longer leaves the note "unreachable: null".
+- A run whose stage threw left its history row `RUNNING` with zeros until the next start
+  closed it as `ABANDONED`, and its timings were lost. It now closes as `FAILED` with the
+  counts it had reached and every timing, the failed one last; `POST /api/v1/ingest` answers
+  500 with a sentence naming the stage, the dashboard says where the run stopped, and the
+  run-ended toast says so instead of reporting counts.
+- The runs chart on the analytics screen no longer reads a run that is still going, which
+  reached the browser without a finish date.
+
+### Changed
+
+- The stores connect to the Redux DevTools extension in a dev build and to a stub in a
+  production one, so a deployed instance exposes no state.
+- The header holds five destinations; the labelled navigation row and the wordmark stay down to
+  1024 px, and the wordmark reads LEADgen / AI.
+- The frontend was renovated in one pass (spec `003-visual-renovation`): a new palette in
+  both themes — teal and a cool neutral by day, lavender on indigo-black by night, magenta as
+  the one signal colour that means "this survived the filter" — with the dark theme as the
+  default; three action tiers (`btn-primary`, `btn-soft btn-primary`, `btn-ghost`) and a toast
+  link that is a filled button in the toast's tone; a colour per navigation section on the
+  active marker, the page title and the panel edges; Archivo, Instrument Sans and Geist Mono
+  on a tighter type scale; and a new mark, the lead ring, drawn once as SVG and inlined in
+  the header and rendered into the favicons.
+- Every colour is measured: `bun run test:browser` runs a contrast gate in headless Chromium
+  under both themes (4.5:1 text, 3:1 objects), a colour guard pins the palette to its hex
+  twins and refuses an undefined token, and stylelint refuses a duration literal outside
+  `motion.css`. Both tiers run inside `./gradlew check`.
+- `manualEvents.settled` carries the outcome beside the document name (internal).
+- The light theme's amber text token is one step darker (5.13:1 on sand, was 4.61:1), so a
+  toast's amber text clears 4.5:1 on its tint; every other amber text takes the step with it.
+- The ingest store asks the run heartbeat once at the moment a run is requested and polls
+  at the fast cadence while its own request is out.
+
+### Removed
+
+- The review screen is off the navigation and the route table for now; it is not important at
+  the moment and will be reworked when there is time. Its code and specs stay in the tree.
+
 ## [0.4.3] — 2026-09-23
 
 Each instance keeps its own place in a shared mailbox, and the shortlist archives from the
@@ -1122,7 +1239,8 @@ Found while building the demo, all of them in paths only a container exercises:
   left six.
 - The shortlist card printed the description's Markdown syntax in its teaser.
 
-[Unreleased]: https://github.com/codeministry/leadgen/compare/v0.4.3...HEAD
+[Unreleased]: https://github.com/codeministry/leadgen/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/codeministry/leadgen/releases/tag/v0.5.0
 [0.4.3]: https://github.com/codeministry/leadgen/releases/tag/v0.4.3
 [0.4.2]: https://github.com/codeministry/leadgen/releases/tag/v0.4.2
 [0.4.1]: https://github.com/codeministry/leadgen/releases/tag/v0.4.1

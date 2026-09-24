@@ -23,9 +23,10 @@ import java.util.function.Supplier;
  * DDL under Flyway's ownership, and the ceremony of defeating job-instance identity to keep
  * a run repeatable.
  *
- * <p>It collects rather than writes. The row these reference does not exist until the run is
- * over: the history row is written last, deliberately, because a run that failed halfway must
- * not leave one claiming a clean pass.
+ * <p>It collects rather than writes. The timings are written with the run row when the run
+ * ends: by {@code PipelineRunRecorder.record} on success, and by {@code recordFailure} when a
+ * stage threw. A run that failed halfway therefore leaves a row saying {@code FAILED} and where,
+ * rather than one claiming a clean pass or no timings at all.
  *
  * <p>Not thread-safe, and it does not need to be: a run is sequential, and that sequence is
  * the point.

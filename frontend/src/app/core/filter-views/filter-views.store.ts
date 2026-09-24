@@ -3,6 +3,7 @@ import {signalStore, withHooks, withState} from '@ngrx/signals';
 import {Dispatcher, on, withReducer} from '@ngrx/signals/events';
 import {filterViewEvents} from './filter-views.events';
 import {FILTER_VIEW_NAME_MAX, FILTER_VIEWS_STORAGE_KEY, FilterView, isFilterView,} from './filter-view.model';
+import {withAppDevtools} from '@core/store/devtools';
 
 interface FilterViewsState {
   views: readonly FilterView[];
@@ -25,6 +26,7 @@ interface FilterViewsState {
 export const FilterViewsStore = signalStore(
   {providedIn: 'root'},
   withState<FilterViewsState>({views: []}),
+  withAppDevtools('filterViews'),
   withReducer(
     on(filterViewEvents.restored, ({payload}) => ({views: payload})),
     on(filterViewEvents.saved, ({payload}, state) => ({

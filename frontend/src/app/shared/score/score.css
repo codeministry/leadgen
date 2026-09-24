@@ -39,7 +39,7 @@ svg {
     stroke: currentcolor;
     stroke-width: 4;
     stroke-linecap: round;
-    transition: stroke-dashoffset 420ms ease-out;
+    transition: stroke-dashoffset var(--lg-score-duration) var(--lg-score-ease);
 }
 
 .figure {
@@ -54,4 +54,11 @@ svg {
     .fill {
         transition: none;
     }
+}
+
+/* The figure is 14px of text and the signal fill is tuned for objects, not labels: it
+   stands at 4.85:1 on white but the rule for text is 4.5:1 on every surface, so the strong
+   band's number takes the signal's text twin while the ring keeps the fill. */
+.score[data-band='strong'] .figure {
+    color: var(--lg-signal-text);
 }

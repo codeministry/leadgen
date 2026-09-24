@@ -7,6 +7,11 @@
 
      The file's path is not here. It is a personal datum and this line is in every screenshot
      of this screen; it lives in the panel a click opens. -->
+<lg-anchor-rail [sections]="sections()" [label]="'nav.sections' | transloco">
+<!-- The table has no heading of its own — the page header is its title — so the anchor lands
+     on one only a screen reader meets. -->
+<h2 class="sr-only lg-anchor-target" id="sources" tabindex="-1">{{ 'sources.sectionList' | transloco }}</h2>
+
 @if (store.sourcesFile()) {
   <p class="type-small file-line">
     <lg-icon name="file-text" [size]="16"/>
@@ -108,3 +113,4 @@
      content width, directly under the row that was clicked, which is the shape a 59-line block
      and a 30-row history needs. -->
 <router-outlet/>
+</lg-anchor-rail>

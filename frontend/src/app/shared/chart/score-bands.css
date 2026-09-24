@@ -1,0 +1,60 @@
+:host {
+    display: block;
+}
+
+.bar {
+    display: block;
+    width: 100%;
+    height: 0.5rem;
+    border-radius: 0.25rem;
+    overflow: hidden;
+    background-color: var(--color-base-300);
+}
+
+/* The same three colours the score ring gives the same three verdicts. */
+.shortlisted {
+    fill: var(--score-strong);
+    background-color: var(--score-strong);
+}
+
+.review {
+    fill: var(--score-weak);
+    background-color: var(--score-weak);
+}
+
+.discarded,
+.unscored {
+    fill: var(--score-out);
+    background-color: var(--score-out);
+}
+
+.unscored {
+    opacity: 0.5;
+}
+
+.legend {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.25rem 0.75rem;
+    margin: 0.5rem 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.legend li {
+    display: flex;
+    align-items: baseline;
+    gap: 0.375rem;
+    min-width: 0;
+}
+
+.swatch {
+    flex: none;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 999px;
+}
+
+.count {
+    font-weight: 600;
+}

@@ -90,7 +90,7 @@ Violating one of these is expensive, and most of them fail silently.
 - **Archiving discards the package unless the application was ever sent, and a restore comes
   back at `NEW`.** Both halves keep "PACKAGED" and "there is a folder" the same fact.
 - **Anything reached by a name computed at runtime needs a hint in `LeadGenRuntimeHints`.**
-  The four YAML files and the three templates are; a missing hint is an empty result in a
+  The five YAML files and the three templates are; a missing hint is an empty result in a
   native image, not an error. `LeadGenRuntimeHintsTest` fails when a new one has none.
 - **Never commit.** Do the work, leave it uncommitted, offer the commit — the maintainer
   reviews the diff and decides what lands.
@@ -140,7 +140,7 @@ there**, which is what keeps this file readable.
 | The working-set predicate, keyset paging, the six sort keys, the filters    | `docs/decisions/read-side.md`               |
 | The two configuration layers and the startup banner                         | `docs/decisions/configuration.md`           |
 | The three split screens, the shell, the write path                          | `docs/decisions/frontend-split-views.md`    |
-| Both themes, the accent's one meaning, the navigation, the catalogs         | `docs/decisions/frontend-design-system.md`  |
+| Both themes, the signal's one meaning, the tiers, the sections, the catalogs | `docs/decisions/frontend-design-system.md`  |
 | The eleven application states and their event log                           | `docs/decisions/manual-status.md`           |
 | Two vector columns, the search that narrows, what a vector may not decide   | `docs/decisions/retrieval.md`               |
 | The sixteen steps this tool was built in, and what each had to prove        | `docs/decisions/order-of-work.md`           |
@@ -171,7 +171,8 @@ backend/src/main/resources/leadgen/    the committed defaults — neutral, all v
   matching-rules.yaml                  no second copy to drift.
   sources.yaml
   skill-profile.yaml
-config/*.yaml                     the same four names, overriding file by file (gitignored)
+  cover-letter.yaml
+config/*.yaml                     the same five names, overriding file by file (gitignored)
 .env.example
 docs/samples/emails/*.eml         14 real newsletter mails (gitignored)
 docs/samples/analyze_samples.py   extraction, field coverage, duplicates
@@ -179,6 +180,8 @@ docs/samples/simulate_filter.py   simulation of the hard filters
 docs/decisions/*.md               the reasoning per stage, moved out of this file
 docs/ADDING-A-SOURCE.md           the worked example, then every sources.yaml key
 docs/WRITING-RULES.md             every matching-rules.yaml key and what reads it
+docs/DATA-MODEL.md                the 13 tables, their keys, who writes each column
+docs/BACKEND-FLOWS.md             the run as a sequence, the async tails, the write paths
 backend/CLAUDE.md                 backend conventions and the traps of that tree
 frontend/CLAUDE.md                frontend conventions and the traps of that tree
 
@@ -191,6 +194,7 @@ backend/…/llm/                    ChatModels and Answers, shared by the judge 
 frontend/src/styles.css           both DaisyUI themes, the fonts, the @theme block —
                                   the only file allowed to hold a colour literal
 frontend/src/styles/tokens.css    semantic aliases, layout constants, the type scale
+frontend/src/styles/primitives.css  `.lg-panel`, the one bordered surface, with the section edge
 frontend/src/app/core/            api seams, stores, models, theme, shell
 frontend/src/app/layout/          shell, header, nav rail, theme toggle
 frontend/src/app/shared/          icon, brand mark, score, funnel rail, badge, stat tile,
@@ -201,7 +205,7 @@ frontend/src/app/features/        dashboard, shortlist (+ offer card, sort menu,
                                   views — decisions/frontend-split-views.md
 frontend/src/app/core/filter-views/  saved views: a name and a query string, in this
                                   browser's localStorage — decisions/frontend-split-views.md
-frontend/tools/build-favicon.sh   renders favicon.ico, favicon-256.png and logo-mark.png
+frontend/tools/build-favicon.sh   renders favicon.ico and favicon-256.png from brand/mark.svg
 ```
 
 The two Python scripts are the **reference implementation**. Whatever they do, the Java

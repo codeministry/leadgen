@@ -35,6 +35,15 @@ export const shortlistEvents = eventGroup({
     rescored: type<ShortlistEntry>(),
     rescoreFailed: type<string>(),
     /**
+     * The original ad, asked for again past a failure the run remembered. `fetched` carries
+     * the entry whether the page answered or refused once more — a refusal is a recorded
+     * outcome with its note, not a failure of the request. `fetchFailed` is the request itself
+     * turned away: an offer that is not one to fetch, or a minute already spent.
+     */
+    fetchRequested: type<number>(),
+    fetched: type<ShortlistEntry>(),
+    fetchFailed: type<string>(),
+    /**
      * Off the working list, or back onto it. The one thing about an offer a person owns —
      * everything else here is written by a run and rewritten by the next one.
      */

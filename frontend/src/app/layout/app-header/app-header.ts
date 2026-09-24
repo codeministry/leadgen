@@ -1,4 +1,4 @@
-import {ChangeDetectionStrategy, Component, computed, inject, signal} from '@angular/core';
+import {ChangeDetectionStrategy, Component, computed, DOCUMENT, inject, signal, viewChild} from '@angular/core';
 import {RouterLink} from '@angular/router';
 import {injectDispatch} from '@ngrx/signals/events';
 import {ingestEvents} from '@core/store/ingest.events';
@@ -12,10 +12,12 @@ import {Icon} from '@shared/icon/icon';
 import {TranslocoPipe, TranslocoService} from '@jsverse/transloco';
 import {LanguageToggle} from '../language-toggle/language-toggle';
 import {ThemeToggle} from '../theme-toggle/theme-toggle';
+import {HelpDrawer} from '../help-drawer/help-drawer';
+import {RunConfirm} from './run-confirm/run-confirm';
 
 @Component({
     selector: 'lg-app-header',
-  imports: [AppNav, BrandMark, Icon, RouterLink, ThemeToggle, LanguageToggle, TranslocoPipe],
+  imports: [AppNav, BrandMark, HelpDrawer, Icon, RouterLink, RunConfirm, ThemeToggle, LanguageToggle, TranslocoPipe],
     templateUrl: './app-header.html',
     styleUrl: './app-header.css',
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -32,6 +34,15 @@ export class AppHeader {
    * light dismiss and an Escape are as visible to a screen reader as the button is.
    */
   protected readonly settingsOpen = signal(false);
+  private readonly document = inject(DOCUMENT);
+
+  /** A link inside the popover navigates; the popover does not close on its own for that. */
+  protected closeSettings(): void {
+    const panel = this.document.getElementById('app-settings');
+    if (panel !== null && typeof (panel as Partial<HTMLElement>).hidePopover === 'function') {
+      panel.hidePopover();
+    }
+  }
 
   protected onSettingsToggle(event: Event): void {
     this.settingsOpen.set((event as ToggleEvent).newState === 'open');
@@ -80,7 +91,17 @@ export class AppHeader {
       : this.transloco.translate('shell.runSinceStage', {time, stage: run.stage});
   });
 
-    /** Reading the sources is a pipeline action, not a dashboard one, so it lives here. */
+    private readonly runConfirm = viewChild.required(RunConfirm);
+
+    /** The button only asks; the run starts from the dialog's confirm (ISC-318). */
+    protected askToRun(button: HTMLElement): void {
+        this.runConfirm().open(button);
+    }
+
+    /**
+     * Reading the sources is a pipeline action, not a dashboard one, so it lives here. Reached
+     * only through the confirmation.
+     */
     protected runIngest(): void {
         this.ingestDispatch.requested();
     }

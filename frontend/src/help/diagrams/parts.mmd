@@ -1,0 +1,41 @@
+%% How the parts work together, from a mail to a package on disk.
+%% Classes are roles, coloured with the app tokens by tools/build-help-diagrams.ts:
+%% model asks the language model, net leaves the machine, file is a file, free is rules only.
+flowchart TB
+    classDef model fill:#e2d5f1,stroke:#6f4aa8,color:#1f2937
+    classDef net fill:#d6ead8,stroke:#3d7a48,color:#1f2937
+    classDef file fill:#f6dccb,stroke:#b85c2a,color:#1f2937
+    classDef free fill:#dbe4ee,stroke:#4a6d8c,color:#1f2937
+
+    subgraph sources["Where offers come from"]
+        direction LR
+        mail["Newsletter<br/>mailbox"]
+        inbox["Adverts you<br/>add by hand"]
+        portals["Portal pages"]
+    end
+
+    subgraph app["The app"]
+        direction TB
+        pipeline["Pipeline<br/>read · sort · understand · judge · hand over"]
+        db[("Database<br/>offers, scores, applications")]
+        screens["Screens<br/>dashboard · shortlist · pipeline board<br/>analytics · review · rules"]
+        pipeline --> db
+        db <--> screens
+    end
+
+    model["Language model<br/>local by default<br/>judges, classifies,<br/>reads fields"]
+    you(["You"])
+    package["Application package<br/>a folder on disk"]
+
+    mail --> pipeline
+    inbox --> pipeline
+    portals -- "full advert,<br/>survivors only" --> pipeline
+    pipeline <--> model
+    you <-- "decide, move cards,<br/>tune rules" --> screens
+    screens -- "move to Prepared" --> package
+    package -- "you send it yourself" --> you
+
+    class mail,portals net
+    class model model
+    class package,inbox file
+    class pipeline,screens free

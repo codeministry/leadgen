@@ -434,12 +434,17 @@ public class AnalyticsQueryService {
      * <p>Capped: the screen shows a trend, not an archive of runs, and thirty is more than
      * a month of daily use. The cap is here rather than in the browser because the payload
      * would otherwise grow without limit for a chart that cannot draw it.
+     *
+     * <p>Finished runs only. A row still open has no {@code finished_at}, which sorts first
+     * under {@code DESC} and reached the browser as a pass with no date; a FAILED row is
+     * finished and stays in the trend with the counts it reached.
      */
     private static final String PASSES = """
         SELECT finished_at, status, ruleset_version, score_model,
                extracted, written, filter_considered, filter_passed,
                scored, shortlisted, packaged
         FROM pipeline_run
+        WHERE finished_at IS NOT NULL
         ORDER BY finished_at DESC
         LIMIT 30
         """;

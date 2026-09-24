@@ -46,7 +46,7 @@ describe('provideChartPalette', () => {
         // turn can still answer with the previous theme — which is why the palette waits a
         // frame rather than being a plain computed.
         paint('rgb(9, 9, 9)');
-        TestBed.inject(Dispatcher).dispatch(themeEvents.chosen('dark'));
+        TestBed.inject(Dispatcher).dispatch(themeEvents.chosen('light'));
         TestBed.tick();
         await frame();
 

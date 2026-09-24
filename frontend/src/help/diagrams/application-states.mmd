@@ -1,0 +1,46 @@
+%% The path of an application through the five lanes of the pipeline board.
+%% Classes are roles, coloured with the app tokens by tools/build-help-diagrams.ts:
+%% file is where the package folder is built, good is the goal.
+flowchart TB
+    classDef file fill:#f6dccb,stroke:#b85c2a,color:#1f2937
+    classDef good fill:#d6ead8,stroke:#3d7a48,color:#1f2937
+
+    in(["Offer reaches the shortlist"])
+
+    subgraph backlog["Backlog"]
+        direction LR
+        new["New"] <--> shortlisted["Shortlisted"]
+    end
+    subgraph prepared["Prepared"]
+        packaged["Packaged<br/>the folder is built here"]
+    end
+    subgraph out["Out"]
+        direction LR
+        sent["Sent"] --> replied["Replied"]
+    end
+    subgraph talking["Talking"]
+        direction LR
+        interview["Interview"] --> offer["Offer"]
+    end
+    subgraph closed["Closed"]
+        direction LR
+        rejected["Rejected"]
+        expired["Expired"]
+        lost["Lost"]
+        won["Won"]
+    end
+
+    in --> new
+    shortlisted -- "the only way forward" --> packaged
+    new -. "not pursued" .-> rejected
+    new -. "too late" .-> expired
+    packaged -- "you send it" --> sent
+    replied --> interview
+    offer --> won
+    offer -. "no deal" .-> lost
+
+    note["Any open application can end as Lost.<br/>After Packaged any correction is allowed.<br/>An offer restored from the archive starts again at New."]
+    closed ~~~ note
+
+    class packaged file
+    class won good

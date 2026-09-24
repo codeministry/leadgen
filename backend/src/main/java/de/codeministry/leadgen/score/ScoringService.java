@@ -226,33 +226,13 @@ public class ScoringService {
         int unusable = 0;
 
         for (ScoreCandidate candidate : due) {
-            List<ScoreReason> reasons = new java.util.ArrayList<>(scorer.score(candidate));
-            Score score;
-
-            if (judge.isEmpty()) {
-                score = Score.unscored(reasons, rulesetVersion);
-            } else if (!budget.take()) {
-                // The same outcome as no judge at all, and for the same reason: the offer
-                // keeps its deterministic reasons, stays due, and tomorrow's allowance
-                // finishes it. A total from four of five weights would be worse than none.
-                score = Score.unscored(reasons, rulesetVersion);
-            } else {
-                List<ScoreReason> answer = judge.get().judge(candidate);
-                reasons.addAll(answer);
-                // Nothing usable came back, so this is the keyless case with an extra step:
-                // a total from four of five weights is not comparable to one from all five,
-                // and writing it would hide a judge that has stopped answering. Left
-                // unscored the offer is due again, which is also how it repairs itself.
-                if (Judge.answered(answer)) {
-                    score = Score.of(reasons, model, rulesetVersion);
-                    judged++;
-                } else {
-                    score = Score.unscored(reasons, rulesetVersion);
-                    unusable++;
-                }
+            Scored outcome = scoreCandidate(
+                    candidate, scorer, judge, model, rulesetVersion, autoShortlist, review, profileDigest);
+            if (outcome.judged()) {
+                judged++;
+            } else if (outcome.unusable()) {
+                unusable++;
             }
-            writer.write(candidate.id(), score, autoShortlist, review);
-            markProfile(candidate.id(), profileDigest);
         }
 
         var report = standing(judged, unusable, 0);
@@ -327,6 +307,67 @@ public class ScoringService {
     }
 
     /**
+     * One candidate, judged and written — the branch {@link #run(String)}'s loop and
+     * {@link #scoreFor} both run, so the button and the night cannot drift into two ways of
+     * turning a judge's answer into a score.
+     *
+     * <p>Four outcomes, and only the deterministic half is guaranteed: no judge configured,
+     * the daily budget refused this call, the judge answered but not usably, or the judge
+     * answered and {@link Score#of} could be computed. The first three all write
+     * {@link Score#unscored} — the caller cannot tell "no judge" from "budget refused" from
+     * the returned {@link Score} alone, which is why {@link Scored} carries the two flags
+     * {@link #run(String requestedModel)} needs for its own counters; {@link #scoreFor}
+     * only ever reads {@link Scored#score()}.
+     */
+    private Scored scoreCandidate(
+            ScoreCandidate candidate,
+            RuleScorer scorer,
+            Optional<Judge> judge,
+            String model,
+            String rulesetVersion,
+            int autoShortlist,
+            int review,
+            String profileDigest) {
+        List<ScoreReason> reasons = new java.util.ArrayList<>(scorer.score(candidate));
+        Score score;
+        boolean judged = false;
+        boolean unusable = false;
+
+        if (judge.isEmpty()) {
+            score = Score.unscored(reasons, rulesetVersion);
+        } else if (!budget.take()) {
+            // The same outcome as no judge at all, and for the same reason: the offer
+            // keeps its deterministic reasons, stays due, and tomorrow's allowance
+            // finishes it. A total from four of five weights would be worse than none.
+            score = Score.unscored(reasons, rulesetVersion);
+        } else {
+            List<ScoreReason> answer = judge.get().judge(candidate);
+            reasons.addAll(answer);
+            // Nothing usable came back, so this is the keyless case with an extra step:
+            // a total from four of five weights is not comparable to one from all five,
+            // and writing it would hide a judge that has stopped answering. Left
+            // unscored the offer is due again, which is also how it repairs itself.
+            if (Judge.answered(answer)) {
+                score = Score.of(reasons, model, rulesetVersion);
+                judged = true;
+            } else {
+                score = Score.unscored(reasons, rulesetVersion);
+                unusable = true;
+            }
+        }
+        writer.write(candidate.id(), score, autoShortlist, review);
+        markProfile(candidate.id(), profileDigest);
+        return new Scored(score, judged, unusable);
+    }
+
+    /**
+     * What {@link #scoreCandidate} produced, plus the two flags only {@link #run(String)}'s
+     * standing counters need. {@link #scoreFor} discards them and returns {@link #score}
+     * alone.
+     */
+    private record Scored(Score score, boolean judged, boolean unusable) {}
+
+    /**
      * The profile as the deterministic half saw it. A record's string form lists every
      * component in declaration order, which is exactly "anything the scorer could read".
      */
@@ -338,6 +379,83 @@ public class ScoringService {
         } catch (java.security.NoSuchAlgorithmException e) {
             throw new IllegalStateException("SHA-256 is part of every JDK", e);
         }
+    }
+
+    /**
+     * One offer, scored through the same branch {@link #run(String)}'s loop uses, and the
+     * way a refetch (`OfferRefetch`) brings a score up to date once the advert underneath it
+     * has changed.
+     *
+     * <p><b>The one behaviour this method does not share with {@link #rescore}: no judge
+     * configured, or the budget refused, writes {@link Score#unscored} with the
+     * deterministic reasons instead of throwing {@link NoJudge}.</b> `rescore` is a button
+     * whose whole point is asking a judge again, so silence there needs a sentence.
+     * `scoreFor` is what a refetch calls after storing a fresh advert, and the fetched text
+     * changing the rule score alone is already the improvement ISC-249 asks for — a fresh
+     * fetch with no model configured must not fail the request that just stored it.
+     *
+     * <p>Loads the one candidate the way {@link #rescore} does — the {@link #ONE} query,
+     * which keeps the shortlist's own two conditions: a rejected offer never entered
+     * scoring, and a duplicate is judged through its primary.
+     *
+     * <p><b>Always synchronous, never a batch submission</b> — same reason as
+     * {@link #rescore}: nobody batches one offer, and this method calls {@link Judge#judge}
+     * directly whether or not the resolved judge also implements {@link BatchJudge}.
+     *
+     * <p><b>Not {@code @Transactional}, unlike {@link #rescore}, for the reason {@link #run(String)}
+     * is not.</b> {@code LlmBudget.take()} upserts today's one budget row, and inside a
+     * transaction that row stays locked for the whole model call that follows — minutes on a
+     * local model — so every other stage asking the budget would wait behind one button.
+     * {@code ScoreWriter.write} is its own transaction, which is all the atomicity the write
+     * needs.
+     *
+     * <p><b>A score batch still out for this offer wins later.</b> {@link #ONE} does not look at
+     * {@code score_batch_id}, so when a submitted batch holds this offer, its collection
+     * overwrites the score written here with a judgement of the text the batch was sent. The
+     * next run judges it again once the batch is collected; the same is true of {@link #rescore}.
+     *
+     * @return the new score, or empty when the offer is not on the shortlist at all —
+     *     rejected by the filter, attached to a primary, or archived, none of which scoring
+     *     ever saw.
+     * @throws NoJudge when no scoring section is configured at all, so there are no weights
+     *     for even the deterministic half to score against — the one failure that still has
+     *     nothing to write either way.
+     */
+    public Optional<Score> scoreFor(long offerId) {
+        ConfigSnapshot snapshot = config.snapshot();
+        MatchingRules rules = snapshot.rules();
+        MatchingRules.Scoring scoring = rules.scoring();
+        if (scoring == null) {
+            throw new NoJudge("no scoring section is configured, so there are no weights to score against");
+        }
+
+        List<ScoreCandidate> found =
+                jdbc.sql(ONE).param(offerId).query(ScoreCandidate::of).list();
+        if (found.isEmpty()) {
+            return Optional.empty();
+        }
+        ScoreCandidate candidate = found.getFirst();
+
+        RuleScorer scorer = new RuleScorer(rules, snapshot.profile());
+        String rulesetVersion = String.valueOf(rules.version());
+        Optional<Judge> judge = judges.current(null);
+        String model = judge.map(Judge::model).orElse(null);
+        String profileDigest = digestOf(snapshot.profile());
+
+        Scored outcome = scoreCandidate(
+                candidate,
+                scorer,
+                judge,
+                model,
+                rulesetVersion,
+                scoring.thresholds().autoShortlist(),
+                scoring.thresholds().review(),
+                profileDigest);
+        log.info(
+                "Offer {} scored on request: {}",
+                offerId,
+                outcome.score().value() == null ? "unscored" : outcome.score().value());
+        return Optional.of(outcome.score());
     }
 
     /**

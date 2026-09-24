@@ -29,15 +29,16 @@ llm:
   # once the nightly pass is large.
   batch: ${LLM_BATCH:false}
   models:
-    # Two keys are read. `scoring` is read by three stages — the scoring judge, the
-    # content classifier and the field extractor. One key rather than three, because a
-    # `models.content` or `models.fields` key would mean a second and third allowlist, a
-    # second and third entry in the run history and a second and third select in the
-    # header — for two bounded classifiers that answer in three lines of JSON.
+    # `scoring` is read by three stages — the scoring judge, the content classifier and
+    # the field extractor. One key rather than three, because a `models.content` or
+    # `models.fields` key would mean a second and third allowlist, a second and third
+    # entry in the run history and a second and third select in the header — for two
+    # bounded classifiers that answer in three lines of JSON.
     #
-    # `writing` is the one key left that nothing reads: the cover letter is a Freemarker
-    # template. It stays here because the stage exists in the concept, but a value in it
-    # changes nothing.
+    # `writing` drafts the cover letter when an application moves to PACKAGED. A draft
+    # is checked against the profile and `cover-letter.yaml` before it is written; empty,
+    # failed or rejected, the Freemarker template writes the letter instead. It never
+    # falls back to `scoring`: a letter model is chosen for its prose, not its JSON.
     #
     # Read by the extraction fallback: a source with `fallback: llm` hands a document the
     # deterministic rules could not read to this model. Leave it empty and `scoring`
@@ -50,7 +51,7 @@ llm:
     # and a name passed through unchecked is an arbitrary string deciding what gets
     # bought. `scoring` is always the first entry and need not be repeated here.
     scoring_options: ${LLM_MODEL_SCORING_OPTIONS:}
-    writing: ${LLM_MODEL_WRITING}     # not read yet
+    writing: ${LLM_MODEL_WRITING}     # the cover letter; empty means the template writes it
     # Deduplication's two similarity strategies. No fallback to `scoring`: a chat model is
     # not an embedding model. Empty means only `exact_fingerprint` runs, which is what a
     # fresh clone does. The model has to return at least 2000-dimensional vectors, which is

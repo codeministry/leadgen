@@ -1,4 +1,6 @@
-# leadgen
+<h1 align="center">
+  <img alt="LEADgen / AI" src="docs/brand/leadgen.png" width="420">
+</h1>
 
 **An acquisition tool for freelancers.** It collects project offers from sources you
 configure, throws out everything that was never a fit, and turns the rest into scored,
@@ -6,11 +8,11 @@ ready-to-send application packages. The rules run first, free and deterministic;
 only sees what is left.
 
 [![CI](https://github.com/codeministry/leadgen/actions/workflows/ci.yml/badge.svg)](https://github.com/codeministry/leadgen/actions/workflows/ci.yml)
-[![License](https://img.shields.io/badge/license-Apache--2.0-0E6E6B.svg)](LICENSE)
-[![Status](https://img.shields.io/badge/status-alpha-C8860D.svg)](#status-alpha-and-still-being-built)
-[![Java](https://img.shields.io/badge/Java-25-0E6E6B.svg)](backend/build.gradle.kts)
-[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.1-0E6E6B.svg)](gradle/libs.versions.toml)
-[![Angular](https://img.shields.io/badge/Angular-22-0E6E6B.svg)](frontend/package.json)
+[![License](https://img.shields.io/badge/license-Apache--2.0-107970.svg)](LICENSE)
+[![Status](https://img.shields.io/badge/status-alpha-CC2997.svg)](#status-alpha-and-still-being-built)
+[![Java](https://img.shields.io/badge/Java-25-107970.svg)](backend/build.gradle.kts)
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.1-107970.svg)](gradle/libs.versions.toml)
+[![Angular](https://img.shields.io/badge/Angular-22-107970.svg)](frontend/package.json)
 
 ![The dashboard: what came in, and how much of it survived the hard filter](docs/screenshots/dashboard-light.png)
 
@@ -67,13 +69,26 @@ is *configured* to run after it — the loader refuses any other value.
 
 ## How it works
 
+```mermaid
+%%{init: {"themeVariables": {"clusterBkg":"#fafafa","clusterBorder":"#c3c8cf","titleColor":"#374151","mainBkg":"#eef1f5","nodeBorder":"#9aa3ad","primaryTextColor":"#1f2937"}}}%%
+flowchart LR
+    classDef free fill:#dbe4ee,stroke:#4a6d8c,color:#1f2937
+    classDef model fill:#e2d5f1,stroke:#6f4aa8,color:#1f2937
+    classDef net fill:#d6ead8,stroke:#3d7a48,color:#1f2937
+    classDef file fill:#f6dccb,stroke:#b85c2a,color:#1f2937
+
+    s["Sources"] --> i["Ingest"] --> x["Extract"] --> d["Dedupe"] --> f["Filter"] --> a["Archive"] --> e["Enrich"] --> c["Content"] --> sc["Score"] --> p["Package"] --> g["Digest"]
+
+    class s,i,x,f,a free
+    class d,c,sc model
+    class e net
+    class p,g file
 ```
-Sources ─▶ Ingest ─▶ Extract ─▶ Dedupe ─▶ Filter ─▶ Archive ─▶ Enrich ─▶ Content ─▶ Score ─▶ Package ─▶ Digest
-                                          │                    │         │
-                      free, deterministic ┘                    │         │
-                        the only stage that leaves the machine ┘         │
-                                    this and scoring are what cost money ┘
-```
+
+Grey-blue is free and deterministic, violet may ask a model, green is the only stage that
+leaves the machine, peach writes a file. The chain is drawn in full, with what every stage
+reads and writes and where a rule decides against where a model speaks, in
+[`docs/BACKEND-FLOWS.md`](docs/BACKEND-FLOWS.md).
 
 Two rules decide the shape of everything above.
 
@@ -124,8 +139,8 @@ weights, and enrichment has nothing to fetch because the invented URLs do not re
 | ![Pipeline board](docs/screenshots/pipeline-light.png)   | **Pipeline** — the half of the loop the tool cannot see. Nothing is sent from here, so everything here is recorded by hand.                                                                                                                                                                                                                                                                                                                                                                                                    |
 | ![Analytics](docs/screenshots/analytics-light.png)       | **Analytics** — what the market is doing, and what the rules are doing to it.                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | ![Sources](docs/screenshots/sources-dark.png)            | **Sources** — the configuration rather than the database, so a source that has never run still shows up. Opening one shows the block of `sources.yaml` that defines it, secrets masked, beside every run it has had and when its numbers last moved.                                                                                                                                                                                                                                                                           |
-| ![Rules](docs/screenshots/rules-dark.png)                | **Rules** — the hard filter, the weights and the thresholds behind every number on the shortlist, and the prompts as this configuration actually renders them: what the model is asked is the other half of what a score means.                                                                                                                                                                                                                                                                                                |
-| ![Review](docs/screenshots/review-light.png)             | **Review** — an upload becomes an offer only once somebody has seen what was read from it.                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| ![Rules](docs/screenshots/rules-dark.png)                | **Rules** — the run as a workflow, from ingest to digest: each stage with the last run's count, what it costs, and a marker where a model takes part. Picking a stage shows every key that decides it, the knockouts, the weights and the thresholds behind every number on the shortlist, and the prompt as this configuration actually renders it.                                                                                                                                                                             |
+| ![Help](docs/screenshots/help-light.png)                 | **Help** — a drawer from the header that opens at the chapter of the screen it was opened from, with a how-it-works chapter and its diagrams for the reader who wants to know what happens between a mail and a package.                                                                                                                                                                                                                                                                                                      |
 
 ## Configuration
 
@@ -213,6 +228,11 @@ open for the question you have.
 
 - [Architecture](docs/ARCHITECTURE.md) — the pipeline stage by stage, and the reasoning
   behind the parts that are not obvious
+- [Data model](docs/DATA-MODEL.md) — the thirteen tables, their keys, and which class writes
+  each column
+- [Backend flows](docs/BACKEND-FLOWS.md) — the run as a sequence, the asynchronous side,
+  every write path from an endpoint down, the state machines, and where a rule decides
+  against where a model speaks
 - [Configuration](docs/CONFIGURATION.md) — the two layers, the four files, every variable
 - [Adding a source](docs/ADDING-A-SOURCE.md) — a new source is a YAML block, worked through
   line by line, then every key with what reads it
@@ -220,7 +240,8 @@ open for the question you have.
   thresholds, and which keys are read by nothing
 - [Development](docs/DEVELOPMENT.md) — prerequisites, commands, and the traps a newcomer
   hits first
-- [Concept](docs/CONCEPT.md) — the original design: domain model, module layout, order of work
+- [Concept](docs/CONCEPT.md) — the original design: module layout and order of work, historical
+  in places
 - [Sample analysis](docs/SAMPLE-ANALYSIS.md) — what 14 real newsletter mails contain, and
   what they do not
 - [The demo](demo/README.md) — the invented dataset and what it demonstrates
@@ -241,3 +262,11 @@ provider or personal datum enters a committed file**. Both are enforced by tests
 ## License
 
 [Apache License 2.0](LICENSE). See [NOTICE](NOTICE).
+
+---
+
+<p align="center">
+  <a href="https://codeministry.de"><img src="docs/brand/codeministry.png" alt="codeministry" width="88"></a>
+  <br>
+  <sub>Built and maintained by <a href="https://codeministry.de">codeministry</a>.</sub>
+</p>

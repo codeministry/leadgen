@@ -1,3 +1,5 @@
+<img src="../docs/brand/leadgen.png" alt="LEADgen / AI" height="28">
+
 # The demo
 
 A complete, invented dataset, so a fresh clone opens on a populated application instead

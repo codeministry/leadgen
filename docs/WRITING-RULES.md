@@ -1,3 +1,5 @@
+<img src="brand/leadgen.png" alt="LEADgen / AI" height="28">
+
 # Writing rules
 
 How to change what survives the filter and what reaches the shortlist, without reading any
@@ -83,6 +85,10 @@ Four consequences when you write a list:
   dropped rather than compiled into a pattern that matches everywhere.
 
 ## The six knockouts
+
+The six as one funnel, each with the key that drives it, is drawn in
+[`ARCHITECTURE.md` § The hard filter](ARCHITECTURE.md#the-hard-filter); this section is the
+key-by-key detail behind that picture.
 
 They run in this fixed order, and an offer stops at the first rejection — which is the only
 reason the per-stage counts on the dashboard funnel sum to the total. The verdict written on
@@ -272,6 +278,31 @@ share = round(100 × earned ÷ attainable)
 total = clamp(0, 100, share + penalties)
 ```
 
+```mermaid
+%%{init: {"themeVariables": {"clusterBkg":"#fafafa","clusterBorder":"#c3c8cf","titleColor":"#374151","mainBkg":"#eef1f5","nodeBorder":"#9aa3ad","primaryTextColor":"#1f2937"}}}%%
+flowchart LR
+    classDef free fill:#dbe4ee,stroke:#4a6d8c,color:#1f2937
+    classDef model fill:#e2d5f1,stroke:#6f4aa8,color:#1f2937
+    classDef pass fill:#f3e6c4,stroke:#a4781b,color:#1f2937
+    classDef gone fill:#e9e9e9,stroke:#6b7280,color:#1f2937
+
+    rows["every reason row of one offer<br/>a factor with nothing to say writes none"] --> split{"maxPoints > 0?"}
+    split -- "yes: the shares" --> share["share = round(100 × Σ points ÷ Σ maxPoints)"]
+    split -- "no: the penalties, project_setup,<br/>interest_fit, disinterest_fit" --> abs["absolute points, added as they are"]
+    share --> total["total = clamp(0, 100, share + absolute)"]
+    abs --> total
+    total --> band{"scoring.thresholds"}
+    band -- "value ≥ auto_shortlist" --> S["SHORTLISTED<br/>a card on the board, at NEW"]
+    band -- "value ≥ review" --> R["REVIEW<br/>in the digest, a person decides"]
+    band -- "below review" --> D["DISCARDED"]
+    judge["the judge answered nothing usable"] -.-> U["UNSCORED<br/>the rule rows are written, the total is withheld"]
+
+    class rows,split,share,abs,total,band free
+    class S,R pass
+    class D gone
+    class judge,U model
+```
+
 Two things follow from that and are worth having in mind while tuning:
 
 - **A factor with nothing to say writes no row**, so it is in neither the numerator nor the
@@ -399,18 +430,34 @@ file itself — [`demo/skill-profile.yaml`](../demo/skill-profile.yaml) is a com
 
 | Key | Read by |
 |---|---|
+| `version` | nothing — the profile carries no staleness stamp of its own; see `version` under matching-rules.yaml above |
 | `core[].skill`, `core[].aliases` | `NO_CORE_SKILL` **and** `core_skill_overlap` |
 | `core[].weight` | `core_skill_overlap` and `saturation_core_count` |
 | `strong[]`, `peripheral[]` | `core_skill_overlap` only — invisible to the filter |
 | `industries[].name`, `.match`, `.weight` | `industry_fit`. Without `match:`, the name is compared against German ad text. |
 | `interest_topics[]`, `disinterest_topics[]` (`name`, `weight` 1-10, `aliases`) | `interest_fit` and `disinterest_fit`, the judge's topic question when the weight row exists, and the shortlist's topic filter. With `retrieval.topic_floor` set in `pipeline.yaml`, the filter also finds adverts whose retrieval vector sits within that cosine of the topic's name; the floor is measured with `docs/samples/measure_topic_floor.ts`, never chosen, and never moves a score. The name is always tried as an alias. A topic lifts or sinks a score and never ends an assessment. |
+| `reference_projects[].id` | PACKAGE — `ReferenceRanking` and `ProfileEmbeddings`, the key a project's vector is stored under |
 | `reference_projects[].title_de`, `.title_en`, `.pitch_de`, `.pitch_en` | the cover letter. One of each pair is enough; the other language falls back to it. |
 | `reference_projects[].from`, `.to` | the cover letter's period. Months (`"2024-01"`). No `to` means still running, and the letter writes "seit" or "since" itself. |
 | `reference_projects[].role`, `.stack` | `ReferenceRanking`, which picks the two projects a letter cites |
 | `cv_variants` | which CV goes into the package |
 | `locale_primary` | the fallback language of a package, when the ad's own says nothing |
-| `identity.*` | the judge's prompt |
+| `identity.roles`, `.seniority`, `.base` | the judge's prompt, at SCORE |
+| `identity.name`, `.brand` | `PackagingService`, at PACKAGE |
+| `identity.freelance_since` | nothing — no caller of `Identity.freelanceSince()` |
 | `core[].since`, `industries[].note`, `languages[]` | nothing |
+
+### `pipeline.yaml` — packaging document descriptors
+
+`PackagingService` reads only a document's `id` and `template`; the rest of each entry under
+`packaging.documents[]` is there for a human reading the file, not for the code.
+
+| Key | Read by |
+|---|---|
+| `packaging.documents[].id` | `PackagingService`, which document this is |
+| `packaging.documents[].template` | `PackagingService`, the FreeMarker template rendered for it |
+| `packaging.documents[].source`, `.by` | nothing — documentation of where the CV entry's file choice comes from |
+| `packaging.documents[].generated`, `.format` | nothing — documentation of how the cover-letter and meta entries are produced |
 
 ## Checking your work
 

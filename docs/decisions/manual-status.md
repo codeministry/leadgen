@@ -1,3 +1,5 @@
+<img src="../brand/leadgen.png" alt="LEADgen / AI" height="28">
+
 # Manual status capture
 
 The half of the loop the system cannot observe.

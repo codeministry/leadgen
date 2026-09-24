@@ -44,6 +44,19 @@ val test by tasks.registering(Exec::class) {
     commandLine(bun("run", "test:coverage"))
 }
 
+/**
+ * The browser tier: every `*.browser.spec.ts` in headless Chromium. jsdom resolves neither
+ * custom properties nor `oklch()`, so a contrast assertion there passes with the element
+ * invisible; this is the only tier that can say no to a colour.
+ */
+val testBrowser by tasks.registering(Exec::class) {
+    description = "Vitest browser suite in headless Chromium."
+    group = "verification"
+    dependsOn(installDeps)
+    workingDir = frontendDir.asFile
+    commandLine(bun("run", "test:browser"))
+}
+
 val buildFrontend by tasks.registering(Exec::class) {
     description = "Production build into frontend/dist."
     group = "build"
@@ -55,6 +68,6 @@ val buildFrontend by tasks.registering(Exec::class) {
     outputs.dir(frontendDir.dir("dist"))
 }
 
-tasks.named("check") { dependsOn(lint, test) }
+tasks.named("check") { dependsOn(lint, test, testBrowser) }
 tasks.named("assemble") { dependsOn(buildFrontend) }
 tasks.named<Delete>("clean") { delete(frontendDir.dir("dist"), frontendDir.dir(".angular")) }

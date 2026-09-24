@@ -11,6 +11,7 @@ package de.codeministry.leadgen.web;
 import de.codeministry.leadgen.config.model.MatchingRules;
 import de.codeministry.leadgen.config.model.SkillProfile;
 import de.codeministry.leadgen.content.ContentClassifier;
+import de.codeministry.leadgen.fields.FieldExtractor;
 import de.codeministry.leadgen.ingest.extract.LlmExtractor;
 import de.codeministry.leadgen.score.ChatClientJudge;
 import java.util.List;
@@ -29,7 +30,7 @@ import java.util.List;
  * profile carries, and the four bounds were once Java constants that matched the weight table
  * by coincidence. A template on screen would have shown neither.
  *
- * <p>Assembled in the web layer rather than in {@code config}, because it needs the two stages
+ * <p>Assembled in the web layer rather than in {@code config}, because it needs the stages
  * that own the prompts and the configuration model deliberately depends on no stage.
  *
  * @param id     a closed id, not a sentence: the browser holds the label, the same way it does
@@ -44,11 +45,12 @@ import java.util.List;
 public record PromptView(String id, String model, String system, String user) {
 
     /**
-     * All three prompts, in the order the pipeline asks them: a document is read before its
-     * advert is segmented, and both happen before anything is scored.
+     * All four prompts, in the order the pipeline asks them: a document is read before its
+     * advert is segmented, the segmented advert is read for its start, duration and deadline,
+     * and all of that happens before anything is scored.
      *
-     * <p>The last two carry the same model on purpose, and the screen showing it twice is the
-     * point: {@code llm.models.scoring} is read by two stages, which is what keeps the rule
+     * <p>The last three carry the same model on purpose, and the screen showing it three times
+     * is the point: {@code llm.models.scoring} is read by three stages, which is what keeps the rule
      * that an unread {@code models.*} key is a lie true without adding a second allowlist.
      * The first may carry a different one, because {@code llm.models.extraction} is a key of
      * its own — and which one it would be is exactly what this panel is for.
@@ -62,6 +64,7 @@ public record PromptView(String id, String model, String system, String user) {
         return List.of(
                 new PromptView("extraction", extractionModel, LlmExtractor.instructions(), LlmExtractor.exampleUser()),
                 new PromptView("content", model, ContentClassifier.instructions(), ContentClassifier.exampleUser()),
+                new PromptView("fields", model, FieldExtractor.instructions(), FieldExtractor.exampleUser()),
                 new PromptView(
                         "scoring",
                         model,

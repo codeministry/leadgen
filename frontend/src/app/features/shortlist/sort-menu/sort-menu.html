@@ -5,8 +5,8 @@
 <button
   #trigger
   type="button"
-  class="btn btn-sm sort-button"
-  [class.btn-outline]="value() !== 'score'"
+  class="btn btn-sm btn-soft btn-primary sort-button"
+  [class.is-set]="value() !== 'score'"
   [lgAnchorFor]="panel"
   [attr.popovertarget]="panelId"
   [attr.aria-controls]="panelId"

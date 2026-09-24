@@ -1,3 +1,5 @@
+<img src="../brand/leadgen.png" alt="LEADgen / AI" height="28">
+
 # Scoring, the digest and the application package
 
 Rules before model, the weight table that outranks the judge, and the folder a run leaves on disk.
@@ -223,10 +225,10 @@ before the stage stops waiting for it.
 - **`llm.models.scoring` is read by three stages, and `extraction` by a fourth.** The judge,
   the content classifier and the field extractor share `scoring`; the ingest fallback reads
   `extraction` and takes `scoring` when it is empty, and the deduplication pass reads
-  `embedding` with no fallback at all. `writing` is the only one left that nothing reads: the
-  cover letter is a Freemarker template. A key that looks configured and is not is the same
+  `embedding` with no fallback at all, and `writing` drafts the cover letter with no fallback
+  either (§ The application package). A key that looks configured and is not is the same
   class of lie as an unimplemented auth mode, so the shipped file says which is which — and
-  the list of lies is down to one.
+  since spec 005 the list of lies is empty.
 - **The judge is built per run**, not once at startup, because the configuration is
   hot-reloadable: a key added to `.env` should start producing scores without a restart.
 - **A run judges what is stale, not everything that ever passed.** Every stage before this
@@ -351,8 +353,20 @@ they decide it.
   parsed, and the file connector does exactly that. Neither is `channel:` a forbidden key:
   `sources.yaml` uses it for where an offer *came from*. A check that cannot tell inbound
   from outbound is a check that gets switched off.
+- **The model writes the letter first, and the template is the fallback, not the draft.**
+  With `writing` set, the build asks that model once for a structured draft — salutation,
+  body, the skills and the projects it names — and `CoverLetterGuard` checks it before a
+  byte is written: every skill it names must be in the profile and in the ad or the stack
+  of a chosen reference project, every project must be one the ranking chose, and no
+  phrase from `cover-letter.yaml`'s banned list may appear, within its word limit. A
+  rejected draft is not retried and never goes to another model; the template writes the
+  letter, and `meta.json` says who wrote it. Retrying would double the spend on exactly
+  the offers where the model already misbehaved. The check is lexical on purpose: asking
+  a model whether a letter is tailored would put the check behind the thing it checks.
+  A skill the profile has never heard of, named only in prose, is beyond a lexical check;
+  the prompt forbids it and the operator's reading is where one surfaces.
 - **Templates come from the two-layer lookup**, `templates/…` in the config directory
-  first and on the classpath second, exactly like the four YAML files. `{lang}` in a
+  first and on the classpath second, exactly like the five YAML files. `{lang}` in a
   template path is the language of the ad and nothing else.
 - **Templates see camelCase.** The row from the database is snake_case, and
   `offer.full_text` resolves to nothing in Freemarker rather than failing — silently

@@ -1,19 +1,86 @@
-.tiles {
+/* The bento grid (spec 006): four columns, the hero cell two by two, four small cells in
+   the remaining half. Both rows are `1fr` rather than a fixed height, so the four small
+   cells stand as one even block: the taller row sets the height and a cell with a long
+   label still grows both. The hero fills its two rows through `height: 100%`. Below 48rem
+   the grid is one column of auto rows in document order, the order the cells are read. */
+.bento {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(13rem, 100%), 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-auto-rows: 1fr;
     gap: 0.75rem;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1rem;
 }
 
-.panel {
-    padding: 1.25rem;
-    border: 1px solid var(--color-base-300);
-    border-radius: var(--radius-box);
-    background-color: var(--color-base-100);
+.hero-cell {
+    grid-column: span 2;
+    grid-row: span 2;
 }
 
-.panel + .panel {
-    margin-top: 1.5rem;
+.cell {
+    min-width: 0;
+}
+
+/* A stat tile's host is inline and its panel sits inside it, so the panel only reaches the
+   row's height when the host is a grid that stretches its one child. */
+lg-stat-tile.cell {
+    display: grid;
+}
+
+.cell-label {
+    margin: 0 0 0.5rem;
+}
+
+/* The reveal: each cell fades in on the reveal token and is off under reduced motion, the
+   same two rules the funnel rail follows. No count-up anywhere: a number is a fact. */
+.bento > * {
+    animation: cell-in var(--lg-reveal-duration) var(--lg-reveal-ease) both;
+}
+
+@keyframes cell-in {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .bento > * {
+        animation: none;
+    }
+}
+
+@media (width < 48rem) {
+    /* One column: back to auto rows, or every cell would stand as tall as the hero. */
+    .bento {
+        grid-template-columns: minmax(0, 1fr);
+        grid-auto-rows: auto;
+    }
+
+    .hero-cell {
+        grid-column: auto;
+        grid-row: auto;
+    }
+}
+
+/* The machine room is a `details` so it folds; the summary is the panel's heading and the
+   marker is the browser's own, which is one fewer thing to draw. */
+.machine-room > summary {
+    cursor: pointer;
+}
+
+.machine-room > summary::-webkit-details-marker {
+    color: var(--lg-muted);
+}
+
+/* Open, the summary is the room's header: a rule and a gap set it off from the detail under
+   it, which otherwise started on the line after the last fact. */
+.machine-room[open] > summary {
+    margin-bottom: 1.25rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--color-base-300);
 }
 
 .panel-note {
@@ -44,8 +111,8 @@ lg-empty-state {
 }
 
 /* The one thing on this panel that is about now rather than about what already happened, so
-   it takes the primary border the rest of the panel does not. Petrol and never the accent:
-   ochre means "this survived the filter" and nothing else.
+   it takes the primary border the rest of the panel does not. `--color-primary`, never
+   the signal: the signal means "this survived the filter" and nothing else.
 
    The top margin is the same 1rem the panel note keeps below the heading: without it the box
    sat tight under "Last run" while everything else on the panel breathed. */
@@ -63,4 +130,82 @@ lg-empty-state {
 
 .running-stage {
   font-weight: 600;
+}
+
+/* The failure line carries a server exception in monospace, which is one unbreakable word
+   of eighty characters: measured at 320 px it pushed the page 168 px sideways. It wraps, and
+   the note may break anywhere, because a path has no better place to break. */
+.run-failed {
+  flex-wrap: wrap;
+}
+
+.failure-note {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* The same rhythm as the panel note above the first table: the second table is a second
+   question about the same run, not a new section. */
+.stages-heading {
+  margin: 1.5rem 0 0;
+}
+
+/* Weight and not colour for the slowest row: the badge beside it already carries the tone,
+   and a tinted row would read as an error. */
+.slowest-stage .num {
+  font-weight: 600;
+}
+
+/* Not `.status`: DaisyUI 5 ships a component of that name and it would restyle the cell. */
+.stage-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* The fold's summary is a row: the heading and, beside it, the one-line preview that says
+   what the room holds while it is closed. Wraps below the heading on a narrow screen. */
+
+/* The summary stays a list item so the browser draws its own marker; the rows inside it are
+   spans made blocks. The facts are a two-column grid, label and value, capped so the lines
+   stay readable on a wide screen. */
+
+/* Inline, so the marker the browser draws stays on the title's line rather than above it. */
+.machine-summary .head {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.25rem 1rem;
+    max-width: 100%;
+}
+
+.machine-summary .preview {
+    min-width: 0;
+}
+
+.machine-summary .facts {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 0.375rem 1rem;
+    max-width: 48rem;
+    margin-top: 0.75rem;
+}
+
+.machine-summary .fact-label {
+    padding-top: 0.125rem;
+}
+
+/* The hard filter, its own panel between the bento and the machine room: always in view,
+   because it is the standing answer to "what does the filter take out". */
+.hard-filter {
+    margin-bottom: 1rem;
+}
+
+.hard-filter h2 {
+    margin-bottom: 0.25rem;
+}
+
+.hard-filter .archived {
+    margin: 0.75rem 0 0;
 }

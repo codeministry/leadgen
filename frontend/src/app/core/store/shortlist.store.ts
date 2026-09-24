@@ -11,6 +11,7 @@ import {ShortlistEntry} from '@core/model/shortlist-entry';
 import {RelatedCoverage, ShortlistFilters} from '@core/model/shortlist-page';
 import {ScoringModelStore} from './scoring-model.store';
 import {shortlistEvents} from './shortlist.events';
+import {withAppDevtools} from '@core/store/devtools';
 
 interface ShortlistState {
     entries: readonly ShortlistEntry[];
@@ -54,6 +55,13 @@ interface ShortlistState {
      * the button; the offer on screen is still the right one and still worth reading.
      */
     rescoreError: string | null;
+    /** The offer whose ad is being fetched again, not a boolean, for the reason `rescoring` is not. */
+    fetching: number | null;
+    /**
+     * A fetch the server turned away, as a sentence beside the button. Apart from
+     * `rescoreError` so that one button's refusal never appears under the other.
+     */
+    fetchError: string | null;
     /** The offer being archived or restored, not a boolean. One button waits, not the page. */
     archiving: number | null;
   /**
@@ -130,6 +138,8 @@ const initialState: ShortlistState = {
     detailError: null,
     rescoring: null,
     rescoreError: null,
+    fetching: null,
+    fetchError: null,
     archiving: null,
   picked: [],
   pickAnchor: null,
@@ -141,6 +151,7 @@ const initialState: ShortlistState = {
 export const ShortlistStore = signalStore(
     {providedIn: 'root'},
     withState(initialState),
+    withAppDevtools('shortlist'),
   withComputed(({cursor, picked}) => ({
         // Both the portals and the unscored count come from the server now. Derived from the
         // loaded entries, the dropdown offered fewer choices and the count told a smaller
@@ -205,6 +216,7 @@ export const ShortlistStore = signalStore(
             selected: null,
             detailLoading: true,
             detailError: null,
+            fetchError: null,
         })),
         on(shortlistEvents.offerLoaded, ({payload}) => ({
             selected: payload,
@@ -232,6 +244,25 @@ export const ShortlistStore = signalStore(
         on(shortlistEvents.rescoreFailed, ({payload}) => ({
             rescoring: null,
             rescoreError: payload,
+        })),
+        on(shortlistEvents.fetchRequested, ({payload}) => ({
+            fetching: payload,
+            fetchError: null,
+        })),
+        // Replaced with what the server stored, like a rescore: the fetch rewrote the advert,
+        // its blocks, its fields and its score, and none of that is the browser's to guess.
+        // The detail only when it still shows that offer: a fetch takes seconds, and one that
+        // lands after the reader moved on would put its advert under the next offer's title.
+        on(shortlistEvents.fetched, ({payload}, state) => ({
+            selected: state.selected?.offer.id === payload.offer.id ? payload : state.selected,
+            entries: state.entries.map((entry) =>
+                entry.offer.id === payload.offer.id ? payload : entry,
+            ),
+            fetching: null,
+        })),
+        on(shortlistEvents.fetchFailed, ({payload}) => ({
+            fetching: null,
+            fetchError: payload,
         })),
         on(shortlistEvents.archiveRequested, ({payload}) => ({
             archiving: payload.id,
@@ -405,6 +436,21 @@ export const ShortlistStore = signalStore(
                         // answer to "why did nothing happen".
                         catchError((error) =>
                             of(shortlistEvents.rescoreFailed(serverMessage(error, 'error.rescore'))),
+                        ),
+                    ),
+                ),
+            ),
+            // Exhausted for the same reason: a second click while the first fetch is out would
+            // spend a second request of the minute on the same page.
+            events.on(shortlistEvents.fetchRequested).pipe(
+                exhaustMap(({payload}) =>
+                    api.refetch(payload).pipe(
+                        map((entry) => shortlistEvents.fetched(entry)),
+                        // Turned away with a sentence: not an offer to fetch, or the minute's
+                        // fetches are spent. A page that refused again is not this — it arrives
+                        // as `fetched`, with its reason in the enrichment note.
+                        catchError((error) =>
+                            of(shortlistEvents.fetchFailed(serverMessage(error, 'error.fetch'))),
                         ),
                     ),
                 ),

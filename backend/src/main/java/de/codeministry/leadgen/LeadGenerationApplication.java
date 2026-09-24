@@ -27,7 +27,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  */
 @SpringBootApplication
 @ConfigurationPropertiesScan
-// The four YAML defaults and the three templates are reached by a name computed at
+// The five YAML defaults and the three templates are reached by a name computed at
 // runtime, so nothing at build time can see them. The class says what that costs.
 @ImportRuntimeHints(LeadGenRuntimeHints.class)
 @EnableScheduling

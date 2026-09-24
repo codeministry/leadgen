@@ -6,9 +6,15 @@ import {shortlistEvents} from '@core/store/shortlist.events';
 import {ShortlistStore} from '@core/store/shortlist.store';
 import {ApplicationsStore} from '@core/store/applications.store';
 import {IngestStore} from '@core/store/ingest.store';
+import {SummaryStore} from '@core/store/summary.store';
+import {summaryEvents} from '@core/store/summary.events';
+import {LastRunStage} from '@core/model/last-run';
 import {Badge} from '@shared/badge/badge';
 import {EmptyState} from '@shared/empty-state/empty-state';
 import {FunnelRail} from '@shared/funnel-rail/funnel-rail';
+import {IntakeSpark} from '@shared/chart/intake-spark';
+import {ScoreBands} from '@shared/chart/score-bands';
+import {DashboardHero} from './dashboard-hero/dashboard-hero';
 import {Icon} from '@shared/icon/icon';
 import {PageHeader} from '@shared/page-header/page-header';
 import {StatTile} from '@shared/stat-tile/stat-tile';
@@ -32,9 +38,16 @@ interface DashboardRunSource {
     }[];
 }
 
+/** One line of the closed machine room: a label key, a value key and the value's parameters. */
+interface MachineRoomFact {
+    readonly label: string;
+    readonly key: string;
+    readonly params: Record<string, unknown>;
+}
+
 @Component({
     selector: 'lg-dashboard',
-    imports: [Badge, EmptyState, FunnelRail, Icon, PageHeader, StatTile, TranslocoPipe],
+    imports: [Badge, DashboardHero, EmptyState, FunnelRail, Icon, IntakeSpark, PageHeader, ScoreBands, StatTile, TranslocoPipe],
     templateUrl: './dashboard.html',
     styleUrl: './dashboard.css',
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -42,10 +55,12 @@ interface DashboardRunSource {
 export class Dashboard implements OnInit {
     private readonly dispatch = injectDispatch(applicationEvents);
     private readonly shortlistDispatch = injectDispatch(shortlistEvents);
+    private readonly summaryDispatch = injectDispatch(summaryEvents);
     private readonly transloco = inject(TranslocoService);
     protected readonly ingest = inject(IngestStore);
     protected readonly applications = inject(ApplicationsStore);
     protected readonly shortlist = inject(ShortlistStore);
+    protected readonly summary = inject(SummaryStore);
 
     /**
      * The run this screen is talking about: the one this browser started if there is one,
@@ -132,17 +147,8 @@ export class Dashboard implements OnInit {
         () => this.ingest.report()?.extracted ?? this.ingest.lastRun()?.extracted ?? null,
     );
 
-    protected readonly runWritten = computed<number | null>(
-        () => this.ingest.report()?.written ?? this.ingest.lastRun()?.written ?? null,
-    );
-
     /**
      * When the run on screen finished, on the reader's own clock — whichever run it is.
-     *
-     * <p>It used to be filled only for a recorded run, on the reasoning that somebody who had
-     * just clicked the button watched it happen. That holds for the minute after the click and
-     * not afterwards: a pass over the standing backlog runs for hours, the tab stays open, and
-     * the panel then said nothing at all about when the numbers on it were true.
      *
      * <p>`finishedAt` is an ISO instant in UTC, and slicing the string would show an 08:47 run
      * as 06:47 — the same trap the runs panel documents. The locale follows the chosen
@@ -194,6 +200,61 @@ export class Dashboard implements OnInit {
   });
 
     /**
+     * Where the recorded run spent its time, stage by stage.
+     *
+     * <p>From the recorded run only: an `IngestReport` carries no timings. After this
+     * browser's own run the run-ended refresh reads the recorded one back a moment later, so
+     * the table and the rest of the panel describe the same pass.
+     */
+    protected readonly runStages = computed<readonly LastRunStage[]>(() => this.ingest.lastRun()?.stages ?? []);
+
+    /**
+     * The position of the stage that took longest, or null when there is nothing to compare.
+     * Marked because "the run took eleven minutes" is not actionable and "enrichment took
+     * nine of them" is.
+     */
+    protected readonly slowestStage = computed<number | null>(() => {
+        const stages = this.runStages();
+        if (stages.length < 2) {
+            return null;
+        }
+        const slowest = stages.reduce((longest, stage) => (stage.millis > longest.millis ? stage : longest));
+        return slowest.millis > 0 ? slowest.position : null;
+    });
+
+    /**
+     * The stage the recorded run stopped in, when it stopped in one. The last timing,
+     * because the server appends the failed one last; the run's own status and not the
+     * timings decides, since a failed source leaves a FAILED row under a run that completed.
+     */
+    protected readonly failedStage = computed<LastRunStage | null>(() => {
+        const run = this.ingest.lastRun();
+        return run?.status === 'FAILED' ? (run.stages.at(-1) ?? null) : null;
+    });
+
+    /**
+     * A duration in the unit a person reads it in. `Intl` names the unit, so there is no
+     * prose here; the locale follows the chosen language like every date on this panel.
+     */
+    protected duration(millis: number): string {
+        const lang = this.transloco.getActiveLang();
+        const [unit, value, digits] =
+            millis < 1000
+                ? (['millisecond', millis, 0] as const)
+                : millis < 60_000
+                  ? (['second', millis / 1000, 1] as const)
+                  : (['minute', millis / 60_000, 1] as const);
+        return new Intl.NumberFormat(lang, {
+            style: 'unit',
+            unit,
+            // `short` and not `narrow`: CLDR's narrow German form drops the space for exactly
+            // one (`1ms` beside `3 ms`), which reads as a typo in a column of numbers.
+            unitDisplay: 'short',
+            maximumFractionDigits: digits,
+        }).format(value);
+    }
+
+    /**
      * Whether that run is one this browser watched. Only the sentence changes: a recorded run
      * additionally says nothing was started here, which is what explains the missing
      * per-document detail below it.
@@ -223,44 +284,159 @@ export class Dashboard implements OnInit {
         this.applications.error() === null ? this.applications.followUpsDue() : '—',
     );
 
+
+    /**
+     * The four band labels for the score cell, translated here because `shared/` holds no
+     * catalog keys. A signal rather than four pipes in the template, so a language change
+     * re-reads them once.
+     */
+    protected readonly bandLabels = computed(() => ({
+        shortlisted: this.transloco.translate('dashboard.bandShortlisted'),
+        review: this.transloco.translate('dashboard.bandReview'),
+        discarded: this.transloco.translate('dashboard.bandDiscarded'),
+        unscored: this.transloco.translate('dashboard.bandUnscored'),
+    }));
+
+    /**
+     * The run-health cell: one word for the state and one line under it. Read from the
+     * run on screen (the report or the recorded row), the same source the machine room
+     * describes, so the cell and the room never disagree about the same pass.
+     */
+    protected readonly runHealth = computed<{
+        readonly value: string;
+        readonly hint: string;
+        readonly params: Record<string, unknown>;
+    }>(() => {
+        const failed = this.failedStage();
+        const mismatches = this.mismatches();
+        const when = this.finishedAt() ?? '';
+        if (!this.hasRun()) {
+            return {value: 'dashboard.healthNone', hint: 'dashboard.healthNoneHint', params: {}};
+        }
+        if (failed !== null) {
+            return {value: 'dashboard.healthFailed', hint: 'dashboard.healthFailedHint', params: {stage: failed.stage, when}};
+        }
+        if (mismatches > 0) {
+            return {value: 'dashboard.healthShort', hint: 'dashboard.healthShortHint', params: {count: mismatches, when}};
+        }
+        return {value: 'dashboard.healthOk', hint: 'dashboard.healthOkHint', params: {when}};
+    });
+
+    /**
+     * The machine room opens itself when there is something in it a person must see: a
+     * failed run, or a source that came up short. Otherwise it is one click away, which is
+     * where the per-source table and the timings belong on a normal morning.
+     */
+    protected readonly machineRoomOpen = computed(() => this.failedStage() !== null || this.mismatches() > 0);
+
+
+    /**
+     * What the machine room holds, in one line on its closed fold: which run, how many
+     * sources it read, what it brought, how long it took and which judge answered. The
+     * numbers are the room's own numbers, so the preview cannot say something the table
+     * does not. A screen with nothing recorded says so instead of a row of zeros.
+     */
+    protected readonly machineRoomPreview = computed<{
+        readonly key: string;
+        readonly params: Record<string, unknown>;
+    }>(() => {
+        if (!this.hasRun()) {
+            return {key: 'dashboard.machineRoomEmpty', params: {}};
+        }
+        const millis = this.runStages().reduce((sum, stage) => sum + stage.millis, 0);
+        const model = this.analysed()?.model ?? null;
+        return {
+            key: model === null ? 'dashboard.machineRoomPreview' : 'dashboard.machineRoomPreviewModel',
+            params: {
+                when: this.finishedAt() ?? '',
+                sources: this.runSources().length,
+                count: this.runExtracted() ?? 0,
+                duration: millis > 0 ? this.duration(millis) : '',
+                model,
+            },
+        };
+    });
+
+    /**
+     * The closed fold's four lines under the preview: sources, hard filter, stages, outcome. Read
+     * off the recorded run, which is the one that carries the filter and outcome counts; a
+     * closed disclosure with one line under five cells read as an empty page, and four lines of
+     * the run's own numbers are what the fold holds anyway.
+     */
+    protected readonly machineRoomFacts = computed<readonly MachineRoomFact[]>(() => {
+        const run = this.ingest.lastRun();
+        if (run === null) {
+            return [];
+        }
+        const sources = this.runSources();
+        const removedEntries = Object.entries(run.removed);
+        const removed = removedEntries.reduce((sum, [, count]) => sum + count, 0);
+        const mostRemoved = removedEntries.reduce<[string, number] | null>(
+            (top, entry) => (top === null || entry[1] > top[1] ? entry : top),
+            null,
+        );
+        const stages = this.runStages();
+        const slowest = this.slowestStage();
+        const slowestStage = slowest === null ? null : (stages.find((stage) => stage.position === slowest) ?? null);
+        return [
+            {
+                label: 'dashboard.factSources',
+                key: 'dashboard.factSourcesValue',
+                params: {
+                    sources: sources.length,
+                    documents: sources.reduce((sum, source) => sum + source.documents, 0),
+                    mismatches: this.mismatches(),
+                },
+            },
+            {
+                label: 'dashboard.factFilter',
+                key: 'dashboard.factFilterValue',
+                params: {considered: run.filterConsidered, passed: run.filterPassed, removed, stage: mostRemoved?.[0] ?? ''},
+            },
+            ...(this.stages().length > 0
+                ? [
+                      {
+                          label: 'dashboard.factFilterStages',
+                          key: 'dashboard.factFilterStagesValue',
+                          params: {stages: this.stageRemovals()},
+                      },
+                  ]
+                : []),
+            {
+                label: 'dashboard.factStages',
+                key: slowestStage === null ? 'dashboard.factStagesFlat' : 'dashboard.factStagesValue',
+                params: {
+                    count: stages.length,
+                    stage: slowestStage?.stage ?? '',
+                    duration: slowestStage === null ? '' : this.duration(slowestStage.millis),
+                },
+            },
+            {
+                label: 'dashboard.factOutcome',
+                key: 'dashboard.factOutcomeValue',
+                params: {
+                    scored: run.scored,
+                    shortlisted: run.shortlisted,
+                    review: run.review,
+                    digest: run.digestWritten ? 'yes' : 'no',
+                },
+            },
+        ];
+    });
+
+    /** The hard filter's stages in run order, each with what it removed: "Abroad −8 · …". */
+    private stageRemovals(): string {
+        const format = new Intl.NumberFormat(this.transloco.getActiveLang());
+        return this.stages()
+            .map((stage) => `${stage.label} −${format.format(stage.removed)}`)
+            .join(' · ');
+    }
+
     ngOnInit(): void {
         this.dispatch.opened();
         this.shortlistDispatch.funnelOpened();
+        this.summaryDispatch.opened();
     }
 
-    /**
-     * The share of what came in that survived, or nothing to say when nothing came in.
-     * A key and its parameters rather than a sentence: no prose is written in TypeScript,
-     * and the percentage sits inside the sentence differently in every language.
-     */
-    protected readonly share = computed(() => {
-        const total = this.total();
-        return total === 0
-            ? {key: 'dashboard.noRunYet', params: {}}
-            : {
-                key: 'dashboard.shareOfIntake',
-                params: {percent: ((this.survived() / total) * 100).toFixed(1)},
-            };
-    });
-
     /** Extracted minus written: the same listing seen in two documents. Not deduplication. */
-    protected readonly repeats = computed(() => {
-        const extracted = this.runExtracted();
-        const written = this.runWritten();
-        return extracted === null || written === null ? 0 : extracted - written;
-    });
-
-    /**
-     * Where the two intake numbers came from. A key rather than a sentence, and three cases
-     * rather than two: the tile used to claim "from the last run" for a number that was
-     * really the whole archive whenever this browser had not run anything.
-     */
-    protected readonly intakeSource = computed(() => {
-        if (this.ingest.report() !== null) {
-            return 'dashboard.fromLastRun';
-        }
-        return this.ingest.lastRun() !== null
-            ? 'dashboard.fromRecordedRun'
-            : 'dashboard.measuredBaseline';
-    });
 }

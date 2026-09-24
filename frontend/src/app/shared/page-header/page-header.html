@@ -3,7 +3,7 @@
       <!-- Three branches and not a class assembled from the input: the tag itself has to
            change, and Tailwind never emits a class that is built at runtime anyway. -->
         @if (heading() === 'h1') {
-            <h1 class="type-h1">{{ title() }}</h1>
+            <h1 class="type-h1 accent">{{ title() }}</h1>
         } @else if (heading() === 'h2') {
             <h2 class="type-h2">{{ title() }}</h2>
         } @else {
@@ -13,7 +13,7 @@
             <p class="type-small text-muted mt-1">{{ subtitle }}</p>
         }
     </div>
-    <div class="flex items-center gap-2">
+    <div class="flex flex-wrap items-center justify-end gap-2">
         <ng-content/>
     </div>
 </div>

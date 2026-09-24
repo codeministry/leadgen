@@ -14,6 +14,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
 import de.codeministry.leadgen.analytics.PipelineRunRecorder;
+import de.codeministry.leadgen.analytics.StageTiming;
 import de.codeministry.leadgen.application.ApplicationService;
 import de.codeministry.leadgen.application.OpenReport;
 import de.codeministry.leadgen.archive.ArchiveReport;
@@ -219,6 +220,9 @@ class IngestOrderTest {
                         "PACKAGE",
                         "DIGEST");
         assertThat(names.getAllValues()).hasSize(IngestService.GLOBAL_STAGES);
+        // The workflow view is held against the list, not against the run; this is what ties the
+        // two by name, so a renamed stage fails here rather than drifting out of the rules screen.
+        assertThat(names.getAllValues()).containsExactlyElementsOf(IngestService.GLOBAL_STAGE_NAMES);
         assertThat(positions.getAllValues()).containsExactly(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11);
         verify(history).start(any(), any(), org.mockito.ArgumentMatchers.eq(IngestService.GLOBAL_STAGES));
     }
@@ -234,8 +238,57 @@ class IngestOrderTest {
         verify(connector, never()).read(any(), org.mockito.ArgumentMatchers.anyLong());
         verify(dedupe, never()).run();
         verify(history, never()).record(any(), any(), any(), anyString(), any());
+        verify(history, never()).recordFailure(any(), any(), any(), anyString(), any());
         // Not even opened: the model check is the first statement in the run, before the
         // row that would otherwise sit there saying RUNNING for a pass that never began.
         verify(history, never()).start(any(), anyString(), anyInt());
+    }
+
+    @Test
+    void endsAsFailedInTheStageThatThrewAndReleasesTheLock() {
+        // Until this existed a stage that threw left the row RUNNING until the next start
+        // closed it as ABANDONED with zeros, and the timings — the one thing that says which
+        // stage — went down with the exception. V14 promised the opposite: "a stage that
+        // threw still gets a row".
+        when(filter.run()).thenReturn(new FilterReport(Map.of(), 12, 31));
+        when(enrich.run()).thenThrow(new IllegalStateException("portal down"));
+
+        assertThatThrownBy(() -> service.run("some-model"))
+                .isInstanceOf(IngestService.StageFailed.class)
+                .hasMessageContaining("ENRICH")
+                .hasMessageContaining("portal down")
+                .hasCauseInstanceOf(IllegalStateException.class);
+
+        org.mockito.ArgumentCaptor<IngestReport> report = org.mockito.ArgumentCaptor.captor();
+        org.mockito.ArgumentCaptor<List<StageTiming>> timings = org.mockito.ArgumentCaptor.captor();
+        verify(history)
+                .recordFailure(
+                        any(),
+                        report.capture(),
+                        any(),
+                        org.mockito.ArgumentMatchers.eq("some-model"),
+                        timings.capture());
+        verify(history, never()).record(any(), any(), any(), anyString(), any());
+        // It stopped there: nothing behind the stage that threw ran.
+        verify(content, never()).run();
+        verify(scoring, never()).run(anyString());
+        verify(digest, never()).render(any());
+        // The counts up to that stage, and for what it never reached the same value the
+        // stage answers when it is switched off.
+        assertThat(report.getValue().filtered().passed()).isEqualTo(12);
+        assertThat(report.getValue().enriched()).isEqualTo(EnrichmentReport.skipped());
+        assertThat(report.getValue().packaged()).isEqualTo(PackageReport.nothing());
+        assertThat(report.getValue().digest()).isNull();
+        // Every timing, the failed one last and carrying the reason.
+        assertThat(timings.getValue())
+                .extracting(StageTiming::stage)
+                .containsExactly("DEDUPE", "FILTER", "ARCHIVE", "ENRICH");
+        assertThat(timings.getValue().getLast().status()).isEqualTo(StageTiming.FAILED);
+        assertThat(timings.getValue().getLast().note()).isEqualTo("portal down");
+
+        // And the lock is released, so the next pass is not refused forever. `doReturn`,
+        // because `when(enrich.run())` would call the stub that still throws.
+        doReturn(new EnrichmentReport(0, 0, 0, 0, 0, 0)).when(enrich).run();
+        assertThatCode(() -> service.run("some-model")).doesNotThrowAnyException();
     }
 }

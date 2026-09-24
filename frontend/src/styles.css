@@ -3,11 +3,11 @@
 /* Self-hosted, never a CDN: the same reasoning as the newsletter proxy, nothing
    about this machine leaves it. The axes are split across files and there is no
    `full.css`, so each import names the axes the type scale actually uses —
-   `opsz.css` carries wght + opsz and is 55 kB lighter than `standard.css`, which
-   would add a wdth axis nothing sets. */
-@import '@fontsource-variable/bricolage-grotesque/opsz.css';
-@import '@fontsource-variable/manrope/wght.css';
-@import '@fontsource-variable/jetbrains-mono/wght.css';
+   Archivo's `standard.css` carries wght + wdth because the titles set the width
+   axis; the body and the mono need wght alone. */
+@import '@fontsource-variable/archivo/standard.css';
+@import '@fontsource-variable/instrument-sans/wght.css';
+@import '@fontsource-variable/geist-mono/wght.css';
 
 /* `themes: false` suppresses daisyUI's built-in light and dark entirely.
    Without it both ship in the bundle and never render. */
@@ -16,35 +16,38 @@
     logs: false;
 }
 
-/* Petrol & Ocker. Petrol carries structure and interaction; ochre means one
-   thing only — this survived the filter — and no other element may use it.
-   Values are OKLCH because daisyUI 5 expects it, and each one round-trips back
-   to the sRGB hex in the comment beside it. */
+/* Teal & Magenta. Teal carries structure and interaction; magenta is the signal
+   and means one thing only — this survived the filter — and no other element may use
+   it. Surfaces are a cool neutral rather than sand, and the muted
+   text is a full step darker than it was, which is where "grey on grey" went.
+   Values are OKLCH because daisyUI 5 expects it, and each one round-trips back to the
+   sRGB hex in the comment beside it; `theme-colors.spec.ts` holds every pair to that
+   and refuses a value outside the sRGB gamut, because a clamped value has no twin. */
 @plugin "daisyui/theme" {
     name: 'lg-light';
     default: true;
     color-scheme: light;
 
     --color-base-100: oklch(100% 0 0); /* #FFFFFF surface */
-    --color-base-200: oklch(97.96% 0.0057 84.57); /* #FAF8F4 sand page */
-    --color-base-300: oklch(93.82% 0.0144 84.58); /* #EFEAE0 dividers */
-    --color-base-content: oklch(23.19% 0.017 189.59); /* #14201F ink */
-    --color-primary: oklch(48.78% 0.0805 191.43); /* #0E6E6B petrol */
-    --color-primary-content: oklch(98.11% 0.0096 189.07);
-    --color-secondary: oklch(38.48% 0.0624 191.76); /* #0A4E4C deep petrol */
-    --color-secondary-content: oklch(98.11% 0.0096 189.07);
-    --color-accent: oklch(65.6% 0.1368 73.82); /* #C2820B ochre */
-    --color-accent-content: oklch(19.11% 0.0302 86.28);
-    --color-neutral: oklch(23.19% 0.017 189.59);
-    --color-neutral-content: oklch(97.96% 0.0057 84.57);
-    --color-info: oklch(49.38% 0.0879 230.66); /* #1D6A8A, 40 degrees off primary */
-    --color-info-content: oklch(98.11% 0.01 230);
-    --color-success: oklch(51.87% 0.1067 153.71); /* #2C7A4B */
-    --color-success-content: oklch(98.11% 0.01 160);
-    --color-warning: oklch(57.63% 0.123 67.99); /* #A8690C */
-    --color-warning-content: oklch(10% 0.015 86.28); /* dark: white is only 4.48:1 */
-    --color-error: oklch(50.07% 0.1447 29.44); /* #A63A2E */
-    --color-error-content: oklch(98% 0.006 29); /* clamped into sRGB */
+    --color-base-200: oklch(97.5% 0.004 200); /* #F4F8F8 page, a cool neutral */
+    --color-base-300: oklch(92% 0.008 200); /* #DFE6E7 dividers */
+    --color-base-content: oklch(22% 0.02 210); /* #0F1D20 ink */
+    --color-primary: oklch(52% 0.088 185); /* #107970 teal, at the sRGB chroma ceiling for this lightness */
+    --color-primary-content: oklch(98% 0.006 185); /* #F4FAF9 */
+    --color-secondary: oklch(38% 0.065 185); /* #054D47 deep teal */
+    --color-secondary-content: oklch(98% 0.006 185); /* #F4FAF9 */
+    --color-accent: oklch(58% 0.22 345); /* #CC2997 magenta, the signal */
+    --color-accent-content: oklch(98.5% 0.006 345); /* #FDF9FB */
+    --color-neutral: oklch(22% 0.02 210); /* #0F1D20 */
+    --color-neutral-content: oklch(97.5% 0.004 200); /* #F4F8F8 */
+    --color-info: oklch(52% 0.105 235); /* #12719C */
+    --color-info-content: oklch(98% 0.01 235); /* #F2FAFE */
+    --color-success: oklch(52% 0.14 150); /* #0A7E3A */
+    --color-success-content: oklch(98% 0.01 150); /* #F4FAF5 */
+    --color-warning: oklch(62% 0.13 75); /* #B37903 */
+    --color-warning-content: oklch(15% 0.03 75); /* #120900 dark: white would not reach 4.5:1 */
+    --color-error: oklch(52% 0.19 25); /* #BE222A */
+    --color-error-content: oklch(98% 0.006 25); /* #FCF7F6 */
     --radius-selector: 0.5rem;
     --radius-field: 0.5rem;
     --radius-box: 0.75rem;
@@ -55,31 +58,34 @@
     --noise: 0;
 }
 
+/* The same design at night, not a dimmed one: the surfaces keep the indigo tint, and the
+   dividers are a step lighter than the surface rather than darker, so a card's edge is
+   visible against the page. The primary is a lavender that reads as the same family. */
 @plugin "daisyui/theme" {
     name: 'lg-dark';
     prefersdark: true;
     color-scheme: dark;
 
-    --color-base-100: oklch(23.19% 0.0142 220.21); /* #161F22 surface */
-    --color-base-200: oklch(19.4% 0.0113 217.09); /* #0F1618 page */
-    --color-base-300: oklch(16.77% 0.0103 220.22); /* #0A1012 dividers */
-    --color-base-content: oklch(94.15% 0.0067 160.07); /* #E8EDEA ink */
-    --color-primary: oklch(83.04% 0.1348 189.53); /* #33E3DA, the logo's own cyan */
-    --color-primary-content: oklch(22.55% 0.0347 188.59);
-    --color-secondary: oklch(74.48% 0.0604 190.51);
-    --color-secondary-content: oklch(19.4% 0.0113 217.09);
-    --color-accent: oklch(76.38% 0.1465 79.59); /* #E3A62B */
-    --color-accent-content: oklch(19.11% 0.0302 86.28);
-    --color-neutral: oklch(30.14% 0.0166 183.94);
-    --color-neutral-content: oklch(94.15% 0.0067 160.07);
-    --color-info: oklch(73.96% 0.0877 227.45);
-    --color-info-content: oklch(19.4% 0.0113 217.09);
-    --color-success: oklch(72.07% 0.1387 155.2); /* #4FBE7E */
-    --color-success-content: oklch(19.4% 0.0113 217.09);
-    --color-warning: oklch(73.39% 0.1415 76.21); /* #DB9B2A */
-    --color-warning-content: oklch(19.11% 0.0302 86.28);
-    --color-error: oklch(70.96% 0.1493 28.75); /* #F0796A */
-    --color-error-content: oklch(19.4% 0.0113 217.09);
+    --color-base-100: oklch(25.5% 0.02 270); /* #1F222D surface */
+    --color-base-200: oklch(21% 0.018 270); /* #151821 page */
+    --color-base-300: oklch(32.5% 0.024 270); /* #2F3441 dividers */
+    --color-base-content: oklch(94% 0.01 265); /* #E8EBF2 ink */
+    --color-primary: oklch(78% 0.11 275); /* #A3B2FE lavender */
+    --color-primary-content: oklch(22% 0.06 275); /* #131736 */
+    --color-secondary: oklch(68% 0.1 275); /* #8693D6 */
+    --color-secondary-content: oklch(19.5% 0.018 270); /* #12151D */
+    --color-accent: oklch(76% 0.17 345); /* #FB80CA magenta, the signal */
+    --color-accent-content: oklch(22% 0.06 345); /* #2D0D21 */
+    --color-neutral: oklch(31% 0.024 270); /* #2B303D */
+    --color-neutral-content: oklch(94% 0.01 265); /* #E8EBF2 */
+    --color-info: oklch(75% 0.11 235); /* #61B9EA */
+    --color-info-content: oklch(19.5% 0.018 270); /* #12151D */
+    --color-success: oklch(76% 0.15 150); /* #61CB7C */
+    --color-success-content: oklch(19.5% 0.018 270); /* #12151D */
+    --color-warning: oklch(80% 0.15 80); /* #F0B135 */
+    --color-warning-content: oklch(19.5% 0.018 270); /* #12151D */
+    --color-error: oklch(72% 0.17 25); /* #FD736D */
+    --color-error-content: oklch(19.5% 0.018 270); /* #12151D */
 
     --radius-selector: 0.5rem;
     --radius-field: 0.5rem;
@@ -91,90 +97,139 @@
     --noise: 0;
 }
 
-/* Three values that pass as a fill and fail as text. Ochre is 3.05:1 on the sand
-   page — legal for a badge ground, a funnel segment and text above 24px, not for
-   a 14px label. Rather than weaken the fill, the text variants live beside it.
-   The light block uses `:where(:root)` so the two attribute selectors below and
-   the media query both outrank it; "system" is the absence of `data-theme`. */
+/* What the app adds on top of the theme, per theme. Three groups.
+
+   Text variants: a fill that passes 3:1 as an object fails 4.5:1 as a 14px label, so the
+   signal and the warning carry a darker text twin rather than a weaker fill. Muted sits at
+   6:1 on the page, a full step darker than before.
+
+   The section colours: seven, one per navigation destination, meaning "you are here" and
+   nothing else. Same lightness and chroma across the seven so every one clears 3:1 on both
+   surfaces by the same margin, and only the hue rotates; `theme-colors.spec.ts` holds the
+   hues at least 30° apart and every one clear of the signal and the semantic colours.
+   `tokens.css` maps them onto `--lg-section` by `[data-section]`.
+
+   The chart ramp: seven rejection stages as one tinted grey ramp rather than seven hues,
+   because they are all rejections and a colour each would compete with the signal.
+
+   The AI marker: `--lg-ai` and its band `--lg-ai-surface`, the violet of the `model` class in
+   `docs/BACKEND-FLOWS.md`. It means "a language model works in this step" and is read only by
+   the rules feature; the pair clears 4.5:1 as text and 3:1 as an icon in both themes.
+
+   The light block uses `:where(:root)` so the two attribute selectors below and the media
+   query both outrank it; "system" is the absence of `data-theme`. */
 [data-theme='lg-light'],
 :where(:root) {
-    --lg-muted: oklch(54.5% 0.02 178.83); /* #647470, 4.62:1 on sand */
-    --lg-accent-text: oklch(55% 0.118 73.82); /* #9A6500, 4.68:1 on sand */
-    --lg-warning-text: oklch(55.5% 0.123 67.99); /* #A16300, 4.61:1 on sand */
+    --lg-muted: oklch(50% 0.02 200); /* #566768, 5.9:1 on white, 5.6:1 on the page */
+    --lg-signal-text: oklch(50% 0.2 345); /* #AA167D, 6.7:1 on white */
+    --lg-accent-text: var(--lg-signal-text); /* alias for one stage; removed in Stage 2 */
+    --lg-warning-text: oklch(50% 0.1 75); /* #845A0F, 6.1:1 on white */
+    --lg-code-string: oklch(48% 0.12 150); /* #197037 */
+    --lg-code-number: oklch(50% 0.1 235); /* #136B94 */
 
-    /* The chart palette. A charting library cannot read a custom property, so these are
-       resolved once with getComputedStyle and handed over as flat strings — which also
-       means the browser parses the OKLCH and the library never does. Nothing may ask a
-       library to lighten or fade one of these: neither zrender's nor Chart.js's colour
-       helper understands oklch() and both fail silently to something else.
+    --lg-ai: oklch(48% 0.15 300); /* #6C44A4, the `model` violet of BACKEND-FLOWS, 7.0:1 on white */
+    --lg-ai-surface: oklch(94.5% 0.025 300); /* #EFE9FC, the band behind an AI stage, 5.9:1 under --lg-ai */
 
-       The seven rejection stages get a ramp rather than seven hues. They are all
-       rejections, so a colour each would be seven things competing for attention, and
-       ochre would stop meaning the one thing it means. */
-    --lg-chart-stage-1: oklch(88% 0.008 190);
-    --lg-chart-stage-2: oklch(81% 0.011 190);
-    --lg-chart-stage-3: oklch(74% 0.014 190);
-    --lg-chart-stage-4: oklch(67% 0.017 190);
-    --lg-chart-stage-5: oklch(60% 0.02 190);
-    --lg-chart-stage-6: oklch(52% 0.023 190);
-    --lg-chart-stage-7: oklch(44% 0.026 190);
+    --lg-section-dashboard: oklch(58% 0.098 210); /* #0D8A9A */
+    --lg-section-shortlist: oklch(58% 0.098 160); /* #3D8C66, 25° off the teal primary so the marker is not the button */
+    --lg-section-pipeline: oklch(58% 0.098 285); /* #7471B2 */
+    --lg-section-analytics: oklch(58% 0.098 55); /* #A76A3E */
+    --lg-section-sources: oklch(58% 0.098 100); /* #887B2E */
+    --lg-section-review: oklch(58% 0.098 255); /* #517CB3 */
+    --lg-section-rules: oklch(58% 0.098 315); /* #9068A2 */
+
+    --lg-chart-stage-1: oklch(89% 0.01 200); /* #D4DDDD */
+    --lg-chart-stage-2: oklch(82% 0.013 200); /* #BBC7C7 */
+    --lg-chart-stage-3: oklch(75% 0.016 200); /* #A3B1B2 */
+    --lg-chart-stage-4: oklch(68% 0.019 200); /* #8B9C9D */
+    --lg-chart-stage-5: oklch(61% 0.022 200); /* #748788 */
+    --lg-chart-stage-6: oklch(53% 0.025 200); /* #5B7071 */
+    --lg-chart-stage-7: oklch(45% 0.028 200); /* #435A5B */
 }
 
 [data-theme='lg-dark'] {
-    --lg-muted: oklch(69.08% 0.0206 176.14);
-    --lg-accent-text: oklch(76.38% 0.1465 79.59);
-    --lg-warning-text: oklch(73.39% 0.1415 76.21);
+    --lg-muted: oklch(75% 0.03 265); /* #A5AEC2 */
+    --lg-signal-text: oklch(76% 0.17 345); /* #FB80CA, the fill itself passes as text at night */
+    --lg-accent-text: var(--lg-signal-text);
+    --lg-warning-text: oklch(80% 0.15 80); /* #F0B135 */
+    --lg-code-string: oklch(78% 0.13 150); /* #76CF8A */
+    --lg-code-number: oklch(78% 0.11 235); /* #6BC3F4 */
 
-    /* The ramp runs the other way in the dark theme: on a near-black ground the first
-       stage has to be the darkest, or the smallest slice is the loudest. */
-    --lg-chart-stage-1: oklch(32% 0.014 200);
-    --lg-chart-stage-2: oklch(39% 0.017 200);
-    --lg-chart-stage-3: oklch(46% 0.02 200);
-    --lg-chart-stage-4: oklch(53% 0.022 200);
-    --lg-chart-stage-5: oklch(60% 0.024 200);
-    --lg-chart-stage-6: oklch(67% 0.026 200);
-    --lg-chart-stage-7: oklch(74% 0.028 200);
+    --lg-ai: oklch(78% 0.12 300); /* #C3A5F9, the same violet lifted for the night, 7.6:1 on the surface */
+    --lg-ai-surface: oklch(31% 0.06 300); /* #35294A, 6.4:1 under --lg-ai */
+
+    --lg-section-dashboard: oklch(70% 0.115 210); /* #22B1C6 */
+    --lg-section-shortlist: oklch(70% 0.115 160); /* #55B486, the same 160 as by day */
+    --lg-section-pipeline: oklch(70% 0.115 285); /* #9794E3 */
+    --lg-section-analytics: oklch(70% 0.115 55); /* #D58A55 */
+    --lg-section-sources: oklch(70% 0.115 100); /* #AFA042 */
+    --lg-section-review: oklch(70% 0.115 255); /* #6CA1E5 */
+    --lg-section-rules: oklch(70% 0.115 315); /* #B988D0 */
+
+    /* The ramp runs the other way at night: on a dark ground the first stage has to be the
+       darkest, or the smallest slice is the loudest. */
+    --lg-chart-stage-1: oklch(34% 0.02 265); /* #333843 */
+    --lg-chart-stage-2: oklch(41% 0.023 265); /* #444A57 */
+    --lg-chart-stage-3: oklch(48% 0.026 265); /* #565E6D */
+    --lg-chart-stage-4: oklch(55% 0.029 265); /* #697283 */
+    --lg-chart-stage-5: oklch(62% 0.032 265); /* #7D869A */
+    --lg-chart-stage-6: oklch(69% 0.035 265); /* #919BB2 */
+    --lg-chart-stage-7: oklch(76% 0.038 265); /* #A5B1CA */
 }
 
 @media (prefers-color-scheme: dark) {
     :root:not([data-theme]) {
-        --lg-muted: oklch(69.08% 0.0206 176.14);
-        --lg-accent-text: oklch(76.38% 0.1465 79.59);
-        --lg-warning-text: oklch(73.39% 0.1415 76.21);
-        --lg-chart-stage-1: oklch(32% 0.014 200);
-        --lg-chart-stage-2: oklch(39% 0.017 200);
-        --lg-chart-stage-3: oklch(46% 0.02 200);
-        --lg-chart-stage-4: oklch(53% 0.022 200);
-        --lg-chart-stage-5: oklch(60% 0.024 200);
-        --lg-chart-stage-6: oklch(67% 0.026 200);
-        --lg-chart-stage-7: oklch(74% 0.028 200);
+        --lg-muted: oklch(75% 0.03 265);
+        --lg-signal-text: oklch(76% 0.17 345);
+        --lg-accent-text: var(--lg-signal-text);
+        --lg-warning-text: oklch(80% 0.15 80);
+        --lg-code-string: oklch(78% 0.13 150);
+        --lg-code-number: oklch(78% 0.11 235);
+        --lg-ai: oklch(78% 0.12 300);
+        --lg-ai-surface: oklch(31% 0.06 300);
+        --lg-section-dashboard: oklch(70% 0.115 210);
+        --lg-section-shortlist: oklch(70% 0.115 160);
+        --lg-section-pipeline: oklch(70% 0.115 285);
+        --lg-section-analytics: oklch(70% 0.115 55);
+        --lg-section-sources: oklch(70% 0.115 100);
+        --lg-section-review: oklch(70% 0.115 255);
+        --lg-section-rules: oklch(70% 0.115 315);
+        --lg-chart-stage-1: oklch(34% 0.02 265);
+        --lg-chart-stage-2: oklch(41% 0.023 265);
+        --lg-chart-stage-3: oklch(48% 0.026 265);
+        --lg-chart-stage-4: oklch(55% 0.029 265);
+        --lg-chart-stage-5: oklch(62% 0.032 265);
+        --lg-chart-stage-6: oklch(69% 0.035 265);
+        --lg-chart-stage-7: oklch(76% 0.038 265);
     }
 }
 
 /* A number you compare is mono. A number you admire is display. */
 @theme {
-    --font-display: 'Bricolage Grotesque Variable', 'Manrope Variable', ui-sans-serif, system-ui, -apple-system,
+    --font-display: 'Archivo Variable', 'Instrument Sans Variable', ui-sans-serif, system-ui, -apple-system,
     'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-    --font-display--font-variation-settings: 'opsz' 32;
+    --font-display--font-variation-settings: 'wdth' 92;
 
-    --font-sans: 'Manrope Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
+    --font-sans: 'Instrument Sans Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
     'Helvetica Neue', Arial, sans-serif;
 
-    --font-mono: 'JetBrains Mono Variable', ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas,
+    --font-mono: 'Geist Mono Variable', ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas,
     'Liberation Mono', monospace;
 
-    --text-display-xl: 3.5rem;
+    --text-display-xl: 3rem;
     --text-display-xl--line-height: 1;
     --text-display-xl--letter-spacing: -0.03em;
-    --text-display-l: 2.5rem;
+    --text-display-l: 2.25rem;
     --text-display-l--line-height: 1.05;
     --text-display-l--letter-spacing: -0.025em;
-    --text-display-m: 1.75rem;
+    --text-display-m: 1.5rem;
     --text-display-m--line-height: 1.15;
     --text-display-m--letter-spacing: -0.02em;
 }
 
 @import './styles/tokens.css';
+@import './styles/primitives.css';
+@import './styles/motion.css';
 
 html,
 body {
@@ -221,5 +276,5 @@ html {
 
 /* A drop that lands nowhere animates back to where the card came from. */
 .cdk-drag-animating {
-    transition: transform 180ms cubic-bezier(0, 0, 0.2, 1);
+    transition: transform var(--lg-drag-duration) var(--lg-drag-ease);
 }

@@ -1,0 +1,79 @@
+<!-- No `display` on the dialog itself, only on the panel inside it: an author `display` on the
+     dialog beats the UA's `dialog:not([open]) { display: none }` and the drawer would stand open
+     forever while every API reports it closed. The panel fills the dialog, which is what makes
+     a click on the dialog element a click on the backdrop. -->
+<dialog
+  #dialog
+  class="lg-help-drawer"
+  aria-labelledby="lg-help-title"
+  (cancel)="onCancel($event)"
+  (close)="onClose()"
+>
+  <div class="lg-help-body">
+    <div class="lg-help-head">
+      <h2 class="type-h3 lg-help-title" id="lg-help-title">{{ 'help.title' | transloco }}</h2>
+      <button
+        #closeButton
+        type="button"
+        class="btn btn-ghost btn-sm btn-square lg-help-close"
+        [attr.aria-label]="'help.close' | transloco"
+        [attr.title]="'help.close' | transloco"
+        (click)="close()"
+      >
+        <lg-icon name="x" [size]="18"/>
+      </button>
+    </div>
+
+    @if (view() === 'contents') {
+      <!-- The contents: one row per chapter, the overview first and set apart, then the screens
+           in the navigation's order. Rows rather than a button strip, which wrapped at the
+           drawer's width and gave each chapter a target too small to hit. -->
+      <nav class="lg-help-toc" [attr.aria-label]="'help.chapters' | transloco">
+        <ul>
+          @for (id of chapters; track id) {
+            <li [class.lg-help-toc-overview]="$first">
+              <button
+                type="button"
+                class="lg-help-toc-row"
+                [attr.data-chapter]="id"
+                [attr.aria-current]="id === here() ? 'true' : null"
+                (click)="show(id)"
+              >
+                <lg-icon class="lg-help-toc-icon" [name]="icons[id]" [size]="20"/>
+                <span class="lg-help-toc-text">
+                  <span class="type-body lg-help-toc-title">{{ 'help.chapter.' + id | transloco }}</span>
+                  <span class="type-small text-muted lg-help-toc-hint">{{ 'help.chapterHint.' + id | transloco }}</span>
+                </span>
+                <lg-icon class="lg-help-toc-chevron" name="chevron-right" [size]="16"/>
+              </button>
+            </li>
+          }
+        </ul>
+      </nav>
+    } @else {
+    <div class="lg-help-content" aria-live="polite">
+      <button type="button" class="lg-help-back" (click)="showContents()">
+        <lg-icon name="arrow-left" [size]="16"/>
+        <span>{{ 'help.allChapters' | transloco }}</span>
+      </button>
+      <h3 class="type-h3 lg-help-chapter-title" tabindex="-1">{{ 'help.chapter.' + chapter() | transloco }}</h3>
+      @if (text.isLoading()) {
+        <p class="type-small text-muted">{{ 'help.loading' | transloco }}</p>
+      } @else if (text.error()) {
+        <p class="type-small text-muted">{{ 'help.failed' | transloco }}</p>
+      } @else {
+        @for (part of parts(); track $index) {
+          @if (part.kind === 'text') {
+            <lg-markdown [text]="part.text"/>
+          } @else {
+            <figure class="lg-help-figure">
+              <lg-help-diagram [id]="part.id" [label]="'help.diagram.' + part.id | transloco"/>
+              <figcaption class="type-caption text-muted">{{ 'help.diagram.' + part.id | transloco }}</figcaption>
+            </figure>
+          }
+        }
+      }
+    </div>
+    }
+  </div>
+</dialog>

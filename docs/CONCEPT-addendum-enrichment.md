@@ -1,3 +1,5 @@
+<img src="brand/leadgen.png" alt="LEADgen / AI" height="28">
+
 # Addendum: the enrichment stage
 
 **Merged into `docs/CONCEPT.md`.** This document remains as the derivation: it explains

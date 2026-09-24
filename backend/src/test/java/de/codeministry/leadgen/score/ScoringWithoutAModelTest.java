@@ -289,6 +289,44 @@ class ScoringWithoutAModelTest {
     }
 
     /**
+     * ISC-249: a refetch that stores a fresh advert with no model configured still has to
+     * rule-score the offer, so {@code scoreFor} — unlike {@code rescore} — must not throw
+     * when there is nothing to ask. It writes exactly what the keyless nightly run would.
+     */
+    @Test
+    void scoreForWritesTheDeterministicReasonsRatherThanThrowingWhenNothingIsConfiguredToAnswer() {
+        long id = offer("Senior Java Entwickler (m/w/d)", "Spring Boot, Angular, Kubernetes, 12 Monate");
+
+        var result = scoring.scoreFor(id);
+
+        assertThat(result).isPresent();
+        assertThat(result.get().value()).isNull();
+        assertThat(result.get().model()).isNull();
+        assertThat(jdbc.queryForObject("SELECT score_value FROM offer WHERE id = ?", Integer.class, id))
+                .isNull();
+        assertThat(jdbc.queryForObject("SELECT score_band FROM offer WHERE id = ?", String.class, id))
+                .isEqualTo("UNSCORED");
+        var factors = jdbc.queryForList(
+                "SELECT factor FROM offer_score_reason WHERE offer_id = ? ORDER BY position", String.class, id);
+        assertThat(factors).contains("core_skill_overlap", "seniority_fit");
+        assertThat(factors).doesNotContain("role_fit", "vague_description");
+    }
+
+    /**
+     * The other half of the not-on-the-shortlist contract {@code rescore} already has:
+     * rejected by the filter, or attached to a primary, and {@code scoreFor} answers empty
+     * rather than scoring an offer nothing else in the pipeline would touch.
+     */
+    @Test
+    void scoreForAnswersEmptyWhenTheOfferIsNotOnTheShortlist() {
+        long primary = offer("Senior Java Entwickler (m/w/d)", "Spring Boot");
+        long duplicate = offer("Senior Java Entwickler (m/w/d)", "Spring Boot");
+        jdbc.update("UPDATE offer SET duplicate_of_id = ? WHERE id = ?", primary, duplicate);
+
+        assertThat(scoring.scoreFor(duplicate)).isEmpty();
+    }
+
+    /**
      * `timestamptz` does not convert straight to an Instant; the driver throws on the whole query.
      */
     private java.sql.Timestamp scoredAt(long offerId) {

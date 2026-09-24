@@ -14,8 +14,8 @@ interface NavItem {
 }
 
 /**
- * Seven destinations in three groups, separated by a hairline rather than by a heading: the
- * row is icons only below 90rem and a bottom bar below 48rem, and at neither width does a
+ * Five destinations in two groups, separated by a hairline rather than by a heading: the
+ * row is icons only below 64rem and a bottom bar below 48rem, and at neither width does a
  * group heading have anywhere to go.
  *
  * <p>The groups answer three different questions. <b>Today</b> is the morning's work in the
@@ -39,8 +39,6 @@ export class AppNav {
         {path: '/shortlist', label: 'nav.shortlist', icon: 'list-checks'},
         {path: '/pipeline', label: 'nav.pipeline', icon: 'columns-3'},
         {path: '/analytics', label: 'nav.analytics', icon: 'chart-line', opensGroup: true},
-        {path: '/sources', label: 'nav.sources', icon: 'database', opensGroup: true},
-        {path: '/review', label: 'nav.review', icon: 'file-text'},
         {path: '/rules', label: 'nav.rules', icon: 'sliders-horizontal'},
     ];
 }

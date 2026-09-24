@@ -1,0 +1,229 @@
+/* The host is the grid item the screen places; the nav fills it. */
+:host {
+  display: block;
+  min-width: 0;
+}
+
+.rail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lg-stack-gap);
+}
+
+/* The flow. Five steps top to bottom, each a stronger unit than the stage rows it holds:
+   a numbered badge, the phase's own icon and a heading a full step up the type scale. */
+.rail-phases {
+  display: flex;
+  flex-direction: column;
+  list-style: none;
+}
+
+.rail-step {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.rail-phase {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.phase-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+/* Neutral, never the section colour and never the signal: the number is order, not status. */
+.step-number {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 9999px;
+  background-color: var(--color-base-300);
+  color: var(--color-base-content);
+}
+
+.phase-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--lg-muted);
+}
+
+.phase-title {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* The phase's stages hang off a rule under the badge, so they read as belonging to it. */
+.phase-stages {
+  margin-inline-start: calc(0.75rem - 1px);
+  padding-inline-start: 0.75rem;
+  border-inline-start: 2px solid var(--color-base-300);
+}
+
+/* The arrow sits under the badge column, centred on the rule it continues. */
+.phase-arrow {
+  display: flex;
+  justify-content: center;
+  width: 1.5rem;
+  padding-block: 0.375rem;
+  color: var(--lg-muted);
+}
+
+.stages {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  list-style: none;
+}
+
+/* Positioned so a marker can sit on the row's edge without changing its layout. */
+.stage-row {
+  position: relative;
+  min-width: 0;
+}
+
+/* The same row the review queue uses: a bordered link, the selection in `--color-primary`
+   and never in the signal, which means "survived the filter" and nothing else. */
+.stage-link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--color-base-300);
+  border-radius: var(--radius-field);
+  background-color: var(--color-base-100);
+  transition: border-color var(--lg-hover-duration) var(--lg-hover-ease),
+  background-color var(--lg-hover-duration) var(--lg-hover-ease);
+}
+
+.stage-link:hover {
+  border-color: color-mix(in oklab, var(--color-primary) 45%, var(--color-base-300));
+}
+
+.stage-link.is-selected {
+  border-color: var(--color-primary);
+  background-color: var(--lg-selected-surface);
+}
+
+/* The name takes the room and gives it up first, so a long source id wraps rather than
+   pushing the icons and the count out of the row. */
+.stage-name {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* The icons sit at the row's end in a column wide enough for the most a row carries (the AI
+   marker, two cost classes, the failed marker), so the counts before it end on one edge. */
+.stage-icons {
+  display: inline-flex;
+  flex-shrink: 0;
+  justify-content: flex-end;
+  gap: 0.25rem;
+  min-width: calc(4 * 14px + 3 * 0.25rem);
+}
+
+.stage-costs {
+  display: inline-flex;
+  gap: 0.25rem;
+  color: var(--lg-muted);
+}
+
+.stage-count {
+  flex-shrink: 0;
+  text-align: end;
+  font-feature-settings: var(--lg-mono-features);
+}
+
+/* A model takes part in this stage (ISC-308). The meaning travels in the sparkle's accessible
+   name; the violet is `--lg-ai` and never the signal, the section colour or the selection. */
+.stage-ai {
+  display: inline-flex;
+  color: var(--lg-ai);
+}
+
+/* The AI edge sits on the row, over the link's own border, so the selection's primary border
+   and the violet edge stay legible together. */
+.stage-row.is-ai::before {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  width: 3px;
+  border-start-start-radius: var(--radius-field);
+  border-end-start-radius: var(--radius-field);
+  background-color: var(--lg-ai);
+  content: '';
+  pointer-events: none;
+}
+
+/* Inline and subtle, never the signal: a failed stage is a fact about the last run, not an
+   invitation to act. The colour lives on the icon alone, which carries its own accessible
+   name — the shape (triangle, not circle) is what actually survives without colour. */
+.stage-failed {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--color-error);
+}
+
+/* Said once, above the phases, so no stage ever needs to explain its own missing count. */
+.no-run-note {
+  padding-inline: 0.75rem;
+}
+
+/* The legend (ISC-310): every row icon in the colour the row gives it, beside its words. */
+.rail-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  padding-top: var(--lg-stack-gap);
+  border-top: 1px solid var(--color-base-300);
+}
+
+.legend-entries {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  list-style: none;
+}
+
+.legend-entry {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.legend-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--lg-muted);
+}
+
+.legend-ai .legend-icon {
+  color: var(--lg-ai);
+}
+
+.legend-failed .legend-icon {
+  color: var(--color-error);
+}
+
+.legend-label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Set apart from the last phase: the keys nothing reads are not a step of the run. */
+.unread {
+  padding-top: var(--lg-stack-gap);
+  border-top: 1px dashed var(--color-base-300);
+}

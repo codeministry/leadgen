@@ -110,4 +110,15 @@ public class IngestController {
     String unknownModel(Judges.UnknownModel e) {
         return e.getMessage();
     }
+
+    /**
+     * 500 with the sentence rather than Boot's bare JSON: the run stopped in a named stage,
+     * and the stage is what the reader has to act on. The history row already says the same,
+     * closed as FAILED before this was thrown, and the trace was logged where it was caught.
+     */
+    @ExceptionHandler(IngestService.StageFailed.class)
+    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+    String stageFailed(IngestService.StageFailed e) {
+        return e.getMessage();
+    }
 }

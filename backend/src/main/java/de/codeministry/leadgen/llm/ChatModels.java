@@ -105,6 +105,22 @@ public class ChatModels {
     }
 
     /**
+     * The model that writes the cover letter, read from {@code llm.models.writing} and from
+     * nothing else.
+     *
+     * <p><b>No fallback to scoring or any other key.</b> Unset or blank is empty, and the
+     * package is then built without a draft. A letter written by the scoring model would be
+     * written by a model nobody chose for prose, and nothing in the folder would say so —
+     * the same reason there is no fallback from a local provider to a hosted one.
+     */
+    public Optional<ChatModel> writing(PipelineConfig.Llm llm) {
+        if (llm == null || llm.models() == null || blank(llm.models().writing())) {
+            return Optional.empty();
+        }
+        return of(llm, llm.models().writing());
+    }
+
+    /**
      * The chat model for the OpenAI-compatible wire format.
      *
      * <p>An <em>empty</em> key rather than a null one is what puts the client into its

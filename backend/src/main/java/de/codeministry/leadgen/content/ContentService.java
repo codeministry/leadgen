@@ -67,6 +67,16 @@ public class ContentService {
         """;
 
     /**
+     * The button's predicate: the exact text {@link #DUE} and {@link #DUE_WITH_A_MODEL} use,
+     * with the ordering swapped for one id. Derived from them by substitution rather than
+     * written out beside them, so a future change to the condition cannot update the night's
+     * query and leave the button's behind.
+     */
+    private static final String DUE_BY_ID = DUE.replace("ORDER BY id", "AND id = ?");
+
+    private static final String DUE_WITH_A_MODEL_BY_ID = DUE_WITH_A_MODEL.replace("ORDER BY id", "AND id = ?");
+
+    /**
      * {@code content_at} is stamped only when the pass is finished with the offer: a model
      * that was configured and did not answer leaves it null, so the offer comes back rather
      * than being remembered as decided by nobody.
@@ -130,18 +140,13 @@ public class ContentService {
         int undecided = 0;
 
         for (Due offer : due) {
-            Pass pass = segment(offer, rules, classifier);
+            Pass pass = process(offer, rules, classifier, model);
             total += pass.blocks().size();
             fromCache += pass.fromCache();
             undecided += pass.undecided();
             if (pass.asked()) {
                 requests++;
             }
-            // The model is recorded whenever the pass finished under a configuration that had
-            // one, whether or not this particular advert needed asking. It says which
-            // configuration decided, and it is what stops a fully cached offer from being
-            // picked up as unfinished on every run for the rest of its life.
-            record(offer.id(), pass, pass.settled() ? model : null);
             if (pass.settled()) {
                 segmented++;
             }
@@ -158,6 +163,66 @@ public class ContentService {
                 report.requests(),
                 report.undecided());
         return report;
+    }
+
+    /**
+     * The button's path: {@link #run()}'s predicate narrowed to one id, sharing the same
+     * {@link #process} that writes it — so a fetch triggered from the offer card leaves the
+     * row exactly as a night that happened to reach it first would have.
+     *
+     * <p>Disabled segmentation answers {@link ContentReport#skipped()} rather than throwing.
+     * The orchestrator calls this right after a successful manual fetch, and a stage nobody
+     * configured is simply not run, the same as it is not run at night.
+     *
+     * <p>No matching row — the offer was not due, whether because it has no {@code full_text}
+     * yet, is not {@code PASSED}, is archived, or (without a model) was already segmented —
+     * answers {@link ContentReport#skipped()} too, rather than forcing a write through a path
+     * the predicate says this offer does not belong on.
+     */
+    public ContentReport runFor(long id) {
+        PipelineConfig.Content settings = config.snapshot().application().content();
+        if (settings == null || !settings.enabled()) {
+            log.info("Content segmentation is disabled; an advert is shown as the portal wrapped it");
+            return ContentReport.skipped();
+        }
+
+        ContentRules rules = new ContentRules(settings.rules());
+        Optional<ContentClassifier> classifier = classifiers.current();
+        String model = classifier.map(ContentClassifier::model).orElse(null);
+
+        Optional<Due> due = jdbc.sql(classifier.isPresent() ? DUE_WITH_A_MODEL_BY_ID : DUE_BY_ID)
+                .param(id)
+                .query((rs, row) -> new Due(
+                        rs.getLong("id"), rs.getString("portal"), rs.getString("title"), rs.getString("full_text")))
+                .optional();
+        if (due.isEmpty()) {
+            return ContentReport.skipped();
+        }
+
+        Pass pass = process(due.get(), rules, classifier, model);
+        return new ContentReport(
+                1,
+                pass.settled() ? 1 : 0,
+                pass.blocks().size(),
+                pass.fromCache(),
+                pass.asked() ? 1 : 0,
+                pass.undecided());
+    }
+
+    /**
+     * One offer, segmented and recorded. Shared by {@link #run()} and {@link #runFor(long)} so
+     * the button and the night walk the identical path, and a change to either cannot drift
+     * from the other.
+     *
+     * <p>The model is recorded whenever the pass finished under a configuration that had one,
+     * whether or not this particular advert needed asking. It says which configuration
+     * decided, and it is what stops a fully cached offer from being picked up as unfinished on
+     * every run for the rest of its life.
+     */
+    private Pass process(Due offer, ContentRules rules, Optional<ContentClassifier> classifier, String model) {
+        Pass pass = segment(offer, rules, classifier);
+        record(offer.id(), pass, pass.settled() ? model : null);
+        return pass;
     }
 
     /**

@@ -7,9 +7,12 @@ import {PromptView} from '@core/model/prompt-view';
 import {RulesView} from '@core/model/rules-view';
 import {SourceDetail} from '@core/model/source-detail';
 import {SourceSummary} from '@core/model/source-summary';
+import {WorkflowView} from '@core/model/workflow';
 import {configEvents} from './config.events';
 import {ingestEvents} from './ingest.events';
+import {shortlistEvents} from './shortlist.events';
 import {refreshEvents} from '@core/refresh/refresh.events';
+import {withAppDevtools} from '@core/store/devtools';
 
 interface ConfigState {
     sources: readonly SourceSummary[];
@@ -35,6 +38,12 @@ interface ConfigState {
     rules: RulesView | null;
     prompts: readonly PromptView[];
   /**
+   * The pipeline as the rules screen draws it: phases, stages in run order, and every key
+   * filed under the stage that reads it. Null until the first answer, which the screen tells
+   * apart from a workflow with nothing in it.
+   */
+  workflow: WorkflowView | null;
+  /**
    * One pair per screen, and this used to be one pair for both.
    *
    * Shared, an error raised while the rules were loading appeared on the sources screen
@@ -57,6 +66,7 @@ const initialState: ConfigState = {
   detailError: null,
     rules: null,
     prompts: [],
+  workflow: null,
   sourcesLoading: false,
   sourcesError: null,
   rulesLoading: false,
@@ -85,6 +95,7 @@ const RUNS = 30;
 export const ConfigStore = signalStore(
     {providedIn: 'root'},
     withState(initialState),
+    withAppDevtools('config'),
     withReducer(
       on(configEvents.sourcesOpened, () => ({sourcesLoading: true, sourcesError: null})),
       on(configEvents.sourcesLoaded, ({payload}) => ({
@@ -113,6 +124,7 @@ export const ConfigStore = signalStore(
       on(configEvents.rulesOpened, () => ({rulesLoading: true, rulesError: null})),
       on(configEvents.rulesLoaded, ({payload}) => ({rules: payload, rulesLoading: false})),
         on(configEvents.promptsLoaded, ({payload}) => ({prompts: payload})),
+      on(configEvents.workflowLoaded, ({payload}) => ({workflow: payload})),
       on(configEvents.sourcesFailed, ({payload}) => ({sourcesError: payload, sourcesLoading: false})),
       on(configEvents.rulesFailed, ({payload}) => ({rulesError: payload, rulesLoading: false})),
     ),
@@ -173,6 +185,22 @@ export const ConfigStore = signalStore(
                     ),
                 ),
             ),
+          // The third request of the rules screen: the stages its rail lists and the keys
+          // each one reads.
+          events.on(configEvents.rulesOpened).pipe(
+            exhaustMap(() =>
+              api.workflow().pipe(
+                map((workflow) => configEvents.workflowLoaded(workflow)),
+                catchError(() => of(configEvents.rulesFailed('error.workflowLoad'))),
+              ),
+            ),
+          ),
+          // The rail's counts are what the last run left and what the filter removed. Both
+          // already have a store and a request, the dashboard's, so the rules screen asks
+          // those stores rather than fetching the same rows a second way. The stores answer
+          // only once something has injected them, which the screen does to read the counts.
+          events.on(configEvents.rulesOpened).pipe(map(() => ingestEvents.lastRunRequested())),
+          events.on(configEvents.rulesOpened).pipe(map(() => shortlistEvents.funnelOpened())),
         ];
     }),
 );

@@ -37,6 +37,9 @@ import java.util.List;
  *                      beside the timestamp because the two together are four states and not two, and a
  *                      screen showing "restore" on an offer a person deliberately restored is a screen
  *                      offering to undo nothing.
+ * @param enrichmentNote why the original ad is not here, as enrichment recorded it, or null when
+ *                      it was read or never asked for. What the detail shows beside the button that
+ *                      fetches it again, so the reason is the one the tool wrote and not a guess.
  */
 public record OfferView(
         long id,
@@ -64,4 +67,5 @@ public record OfferView(
         String packageDir,
         Instant ingestedAt,
         Instant archivedAt,
-        String archiveSource) {}
+        String archiveSource,
+        String enrichmentNote) {}

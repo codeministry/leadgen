@@ -84,6 +84,11 @@ export interface Offer {
      * back, and offering to restore that one is offering to undo nothing.
      */
     readonly archiveSource: 'AGE' | 'MANUAL' | 'RESTORED' | null;
+    /**
+     * Why the original ad is not here, as enrichment recorded it: a status, a robots.txt
+     * refusal, a portal that could not be reached. Null when it was read or never asked for.
+     */
+    readonly enrichmentNote: string | null;
 }
 
 /**

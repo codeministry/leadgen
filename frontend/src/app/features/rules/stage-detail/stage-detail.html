@@ -1,0 +1,194 @@
+@if (current(); as stage) {
+    @if (isAi()) {
+        <!-- ISC-308: a model takes part here. The sparkle is decorative; the words carry the meaning. -->
+        <p class="type-small ai-band">
+            <lg-icon class="ai-band-icon" [name]="aiIcon" [size]="16"/>
+            <span>{{ 'rules.ai.band' | transloco }}</span>
+            @if (prompt()?.model; as model) {
+                <span class="type-mono-data ai-band-model">{{ 'rules.ai.model' | transloco: {model} }}</span>
+            }
+        </p>
+    }
+    <header class="detail-head">
+        <h2 class="type-h2">
+            @if (stage.kind === 'ingest') {
+                {{ stage.sourceId }}
+            } @else {
+                {{ 'rules.stage.' + stage.id.toLowerCase() | transloco }}
+            }
+        </h2>
+        <!-- The server's prose, English on every screen. -->
+        <p class="type-body text-muted">{{ stage.description }}</p>
+    </header>
+
+    @if (isFilter()) {
+        <section class="detail-section" data-section="funnel">
+            <h3 class="type-h3">{{ 'rules.knockouts' | transloco }}</h3>
+            <p class="type-small text-muted">{{ 'rules.knockoutsNote' | transloco }}</p>
+            @if (funnel(); as funnel) {
+                <p class="type-caption text-muted funnel-scope">{{ 'rules.detail.funnelScope' | transloco }}</p>
+                <lg-funnel-rail [stages]="funnel.stages" [total]="funnel.total"/>
+            } @else {
+                <p class="type-small text-muted">{{ 'rules.detail.noFunnel' | transloco }}</p>
+            }
+            @if (stage.knockouts; as knockouts) {
+                <ol class="knockouts">
+                    @for (knockout of knockouts; track knockout.id) {
+                        <li class="knockout">
+                            <span class="type-mono-data knockout-id">{{ knockout.id }}</span>
+                            <span class="type-small">{{ knockout.description }}</span>
+                            @if (knockout.keys.length > 0) {
+                                <span class="type-small text-muted knockout-keys">
+                                    {{ 'rules.detail.reads' | transloco }}
+                                    @for (key of knockout.keys; track key; let last = $last) {
+                                        <code class="type-mono-data">{{ key }}</code>@if (!last) {, }
+                                    }
+                                </span>
+                            }
+                        </li>
+                    }
+                </ol>
+            }
+        </section>
+    }
+
+    @if (isArchive() && rules()?.archiveAfterDays; as days) {
+        <section class="detail-section" data-section="archive">
+            <p class="type-small">{{ 'rules.archiveAfter' | transloco: {days} }}</p>
+        </section>
+    }
+
+    @if (isScore() && rules(); as rules) {
+        <div class="score-grid">
+            <section class="detail-section" data-section="weights">
+                <h3 class="type-h3">{{ 'rules.weights' | transloco }}</h3>
+                <dl class="pairs">
+                    @for (weight of rules.weights; track weight.key) {
+                        <dt class="type-small">{{ weight.key }}</dt>
+                        <dd class="type-mono-data">{{ weight.points }}</dd>
+                    }
+                </dl>
+            </section>
+
+            <section class="detail-section" data-section="penalties">
+                <h3 class="type-h3">{{ 'rules.penalties' | transloco }}</h3>
+                <dl class="pairs">
+                    @for (penalty of rules.penalties; track penalty.key) {
+                        <dt class="type-small">{{ penalty.key }}</dt>
+                        <dd class="type-mono-data">{{ penalty.points }}</dd>
+                    }
+                </dl>
+            </section>
+
+            <section class="detail-section" data-section="bands">
+                <h3 class="type-h3">{{ 'rules.thresholds' | transloco }}</h3>
+                <dl class="pairs">
+                    <dt class="type-mono-data">&ge; {{ rules.thresholds.autoShortlist }}</dt>
+                    <dd class="type-small">{{ 'rules.bandStrong' | transloco }}</dd>
+                    <dt class="type-mono-data">&ge; {{ rules.thresholds.review }}</dt>
+                    <dd class="type-small">{{ 'rules.bandReview' | transloco }}</dd>
+                    <!-- Everything under review is discarded; thresholds.discard is read by nothing. -->
+                    <dt class="type-mono-data">&lt; {{ rules.thresholds.review }}</dt>
+                    <dd class="type-small">{{ 'rules.bandOut' | transloco }}</dd>
+                </dl>
+            </section>
+
+            <section class="detail-section" data-section="topics">
+                <h3 class="type-h3">{{ 'rules.interestTopics' | transloco }}</h3>
+                <dl class="pairs">
+                    @for (topic of rules.interestTopics; track topic.name) {
+                        <dt class="type-small">{{ topic.name }}</dt>
+                        <dd class="type-mono-data">{{ topic.weight }}</dd>
+                    } @empty {
+                        <dt class="type-small text-muted">{{ 'rules.noTopics' | transloco }}</dt>
+                        <dd></dd>
+                    }
+                </dl>
+                <h3 class="type-h3">{{ 'rules.disinterestTopics' | transloco }}</h3>
+                <dl class="pairs">
+                    @for (topic of rules.disinterestTopics; track topic.name) {
+                        <dt class="type-small">{{ topic.name }}</dt>
+                        <dd class="type-mono-data">{{ topic.weight }}</dd>
+                    } @empty {
+                        <dt class="type-small text-muted">{{ 'rules.noTopics' | transloco }}</dt>
+                        <dd></dd>
+                    }
+                </dl>
+            </section>
+        </div>
+    }
+
+    @if (prompt(); as prompt) {
+        <section class="detail-section" data-section="prompt">
+            <h3 class="type-h3">{{ 'rules.prompt.' + prompt.id | transloco }}</h3>
+            <p class="type-small text-muted">
+                @if (prompt.model; as model) {
+                    {{ 'rules.promptModel' | transloco: {model} }}
+                } @else {
+                    {{ 'rules.promptNoModel' | transloco }}
+                }
+            </p>
+            <h4 class="type-caption text-muted">{{ 'rules.promptSystem' | transloco }}</h4>
+            <pre class="type-mono-data prompt-text">{{ prompt.system }}</pre>
+            <h4 class="type-caption text-muted">{{ 'rules.promptUser' | transloco }}</h4>
+            <pre class="type-mono-data prompt-text">{{ prompt.user }}</pre>
+        </section>
+    }
+} @else {
+    <header class="detail-head">
+        <h2 class="type-h2">{{ 'rules.unread.title' | transloco }}</h2>
+        <p class="type-body text-muted unread-note">{{ 'rules.unread.note' | transloco }}</p>
+    </header>
+}
+
+<section class="detail-section" data-section="settings">
+    <h3 class="type-h3">{{ 'rules.detail.settings' | transloco }}</h3>
+    @if (groups().length > 0) {
+        <!-- One file per row, then one subheading per key prefix; each key by its last segment in
+             the sans face, its value in mono on a code surface. The full key is the label's title. -->
+        <div class="settings-stack">
+            @for (group of groups(); track group.file) {
+                <div class="settings-group">
+                    <h4 class="settings-file">
+                        <lg-icon class="settings-file-icon" name="file-text" [size]="16"/>
+                        <span class="type-mono-data settings-file-name">{{ group.file }}</span>
+                        <span class="type-caption text-muted settings-file-count">{{ 'rules.detail.keyCount' | transloco: {count: group.count} }}</span>
+                    </h4>
+                    @for (subgroup of group.subgroups; track subgroup.prefix) {
+                        <div class="setting-subgroup">
+                            @if (subgroup.prefix !== null) {
+                                <h5 class="type-small text-muted setting-prefix">{{ subgroup.prefix }}</h5>
+                            }
+                            <dl class="setting-list">
+                                @for (entry of subgroup.entries; track entry.key) {
+                                    <div class="setting">
+                                        <dt class="type-body setting-key" [title]="entry.key">{{ entry.label }}</dt>
+                                        <dd class="setting-value">
+                                            @if (entry.items; as items) {
+                                                @if (items.length > 0) {
+                                                    <ul class="setting-chips">
+                                                        @for (item of items; track $index) {
+                                                            <li class="type-mono-data setting-chip">{{ item }}</li>
+                                                        }
+                                                    </ul>
+                                                } @else {
+                                                    <span class="type-small text-muted setting-empty">{{ 'rules.detail.emptyList' | transloco }}</span>
+                                                }
+                                            } @else {
+                                                <code class="type-mono-data setting-code">{{ entry.value }}</code>
+                                            }
+                                        </dd>
+                                    </div>
+                                }
+                            </dl>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    } @else if (isLaterIngest()) {
+        <p class="type-small text-muted">{{ 'rules.detail.sharedIngest' | transloco }}</p>
+    } @else {
+        <p class="type-small text-muted">{{ 'rules.detail.noSettings' | transloco }}</p>
+    }
+</section>

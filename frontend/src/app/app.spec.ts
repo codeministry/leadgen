@@ -21,7 +21,7 @@ describe('App', () => {
         const fixture = TestBed.createComponent(App);
         fixture.detectChanges();
 
-      httpMock.expectOne('/api/v1/status').flush({application: 'lead-generation', version: '0.4.3'});
+      httpMock.expectOne('/api/v1/status').flush({application: 'lead-generation', version: '0.5.0'});
         // The header asks for the models it may offer at the same time. Answered with one,
         // which is the shipped state: a single model is not a choice, so the select stays
         // hidden and only the run button is there.
@@ -36,7 +36,7 @@ describe('App', () => {
         await fixture.whenStable();
         fixture.detectChanges();
 
-      expect(fixture.nativeElement.textContent).toContain('lead-generation 0.4.3');
+      expect(fixture.nativeElement.textContent).toContain('lead-generation 0.5.0');
         httpMock.verify();
     });
 });

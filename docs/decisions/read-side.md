@@ -1,3 +1,5 @@
+<img src="../brand/leadgen.png" alt="LEADgen / AI" height="28">
+
 # The read side
 
 Every screen reads one of these, and none of them writes: the working-set predicate, keyset paging, the sort keys and
@@ -173,6 +175,14 @@ screen reads one of these, and none of them writes.
   finished run's window — measured, every source listed twice. The bound is `started_at` and never `finished_at`,
   because the batch collector moves the latter forward. `lastRun()` reports finished runs only; a `RUNNING` row on the
   dashboard would be zeros under the heading "last run".
+- **A run whose stage throws closes its row as `FAILED`, with the counts up to that stage and every timing.** Before
+  this the exception left `runOnce` before `record`, so the row stayed `RUNNING` until the next start closed it as
+  `ABANDONED` with zeros, and the timings went down with it — the one record of which stage it was. `V14` had promised
+  the opposite. The status is stated by the caller, never read off the timings: a dead mailbox is caught per source
+  and leaves a `FAILED` `INGEST` timing under a run that completes. `lastRun()` includes `FAILED`, unlike `ABANDONED`,
+  because its counts are real and its stages say where it stopped; `pipeline_stage` is read for the first time for
+  exactly that, into `LastRunView.stages`. The runs chart reads finished rows only, since an open row reached the
+  browser as a pass with no date.
 - **`source_run` exists because nothing else can answer the announced-versus-extracted
   question.** The number of documents and the count a document announces about itself leave
   no trace in the `offer` table, and that comparison is the one check nothing else can make.
@@ -276,3 +286,12 @@ configuration file.
 - **Days and not instants.** The hour a mailbox is read is the operator's working hours, it is
   on a screen whose pictures get published, and nothing the panel answers needs it. Cut in SQL
   with `ran_at::date`, by the server's clock, like every other date comparison here.
+- **The dashboard reads one small answer, not the analytics payload.** `GET /api/v1/analytics/summary`
+  (`analytics/AnalyticsSummaryQueryService`, three `JdbcClient` reads) carries what the control
+  room's cells need and nothing else: fourteen days of intake as `extracted` and `shortlisted`
+  per day, cut in the server's zone over a `generate_series` so a quiet day is a zero and not a
+  gap; the count per score band over the whole archive, archived rows included, because the
+  distribution is a property of the market and not of the working set; and the last run's
+  `finishedAt`, failed stage and source-mismatch count, from the same `LastRunQueryService` the
+  last-run endpoint reads. The analytics screen's payload carries every run, tag and portal, and
+  a dashboard that paid for that on every open was the wrong trade (spec 006).

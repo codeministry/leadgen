@@ -22,7 +22,7 @@
 }
 
 /* Selection in a list: the primary edge and the wash the nav and the selected card already
-   use for "you are here". Never the accent — ochre means "this survived the filter", and
+   use for "you are here". Never the signal — the signal means "this survived the filter", and
    nothing on this screen survived anything. */
 .open {
   background-color: var(--lg-selected-surface);

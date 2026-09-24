@@ -1,80 +1,57 @@
 #!/usr/bin/env bash
-# Renders the favicon set from the original mark.
+# Renders the favicon set from the mark.
 #
-# The source is `public/logo.png`, the untracked original artwork — not the
-# `<lg-brand-mark>` geometry. The two are the same mark, but the bitmap has the
-# proportions the logo was drawn with, and that is what the tab icon shows.
+# The source is `brand/mark.svg`, the one drawing of the lead ring, and the same paths
+# `shared/brand-mark/` inlines in the header. Two groups carry the two colours: `body`
+# is the ring, `signal` the two dots. The script recolours by group id, so nothing here
+# knows a pixel box; a redrawn mark with the same two ids renders without a change.
 #
-# What the script adds is the second colour: the funnel keeps the logo's own
-# cyan and the spout is repainted in ochre, so the icon carries the same
-# two-colour split as the header wordmark. The plate is a dark petrol rather
-# than the theme's near-black base-200: the mark is one hue, and a plate tinted
-# towards it reads as the brand at 16px where the geometry no longer does.
-# The spout is addressed by its pixel box in
-# `logo.png`, so this script is the only thing that knows where it sits —
-# regenerate the icons here, never hand-edit them.
+# The plate is the dark theme's surface and the mark takes the dark theme's colours —
+# lavender ring, magenta dots — because a tab icon has no theme and the dark theme is
+# the default (spec 003, 2026-09-24). The signal is the same hue in both themes, so the
+# dots read as the brand's accent wherever the tab is.
 #
-# Needs ImageMagick 7 (`magick`). Run from the `frontend/` directory.
+# Needs `rsvg-convert` (librsvg) and ImageMagick 7 (`magick`). Run from `frontend/`.
+# Output is deterministic: no timestamps are written, so running it twice leaves
+# `git diff` empty (ISC-239).
 
 set -euo pipefail
 
-src=public/logo.png
-petrol='#33E3DA'   # lg-dark --color-primary, the logo's own cyan
-ochre='#E3A62B'    # lg-dark --color-accent
-plate='#0E2C2D'    # lg-dark --color-base-200 pulled towards the petrol primary
-
-# The spout's box inside logo.png, measured once: the ink collapses to a
-# constant x 130..227 below y 537 and runs to the bottom edge of the canvas.
-spout_box=104x52+126+535
+src=brand/mark.svg
+ring='#A3B2FE'    # lg-dark --color-primary
+signal='#FB80CA'  # lg-dark --color-accent, the signal
+plate='#1F222D'   # lg-dark --color-base-100
 
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 
-# The artwork is opaque on white, so the background is keyed out rather than
-# masked; the fuzz covers the anti-aliased edge.
-magick "$src" -fuzz 14% -transparent white "$work/mark.png"
-magick "$work/mark.png" -alpha extract "$work/alpha.png"
+# Recolour by group: every `#000` inside `<g id="body">` becomes the ring colour, every
+# one inside `<g id="signal">` the signal. The groups are sequential in the file, which
+# is what lets a line-oriented tool do it without an XML parser.
+awk -v ring="$ring" -v signal="$signal" '
+  /<g id="body">/   { colour = ring }
+  /<g id="signal">/ { colour = signal }
+  /<\/g>/           { colour = "" }
+  { if (colour != "") gsub(/#000/, colour); print }
+' "$src" > "$work/mark-coloured.svg"
 
-# Repaint by re-using the alpha channel: a `-colorize` tint would carry the
-# original cyan through and land somewhere between the two colours.
-for layer in petrol ochre; do
-  case $layer in
-    petrol) colour=$petrol ;;
-    ochre) colour=$ochre ;;
-  esac
-  magick -size "$(magick "$src" -format '%wx%h' info:)" "xc:$colour" \
-    "$work/alpha.png" -alpha off -compose CopyOpacity -composite "$work/$layer.png"
-done
+# The plate is a circle, so the mark has to fit the inscribed square rather than the
+# full 256; 176 of 256 leaves the ring's open end clear of the curve.
+rsvg-convert --width 176 --height 176 "$work/mark-coloured.svg" > "$work/mark-176.png"
 
-magick "$work/ochre.png" -crop "$spout_box" +repage "$work/spout.png"
-magick "$work/petrol.png" "$work/spout.png" -geometry "+${spout_box#*+}" \
-  -compose over -composite "$work/two-tone.png"
-
-# The mark is off-centre by design (funnel low left, noise upper right), so it is
-# trimmed and re-centred rather than padded.
-# The plate is a circle, so the mark has to fit the inscribed square (181px),
-# not the full 256 — at the 220 a rounded rectangle allowed, the outer dots and
-# the funnel's rim would be cut off by the curve.
 magick -size 256x256 xc:none -fill "$plate" \
   -draw 'circle 127.5,127.5 127.5,-0.5' "$work/plate.png"
-magick "$work/two-tone.png" -trim +repage -resize 176x176 \
-  -background none -gravity center -extent 256x256 "$work/fitted.png"
-magick "$work/plate.png" "$work/fitted.png" -compose over -composite "$work/icon-256.png"
+magick "$work/plate.png" "$work/mark-176.png" -gravity center -compose over -composite \
+  -strip -define png:exclude-chunks=date,time "$work/icon-256.png"
 
-# The touch icon keeps the same circular plate as the .ico rather than shipping
-# square. iOS masks a home-screen icon itself, so on a phone the corners outside
-# the circle are cut twice over; everywhere the file is used as a plain 256px
-# icon it matches the tab.
+# The touch icon keeps the same circular plate as the .ico rather than shipping square.
+# iOS masks a home-screen icon itself, so on a phone the corners outside the circle are
+# cut twice over; everywhere the file is used as a plain 256px icon it matches the tab.
 cp "$work/icon-256.png" public/favicon-256.png
 
 for size in 16 32 48; do
-  magick "$work/icon-256.png" -resize "${size}x${size}" "$work/ico-$size.png"
+  magick "$work/icon-256.png" -resize "${size}x${size}" -strip "$work/ico-$size.png"
 done
 magick "$work/ico-16.png" "$work/ico-32.png" "$work/ico-48.png" public/favicon.ico
 
-# The header's mark is the same source but not the same treatment: it sits on
-# base-100 in both themes and keeps the logo's own cyan, so it is only trimmed
-# and scaled. 128px tall is four times the 26px the header shows.
-magick "$work/mark.png" -trim +repage -resize x128 -strip public/logo-mark.png
-
-printf 'wrote public/favicon.ico (16/32/48), public/favicon-256.png and public/logo-mark.png\n'
+printf 'wrote public/favicon.ico (16/32/48) and public/favicon-256.png from %s\n' "$src"

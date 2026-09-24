@@ -1,3 +1,5 @@
+<img src="brand/leadgen.png" alt="LEADgen / AI" height="28">
+
 # Analysis of the sample mails
 
 Basis: 14 newsletter mails from `<newsletter-sender>`, subject `"N neue Projekte sind da!"`,

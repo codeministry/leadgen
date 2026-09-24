@@ -1,3 +1,5 @@
+<img src="docs/brand/leadgen.png" alt="LEADgen / AI" height="28">
+
 # Contributor Covenant Code of Conduct
 
 ## Our Pledge

@@ -1,0 +1,15 @@
+# An override layer that does what the shipped file never does: it writes credentials out as
+# literals, and it configures the security block. WorkflowCoverageTest puts it over the shipped
+# pipeline.yaml and asserts that none of it reaches the serialised workflow.
+version: 1
+llm:
+  provider: openai-compatible
+  base_url: https://leadgen:hunter2-literal@llm.example.org/v1?api_key=hunter2-literal
+  api_key: hunter2-literal
+  timeout: PT60S
+security:
+  auth: oidc
+  oidc:
+    issuer: https://id.example.org/realms/leadgen
+    client_id: leadgen-workflow-client
+    client_secret: hunter2-literal-oidc

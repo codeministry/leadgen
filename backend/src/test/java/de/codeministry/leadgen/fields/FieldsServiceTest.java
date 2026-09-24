@@ -167,6 +167,41 @@ class FieldsServiceTest {
         assertThat(fields.run().considered()).isZero();
     }
 
+    @Test
+    void runForExtractsExactlyThatOneOfferAndLeavesASecondDueOfferUntouched() {
+        // The orchestrator calls this after a successful manual fetch, for one id — the rest
+        // of the standing backlog must not move just because one offer was pressed.
+        long target = passed("Java Entwickler", null, null);
+        long other = passed("Python Entwickler", null, null);
+        answers(new ExtractedFields(
+                "ab sofort", null, "6 Monate mit Option", 6, "Bewerbungen bis 30.09.2026", LocalDate.of(2026, 9, 30)));
+
+        boolean extracted = fields.runFor(target);
+
+        assertThat(extracted).isTrue();
+        var row = jdbc.queryForMap("SELECT start_text, duration, fields_model FROM offer WHERE id = ?", target);
+        assertThat(row.get("start_text")).isEqualTo("ab sofort");
+        assertThat(row.get("duration")).isEqualTo("6 Monate mit Option");
+        assertThat(row.get("fields_model")).isEqualTo("a-model");
+
+        assertThat(jdbc.queryForObject("SELECT fields_at FROM offer WHERE id = ?", Object.class, other))
+                .isNull();
+        assertThat(jdbc.queryForObject("SELECT duration FROM offer WHERE id = ?", String.class, other))
+                .isNull();
+    }
+
+    @Test
+    void runForDoesNothingWithoutAModelConfigured() {
+        // Rules before model, same as run(): a stage that cannot run is skipped exactly as at
+        // night, never an exception the orchestrator would have to catch.
+        given(extractors.current()).willReturn(Optional.empty());
+        long id = passed("Java Entwickler", null, null);
+
+        assertThat(fields.runFor(id)).isFalse();
+        assertThat(jdbc.queryForObject("SELECT fields_at FROM offer WHERE id = ?", Object.class, id))
+                .isNull();
+    }
+
     private void answers(ExtractedFields answer) {
         given(extractor.extract(any())).willReturn(Optional.of(answer));
     }

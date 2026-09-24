@@ -34,7 +34,7 @@
 
   <button
     type="button"
-    class="btn btn-sm"
+    class="btn btn-sm btn-soft btn-primary"
     [class.btn-active]="archived()"
     [attr.aria-pressed]="archived()"
     (click)="toggleArchive()"
@@ -164,8 +164,8 @@
       <!-- One chip per filter the panel hides, and nothing for the two that are already
            showing their own state a few pixels above. The whole chip is the button, with the
            ✕ as a decorative glyph: a 12px icon inside a chip cannot be a 24×24 target and a
-           chip trivially is. Petrol and the selection wash, never ochre — ochre means "this
-           survived the filter", not "a filter is on". -->
+           chip trivially is. `--color-primary` and the selection wash, never the signal —
+           the signal means "this survived the filter", not "a filter is on". -->
       @if (facetChips().length > 0 || relatedChip() !== null) {
         <div class="filters-row facets">
           <!-- First, and built by the same shape with the same markup, so the row reads as one
@@ -250,8 +250,8 @@
         <p class="type-small" role="status">
           {{ 'shortlist.selected' | transloco: {count: store.pickedCount()} }}
         </p>
-        <!-- Petrol, never the accent and never error red: ochre means "this survived
-             the filter" and nothing else, and archiving is a reversible decision the
+        <!-- `--color-primary`, never the signal and never error red: the signal means "this
+             survived the filter" and nothing else, and archiving is a reversible decision the
              operator owns rather than a failure. -->
         <button
           type="button"
@@ -289,6 +289,7 @@
                           <lg-offer-card
                             [entry]="entry"
                             [selected]="entry.offer.id === selectedId()"
+                            [status]="statusByOffer().get(entry.offer.id) ?? null"
                             [pickable]="!archived()"
                             [picked]="store.pickedIds().has(entry.offer.id)"
                             [pickDisabled]="store.bulkArchiving()"

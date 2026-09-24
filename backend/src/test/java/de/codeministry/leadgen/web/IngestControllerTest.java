@@ -13,6 +13,7 @@ import static org.mockito.BDDMockito.given;
 
 import de.codeministry.leadgen.analytics.LastRunQueryService;
 import de.codeministry.leadgen.analytics.LastRunSource;
+import de.codeministry.leadgen.analytics.LastRunStage;
 import de.codeministry.leadgen.analytics.LastRunView;
 import de.codeministry.leadgen.application.OpenReport;
 import de.codeministry.leadgen.archive.ArchiveReport;
@@ -77,6 +78,7 @@ class IngestControllerTest {
                         169,
                         151,
                         18,
+                        73,
                         Map.of("ABROAD", 13),
                         169,
                         73,
@@ -85,13 +87,64 @@ class IngestControllerTest {
                         13,
                         7,
                         true,
-                        List.of(new LastRunSource("demo-newsletter", 5, 169, 151, 169)))));
+                        List.of(new LastRunSource("demo-newsletter", 5, 169, 151, 169)),
+                        List.of())));
 
         assertThat(mvc.get().uri("/api/v1/ingest/last"))
                 .hasStatusOk()
                 .bodyJson()
                 .extractingPath("$.sources[0].complete")
                 .isEqualTo(true);
+    }
+
+    @Test
+    void carriesTheStageTimingsOfARecordedRun() {
+        // `millis` is derived like `complete`, and for the same reason it has to be pinned:
+        // absent, the browser would subtract two ISO strings and sort by NaN.
+        Instant t = Instant.parse("2026-09-24T04:10:00Z");
+        given(lastRun.lastRun())
+                .willReturn(Optional.of(new LastRunView(
+                        t.plusSeconds(8),
+                        "FAILED",
+                        "some-model",
+                        169,
+                        151,
+                        18,
+                        0,
+                        Map.of(),
+                        31,
+                        12,
+                        0,
+                        0,
+                        0,
+                        0,
+                        false,
+                        List.of(),
+                        List.of(
+                                new LastRunStage(0, "DEDUPE", t, t.plusSeconds(2), "OK", null),
+                                new LastRunStage(
+                                        1, "ENRICH", t.plusSeconds(2), t.plusSeconds(7), "FAILED", "portal down")))));
+
+        var response =
+                assertThat(mvc.get().uri("/api/v1/ingest/last")).hasStatusOk().bodyJson();
+
+        response.extractingPath("$.stages[1].millis").isEqualTo(5000);
+        response.extractingPath("$.stages[1].status").isEqualTo("FAILED");
+        response.extractingPath("$.stages[1].note").isEqualTo("portal down");
+    }
+
+    @Test
+    void answers500NamingTheStageWhenARunFails() {
+        // The history row already says FAILED and where; the sentence is what the person who
+        // pressed the button reads, and it has to name the stage rather than Boot's bare JSON.
+        given(ingest.run(null))
+                .willThrow(new IngestService.StageFailed("ENRICH", new IllegalStateException("portal down")));
+
+        assertThat(mvc.post().uri("/api/v1/ingest"))
+                .hasStatus(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR)
+                .bodyText()
+                .contains("ENRICH")
+                .contains("portal down");
     }
 
     @Test

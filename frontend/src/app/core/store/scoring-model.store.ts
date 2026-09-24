@@ -4,6 +4,7 @@ import {Dispatcher, Events, on, withEventHandlers, withReducer} from '@ngrx/sign
 import {catchError, exhaustMap, map, of} from 'rxjs';
 import {ConfigApi} from '@core/api/config.api';
 import {scoringModelEvents} from './scoring-model.events';
+import {withAppDevtools} from '@core/store/devtools';
 
 const STORAGE_KEY = 'lg-scoring-model';
 
@@ -36,6 +37,7 @@ const initialState: ScoringModelState = {
 export const ScoringModelStore = signalStore(
     {providedIn: 'root'},
     withState(initialState),
+    withAppDevtools('scoringModel'),
     withComputed(({available, preferred, chosen}) => ({
         /**
          * What the next run will actually ask for. The select shows this rather than `chosen`,

@@ -56,6 +56,7 @@ function entry(id: number): ShortlistEntry {
           ingestedAt: '2026-09-02T05:12:00Z',
             archivedAt: null,
             archiveSource: null,
+            enrichmentNote: null,
         },
         score: {value: 88, hardPass: true, reasons: [], model: null, rulesetVersion: '1'},
       flags: {incomplete: false, remoteUnknown: true, possibleDuplicate: false},
@@ -233,5 +234,40 @@ describe('ShortlistStore', () => {
         expect(store.entries().map((row) => row.offer.id)).toEqual([2]);
         expect(store.selected()?.offer.archivedAt).toBe('2026-09-06T08:00:00Z');
         expect(store.matched()).toBe(1);
+    });
+
+    it('keeps a fetch that lands late off the offer the reader moved on to', () => {
+        // A fetch runs a portal request and three model stages, so the reader may well open
+        // another offer before it answers. The list row is still replaced; the detail is not,
+        // or the first offer's advert would stand under the second one's title.
+        openList();
+        dispatch.offerRequested(1);
+        http.expectOne('/api/v1/offers/1').flush(entry(1));
+        dispatch.fetchRequested(1);
+        const fetching = http.expectOne({method: 'POST', url: '/api/v1/offers/1/fetch'});
+
+        dispatch.offerRequested(2);
+        http.expectOne('/api/v1/offers/2').flush(entry(2));
+        const fetched = entry(1);
+        fetching.flush({...fetched, offer: {...fetched.offer, fullText: 'Das Inserat, spaet.'}});
+
+        expect(store.selected()?.offer.id).toBe(2);
+        expect(store.entries().find((row) => row.offer.id === 1)?.offer.fullText).toBe('Das Inserat, spaet.');
+        expect(store.fetching()).toBeNull();
+    });
+
+    it('does not carry a refused fetch to the next offer', () => {
+        openList();
+        dispatch.offerRequested(1);
+        http.expectOne('/api/v1/offers/1').flush(entry(1));
+        dispatch.fetchRequested(1);
+        http.expectOne({method: 'POST', url: '/api/v1/offers/1/fetch'})
+            .flush('the fetch rate limit of 20 ads a minute is spent', {status: 429, statusText: 'Too Many Requests'});
+        expect(store.fetchError()).toContain('rate limit');
+
+        dispatch.offerRequested(2);
+        http.expectOne('/api/v1/offers/2').flush(entry(2));
+
+        expect(store.fetchError()).toBeNull();
     });
 });

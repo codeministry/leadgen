@@ -4,8 +4,8 @@
 <button
   #trigger
   type="button"
-  class="btn btn-sm facet-button"
-  [class.btn-outline]="activeCount() > 0"
+  class="btn btn-sm btn-soft btn-primary facet-button"
+  [class.is-set]="activeCount() > 0"
   [lgAnchorFor]="panel"
   [attr.popovertarget]="panelId"
   [attr.aria-controls]="panelId"
@@ -156,7 +156,7 @@
   <div class="panel-row">
     <button
       type="button"
-      class="btn btn-sm deadline"
+      class="btn btn-sm btn-soft btn-primary deadline"
       [class.btn-active]="deadlineOpen()"
       [attr.aria-pressed]="deadlineOpen()"
       (click)="deadlineToggled.emit()"
@@ -168,7 +168,7 @@
   <div class="panel-row">
     <button
       type="button"
-      class="btn btn-sm deadline"
+      class="btn btn-sm btn-soft btn-primary deadline"
       [class.btn-active]="possibleDuplicates()"
       [attr.aria-pressed]="possibleDuplicates()"
       (click)="possibleDuplicatesToggled.emit()"

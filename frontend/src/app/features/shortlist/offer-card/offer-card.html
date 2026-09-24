@@ -53,7 +53,7 @@
           <span class="type-mono-data points">
             {{ reason.points > 0 ? '+' : '' }}{{ reason.points }}
           </span>
-                    {{ reason.label }}
+                    <span class="reason-label line-clamp-2">{{ reason.label }}</span>
                 </li>
             } @empty {
                 <li class="type-small text-muted reason">
@@ -63,6 +63,9 @@
         </ul>
 
         <div class="badges">
+            @if (statusText(); as status) {
+                <lg-badge tone="primary">{{ status }}</lg-badge>
+            }
             @if (otherSources().length > 0) {
                 <lg-badge tone="primary" [outline]="true">
                     <lg-icon name="copy" [size]="12"/>

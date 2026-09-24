@@ -29,7 +29,7 @@
            is that row through time, so it continues the sentence. The block is the reference
            document and goes last, where it can run long. -->
       <section class="runs-pane">
-        <h3 class="type-h4">{{ 'sources.runsTitle' | transloco }}</h3>
+        <h3 class="type-h4 lg-anchor-target" id="runs" tabindex="-1">{{ 'sources.runsTitle' | transloco }}</h3>
 
         @if (source.runs.length === 0) {
           <p class="type-small text-muted">{{ 'sources.neverRan' | transloco }}</p>
@@ -123,7 +123,7 @@
       </section>
 
       <section class="yaml-pane">
-        <h3 class="type-h4">{{ 'sources.yamlTitle' | transloco }}</h3>
+        <h3 class="type-h4 lg-anchor-target" id="block" tabindex="-1">{{ 'sources.yamlTitle' | transloco }}</h3>
 
         @if (source.block; as block) {
           <!-- Two sentences that stop two opposite misreadings: an unresolved `${…}` is not a

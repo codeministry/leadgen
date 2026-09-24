@@ -1,16 +1,13 @@
 import {ChangeDetectionStrategy, Component, computed, input} from '@angular/core';
 
 /**
- * The brand lockup: the logo asset plus the wordmark beside it.
+ * The brand lockup: the lead ring plus the wordmark beside it.
  *
- * `public/logo-mark.png` is `logo-1.png` cut out, trimmed and resized to 128 px
- * tall — four times the 26 px the header shows, so it stays crisp on a retina
- * display. The favicon comes from the same source on a round plate, so the tab
- * icon and the header show the same funnel.
- *
- * The asset is used as a CSS mask rather than as an image, so the mark takes the
- * theme's primary. A mask has no intrinsic size, which is why both dimensions are
- * set here instead of leaving the width to `auto`.
+ * The mark is the score ring from the shortlist, open at the top right, with the lead
+ * inside — chosen by the operator from three candidates (spec 003, 2026-09-24). It is
+ * inline SVG rather than a masked bitmap because it is two colours: the ring takes the
+ * theme's primary, the two dots take the signal, and a CSS mask paints only one. The same
+ * paths live in `frontend/brand/mark.svg`, the one source `tools/build-favicon.sh` reads.
  */
 @Component({
     selector: 'lg-brand-mark',
@@ -19,15 +16,15 @@ import {ChangeDetectionStrategy, Component, computed, input} from '@angular/core
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class BrandMark {
-  /** The asset's own pixel box, and the only place the ratio is written down. */
-  private static readonly INTRINSIC = {width: 116, height: 128};
+    /** The mark's viewBox, and the only place the ratio is written down. Square. */
+    private static readonly INTRINSIC = {width: 32, height: 32};
 
     readonly size = input(28);
     readonly wordmark = input(true);
     /** Carried by the wordmark when it is visible, by the mark alone when it is not. */
-    readonly label = input('Lead Generation');
+    readonly label = input('Annusa AI');
 
-  protected readonly width = computed(() =>
-    Math.round((this.size() * BrandMark.INTRINSIC.width) / BrandMark.INTRINSIC.height),
-  );
+    protected readonly width = computed(() =>
+        Math.round((this.size() * BrandMark.INTRINSIC.width) / BrandMark.INTRINSIC.height),
+    );
 }

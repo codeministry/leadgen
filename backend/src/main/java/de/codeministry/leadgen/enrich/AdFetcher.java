@@ -11,11 +11,7 @@ package de.codeministry.leadgen.enrich;
 import de.codeministry.leadgen.config.model.PipelineConfig.Enrichment.Fetch;
 import java.net.URI;
 import java.net.http.HttpClient;
-import java.time.Clock;
 import java.time.Duration;
-import java.time.Instant;
-import java.util.ArrayDeque;
-import java.util.Deque;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.retry.RetryException;
@@ -34,6 +30,11 @@ import org.springframework.web.client.RestClient;
  * nothing and consumes no rate-limit token — which is the whole point of ISC-47, where a
  * second run inside the TTL must issue no request at all.
  *
+ * <p>A {@linkplain #fetchFresh fresh fetch} passes the first gate and none of the others.
+ * The cache is what keeps a refusal for a week, and a person who has just seen the page open
+ * in a browser knows something the cache does not; robots.txt and the rate limit are why this
+ * tool may fetch at all, and nobody's knowledge overrides them.
+ *
  * <p>Everything here is failure-tolerant by design. An offer whose ad cannot be read stays
  * in the pipeline marked incomplete; the alternative is discarding a good project because
  * a portal had a bad afternoon.
@@ -46,34 +47,21 @@ public class AdFetcher {
     private final PageCache cache;
     private final Fetch settings;
     private final RobotsPolicy robots;
-    private final Deque<Instant> recentRequests = new ArrayDeque<>();
 
     /**
-     * The window this fetcher is polite within, and the longest it ever waits at once.
+     * The rate limit, shared with every other fetcher in the process. See {@link FetchWindow}
+     * for why it is not this fetcher's own.
      */
-    private static final Duration WINDOW = Duration.ofMinutes(1);
+    private final FetchWindow window;
 
     /**
-     * What this fetcher has taken since it was built. One fetcher is one pass.
+     * What this fetcher has taken since it was built. One fetcher is one pass, and the budget
+     * is the pass's: the window is shared, but how long a pass is prepared to wait is not.
      */
     private int taken;
 
-    /**
-     * The window's only source of time.
-     *
-     * <p>Injectable for one reason: a sliding window differs from a fixed one exactly at a
-     * minute boundary, and a test that has to wait sixty seconds to say so is a test nobody
-     * runs. It is a field rather than a parameter because the window is stateful and every
-     * reading has to come from the same clock as the entries already in it.
-     */
-    private final Clock clock;
-
-    public AdFetcher(Fetch settings, PageCache cache) {
-        this(settings, cache, Clock.systemUTC());
-    }
-
-    AdFetcher(Fetch settings, PageCache cache, Clock clock) {
-        this.clock = clock;
+    public AdFetcher(Fetch settings, PageCache cache, FetchWindow window) {
+        this.window = window;
         this.settings = settings;
         this.cache = cache;
         // The JDK client stays underneath, because the two things configured on it are the
@@ -100,6 +88,26 @@ public class AdFetcher {
     }
 
     public FetchResult fetch(String url) {
+        return fetch(url, false);
+    }
+
+    /**
+     * The same fetch without the cache in front of it, and without waiting for a permit.
+     *
+     * <p>The cache is skipped on the way in only. Whatever the page answers is stored exactly
+     * as {@link #fetch} stores it, so the night after reads the new answer rather than the old
+     * refusal. robots.txt still comes first, and its refusal is still remembered.
+     *
+     * <p>The window is asked once rather than waited for: a person is watching this one, and a
+     * full window is an answer about the minute they can act on, not a reason to hold a request
+     * open for sixty seconds. The refusal is {@linkplain FetchResult#deferred deferred}, because
+     * it says nothing about the page.
+     */
+    public FetchResult fetchFresh(String url) {
+        return fetch(url, true);
+    }
+
+    private FetchResult fetch(String url, boolean fresh) {
         URI uri;
         try {
             uri = URI.create(url);
@@ -107,7 +115,7 @@ public class AdFetcher {
             return FetchResult.failed(0, "not a URL: " + url);
         }
 
-        Optional<PageCache.Entry> cached = cache.find(url, settings.cacheTtl());
+        Optional<PageCache.Entry> cached = fresh ? Optional.empty() : cache.find(url, settings.cacheTtl());
         if (cached.isPresent()) {
             PageCache.Entry entry = cached.get();
             if (entry.body() != null) {
@@ -120,14 +128,23 @@ public class AdFetcher {
                             : "status " + entry.status() + ", remembered from an earlier run");
         }
 
+        // The fresh fetch takes its permit before robots.txt, the run after it. A run reads
+        // robots.txt once per host per pass, so the order costs it nothing; a fresh fetch
+        // builds its fetcher per press, and asked robots-first every press would send the
+        // portal one unthrottled request even while the window stands spent. Permit-first,
+        // a spent minute sends nothing at all, and robots.txt is bounded by the same window.
+        if (fresh && !takeNow()) {
+            return FetchResult.deferred("the fetch rate limit of %d ads a minute is spent; try again in a minute"
+                    .formatted(settings.rateLimitPerMinute()));
+        }
+
         if (settings.respectRobotsTxt() && !robots.allows(uri, settings.userAgent())) {
             // Remembered like any other outcome: without this the next run asks again,
             // and a disallowed path would be requested once per offer per run forever.
             cache.store(url, 0, null);
             return FetchResult.failed(0, "disallowed by robots.txt");
         }
-
-        if (!awaitToken()) {
+        if (!fresh && !awaitToken()) {
             // Deferred, not failed: the limiter is saying "not in this run", which is a fact
             // about the run and not about the page. Written down as a failure it would stamp
             // `enriched_at` and the offer would never be fetched again.
@@ -196,12 +213,17 @@ public class AdFetcher {
         }
     }
 
-    private static String rootMessage(Throwable e) {
+    /**
+     * The innermost cause's message, or its class name when it has none: a refused connection
+     * arrives without a message, and the note would otherwise read "unreachable: null".
+     */
+    static String rootMessage(Throwable e) {
         Throwable cause = e;
         while (cause.getCause() != null) {
             cause = cause.getCause();
         }
-        return cause.getMessage();
+        String message = cause.getMessage();
+        return message == null || message.isBlank() ? cause.getClass().getSimpleName() : message;
     }
 
     /**
@@ -219,15 +241,21 @@ public class AdFetcher {
      * is the same outcome as before, one budget later.
      */
     private boolean awaitToken() {
-        while (!takeToken()) {
-            if (spent()) {
-                return false;
-            }
-            if (!sleepUntilAPermitIsFree()) {
-                return false;
-            }
+        return counted(window.awaitTake(settings.rateLimitPerMinute(), this::spent));
+    }
+
+    /**
+     * A permit if the window has one now. The fresh fetch's gate, which never waits.
+     */
+    private boolean takeNow() {
+        return counted(window.tryTake(settings.rateLimitPerMinute()));
+    }
+
+    private synchronized boolean counted(boolean took) {
+        if (took) {
+            taken++;
         }
-        return true;
+        return took;
     }
 
     /**
@@ -238,68 +266,11 @@ public class AdFetcher {
     }
 
     /**
-     * Until the oldest request in the window ages out, and no longer.
-     *
-     * @return false when the wait was interrupted, which ends the pass rather than
-     * swallowing the flag: an interrupt during a shutdown must not turn into a
-     * twelve-minute wait nobody asked for.
-     */
-    private boolean sleepUntilAPermitIsFree() {
-        Duration wait;
-        synchronized (this) {
-            Instant oldest = recentRequests.peekFirst();
-            if (oldest == null) {
-                return true;
-            }
-            wait = Duration.between(clock.instant(), oldest.plus(WINDOW));
-        }
-        if (wait.isNegative() || wait.isZero()) {
-            return true;
-        }
-        try {
-            pause(wait.plusMillis(50));
-            return true;
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            return false;
-        }
-    }
-
-    /**
-     * The one place real time is spent, and the seam a test replaces.
-     *
-     * <p>The wait is computed from the injectable clock and served by the real one, so a
-     * frozen clock would otherwise mean a minute of actual sleeping and then a window that
-     * never frees. Overridden, a test can move the clock the same amount instead — the same
-     * reason {@link #clock} is injectable at all.
-     */
-    void pause(Duration wait) throws InterruptedException {
-        Thread.sleep(wait.toMillis());
-    }
-
-    /**
-     * A sliding window rather than a fixed one: twenty a minute has to mean twenty in any
-     * sixty seconds, not twenty at the top of each minute and forty across the boundary.
-     */
-    private synchronized boolean takeToken() {
-        Instant now = clock.instant();
-        Instant cutoff = now.minus(WINDOW);
-        while (!recentRequests.isEmpty() && recentRequests.peekFirst().isBefore(cutoff)) {
-            recentRequests.removeFirst();
-        }
-        if (recentRequests.size() >= settings.rateLimitPerMinute()) {
-            return false;
-        }
-        recentRequests.addLast(now);
-        taken++;
-        return true;
-    }
-
-    /**
      * robots.txt is fetched outside the rate limit: it is what makes the rest polite.
      *
      * <p>Not retried either. An unreachable robots.txt means allowed, so a retry would only
-     * delay the same conclusion — and it is fetched once per host, not once per offer.
+     * delay the same conclusion — and it is fetched once per host per fetcher, not once per
+     * offer. A fresh fetch builds a fetcher per press, which is why it takes its permit first.
      */
     private String readRobots(URI robotsUri) {
         try {

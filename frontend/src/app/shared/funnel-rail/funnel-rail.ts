@@ -36,6 +36,12 @@ export class FunnelRail {
     readonly total = input.required<number>();
     /** A catalog key, not a sentence — `shared/` holds no prose either. */
     readonly survivorLabel = input('funnel.survived');
+    /**
+     * One line instead of the seven rows: the stage totals as a chain and the survivor bar,
+     * for a cell that has no room for a rail (the dashboard's hero, spec 006). The same
+     * segments and the same reveal; only the rows are gone.
+     */
+    readonly compact = input(false);
 
     /**
      * Width tracks what is *left* after each stage rather than what the stage

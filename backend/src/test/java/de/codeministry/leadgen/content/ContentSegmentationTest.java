@@ -29,7 +29,7 @@ class ContentSegmentationTest {
      * then the recruiter's standing footer. Trimmed, and structurally identical to the real
      * thing.
      */
-    private static final String ADVERT = """
+    static final String ADVERT = """
             # Angular Entwickler (m/w/d), remote
 
             [Contractor Consulting GmbH](https://example.invalid/company/471-contractor)

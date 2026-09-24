@@ -4,13 +4,18 @@ import {ActivatedRoute, ActivatedRouteSnapshot, NavigationEnd, Router, RouterOut
 import {filter, map} from 'rxjs';
 import {injectDispatch} from '@ngrx/signals/events';
 import {statusEvents} from '@core/store/status.events';
+import {isSection, Section} from '@core/theme/section.model';
 import {AppHeader} from '../app-header/app-header';
+import {ToastStack} from '../toast-stack/toast-stack';
 
 @Component({
     selector: 'lg-app-shell',
-  imports: [AppHeader, RouterOutlet],
+  imports: [AppHeader, RouterOutlet, ToastStack],
     templateUrl: './app-shell.html',
     styleUrl: './app-shell.css',
+    // The section colour is keyed off this attribute in `tokens.css`; on the host so the
+    // header, the nav, the toast stack and the routed screen all sit inside it.
+    host: {'[attr.data-section]': 'section()'},
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AppShell implements OnInit {
@@ -70,6 +75,17 @@ export class AppShell implements OnInit {
      * `min-height`, so every screen without this flag scrolls the document exactly as before.
      */
     protected readonly fill = computed(() => this.leaf().data['fill'] === true);
+
+    /**
+     * Which of the seven destinations the routed screen belongs to, or nothing while the
+     * redirect is still resolving. Read from the leaf, so a child route inherits its
+     * parent's section for free — the detail under the shortlist is the shortlist's colour,
+     * the same detail under the pipeline is the pipeline's.
+     */
+    protected readonly section = computed<Section | null>(() => {
+        const value = this.leaf().data['section'];
+        return isSection(value) ? value : null;
+    });
 
     ngOnInit(): void {
         this.dispatch.opened();

@@ -8,34 +8,37 @@
     gap: 0.5rem;
 }
 
-/* A mask, not an image. The asset is a flat single-colour silhouette — the favicon
-   script already keys out the white and repaints from the alpha channel alone — so
-   the only thing in it worth keeping is the shape, and the fill can be the theme's.
-   Petrol is 6.15:1 on white and 5.80:1 on the sand page, well past the 3:1 a
-   graphical object needs; on the dark theme `--color-primary` is the logo's own cyan,
-   so nothing visibly changes there.
-
-   What it removes is the dark plate. `#161F22` on the white bar is 16.8:1 — the
-   highest-contrast object in the whole light theme, and the only one carrying no
-   information. The size is set on both axes because a mask has no intrinsic ratio.
-
-   `url()` is root-absolute, matching the `<base href="/">` the app is served under. No
-   `-webkit-` prefix by hand — stylelint forbids it and the build's autoprefixer adds
-   whatever the browserslist target still needs. */
+/* Inline SVG, two colours. The ring is a stroke in the theme's primary (teal by day,
+   lavender at night), the two dots are the signal — the brand's accent, on the operator's
+   word: the lead ring is a lead. Both are measured at 3:1 on both surfaces of both themes
+   by `contrast.browser.spec.ts` (ISC-240). The size is written on both axes so the box is
+   known before the SVG lays out; the viewBox is square, so they are equal. */
 .mark {
     flex: none;
-  background-color: var(--color-primary);
-  mask: url('/logo-mark.png') center / contain no-repeat;
+    display: block;
 }
 
-/* Forced colours drop background images and background colours alike, so a masked
-   element disappears entirely. The wordmark still names the link above 30rem; below it
-   the wordmark is sr-only, so the mark keeps a visible box rather than vanishing. */
+.body {
+    fill: none;
+    stroke: var(--color-primary);
+    stroke-width: 4.5;
+    stroke-linecap: round;
+}
+
+.signal {
+    fill: var(--lg-signal);
+}
+
+/* Forced colours drop authored fills and strokes to the system palette; naming
+   `canvastext` keeps the mark a visible shape rather than letting it vanish. */
 @media (forced-colors: active) {
-  .mark {
-    forced-color-adjust: none;
-    background-color: canvastext;
-  }
+    .body {
+        stroke: canvastext;
+    }
+
+    .signal {
+        fill: canvastext;
+    }
 }
 
 .wordmark {
@@ -46,21 +49,20 @@
     white-space: nowrap;
 }
 
-/* The casing is written out rather than transformed: the two halves differ in
-   case as well as in colour, so a `text-transform` on the wrapper cannot express
-   it. */
-.wordmark-lead {
+/* The name is ANNUSA AI (the operator's word, 2026-09-24), written ANNUSA|AI with the pipe in the tail: the two halves
+   differ in weight as well as in colour, so the split reads at 26px without a gap. */
+.wordmark-head {
     font-variation-settings: 'opsz' 18,
     'wght' 700;
     color: var(--color-primary);
 }
 
-/* `--color-accent` is a fill, not a text colour, and fails AA at this size.
-   `--lg-accent-text` is the text variant of the same ochre. */
-.wordmark-gen {
+/* The brand takes the signal on purpose: the lead ring is a lead, and the operator wants the
+   bright tone as the brand's accent in both themes (2026-09-24). The text twin, for 4.5:1. */
+.wordmark-tail {
     font-variation-settings: 'opsz' 18,
     'wght' 500;
-    color: var(--lg-accent-text);
+    color: var(--lg-signal-text);
 }
 
 /* Below 30rem the header cannot hold logo, wordmark, action and theme toggle at
@@ -78,11 +80,12 @@
 }
 
 /* The wordmark is the first thing to give up when the header row gets tight: the mark alone
-   still says which application this is, and the seven navigation labels beside it are worth
-   more. The rule lives here rather than in the header's stylesheet because view
-   encapsulation puts `.wordmark` out of a parent's reach, and toggling the input by width
-   would mean `matchMedia` in TypeScript for a decision CSS already makes. */
-@media (width < 90rem) {
+   still says which application this is. It goes at the same 64rem as the navigation labels
+   in `app-nav.css`, so a landscape tablet keeps both. The rule lives here rather than in the
+   header's stylesheet because view encapsulation puts `.wordmark` out of a parent's reach,
+   and toggling the input by width would mean `matchMedia` in TypeScript for a decision CSS
+   already makes. */
+@media (width < 64rem) {
   :host(.compact) .wordmark {
     display: none;
   }

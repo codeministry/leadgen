@@ -2,18 +2,20 @@ import {DOCUMENT, effect, inject, Provider, Signal, signal} from '@angular/core'
 import {CHART_PALETTE, ChartPalette} from '@shared/shared.ports';
 import {ThemeStore} from './theme.store';
 
-/** Seven, because there are seven filter stages and each needs its own step. */
-const STAGE_STEPS = 7;
-
-const FALLBACK: ChartPalette = {
-    primary: '#0E6E6B',
-    secondary: '#0A4E4C',
-    accent: '#C2820B',
-    track: '#E7E2D8',
-    label: '#647470',
+/**
+ * The light theme, as hex, for the one moment `getComputedStyle` has nothing to say.
+ * `theme-colors.spec.ts` holds every value here to the `oklch()` it mirrors in
+ * `styles.css`, so this cannot drift again: it had, by two values, before the guard.
+ */
+export const FALLBACK: ChartPalette = {
+    primary: '#107970',
+    secondary: '#054D47',
+    accent: '#CC2997',
+    track: '#DFE6E7',
+    label: '#566768',
     surface: '#FFFFFF',
-    ink: '#1A2422',
-    stages: Array.from({length: STAGE_STEPS}, () => '#B9C2BF'),
+    ink: '#0F1D20',
+    stages: ['#D4DDDD', '#BBC7C7', '#A3B1B2', '#8B9C9D', '#748788', '#5B7071', '#435A5B'],
 };
 
 /**

@@ -13,6 +13,7 @@ import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import de.codeministry.leadgen.config.model.CoverLetterStyle;
 import de.codeministry.leadgen.config.model.MatchingRules;
 import de.codeministry.leadgen.config.model.PipelineConfig;
 import de.codeministry.leadgen.config.model.SkillProfile;
@@ -53,6 +54,7 @@ public class ConfigLoader {
     public static final String SOURCES_FILE = "sources.yaml";
     public static final String RULES_FILE = "matching-rules.yaml";
     public static final String PROFILE_FILE = "skill-profile.yaml";
+    public static final String STYLE_FILE = "cover-letter.yaml";
 
     private final ConfigProperties properties;
     private final Validator validator;
@@ -86,9 +88,11 @@ public class ConfigLoader {
         SourcesConfig sources = checkSelectors(resolveInheritance(
                 read(source(dir, fileName(sourcesPath(pipeline), SOURCES_FILE)), SourcesConfig.class)));
         SkillProfile profile = read(source(dir, fileName(pipeline.profile().path(), PROFILE_FILE)), SkillProfile.class);
+        CoverLetterStyle coverLetter = read(source(dir, STYLE_FILE), CoverLetterStyle.class);
 
         checkConsistency(dir, pipeline, rules, sources, profile);
-        return new ConfigSnapshot(pipeline, rules, sources, profile, Instant.now());
+        checkCoverLetterLanguages(profile, coverLetter);
+        return new ConfigSnapshot(pipeline, rules, sources, profile, coverLetter, Instant.now());
     }
 
     /**
@@ -114,7 +118,8 @@ public class ConfigLoader {
                         PIPELINE_FILE,
                         fileName(pipeline.rules().path(), RULES_FILE),
                         fileName(sourcesPath(pipeline), SOURCES_FILE),
-                        fileName(pipeline.profile().path(), PROFILE_FILE))
+                        fileName(pipeline.profile().path(), PROFILE_FILE),
+                        STYLE_FILE)
                 .distinct()
                 .map(dir::resolve)
                 .toList();
@@ -502,11 +507,33 @@ public class ConfigLoader {
     }
 
     /**
+     * Not a problem, a warning: an override that names rules for one language only leaves
+     * the letters of the other without a salutation, a closing, a banned phrase or a word
+     * limit, so every letter in it falls back to the template — which looks exactly like a
+     * writing model that never answered. A letter is written in German or English, and in any
+     * language a CV variant is kept for.
+     */
+    private static void checkCoverLetterLanguages(SkillProfile profile, CoverLetterStyle coverLetter) {
+        var languages = new TreeSet<>(List.of("de", "en"));
+        if (profile.cvVariants() != null) {
+            profile.cvVariants().keySet().forEach(language -> languages.add(language.toLowerCase(Locale.ROOT)));
+        }
+        for (String language : languages) {
+            if (!coverLetter.hasRulesFor(language)) {
+                log.warn(
+                        "{} names no rules for '{}'; letters in that language are written from the template and never drafted by the writing model, which has no salutation, closing, banned phrase or word limit for it",
+                        STYLE_FILE,
+                        language);
+            }
+        }
+    }
+
+    /**
      * Only for the log line at startup: which of the files came from outside the jar.
      */
     public List<String> overriddenFiles() {
         Path dir = properties.configDirectory();
-        return List.of(PIPELINE_FILE, RULES_FILE, SOURCES_FILE, PROFILE_FILE).stream()
+        return List.of(PIPELINE_FILE, RULES_FILE, SOURCES_FILE, PROFILE_FILE, STYLE_FILE).stream()
                 .filter(name -> Files.isRegularFile(dir.resolve(name)))
                 .toList();
     }

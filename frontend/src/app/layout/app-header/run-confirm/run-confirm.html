@@ -1,0 +1,21 @@
+<!-- daisyUI's `.modal` and no local `display`, for the reason `saved-views.html` gives: an
+     author `display` beats the UA's `dialog:not([open]) { display: none }`. The backdrop is
+     daisyUI's own `modal-backdrop` form, so a click beside the box is a cancel too. -->
+<dialog #dialog class="modal lg-run-confirm" aria-labelledby="lg-run-confirm-title" (cancel)="cancel($event)" (close)="onClose()">
+  <div class="modal-box" role="document">
+    <h2 class="type-h3" id="lg-run-confirm-title">{{ 'shell.confirmRun.title' | transloco }}</h2>
+    <p class="type-small">{{ 'shell.confirmRun.body' | transloco }}</p>
+
+    <div class="modal-action">
+      <button type="button" class="btn btn-sm btn-ghost" (click)="cancel()">
+        {{ 'common.cancel' | transloco }}
+      </button>
+      <button type="button" class="btn btn-sm btn-primary" (click)="confirm()">
+        {{ 'shell.confirmRun.start' | transloco }}
+      </button>
+    </div>
+  </div>
+  <form method="dialog" class="modal-backdrop">
+    <button type="submit" tabindex="-1" aria-hidden="true">{{ 'common.cancel' | transloco }}</button>
+  </form>
+</dialog>

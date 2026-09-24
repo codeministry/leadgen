@@ -110,8 +110,8 @@
     gap: 0.5rem;
     border: 1px dashed transparent;
     border-radius: var(--radius-field);
-    transition: border-color 140ms ease,
-    background-color 140ms ease;
+    transition: border-color var(--lg-hover-duration) var(--lg-hover-ease),
+    background-color var(--lg-hover-duration) var(--lg-hover-ease);
 }
 
 /* While a card is in the air every state is a target, named and with a box of its own. The
@@ -127,10 +127,11 @@
 }
 
 
-/* Petrol and never ochre: ochre means "this survived the filter" on every screen in this
-   application, and a drop target is not a statement about the offer. `.cdk-drop-list-dragging`
-   is the list the card came from, `.cdk-drop-list-receiving` every other one — so a drag lights
-   up where it can go without also claiming the card is already there. */
+/* `--color-primary` and never the signal: the signal means "this survived the filter" on
+   every screen in this application, and a drop target is not a statement about the offer.
+   `.cdk-drop-list-dragging` is the list the card came from, `.cdk-drop-list-receiving` every
+   other one — so a drag lights up where it can go without also claiming the card is already
+   there. */
 .cards.cdk-drop-list-receiving {
     border-color: var(--color-primary);
     background-color: var(--lg-selected-surface);
@@ -163,8 +164,8 @@
     border: 1px solid var(--color-base-300);
     border-radius: var(--radius-field);
     background-color: var(--color-base-200);
-    transition: border-color 140ms ease,
-    background-color 140ms ease;
+    transition: border-color var(--lg-hover-duration) var(--lg-hover-ease),
+    background-color var(--lg-hover-duration) var(--lg-hover-ease);
 }
 
 /* The border alone, the same treatment the shortlist's card carries: a wash here would have
@@ -184,7 +185,7 @@
     padding-block: 0.25rem;
     color: var(--lg-muted);
     cursor: grab;
-    transition: color 140ms ease;
+    transition: color var(--lg-hover-duration) var(--lg-hover-ease);
 }
 
 .card-grip:active {
@@ -221,7 +222,7 @@
     outline-offset: 2px;
 }
 
-/* Which offer the reading column is showing, in petrol — never the ochre accent, which
+/* Which offer the reading column is showing, in `--color-primary` — never the signal, which
    means one thing only. The same edge marker the shortlist's cards carry. */
 .lane-card.is-selected {
     border-color: var(--color-primary);

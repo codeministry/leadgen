@@ -13,7 +13,11 @@ export const manualEvents = eventGroup({
         /** The corrected fields, written back into the file and moved where the source reads. */
         confirmed: type<{ name: string; fields: ManualOfferFields }>(),
         rejected: type<string>(),
-        /** One document left the queue, whichever way it went. */
-        settled: type<string>(),
+        /**
+         * One document left the queue, and which way it went. The reducer reads only the
+         * name; the outcome is for whoever tells the person, because "settled" is not a
+         * sentence anybody wants to read.
+         */
+        settled: type<{ name: string; outcome: 'confirmed' | 'rejected' }>(),
     },
 });

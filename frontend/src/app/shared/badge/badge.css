@@ -1,9 +1,26 @@
 /* Not `type-caption`: that uppercases, and a badge usually carries a proper noun
-   — portal and agency names — which uppercasing turns into shouting. */
+   — portal and agency names — which uppercasing turns into shouting.
+
+   A badge never wraps, so one long agency name is wider than a 320px card and pushes the
+   whole page sideways (measured 2026-09-24: 249px of badge on a 190px column). The host
+   may shrink to its column and the text ellipsises inside it; `inline-block` rather than
+   daisyUI's `inline-flex` because an ellipsis needs a block formatting context around
+   the text node. */
+:host {
+    display: inline-block;
+    max-width: 100%;
+    min-width: 0;
+}
+
 .lg-badge-text {
+    display: inline-block;
+    max-width: 100%;
+    overflow: hidden;
     font-family: var(--font-sans);
     font-size: 0.75rem;
     font-weight: 500;
     letter-spacing: 0.01em;
+    text-overflow: ellipsis;
+    vertical-align: middle;
     white-space: nowrap;
 }

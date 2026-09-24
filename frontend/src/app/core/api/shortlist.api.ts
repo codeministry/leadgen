@@ -145,4 +145,14 @@ export class ShortlistApi {
             params: scoringModelParams(model),
         });
     }
+
+    /**
+     * Fetch this offer's original ad again, now. A POST because it leaves the machine and
+     * rewrites the offer, and it answers with the whole entry, as the rescore does. A page that
+     * refused again is a 200 whose enrichment note says why; a 409 means this offer is not one
+     * to fetch and a 429 that the minute's fetches are spent, each with its sentence.
+     */
+    refetch(id: number): Observable<ShortlistEntry> {
+        return this.http.post<ShortlistEntry>(`/api/v1/offers/${id}/fetch`, null);
+    }
 }

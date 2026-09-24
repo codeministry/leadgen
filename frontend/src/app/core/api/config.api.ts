@@ -6,9 +6,10 @@ import {RulesView} from '@core/model/rules-view';
 import {ScoringModels} from '@core/model/scoring-models';
 import {SourceDetail} from '@core/model/source-detail';
 import {SourcesView} from '@core/model/source-summary';
+import {WorkflowView} from '@core/model/workflow';
 
 /**
- * `/api/v1/sources`, `/api/v1/rules` and `/api/v1/prompts` — the configuration as the screens read it.
+ * `/api/v1/sources`, `/api/v1/rules`, `/api/v1/prompts` and `/api/v1/workflow` — the configuration as the screens read it.
  *
  * Read-only, and deliberately so: the four YAML files are the source of truth and they
  * are hot-reloaded, so a write path here would mean two ways to change the same thing.
@@ -48,6 +49,14 @@ export class ConfigApi {
      */
     prompts(): Observable<readonly PromptView[]> {
         return this.http.get<readonly PromptView[]>('/api/v1/prompts');
+    }
+
+    /**
+     * The pipeline as phases and stages, each stage with the keys it reads. The rules screen
+     * draws its rail and its detail from this; nothing on the pipeline side reads it.
+     */
+    workflow(): Observable<WorkflowView> {
+        return this.http.get<WorkflowView>('/api/v1/workflow');
     }
 
     /** What the select beside the run button may offer, and what a run takes by default. */

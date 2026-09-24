@@ -173,5 +173,22 @@ describe('Sources', () => {
     flushDetail();
   });
 
+  it('declares the table as a section, and an open panel adds its two headings', async () => {
+    const harness = await openList();
+    const root = harness.fixture.nativeElement as HTMLElement;
+    const hrefs = () => Array.from(root.querySelectorAll('lg-anchor-rail nav a'), (a) => (a.getAttribute('href') ?? '').replace(/^[^#]*/, ''));
+    expect(hrefs()).toEqual(['#sources']);
+    expect(root.querySelector('h2#sources.lg-anchor-target')).not.toBeNull();
+
+    await harness.navigateByUrl('/sources/demo-newsletter');
+    flushDetail();
+    harness.detectChanges();
+
+    expect(hrefs()).toEqual(['#sources', '#runs', '#block']);
+    for (const id of ['runs', 'block']) {
+      expect(root.querySelector(`h3#${id}.lg-anchor-target`)?.getAttribute('tabindex'), id).toBe('-1');
+    }
+  });
+
   afterEach(() => http.verify());
 });

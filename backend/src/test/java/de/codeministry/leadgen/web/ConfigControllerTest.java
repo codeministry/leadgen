@@ -15,7 +15,11 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import de.codeministry.leadgen.config.ConfigFixtures;
 import de.codeministry.leadgen.config.ConfigRegistry;
+import de.codeministry.leadgen.config.ConfigSnapshot;
 import de.codeministry.leadgen.config.SourceDetail;
 import de.codeministry.leadgen.config.SourceDetailService;
 import de.codeministry.leadgen.config.SourceQueryService;
@@ -23,17 +27,26 @@ import de.codeministry.leadgen.config.SourceTrend;
 import de.codeministry.leadgen.config.SourcesView;
 import de.codeministry.leadgen.config.YamlBlock;
 import de.codeministry.leadgen.score.Judges;
+import jakarta.validation.Validation;
+import jakarta.validation.Validator;
+import jakarta.validation.ValidatorFactory;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.HttpStatus;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
+import org.springframework.test.web.servlet.assertj.MvcTestResult;
 
 /**
- * The edge of the one endpoint on this controller that serves file text.
+ * The edge of the one endpoint on this controller that serves file text, and the field names of
+ * {@code /rules} and {@code /prompts}, which the MCP server's pipeline-config tool reads and which
+ * therefore do not change shape under it.
  */
 @WebMvcTest(ConfigController.class)
 class ConfigControllerTest {
@@ -112,5 +125,80 @@ class ConfigControllerTest {
                 null,
                 List.of(),
                 new SourceTrend(null, null, null, null, null, false));
+    }
+
+    // --- ISC-286: the codeministry-mcp pipeline-config tool reads /rules and /prompts, and
+    // this repository cannot see when a renamed or dropped field there breaks it. These two
+    // tests pin the field names of both responses, at every nesting level, as they stand
+    // today — against the shipped defaults rather than a hand-built fixture, because a field
+    // that exists only under a fixture's shape is not the field the MCP tool actually reads.
+
+    private static final ValidatorFactory VALIDATOR_FACTORY = Validation.buildDefaultValidatorFactory();
+    private static final Validator VALIDATOR = VALIDATOR_FACTORY.getValidator();
+    private static final ObjectMapper JSON = new ObjectMapper();
+
+    @AfterAll
+    static void closeValidatorFactory() {
+        VALIDATOR_FACTORY.close();
+    }
+
+    private static ConfigSnapshot shippedSnapshot() {
+        return ConfigFixtures.loaderFor(ConfigFixtures.shippedDefaults(), VALIDATOR)
+                .load();
+    }
+
+    @Test
+    void rulesKeepsTheFieldNamesTheMcpPipelineConfigToolReadsToday() throws Exception {
+        given(config.snapshot()).willReturn(shippedSnapshot());
+
+        MvcTestResult result = mvc.get().uri("/api/v1/rules").exchange();
+        assertThat(result).hasStatusOk();
+        JsonNode body = JSON.readTree(result.getResponse().getContentAsString());
+
+        assertThat(fieldNames(body))
+                .containsExactlyInAnyOrder(
+                        "version",
+                        "weights",
+                        "penalties",
+                        "thresholds",
+                        "archiveAfterDays",
+                        "knockouts",
+                        "interestTopics",
+                        "disinterestTopics");
+        assertThat(fieldNames(body.path("thresholds"))).containsExactlyInAnyOrder("autoShortlist", "review", "discard");
+
+        assertThat(body.path("weights")).isNotEmpty();
+        assertThat(fieldNames(body.path("weights").get(0))).containsExactlyInAnyOrder("key", "points");
+
+        assertThat(body.path("penalties")).isNotEmpty();
+        assertThat(fieldNames(body.path("penalties").get(0))).containsExactlyInAnyOrder("key", "points");
+
+        assertThat(body.path("knockouts")).isNotEmpty();
+        assertThat(fieldNames(body.path("knockouts").get(0)))
+                .containsExactlyInAnyOrder("key", "label", "value", "values");
+
+        assertThat(body.path("interestTopics")).isNotEmpty();
+        assertThat(fieldNames(body.path("interestTopics").get(0))).containsExactlyInAnyOrder("name", "weight");
+
+        assertThat(body.path("disinterestTopics")).isNotEmpty();
+        assertThat(fieldNames(body.path("disinterestTopics").get(0))).containsExactlyInAnyOrder("name", "weight");
+    }
+
+    @Test
+    void promptsKeepsTheFieldNamesTheMcpPipelineConfigToolReadsToday() throws Exception {
+        given(config.snapshot()).willReturn(shippedSnapshot());
+
+        MvcTestResult result = mvc.get().uri("/api/v1/prompts").exchange();
+        assertThat(result).hasStatusOk();
+        JsonNode body = JSON.readTree(result.getResponse().getContentAsString());
+
+        assertThat(body).isNotEmpty();
+        assertThat(fieldNames(body.get(0))).containsExactlyInAnyOrder("id", "model", "system", "user");
+    }
+
+    private static Set<String> fieldNames(JsonNode node) {
+        var names = new LinkedHashSet<String>();
+        node.fieldNames().forEachRemaining(names::add);
+        return names;
     }
 }

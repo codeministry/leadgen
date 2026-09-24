@@ -17,6 +17,12 @@ Carried over from a sibling Angular project, which is the house style:
   on — a relative `../../core/...` slips past the rule. Relative imports only between
   siblings. **No barrels** (`index.ts`).
 - **`shared/` imports nothing from the layers above it**, not even types.
+- **A toast is raised in `core/toast/` from a store's answer event, never from a screen.**
+  Failures stay inline; the toast links and never undoes — `docs/decisions/frontend-design-system.md` § Toasts.
+- **Three action tiers, one signal, seven section colours.** `btn-primary` once per area,
+  `btn-soft btn-primary` for the rest, `btn-ghost` for close/back/clear; the signal (`--lg-signal`)
+  means "survived the filter" and the brand, nothing else; `--lg-section` is orientation and
+  never a button — `docs/decisions/frontend-design-system.md` § The renovation.
 - **Standalone components, signals, `OnPush`, zoneless.** `input()`/`output()`/`model()`,
   `signal`/`computed`, `inject()`, `@if`/`@for`. No `@Input/@Output`, no `*ngIf`, no
   `| async`. RxJS only at the I/O boundary, bridged in with `toSignal`.
@@ -130,6 +136,9 @@ Carried over from a sibling Angular project, which is the house style:
   height chain — were all correct in the same Safari, and the same page measured correctly a minute later.
   `OfferDetail.relayoutAd` detaches the box and reads a metric off it after the toggle. It is a workaround on an
   observation, not on a reproduced cause, and it says so.
+- **A bare `href="#id"` resolves against `<base href="/">`, not the page**, so an in-page anchor
+  navigates to the dashboard with a hash. In-page links are `[routerLink]="[]"` with `[fragment]`,
+  and the click handler scrolls and focuses — `shared/anchor-rail/`.
 - **ImageMagick renders SVG with its own parser and drops paths containing arcs** unless
   `rsvg-convert` is on PATH as its delegate. The first favicon looked broken for that
   reason alone, with the geometry perfectly correct.
