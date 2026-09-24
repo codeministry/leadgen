@@ -5,6 +5,7 @@ import {catchError, exhaustMap, map, of} from 'rxjs';
 import {AppStatus, StatusApi} from '@core/api/status.api';
 import {statusEvents} from './status.events';
 import {refreshEvents} from '@core/refresh/refresh.events';
+import {withAppDevtools} from '@core/store/devtools';
 
 interface StatusState {
     status: AppStatus | null;
@@ -23,6 +24,7 @@ const initialState: StatusState = {status: null, error: null, loading: false};
 export const StatusStore = signalStore(
     {providedIn: 'root'},
     withState(initialState),
+    withAppDevtools('status'),
     withReducer(
         on(statusEvents.opened, () => ({loading: true, error: null})),
         on(statusEvents.loaded, ({payload}) => ({status: payload, loading: false})),

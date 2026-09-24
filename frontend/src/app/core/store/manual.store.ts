@@ -6,6 +6,7 @@ import {serverMessage} from '@core/api/server-message';
 import {ManualApi} from '@core/api/manual.api';
 import {PendingDocument} from '@core/model/manual-document';
 import {manualEvents} from './manual.events';
+import {withAppDevtools} from '@core/store/devtools';
 
 interface ManualState {
     documents: readonly PendingDocument[];
@@ -27,6 +28,7 @@ const initialState: ManualState = {
 export const ManualStore = signalStore(
     {providedIn: 'root'},
     withState(initialState),
+    withAppDevtools('manual'),
     withComputed(({documents}) => ({
         waiting: computed(() => documents().length),
         /** How many of them the pipeline already holds under the same normalized title. */

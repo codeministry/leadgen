@@ -5,6 +5,7 @@ import {catchError, exhaustMap, map, of} from 'rxjs';
 import {AnalyticsApi} from '@core/api/analytics.api';
 import {AnalyticsSummary} from '@core/model/analytics';
 import {refreshEvents} from '@core/refresh/refresh.events';
+import {withAppDevtools} from '@core/store/devtools';
 import {summaryEvents} from './summary.events';
 
 interface SummaryState {
@@ -24,6 +25,7 @@ const initialState: SummaryState = {summary: null, error: null, loading: false};
 export const SummaryStore = signalStore(
     {providedIn: 'root'},
     withState(initialState),
+    withAppDevtools('summary'),
     withReducer(
         on(summaryEvents.opened, () => ({loading: true, error: null})),
         on(summaryEvents.loaded, ({payload}) => ({summary: payload, loading: false})),

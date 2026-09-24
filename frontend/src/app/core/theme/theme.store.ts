@@ -3,6 +3,7 @@ import {signalStore, withComputed, withHooks, withState} from '@ngrx/signals';
 import {Dispatcher, on, withReducer} from '@ngrx/signals/events';
 import {themeEvents} from './theme.events';
 import {DATA_THEME_ATTR, isThemePreference, ResolvedTheme, THEME_STORAGE_KEY, ThemePreference,} from './theme.model';
+import {withAppDevtools} from '@core/store/devtools';
 
 interface ThemeState {
     preference: ThemePreference;
@@ -37,6 +38,7 @@ const initialState: ThemeState = {preference: DEFAULT_PREFERENCE, systemPrefersD
 export const ThemeStore = signalStore(
     {providedIn: 'root'},
     withState(initialState),
+    withAppDevtools('theme'),
     withComputed(({preference, systemPrefersDark}) => ({
         theme: computed<ResolvedTheme>(() => {
             const chosen = preference();

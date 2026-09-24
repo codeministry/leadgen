@@ -12,6 +12,7 @@ import {configEvents} from './config.events';
 import {ingestEvents} from './ingest.events';
 import {shortlistEvents} from './shortlist.events';
 import {refreshEvents} from '@core/refresh/refresh.events';
+import {withAppDevtools} from '@core/store/devtools';
 
 interface ConfigState {
     sources: readonly SourceSummary[];
@@ -94,6 +95,7 @@ const RUNS = 30;
 export const ConfigStore = signalStore(
     {providedIn: 'root'},
     withState(initialState),
+    withAppDevtools('config'),
     withReducer(
       on(configEvents.sourcesOpened, () => ({sourcesLoading: true, sourcesError: null})),
       on(configEvents.sourcesLoaded, ({payload}) => ({

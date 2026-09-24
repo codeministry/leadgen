@@ -7,6 +7,7 @@ import {AnalyticsView} from '@core/model/analytics';
 import {analyticsEvents} from './analytics.events';
 import {ingestEvents} from './ingest.events';
 import {refreshEvents} from '@core/refresh/refresh.events';
+import {withAppDevtools} from '@core/store/devtools';
 
 interface AnalyticsState {
     view: AnalyticsView | null;
@@ -26,6 +27,7 @@ const initialState: AnalyticsState = {view: null, error: null, loading: false};
 export const AnalyticsStore = signalStore(
     {providedIn: 'root'},
     withState(initialState),
+    withAppDevtools('analytics'),
     withReducer(
         on(analyticsEvents.opened, () => ({loading: true, error: null})),
         on(analyticsEvents.loaded, ({payload}) => ({view: payload, loading: false})),

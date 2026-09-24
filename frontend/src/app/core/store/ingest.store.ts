@@ -9,6 +9,7 @@ import {LastRunView} from '@core/model/last-run';
 import {refreshEvents} from '@core/refresh/refresh.events';
 import {ingestEvents} from './ingest.events';
 import {ScoringModelStore} from './scoring-model.store';
+import {withAppDevtools} from '@core/store/devtools';
 
 interface IngestState {
     /** What a run this browser started handed back. Null until somebody presses the button. */
@@ -50,6 +51,7 @@ const initialState: IngestState = {
 export const IngestStore = signalStore(
     {providedIn: 'root'},
     withState(initialState),
+    withAppDevtools('ingest'),
   withComputed(({report, lastRun, current, running}) => ({
     /**
      * Whether a pass is going on at all, started here or anywhere else. What the button

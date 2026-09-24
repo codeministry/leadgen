@@ -11,6 +11,7 @@ import {ShortlistEntry} from '@core/model/shortlist-entry';
 import {RelatedCoverage, ShortlistFilters} from '@core/model/shortlist-page';
 import {ScoringModelStore} from './scoring-model.store';
 import {shortlistEvents} from './shortlist.events';
+import {withAppDevtools} from '@core/store/devtools';
 
 interface ShortlistState {
     entries: readonly ShortlistEntry[];
@@ -150,6 +151,7 @@ const initialState: ShortlistState = {
 export const ShortlistStore = signalStore(
     {providedIn: 'root'},
     withState(initialState),
+    withAppDevtools('shortlist'),
   withComputed(({cursor, picked}) => ({
         // Both the portals and the unscored count come from the server now. Derived from the
         // loaded entries, the dropdown offered fewer choices and the count told a smaller

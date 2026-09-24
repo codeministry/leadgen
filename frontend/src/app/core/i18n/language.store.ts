@@ -11,6 +11,7 @@ import {
     languageOf,
     LanguagePreference,
 } from './language.model';
+import {withAppDevtools} from '@core/store/devtools';
 
 interface LanguageState {
     preference: LanguagePreference;
@@ -36,6 +37,7 @@ const initialState: LanguageState = {
 export const LanguageStore = signalStore(
     {providedIn: 'root'},
     withState(initialState),
+    withAppDevtools('language'),
     withComputed(({preference, systemLanguage}) => ({
         language: computed<Language>(() => {
             const chosen = preference();
