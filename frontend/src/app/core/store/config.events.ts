@@ -4,6 +4,7 @@ import {PromptView} from '@core/model/prompt-view';
 import {RulesView} from '@core/model/rules-view';
 import {SourceDetail} from '@core/model/source-detail';
 import {SourcesView} from '@core/model/source-summary';
+import {WorkflowView} from '@core/model/workflow';
 
 /**
  * Two screens, one store, and therefore two `*Opened` events: the sources list and the rules
@@ -24,6 +25,8 @@ export const configEvents = eventGroup({
         rulesOpened: type<void>(),
         rulesLoaded: type<RulesView>(),
         promptsLoaded: type<readonly PromptView[]>(),
+        /** The pipeline as phases and stages, the rules screen's rail and detail. */
+        workflowLoaded: type<WorkflowView>(),
       /**
        * One per screen, because the state they write is one per screen. A single `failed`
        * meant an error raised while the rules loaded turned up on the sources screen after

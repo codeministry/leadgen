@@ -276,6 +276,28 @@ describe.each(THEMES)('%s: the section colour is orientation only (ISC-230)', th
     });
 });
 
+describe.each(THEMES)('%s: the AI marker reads (ISC-309)', theme => {
+    beforeEach(() => useTheme(theme));
+    afterEach(() => document.documentElement.removeAttribute('data-theme'));
+
+    it('defines --lg-ai and its band under the theme', () => {
+        expect(token('--lg-ai')).toMatch(/^oklch\(/);
+        expect(token('--lg-ai-surface')).toMatch(/^oklch\(/);
+    });
+
+    it('the marker icon is ≥ 3:1 on both surfaces and on its own band', () => {
+        for (const ground of ['--color-base-100', '--color-base-200', '--lg-ai-surface']) {
+            expect(ratio(token('--lg-ai'), token(ground)), `--lg-ai on ${ground}`).toBeGreaterThanOrEqual(OBJECT_FLOOR);
+        }
+    });
+
+    it('text on the band is ≥ 4.5:1, in the marker colour and in the ink', () => {
+        for (const colour of ['--lg-ai', '--color-base-content', '--lg-muted']) {
+            expect(ratio(token(colour), token('--lg-ai-surface')), `${colour} on --lg-ai-surface`).toBeGreaterThanOrEqual(TEXT_FLOOR);
+        }
+    });
+});
+
 describe('the fonts (ISC-234)', () => {
     it('serves the three self-hosted families, and the page uses them', async () => {
         await document.fonts.ready;

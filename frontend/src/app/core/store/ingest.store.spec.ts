@@ -43,6 +43,7 @@ function lastRun(overrides: Partial<LastRunView> = {}): LastRunView {
         extracted: 169,
         written: 151,
         merged: 18,
+        enriched: 73,
         removed: {ABROAD: 13, ROLE_OR_STACK: 55},
         filterConsidered: 169,
         filterPassed: 73,

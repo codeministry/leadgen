@@ -491,7 +491,63 @@
     "prompt": {
       "extraction": "Dokumentleser",
       "scoring": "Scoring-Judge",
-      "content": "Content-Klassifikator"
+      "content": "Content-Klassifikator",
+      "fields": "Feld-Extraktor"
+    },
+    "rail": "Pipeline-Stufen",
+    "noRun": "Noch kein Lauf — die Stufen zeigen erst nach dem nächsten Durchlauf Zahlen.",
+    "stageFailed": "Diese Stufe ist im letzten Lauf fehlgeschlagen",
+    "ai": {
+      "marker": "KI-Schritt",
+      "band": "KI-Schritt: hier arbeitet ein Modell mit, per Prompt oder per Embeddings.",
+      "legend": "KI-Schritt: ein Modell arbeitet mit, per Prompt oder per Embeddings",
+      "model": "Modell: {{model}}"
+    },
+    "legend": {
+      "title": "Legende"
+    },
+    "detailLabel": "Gewählte Stufe",
+    "phase": {
+      "read": "Lesen",
+      "sort": "Sortieren",
+      "understand": "Verstehen",
+      "judge": "Bewerten",
+      "hand": "Übergeben"
+    },
+    "stage": {
+      "dedupe": "Deduplizieren",
+      "filter": "Hartfilter",
+      "archive": "Archivieren",
+      "enrich": "Anreichern",
+      "content": "Inhalt",
+      "fields": "Felder",
+      "score": "Bewertung",
+      "retrieval": "Retrieval",
+      "open": "Bewerbungen öffnen",
+      "package": "Paket",
+      "digest": "Digest"
+    },
+    "cost": {
+      "free": "Kostenlos, läuft lokal",
+      "model": "Ruft ein Modell auf: Prompt oder Embeddings",
+      "modelPrompt": "Fragt ein Sprachmodell",
+      "modelEmbed": "Berechnet Embeddings mit einem Modell",
+      "network": "Verlässt den Rechner",
+      "file": "Schreibt auf die Platte"
+    },
+    "unread": {
+      "title": "Von nichts gelesen",
+      "note": "Steht in einer Konfigurationsdatei und wird von keiner Stufe gelesen. Angezeigt statt verworfen, damit ein Tippfehler oder ein übrig gebliebener Schlüssel sichtbar wird, statt still ignoriert zu werden."
+    },
+    "detail": {
+      "settings": "Einstellungen",
+      "noSettings": "Diese Stufe liest keinen Konfigurationsschlüssel.",
+      "keyCount": "{count, plural, one {1 Schlüssel} other {# Schlüssel}}",
+      "emptyList": "leer",
+      "sharedIngest": "Die Ingest-Einstellungen, die alle Quellen teilen, stehen bei der ersten Quelle.",
+      "funnelScope": "Die aktuelle Arbeitsliste, nicht der letzte Lauf: was der Filter gerade zurückhält, Stufe für Stufe.",
+      "noFunnel": "Noch keine Filterzahlen — der Trichter erscheint, sobald Angebote gefiltert wurden.",
+      "reads": "liest"
     }
   },
   "analytics": {
@@ -604,6 +660,7 @@
     "scoringModelsLoad": "Die Bewertungsmodelle wurden nicht geladen.",
     "archive": "Das Archiv konnte nicht geändert werden.",
     "promptsLoad": "Die Prompts konnten nicht geladen werden.",
+    "workflowLoad": "Die Pipeline-Stufen konnten nicht geladen werden.",
     "bulkArchive": "Die ausgewählten Angebote wurden nicht archiviert.",
     "sourceLoad": "Die Quelle konnte nicht gelesen werden.",
     "summaryLoad": "Die Kacheln der Übersicht haben nicht geladen."

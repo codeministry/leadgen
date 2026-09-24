@@ -52,7 +52,7 @@ public class LastRunQueryService {
      */
     private static final String LAST_RUN = """
         SELECT id, started_at, finished_at, status, score_model,
-               extracted, written, merged,
+               extracted, written, merged, enriched,
                filter_considered, filter_passed,
                scored, shortlisted, review, packaged, digest_written
         FROM pipeline_run
@@ -154,6 +154,7 @@ public class LastRunQueryService {
                         rs.getInt("extracted"),
                         rs.getInt("written"),
                         rs.getInt("merged"),
+                        rs.getInt("enriched"),
                         rs.getInt("filter_considered"),
                         rs.getInt("filter_passed"),
                         rs.getInt("scored"),
@@ -170,6 +171,7 @@ public class LastRunQueryService {
                 run.extracted(),
                 run.written(),
                 run.merged(),
+                run.enriched(),
                 removedOf(run.id()),
                 run.filterConsidered(),
                 run.filterPassed(),
@@ -194,6 +196,7 @@ public class LastRunQueryService {
             int extracted,
             int written,
             int merged,
+            int enriched,
             int filterConsidered,
             int filterPassed,
             int scored,

@@ -12,6 +12,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import de.codeministry.leadgen.config.model.MatchingRules;
 import de.codeministry.leadgen.config.model.SkillProfile;
+import de.codeministry.leadgen.fields.FieldExtractor;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -73,7 +74,7 @@ class PromptViewTest {
         // tell somebody why nothing is being scored.
         var prompts = PromptView.all(null, null, null, null);
 
-        assertThat(prompts).hasSize(3);
+        assertThat(prompts).hasSize(4);
         assertThat(prompt(prompts, "scoring").system())
                 .contains("No profile is configured")
                 .contains("0 to 0");
@@ -117,6 +118,7 @@ class PromptViewTest {
 
         assertThat(prompt(prompts, "extraction").model()).isEqualTo("the-reader");
         assertThat(prompt(prompts, "content").model()).isEqualTo("the-judge");
+        assertThat(prompt(prompts, "fields").model()).isEqualTo("the-judge");
         assertThat(prompt(prompts, "scoring").model()).isEqualTo("the-judge");
     }
 
@@ -126,7 +128,16 @@ class PromptViewTest {
         // is asked of a file nobody has read yet.
         assertThat(PromptView.all(null, null, "a-model", "a-model"))
                 .extracting(PromptView::id)
-                .containsExactly("extraction", "content", "scoring");
+                .containsExactly("extraction", "content", "fields", "scoring");
+    }
+
+    @Test
+    void offersTheFieldExtractorWithTheMessageItReallySends() {
+        // FIELDS calls a model too, so the screen that shows every prompt shows this one.
+        PromptView fields = prompt("fields", scoring(15, -10));
+
+        assertThat(fields.system()).isEqualTo(FieldExtractor.instructions());
+        assertThat(fields.user()).isEqualTo(FieldExtractor.exampleUser());
     }
 
     @Test

@@ -59,6 +59,8 @@ export interface LastRunView {
     readonly written: number;
     /** The standing total inside the deduplication window, not the rows this run moved. */
     readonly merged: number;
+    /** This run's own figure, unlike `merged`: how many offers ENRICH got at least one field for. */
+    readonly enriched: number;
     /** Offers rejected per hard-filter stage, keyed by the stage name. */
     readonly removed: Readonly<Record<string, number>>;
     readonly filterConsidered: number;

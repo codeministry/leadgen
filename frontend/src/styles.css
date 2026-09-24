@@ -112,6 +112,10 @@
    The chart ramp: seven rejection stages as one tinted grey ramp rather than seven hues,
    because they are all rejections and a colour each would compete with the signal.
 
+   The AI marker: `--lg-ai` and its band `--lg-ai-surface`, the violet of the `model` class in
+   `docs/BACKEND-FLOWS.md`. It means "a language model works in this step" and is read only by
+   the rules feature; the pair clears 4.5:1 as text and 3:1 as an icon in both themes.
+
    The light block uses `:where(:root)` so the two attribute selectors below and the media
    query both outrank it; "system" is the absence of `data-theme`. */
 [data-theme='lg-light'],
@@ -122,6 +126,9 @@
     --lg-warning-text: oklch(50% 0.1 75); /* #845A0F, 6.1:1 on white */
     --lg-code-string: oklch(48% 0.12 150); /* #197037 */
     --lg-code-number: oklch(50% 0.1 235); /* #136B94 */
+
+    --lg-ai: oklch(48% 0.15 300); /* #6C44A4, the `model` violet of BACKEND-FLOWS, 7.0:1 on white */
+    --lg-ai-surface: oklch(94.5% 0.025 300); /* #EFE9FC, the band behind an AI stage, 5.9:1 under --lg-ai */
 
     --lg-section-dashboard: oklch(58% 0.098 210); /* #0D8A9A */
     --lg-section-shortlist: oklch(58% 0.098 160); /* #3D8C66, 25° off the teal primary so the marker is not the button */
@@ -147,6 +154,9 @@
     --lg-warning-text: oklch(80% 0.15 80); /* #F0B135 */
     --lg-code-string: oklch(78% 0.13 150); /* #76CF8A */
     --lg-code-number: oklch(78% 0.11 235); /* #6BC3F4 */
+
+    --lg-ai: oklch(78% 0.12 300); /* #C3A5F9, the same violet lifted for the night, 7.6:1 on the surface */
+    --lg-ai-surface: oklch(31% 0.06 300); /* #35294A, 6.4:1 under --lg-ai */
 
     --lg-section-dashboard: oklch(70% 0.115 210); /* #22B1C6 */
     --lg-section-shortlist: oklch(70% 0.115 160); /* #55B486, the same 160 as by day */
@@ -175,6 +185,8 @@
         --lg-warning-text: oklch(80% 0.15 80);
         --lg-code-string: oklch(78% 0.13 150);
         --lg-code-number: oklch(78% 0.11 235);
+        --lg-ai: oklch(78% 0.12 300);
+        --lg-ai-surface: oklch(31% 0.06 300);
         --lg-section-dashboard: oklch(70% 0.115 210);
         --lg-section-shortlist: oklch(70% 0.115 160);
         --lg-section-pipeline: oklch(70% 0.115 285);

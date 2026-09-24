@@ -179,6 +179,9 @@ class LastRunQueryServiceTest {
         assertThat(last.scoreModel()).isEqualTo("claude-haiku-4-5");
         assertThat(last.extracted()).isEqualTo(169);
         assertThat(last.written()).isEqualTo(151);
+        // This run's own figure, unlike `merged`: a second run moves it, and a zero here
+        // means this pass enriched nothing rather than "deduplication stopped working".
+        assertThat(last.enriched()).isEqualTo(61);
         assertThat(last.removed())
                 .containsExactlyInAnyOrderEntriesOf(java.util.Map.of("ABROAD", 13, "ROLE_OR_STACK", 55));
         assertThat(last.sources())
@@ -359,7 +362,7 @@ class LastRunQueryServiceTest {
                     enrich_considered, enriched, incomplete, from_cache, requests,
                     score_considered, scored, unscored, shortlisted, review, submitted,
                     packaged, digest_written)
-                VALUES (?, ?, '1', ?, ?, 5, 169, 151, 18, 169, 73, 73, 0, 73, 0, 0, 67, 67, 0, 7, 13, 0, 7, true)
+                VALUES (?, ?, '1', ?, ?, 5, 169, 151, 18, 169, 73, 73, 61, 12, 0, 0, 67, 67, 0, 7, 13, 0, 7, true)
                 RETURNING id
                 """, Long.class, Timestamp.from(startedAt), Timestamp.from(finishedAt), scoreModel, status);
     }

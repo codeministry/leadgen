@@ -47,6 +47,9 @@ import java.util.Map;
  * @param merged     the standing total inside the deduplication window, exactly as
  *                   {@code IngestReport.merged} is. A second run moves nothing, and a zero here would
  *                   read as "deduplication stopped working".
+ * @param enriched   this run's own figure, unlike {@code merged}: how many offers ENRICH read an
+ *                   ad for and got at least one field back. A second run moves it, and a zero here
+ *                   means this pass enriched nothing rather than that enrichment stopped working.
  * @param removed    offers rejected per hard-filter stage, keyed by the stage name. Only
  *                   stages that rejected something appear, and the enum is not restated here: it has
  *                   grown once already.
@@ -61,6 +64,7 @@ public record LastRunView(
         int extracted,
         int written,
         int merged,
+        int enriched,
         Map<String, Integer> removed,
         int filterConsidered,
         int filterPassed,

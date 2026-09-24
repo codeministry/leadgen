@@ -217,14 +217,36 @@ public class IngestService {
 
     /**
      * The stages every run has, whatever its sources are: dedupe, filter, archive, enrich,
-     * content, fields, score, retrieval, open, package, digest.
+     * content, fields, score, retrieval, open, package, digest — in the order
+     * {@code IngestOrderTest} pins and named exactly as the {@code stages.time(...)} calls
+     * below spell them.
      *
-     * <p>A constant because the sequence below is written out rather than driven by a list,
+     * <p>Public because the workflow view is held against it: it lives in a different
+     * package and has no other way to know what a run actually times without duplicating
+     * this list and drifting from it. The order here is not read by anything — the sequence
+     * below is still written out rather than driven off this list — but a name absent from
+     * it is what {@code WorkflowController}'s test fails on.
+     */
+    public static final List<String> GLOBAL_STAGE_NAMES = List.of(
+            "DEDUPE",
+            "FILTER",
+            "ARCHIVE",
+            "ENRICH",
+            "CONTENT",
+            "FIELDS",
+            "SCORE",
+            "RETRIEVAL",
+            "OPEN",
+            "PACKAGE",
+            "DIGEST");
+
+    /**
+     * A constant because the sequence below is written out rather than driven by a list,
      * and it is pinned by {@code IngestOrderTest}, which verifies both the order and that
      * there are this many of them. Without that test it is the kind of number that is wrong
      * for a month before anybody notices the progress bar stopping at eight of nine.
      */
-    static final int GLOBAL_STAGES = 11;
+    static final int GLOBAL_STAGES = GLOBAL_STAGE_NAMES.size();
 
     private IngestReport runOnce(String scoringModel) {
         // Before anything else, because scoring is the last stage: checked only there, a

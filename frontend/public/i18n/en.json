@@ -491,7 +491,63 @@
     "prompt": {
       "extraction": "Document reader",
       "scoring": "Scoring judge",
-      "content": "Content classifier"
+      "content": "Content classifier",
+      "fields": "Field extractor"
+    },
+    "rail": "Pipeline stages",
+    "noRun": "No run yet — the stages carry no counts until one finishes.",
+    "stageFailed": "This stage failed in the last run",
+    "ai": {
+      "marker": "AI step",
+      "band": "AI step: a model takes part here, by prompt or by embeddings.",
+      "legend": "AI step: a model takes part, by prompt or by embeddings",
+      "model": "Model: {{model}}"
+    },
+    "legend": {
+      "title": "Legend"
+    },
+    "detailLabel": "Selected stage",
+    "phase": {
+      "read": "Read",
+      "sort": "Sort",
+      "understand": "Understand",
+      "judge": "Judge",
+      "hand": "Hand over"
+    },
+    "stage": {
+      "dedupe": "Deduplicate",
+      "filter": "Hard filter",
+      "archive": "Archive",
+      "enrich": "Enrich",
+      "content": "Content",
+      "fields": "Fields",
+      "score": "Score",
+      "retrieval": "Retrieval",
+      "open": "Open applications",
+      "package": "Package",
+      "digest": "Digest"
+    },
+    "cost": {
+      "free": "Free, runs locally",
+      "model": "Calls a model: a prompt or embeddings",
+      "modelPrompt": "Asks a language model",
+      "modelEmbed": "Computes embeddings with a model",
+      "network": "Leaves the machine",
+      "file": "Writes to disk"
+    },
+    "unread": {
+      "title": "Read by nothing",
+      "note": "Present in a configuration file and read by no stage. Shown rather than dropped, so a typo or a leftover key is visible instead of silently ignored."
+    },
+    "detail": {
+      "settings": "Settings",
+      "noSettings": "This stage reads no configuration key.",
+      "keyCount": "{count, plural, one {1 key} other {# keys}}",
+      "emptyList": "empty",
+      "sharedIngest": "The ingest settings every source shares are listed under the first source.",
+      "funnelScope": "The current working list, not the last run: what the filter holds back right now, stage by stage.",
+      "noFunnel": "No filter counts yet — the funnel appears once offers have been filtered.",
+      "reads": "reads"
     }
   },
   "analytics": {
@@ -604,6 +660,7 @@
     "scoringModelsLoad": "The scoring models did not load.",
     "archive": "The archive could not be changed.",
     "promptsLoad": "The prompts could not be loaded.",
+    "workflowLoad": "The pipeline stages could not be loaded.",
     "bulkArchive": "The selected offers were not archived.",
     "sourceLoad": "The source could not be read.",
     "summaryLoad": "The dashboard cells did not load."

@@ -220,6 +220,9 @@ class IngestOrderTest {
                         "PACKAGE",
                         "DIGEST");
         assertThat(names.getAllValues()).hasSize(IngestService.GLOBAL_STAGES);
+        // The workflow view is held against the list, not against the run; this is what ties the
+        // two by name, so a renamed stage fails here rather than drifting out of the rules screen.
+        assertThat(names.getAllValues()).containsExactlyElementsOf(IngestService.GLOBAL_STAGE_NAMES);
         assertThat(positions.getAllValues()).containsExactly(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11);
         verify(history).start(any(), any(), org.mockito.ArgumentMatchers.eq(IngestService.GLOBAL_STAGES));
     }

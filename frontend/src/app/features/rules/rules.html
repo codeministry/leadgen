@@ -1,167 +1,32 @@
-@if (store.rules(); as rules) {
-    <lg-page-header [title]="'rules.title' | transloco" [subtitle]="'rules.subtitle' | transloco">
+<lg-page-header [title]="'rules.title' | transloco" [subtitle]="'rules.subtitle' | transloco">
+    @if (store.rules(); as rules) {
         <lg-badge tone="ghost" [outline]="true">{{
                 'rules.ruleset' | transloco: {version: rules.version}
             }}
         </lg-badge>
-    </lg-page-header>
+    }
+</lg-page-header>
 
-    <lg-anchor-rail [sections]="sections()" [label]="'nav.sections' | transloco">
-    <div class="grid">
-        <section class="lg-panel panel-wide">
-            <h2 class="type-h2 lg-anchor-target" id="knockouts" tabindex="-1">{{ 'rules.knockouts' | transloco }}</h2>
-            <p class="type-small text-muted panel-note">
-                {{ 'rules.knockoutsNote' | transloco }}
-            </p>
-            <dl class="scalars">
-                @for (rule of scalarKnockouts(); track rule.key) {
-                    <div class="knockout">
-                        <dt>
-                            <span class="type-small">{{ rule.label }}</span>
-                            <span class="type-mono-data text-muted key">{{ rule.key }}</span>
-                        </dt>
-                        <dd class="type-mono-data">{{ rule.value }}</dd>
-                    </div>
-                }
-            </dl>
+@if (store.workflow(); as workflow) {
+    <!-- A failed rules or prompts request beside a workflow that loaded: inline, never a toast. -->
+    @if (store.rulesError(); as error) {
+        <p class="type-small rules-error" role="alert">{{ error | transloco }}</p>
+    }
+    <div class="split">
+        <lg-stage-rail class="rail-col" [workflow]="workflow" [selected]="selected()" [counts]="counts()" [lastRun]="lastRun()"/>
 
-            <dl class="lists">
-                @for (rule of listKnockouts(); track rule.key) {
-                    <div class="knockout">
-                        <dt>
-                            <span class="type-small">{{ rule.label }}</span>
-                            <span class="type-mono-data text-muted key">{{ rule.key }}</span>
-                            <span class="type-mono-data text-muted count">{{ rule.values.length }}</span>
-                        </dt>
-                        <dd class="chips">
-                            @for (entry of rule.values; track entry) {
-                                <lg-badge tone="ghost" [outline]="true">{{ entry }}</lg-badge>
-                            }
-                        </dd>
-                    </div>
-                }
-            </dl>
-        </section>
-
-        <section class="lg-panel">
-            <h2 class="type-h2 lg-anchor-target" id="thresholds" tabindex="-1">{{ 'rules.thresholds' | transloco }}</h2>
-            <ul class="thresholds">
-                <li>
-                    <span class="swatch strong"></span>
-                    <span class="type-mono-data">&ge; {{ rules.thresholds.autoShortlist }}</span>
-                    <span class="type-small">{{ 'rules.bandStrong' | transloco }}</span>
-                </li>
-                <li>
-                    <span class="swatch weak"></span>
-                    <span class="type-mono-data">
-            {{ rules.thresholds.review }}&ndash;{{ rules.thresholds.autoShortlist - 1 }}
-          </span>
-                    <span class="type-small">{{ 'rules.bandReview' | transloco }}</span>
-                </li>
-                <li>
-                    <span class="swatch out"></span>
-                    <span class="type-mono-data">&lt; {{ rules.thresholds.review }}</span>
-                    <span class="type-small">{{ 'rules.bandOut' | transloco }}</span>
-                </li>
-            </ul>
-
-            @if (rules.archiveAfterDays !== null) {
-                <h3 class="type-h4 sub">{{ 'rules.archive' | transloco }}</h3>
-                <p class="type-small text-muted">
-                    {{ 'rules.archiveAfter' | transloco: {days: rules.archiveAfterDays} }}
-                </p>
+        <section class="lg-panel detail-pane" [attr.aria-label]="'rules.detailLabel' | transloco">
+            @if (detail(); as stage) {
+                <lg-stage-detail
+                        [stage]="stage"
+                        [unread]="workflow.unread"
+                        [rules]="store.rules()"
+                        [prompts]="store.prompts()"
+                        [funnel]="funnel()"
+                />
             }
-
-            <h3 class="type-h4 sub">{{ 'rules.interestTopics' | transloco }}</h3>
-            <div class="anti">
-                @for (topic of rules.interestTopics; track topic.name) {
-                    <lg-badge tone="ghost" [outline]="true">{{ topic.name }} · {{ topic.weight }}</lg-badge>
-                } @empty {
-                    <span class="type-small text-muted">{{ 'rules.noTopics' | transloco }}</span>
-                }
-            </div>
-
-            <h3 class="type-h4 sub">{{ 'rules.disinterestTopics' | transloco }}</h3>
-            <div class="anti">
-                @for (topic of rules.disinterestTopics; track topic.name) {
-                    <lg-badge tone="ghost" [outline]="true">{{ topic.name }} · {{ topic.weight }}</lg-badge>
-                } @empty {
-                    <span class="type-small text-muted">{{ 'rules.noTopics' | transloco }}</span>
-                }
-            </div>
-        </section>
-
-        <section class="lg-panel">
-            <h2 class="type-h2 lg-anchor-target" id="weights" tabindex="-1">{{ 'rules.weights' | transloco }}</h2>
-            <ul class="bars">
-                @for (weight of rules.weights; track weight.key) {
-                    <li class="bar-row">
-                        <span class="type-mono-data name" [attr.title]="weight.key">{{ weight.key }}</span>
-                        <span class="track">
-              <span class="fill" [style.width.%]="(weight.points / maxWeight()) * 100"></span>
-            </span>
-                        <span class="type-mono-data value">+{{ weight.points }}</span>
-                    </li>
-                }
-            </ul>
-
-            <h3 class="type-h4 sub">{{ 'rules.penalties' | transloco }}</h3>
-            <ul class="bars">
-                @for (penalty of rules.penalties; track penalty.key) {
-                    <li class="bar-row">
-                        <span class="type-mono-data name" [attr.title]="penalty.key">{{ penalty.key }}</span>
-                        <span class="track">
-              <span
-                      class="fill penalty"
-                      [style.width.%]="(-penalty.points / maxPenalty()) * 100"
-              ></span>
-            </span>
-                        <span class="type-mono-data value">{{ penalty.points }}</span>
-                    </li>
-                }
-            </ul>
         </section>
     </div>
-
-    <!--
-      The other half of a score. Everything above decides what a factor is worth; this decides
-      what the model is asked. Rendered rather than templated: the two things worth checking
-      are the two that get substituted in — that the configured bounds reached the text, and
-      that the profile behind "this developer" is the one in skill-profile.yaml.
-    -->
-    @if (store.prompts().length > 0) {
-        <section class="lg-panel panel-wide prompts">
-            <h2 class="type-h2 lg-anchor-target" id="prompts" tabindex="-1">{{ 'rules.prompts' | transloco }}</h2>
-            <p class="type-small text-muted panel-note">{{ 'rules.promptsNote' | transloco }}</p>
-
-            @for (prompt of store.prompts(); track prompt.id) {
-                <article class="prompt">
-                    <header class="prompt-head">
-                        <h3 class="type-h4">{{ 'rules.prompt.' + prompt.id | transloco }}</h3>
-                        @if (prompt.model) {
-                            <span class="type-mono-data text-muted">{{
-                                    'rules.promptModel' | transloco: {model: prompt.model}
-                                }}</span>
-                        } @else {
-                            <span class="type-small text-muted">{{ 'rules.promptNoModel' | transloco }}</span>
-                        }
-                    </header>
-
-                    <h4 class="type-small prompt-part">{{ 'rules.promptSystem' | transloco }}</h4>
-                    <pre class="prompt-text type-mono-data">{{ prompt.system }}</pre>
-
-                    <h4 class="type-small prompt-part">{{ 'rules.promptUser' | transloco }}</h4>
-                    <pre class="prompt-text type-mono-data">{{ prompt.user }}</pre>
-                </article>
-            }
-        </section>
-    }
-
-    <p class="type-small text-muted note">
-        <lg-icon name="ban" [size]="14"/>
-        {{ 'rules.readOnly' | transloco }}
-    </p>
-    </lg-anchor-rail>
 } @else if (store.rulesError(); as error) {
     <p class="type-small rules-error" role="alert">{{ error | transloco }}</p>
 } @else {
