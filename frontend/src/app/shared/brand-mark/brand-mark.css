@@ -49,10 +49,9 @@
     white-space: nowrap;
 }
 
-/* The casing is written out rather than transformed: the two halves differ in
-   case as well as in colour, so a `text-transform` on the wrapper cannot express
-   it. */
-.wordmark-lead {
+/* The name is ANNUSA (the operator's word, 2026-09-24), split ANNU | SA: the two halves differ
+   in weight as well as in colour, so the split reads at 26px without a gap. */
+.wordmark-head {
     font-variation-settings: 'opsz' 18,
     'wght' 700;
     color: var(--color-primary);
@@ -60,7 +59,7 @@
 
 /* The brand takes the signal on purpose: the lead ring is a lead, and the operator wants the
    bright tone as the brand's accent in both themes (2026-09-24). The text twin, for 4.5:1. */
-.wordmark-gen {
+.wordmark-tail {
     font-variation-settings: 'opsz' 18,
     'wght' 500;
     color: var(--lg-signal-text);
