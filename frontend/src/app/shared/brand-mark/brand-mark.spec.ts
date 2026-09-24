@@ -11,7 +11,7 @@ describe('BrandMark', () => {
       expect(mark.getAttribute('aria-label')).toBeNull();
       expect(mark.getAttribute('aria-hidden')).toBe('true');
         expect(fixture.nativeElement.querySelector('.wordmark').getAttribute('aria-label')).toBe(
-            'Annusa',
+            'Annusa AI',
         );
     });
 
@@ -22,7 +22,7 @@ describe('BrandMark', () => {
 
       const mark: HTMLElement = fixture.nativeElement.querySelector('.mark');
       expect(mark.getAttribute('role')).toBe('img');
-      expect(mark.getAttribute('aria-label')).toBe('Annusa');
+      expect(mark.getAttribute('aria-label')).toBe('Annusa AI');
       expect(mark.getAttribute('aria-hidden')).toBeNull();
         expect(fixture.nativeElement.querySelector('.wordmark')).toBeNull();
     });

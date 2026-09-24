@@ -49,8 +49,8 @@
     white-space: nowrap;
 }
 
-/* The name is ANNUSA (the operator's word, 2026-09-24), split ANNU | SA: the two halves differ
-   in weight as well as in colour, so the split reads at 26px without a gap. */
+/* The name is ANNUSA AI (the operator's word, 2026-09-24), written ANNUSA|AI with the pipe in the tail: the two halves
+   differ in weight as well as in colour, so the split reads at 26px without a gap. */
 .wordmark-head {
     font-variation-settings: 'opsz' 18,
     'wght' 700;
