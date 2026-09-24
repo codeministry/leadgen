@@ -2,7 +2,7 @@
 spec: 005-tailored-cover-letter
 created: 2026-09-24T12:00:00Z
 updated: 2026-09-24T12:00:00Z
-rounds: 2
+rounds: 3
 ---
 
 <!-- CONTEXT LOG — a record, not an authority. Nothing here gates anything and nothing
@@ -69,3 +69,24 @@ nulls the package columns in one `UPDATE`; `LeadGenRuntimeHints` covers `leadgen
 ## Still open
 
 - none
+
+## Round 3 — during build, 2026-09-24
+
+### Q1 · ISC-252: how should the claim read after the second look found two gaps?
+- From: T4–T10 (ISC-252), lane `server`
+- Offered: exempt the chosen projects' stack and narrow the claim to what a lexical guard can decide (recommended) | exempt the stack only | keep it strict
+- Chosen: exempt the stack, narrow
+- Landed in: ISC-252 (refined master-first), spec § Out of Scope, § Decisions
+
+### Q2 · ISC-251: where does the name in the salutation come from, given the contact column holds no names?
+- From: T12–T14 (ISC-251), lane `server`
+- Offered: from the ad text, honorific required, checked verbatim (recommended) | honorific-only from the contact column | always neutral for now
+- Chosen: from the ad text
+- Landed in: ISC-251 (refined master-first), § Decisions; the contact extraction gap in the master's Remaining Work
+
+### Q3 · Local style examples
+- Chosen: the operator's three example letters go into the gitignored `config/cover-letter.yaml`, with "hervorragend", "genau das" and "ein konkreter Mehrwert" removed because they are on the banned list
+- Landed in: nowhere tracked — operator configuration (T44)
+
+The operator then asked to skip the remaining browser test and commit; the build was committed as
+`cb10b66`, the closure as `edbba74`, the three UI findings of the last second look as `a9dee85`.

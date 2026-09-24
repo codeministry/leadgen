@@ -157,6 +157,12 @@ an edit and regenerates it until the application is sent.
   held three independently provable claims behind the model; it was removed in the master and here
   before `tasks.md` was written.
 
+## Remaining Work
+
+- [ ] ISC-264 waits on the operator: set `LLM_MODEL_WRITING` per candidate, run `bun docs/samples/measure_cover_letters.ts draft --label=<x> <five German packaged offer ids>` for each, then `sheet`, and rank `docs/samples/cover-letters/sheet.md` blind; the ranking closes the claim and the winner stays in `.env`. Task T45.
+- [ ] The regenerate path re-checks "ever sent" after the model call, but the row write is not conditional on it (second look, minor; also in the master).
+- [ ] The Prompts view does not show the writer's prompt yet (T25, struck here because no claim asks for it; in the master).
+
 ## Verification
 - ISC-258 — `ConfigLoaderTest.theCoverLetterStyleShipsRulesAndNoExampleLetter` + `anOverrideInTheConfigDirectoryWinsForTheCoverLetterStyle` + `LeadGenRuntimeHintsTest` green in the main tree (`./gradlew :backend:test --tests de.codeministry.leadgen.config.* --tests LeadGenRuntimeHintsTest` exit 0); red before = compileTestJava failed on missing CoverLetterStyle; second look Max concerns → all six adopted (unguarded-language warning, banner lists the file, yaml says word_limit required, whole-map no-example assertion, fixture note, Javadoc counts) (2026-09-24)
 - ISC-253 — `CoverLetterGuardTest` (unchosen project declared, named only in the body, and under its other-language title) green in the main tree; red before = guard absent; second look Max pass (2026-09-24)
