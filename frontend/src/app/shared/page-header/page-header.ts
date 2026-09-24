@@ -24,4 +24,11 @@ export class PageHeader {
      * is this component's job done in a template.
      */
     readonly heading = input<'h1' | 'h2' | 'h3'>('h1');
+
+    /**
+     * The title takes the whole row and the actions start a row of their own under it. Off,
+     * the title only gets what the actions leave, so where they wrap anyway — the offer detail
+     * in a split column — a long title broke after a few words beside empty space.
+     */
+    readonly stacked = input(false);
 }

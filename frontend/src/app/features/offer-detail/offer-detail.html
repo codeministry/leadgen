@@ -1,6 +1,7 @@
 @if (entry(); as entry) {
   <lg-page-header
     heading="h2"
+    [stacked]="true"
     [class.has-close]="closeTo() !== null"
     [title]="entry.offer.title"
     [subtitle]="entry.offer.portal"

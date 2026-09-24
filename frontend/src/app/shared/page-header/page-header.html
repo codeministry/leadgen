@@ -1,5 +1,5 @@
 <div class="mb-6 flex flex-wrap items-end justify-between gap-4">
-    <div class="min-w-0 flex-1">
+    <div class="min-w-0 flex-1" [class.basis-full]="stacked()">
       <!-- Three branches and not a class assembled from the input: the tag itself has to
            change, and Tailwind never emits a class that is built at runtime anyway. -->
         @if (heading() === 'h1') {
@@ -13,7 +13,7 @@
             <p class="type-small text-muted mt-1">{{ subtitle }}</p>
         }
     </div>
-    <div class="flex flex-wrap items-center justify-end gap-2">
+    <div class="flex flex-wrap items-center justify-end gap-2" [class.ml-auto]="stacked()">
         <ng-content/>
     </div>
 </div>
