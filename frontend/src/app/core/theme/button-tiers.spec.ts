@@ -97,6 +97,8 @@ describe('the button tiers (ISC-231)', () => {
         const allowance: Record<string, number> = {
             'features/shortlist/shortlist-page.html': 4,
             'features/shortlist/saved-views/saved-views.html': 2,
+            // Save in the editor, Copy in the reading view: two branches of one @if, never both on screen.
+            'features/offer-detail/application-panel/cover-letter/cover-letter.html': 2,
         };
         const perFile = new Map<string, number>();
         for (const s of sites) {
