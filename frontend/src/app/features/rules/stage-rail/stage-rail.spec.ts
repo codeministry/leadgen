@@ -406,4 +406,17 @@ describe('StageRail legend (ISC-310)', () => {
         expect(used.length).toBeGreaterThan(0);
         expect(used.filter((name) => !legend.has(name))).toEqual([]);
     });
+
+    it('draws an icon for every cost class the server sends, so the fallback never reaches a row', () => {
+        // WorkflowView.COST_* on the server; a fifth class would draw `ellipsis`, which the legend lacks.
+        expect(Object.keys(COST_ICONS).sort()).toEqual(['file', 'free', 'model', 'network']);
+    });
+
+    it('keeps list semantics on the phases and the stages', () => {
+        const root = rail();
+        const lists = root.querySelectorAll('ol.rail-phases, ul.stages');
+
+        expect(lists.length).toBeGreaterThan(1);
+        lists.forEach((list) => expect(list.getAttribute('role')).toBe('list'));
+    });
 });

@@ -286,7 +286,8 @@ describe.each(THEMES)('%s: the AI marker reads (ISC-309)', theme => {
     });
 
     it('the marker icon is ≥ 3:1 on both surfaces and on its own band', () => {
-        for (const ground of ['--color-base-100', '--color-base-200', '--lg-ai-surface']) {
+        // --lg-selected-surface: the sparkle of the selected stage sits on the selection.
+        for (const ground of ['--color-base-100', '--color-base-200', '--lg-ai-surface', '--lg-selected-surface']) {
             expect(ratio(token('--lg-ai'), token(ground)), `--lg-ai on ${ground}`).toBeGreaterThanOrEqual(OBJECT_FLOOR);
         }
     });

@@ -363,6 +363,13 @@ line which half wrote it: the seven in `RuleScorer.DETERMINISTIC` and the four i
 `Judge.JUDGED`. The weight table, the prompts as this configuration renders them, and the keys
 nothing reads are on the Rules screen and in [WRITING-RULES.md](WRITING-RULES.md).
 
+`GET /api/v1/workflow` is this table, served. `WorkflowCatalog` builds the five phases and their
+stages from the shipped and overriding YAML, held against `IngestService.GLOBAL_STAGE_NAMES` for
+the timed stage list and against `FilterStage` for the six knockouts, so a stage the code times or
+a knockout the enum gains that the catalog does not name fails a test rather than drifting quietly.
+`WorkflowController` and `WorkflowService` compose the response; the Rules screen (`/rules`) is its
+only reader.
+
 ## 2. The asynchronous side
 
 Three things happen outside the run and outside a request: the batch collector, the package

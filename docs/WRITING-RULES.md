@@ -428,18 +428,34 @@ file itself — [`demo/skill-profile.yaml`](../demo/skill-profile.yaml) is a com
 
 | Key | Read by |
 |---|---|
+| `version` | nothing — the profile carries no staleness stamp of its own; see `version` under matching-rules.yaml above |
 | `core[].skill`, `core[].aliases` | `NO_CORE_SKILL` **and** `core_skill_overlap` |
 | `core[].weight` | `core_skill_overlap` and `saturation_core_count` |
 | `strong[]`, `peripheral[]` | `core_skill_overlap` only — invisible to the filter |
 | `industries[].name`, `.match`, `.weight` | `industry_fit`. Without `match:`, the name is compared against German ad text. |
 | `interest_topics[]`, `disinterest_topics[]` (`name`, `weight` 1-10, `aliases`) | `interest_fit` and `disinterest_fit`, the judge's topic question when the weight row exists, and the shortlist's topic filter. With `retrieval.topic_floor` set in `pipeline.yaml`, the filter also finds adverts whose retrieval vector sits within that cosine of the topic's name; the floor is measured with `docs/samples/measure_topic_floor.ts`, never chosen, and never moves a score. The name is always tried as an alias. A topic lifts or sinks a score and never ends an assessment. |
+| `reference_projects[].id` | PACKAGE — `ReferenceRanking` and `ProfileEmbeddings`, the key a project's vector is stored under |
 | `reference_projects[].title_de`, `.title_en`, `.pitch_de`, `.pitch_en` | the cover letter. One of each pair is enough; the other language falls back to it. |
 | `reference_projects[].from`, `.to` | the cover letter's period. Months (`"2024-01"`). No `to` means still running, and the letter writes "seit" or "since" itself. |
 | `reference_projects[].role`, `.stack` | `ReferenceRanking`, which picks the two projects a letter cites |
 | `cv_variants` | which CV goes into the package |
 | `locale_primary` | the fallback language of a package, when the ad's own says nothing |
-| `identity.*` | the judge's prompt |
+| `identity.roles`, `.seniority`, `.base` | the judge's prompt, at SCORE |
+| `identity.name`, `.brand` | `PackagingService`, at PACKAGE |
+| `identity.freelance_since` | nothing — no caller of `Identity.freelanceSince()` |
 | `core[].since`, `industries[].note`, `languages[]` | nothing |
+
+### `pipeline.yaml` — packaging document descriptors
+
+`PackagingService` reads only a document's `id` and `template`; the rest of each entry under
+`packaging.documents[]` is there for a human reading the file, not for the code.
+
+| Key | Read by |
+|---|---|
+| `packaging.documents[].id` | `PackagingService`, which document this is |
+| `packaging.documents[].template` | `PackagingService`, the FreeMarker template rendered for it |
+| `packaging.documents[].source`, `.by` | nothing — documentation of where the CV entry's file choice comes from |
+| `packaging.documents[].generated`, `.format` | nothing — documentation of how the cover-letter and meta entries are produced |
 
 ## Checking your work
 

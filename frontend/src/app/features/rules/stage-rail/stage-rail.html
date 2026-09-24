@@ -3,16 +3,17 @@
         <p class="type-small text-muted no-run-note">{{ 'rules.noRun' | transloco }}</p>
     }
     <!-- One flow, top to bottom: the <ol> and the numbered headings carry the order. -->
-    <ol class="rail-phases">
+    <!-- role="list": WebKit drops list semantics under `list-style: none`. -->
+    <ol class="rail-phases" role="list">
         @for (phase of workflow().phases; track phase.id; let step = $index, last = $last) {
             <li class="rail-step">
-                <section class="rail-phase" [attr.aria-labelledby]="'rail-phase-' + phase.id">
+                <div class="rail-phase" role="group" [attr.aria-labelledby]="'rail-phase-' + phase.id">
                     <h2 class="type-h4 phase-heading" [id]="'rail-phase-' + phase.id">
                         <span class="type-mono-data step-number">{{ step + 1 }}</span>
                         <span class="phase-icon"><lg-icon [name]="phaseIcon(phase.id)" [size]="18"/></span>
                         <span class="phase-title">{{ 'rules.phase.' + phase.id | transloco }}</span>
                     </h2>
-                    <ul class="stages phase-stages">
+                    <ul class="stages phase-stages" role="list">
                         @for (stage of phase.stages; track stage.id) {
                             <li class="stage-row" [class.is-ai]="isAi(stage)">
                                 <a
@@ -62,7 +63,7 @@
                             </li>
                         }
                     </ul>
-                </section>
+                </div>
                 @if (!last) {
                     <!-- Draws the order the numbered headings already say; hidden so it is not read twice. -->
                     <div class="phase-arrow" aria-hidden="true">
@@ -74,7 +75,7 @@
     </ol>
 
     <!-- After DIGEST and apart from it: these keys belong to no stage, so they are not a phase. -->
-    <ul class="stages unread">
+    <ul class="stages unread" role="list">
         <li class="stage-row">
             <a
                     class="stage-link"

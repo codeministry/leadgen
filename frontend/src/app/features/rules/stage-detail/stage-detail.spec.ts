@@ -281,6 +281,18 @@ describe('StageDetail', () => {
             expect(band?.querySelector('.ai-band-model')).toBeNull();
         });
 
+        it('opens an ingest source that sends the extraction prompt with the AI band', () => {
+            const source = stage('INGEST', {kind: 'ingest', sourceId: 'mail', costClasses: ['network'], promptId: 'extraction'});
+
+            expect(render(source).page.querySelector('.ai-band')?.textContent).toContain('AI step');
+        });
+
+        it('draws no band for an ingest source that sends no prompt', () => {
+            const source = stage('INGEST', {kind: 'ingest', sourceId: 'feed', costClasses: ['network']});
+
+            expect(render(source).page.querySelector('.ai-band')).toBeNull();
+        });
+
         it('draws the band first in the pane', () => {
             const page = render(SCORE).page;
 

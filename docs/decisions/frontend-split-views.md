@@ -128,9 +128,23 @@ Every paragraph here was paid for once; none of it is a summary.
 
 ## The split views
 
-`features/shortlist/`, `features/pipeline/` and `features/review/`, with `layout/app-shell/`
-underneath all three. One list on the left, one thing being read on the right, and neither column scrolls the other.
+`features/shortlist/`, `features/pipeline/`, `features/review/` and, since ISC-287,
+`features/rules/`, with `layout/app-shell/` underneath all four. One list on the left, one thing
+being read on the right, and neither column scrolls the other — with rules' own exception below.
 
+- **Rules is the fourth split view, and its rail does not follow the pattern of the other
+  three.** The rail is the phases and their stages, left; the selected stage's detail is right;
+  the selection lives in the `stage` query parameter, routed input exactly like the shortlist's
+  and the board's own selection. Where it diverges: the rail is **not** `position: sticky`. The
+  rail is taller than the viewport on any workflow with more than a couple of stages open at
+  once, so a sticky rail and a scrolling detail pane become two columns scrolling against each
+  other — the operator reported two scrollbars on the same screen, one nested inside the other,
+  and reached for the wrong one more than once. The rail simply scrolls with the document instead.
+  The counts on each stage are last-run figures only, from `/api/v1/ingest/last` and
+  `/api/v1/offers/funnel`, never a live figure — ENRICH's `enriched` count is now served there
+  too, additively, so every run figure the rail shows exists on the same read path. The legend
+  sits under the rail, not beside it, because it explains the rail's own icons and reads as the
+  rail's closing line rather than as a third column.
 - **The board is bounded; the shortlist and the review hand their reading column to the document.** A route asks to be
   bounded with
   `data: { fill: true }` and `AppShell` reads that exactly where it reads `data.measure`, because the element that has

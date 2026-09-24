@@ -112,7 +112,12 @@ const LAST_RUN: LastRunView = {
 };
 
 /** Answers every request the screen and the stores it injects make; returns the URLs asked. */
-function answer(http: HttpTestingController, workflow: WorkflowView = WORKFLOW, rulesFail = false): string[] {
+function answer(
+    http: HttpTestingController,
+    workflow: WorkflowView = WORKFLOW,
+    rulesFail = false,
+    lastRun: LastRunView | null = LAST_RUN,
+): string[] {
     const urls: string[] = [];
     for (const request of http.match(() => true)) {
         const url = request.request.url;
@@ -130,8 +135,10 @@ function answer(http: HttpTestingController, workflow: WorkflowView = WORKFLOW, 
             request.flush(PROMPTS);
         } else if (url === '/api/v1/workflow') {
             request.flush(workflow);
+        } else if (url === '/api/v1/ingest/last' && lastRun === null) {
+            request.flush(null, {status: 204, statusText: 'No Content'});
         } else if (url === '/api/v1/ingest/last') {
-            request.flush(LAST_RUN);
+            request.flush(lastRun);
         } else if (url === '/api/v1/offers/funnel') {
             request.flush(FUNNEL);
         } else if (url === '/api/v1/scoring-models') {
@@ -164,13 +171,14 @@ describe('Rules', () => {
         workflow: WorkflowView = WORKFLOW,
         rulesFail = false,
         selected?: string,
+        lastRun: LastRunView | null = LAST_RUN,
     ): {fixture: ComponentFixture<Rules>; urls: string[]} {
         const fixture = TestBed.createComponent(Rules);
         if (selected !== undefined) {
             fixture.componentRef.setInput('stage', selected);
         }
         fixture.detectChanges();
-        const urls = answer(http, workflow, rulesFail);
+        const urls = answer(http, workflow, rulesFail, lastRun);
         fixture.detectChanges();
         return {fixture, urls};
     }
@@ -245,6 +253,15 @@ describe('Rules', () => {
         expect(countOf('DEDUPE')).toBeUndefined();
         expect(countOf('OPEN')).toBeUndefined();
         expect(countOf('ARCHIVE')).toBeUndefined();
+    });
+
+    it('says in words that no run has finished, and draws no counts, before the first run', () => {
+        const rail = element(render(WORKFLOW, false, undefined, null).fixture).querySelector('lg-stage-rail');
+
+        expect(rail?.querySelector('.no-run-note')?.textContent?.trim()).toBe(
+            'No run yet — the stages carry no counts until one finishes.',
+        );
+        expect(rail?.querySelectorAll('.stage-count').length).toBe(0);
     });
 
     it('keeps a failed rules request visible beside a loaded workflow', () => {

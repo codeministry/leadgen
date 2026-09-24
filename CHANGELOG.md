@@ -61,6 +61,16 @@ may change in any release. See the status note in the README.
   phone it is a row of chips under the title. A click lands the section under the header and
   moves focus into it, and the hash follows so a section is a link (spec
   `007-anchor-navigation`).
+- The rules screen is now the workflow view: the run in order, from ingest to digest, as a
+  split view — a rail of phases and stages on the left, held against `IngestService` and
+  `FilterStage` so a stage the code times is a stage the screen names; the selected stage's
+  settings, knockouts, weights, bands, topics and prompt on the right, routed through
+  `?stage=`. Every key the shipped configuration declares appears at the stage that reads it,
+  or under a closing "read by nothing" entry. A stage a model takes part in carries an AI
+  marker and, in the detail pane, a head band in the new `--lg-ai` colour. Fed by the new
+  `GET /api/v1/workflow`; `GET /api/v1/ingest/last` additionally carries `enriched`, and
+  `GET /api/v1/prompts` additionally serves the fields prompt — both additive (spec
+  `008-rules-workflow-view`).
 
 ### Fixed
 

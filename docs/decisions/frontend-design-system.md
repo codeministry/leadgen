@@ -259,6 +259,32 @@ what was on the page or took the reader to a section. The claims and the measure
   rules panels had lost their section edge and both screens had a padding of their own. Removed;
   `offer-detail.css` carries the same copy and is left for its own change.
 
+### The workflow view (spec 008, 2026-09-24)
+
+The rules screen became the workflow view: the run in order, each stage with what it costs and
+what a model takes part in. The claims and the measurements are in
+`specs/008-rules-workflow-view/spec.md`.
+
+- **`--lg-ai` and `--lg-ai-surface` are a new semantic token pair, one violet the signal does
+  not use.** The signal keeps its one meaning — this survived the filter — so a stage where a
+  model takes part gets its own hue rather than borrowing it. The violet matches the `model`
+  class of the scoring diagram in `docs/BACKEND-FLOWS.md` §1e (`fill:#e2d5f1,stroke:#6f4aa8`),
+  so a reader who has seen that diagram recognises the colour on the screen. Defined once per
+  theme in `styles.css`, like every other semantic pair.
+  `rg -l "lg-ai" frontend/src` names only `styles.css`, files under `features/rules` and the
+  contrast spec that measures it — nothing else reads it, which is ISC-309's own gate.
+- **Two uses, never a third.** The rail marks a stage in the `model` cost class, or an ingest
+  source that sends the extraction prompt, with a sparkle icon carrying `--lg-ai` on its edge
+  and an accessible name (`rules.ai.marker`); the detail pane repeats the same stage as a head
+  band in the same colour, naming it an AI step (`rules.ai.band`) and, where the last run named
+  a model, which one (`rules.ai.model`). Both read `isAi()` off the same stage, so the two
+  markers can never disagree about which stages are AI steps and which are not.
+  `FILTER` is deterministic and carries neither.
+- **Contrast measured in the browser tier, the same gate as the signal.** `contrast.browser.spec.ts`
+  holds the icon to ≥ 3:1 as an object, on the selected row too, and the band's text to ≥ 4.5:1,
+  in both themes, headless Chromium — jsdom cannot answer a contrast question, only report the
+  OKLCH values it was given.
+
 ### The help drawer and the run confirmation (spec 010, 2026-09-24)
 
 - **A native `<dialog>`, opened modally, is the drawer.** The platform gives Escape, the
