@@ -23,6 +23,7 @@ const PROMPTS: readonly PromptView[] = [
     {id: 'scoring', model: 'judge-model', system: 'Score this offer.', user: 'OFFER {title}'},
     {id: 'content', model: null, system: 'Label every block.', user: 'BLOCKS {blocks}'},
     {id: 'fields', model: 'judge-model', system: 'Read the dates.', user: 'ADVERT {advert}'},
+    {id: 'writing', model: 'writer-model', system: 'Write one cover letter.', user: 'STYLE RULES {rules}'},
 ];
 
 const FUNNEL: FunnelView = {
@@ -215,6 +216,20 @@ describe('StageDetail', () => {
         expect(Array.from(section?.querySelectorAll('pre') ?? [], (pre) => pre.textContent?.trim())).toEqual([
             'Read the dates.',
             'ADVERT {advert}',
+        ]);
+    });
+
+    it('shows the cover-letter writer prompt on PACKAGE, under its own label (ISC-326)', () => {
+        // The letter is written at PACKAGE, and the stage keeps its file cost class: the
+        // prompt section is keyed on the prompt id alone, the same as the other model stages.
+        const {page} = render(stage('PACKAGE', {promptId: 'writing', costClasses: ['file']}));
+        const section = page.querySelector('[data-section="prompt"]');
+
+        expect(section?.querySelector('h3')?.textContent?.trim()).toBe('Cover-letter writer');
+        expect(section?.textContent).toContain('writer-model');
+        expect(Array.from(section?.querySelectorAll('pre') ?? [], (pre) => pre.textContent?.trim())).toEqual([
+            'Write one cover letter.',
+            'STYLE RULES {rules}',
         ]);
     });
 

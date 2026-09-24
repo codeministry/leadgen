@@ -28,6 +28,7 @@ const PROMPTS: readonly PromptView[] = [
     {id: 'scoring', model: 'judge-model', system: 'Score this offer.', user: 'OFFER {title}'},
     {id: 'content', model: 'label-model', system: 'Label every block.', user: 'BLOCKS {blocks}'},
     {id: 'fields', model: 'label-model', system: 'Read the dates.', user: 'ADVERT {advert}'},
+    {id: 'writing', model: 'writer-model', system: 'Write one cover letter.', user: 'STYLE RULES {rules}'},
 ];
 
 /** Six filter stages, as the server sends them; the survivors are stated, not derived. */
@@ -84,7 +85,7 @@ const WORKFLOW: WorkflowView = {
             stages: [stage('ENRICH', ['network']), stage('CONTENT', ['model'], null, {promptId: 'content'}), stage('FIELDS', ['model'], null, {promptId: 'fields'})],
         },
         {id: 'judge', stages: [stage('SCORE', ['model'], null, {promptId: 'scoring'}), stage('RETRIEVAL', ['model'])]},
-        {id: 'hand', stages: [stage('OPEN', ['free']), stage('PACKAGE', ['file']), stage('DIGEST', ['file'])]},
+        {id: 'hand', stages: [stage('OPEN', ['free']), stage('PACKAGE', ['file'], null, {promptId: 'writing'}), stage('DIGEST', ['file'])]},
     ],
     unread: [{key: 'legacy.flag', value: 'true', file: 'pipeline.yaml'}],
 };
@@ -314,6 +315,15 @@ describe('Rules', () => {
         const blocks = Array.from(detail?.querySelectorAll('pre') ?? [], (pre) => pre.textContent?.trim());
 
         expect(blocks).toEqual(['Read the dates.', 'ADVERT {advert}']);
+    });
+
+    it('shows PACKAGE with the cover-letter writer prompt from /api/v1/prompts (ISC-326)', () => {
+        const detail = element(render(WORKFLOW, false, 'PACKAGE').fixture).querySelector('lg-stage-detail');
+        const blocks = Array.from(detail?.querySelectorAll('pre') ?? [], (pre) => pre.textContent?.trim());
+
+        expect(blocks).toEqual(['Write one cover letter.', 'STYLE RULES {rules}']);
+        expect(detail?.querySelector('[data-section="prompt"] h3')?.textContent?.trim()).toBe('Cover-letter writer');
+        expect(detail?.textContent).toContain('writer-model');
     });
 
     afterEach(() => http.verify());

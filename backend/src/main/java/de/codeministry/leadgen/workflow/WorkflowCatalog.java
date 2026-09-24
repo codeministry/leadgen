@@ -16,7 +16,6 @@ import static de.codeministry.leadgen.workflow.WorkflowView.COST_NETWORK;
 import de.codeministry.leadgen.filter.FilterStage;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Locale;
 import java.util.Optional;
 
 /**
@@ -122,12 +121,12 @@ public final class WorkflowCatalog {
         }
 
         /**
-         * The wire id: the enum name lower-case with {@code _} as {@code -}, the form
-         * {@code AnalyticsQueryService} reports a filter stage under, so the screen can join a
+         * The wire id, {@link FilterStage#id()} — the form the funnel and
+         * {@code AnalyticsQueryService} report a filter stage under, so the screen can join a
          * knockout to its removal count without a second mapping.
          */
         public String id() {
-            return stage.name().toLowerCase(Locale.ROOT).replace('_', '-');
+            return stage.id();
         }
     }
 
@@ -265,7 +264,10 @@ public final class WorkflowCatalog {
                     "hand",
                     "Retries the application folders a person asked for and the request could not build.",
                     List.of(COST_FILE),
-                    null,
+                    // The letter is drafted here when `llm.models.writing` names a model, so this
+                    // is where the Rules screen shows the writer's prompt (ISC-326). The cost
+                    // class stays `file`: the folder is always written, the model only asked.
+                    "writing",
                     List.of(
                             pipeline("packaging.output_dir"),
                             pipeline("packaging.naming"),

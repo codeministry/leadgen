@@ -91,13 +91,15 @@ class WorkflowCatalogTest {
         assertThat(WorkflowCatalog.stage("CONTENT").orElseThrow().promptId()).isEqualTo("content");
         assertThat(WorkflowCatalog.stage("FIELDS").orElseThrow().promptId()).isEqualTo("fields");
         assertThat(WorkflowCatalog.stage("SCORE").orElseThrow().promptId()).isEqualTo("scoring");
+        // ISC-326: the letter is drafted at PACKAGE, so that is where its prompt is shown.
+        assertThat(WorkflowCatalog.stage("PACKAGE").orElseThrow().promptId()).isEqualTo("writing");
         List<String> withPrompt = new ArrayList<>();
         for (StageEntry stage : WorkflowCatalog.stages()) {
             if (stage.promptId() != null) {
                 withPrompt.add(stage.id());
             }
         }
-        assertThat(withPrompt).containsExactly("CONTENT", "FIELDS", "SCORE");
+        assertThat(withPrompt).containsExactly("CONTENT", "FIELDS", "SCORE", "PACKAGE");
     }
 
     @Test

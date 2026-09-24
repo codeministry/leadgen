@@ -61,13 +61,9 @@ public class ConfigLoader {
     private final PlaceholderResolver placeholders;
     private final JsonMapper mapper;
 
-    // Two constructors, so the one Spring uses has to say so. The other exists for tests,
-    // which supply their own environment instead of the process's.
-    @org.springframework.beans.factory.annotation.Autowired
-    ConfigLoader(ConfigProperties properties, Validator validator) {
-        this(properties, validator, PlaceholderResolver.fromSystemEnvironment());
-    }
-
+    // One constructor, and the resolver arrives through it: in a running application it is
+    // the bean in PlaceholderResolverConfiguration, the process environment with `.env`
+    // behind it; a test hands in its own and never resolves from the machine it runs on.
     ConfigLoader(ConfigProperties properties, Validator validator, PlaceholderResolver placeholders) {
         this.properties = properties;
         this.validator = validator;

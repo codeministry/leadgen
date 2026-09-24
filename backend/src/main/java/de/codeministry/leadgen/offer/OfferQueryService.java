@@ -421,7 +421,7 @@ public class OfferQueryService {
         var stages = new ArrayList<FunnelView.Stage>();
         for (var stage : de.codeministry.leadgen.filter.FilterStage.values()) {
             stages.add(new FunnelView.Stage(
-                    stage.name().toLowerCase().replace('_', '-'),
+                    stage.id(),
                     // The enum writes its description as a sentence fragment, because that
                     // is how it reads in a log line. On a chart it is a label.
                     capitalize(stage.description()),

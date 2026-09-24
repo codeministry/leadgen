@@ -196,6 +196,32 @@ class ConfigControllerTest {
         assertThat(fieldNames(body.get(0))).containsExactlyInAnyOrder("id", "model", "system", "user");
     }
 
+    // --- ISC-326: the cover-letter writer's prompt is served beside the four the MCP tool
+    // already reads, with exactly their fields. Additive: the shape test above is unchanged.
+
+    @Test
+    void promptsServesTheCoverLetterWriterWithTheSameFieldsAsTheOthers() throws Exception {
+        given(config.snapshot()).willReturn(shippedSnapshot());
+
+        MvcTestResult result = mvc.get().uri("/api/v1/prompts").exchange();
+        assertThat(result).hasStatusOk();
+        JsonNode body = JSON.readTree(result.getResponse().getContentAsString());
+
+        JsonNode writer = null;
+        for (JsonNode prompt : body) {
+            if ("writing".equals(prompt.path("id").asText())) {
+                writer = prompt;
+            }
+        }
+        assertThat(writer)
+                .as("the writer's prompt, by the id of its llm.models key")
+                .isNotNull();
+        assertThat(fieldNames(writer)).isEqualTo(fieldNames(body.get(0)));
+        assertThat(writer.path("system").asText()).contains("You write one cover letter");
+        // The shipped cover-letter.yaml reached the render: its rules are in the user message.
+        assertThat(writer.path("user").asText()).contains("STYLE RULES").contains("Banned phrases:");
+    }
+
     private static Set<String> fieldNames(JsonNode node) {
         var names = new LinkedHashSet<String>();
         node.fieldNames().forEachRemaining(names::add);

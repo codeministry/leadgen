@@ -73,6 +73,23 @@ reads a YAML file itself.
   empty string, and an empty YAML scalar is **null**, not `""` — every consumer treats
   both alike. Whether empty is acceptable is a question about the field, so validation
   answers it: an unset LLM key is fine, an unset IMAP host on an *enabled* source is not.
+- **The resolver is a bean, and the test tree replaces it.** `ConfigLoader` used to build
+  `PlaceholderResolver.fromSystemEnvironment()` in its own constructor, which left no seam:
+  every Spring test context resolved the shipped defaults from the developer's process
+  environment and `.env`. Measured with `AUTH_MODE=oidc` exported: fifteen MockMvc probes
+  refused their context with `security.auth is 'oidc' and security.oidc.issuer is empty`, and
+  a context that named no directory read the operator's `config/` through `LEADGEN_CONFIG_DIR`.
+  The first fix emptied `${LLM_*}` in one test's materialised copy — one family, one test,
+  twenty-seven placeholders still open. Now `PlaceholderResolverConfiguration` declares the
+  production resolver, and `NeutralDefaultsInitializer`, registered once in the test tree's
+  `META-INF/spring.factories`, gives every context a primary resolver over
+  `ConfigFixtures.NEUTRAL_PLACEHOLDERS` plus `leadgen.config-dir` directly above
+  `systemEnvironment` — a test's own `@DynamicPropertySource` still wins, the machine never
+  does. The set is closed in both directions by `ConfigFixturesTest`, and the neutral resolver
+  refuses a name it does not list rather than handing it a default in silence: a lenient
+  lookup is exactly how the set would fall behind the files without anything saying so. The
+  values are what CI sees — empty — except the three IMAP credentials, which carry stand-ins so
+  an operator's file with an enabled mailbox still binds in `OperatorConfigTest`.
 - **Paths in `application.yaml` are file names**, resolved against the config directory.
   A path with the directory baked in breaks the moment it moves — in the container it is
   `/config`, not `./config/local`. Such a path is still accepted, resolved from the working

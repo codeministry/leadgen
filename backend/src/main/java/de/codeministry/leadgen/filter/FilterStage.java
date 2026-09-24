@@ -8,6 +8,8 @@
  */
 package de.codeministry.leadgen.filter;
 
+import java.util.Locale;
+
 /**
  * The stages, in the order they run. The order is not cosmetic: each one is cheaper and
  * more certain than the next, and the counts per stage only sum to the total because an
@@ -38,5 +40,16 @@ public enum FilterStage {
 
     public String description() {
         return description;
+    }
+
+    /**
+     * The wire id every screen names this stage by: the enum name lower-case with {@code _} as
+     * {@code -}. Computed here and nowhere else, so the funnel, the stage mix and the rules
+     * screen join on the same string. {@link Locale#ROOT} because this is an identifier, not
+     * text: under a Turkish default locale {@code NO_CORE_SKILL} would lower-case to a dotless
+     * {@code ı}, and every join on it would miss without an error.
+     */
+    public String id() {
+        return name().toLowerCase(Locale.ROOT).replace('_', '-');
     }
 }

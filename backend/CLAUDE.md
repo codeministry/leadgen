@@ -107,12 +107,13 @@ The reasoning is in `docs/decisions/pipeline-scoring.md`.
   through `TitleNormalizer`, so two of them cannot disagree.
 - The location sits behind a `📍` prefix in one of four `span`s in `div.job-meta` —
   address it by the prefix, never by position.
-- **A test that proves the keyless path must not read the developer's `.env`.** Placeholder
-  resolution reads the process environment and then `.env`, whichever test is running, so
-  `ScoringWithoutAModelTest` started scoring against a real endpoint the moment a key was
-  filled in — and the test that exists to prove the tool works *without* a model failed for
-  the one person who had finished configuring it. It empties the `${LLM_*}` placeholders in
-  the materialised copy: what is under test is the code path, not whose machine it runs on.
+- **A test context never resolves a `${PLACEHOLDER}` from the machine it runs on.**
+  `NeutralDefaultsInitializer` (test tree, `spring.factories`) gives every context a primary
+  `PlaceholderResolver` fed from `ConfigFixtures.NEUTRAL_PLACEHOLDERS` and the shipped defaults
+  as its config directory. A new placeholder in a shipped file goes into that set, or
+  `ConfigFixturesTest` fails naming it. Measured: `AUTH_MODE=oidc` in `.env` refused fifteen
+  MockMvc contexts; a filled-in LLM key once sent the keyless scoring test to a real endpoint.
+  Reasoning in `docs/decisions/configuration.md`.
 - **Several IMAP sources may share a folder only because `selector.from` is in the `SearchTerm`.** The progress flag is
   one `progress_flag` per connection and the receiver writes it to whatever its *search* returned, before `matches()` sees sender or
   subject — so without that term the first source flags the others' mail and they read zero documents in silence.

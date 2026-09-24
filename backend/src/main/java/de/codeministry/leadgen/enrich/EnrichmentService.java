@@ -32,6 +32,13 @@ import org.springframework.stereotype.Service;
 @Service
 public class EnrichmentService {
 
+    /**
+     * The note for a page that answered but whose {@code full_text} rules matched nothing on it.
+     * The other notes name a failed fetch; this one names a fetch that worked and an extraction
+     * that did not, which is a question for the portal's rules and not for the portal.
+     */
+    public static final String NO_AD_TEXT = "the page was read, but no ad text could be extracted from it";
+
     private static final String DUE = """
         SELECT id, url FROM offer
         WHERE status = 'PASSED' AND archived_at IS NULL
@@ -141,7 +148,7 @@ public class EnrichmentService {
                 requests++;
             }
 
-            if (settle(offer, fetched, extractor, RECORD).complete()) {
+            if (settle(offer, fetched, extractor, RECORD).enrichment().complete()) {
                 enriched++;
             } else {
                 incomplete++;
@@ -171,12 +178,14 @@ public class EnrichmentService {
      * {@code @Transactional} for the reason {@link #run} documents: the fetch is a network call,
      * and the one write after it is one statement.
      *
-     * @return what was recorded, complete or not. A failed fetch is an outcome and is written
-     * down with its reason; only a refused permit writes nothing.
+     * @return what was recorded, complete or not, and whether this call was the one that
+     * recorded it. A failed fetch is an outcome and is written down with its reason; only a
+     * refused permit writes nothing. The write is a no-op once the offer has its text (the race
+     * the statement exists for), and {@link Settled#stored()} is false then.
      * @throws NotFetchable when enrichment is off, or the offer is not one the night would fetch.
      * @throws NoPermit     when the shared fetch window has no permit this minute.
      */
-    public Enrichment runFor(long id) {
+    public Settled runFor(long id) {
         PipelineConfig.Enrichment settings = config.snapshot().application().enrichment();
         if (settings == null || !settings.enabled()) {
             throw new NotFetchable("enrichment is disabled, so no ad is fetched");
@@ -200,27 +209,35 @@ public class EnrichmentService {
         if (fetched.deferred()) {
             throw new NoPermit(fetched.note());
         }
-        Enrichment result = settle(offer, fetched, new AdExtractor(settings.extract()), RECORD_UNLESS_READ);
-        log.info("Offer {} fetched again on request: {}", id, result.complete() ? "enriched" : result.note());
-        return result;
+        Settled settled = settle(offer, fetched, new AdExtractor(settings.extract()), RECORD_UNLESS_READ);
+        Enrichment result = settled.enrichment();
+        log.info(
+                "Offer {} fetched again on request: {}",
+                id,
+                !settled.stored()
+                        ? "its text landed meanwhile, nothing recorded"
+                        : result.complete() ? "enriched" : result.note());
+        return settled;
     }
 
     /**
      * What an answer from the portal means for one offer, and writing it down. Shared by the
      * run and the button, so the two cannot disagree about it.
      */
-    private Enrichment settle(Due offer, FetchResult fetched, AdExtractor extractor, String statement) {
+    private Settled settle(Due offer, FetchResult fetched, AdExtractor extractor, String statement) {
         Enrichment result;
         if (!fetched.succeeded()) {
             result = Enrichment.incomplete(fetched.note());
         } else {
             Enrichment extracted = extractor.extract(fetched.body(), offer.url());
-            result = extracted.fieldCount() == 0
-                    ? Enrichment.incomplete("the ad was read but stated none of the fields")
+            // No ad text is the case the card and the toast have to explain, whatever else the
+            // patterns found on the page: a rate without the advert is still an offer without its
+            // ad. What was found is kept, and the note says what is missing.
+            result = extracted.fullText() == null || extracted.fullText().isBlank()
+                    ? extracted.withNote(NO_AD_TEXT)
                     : extracted;
         }
-        record(statement, offer.id(), result);
-        return result;
+        return new Settled(result, record(statement, offer.id(), result) == 1);
     }
 
     /**
@@ -243,8 +260,9 @@ public class EnrichmentService {
         }
     }
 
-    private void record(String statement, long id, Enrichment enrichment) {
-        jdbc.sql(statement)
+    /** @return how many rows the statement wrote: one, or zero when its condition held it back. */
+    private int record(String statement, long id, Enrichment enrichment) {
+        return jdbc.sql(statement)
                 .params(
                         enrichment.rateEur(),
                         enrichment.duration(),
@@ -259,4 +277,17 @@ public class EnrichmentService {
     }
 
     private record Due(long id, String url) {}
+
+    /**
+     * What one fetch settled on, and whether this call was the one that wrote it down.
+     *
+     * <p>The night's statement always writes its row. The button's is held back once the offer
+     * has its text, so two presses that both passed the lookup store it once: the one whose
+     * write took is the one that derives and scores, and the other derives nothing, because
+     * nothing in the row came from what it fetched.
+     *
+     * @param enrichment what the fetch yielded, complete or with its note
+     * @param stored whether this call's write reached the row
+     */
+    public record Settled(Enrichment enrichment, boolean stored) {}
 }

@@ -10,9 +10,11 @@ package de.codeministry.leadgen.web;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import de.codeministry.leadgen.config.model.CoverLetterStyle;
 import de.codeministry.leadgen.config.model.MatchingRules;
 import de.codeministry.leadgen.config.model.SkillProfile;
 import de.codeministry.leadgen.fields.FieldExtractor;
+import de.codeministry.leadgen.packaging.CoverLetterWriter;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -40,6 +42,32 @@ class PromptViewTest {
             null,
             null,
             null);
+
+    /**
+     * Rules for two languages that differ in every value, so the test can tell which one the
+     * screen rendered: the profile's primary locale is German, and the English rules are the
+     * ones that must not show up.
+     */
+    private static final CoverLetterStyle STYLE = new CoverLetterStyle(
+            1,
+            Map.of(
+                    "de",
+                            new CoverLetterStyle.Rules(
+                                    List.of("hervorragend", "Synergien"),
+                                    180,
+                                    List.of("Open with the requirement you match best."),
+                                    "Sehr geehrte Damen und Herren,",
+                                    "Sehr geehrte {name},",
+                                    "Mit freundlichen Grüßen"),
+                    "en",
+                            new CoverLetterStyle.Rules(
+                                    List.of("passionate"),
+                                    240,
+                                    List.of("Keep it to three paragraphs."),
+                                    "Dear Sir or Madam,",
+                                    "Dear {name},",
+                                    "Kind regards")),
+            Map.of("de", List.of("Ein Beispielbrief, nur für den Ton.")));
 
     private static MatchingRules.Scoring scoring(int roleFit, int vague) {
         return new MatchingRules.Scoring(
@@ -72,13 +100,16 @@ class PromptViewTest {
     void rendersWithNoRulesAndNoProfileAtAll() {
         // A fresh clone has neither, and a screen that throws there is a screen that cannot
         // tell somebody why nothing is being scored.
-        var prompts = PromptView.all(null, null, null, null);
+        var prompts = PromptView.all(null, null, null, null, null, null);
 
-        assertThat(prompts).hasSize(4);
+        assertThat(prompts).hasSize(5);
         assertThat(prompt(prompts, "scoring").system())
                 .contains("No profile is configured")
                 .contains("0 to 0");
         assertThat(prompt(prompts, "scoring").model()).isNull();
+        // The writer too: no style file means no rules and no examples, not a blank screen.
+        assertThat(prompt(prompts, "writing").user()).contains("STYLE RULES").doesNotContain("Banned phrases");
+        assertThat(prompt(prompts, "writing").model()).isNull();
     }
 
     @Test
@@ -104,7 +135,7 @@ class PromptViewTest {
     @Test
     void namesTheSameModelForTheTwoStagesThatShareAKey() {
         // One key read by two stages, and the screen saying so twice is the point.
-        var prompts = PromptView.all(null, null, "a-model", "a-model");
+        var prompts = PromptView.all(null, null, null, "a-model", "a-model", "a-model");
 
         assertThat(prompts).allMatch(prompt -> "a-model".equals(prompt.model()));
     }
@@ -114,21 +145,62 @@ class PromptViewTest {
         // `llm.models.extraction` is a key of its own, so the two can differ — and the
         // panel exists to say which one would answer. Two adjacent String parameters is
         // exactly the shape that gets swapped in silence, so the mapping is pinned here.
-        var prompts = PromptView.all(null, null, "the-judge", "the-reader");
+        var prompts = PromptView.all(null, null, null, "the-judge", "the-reader", "the-writer");
 
         assertThat(prompt(prompts, "extraction").model()).isEqualTo("the-reader");
         assertThat(prompt(prompts, "content").model()).isEqualTo("the-judge");
         assertThat(prompt(prompts, "fields").model()).isEqualTo("the-judge");
         assertThat(prompt(prompts, "scoring").model()).isEqualTo("the-judge");
+        // `llm.models.writing` is a third key, and the one with no fallback to any other.
+        assertThat(prompt(prompts, "writing").model()).isEqualTo("the-writer");
     }
 
     @Test
     void readsADocumentBeforeAnythingIsSegmentedOrScored() {
         // The order on screen is the order the pipeline asks them in, and the first question
         // is asked of a file nobody has read yet.
-        assertThat(PromptView.all(null, null, "a-model", "a-model"))
+        assertThat(PromptView.all(null, null, null, "a-model", "a-model", "a-model"))
                 .extracting(PromptView::id)
-                .containsExactly("extraction", "content", "fields", "scoring");
+                .containsExactly("extraction", "content", "fields", "scoring", "writing");
+    }
+
+    @Test
+    void offersTheCoverLetterWriterWithTheInstructionsItReallySends() {
+        // ISC-326: the letter is the one model call the screen could not show. The system
+        // prompt is the writer's own constant, not a paraphrase kept beside it.
+        PromptView writing = prompt("writing", scoring(15, -10));
+
+        assertThat(writing.system()).isEqualTo(CoverLetterWriter.instructions());
+        assertThat(writing.system()).contains("Never claim a skill, a project, a client, a year or a number");
+    }
+
+    @Test
+    void rendersTheStyleRulesTheFileStatesIntoTheWritersUserMessage() {
+        // The rules are configuration and reach the model through the user message, so that is
+        // where a person checks whether `cover-letter.yaml` arrived: the limit, the notes, the
+        // banned phrases and the example letter, for the profile's primary language.
+        String user = prompt("writing", scoring(15, -10)).user();
+
+        assertThat(user).contains("Letter language: de");
+        assertThat(user).contains("The body has at most 180 words");
+        assertThat(user).contains("Open with the requirement you match best.");
+        assertThat(user).contains("Banned phrases: \"hervorragend\", \"Synergien\"");
+        assertThat(user).contains("Neutral salutation: Sehr geehrte Damen und Herren,");
+        assertThat(user).contains("Ein Beispielbrief, nur für den Ton.");
+        // The English block exists in the same file and must not leak into the German render.
+        assertThat(user).doesNotContain("240").doesNotContain("passionate").doesNotContain("Dear Sir");
+    }
+
+    @Test
+    void offersTheProfilesSkillsAndAPlaceholderAdvertToTheWriter() {
+        // Skills are configuration and are rendered; the advert, the projects and the start
+        // date belong to one offer and stand as placeholders, built by `describe` itself.
+        String user = prompt("writing", scoring(15, -10)).user();
+
+        assertThat(user).contains("PROFILE SKILLS").contains("- Quarkus").contains("- Kafka");
+        assertThat(user).contains("ADVERT\n<");
+        assertThat(user).contains("PROJECTS\n- <");
+        assertThat(user).contains("Contact person named in the advert: none — use the neutral salutation");
     }
 
     @Test
@@ -150,7 +222,7 @@ class PromptViewTest {
 
     private static PromptView prompt(String id, MatchingRules.Scoring scoring) {
         var rules = new MatchingRules(1, null, scoring, null, null);
-        return prompt(PromptView.all(rules, PROFILE, "a-model", "a-model"), id);
+        return prompt(PromptView.all(rules, PROFILE, STYLE, "a-model", "a-model", "a-model"), id);
     }
 
     private static PromptView prompt(List<PromptView> prompts, String id) {

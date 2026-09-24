@@ -67,6 +67,19 @@ be rude to the portals and slow for nothing.
   — `rate`, `duration`, `workload`, `remote_percent`, `start_date`, `contact`,
   `full_text` — are the contract; a field spelled differently is read and then ignored, in
   silence. `strategy: readability` used to sit in the schema with nothing implementing it.
+- **`contact` holds a person's name or nothing, decided in Java after the rule has run.** The rule
+  reads the contact by position — the text in front of a phone label, or a portal's contact element —
+  and on the collapsed page the shipped pattern runs back to the last digit, so what it captures is
+  the tail of the previous sentence with the role label in tow: ". Ansprechpartnerin Frau Meier",
+  "Monate. Wir freuen uns auf Ihre Bewerbung per". Measured on the local corpus, 0 of 165 enriched
+  offers held a person. Tightening the pattern would not fix it, because the pattern is the portal's
+  markup and belongs in YAML, while what a name looks like is the same on every portal. `ContactName`
+  therefore keeps the captured value only when it reads as a name and stores null otherwise, with
+  the letter's rule: an honorific anywhere in the capture starts the name and the first word that is
+  not a name word ends it; without one, the whole capture has to be two to four name words, a role
+  label in front allowed, because two capitalised words in running German are a noun pair as often as
+  a person. Deterministic and free — no model is asked. The cover letter is not affected: its
+  salutation reads the advert's text, never this column.
 - **Regexes in YAML need single quotes.** A double-quoted scalar only allows a fixed set
   of escapes, and `\-` is not among them; the file fails to parse with "while scanning a
   double-quoted scalar" and nothing points at the regex. Single quotes pass backslashes

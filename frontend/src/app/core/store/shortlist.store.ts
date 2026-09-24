@@ -216,6 +216,7 @@ export const ShortlistStore = signalStore(
             selected: null,
             detailLoading: true,
             detailError: null,
+            rescoreError: null,
             fetchError: null,
         })),
         on(shortlistEvents.offerLoaded, ({payload}) => ({
@@ -234,16 +235,21 @@ export const ShortlistStore = signalStore(
         // Both the detail and the list row are replaced with what the server stored, never
         // with what was asked for: the score is computed there, and a locally patched row
         // would disagree with the database until the next reload.
+        // The detail only while it still shows that offer — the guard `fetched` has, for the
+        // same race: a rescore is a model call, and one that lands after the reader moved on
+        // would put the first offer's score under the second one's title.
         on(shortlistEvents.rescored, ({payload}, state) => ({
-            selected: payload,
+            selected: state.selected?.offer.id === payload.offer.id ? payload : state.selected,
             entries: state.entries.map((entry) =>
                 entry.offer.id === payload.offer.id ? payload : entry,
             ),
             rescoring: null,
         })),
-        on(shortlistEvents.rescoreFailed, ({payload}) => ({
+        // The refusal names the offer that was asked about, which `rescoring` still holds;
+        // shown under the next offer's title it would read as that offer's problem.
+        on(shortlistEvents.rescoreFailed, ({payload}, state) => ({
             rescoring: null,
-            rescoreError: payload,
+            rescoreError: state.selected?.offer.id === state.rescoring ? payload : state.rescoreError,
         })),
         on(shortlistEvents.fetchRequested, ({payload}) => ({
             fetching: payload,

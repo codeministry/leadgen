@@ -712,6 +712,6 @@ public class AnalyticsQueryService {
      * The id the funnel publishes for a stage, so both charts name a stage identically.
      */
     private static String stageId(String stage) {
-        return FilterStage.valueOf(stage).name().toLowerCase().replace('_', '-');
+        return FilterStage.valueOf(stage).id();
     }
 }

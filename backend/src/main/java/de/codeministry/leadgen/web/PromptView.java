@@ -8,11 +8,13 @@
  */
 package de.codeministry.leadgen.web;
 
+import de.codeministry.leadgen.config.model.CoverLetterStyle;
 import de.codeministry.leadgen.config.model.MatchingRules;
 import de.codeministry.leadgen.config.model.SkillProfile;
 import de.codeministry.leadgen.content.ContentClassifier;
 import de.codeministry.leadgen.fields.FieldExtractor;
 import de.codeministry.leadgen.ingest.extract.LlmExtractor;
+import de.codeministry.leadgen.packaging.CoverLetterWriter;
 import de.codeministry.leadgen.score.ChatClientJudge;
 import java.util.List;
 
@@ -45,22 +47,35 @@ import java.util.List;
 public record PromptView(String id, String model, String system, String user) {
 
     /**
-     * All four prompts, in the order the pipeline asks them: a document is read before its
+     * All five prompts, in the order the pipeline asks them: a document is read before its
      * advert is segmented, the segmented advert is read for its start, duration and deadline,
-     * and all of that happens before anything is scored.
+     * all of that happens before anything is scored, and the letter is written last, for an
+     * offer somebody moved to {@code PACKAGED}.
      *
-     * <p>The last three carry the same model on purpose, and the screen showing it three times
+     * <p>The middle three carry the same model on purpose, and the screen showing it three times
      * is the point: {@code llm.models.scoring} is read by three stages, which is what keeps the rule
      * that an unread {@code models.*} key is a lie true without adding a second allowlist.
-     * The first may carry a different one, because {@code llm.models.extraction} is a key of
-     * its own — and which one it would be is exactly what this panel is for.
+     * The first and the last may each carry a different one, because {@code llm.models.extraction}
+     * and {@code llm.models.writing} are keys of their own — and which one it would be is exactly
+     * what this panel is for.
+     *
+     * <p>The writer's user message is the one that renders configuration beyond the profile:
+     * the style rules and example letters of {@code cover-letter.yaml}, for the profile's primary
+     * language, because a letter's language is its advert's and there is no advert on screen.
      *
      * @param extractionModel which model reads a document with no frontmatter. Not the same
      *                        parameter as {@code model} and not interchangeable with it, which is
      *                        why {@code PromptViewTest} pins both.
+     * @param writingModel    which model drafts the letter — {@code llm.models.writing}, with no
+     *                        fallback to either of the others, so null whenever the key is unset.
      */
     public static List<PromptView> all(
-            MatchingRules rules, SkillProfile profile, String model, String extractionModel) {
+            MatchingRules rules,
+            SkillProfile profile,
+            CoverLetterStyle style,
+            String model,
+            String extractionModel,
+            String writingModel) {
         return List.of(
                 new PromptView("extraction", extractionModel, LlmExtractor.instructions(), LlmExtractor.exampleUser()),
                 new PromptView("content", model, ContentClassifier.instructions(), ContentClassifier.exampleUser()),
@@ -69,6 +84,11 @@ public record PromptView(String id, String model, String system, String user) {
                         "scoring",
                         model,
                         ChatClientJudge.instructions(rules == null ? null : rules.scoring(), profile),
-                        ChatClientJudge.exampleUser()));
+                        ChatClientJudge.exampleUser()),
+                new PromptView(
+                        "writing",
+                        writingModel,
+                        CoverLetterWriter.instructions(),
+                        CoverLetterWriter.exampleUser(profile, style)));
     }
 }
