@@ -3,6 +3,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  DestroyRef,
   DOCUMENT,
   effect,
   ElementRef,
@@ -32,7 +33,7 @@ import {PageHeader} from '@shared/page-header/page-header';
 import {OfferCard} from './offer-card/offer-card';
 import {FacetPanel} from './facet-panel/facet-panel';
 import {SavedViews} from './saved-views/saved-views';
-import {SortMenu} from './sort-menu/sort-menu';
+import {SortMenu, SortOption} from './sort-menu/sort-menu';
 
 type BandFilter = 'all' | 'shortlist' | 'review' | 'discarded';
 
@@ -106,6 +107,7 @@ export class ShortlistPage {
    */
   private readonly afterArchive = signal<{ readonly id: number; readonly next: number | null } | null>(null);
   private readonly document = inject(DOCUMENT);
+    private readonly destroyRef = inject(DestroyRef);
     private readonly injector = inject(Injector);
 
     /**
@@ -248,7 +250,7 @@ export class ShortlistPage {
   /**
    * Words to find offers near.
    *
-   * <p><b>This narrows and never reorders.</b> The list stays in whichever of the six orders
+   * <p><b>This narrows and never reorders.</b> The list stays in whichever of the ten orders
    * is selected, so the first row is not the best match — there is no such thing here, and an
    * interface that implies one would have people reading row one as the answer.
    *
@@ -270,23 +272,21 @@ export class ShortlistPage {
   });
 
   /**
-   * The six sort keys the server offers, in the order they are worth trying. The names are
-   * the server's; a union type here would disagree with it the first time one is added, the
-   * same reason nothing in this browser names a weight or a filter stage.
+   * The five orders the server offers, each with its reverse, in the order they are worth
+   * trying. The names are the server's; a union type here would disagree with it the first
+   * time one is added, the same reason nothing in this browser names a weight or a filter stage.
    *
-   * <p>`duration-asc` is the one reverse the server has, and the reason there is no direction
-   * toggle beside this list: over there a direction is not a modifier but part of the keyset
-   * tuple, along with the sentinel that keeps "not stated" at the end. A toggle would work on
-   * one of six orders, which is a control that lies at rest.
+   * <p>Pairs and not a direction flag: over the wire a direction is not a modifier but part of
+   * the keyset tuple, along with the sentinel that keeps "not stated" at the end, so every
+   * reverse is a key of its own and the toggle only picks the other one of the two.
    */
-  protected readonly sortOptions = [
-    'score',
-    'fresh',
-    'start',
-    'deadline',
-    'duration',
-    'duration-asc',
-  ] as const;
+  protected readonly sortOptions: readonly SortOption[] = [
+    {key: 'score', reverse: 'score-asc'},
+    {key: 'fresh', reverse: 'fresh-asc'},
+    {key: 'start', reverse: 'start-desc'},
+    {key: 'deadline', reverse: 'deadline-desc'},
+    {key: 'duration', reverse: 'duration-asc'},
+  ];
 
   protected readonly startWindowOptions = ['any', 'now', 'soon', 'later', 'unknown'] as const;
 
@@ -364,7 +364,11 @@ export class ShortlistPage {
         if (typeof view?.matchMedia === 'function') {
             const query = view.matchMedia(ShortlistPage.BOTH_COLUMNS);
             this.bothColumns.set(query.matches);
-            query.addEventListener?.('change', (event) => this.bothColumns.set(event.matches));
+            const onChange = (event: MediaQueryListEvent) => this.bothColumns.set(event.matches);
+            query.addEventListener?.('change', onChange);
+            // The page is rebuilt on every visit to the route; a listener left on the query
+            // would keep each dead instance reachable and writing a signal nobody reads.
+            this.destroyRef.onDestroy(() => query.removeEventListener?.('change', onChange));
         }
 
         effect(() => this.dispatch.opened(this.filters()));

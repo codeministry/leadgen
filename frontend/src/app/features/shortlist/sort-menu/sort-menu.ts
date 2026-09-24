@@ -1,4 +1,4 @@
-import {ChangeDetectionStrategy, Component, input, output, signal} from '@angular/core';
+import {ChangeDetectionStrategy, Component, computed, input, output, signal} from '@angular/core';
 import {TranslocoPipe} from '@jsverse/transloco';
 import {Icon} from '@shared/icon/icon';
 import {LgIconName} from '@shared/icon/lucide-icons';
@@ -15,13 +15,27 @@ import {AnchorFor} from '@shared/popover/anchor-for';
  * `sort.<key>` says "Highest score" or "Starts soonest", and the direction is in the words.
  */
 const DIRECTION: Record<string, LgIconName> = {
-  score: 'arrow-down',
-  start: 'arrow-up',
-  deadline: 'arrow-up',
-  duration: 'arrow-down',
-  'duration-asc': 'arrow-up',
-  fresh: 'arrow-down',
+  score: 'arrow-down-wide-narrow',
+  'score-asc': 'arrow-up-narrow-wide',
+  start: 'arrow-up-narrow-wide',
+  'start-desc': 'arrow-down-wide-narrow',
+  deadline: 'arrow-up-narrow-wide',
+  'deadline-desc': 'arrow-down-wide-narrow',
+  duration: 'arrow-down-wide-narrow',
+  'duration-asc': 'arrow-up-narrow-wide',
+  fresh: 'arrow-down-wide-narrow',
+  'fresh-asc': 'arrow-up-narrow-wide',
 };
+
+/**
+ * One order and its reverse, both as the server names them. A pair rather than a direction
+ * flag, because over the wire the reverse is a key of its own with a sentinel of its own —
+ * see `ShortlistSort` — and the browser only has to know which two belong together.
+ */
+export interface SortOption {
+  readonly key: string;
+  readonly reverse: string;
+}
 
 /** One id per instance, because a popover is addressed by id and two of these may exist. */
 let panels = 0;
@@ -53,7 +67,7 @@ export class SortMenu {
   readonly value = input.required<string>();
 
   /** The server's own sort names, passed in rather than restated here. */
-  readonly options = input.required<readonly string[]>();
+  readonly options = input.required<readonly SortOption[]>();
 
   readonly picked = output<string>();
 
@@ -65,6 +79,13 @@ export class SortMenu {
    */
   protected readonly open = signal(false);
 
+  /** The pair the current order belongs to, whichever of its two directions is on. */
+  protected readonly current = computed(() =>
+    this.options().find((option) => option.key === this.value() || option.reverse === this.value()),
+  );
+
+  protected readonly reversed = computed(() => this.current()?.reverse === this.value());
+
   protected onToggle(event: Event): void {
     this.open.set((event as ToggleEvent).newState === 'open');
   }
@@ -73,6 +94,15 @@ export class SortMenu {
     return DIRECTION[option] ?? null;
   }
 
+  /** The same order the other way round, "not stated" still last. */
+  protected flip(): void {
+    const current = this.current();
+    if (current !== undefined) {
+      this.picked.emit(this.reversed() ? current.key : current.reverse);
+    }
+  }
+
+  /** An order is picked in the direction it reads naturally; the toggle beside it turns it. */
   protected choose(option: string, panel: HTMLElement): void {
     this.picked.emit(option);
     // Closed by hand: a `<button>` inside a popover is not a light dismiss, so without this

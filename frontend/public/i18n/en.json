@@ -14,10 +14,19 @@
     "dashboard": "Dashboard",
     "shortlist": "Shortlist",
     "pipeline": "Pipeline",
-    "review": "Review",
     "sources": "Sources",
     "rules": "Rules",
     "analytics": "Analytics"
+  },
+  "title": {
+    "dashboard": "Dashboard",
+    "analytics": "Analytics",
+    "shortlist": "Shortlist",
+    "offer": "Offer",
+    "pipeline": "Pipeline",
+    "sources": "Sources",
+    "source": "Source",
+    "rules": "Rules"
   },
   "shell": {
     "connecting": "connecting…",
@@ -133,7 +142,6 @@
   "dashboard": {
     "title": "Dashboard",
     "subtitle": "What came in this morning, and how much of it survived.",
-    "survived": "Survived the filter",
     "followUps": "Follow-ups due",
     "followUpsHint": "Recorded by hand, on the pipeline board",
     "noRunYet": "No run yet",
@@ -211,11 +219,8 @@
     "bandAll": "All",
     "bandAbove": "{score}+",
     "bandBetween": "{from}–{to}",
-    "portal": "Portal",
-    "everyPortal": "Every portal",
     "count": "{matched} of {total}",
     "unscored": "{count} unscored",
-    "clearFilters": "Clear filters",
     "noMatchTitle": "Nothing matches these filters",
     "noMatchHint": "Clear them to see the whole shortlist again.",
     "emptyTitle": "No offers yet",
@@ -246,7 +251,11 @@
       "deadline": "Deadline nearest",
       "duration": "Longest duration",
       "fresh": "Newest first",
-      "duration-asc": "Shortest duration"
+      "duration-asc": "Shortest duration",
+      "score-asc": "Lowest score",
+      "start-desc": "Starts latest",
+      "deadline-desc": "Deadline furthest",
+      "fresh-asc": "Oldest first"
     },
     "startWindow": "Start",
     "start": {
@@ -265,6 +274,7 @@
     "anyTopic": "Any topic",
     "stale": "A run has finished since this list was read.",
     "reload": "Reload",
+    "sortReverse": "Reverse the order",
     "sortTrigger": "Sort: {order}",
     "sortUnstated": "Offers that state nothing come last in every order.",
     "filters": "Filters",
@@ -297,7 +307,6 @@
     "minScore": "From",
     "maxScore": "To",
     "portalsLabel": "Portals",
-    "portalsAll": "Every portal",
     "noPortalsYet": "No portal has been seen yet.",
     "views": {
       "label": "Views",
@@ -314,7 +323,6 @@
     },
     "related": {
       "findText": "Find offers related to “{value}”",
-      "find": "Find related",
       "partial": "{read} of {total} offers have been read for meaning so far. The rest cannot appear here yet."
     },
     "noRelatedTitle": "Nothing related on this list",
@@ -635,7 +643,6 @@
     "colApplications": "Applications",
     "colAnswered": "Answered",
     "colScore": "Score",
-    "colWeek": "Week",
     "scores": "Score distribution",
     "scoresNote": "Where the two thresholds cut the archive. The question is whether the mass sits just under a line somebody chose.",
     "scoresCaption": "How many offers fall in each ten-point band.",
@@ -703,6 +710,9 @@
     "workflowLoad": "The pipeline stages could not be loaded.",
     "bulkArchive": "The selected offers were not archived.",
     "sourceLoad": "The source could not be read.",
-    "summaryLoad": "The dashboard cells did not load."
+    "summaryLoad": "The dashboard cells did not load.",
+    "manualUpload": "The document was not accepted.",
+    "manualConfirm": "The document was not confirmed.",
+    "manualReject": "The document was not deleted."
   }
 }

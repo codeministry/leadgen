@@ -6,11 +6,12 @@ import {
     provideBrowserGlobalErrorListeners,
 } from '@angular/core';
 import {provideHttpClient, withFetch, withInterceptors} from '@angular/common/http';
-import {provideRouter, withComponentInputBinding} from '@angular/router';
+import {provideRouter, TitleStrategy, withComponentInputBinding} from '@angular/router';
 import {provideServiceWorker} from '@angular/service-worker';
 import {provideOAuthClient} from 'angular-oauth2-oidc';
 import {AuthService} from '@core/auth/auth.service';
 import {bearerInterceptor} from '@core/auth/bearer.interceptor';
+import {CatalogTitleStrategy} from '@core/i18n/title.strategy';
 import {provideI18n} from '@core/i18n/transloco.providers';
 import {UpdateStore} from '@core/pwa/update.store';
 import {provideChartPalette} from '@core/theme/chart-theme';
@@ -47,6 +48,8 @@ export const appConfig: ApplicationConfig = {
         // survive a reload and be shareable as a link, so the query params are the
         // source of truth and bind straight into component inputs.
         provideRouter(routes, withComponentInputBinding()),
+        // Route titles are catalog keys; this puts the screen name and the brand in the tab.
+        {provide: TitleStrategy, useClass: CatalogTitleStrategy},
         // The shell offline, the data never: the worker caches what `ngsw-config.json` names
         // and nothing under `/api/`. Keyed on the build mode rather than the hostname, because
         // the dev server on :4200 must never hold a stale bundle, while the compose stack on

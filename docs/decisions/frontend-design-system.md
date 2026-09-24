@@ -459,3 +459,32 @@ One line at the edge of the screen after a write or a run, and the decisions tha
   (`shared/badge`, the rescore refusal); the neutral alert was the recommendation, following
   "everything discarded is muted", and the operator chose amber for the contrast, knowing the
   widening (2026-09-23). No icons: the colour and the sentence are enough at three tones.
+
+## Traps moved from frontend/CLAUDE.md
+
+- **A backgrounded tab suspends CSS transitions,** and `getComputedStyle` then returns the
+  transition's *start* value rather than its target. An active nav link read as muted grey
+  while being correct in a real browser. Anything transitioned, animated, or driven by
+  `ResizeObserver`/`IntersectionObserver` must be measured through the Interceptor skill's
+  `Tools/VerifyViewport.ts`, never through a background tab.
+- **The DOM-render screenshot is evidence about layout and colour, not about state or
+  reflow.** It serialises and re-renders, which drops DOM properties that have no attribute (a `<select>`'s selection),
+  some component CSS on SVG children (`fill` on the score ring),
+  and it mis-measures text that wraps inside a flex item — three separate false alarms in
+  one session. Read the accessibility tree for widget state (`interceptor read` prints
+  `combobox … value="SENT"`), and confirm a suspected overlap in a real browser before
+  changing CSS. The Angular dev server sets a CSP that blocks `interceptor eval`, so the
+  geometry cannot be measured through it either.
+- **An author `display` on a popover keeps it open forever, and every API you would ask says it is closed.** What hides
+  a closed popover is the UA rule `[popover]:not(:popover-open) { display: none }`, which carries no `!important`, so a
+  `display: flex` on the panel's own class beats it. The panel then stands open on the page while `:popover-open`
+  reports `false`, `aria-expanded` reports `"false"` and the click still toggles the state correctly. Put `display` on
+  `:popover-open` and nowhere else. Shipped exactly that way once and found by a person looking at the screen: the
+  screenshots showed it open, the probe asked the API, and the screenshot was the one that got explained away as a
+  rendering artifact.
+- **Safari intermittently keeps the folded height of an unfolded advert.** Measured on the page: `max-height: none`,
+  `overflow: visible`, no mask, and the box still exactly 390px, the clamp's own value, with the text running on behind
+  the panels below it. Six isolated variants of the structure — scroll pane, grid, spanning panel, mask, the whole
+  height chain — were all correct in the same Safari, and the same page measured correctly a minute later.
+  `OfferDetail.relayoutAd` detaches the box and reads a metric off it after the toggle. It is a workaround on an
+  observation, not on a reproduced cause, and it says so.

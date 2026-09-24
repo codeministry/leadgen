@@ -6,7 +6,9 @@ import {Section} from '@core/theme/section.model';
  *
  * `title` is set per route rather than in a component: the browser tab is the only place
  * two open screens of this application are told apart, and a route that forgets it inherits
- * whichever title happened to be set last.
+ * whichever title happened to be set last. It is a catalog key under `title.*`, and
+ * `core/i18n/title.strategy.ts` turns it into `<screen name> · Lead Generation` in the active
+ * language.
  *
  * The unknown path redirects rather than showing a not-found page. There is nothing here a
  * stranger could deep-link into wrongly, and the dashboard is the honest answer to "that
@@ -23,19 +25,19 @@ export const routes: Routes = [
     {path: '', pathMatch: 'full', redirectTo: 'dashboard'},
     {
         path: 'dashboard',
-        title: 'Dashboard · Lead Generation',
+        title: 'title.dashboard',
         data: section('dashboard'),
         loadComponent: () => import('@features/dashboard/dashboard').then((m) => m.Dashboard),
     },
     {
         path: 'analytics',
-        title: 'Analytics · Lead Generation',
+        title: 'title.analytics',
         data: section('analytics'),
         loadComponent: () => import('@features/analytics/analytics').then((m) => m.Analytics),
     },
     {
         path: 'shortlist',
-        title: 'Shortlist · Lead Generation',
+        title: 'title.shortlist',
         // `section` is inherited by the `:id` child, so the detail keeps the shortlist's colour.
         data: section('shortlist'),
       // No `measure` and no `fill`: the shell's own bound is what this screen wants, and the
@@ -52,7 +54,7 @@ export const routes: Routes = [
                 path: ':id',
                 // Its own title: two tabs, one on the list and one on an offer, are told apart
                 // nowhere else.
-                title: 'Offer · Lead Generation',
+                title: 'title.offer',
                 loadComponent: () =>
                     import('@features/offer-detail/offer-detail').then((m) => m.OfferDetail),
             },
@@ -63,7 +65,7 @@ export const routes: Routes = [
     {path: 'offers/:id', redirectTo: '/shortlist/:id'},
     {
         path: 'pipeline',
-        title: 'Pipeline · Lead Generation',
+        title: 'title.pipeline',
         // The whole window, not a measure: five lanes and a reading column divide whatever
         // width there is, so a cap here is width taken off every lane. The other two split
       // views take the shell's bound — they have one prose column, which does get
@@ -78,7 +80,7 @@ export const routes: Routes = [
                 // works through what is out, and losing the board to read one ad is the round trip
                 // this pattern removes.
                 path: ':id',
-                title: 'Offer · Lead Generation',
+                title: 'title.offer',
               // Where the detail's close control goes, bound straight onto the component's
               // `closeTo` input by `withComponentInputBinding()`. Route data rather than a
               // flag the component derives from the URL: the shortlist auto-selects its
@@ -93,10 +95,11 @@ export const routes: Routes = [
     },
     // The review screen is parked (2026-09-24): not important right now, to be reworked when there
     // is time. Its code stays under `features/review/` with its specs; putting it back is this
-    // route, its nav entry in `layout/app-nav/app-nav.ts` and `'review'` in `core/theme/section.model.ts`.
+    // route, its nav entry in `layout/app-nav/app-nav.ts` with a `nav.review` key in both catalogs,
+    // and `'review'` in `core/theme/section.model.ts`.
     {
         path: 'sources',
-        title: 'Sources · Lead Generation',
+        title: 'title.sources',
         data: section('sources'),
         loadComponent: () => import('@features/sources/sources').then((m) => m.Sources),
       children: [
@@ -106,6 +109,9 @@ export const routes: Routes = [
           // with NG04014, and that failure surfaces when the Router is constructed — in
           // every spec that merely injects it, far from the route that caused it.
           path: ':id',
+          // Its own title, for the same reason as the offer: a tab on the table and a tab on
+          // one source are told apart nowhere else.
+          title: 'title.source',
           loadComponent: () =>
             import('@features/sources/source-panel/source-panel').then((m) => m.SourcePanel),
         },
@@ -113,7 +119,7 @@ export const routes: Routes = [
     },
     {
         path: 'rules',
-        title: 'Rules · Lead Generation',
+        title: 'title.rules',
         data: section('rules'),
         loadComponent: () => import('@features/rules/rules').then((m) => m.Rules),
     },

@@ -14,10 +14,19 @@
     "dashboard": "Übersicht",
     "shortlist": "Auswahl",
     "pipeline": "Verlauf",
-    "review": "Prüfung",
     "sources": "Quellen",
     "rules": "Regeln",
     "analytics": "Auswertung"
+  },
+  "title": {
+    "dashboard": "Übersicht",
+    "analytics": "Auswertung",
+    "shortlist": "Auswahl",
+    "offer": "Angebot",
+    "pipeline": "Verlauf",
+    "sources": "Quellen",
+    "source": "Quelle",
+    "rules": "Regeln"
   },
   "shell": {
     "connecting": "verbinde…",
@@ -133,7 +142,6 @@
   "dashboard": {
     "title": "Übersicht",
     "subtitle": "Was heute Morgen hereinkam, und wie viel davon übrig blieb.",
-    "survived": "Durch den Filter",
     "followUps": "Fällige Nachfassungen",
     "followUpsHint": "Von Hand erfasst, auf dem Verlaufsboard",
     "noRunYet": "Noch kein Lauf",
@@ -211,11 +219,8 @@
     "bandAll": "Alle",
     "bandAbove": "ab {score}",
     "bandBetween": "{from}–{to}",
-    "portal": "Portal",
-    "everyPortal": "Alle Portale",
     "count": "{matched} von {total}",
     "unscored": "{count} ohne Bewertung",
-    "clearFilters": "Filter zurücksetzen",
     "noMatchTitle": "Nichts passt zu diesen Filtern",
     "noMatchHint": "Setze sie zurück, um wieder die ganze Auswahl zu sehen.",
     "emptyTitle": "Noch keine Angebote",
@@ -246,7 +251,11 @@
       "deadline": "Nächste Frist",
       "duration": "Längste Dauer",
       "fresh": "Neueste zuerst",
-      "duration-asc": "Kürzeste Dauer"
+      "duration-asc": "Kürzeste Dauer",
+      "score-asc": "Niedrigste Punktzahl",
+      "start-desc": "Spätester Start",
+      "deadline-desc": "Späteste Frist",
+      "fresh-asc": "Älteste zuerst"
     },
     "startWindow": "Start",
     "start": {
@@ -265,6 +274,7 @@
     "anyTopic": "Jedes Thema",
     "stale": "Seit dem Laden dieser Liste ist ein Lauf durchgelaufen.",
     "reload": "Neu laden",
+    "sortReverse": "Reihenfolge umkehren",
     "sortTrigger": "Sortierung: {order}",
     "sortUnstated": "Angebote ohne Angabe stehen in jeder Ordnung hinten.",
     "filters": "Filter",
@@ -297,7 +307,6 @@
     "minScore": "Von",
     "maxScore": "Bis",
     "portalsLabel": "Portale",
-    "portalsAll": "Alle Portale",
     "noPortalsYet": "Es wurde noch kein Portal gesehen.",
     "views": {
       "label": "Sichten",
@@ -314,7 +323,6 @@
     },
     "related": {
       "findText": "Angebote ähnlich zu „{value}“ finden",
-      "find": "Ähnliche finden",
       "partial": "{read} von {total} Angeboten sind bisher inhaltlich erfasst. Die übrigen können hier noch nicht erscheinen."
     },
     "noRelatedTitle": "Nichts Ähnliches auf dieser Liste",
@@ -635,7 +643,6 @@
     "colApplications": "Bewerbungen",
     "colAnswered": "Beantwortet",
     "colScore": "Punkte",
-    "colWeek": "Woche",
     "scores": "Punkteverteilung",
     "scoresNote": "Wo die beiden Schwellen das Archiv schneiden. Die Frage ist, ob die Masse knapp unter einer selbst gesetzten Linie liegt.",
     "scoresCaption": "Wie viele Angebote in jedes Zehnerband fallen.",
@@ -703,6 +710,9 @@
     "workflowLoad": "Die Pipeline-Stufen konnten nicht geladen werden.",
     "bulkArchive": "Die ausgewählten Angebote wurden nicht archiviert.",
     "sourceLoad": "Die Quelle konnte nicht gelesen werden.",
-    "summaryLoad": "Die Kacheln der Übersicht haben nicht geladen."
+    "summaryLoad": "Die Kacheln der Übersicht haben nicht geladen.",
+    "manualUpload": "Das Dokument wurde nicht angenommen.",
+    "manualConfirm": "Das Dokument wurde nicht bestätigt.",
+    "manualReject": "Das Dokument wurde nicht gelöscht."
   }
 }

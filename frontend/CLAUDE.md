@@ -86,11 +86,7 @@ Carried over from a sibling Angular project, which is the house style:
   `tsc -p tsconfig.app.json` in `check:static` does not run the Angular template compiler,
   so `bun run test` or `bun run build` is the gate that catches template type errors.
   Passing `check:static` says nothing about the templates.
-- **A backgrounded tab suspends CSS transitions,** and `getComputedStyle` then returns the
-  transition's *start* value rather than its target. An active nav link read as muted grey
-  while being correct in a real browser. Anything transitioned, animated, or driven by
-  `ResizeObserver`/`IntersectionObserver` must be measured through the Interceptor skill's
-  `Tools/VerifyViewport.ts`, never through a background tab.
+- **Measure anything transitioned or observer-driven with the Interceptor skill's `Tools/VerifyViewport.ts`, never in a background tab.** — reasoning in `docs/decisions/frontend-design-system.md`.
 - **A CSS transition never fires on first paint.** A width rendered correctly the first
   time never changes, so nothing animates and the reveal silently does not exist. It needs
   two states: render the start value, let the browser paint it, then set the target —
@@ -104,25 +100,12 @@ Carried over from a sibling Angular project, which is the house style:
   right edge against the viewport flags the kanban board and the wide tables, which scroll
   inside their own `overflow-x: auto` on purpose. The real check is
   `document.scrollWidth > document.clientWidth`.
-- **The DOM-render screenshot is evidence about layout and colour, not about state or
-  reflow.** It serialises and re-renders, which drops DOM properties that have no attribute (a `<select>`'s selection),
-  some component CSS on SVG children (`fill` on the score ring),
-  and it mis-measures text that wraps inside a flex item — three separate false alarms in
-  one session. Read the accessibility tree for widget state (`interceptor read` prints
-  `combobox … value="SENT"`), and confirm a suspected overlap in a real browser before
-  changing CSS. The Angular dev server sets a CSP that blocks `interceptor eval`, so the
-  geometry cannot be measured through it either.
+- **Treat a DOM-render screenshot as evidence about layout and colour only; read widget state from the accessibility tree and confirm a suspected overlap in a real browser.** — reasoning in `docs/decisions/frontend-design-system.md`.
 - **A componentless leaf route is refused outright.** `{ path: ':name' }` with neither component, `loadComponent`,
   `redirectTo`, `children` nor `loadChildren` throws `NG04014`
   when the router config is validated — which happens when the `Router` is constructed, so every spec that merely
   injects it fails, far from the route that caused it.
-- **An author `display` on a popover keeps it open forever, and every API you would ask says it is closed.** What hides
-  a closed popover is the UA rule `[popover]:not(:popover-open) { display: none }`, which carries no `!important`, so a
-  `display: flex` on the panel's own class beats it. The panel then stands open on the page while `:popover-open`
-  reports `false`, `aria-expanded` reports `"false"` and the click still toggles the state correctly. Put `display` on
-  `:popover-open` and nowhere else. Shipped exactly that way once and found by a person looking at the screen: the
-  screenshots showed it open, the probe asked the API, and the screenshot was the one that got explained away as a
-  rendering artifact.
+- **Put a popover's `display` on `:popover-open` and nowhere else, or it never closes.** — reasoning in `docs/decisions/frontend-design-system.md`.
 - **jsdom has no `document.scrollingElement`, and it is typed `Element | null`.** It arrives `undefined`, walks straight
   through a `!== null` guard and takes down every spec of the screen that reads it with "Cannot set properties of
   undefined" — ten at once, from inside an effect, far from anything that names scrolling. The guard has to be truthy.
@@ -130,12 +113,7 @@ Carried over from a sibling Angular project, which is the house style:
 - **jsdom implements `scrollTop` but not `Element.scrollTo`.** A scroll reset written as
   `scrollTo({ top: 0 })` passes `tsc`, works in the browser, and takes down every spec that renders the component with
   `scrollTo is not a function` from inside an effect.
-- **Safari intermittently keeps the folded height of an unfolded advert.** Measured on the page: `max-height: none`,
-  `overflow: visible`, no mask, and the box still exactly 390px, the clamp's own value, with the text running on behind
-  the panels below it. Six isolated variants of the structure — scroll pane, grid, spanning panel, mask, the whole
-  height chain — were all correct in the same Safari, and the same page measured correctly a minute later.
-  `OfferDetail.relayoutAd` detaches the box and reads a metric off it after the toggle. It is a workaround on an
-  observation, not on a reproduced cause, and it says so.
+- **`OfferDetail.relayoutAd` stays: Safari intermittently keeps an unfolded advert's folded height.** — reasoning in `docs/decisions/frontend-design-system.md`.
 - **A bare `href="#id"` resolves against `<base href="/">`, not the page**, so an in-page anchor
   navigates to the dashboard with a hash. In-page links are `[routerLink]="[]"` with `[fragment]`,
   and the click handler scrolls and focuses — `shared/anchor-rail/`.

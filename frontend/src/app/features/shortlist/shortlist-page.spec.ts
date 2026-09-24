@@ -342,6 +342,34 @@ describe('ShortlistPage', () => {
     for (const order of orders) {
       expect(order.textContent?.trim()).not.toMatch(/^shortlist\./);
     }
+
+    // The reverses are never a row in the menu, only the trigger's sentence once the toggle
+    // has turned an order round, so they are read from there.
+    for (const reverse of ['score-asc', 'fresh-asc', 'start-desc', 'deadline-desc', 'duration-asc']) {
+      fixture.componentRef.setInput('sort', reverse);
+      fixture.detectChanges();
+      expect(fixture.nativeElement.querySelector('.sort-label').textContent.trim()).not.toMatch(/^shortlist\./);
+    }
+  });
+
+  it('turns the current order round with the toggle and back again', () => {
+    // A reverse is a key of its own on the wire, so the toggle writes the other key of the
+    // pair rather than a direction flag.
+    const fixture = render();
+    fixture.componentRef.setInput('sort', 'deadline');
+    fixture.detectChanges();
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate');
+    const flip = (): HTMLButtonElement => fixture.nativeElement.querySelector('.sort-flip');
+
+    expect(flip().getAttribute('aria-pressed')).toBe('false');
+    flip().click();
+    expect((navigate.mock.calls.at(-1)![1]!.queryParams as Record<string, unknown>)['sort']).toBe('deadline-desc');
+
+    fixture.componentRef.setInput('sort', 'deadline-desc');
+    fixture.detectChanges();
+    expect(flip().getAttribute('aria-pressed')).toBe('true');
+    flip().click();
+    expect((navigate.mock.calls.at(-1)![1]!.queryParams as Record<string, unknown>)['sort']).toBe('deadline');
   });
 
   describe('the topic filter', () => {
@@ -840,5 +868,47 @@ describe('ShortlistPage', () => {
     press(fixture, 'A', {shiftKey: true});
 
         expect(navigate).not.toHaveBeenCalled();
+    });
+
+    describe('when destroyed', () => {
+        /**
+         * A media query that keeps its listeners, so a spec can see which are still attached
+         * once the page is gone. The page is created and destroyed on every visit to the
+         * route; a listener left behind keeps the dead instance reachable and writes a signal
+         * nobody reads any more.
+         */
+        function recordingMediaQuery(): {readonly listeners: Set<EventListener>; fire(matches: boolean): void} {
+            const listeners = new Set<EventListener>();
+            Object.defineProperty(window, 'matchMedia', {
+                configurable: true,
+                writable: true,
+                value: (query: string) => ({
+                    matches: false,
+                    media: query,
+                    addEventListener: (_type: string, listener: EventListener) => listeners.add(listener),
+                    removeEventListener: (_type: string, listener: EventListener) => listeners.delete(listener),
+                }),
+            });
+            return {
+                listeners,
+                fire: (matches) => listeners.forEach((listener) => listener({matches} as unknown as Event)),
+            };
+        }
+
+        it('removes its media-query listener, so a later width change reaches nothing', () => {
+            const media = recordingMediaQuery();
+            const fixture = render();
+            expect(media.listeners.size).toBe(1);
+
+            const page = fixture.componentInstance as unknown as {bothColumns: () => boolean};
+            const before = page.bothColumns();
+
+            fixture.destroy();
+            media.fire(true);
+
+            expect(media.listeners.size).toBe(0);
+            // The signal is what the listener wrote; after destroy the fire reaches nothing.
+            expect(page.bothColumns()).toBe(before);
+        });
     });
 });

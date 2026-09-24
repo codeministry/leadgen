@@ -167,7 +167,9 @@ class FieldExtractorWireFormatTest {
                 Arguments.of("-3", "\"01.10.2026\""),
                 // The sort keys use this exact day as their "not stated" sentinel, so a stored
                 // one would sort among the offers that said nothing.
-                Arguments.of("1200", "\"" + ShortlistSort.UNSTATED_DAY + "\""));
+                Arguments.of("1200", "\"" + ShortlistSort.UNSTATED_DAY + "\""),
+                // And this one for the two descending day sorts.
+                Arguments.of("1201", "\"" + ShortlistSort.UNSTATED_EARLY_DAY + "\""));
     }
 
     @Test

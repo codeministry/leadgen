@@ -19,7 +19,7 @@ package de.codeministry.leadgen.offer;
  * <p><b>This narrows the set; it never reorders it.</b> A relevance ranking would make the sort
  * key a function of the request and the cursor a function of the query text, and
  * {@link ShortlistSort} and {@link Cursor} exist to prevent exactly that. So the list stays in
- * whichever of the six orders was asked for, and this decides only which offers are in it. The
+ * whichever of the ten orders was asked for, and this decides only which offers are in it. The
  * consequence worth stating, because it is invisible from the outside: <b>the first row is not
  * the best match, because there is no such thing here.</b>
  * {@code docs/decisions/retrieval.md} has the argument.

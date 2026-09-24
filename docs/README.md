@@ -88,7 +88,7 @@ room.
 | [pipeline-dedupe-filter.md](decisions/pipeline-dedupe-filter.md)   | What collapses a duplicate, the six deterministic filter stages, the archive axis                  |
 | [pipeline-enrich-content.md](decisions/pipeline-enrich-content.md) | The only fetch that leaves the machine, block labelling, start/duration/deadline                   |
 | [pipeline-scoring.md](decisions/pipeline-scoring.md)               | Rules before model, the weight table that outranks the judge, the digest and the package folder    |
-| [read-side.md](decisions/read-side.md)                             | The working-set predicate, keyset paging, the six sort keys, the filters                           |
+| [read-side.md](decisions/read-side.md)                             | The working-set predicate, keyset paging, the ten sort keys, the filters                           |
 | [retrieval.md](decisions/retrieval.md)                             | What a vector may decide and what it may not; built, and walked through in [EMBEDDINGS.md](EMBEDDINGS.md) |
 | [configuration.md](decisions/configuration.md)                     | The two layers, the three files read as one snapshot, the startup banner                           |
 | [frontend-split-views.md](decisions/frontend-split-views.md)       | The three split screens, the shell, and the first screen that writes                               |

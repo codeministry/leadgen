@@ -129,12 +129,6 @@
           }
         </div>
 
-        <lg-sort-menu
-          [value]="sort()"
-          [options]="sortOptions"
-          (picked)="setFilter('sort', $event)"
-        />
-
         <lg-facet-panel
           [portals]="store.portals()"
           [selectedPortals]="portal()"
@@ -158,6 +152,12 @@
           (topicChanged)="setTopic($event)"
           (deadlineToggled)="toggleDeadlineOpen()"
           (possibleDuplicatesToggled)="togglePossibleDuplicates()"
+        />
+
+        <lg-sort-menu
+          [value]="sort()"
+          [options]="sortOptions"
+          (picked)="setFilter('sort', $event)"
         />
       </div>
 

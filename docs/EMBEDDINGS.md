@@ -314,7 +314,7 @@ flowchart TB
 expression a function of the request, need a fourth cursor kind carrying a float, and could
 not stop a cursor minted under one query text being replayed against another — identical
 bytes, different meaning, silently. A filter narrows the set without redefining the key, so
-the six sorts, the keyset page and the counts run unchanged over the neighbourhood. The
+the ten sorts, the keyset page and the counts run unchanged over the neighbourhood. The
 consequence is visible on the screen and worth knowing: **the first row is not the best
 match**, because there is no such thing here. `retrieval.neighbours` is a *count*, which is
 why this could ship before the retrieval space had a measured threshold — a ranked list
