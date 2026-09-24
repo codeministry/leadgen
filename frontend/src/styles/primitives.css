@@ -1,0 +1,44 @@
+/* Primitives: classes used across at least two layers, the file DS-APP-07 names. `var()`
+   only, like `tokens.css`; every colour literal stays in `styles.css`.
+
+   In the `components` layer on purpose: a Tailwind utility on the same element
+   (`p-4` on a stat tile) has to win, and unlayered author styles would beat every layered
+   utility regardless of order. */
+
+@layer components {
+    /* The bordered surface every screen builds its panels from. It used to be four identical
+       `.panel` rules in four component stylesheets; one primitive is what lets the section
+       edge reach all of them at once. The edge is the top border in the section's colour,
+       `--lg-edge-w` wide, and it is orientation only: a panel on the pipeline has the
+       pipeline's edge, and nothing inside the panel reads the colour. Where no section is
+       set, `--lg-section` is base-300 and the edge is just the border. */
+    .lg-panel {
+        min-width: 0;
+        padding: var(--lg-panel-pad);
+        border: 1px solid var(--color-base-300);
+        border-top: var(--lg-edge-w) solid var(--lg-section);
+        border-radius: var(--radius-box);
+        background-color: var(--color-base-100);
+    }
+}
+
+@layer components {
+    /* The hero cell of a bento grid (spec 006): the same surface as every panel, with the
+       section edge one step wider and a wash of the section colour behind it, so it reads
+       as the first cell without a colour of its own. The wash is a `color-mix` so it follows
+       the section and the theme; `--lg-hero-wash` is the one knob. */
+    .lg-panel-hero {
+        border-top-width: calc(var(--lg-edge-w) + 1px);
+        background-color: color-mix(in oklab, var(--lg-section) var(--lg-hero-wash), var(--color-base-100));
+    }
+}
+
+@layer components {
+    /* Where an in-page anchor lands (spec 007): the heading the rail's link names, offset by the
+       sticky header plus the panel's own padding and edge, so the panel's top edge comes to rest
+       under the header rather than the heading's baseline. `tabindex="-1"` on the same heading
+       is what lets the rail move focus into the section; that is the screen's to write. */
+    .lg-anchor-target {
+        scroll-margin-top: calc(var(--lg-sticky-top) + var(--lg-panel-pad) + var(--lg-edge-w));
+    }
+}

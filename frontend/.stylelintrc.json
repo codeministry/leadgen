@@ -2,6 +2,9 @@
   "extends": "stylelint-config-standard",
   "rules": {
     "color-no-hex": true,
+    "declaration-property-value-disallowed-list": {
+      "/^(transition|animation)(-duration|-delay)?$/": ["/\\b[1-9][0-9]*m?s\\b/"]
+    },
     "selector-pseudo-element-no-unknown": [
       true,
       {
@@ -25,6 +28,14 @@
       }
     ]
   },
+  "overrides": [
+    {
+      "files": ["src/styles/motion.css"],
+      "rules": {
+        "declaration-property-value-disallowed-list": null
+      }
+    }
+  ],
   "ignoreFiles": [
     "src/styles.css"
   ]

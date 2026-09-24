@@ -26,6 +26,13 @@ export class RankedBarChart {
     readonly valueLabel = input.required<string>();
     readonly secondaryLabel = input.required<string>();
     readonly caption = input('');
+    /**
+     * What the first, stacked series means. `accent` is the signal — this share survived
+     * the filter, which is what the market panel's "passed" is. A share that means
+     * anything else (the applications panel's "answered") takes `primary`, because the
+     * signal has one meaning and an answer is not it.
+     */
+    readonly secondaryTone = input<'accent' | 'primary'>('accent');
 
     private readonly palette = inject(CHART_PALETTE);
 
@@ -54,7 +61,7 @@ export class RankedBarChart {
                     type: 'bar',
                     stack: 'ranked',
                     data: bars.map((bar) => bar.secondary),
-                    itemStyle: {color: colours.accent},
+                    itemStyle: {color: this.secondaryTone() === 'accent' ? colours.accent : colours.primary},
                 },
                 {
                     type: 'bar',

@@ -31,10 +31,10 @@
     height: 100%;
     border-radius: inherit;
     background-color: var(--color-primary);
-    transition: width 520ms cubic-bezier(0.16, 1, 0.3, 1);
+    transition: width var(--lg-reveal-duration) var(--lg-reveal-ease);
 }
 
-/* The only ochre on the screen, and it is what came out the bottom. */
+/* The only `--color-accent` (the signal) on the screen, and it is what came out the bottom. */
 .fill.signal {
     background-color: var(--color-accent);
 }
@@ -91,6 +91,24 @@
 @media (prefers-reduced-motion: reduce) {
     .fill {
         transition: none;
-        transition-delay: 0ms !important;
+        transition-delay: 0s !important;
     }
+}
+
+/* The compact form (spec 006): a chain of the stage totals over one survivor bar. */
+.compact {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+}
+
+.chain {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.375rem;
+    margin: 0;
+}
+
+.chain-note {
+    margin: 0;
 }

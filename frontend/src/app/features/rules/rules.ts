@@ -3,13 +3,23 @@ import {injectDispatch} from '@ngrx/signals/events';
 import {TranslocoPipe} from '@jsverse/transloco';
 import {configEvents} from '@core/store/config.events';
 import {ConfigStore} from '@core/store/config.store';
+import {AnchorRail, AnchorSection} from '@shared/anchor-rail/anchor-rail';
 import {Badge} from '@shared/badge/badge';
 import {Icon} from '@shared/icon/icon';
 import {PageHeader} from '@shared/page-header/page-header';
 
+/** The rail's sections; the prompts join them only when a model's prompts are configured. */
+export const RULES_SECTIONS: readonly AnchorSection[] = [
+    {id: 'knockouts', key: 'rules.knockouts'},
+    {id: 'thresholds', key: 'rules.thresholds'},
+    {id: 'weights', key: 'rules.weights'},
+];
+
+export const RULES_PROMPTS_SECTION: AnchorSection = {id: 'prompts', key: 'rules.prompts'};
+
 @Component({
     selector: 'lg-rules',
-    imports: [Badge, Icon, PageHeader, TranslocoPipe],
+    imports: [AnchorRail, Badge, Icon, PageHeader, TranslocoPipe],
     templateUrl: './rules.html',
     styleUrl: './rules.css',
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -17,6 +27,13 @@ import {PageHeader} from '@shared/page-header/page-header';
 export class Rules implements OnInit {
     private readonly dispatch = injectDispatch(configEvents);
     protected readonly store = inject(ConfigStore);
+
+    protected readonly sections = computed((): readonly AnchorSection[] => {
+        if (!this.store.rules()) {
+            return [];
+        }
+        return this.store.prompts().length > 0 ? [...RULES_SECTIONS, RULES_PROMPTS_SECTION] : RULES_SECTIONS;
+    });
 
     ngOnInit(): void {
         this.dispatch.rulesOpened();

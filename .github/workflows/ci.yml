@@ -55,6 +55,17 @@ jobs:
         with:
           bun-version: '1.3.12'
 
+      # The browser test tier (`bun run test:browser`, wired into `check`) runs every
+      # `*.browser.spec.ts` in headless Chromium, because jsdom resolves neither custom
+      # properties nor `oklch()` and a contrast assertion there passes with the element
+      # invisible. Playwright downloads the browser it drives; `--with-deps` adds the
+      # shared libraries an Ubuntu runner does not ship.
+      - name: Install Chromium for the browser tier
+        working-directory: frontend
+        run: |
+          bun install --frozen-lockfile
+          bunx playwright install --with-deps chromium
+
       # The backend tests start a real Postgres through Testcontainers. Ubuntu runners
       # ship Docker, so this needs no service container — and must not have one: the tests
       # own the container's lifecycle and a second Postgres on 5432 would only confuse a

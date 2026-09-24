@@ -1,23 +1,28 @@
 <span class="brand">
-  <!-- The real logo rather than a redraw, but as a mask rather than as a picture:
-       `public/logo-mark.png` is a flat single-colour silhouette (build-favicon.sh keys
-       out the white and repaints from the alpha channel alone), so there is nothing in
-       it to preserve but the shape. Masked, the mark takes `--color-primary` — petrol at
-       6.15:1 on the light theme, the logo's own cyan on the dark one — and the dark plate
-       it used to need is gone. It also puts the mark and the wordmark's "LEAD" on one
-       token; they were two different blues 20px apart. -->
-  <span
+  <!-- The mark, inline rather than masked: it is two colours, the ring on the theme's
+       primary and the two dots on the signal, and a CSS mask can only paint one. The
+       paths are the same as `frontend/brand/mark.svg`, which is what the favicons are
+       rendered from; the viewBox is square, so width follows height one to one. -->
+  <svg
           class="mark"
+          viewBox="0 0 32 32"
           [style.height.px]="size()"
           [style.width.px]="width()"
           [attr.role]="wordmark() ? null : 'img'"
           [attr.aria-label]="wordmark() ? null : label()"
           [attr.aria-hidden]="wordmark() ? 'true' : null"
-  ></span>
+          focusable="false"
+  >
+    <path class="body" d="M16 3a13 13 0 1 0 13 13"/>
+    <g class="signal">
+      <circle cx="16" cy="16" r="4.6"/>
+      <circle cx="27.5" cy="6.5" r="3"/>
+    </g>
+  </svg>
 
-    <!-- Two halves, two CI colours: petrol carries the structure, ochre is what
-         came through the funnel. Read as one word by sight, as the product name by
-         a screen reader — hence the role/aria-label on the wrapper. -->
+    <!-- Two halves, two colours: primary carries the structure, the signal is the brand's
+         accent. Read as one word by sight, as the product name by a screen reader — hence
+         the role/aria-label on the wrapper. -->
     @if (wordmark()) {
         <span class="wordmark" role="img" [attr.aria-label]="label()">
       <span class="wordmark-lead" aria-hidden="true">LEAD</span

@@ -53,7 +53,7 @@
           <span class="type-mono-data points">
             {{ reason.points > 0 ? '+' : '' }}{{ reason.points }}
           </span>
-                    {{ reason.label }}
+                    <span class="reason-label line-clamp-2">{{ reason.label }}</span>
                 </li>
             } @empty {
                 <li class="type-small text-muted reason">

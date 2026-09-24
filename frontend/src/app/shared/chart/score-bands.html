@@ -1,0 +1,14 @@
+<svg class="bar" viewBox="0 0 100 6" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+    @for (segment of segments(); track segment.id; let i = $index) {
+        <rect [class]="segment.id" [attr.x]="offsets()[i]" y="0" [attr.width]="segment.widthPercent" height="6"/>
+    }
+</svg>
+<ul class="legend">
+    @for (segment of segments(); track segment.id) {
+        <li class="type-small">
+            <span class="swatch" [class]="'swatch ' + segment.id" aria-hidden="true"></span>
+            <span class="type-mono-data count" [class.text-signal]="segment.id === 'shortlisted'">{{ segment.count }}</span>
+            <span class="text-muted">{{ segment.label }}</span>
+        </li>
+    }
+</ul>

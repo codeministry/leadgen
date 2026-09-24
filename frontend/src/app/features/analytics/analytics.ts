@@ -4,6 +4,7 @@ import {TranslocoPipe} from '@jsverse/transloco';
 import {injectDispatch} from '@ngrx/signals/events';
 import {analyticsEvents} from '@core/store/analytics.events';
 import {AnalyticsStore} from '@core/store/analytics.store';
+import {AnchorRail, AnchorSection} from '@shared/anchor-rail/anchor-rail';
 import {EmptyState} from '@shared/empty-state/empty-state';
 import {PageHeader} from '@shared/page-header/page-header';
 import {StatTile} from '@shared/stat-tile/stat-tile';
@@ -25,6 +26,17 @@ import {RunsPanel} from './runs-panel/runs-panel';
 import {ScoresPanel} from './scores-panel/scores-panel';
 import {StageMixPanel} from './stage-mix-panel/stage-mix-panel';
 
+/** The rail's sections, in the order the panels stand on the page. */
+export const ANALYTICS_SECTIONS: readonly AnchorSection[] = [
+    {id: 'intake', key: 'analytics.intake'},
+    {id: 'runs', key: 'analytics.runs'},
+    {id: 'market', key: 'analytics.market'},
+    {id: 'applications', key: 'analytics.applications'},
+    {id: 'scores', key: 'analytics.scores'},
+    {id: 'stage-mix', key: 'analytics.stageMix'},
+];
+
+
 /**
  * What the market is doing, and what the rules are doing to it.
  *
@@ -41,6 +53,7 @@ import {StageMixPanel} from './stage-mix-panel/stage-mix-panel';
 @Component({
     selector: 'lg-analytics',
     imports: [
+        AnchorRail,
         ApplicationsPanel,
         EmptyState,
         IntakePanel,
@@ -84,6 +97,9 @@ export class Analytics implements OnInit {
         {id: 'week', label: 'analytics.byWeek'},
         {id: 'month', label: 'analytics.byMonth'},
     ];
+
+    /** The panels exist only once the view has arrived, and so do their anchors. */
+    protected readonly sections = computed(() => (this.store.view() ? ANALYTICS_SECTIONS : []));
 
     ngOnInit(): void {
         this.dispatch.opened();

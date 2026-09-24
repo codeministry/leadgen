@@ -32,10 +32,10 @@ describe('BrandMark', () => {
         fixture.componentRef.setInput('size', 40);
         fixture.detectChanges();
 
-      // A mask has no intrinsic size, so both axes are written on the element; the
-      // width is derived from the asset's own 116x128 box and nothing else.
+      // Both axes are written on the element so the box is known before the SVG lays out;
+      // the width is derived from the mark's own square viewBox and nothing else.
       const mark: HTMLElement = fixture.nativeElement.querySelector('.mark');
       expect(mark.style.height).toBe('40px');
-      expect(mark.style.width).toBe('36px');
+      expect(mark.style.width).toBe('40px');
     });
 });

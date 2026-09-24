@@ -1,0 +1,22 @@
+<section class="lg-panel lg-panel-hero control-hero">
+    <p class="type-caption text-muted eyebrow">{{ 'dashboard.heroEyebrow' | transloco }}</p>
+    <p class="headline">
+        <span class="type-display-xl text-signal figure">{{ survived() }}</span>
+        <span class="type-h2 sentence">
+            @if (total() > 0) {
+                {{ 'dashboard.heroSentence' | transloco: {total: total()} }}
+            } @else {
+                {{ 'dashboard.nothingFiltered' | transloco }}
+            }
+        </span>
+    </p>
+    <!-- What the night brought, in words when it brought nothing: a "0" here would read as
+         the pipeline having stopped, and an old count as this morning's would be a lie. -->
+    <p class="type-small text-muted morning" [class.quiet]="quiet()">{{ morning().key | transloco: morning().params }}</p>
+    @if (total() > 0) {
+        <lg-funnel-rail [stages]="stages()" [total]="total()" [compact]="true"/>
+    }
+    <div class="actions">
+        <a class="btn btn-sm btn-primary" routerLink="/shortlist">{{ 'dashboard.openShortlist' | transloco }}</a>
+    </div>
+</section>

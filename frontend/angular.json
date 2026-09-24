@@ -73,6 +73,9 @@
           "options": {
             "setupFiles": [
               "src/test-setup.ts"
+            ],
+            "exclude": [
+              "src/**/*.browser.spec.ts"
             ]
           },
           "configurations": {
@@ -90,6 +93,21 @@
               ],
               "isolate": true
             }
+          }
+        },
+        "test-browser": {
+          "builder": "@angular/build:unit-test",
+          "options": {
+            "browsers": [
+              "chromiumHeadless"
+            ],
+            "include": [
+              "src/**/*.browser.spec.ts"
+            ],
+            "setupFiles": [
+              "src/test-setup.browser.ts"
+            ],
+            "browserViewport": "1280x800"
           }
         }
       }

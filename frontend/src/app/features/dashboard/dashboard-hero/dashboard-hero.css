@@ -1,0 +1,45 @@
+:host {
+    display: block;
+    min-width: 0;
+}
+
+/* Not `.hero`: daisyUI ships a component under that name that centres everything in a grid,
+   the `.status` trap once more, sprung on 2026-09-24. */
+.control-hero {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    height: 100%;
+}
+
+.eyebrow {
+    margin: 0;
+}
+
+/* The figure and the sentence share a baseline; the figure is the loudest thing on the
+   screen on purpose, and it is the signal's text twin so it reads at display size in both
+   themes (measured by the contrast browser spec). */
+.headline {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.25rem 0.75rem;
+    margin: 0;
+}
+
+.figure {
+    line-height: 0.9;
+}
+
+.sentence {
+    min-width: 0;
+}
+
+.morning {
+    margin: 0;
+}
+
+.actions {
+    margin-top: auto;
+    padding-top: 0.25rem;
+}

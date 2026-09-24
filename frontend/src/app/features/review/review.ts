@@ -15,10 +15,19 @@ import {TranslocoPipe} from '@jsverse/transloco';
 import {ManualOfferFields} from '@core/model/manual-document';
 import {manualEvents} from '@core/store/manual.events';
 import {ManualStore} from '@core/store/manual.store';
+import {AnchorRail, AnchorSection} from '@shared/anchor-rail/anchor-rail';
 import {EmptyState} from '@shared/empty-state/empty-state';
 import {Icon} from '@shared/icon/icon';
 import {PageHeader} from '@shared/page-header/page-header';
 import {ReviewCard} from './review-card/review-card';
+
+/** The rail's three sections. The drop zone is always there, so the rail always is. */
+export const REVIEW_SECTIONS: readonly AnchorSection[] = [
+    {id: 'upload', key: 'review.sectionUpload'},
+    {id: 'queue', key: 'review.queueLabel'},
+    {id: 'document', key: 'review.detailLabel'},
+];
+
 
 /**
  * What stands between an uploaded document and the shortlist.
@@ -29,7 +38,7 @@ import {ReviewCard} from './review-card/review-card';
  */
 @Component({
     selector: 'lg-review',
-    imports: [EmptyState, Icon, PageHeader, ReviewCard, RouterLink, TranslocoPipe],
+    imports: [AnchorRail, EmptyState, Icon, PageHeader, ReviewCard, RouterLink, TranslocoPipe],
     templateUrl: './review.html',
     styleUrl: './review.css',
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -105,6 +114,8 @@ export class Review implements OnInit {
             }
         });
     }
+
+    protected readonly sections = REVIEW_SECTIONS;
 
     ngOnInit(): void {
         this.dispatch.opened();

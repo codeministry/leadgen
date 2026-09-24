@@ -34,7 +34,7 @@
     grid-column: 1 / -1;
 }
 
-.panel {
+.lg-panel {
     min-width: 0;
     padding: 1.25rem;
     border: 1px solid var(--color-base-300);
@@ -42,7 +42,7 @@
     background-color: var(--color-base-100);
 }
 
-.panel h2 {
+.lg-panel h2 {
     margin-bottom: 0.75rem;
 }
 
@@ -175,6 +175,7 @@
 .section-head {
     display: flex;
     align-items: baseline;
+    flex-wrap: wrap;
     justify-content: space-between;
     gap: 0.75rem;
 }
@@ -236,8 +237,8 @@
  *
  * Muted and set in from the left, so it reads as an aside in the ad rather than as part of
  * it — and so a reader scanning past it does not have to decide anything. Deliberately not
- * the accent: ochre means "this survived the filter" in this application and nothing else,
- * and hidden furniture is the opposite of that.
+ * the signal: the signal means "this survived the filter" in this application and nothing
+ * else, and hidden furniture is the opposite of that.
  */
 .ad-hidden {
   margin: 0.5rem 0;
@@ -292,4 +293,19 @@ lg-page-header.has-close {
   lg-page-header.has-close {
     padding-right: 0;
   }
+}
+
+/* Both measured at 320px on 2026-09-24, once the new body face was in: the score panel's
+   head put its rescore button 46px past the edge because the row did not wrap (`.section-head`
+   wraps now, above), and a reason row's third column held a factor name
+   (`core_skill_overlap`) that no 320px column has room for beside the points and the label.
+   Below 30rem the factor drops under the label and the row becomes two columns. */
+@media (width < 30rem) {
+    .reason {
+        grid-template-columns: 4.5rem minmax(0, 1fr);
+    }
+
+    .factor {
+        grid-column: 2;
+    }
 }

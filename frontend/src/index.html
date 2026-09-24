@@ -6,10 +6,10 @@
     <base href="/"/>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
     <meta name="color-scheme" content="light dark"/>
-    <!-- Both icons, and the header's logo-mark.png, come from the gitignored
-       `public/logo.png` via `frontend/tools/build-favicon.sh`, which is the only
-       thing that knows where the ochre spout sits in that bitmap. Regenerate,
-       never hand-edit. -->
+    <!-- Both icons come from `brand/mark.svg`, the one drawing of the lead ring, via
+       `frontend/tools/build-favicon.sh`, which recolours the ring and the dots by group
+       id and puts the mark on a round plate. Regenerate, never hand-edit. The header
+       draws the same paths inline in `shared/brand-mark/`. -->
     <link rel="icon" type="image/x-icon" href="favicon.ico" sizes="16x16 32x32 48x48"/>
     <link rel="apple-touch-icon" href="favicon-256.png"/>
     <script>
@@ -26,11 +26,11 @@
                 } else if (preference === 'system') {
                     document.documentElement.removeAttribute('data-theme');
                 } else {
-                    // Nothing stored: the app's default is light, not the operating
+                    // Nothing stored: the app's default is dark, not the operating
                     // system. Written explicitly rather than left to the media query,
                     // because the absence of the attribute IS "follow the OS" here.
                     // Keep in step with DEFAULT_PREFERENCE in core/theme/theme.store.ts.
-                    document.documentElement.setAttribute('data-theme', 'lg-light');
+                    document.documentElement.setAttribute('data-theme', 'lg-dark');
                 }
             } catch (error) {
                 // Private mode or storage disabled. Fall through to the media query.

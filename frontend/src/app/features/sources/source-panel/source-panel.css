@@ -129,7 +129,7 @@
    Scoped under `:host`, so this is still a component stylesheet and not a global one. The roles
    are mapped for YAML rather than copied from the Markdown view: there a key and a string are
    both "content", here the key is the structure and the value is what somebody came to read.
-   No ochre anywhere — it means "this survived the filter", and nothing here survived anything. */
+   No signal anywhere — it means "this survived the filter", and nothing here survived anything. */
 :host ::ng-deep .yaml-text .hljs-attr {
   color: var(--color-primary);
 }

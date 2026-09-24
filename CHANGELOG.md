@@ -32,6 +32,17 @@ may change in any release. See the status note in the README.
   carries the timings as `stages`, each with a derived `millis`; `pipeline_stage` is read for
   the first time.
 - `docs/DATA-MODEL.md` and `docs/BACKEND-FLOWS.md`, and a Mermaid diagram in every guide.
+- The dashboard is a control room: one hero cell with the survivor count, the funnel in one line
+  and a button to the shortlist, four cells around it — fourteen days of intake, how the scores
+  fall, follow-ups due, run health — and the run's per-source table, stage timings and model name
+  in a machine room that stays collapsed, shows a one-line preview while closed and opens by
+  itself when the run failed or a source mismatched. Fed by the new
+  `GET /api/v1/analytics/summary` (spec `006-dashboard-control-room`).
+- Analytics, sources, review and rules carry a left column of anchor links to their sections,
+  sticky under the header and marking the section in view in the screen's own colour; on a
+  phone it is a row of chips under the title. A click lands the section under the header and
+  moves focus into it, and the hash follows so a section is a link (spec
+  `007-anchor-navigation`).
 
 ### Fixed
 
@@ -45,11 +56,28 @@ may change in any release. See the status note in the README.
 
 ### Changed
 
+- The frontend was renovated in one pass (spec `003-visual-renovation`): a new palette in
+  both themes — teal and a cool neutral by day, lavender on indigo-black by night, magenta as
+  the one signal colour that means "this survived the filter" — with the dark theme as the
+  default; three action tiers (`btn-primary`, `btn-soft btn-primary`, `btn-ghost`) and a toast
+  link that is a filled button in the toast's tone; a colour per navigation section on the
+  active marker, the page title and the panel edges; Archivo, Instrument Sans and Geist Mono
+  on a tighter type scale; and a new mark, the lead ring, drawn once as SVG and inlined in
+  the header and rendered into the favicons.
+- Every colour is measured: `bun run test:browser` runs a contrast gate in headless Chromium
+  under both themes (4.5:1 text, 3:1 objects), a colour guard pins the palette to its hex
+  twins and refuses an undefined token, and stylelint refuses a duration literal outside
+  `motion.css`. Both tiers run inside `./gradlew check`.
 - `manualEvents.settled` carries the outcome beside the document name (internal).
 - The light theme's amber text token is one step darker (5.13:1 on sand, was 4.61:1), so a
   toast's amber text clears 4.5:1 on its tint; every other amber text takes the step with it.
 - The ingest store asks the run heartbeat once at the moment a run is requested and polls
   at the fast cadence while its own request is out.
+
+### Removed
+
+- The review screen is off the navigation and the route table for now; it is not important at
+  the moment and will be reworked when there is time. Its code and specs stay in the tree.
 
 ## [0.4.3] — 2026-09-23
 

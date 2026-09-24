@@ -5,14 +5,6 @@
     margin-bottom: 1rem;
 }
 
-.panel {
-    min-width: 0;
-    padding: 1.25rem;
-    border: 1px solid var(--color-base-300);
-    border-radius: var(--radius-box);
-    background-color: var(--color-base-100);
-}
-
 .panel-head {
     display: flex;
     flex-wrap: wrap;
@@ -46,6 +38,7 @@
     grid-template-columns: 1fr 1fr;
     gap: 1rem;
     align-items: start;
+    margin-top: 1rem;
 }
 
 @media (width < 64rem) {

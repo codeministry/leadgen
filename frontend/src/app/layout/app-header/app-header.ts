@@ -1,4 +1,4 @@
-import {ChangeDetectionStrategy, Component, computed, inject, signal} from '@angular/core';
+import {ChangeDetectionStrategy, Component, computed, DOCUMENT, inject, signal} from '@angular/core';
 import {RouterLink} from '@angular/router';
 import {injectDispatch} from '@ngrx/signals/events';
 import {ingestEvents} from '@core/store/ingest.events';
@@ -32,6 +32,15 @@ export class AppHeader {
    * light dismiss and an Escape are as visible to a screen reader as the button is.
    */
   protected readonly settingsOpen = signal(false);
+  private readonly document = inject(DOCUMENT);
+
+  /** A link inside the popover navigates; the popover does not close on its own for that. */
+  protected closeSettings(): void {
+    const panel = this.document.getElementById('app-settings');
+    if (panel !== null && typeof (panel as Partial<HTMLElement>).hidePopover === 'function') {
+      panel.hidePopover();
+    }
+  }
 
   protected onSettingsToggle(event: Event): void {
     this.settingsOpen.set((event as ToggleEvent).newState === 'open');

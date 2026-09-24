@@ -97,3 +97,24 @@
     border-radius: var(--radius-box) var(--radius-box) 0 0;
   }
 }
+
+/* "Not the default order" used to be `btn-outline`, which spec 003 retired as a state
+   marker because outline became a tier. A dot in the primary at the trigger's corner says
+   the same thing without borrowing a tier; the sentence on the button already names the
+   order for a screen reader, so the dot is decoration. Not the signal: a sort being on is
+   not "this survived the filter". */
+.sort-button.is-set {
+  position: relative;
+}
+
+.sort-button.is-set::after {
+  content: '';
+  position: absolute;
+  top: -0.2rem;
+  right: -0.2rem;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  background-color: var(--color-primary);
+  box-shadow: 0 0 0 2px var(--color-base-100);
+}

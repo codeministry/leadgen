@@ -1,12 +1,24 @@
 /* Motion tokens. Durations and easings live here as custom properties and nowhere else as
-   literals, the same rule `tokens.css` holds for colour aliases and layout constants. A
-   stylesheet that needs a transition reads one of these; a new one is added here first.
+   literals, the same rule `tokens.css` holds for colour aliases and layout constants, and
+   stylelint refuses a duration literal in any other stylesheet (spec 003, ISC-235).
 
-   The toast's reveal is DaisyUI's own quarter second, kept, and its easing. The lifetime
-   the toast stands for is not a motion and lives in `core/toast/toast.model.ts`, because
-   the timer that reads it is TypeScript. */
+   Four motions. The hover is every hover and focus transition in the app, one duration so
+   the cards, the lanes, the nav and the review queue answer the pointer at the same speed.
+   The reveal is the funnel rail filling in on first paint, the score the ring drawing its
+   arc; both are slower on purpose, they are the two animations a reader is meant to see.
+   The drag is the CDK's return animation for a card dropped nowhere. The toast's reveal is
+   DaisyUI's own quarter second, kept. The lifetime a toast stands for is not a motion and
+   lives in `core/toast/toast.model.ts`, because the timer that reads it is TypeScript. */
 
 :root {
+    --lg-hover-duration: 140ms;
+    --lg-hover-ease: ease;
+    --lg-reveal-duration: 520ms;
+    --lg-reveal-ease: cubic-bezier(0.16, 1, 0.3, 1);
+    --lg-score-duration: 420ms;
+    --lg-score-ease: ease-out;
+    --lg-drag-duration: 180ms;
+    --lg-drag-ease: cubic-bezier(0, 0, 0.2, 1);
     --lg-toast-enter: 0.25s;
     --lg-toast-ease: ease-out;
 }

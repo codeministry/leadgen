@@ -6,11 +6,11 @@ ready-to-send application packages. The rules run first, free and deterministic;
 only sees what is left.
 
 [![CI](https://github.com/codeministry/leadgen/actions/workflows/ci.yml/badge.svg)](https://github.com/codeministry/leadgen/actions/workflows/ci.yml)
-[![License](https://img.shields.io/badge/license-Apache--2.0-0E6E6B.svg)](LICENSE)
-[![Status](https://img.shields.io/badge/status-alpha-C8860D.svg)](#status-alpha-and-still-being-built)
-[![Java](https://img.shields.io/badge/Java-25-0E6E6B.svg)](backend/build.gradle.kts)
-[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.1-0E6E6B.svg)](gradle/libs.versions.toml)
-[![Angular](https://img.shields.io/badge/Angular-22-0E6E6B.svg)](frontend/package.json)
+[![License](https://img.shields.io/badge/license-Apache--2.0-107970.svg)](LICENSE)
+[![Status](https://img.shields.io/badge/status-alpha-CC2997.svg)](#status-alpha-and-still-being-built)
+[![Java](https://img.shields.io/badge/Java-25-107970.svg)](backend/build.gradle.kts)
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.1-107970.svg)](gradle/libs.versions.toml)
+[![Angular](https://img.shields.io/badge/Angular-22-107970.svg)](frontend/package.json)
 
 ![The dashboard: what came in, and how much of it survived the hard filter](docs/screenshots/dashboard-light.png)
 

@@ -10,25 +10,25 @@ describe('ThemeStore', () => {
         document.documentElement.removeAttribute(DATA_THEME_ATTR);
     });
 
-    it('starts on light with nothing stored, rather than following the OS', () => {
+    it('starts on dark with nothing stored, rather than following the OS', () => {
         const store = TestBed.inject(ThemeStore);
         TestBed.tick();
 
-        expect(store.preference()).toBe('light');
-        expect(document.documentElement.getAttribute(DATA_THEME_ATTR)).toBe('lg-light');
+        expect(store.preference()).toBe('dark');
+        expect(document.documentElement.getAttribute(DATA_THEME_ATTR)).toBe('lg-dark');
     });
 
-    // The default has to survive a dark-set machine, which is the whole reason it stopped
+    // The default has to survive a light-set machine, which is the whole reason it stopped
     // being `system`: the attribute is what wins over the prefers-color-scheme query.
-    it('stays light with nothing stored even when the OS prefers dark', () => {
+    it('stays dark with nothing stored even when the OS prefers light', () => {
         const store = TestBed.inject(ThemeStore);
         const dispatcher = TestBed.inject(Dispatcher);
 
-        dispatcher.dispatch(themeEvents.systemChanged(true));
+        dispatcher.dispatch(themeEvents.systemChanged(false));
         TestBed.tick();
 
-        expect(store.theme()).toBe('lg-light');
-        expect(document.documentElement.getAttribute(DATA_THEME_ATTR)).toBe('lg-light');
+        expect(store.theme()).toBe('lg-dark');
+        expect(document.documentElement.getAttribute(DATA_THEME_ATTR)).toBe('lg-dark');
     });
 
     it('writes the attribute for an explicit choice and takes it back off for system', () => {

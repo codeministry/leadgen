@@ -29,7 +29,7 @@
     >
       <span class="type-small line">{{ toast.key | transloco: toast.params }}</span>
       @if (toast.link; as link) {
-        <a class="btn btn-ghost btn-xs" [routerLink]="link">{{ 'toast.open' | transloco }}</a>
+        <a [class]="linkClass[toast.tone]" [routerLink]="link">{{ 'toast.open' | transloco }}</a>
       }
       <button
         type="button"

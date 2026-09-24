@@ -5,9 +5,10 @@
      bar over it is an inconsistency in the one place both are chrome.
 
      The header follows the page theme and nothing in it re-scopes `data-theme` any more.
-     The mark used to sit on a dark plate because the asset carried its own bright cyan at
-     1.6:1 on white; it is a flat single-colour silhouette, so it takes `--color-primary`
-     through a mask instead and the plate has nothing left to do. -->
+     The mark used to sit on a dark plate because the asset carried its own bright colour
+     that fell short of the contrast the browser spec requires on white; it is inline SVG
+     now, not a masked silhouette, so the ring reads `--color-primary` and the signal dots
+     read the signal token directly, and the plate has nothing left to do. -->
 <header class="header">
   <div class="header-row">
     <a routerLink="/dashboard" class="brand-link">
@@ -100,7 +101,7 @@
         [attr.aria-label]="'shell.settings' | transloco"
         [attr.title]="'shell.settings' | transloco"
       >
-        <lg-icon name="ellipsis" [size]="18"/>
+        <lg-icon name="settings" [size]="18"/>
       </button>
 
       <!--
@@ -119,6 +120,15 @@
         class="settings-panel"
         (toggle)="onSettingsToggle($event)"
       >
+        <!-- The sources screen lives behind the gear rather than in the navigation (the
+             operator's call, 2026-09-24): sources are configured once and read rarely, and the
+             row is the tightest thing on the screen. The link closes the panel itself, because
+             a navigation is not a light dismiss. -->
+        <a class="btn btn-sm btn-ghost panel-link" routerLink="/sources" (click)="closeSettings()">
+          <lg-icon name="database" [size]="16"/>
+          {{ 'nav.sources' | transloco }}
+        </a>
+
         <p class="type-small text-muted panel-label">{{ 'theme.legend' | transloco }}</p>
         <lg-theme-toggle/>
 

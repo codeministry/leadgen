@@ -4,7 +4,7 @@ import {TestBed} from '@angular/core/testing';
 import {provideRouter, Router, withComponentInputBinding} from '@angular/router';
 import {RouterTestingHarness} from '@angular/router/testing';
 import {ManualOfferFields, PendingDocument} from '@core/model/manual-document';
-import {Review} from './review';
+import {Review, REVIEW_SECTIONS} from './review';
 
 const DOCUMENT_NAME = 'senior-java.md';
 
@@ -105,6 +105,17 @@ describe('Review', () => {
     harness.detectChanges();
 
     expect(TestBed.inject(Router).url).toBe('/review');
+  });
+
+  it('declares its three sections and renders a focusable heading for each', async () => {
+    const harness = await openWithSelection();
+    const root = harness.fixture.nativeElement as HTMLElement;
+
+    const hrefs = Array.from(root.querySelectorAll('lg-anchor-rail nav a'), (a) => (a.getAttribute('href') ?? '').replace(/^[^#]*/, ''));
+    expect(hrefs).toEqual(REVIEW_SECTIONS.map((section) => `#${section.id}`));
+    for (const {id} of REVIEW_SECTIONS) {
+      expect(root.querySelector(`h2#${id}.lg-anchor-target`)?.getAttribute('tabindex'), id).toBe('-1');
+    }
   });
 
   afterEach(() => http.verify());

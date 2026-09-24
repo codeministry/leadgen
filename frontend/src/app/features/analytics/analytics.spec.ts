@@ -4,7 +4,7 @@ import {ComponentFixture, TestBed} from '@angular/core/testing';
 import {provideRouter} from '@angular/router';
 import {AnalyticsView, IntakeDay} from '@core/model/analytics';
 import {provideChartPalette} from '@core/theme/chart-theme';
-import {Analytics} from './analytics';
+import {Analytics, ANALYTICS_SECTIONS} from './analytics';
 
 function day(date: string, primaries: number, passed: number): IntakeDay {
     return {
@@ -174,5 +174,17 @@ describe('Analytics', () => {
         fixture.detectChanges();
 
         expect(fixture.nativeElement.textContent).toContain('The analytics did not load.');
+    });
+
+    it('declares its sections and renders a focusable heading for each, in that order', () => {
+        const fixture = render();
+        const element = fixture.nativeElement as HTMLElement;
+
+        const hrefs = Array.from(element.querySelectorAll('lg-anchor-rail nav a'), (a) => (a.getAttribute('href') ?? '').replace(/^[^#]*/, ''));
+        expect(hrefs).toEqual(ANALYTICS_SECTIONS.map((section) => `#${section.id}`));
+        for (const section of ANALYTICS_SECTIONS) {
+            const heading = element.querySelector(`h2#${section.id}.lg-anchor-target`);
+            expect(heading?.getAttribute('tabindex'), section.id).toBe('-1');
+        }
     });
 });

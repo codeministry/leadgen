@@ -107,8 +107,9 @@
    could not be a 24×24 target and the chip trivially is — and the value truncates rather than
    wrapping, so no chip is ever two lines tall.
 
-   Petrol on the selection wash, the same vocabulary the selected card and the stale hint
-   already speak. Never ochre: ochre means "this survived the filter" and nothing else. */
+   `--color-primary` on the selection wash, the same vocabulary the selected card and the
+   stale hint already speak. Never the signal: the signal means "this survived the filter"
+   and nothing else. */
 .facet {
   display: inline-flex;
   align-items: center;
@@ -145,7 +146,8 @@
    margins it reads as one more row of chrome rather than as news. The bottom margin is the
    larger of the two because what follows is the list itself.
 
-   Petrol and never the accent: ochre means "this survived the filter" and nothing else. */
+   `--color-primary` and never the signal: the signal means "this survived the filter" and
+   nothing else. */
 .stale-hint {
   display: flex;
   flex-wrap: wrap;

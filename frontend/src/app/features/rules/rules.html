@@ -6,9 +6,10 @@
         </lg-badge>
     </lg-page-header>
 
+    <lg-anchor-rail [sections]="sections()" [label]="'nav.sections' | transloco">
     <div class="grid">
-        <section class="panel panel-wide">
-            <h2 class="type-h2">{{ 'rules.knockouts' | transloco }}</h2>
+        <section class="lg-panel panel-wide">
+            <h2 class="type-h2 lg-anchor-target" id="knockouts" tabindex="-1">{{ 'rules.knockouts' | transloco }}</h2>
             <p class="type-small text-muted panel-note">
                 {{ 'rules.knockoutsNote' | transloco }}
             </p>
@@ -42,8 +43,8 @@
             </dl>
         </section>
 
-        <section class="panel">
-            <h2 class="type-h2">{{ 'rules.thresholds' | transloco }}</h2>
+        <section class="lg-panel">
+            <h2 class="type-h2 lg-anchor-target" id="thresholds" tabindex="-1">{{ 'rules.thresholds' | transloco }}</h2>
             <ul class="thresholds">
                 <li>
                     <span class="swatch strong"></span>
@@ -90,8 +91,8 @@
             </div>
         </section>
 
-        <section class="panel">
-            <h2 class="type-h2">{{ 'rules.weights' | transloco }}</h2>
+        <section class="lg-panel">
+            <h2 class="type-h2 lg-anchor-target" id="weights" tabindex="-1">{{ 'rules.weights' | transloco }}</h2>
             <ul class="bars">
                 @for (weight of rules.weights; track weight.key) {
                     <li class="bar-row">
@@ -129,8 +130,8 @@
       that the profile behind "this developer" is the one in skill-profile.yaml.
     -->
     @if (store.prompts().length > 0) {
-        <section class="panel panel-wide prompts">
-            <h2 class="type-h2">{{ 'rules.prompts' | transloco }}</h2>
+        <section class="lg-panel panel-wide prompts">
+            <h2 class="type-h2 lg-anchor-target" id="prompts" tabindex="-1">{{ 'rules.prompts' | transloco }}</h2>
             <p class="type-small text-muted panel-note">{{ 'rules.promptsNote' | transloco }}</p>
 
             @for (prompt of store.prompts(); track prompt.id) {
@@ -160,6 +161,7 @@
         <lg-icon name="ban" [size]="14"/>
         {{ 'rules.readOnly' | transloco }}
     </p>
+    </lg-anchor-rail>
 } @else if (store.rulesError(); as error) {
     <p class="type-small rules-error" role="alert">{{ error | transloco }}</p>
 } @else {

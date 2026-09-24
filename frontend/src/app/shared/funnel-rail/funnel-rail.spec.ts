@@ -50,3 +50,21 @@ describe('FunnelRail', () => {
         expect(fixture.nativeElement.textContent).toContain('0.0 %');
     });
 });
+
+describe('FunnelRail, compact', () => {
+    it('carries the same baseline as the rows: 1289 in, 239 out, 18.5 %', () => {
+        // The compact form is the dashboard hero's (spec 006); the numbers are the rows'
+        // numbers read across, so the baseline the full rail reproduces holds here too.
+        const fixture = TestBed.createComponent(FunnelRail);
+        fixture.componentRef.setInput('stages', STAGES);
+        fixture.componentRef.setInput('total', 1289);
+        fixture.componentRef.setInput('compact', true);
+        fixture.detectChanges();
+
+        const chain = (fixture.nativeElement.querySelector('.chain') as HTMLElement).textContent!;
+        expect(chain).toContain('1,289');
+        expect(chain).toContain('239');
+        expect(fixture.nativeElement.querySelector('.chain-note')?.textContent).toContain('18.5');
+        expect(fixture.nativeElement.querySelector('.rail')).toBeNull();
+    });
+});

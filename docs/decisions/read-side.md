@@ -284,3 +284,12 @@ configuration file.
 - **Days and not instants.** The hour a mailbox is read is the operator's working hours, it is
   on a screen whose pictures get published, and nothing the panel answers needs it. Cut in SQL
   with `ran_at::date`, by the server's clock, like every other date comparison here.
+- **The dashboard reads one small answer, not the analytics payload.** `GET /api/v1/analytics/summary`
+  (`analytics/AnalyticsSummaryQueryService`, three `JdbcClient` reads) carries what the control
+  room's cells need and nothing else: fourteen days of intake as `extracted` and `shortlisted`
+  per day, cut in the server's zone over a `generate_series` so a quiet day is a zero and not a
+  gap; the count per score band over the whole archive, archived rows included, because the
+  distribution is a property of the market and not of the working set; and the last run's
+  `finishedAt`, failed stage and source-mismatch count, from the same `LastRunQueryService` the
+  last-run endpoint reads. The analytics screen's payload carries every run, tag and portal, and
+  a dashboard that paid for that on every open was the wrong trade (spec 006).

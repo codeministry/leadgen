@@ -5,6 +5,7 @@
       A label wrapping a file input rather than a div with a click handler: the keyboard and
       the screen reader get the control for free, and the drop zone is the same element.
     -->
+    <h2 class="sr-only lg-anchor-target" id="upload" tabindex="-1">{{ 'review.sectionUpload' | transloco }}</h2>
     <label
             class="drop"
             [class.dragging]="dragging()"
@@ -30,13 +31,15 @@
     }
 </div>
 
+<lg-anchor-rail [sections]="sections" [label]="'nav.sections' | transloco">
 <div class="split">
     <div class="queue-col">
         @if (store.documents().length > 0) {
             <p class="type-small text-muted count">{{ summary().key | transloco: summary().params }}</p>
         }
 
-        <section class="pane queue-pane" [attr.aria-label]="'review.queueLabel' | transloco">
+        <section class="pane queue-pane" aria-labelledby="queue">
+            <h2 class="sr-only lg-anchor-target" id="queue" tabindex="-1">{{ 'review.queueLabel' | transloco }}</h2>
             @if (store.documents().length > 0) {
                 <ul class="queue">
                     @for (document of store.documents(); track document.name) {
@@ -77,10 +80,8 @@
         </section>
     </div>
 
-    <section
-            class="pane detail-pane"
-            [attr.aria-label]="'review.detailLabel' | transloco"
-    >
+    <section class="pane detail-pane" aria-labelledby="document">
+        <h2 class="sr-only lg-anchor-target" id="document" tabindex="-1">{{ 'review.detailLabel' | transloco }}</h2>
         @if (selectedName() !== null) {
             <a class="btn btn-sm btn-ghost back" [routerLink]="[]" [queryParams]="{ doc: null }">
                 <lg-icon name="arrow-left" [size]="16"/>
@@ -106,3 +107,4 @@
         }
     </section>
 </div>
+</lg-anchor-rail>

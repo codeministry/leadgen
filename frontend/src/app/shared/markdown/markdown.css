@@ -27,7 +27,7 @@
     margin-block: 0.75rem;
 }
 
-/* Bricolage for the headings an ad brings with it, at the same steps as the type scale —
+/* Archivo for the headings an ad brings with it, at the same steps as the type scale —
    an advert's own "Ihre Aufgaben" is a heading and should read as one. */
 :host ::ng-deep .markdown h1,
 :host ::ng-deep .markdown h2,
@@ -161,7 +161,7 @@
 :host ::ng-deep .markdown .hljs-bullet,
 :host ::ng-deep .markdown .hljs-quote,
 :host ::ng-deep .markdown .hljs-addition {
-    color: var(--lg-accent-text);
+    color: var(--lg-code-string);
 }
 
 :host ::ng-deep .markdown .hljs-number,

@@ -174,3 +174,40 @@ export interface ScaleInUse {
     readonly firstScoredAt: string | null;
     readonly lastScoredAt: string | null;
 }
+
+/**
+ * Mirrors `de.codeministry.leadgen.analytics.AnalyticsSummary`: the dashboard's one slim read
+ * (spec 006). Three groups and nothing else, so a dashboard open never pays for the analytics
+ * screen's whole payload.
+ */
+export interface AnalyticsSummary {
+    /** Fourteen days, oldest first, today last, empty days as zeros. */
+    readonly intake: readonly SummaryIntakeDay[];
+    readonly scoreBands: SummaryScoreBands;
+    readonly lastRun: SummaryRunHealth;
+}
+
+export interface SummaryIntakeDay {
+    readonly day: string;
+    /** Primaries that arrived that day; a duplicate through a second portal is not counted. */
+    readonly extracted: number;
+    /** Of those, the ones on the shortlist today. */
+    readonly shortlisted: number;
+}
+
+/** The server's band names, as everywhere else on the read side. */
+export interface SummaryScoreBands {
+    readonly shortlisted: number;
+    readonly review: number;
+    readonly discarded: number;
+    readonly unscored: number;
+}
+
+export interface SummaryRunHealth {
+    /** Null when no run was ever recorded. */
+    readonly finishedAt: string | null;
+    /** The stage the last run stopped in, or null when it completed. */
+    readonly failedStage: string | null;
+    /** Sources that extracted fewer offers than they announced, on that run. */
+    readonly mismatches: number;
+}

@@ -1,0 +1,32 @@
+<!-- One bar per day, the shortlisted share drawn over the extracted one from the same
+     baseline so the signal is always the smaller, inner bar. Widths are in percent of the
+     viewBox so fourteen bars fit any cell. -->
+<svg class="spark" viewBox="0 0 140 40" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+    @for (bar of bars(); track bar.day; let i = $index) {
+        <rect class="extracted" [attr.x]="i * 10 + 1" [attr.y]="40 - bar.extractedHeight * 0.4" width="8" [attr.height]="bar.extractedHeight * 0.4"/>
+        <rect class="shortlisted" [attr.x]="i * 10 + 1" [attr.y]="40 - bar.shortlistedHeight * 0.4" width="8" [attr.height]="bar.shortlistedHeight * 0.4"/>
+    }
+</svg>
+<p class="type-small text-muted sums">
+    <span class="type-mono-data">{{ total() }}</span> {{ extractedLabel() }} ·
+    <span class="type-mono-data text-signal">{{ totalShortlisted() }}</span> {{ shortlistedLabel() }}
+</p>
+<!-- The same fourteen rows as the bars, from the same input, so the two cannot drift. -->
+<table class="sr-only">
+    <thead>
+    <tr>
+        <th scope="col"></th>
+        <th scope="col">{{ extractedLabel() }}</th>
+        <th scope="col">{{ shortlistedLabel() }}</th>
+    </tr>
+    </thead>
+    <tbody>
+        @for (bar of bars(); track bar.day) {
+            <tr>
+                <th scope="row">{{ bar.day }}</th>
+                <td>{{ bar.extracted }}</td>
+                <td>{{ bar.shortlisted }}</td>
+            </tr>
+        }
+    </tbody>
+</table>

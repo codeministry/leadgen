@@ -15,15 +15,7 @@
     grid-column: 1 / -1;
 }
 
-.panel {
-    min-width: 0;
-    padding: 1.25rem;
-    border: 1px solid var(--color-base-300);
-    border-radius: var(--radius-box);
-    background-color: var(--color-base-100);
-}
-
-.panel h2 {
+.lg-panel h2 {
     margin-bottom: 0.75rem;
 }
 

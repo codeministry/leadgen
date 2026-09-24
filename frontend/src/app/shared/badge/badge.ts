@@ -21,7 +21,7 @@ const TONE_CLASS: Record<BadgeTone, string> = {
 };
 
 /**
- * Ochre (`accent`) means one thing across the whole app: this cleared the
+ * The signal (`accent`, magenta) means one thing across the whole app: this cleared the
  * shortlist threshold. Anything else that wants attention takes `warning`.
  */
 @Component({

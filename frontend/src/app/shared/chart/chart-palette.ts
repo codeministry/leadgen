@@ -9,10 +9,10 @@ import {InjectionToken, Signal} from '@angular/core';
  * it arrives.
  */
 export interface ChartPalette {
-    /** Structure and the first series. Petrol in the light theme, the logo's cyan in dark. */
+    /** Structure and the first series. Indigo by day, lavender at night. */
     readonly primary: string;
     readonly secondary: string;
-    /** Ochre. Still means one thing: this cleared the threshold. Never a label colour. */
+    /** The signal. Still means one thing: this cleared the threshold. Never a label colour. */
     readonly accent: string;
     /** Bar tracks, grid lines, the axis itself. */
     readonly track: string;

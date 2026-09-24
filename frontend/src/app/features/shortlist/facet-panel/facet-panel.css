@@ -7,8 +7,9 @@
 }
 
 /* Not `.badge`: daisyUI ships a component under that name, and a class that happens to agree
-   with it today is the trap `.status` sprang in the header. Petrol and never ochre — ochre
-   means "this survived the filter" and nothing else, and a filter being on is not that. */
+   with it today is the trap `.status` sprang in the header. `--color-primary` and never the
+   signal — the signal means "this survived the filter" and nothing else, and a filter being
+   on is not that. */
 .active-count {
   display: inline-flex;
   align-items: center;
@@ -118,4 +119,11 @@
     max-width: none;
     border-radius: var(--radius-box) var(--radius-box) 0 0;
   }
+}
+
+/* "At least one filter is on" is already said by the count pill beside the word; `is-set`
+   replaces the retired `btn-outline` and only weights the label so the pill has company.
+   The class is bound for the same reason the pill is: one truth, two places to read it. */
+.facet-button.is-set {
+  font-weight: 700;
 }

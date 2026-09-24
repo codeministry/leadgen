@@ -7,6 +7,7 @@ import {TranslocoPipe} from '@jsverse/transloco';
 import {SourceSummary} from '@core/model/source-summary';
 import {configEvents} from '@core/store/config.events';
 import {ConfigStore} from '@core/store/config.store';
+import {AnchorRail, AnchorSection} from '@shared/anchor-rail/anchor-rail';
 import {Badge} from '@shared/badge/badge';
 import {EmptyState} from '@shared/empty-state/empty-state';
 import {Icon} from '@shared/icon/icon';
@@ -14,9 +15,18 @@ import {LgIconName} from '@shared/icon/lucide-icons';
 import {DayPipe} from '@shared/date/day.pipe';
 import {PageHeader} from '@shared/page-header/page-header';
 
+/** The table, and — while a panel is open under it — the panel's two headings. */
+export const SOURCES_SECTIONS: readonly AnchorSection[] = [{id: 'sources', key: 'sources.sectionList'}];
+
+export const SOURCE_PANEL_SECTIONS: readonly AnchorSection[] = [
+    {id: 'runs', key: 'sources.runsTitle'},
+    {id: 'block', key: 'sources.yamlTitle'},
+];
+
+
 @Component({
     selector: 'lg-sources',
-  imports: [Badge, DayPipe, EmptyState, Icon, PageHeader, RouterLink, RouterOutlet, TranslocoPipe],
+  imports: [AnchorRail, Badge, DayPipe, EmptyState, Icon, PageHeader, RouterLink, RouterOutlet, TranslocoPipe],
     templateUrl: './sources.html',
     styleUrl: './sources.css',
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -52,6 +62,20 @@ export class Sources implements OnInit {
   protected readonly openId = computed<string | null>(() => {
     this.navigated();
     return this.route.snapshot.firstChild?.paramMap.get('id') ?? null;
+  });
+
+  /**
+   * The table, and the panel's two headings while a panel is open and has rendered: the rail
+   * links to a heading only once it exists, which is also when the observer can find it.
+   */
+  protected readonly sections = computed((): readonly AnchorSection[] => {
+    if (this.store.sources().length === 0) {
+      return [];
+    }
+    const open = this.openId();
+    return open !== null && this.store.detail()?.id === open
+      ? [...SOURCES_SECTIONS, ...SOURCE_PANEL_SECTIONS]
+      : SOURCES_SECTIONS;
   });
 
     /** A source type is whatever the YAML declares, so the fallback is the interesting case. */

@@ -1,4 +1,5 @@
 import {Routes} from '@angular/router';
+import {Section} from '@core/theme/section.model';
 
 /**
  * Every screen, lazily loaded.
@@ -10,22 +11,33 @@ import {Routes} from '@angular/router';
  * The unknown path redirects rather than showing a not-found page. There is nothing here a
  * stranger could deep-link into wrongly, and the dashboard is the honest answer to "that
  * URL does not exist".
+ *
+ * `data.section` names the navigation destination a route belongs to, typed as `Section`
+ * so a misspelling fails the build; the shell writes it as `data-section` on its host and
+ * the section colour hangs off that. Children inherit it, which is how the offer detail
+ * takes the shortlist's colour under one parent and the pipeline's under the other.
  */
+const section = (s: Section): {section: Section} => ({section: s});
+
 export const routes: Routes = [
     {path: '', pathMatch: 'full', redirectTo: 'dashboard'},
     {
         path: 'dashboard',
         title: 'Dashboard · Lead Generation',
+        data: section('dashboard'),
         loadComponent: () => import('@features/dashboard/dashboard').then((m) => m.Dashboard),
     },
     {
         path: 'analytics',
         title: 'Analytics · Lead Generation',
+        data: section('analytics'),
         loadComponent: () => import('@features/analytics/analytics').then((m) => m.Analytics),
     },
     {
         path: 'shortlist',
         title: 'Shortlist · Lead Generation',
+        // `section` is inherited by the `:id` child, so the detail keeps the shortlist's colour.
+        data: section('shortlist'),
       // No `measure` and no `fill`: the shell's own bound is what this screen wants, and the
       // advert is what wants a page — the detail column scrolls with the document and the
       // list column pins itself beside it. The board keeps `fill`, because five lanes
@@ -57,7 +69,7 @@ export const routes: Routes = [
       // views take the shell's bound — they have one prose column, which does get
       // unreadable. `fill` bounds the screen to the viewport so the board and the detail
       // column scroll on their own.
-        data: {measure: 'full', fill: true},
+        data: {measure: 'full', fill: true, ...section('pipeline')},
         loadComponent: () => import('@features/pipeline/pipeline').then((m) => m.Pipeline),
         children: [
             {
@@ -79,17 +91,13 @@ export const routes: Routes = [
             },
         ],
     },
-    {
-        path: 'review',
-        title: 'Review · Lead Generation',
-        // The queue beside the document, so correcting one extraction does not cost the place
-      // in the queue. No `fill`, the same as the shortlist: the document is prose and scrolls
-      // with the page, and the queue pins itself beside it.
-        loadComponent: () => import('@features/review/review').then((m) => m.Review),
-    },
+    // The review screen is parked (2026-09-24): not important right now, to be reworked when there
+    // is time. Its code stays under `features/review/` with its specs; putting it back is this
+    // route, its nav entry in `layout/app-nav/app-nav.ts` and `'review'` in `core/theme/section.model.ts`.
     {
         path: 'sources',
         title: 'Sources · Lead Generation',
+        data: section('sources'),
         loadComponent: () => import('@features/sources/sources').then((m) => m.Sources),
       children: [
         {
@@ -106,6 +114,7 @@ export const routes: Routes = [
     {
         path: 'rules',
         title: 'Rules · Lead Generation',
+        data: section('rules'),
         loadComponent: () => import('@features/rules/rules').then((m) => m.Rules),
     },
     {path: '**', redirectTo: 'dashboard'},

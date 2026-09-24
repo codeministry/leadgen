@@ -3,7 +3,7 @@ import {RouterLink} from '@angular/router';
 import {TranslocoPipe} from '@jsverse/transloco';
 import {injectDispatch} from '@ngrx/signals/events';
 import {toastEvents} from '@core/toast/toast.events';
-import {TOAST_TONE_CLASS} from '@core/toast/toast.model';
+import {TOAST_LINK_CLASS, TOAST_TONE_CLASS} from '@core/toast/toast.model';
 import {ToastStore} from '@core/toast/toast.store';
 import {Icon} from '@shared/icon/icon';
 
@@ -26,6 +26,7 @@ export class ToastStack {
     protected readonly store = inject(ToastStore);
     private readonly dispatch = injectDispatch(toastEvents);
     protected readonly toneClass = TOAST_TONE_CLASS;
+    protected readonly linkClass = TOAST_LINK_CLASS;
 
     protected dismiss(id: number): void {
         this.dispatch.dismissed(id);

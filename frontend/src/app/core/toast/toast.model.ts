@@ -58,3 +58,16 @@ export function toast(tone: ToastTone, key: string, params?: Toast['params'], li
     nextId += 1;
     return {id: nextId, tone, key, params, link};
 }
+
+/**
+ * The link's class per tone, spelled out for the same reason as the tone class. The link is
+ * the one thing a toast offers, so it is the filled button in the toast's own tone rather
+ * than a ghost: a ghost inside a tinted alert reads as decoration (the "Open" the operator
+ * could not find, spec 003), and a soft button on a soft tint has no boundary to speak of.
+ * The tone's content colour on the tone's fill is what `contrast.browser.spec.ts` measures.
+ */
+export const TOAST_LINK_CLASS: Readonly<Record<ToastTone, string>> = {
+    success: 'btn btn-xs btn-success',
+    warning: 'btn btn-xs btn-warning',
+    info: 'btn btn-xs btn-info',
+};

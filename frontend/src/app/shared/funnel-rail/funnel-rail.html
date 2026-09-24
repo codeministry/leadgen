@@ -1,3 +1,26 @@
+@if (compact()) {
+    <!-- The compact form: the chain of what was left after each stage, then the survivor bar.
+         The chain is the same numbers the rows carry, read left to right instead of down. -->
+    <div class="compact">
+        <p class="type-mono-data text-muted chain">
+            <span>{{ format(total()) }}</span>
+            @for (segment of segments(); track segment.stage.id) {
+                <span aria-hidden="true">›</span>
+                <span [attr.title]="segment.stage.label">{{ format(segment.remaining) }}</span>
+            }
+        </p>
+        <span class="bar" aria-hidden="true">
+            <span
+                    class="fill signal"
+                    [style.width.%]="revealed() ? survivedPercent() : 100"
+            ></span>
+        </span>
+        <p class="type-small text-muted chain-note">
+            {{ survivorLabel() | transloco }} ·
+            <span class="type-mono-data">{{ percent(survivedPercent()) }}</span>
+        </p>
+    </div>
+} @else {
 <!-- An ordered list, not a chart: the numbers have to be readable without the
      bars, and templateAccessibility would reject a bar chart with no text. -->
 <ol class="rail">
@@ -39,3 +62,4 @@
         <span class="type-mono-data text-muted drop">{{ percent(survivedPercent()) }}</span>
     </li>
 </ol>
+}

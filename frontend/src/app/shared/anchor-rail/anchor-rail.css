@@ -1,0 +1,97 @@
+/* The rail column and the content column, once (spec 007). `align-items: start` is
+   load-bearing: a grid item stretched to the row's height has nowhere to move, and
+   `position: sticky` on it then does nothing at all. */
+:host {
+    display: grid;
+    grid-template-columns: var(--lg-anchor-w) minmax(0, 1fr);
+    gap: var(--lg-split-gap);
+    align-items: start;
+}
+
+/* No sections, no column: the content takes the whole width. */
+:host(.bare) {
+    display: block;
+}
+
+.rail {
+    position: sticky;
+    top: var(--lg-sticky-top);
+}
+
+.links {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+/* Muted until it is the section in view; the marker is the section colour and nothing
+   else reads it — the text stays base-content, because the section colours are tuned for
+   3:1 as objects, not 4.5:1 as text (ISC-279). */
+.link {
+    display: block;
+    padding: 0.375rem 0.75rem;
+    border-inline-start: 2px solid transparent;
+    border-radius: 0 var(--radius-field) var(--radius-field) 0;
+    color: var(--lg-muted);
+    text-decoration: none;
+    transition:
+        color var(--lg-hover-duration) var(--lg-hover-ease),
+        border-color var(--lg-hover-duration) var(--lg-hover-ease);
+}
+
+.link:hover {
+    color: var(--color-base-content);
+}
+
+.link.is-current {
+    border-color: var(--lg-section);
+    color: var(--color-base-content);
+}
+
+.body {
+    min-width: 0;
+}
+
+/* Below the split's own breakpoint the column is gone and the rail is a row of chips under
+   the page header, scrolling sideways inside itself so the page never does. Not sticky: on a
+   phone the header already takes its share of the screen. */
+@media (width < 48rem) {
+    :host {
+        display: block;
+    }
+
+    .rail {
+        position: static;
+        margin-bottom: 1rem;
+        overflow-x: auto;
+        scrollbar-width: none;
+    }
+
+    .links {
+        flex-direction: row;
+        gap: 0.375rem;
+    }
+
+    .link {
+        flex: none;
+        padding: 0.25rem 0.75rem;
+        border: 1px solid var(--color-base-300);
+        border-radius: 999px;
+        background-color: var(--color-base-100);
+        white-space: nowrap;
+    }
+
+    .link.is-current {
+        border-color: var(--lg-section);
+        box-shadow: inset 0 0 0 1px var(--lg-section);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .link {
+        transition: none;
+    }
+}

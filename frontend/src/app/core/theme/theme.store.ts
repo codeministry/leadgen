@@ -10,16 +10,16 @@ interface ThemeState {
 }
 
 /**
- * The default is `light`, not `system`. `system` is still one of the three choices and
+ * The default is `dark`, not `system`. `system` is still one of the three choices and
  * still means "no `data-theme`, let the media query decide" — it is simply no longer what
- * an unconfigured browser gets. The palette is designed light-first (petrol on sand, ochre
- * for what survived the filter), and a reader arriving on a dark-set machine used to meet
- * the dark variant before ever seeing the light one.
+ * an unconfigured browser gets. The dark theme is the one the renovation was judged on
+ * first (spec 003, the operator's call at the Stage 1 review), so it is what a new reader
+ * meets; the light theme is the same design by day.
  *
  * Kept in step by hand with the inline script in `src/index.html`, which has to write the
- * same default before first paint or the page paints dark and corrects itself.
+ * same default before first paint or the page paints light and corrects itself.
  */
-const DEFAULT_PREFERENCE: ThemePreference = 'light';
+const DEFAULT_PREFERENCE: ThemePreference = 'dark';
 
 const initialState: ThemeState = {preference: DEFAULT_PREFERENCE, systemPrefersDark: false};
 

@@ -10,7 +10,7 @@
              "related", and deliberately not "similar" — the list already badges possible
              duplicates, and those two mean different things. -->
         @if (canFindRelated()) {
-            <button type="button" class="btn btn-sm btn-ghost" (click)="findRelated(entry.offer.id)">
+            <button type="button" class="btn btn-sm btn-soft btn-primary" (click)="findRelated(entry.offer.id)">
                 <lg-icon name="scan-search" [size]="16"/>
                 {{ 'detail.findRelated' | transloco }}
             </button>
@@ -19,7 +19,7 @@
             <!-- Out of the application, so a new tab, and `noopener` with it: a page opened
                  this way can otherwise reach back through `window.opener`, and this URL came off
                  a portal. The same pair the rendered advert's own links carry. -->
-            <a class="btn btn-sm btn-ghost" [href]="url" target="_blank" rel="noopener noreferrer">
+            <a class="btn btn-sm btn-soft btn-primary" [href]="url" target="_blank" rel="noopener noreferrer">
                 <lg-icon name="external-link" [size]="16"/>
                 {{ 'detail.originalAd' | transloco }}
             </a>
@@ -32,7 +32,7 @@
         -->
         <button
                 type="button"
-                class="btn btn-sm btn-ghost"
+                class="btn btn-sm btn-soft btn-primary"
                 [disabled]="store.archiving() === entry.offer.id"
                 aria-keyshortcuts="a"
                 (click)="setArchived(entry.offer.id, entry.offer.archivedAt === null)"
@@ -82,14 +82,14 @@
           *is* this description, and the same paragraph twice says nothing the second time.
         -->
         @if (entry.offer.fullText && entry.offer.description; as summary) {
-            <section class="panel panel-wide">
+            <section class="lg-panel panel-wide">
                 <h2 class="type-h2">{{ 'detail.summary' | transloco }}</h2>
                 <lg-markdown [text]="summary"/>
                 <p class="type-caption text-muted">{{ 'detail.summaryNote' | transloco }}</p>
             </section>
         }
 
-        <section class="panel panel-wide">
+        <section class="lg-panel panel-wide">
             <h2 class="type-h2">{{ 'detail.theAd' | transloco }}</h2>
             <!--
               The enriched full text when enrichment reached the portal, the newsletter's own
@@ -194,7 +194,7 @@
              needs no retrieval at all, and why `docs/decisions/retrieval.md` names it as the
              carve-out worth having. -->
         @if (canAsk()) {
-            <section class="panel">
+            <section class="lg-panel">
                 <div class="section-head">
                     <h2 class="type-h2">{{ 'detail.ask.title' | transloco }}</h2>
                 </div>
@@ -203,7 +203,7 @@
             </section>
         }
 
-        <section class="panel">
+        <section class="lg-panel">
             <div class="section-head">
                 <h2 class="type-h2">{{ 'detail.whyScored' | transloco }}</h2>
                 <!--
@@ -215,7 +215,7 @@
                 @if (entry.score.hardPass) {
                     <button
                             type="button"
-                            class="btn btn-sm btn-ghost"
+                            class="btn btn-sm btn-soft btn-primary"
                             [disabled]="store.rescoring() === entry.offer.id"
                             (click)="rescore(entry.offer.id)"
                     >
@@ -265,7 +265,7 @@
             </ul>
         </section>
 
-        <section class="panel">
+        <section class="lg-panel">
             <h2 class="type-h2">{{ 'detail.extractedFields' | transloco }}</h2>
             <dl class="fields">
                 @for (field of fields(); track field.label) {
@@ -306,7 +306,7 @@
             }
         </section>
 
-        <section class="panel">
+        <section class="lg-panel">
             <h2 class="type-h2">{{ 'detail.package' | transloco }}</h2>
             <p class="type-small text-muted panel-note">
                 {{ 'detail.packageNote' | transloco }}
@@ -319,7 +319,7 @@
                   behaves identically through the dev proxy and through nginx.
                 -->
                 <a
-                        class="btn btn-sm btn-outline package-download"
+                        class="btn btn-sm btn-soft btn-primary package-download"
                         [href]="packageUrl(entry.offer.id)"
                         download
                 >
@@ -347,7 +347,7 @@
         </section>
 
         @if (application(); as application) {
-            <section class="panel">
+            <section class="lg-panel">
                 <lg-application-panel
                         [application]="application"
                         [statusChoices]="applications.choicesFor(application.status)"

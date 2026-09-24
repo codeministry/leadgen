@@ -1,6 +1,6 @@
 /* The tones are DaisyUI's `alert-success`, `alert-warning` and `alert-info`, set from a
    literal lookup in `core/toast/toast.model.ts`, one per action family. Nothing here names
-   a colour, and nothing takes the ochre: it means "this cleared the threshold" and a toast
+   a colour, and nothing takes the signal: it means "this cleared the threshold" and a toast
    is not that. */
 
 :host {
