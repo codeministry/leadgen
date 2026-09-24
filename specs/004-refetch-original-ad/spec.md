@@ -5,10 +5,10 @@ spec_type: feature
 isa_master: ../../ISA.md
 isa_feature: F32
 constitution: ../constitution.md
-phase: climbing
+phase: complete
 progress: 8/8
 started: 2026-09-23T22:55:00Z
-updated: 2026-09-24T00:40:10Z
+updated: 2026-09-24T01:20:42Z
 principal_stated_goal: "feature Quellen per Button in der Kachel erneut einlesen, falls nicht vorhanden => “FROM THE SOURCE DOCUMENT. THE ORIGINAL AD WAS NOT FETCHED.”"
 principal_stated_goal_source: prompt
 principal_stated_goal_signal: 2
@@ -117,6 +117,8 @@ caption gives way to the ad and the offer's content, fields and score are brough
 - **2026-09-24 — The server refuses an offer that already has its ad, not only the button.** A fetch that fails records its reason over the enrichment columns, the text among them, so a request for an offer whose page answers 500 today would throw away an ad read fine last week. `EnrichmentService` therefore selects only offers without `full_text` and answers 409 for the rest, the same condition ISC-243 puts on the button and § Out of Scope puts on the feature. Found by the builder of the ISC-246 to ISC-249 probes, not by a probe.
 
 - **2026-09-24 — refined: F32 gains ISC-294, and ISC-248 says what the code can keep.** A builder noticed that a failed fetch records its reason over the enrichment columns, `full_text` among them, so a press on an offer that already had its ad could throw it away; the server now refuses such an offer (409) and the button's write is a no-op once text has landed, which a second look found unprobed and so became ISC-294 rather than a comment. ISC-248 read "writes no row but its own offer's and its URL's cache entry", which the shared LLM budget row and the per-portal block-label cache contradict on every model stage; it now reads "changes no other offer's row, no cache entry but its own URL's", which the whole-row probe does check.
+
+- **2026-09-24 — Closed without the full gate, at the principal's call.** All eight claims closed on their probes, each red before and green after; the backend suite (92 classes), the frontend suite (299 tests) and `check:static` were green in the tree, and the commit itself was built in an isolated worktree (20 backend classes, 264 frontend tests, spotless). `./gradlew build` is deferred to one run across all open specs, on the principal's word: "schließ jetzt ab, ich teste später alles zusammen". Deployed as `0.4.4-dev.10-gfb37876` and exercised live on the office instance.
 
 ## Verification
 
