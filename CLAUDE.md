@@ -205,7 +205,8 @@ frontend/src/app/features/        dashboard, shortlist (+ offer card, sort menu,
                                   views — decisions/frontend-split-views.md
 frontend/src/app/core/filter-views/  saved views: a name and a query string, in this
                                   browser's localStorage — decisions/frontend-split-views.md
-frontend/tools/build-favicon.sh   renders favicon.ico and favicon-256.png from brand/mark.svg
+frontend/tools/build-favicon.sh   renders the favicon set plus the 192/512 round-plate,
+                                  512 maskable and 180 touch icons from brand/mark.svg
 ```
 
 The two Python scripts are the **reference implementation**. Whatever they do, the Java

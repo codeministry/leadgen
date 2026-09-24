@@ -11,8 +11,9 @@ import {coverLetterEvents} from '@core/store/cover-letter.events';
 import {ingestEvents} from '@core/store/ingest.events';
 import {manualEvents} from '@core/store/manual.events';
 import {shortlistEvents} from '@core/store/shortlist.events';
+import {updateEvents} from '@core/pwa/update.events';
 import {toastEvents} from './toast.events';
-import {TOAST_CAP, TOAST_LIFETIME_MS, toast} from './toast.model';
+import {actionToast, TOAST_CAP, TOAST_LIFETIME_MS, toast} from './toast.model';
 import {ToastStore} from './toast.store';
 
 /**
@@ -281,6 +282,31 @@ describe('ToastStore', () => {
         });
     });
 
+    describe('a new version the worker holds', () => {
+        it('offers the reload as the toast\'s action, blue, and links nowhere', () => {
+            const update = TestBed.runInInjectionContext(() => injectDispatch(updateEvents));
+            update.versionReady('a1');
+
+            expect(store.toasts().length).toBe(1);
+            expect(store.toasts()[0]).toMatchObject({
+                tone: 'info',
+                key: 'toast.update.ready',
+                action: {key: 'toast.update.reload', event: {type: updateEvents.activate().type}},
+            });
+            expect(store.toasts()[0].link).toBeUndefined();
+        });
+
+        it('replaces a standing update toast rather than stacking a second one', () => {
+            const update = TestBed.runInInjectionContext(() => injectDispatch(updateEvents));
+            update.versionReady('a1');
+            const first = store.toasts()[0].id;
+            update.versionReady('b2');
+
+            expect(store.toasts().length).toBe(1);
+            expect(store.toasts()[0].id).not.toBe(first);
+        });
+    });
+
     describe('a failure', () => {
         it('raises no toast at all — the inline alert beside the control is the message', () => {
             shortlist.archiveFailed('error.archive');
@@ -357,6 +383,32 @@ describe('ToastStore', () => {
 
             vi.advanceTimersByTime(TOAST_LIFETIME_MS);
             expect(store.toasts().length).toBe(0);
+        });
+
+        it('stands until closed when it carries an action, and a release starts no timer either', () => {
+            const offered = actionToast('info', 'toast.update.ready', {key: 'toast.update.reload', event: updateEvents.activate()});
+            dispatch.raised(offered);
+            vi.advanceTimersByTime(TOAST_LIFETIME_MS * 10);
+            expect(store.toasts().length).toBe(1);
+
+            dispatch.held(offered.id);
+            dispatch.released(offered.id);
+            vi.advanceTimersByTime(TOAST_LIFETIME_MS * 10);
+            expect(store.toasts().length).toBe(1);
+
+            dispatch.dismissed(offered.id);
+            expect(store.toasts().length).toBe(0);
+        });
+
+        it('still yields to the cap when it carries an action', () => {
+            const offered = actionToast('info', 'toast.update.ready', {key: 'toast.update.reload', event: updateEvents.activate()});
+            dispatch.raised(offered);
+            for (let i = 0; i < TOAST_CAP; i += 1) {
+                dispatch.raised(toast('info', 'toast.restored'));
+            }
+
+            expect(store.toasts().length).toBe(TOAST_CAP);
+            expect(store.toasts().some((standing) => standing.id === offered.id)).toBe(false);
         });
 
         it('keeps no more than the cap, the oldest leaving first', () => {

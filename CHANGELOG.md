@@ -9,6 +9,22 @@ may change in any release. See the status note in the README.
 
 ## [Unreleased]
 
+### Added
+
+- The app is installable, from the browser's own install affordance: a web app manifest, the
+  lead-ring icons rendered from `brand/mark.svg` (192 and 512 on the round plate, a 512 maskable
+  icon on an opaque square plate, a 180 touch icon), a title bar in the surface colour of the
+  active theme, an app shell that opens without a network through Angular's service worker
+  (production builds only; nothing under `/api/` is ever cached), and a toast that offers to
+  reload once a deploy has landed (spec `012-pwa-install`).
+
+### Changed
+
+- `frontend/nginx.conf` sets a cache policy: `no-cache` on `index.html`, `ngsw.json`, the
+  manifest and the worker scripts, `immutable` on the hashed bundles and fonts, and the
+  manifest's mime type. The deployed chart carries its own copy of that file and needs the same
+  blocks.
+
 ## [0.5.0] — 2026-09-24
 
 The rules screen becomes the workflow view, the app explains itself in a help drawer, a

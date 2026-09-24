@@ -88,7 +88,11 @@
     "runFailed": "Run failed in stage {stage}",
     "letterSaved": "Cover letter saved, the package carries the edit",
     "letterDrafted": "New cover letter drafted",
-    "letterDraftedTemplate": "The model's draft did not pass, so the template wrote this letter"
+    "letterDraftedTemplate": "The model's draft did not pass, so the template wrote this letter",
+    "update": {
+      "ready": "A new version is ready",
+      "reload": "Reload"
+    }
   },
   "theme": {
     "legend": "Colour theme",
@@ -527,7 +531,8 @@
       "extraction": "Document reader",
       "scoring": "Scoring judge",
       "content": "Content classifier",
-      "fields": "Field extractor"
+      "fields": "Field extractor",
+      "writing": "Cover-letter writer"
     },
     "rail": "Pipeline stages",
     "noRun": "No run yet — the stages carry no counts until one finishes.",

@@ -130,6 +130,14 @@ Two things the demo cannot fake, both by design: without an `LLM_API_KEY` the sh
 there and filtered but the score *total* is withheld rather than computed from half the
 weights, and enrichment has nothing to fetch because the invented URLs do not resolve.
 
+The app can be installed from the browser's own install affordance; there is no button for it
+inside the app. On the desktop it is the install icon at the right of the address bar in Chrome or Edge
+(Safari: **File › Add to Dock**; Firefox does not install web apps), on
+Android **Install app** or **Add to Home screen** in the browser menu, on iOS the share sheet
+and **Add to Home Screen**. It opens in its own window with the lead-ring icon and the app's
+colours, the shell loads without a network (the data never does; it always comes from the
+API), and a toast offers to reload once a deploy has landed.
+
 ## The screens
 
 |                                                          |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |

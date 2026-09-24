@@ -142,3 +142,7 @@ Carried over from a sibling Angular project, which is the house style:
 - **ImageMagick renders SVG with its own parser and drops paths containing arcs** unless
   `rsvg-convert` is on PATH as its delegate. The first favicon looked broken for that
   reason alone, with the geometry perfectly correct.
+- **The dev server registers no service worker, and a stale shell on the compose stack is the update toast's job**,
+  not a cache to clear by hand: `provideServiceWorker` is keyed on `!isDevMode()`, so `:4200` never holds an old
+  bundle. `ngsw-config.json`'s `navigationUrls` must keep `!/api/**`, or the worker answers the package download, a
+  navigation under `/api/`, with the cached index.

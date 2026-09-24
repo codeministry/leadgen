@@ -311,6 +311,73 @@ what a model takes part in. The claims and the measurements are in
   header keeps its one primary button and the dialog has its own; cancel and Escape start
   nothing.
 
+### Installable (spec 012, 2026-09-24)
+
+- **Angular's own service worker, not the house's hand-written one.** The house rules
+  (FE-PWA-01, -02, -04) ask for a `src/sw.js` stamped at postbuild, two precache halves and a
+  worker unregistered on localhost; they are written for a product used offline in the field.
+  Here only the shell is offline, and `ngsw.json` is generated from the build output by the
+  build that made it, so the precache list cannot drift from the hashed chunk names: drift is
+  impossible rather than avoided. One failed prefetch fails the *version*: windows already open keep
+  the previous one, while a window opened fresh in that state goes to the network until the
+  next good deploy, so offline it gets no shell. The price is that a broken deploy reads as
+  "no update" rather than as a red probe.
+  The departure and its probe stand in the spec's plan, § Stack Decisions.
+- **The shell offline, the data never.** Of the three readings offered — installable only, the
+  shell offline, the shortlist offline — the middle one was chosen: cached data would need an
+  offline story per store and a way to say how old a list is, and it would break the principle
+  that a quiet screen means a quiet market. `ngsw-config.json` therefore holds four asset
+  groups and no data group: `app` (the index, the manifest, the favicon, the PNG icons, the
+  hashed styles and bundles) and `i18n` in `prefetch`; `fonts` and `help` `lazy` with `prefetch`
+  updates, so the first install does not download every diagram before the app paints.
+  `navigationUrls` keeps ngsw's defaults and adds `!/api/**`, because the worker answers every
+  extension-less navigation with the cached index and the package download is a navigation to
+  `/api/v1/offers/<id>/package`; without the entry it came back as the shell. Nothing under
+  `/api/` is ever cached.
+- **Registered in production builds only, and only once the app is stable.**
+  `provideServiceWorker` is keyed on `!isDevMode()`, never on the hostname: the dev server on
+  `:4200` registers nothing, so no developer fights a stale cache, while the compose stack on
+  localhost is the production artifact an install is verified against. The strategy is
+  `registerWhenStable:30000`, so the registration never competes with the first paint.
+- **A toast, not a silent swap and not a forced reload.** A silent swap leaves the operator on
+  the old bundle for a day; a forced reload can land in the middle of a status move. The update
+  store turns the worker's `VERSION_READY` into one `versionReady` per version hash; the toast
+  store raises the one toast with an action, in the info tone and exempt from the timer, and
+  dismisses a standing update toast first, so a newer version replaces the older offer rather
+  than stacking beside it. The action activates the update, bounded at 10 s, then reloads — the
+  reload is what brings the version, the activation only makes it certain — and closing the
+  toast leaves the running version alone. The worker's `unrecoverable` stream reloads at once,
+  because that page is already broken and there is nobody to ask. An open window asks for an
+  update every hour while it is visible.
+- **`theme-color` follows the app theme, not the OS.** The app's default is dark whatever the
+  OS prefers, so a `media`-qualified pair of meta tags would follow the wrong thing. The inline
+  script in `index.html` writes the one meta from the resolved theme before the first paint, and
+  the theme store rewrites it on every switch, the same way it writes `data-theme`. The hex
+  twins live in `THEME_SURFACE_HEX`, held to the stylesheet's `oklch()` values by
+  `theme-colors.spec.ts`; the manifest's `theme_color` and `background_color` are the dark
+  surface from the same table, so an installed window opens on the app's own colour before
+  anything else paints.
+- **Every icon comes from `brand/mark.svg` through `build-favicon.sh`, on one of two plates.**
+  The round plate with transparent corners is the tab icon and the manifest's 192 and 512
+  `any` icons; the opaque square plate is the 512 `maskable` icon and the 180 touch icon,
+  because Android masks a maskable icon into its own shape and iOS rounds a touch icon itself,
+  and either paints white behind a transparent corner. On the square plate the mark sits at
+  11/16 of the width rather than filling the 80 % safe zone: the mark's farthest point is not
+  the ring but the outer signal dot, 1.12 times the half-box from the centre, so at 80 % the
+  mask took 24 px off that dot; at 11/16 its far edge is 197 px against a safe radius of
+  204.8 at 512. `manifest.spec.ts` measures the plate, the corner and the safe zone, and a
+  second run of the script leaves `git diff` empty.
+- **nginx says what may be cached, and the chart says it again.** `Cache-Control: no-cache` on
+  `index.html`, `ngsw.json`, the manifest and both worker scripts: they keep their names across
+  builds, so a cached copy would hold a deploy back until it expired, and `no-cache` keeps them
+  cacheable but revalidated on every request. `immutable` for a year on the hashed bundles and
+  fonts, whose names change with their bytes. The manifest is served as
+  `application/manifest+json`; the image's mime table has no entry for it and served it as
+  `application/octet-stream` (measured with curl before the change). Whether a browser refuses
+  the octet-stream variant was not measured. The deployed chart replaces `nginx.conf` wholesale with its own ConfigMap,
+  because it resolves the API upstream at parse time, so the blocks are written self-contained
+  and copied there by the operator in the same rollout as the image.
+
 ## The interface language
 
 `frontend/src/app/core/i18n/` plus the two catalogs in `frontend/public/i18n/`. Transloco,

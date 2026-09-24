@@ -88,7 +88,11 @@
     "runFailed": "Lauf in Stufe {stage} fehlgeschlagen",
     "letterSaved": "Anschreiben gespeichert, das Paket enthält die Änderung",
     "letterDrafted": "Neues Anschreiben entworfen",
-    "letterDraftedTemplate": "Der Entwurf des Modells kam nicht durch, deshalb stammt dieses Anschreiben aus der Vorlage"
+    "letterDraftedTemplate": "Der Entwurf des Modells kam nicht durch, deshalb stammt dieses Anschreiben aus der Vorlage",
+    "update": {
+      "ready": "Eine neue Version ist bereit",
+      "reload": "Neu laden"
+    }
   },
   "theme": {
     "legend": "Farbschema",
@@ -527,7 +531,8 @@
       "extraction": "Dokumentleser",
       "scoring": "Scoring-Judge",
       "content": "Content-Klassifikator",
-      "fields": "Feld-Extraktor"
+      "fields": "Feld-Extraktor",
+      "writing": "Anschreiben-Verfasser"
     },
     "rail": "Pipeline-Stufen",
     "noRun": "Noch kein Lauf — die Stufen zeigen erst nach dem nächsten Durchlauf Zahlen.",

@@ -31,6 +31,13 @@
       @if (toast.link; as link) {
         <a [class]="linkClass[toast.tone]" [routerLink]="link">{{ 'toast.open' | transloco }}</a>
       }
+      <!-- The action wears the link's class: it is the one thing this toast offers, and the
+           filled button in the tone is what "the one thing offered" looks like here. -->
+      @if (toast.action; as action) {
+        <button type="button" [class]="linkClass[toast.tone]" (click)="act(toast.id, action)">
+          {{ action.key | transloco }}
+        </button>
+      }
       <button
         type="button"
         class="btn btn-ghost btn-xs btn-square"
