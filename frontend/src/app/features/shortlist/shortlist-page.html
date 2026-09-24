@@ -289,6 +289,7 @@
                           <lg-offer-card
                             [entry]="entry"
                             [selected]="entry.offer.id === selectedId()"
+                            [status]="statusByOffer().get(entry.offer.id) ?? null"
                             [pickable]="!archived()"
                             [picked]="store.pickedIds().has(entry.offer.id)"
                             [pickDisabled]="store.bulkArchiving()"

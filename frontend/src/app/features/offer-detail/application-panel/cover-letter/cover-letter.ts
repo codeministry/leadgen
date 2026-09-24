@@ -1,4 +1,4 @@
-import {ChangeDetectionStrategy, Component, computed, input, linkedSignal, output} from '@angular/core';
+import {ChangeDetectionStrategy, Component, computed, input, linkedSignal, output, signal} from '@angular/core';
 import {TranslocoPipe} from '@jsverse/transloco';
 import {ApplicationStatus} from '@core/model/application';
 import {CoverLetter, CoverLetterAuthor, hasLetter, letterEditable} from '@core/model/cover-letter';
@@ -64,6 +64,61 @@ export class CoverLetterSection {
 
     protected readonly tone = computed(() => AUTHOR_TONE[this.letter()?.author ?? 'template']);
 
+    /**
+     * Reading, not editing, is the first state: the letter is usually copied into a mail as it
+     * stands. Any new answer from the server — a save, a redraft — closes the editor again.
+     */
+    protected readonly editing = linkedSignal(() => {
+        this.letter();
+        return false;
+    });
+
+    /** Paragraphs split on blank lines, lines kept: how the letter reads in a mail. */
+    protected readonly paragraphs = computed(() =>
+        (this.letter()?.text ?? '')
+            .trim()
+            .split(/\n\s*\n/)
+            .map((paragraph) => paragraph.split('\n')),
+    );
+
+    protected readonly copied = signal<'ok' | 'failed' | null>(null);
+
+    /**
+     * Onto the clipboard as HTML and as plain text at once, so a mail client pastes paragraphs
+     * and a plain field still gets the text. Inline feedback, not a toast: nothing was written.
+     */
+    protected async copy(): Promise<void> {
+        const text = this.letter()?.text ?? '';
+        const html = this.paragraphs()
+            .map((lines) => `<p>${lines.map(escapeHtml).join('<br>')}</p>`)
+            .join('');
+        try {
+            if (typeof ClipboardItem === 'function' && navigator.clipboard.write) {
+                await navigator.clipboard.write([
+                    new ClipboardItem({
+                        'text/html': new Blob([html], {type: 'text/html'}),
+                        'text/plain': new Blob([text], {type: 'text/plain'}),
+                    }),
+                ]);
+            } else {
+                await navigator.clipboard.writeText(text);
+            }
+            this.copied.set('ok');
+        } catch {
+            this.copied.set('failed');
+        }
+    }
+
+    protected edit(): void {
+        this.copied.set(null);
+        this.editing.set(true);
+    }
+
+    protected closeEditor(): void {
+        this.draft.set(this.letter()?.text ?? '');
+        this.editing.set(false);
+    }
+
     protected setDraft(event: Event): void {
         this.draft.set((event.target as HTMLTextAreaElement).value);
     }
@@ -71,4 +126,8 @@ export class CoverLetterSection {
     protected save(): void {
         this.saved.emit(this.draft());
     }
+}
+
+function escapeHtml(text: string): string {
+    return text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
 }

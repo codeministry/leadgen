@@ -369,6 +369,11 @@
     "regenerate": "Draft again",
     "regenerating": "Drafting…",
     "none": "No letter yet. It is written when the package is built.",
+    "copy": "Copy",
+    "copied": "Copied, with its formatting",
+    "copyFailed": "The browser did not allow copying",
+    "edit": "Edit",
+    "view": "Close editor",
     "author": {
       "model": "Model draft",
       "template": "Template",

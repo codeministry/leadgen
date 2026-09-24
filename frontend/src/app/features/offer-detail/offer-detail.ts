@@ -1,3 +1,4 @@
+import {NgTemplateOutlet} from '@angular/common';
 import {
   afterNextRender,
   ChangeDetectionStrategy,
@@ -94,6 +95,7 @@ interface Field {
         EmptyState,
         Icon,
         Markdown,
+        NgTemplateOutlet,
         PageHeader,
       RouterLink,
         Score,
@@ -360,6 +362,14 @@ export class OfferDetail implements OnInit {
      */
     protected readonly application = computed(() =>
         this.applications.applications().find((candidate) => String(candidate.offerId) === this.id()),
+    );
+
+    /**
+     * Whether the page is worked rather than read: a package folder exists, so the letter, the
+     * application and the folder come first and the advert moves below them.
+     */
+    protected readonly working = computed(
+        () => (this.application()?.packageDir ?? this.entry()?.offer.packageDir ?? null) !== null,
     );
 
     protected readonly history = computed(() => {

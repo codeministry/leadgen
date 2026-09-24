@@ -89,6 +89,12 @@ class CoverLetterWriter {
             the start date if one is given. End with availability and a plain offer to talk.
             Do not write a closing line or a signature; they are added afterwards.
 
+            Tone: professional but warm, the way an experienced colleague writes, not an
+            application form. First person, active voice. One sentence may say what about this
+            project appeals to the developer, drawn only from what the advert itself describes. Keep the letter language's formal address
+            (in German "Sie"), but avoid officialese such as "hiermit", "bezugnehmend auf" or
+            "anbei erhalten Sie". Lighten, never joke: no exclamation marks, no emojis.
+
             Salutation: if a contact person named in the advert is given, greet that person with
             the honorific and surname exactly as given, in the letter language's usual formal way,
             on one line. If none is given, use exactly the neutral salutation given below. Never

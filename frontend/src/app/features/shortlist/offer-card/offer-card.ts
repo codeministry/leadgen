@@ -2,6 +2,7 @@ import {ChangeDetectionStrategy, Component, computed, input, output} from '@angu
 import {RouterLink} from '@angular/router';
 import {TranslocoPipe} from '@jsverse/transloco';
 import {ShortlistEntry} from '@core/model/shortlist-entry';
+import {ApplicationStatus, statusLabel} from '@core/model/application';
 import {ScoreReason} from '@core/model/score';
 import {Badge} from '@shared/badge/badge';
 import {Icon} from '@shared/icon/icon';
@@ -41,6 +42,12 @@ export class OfferCard {
      * all agree on, and a second copy would disagree with it the first time one is used.
      */
     readonly selected = input(false);
+    /** The application's status, shown on every card whether it is the open one or not. */
+    readonly status = input<ApplicationStatus | null>(null);
+    protected readonly statusText = computed(() => {
+        const status = this.status();
+        return status === null ? null : statusLabel(status);
+    });
 
   /**
    * Whether this list offers a selection at all. False on the archive side, where there is

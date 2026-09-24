@@ -7,7 +7,20 @@
     align-items: center;
     flex-wrap: wrap;
     gap: 0.5rem;
-    margin-top: 1.25rem;
+}
+
+/* Reads like the mail it becomes: a measured column, paragraph spacing, selectable text. */
+.letter-view {
+    max-width: 70ch;
+    user-select: text;
+}
+
+.letter-view p + p {
+    margin-top: 0.75rem;
+}
+
+.letter-copied {
+    align-self: center;
 }
 
 .letter-note {

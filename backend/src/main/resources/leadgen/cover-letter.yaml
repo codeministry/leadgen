@@ -20,6 +20,9 @@ rules:
       - in der heutigen schnelllebigen Welt
       - mit großer Begeisterung
       - ich bin überzeugt, dass
+      - hiermit bewerbe ich mich
+      - bezugnehmend auf
+      - anbei erhalten Sie
     # The most words the letter body may have. A draft above it is rejected. Required in
     # every language block: an override that names a language without it fails to load.
     word_limit: 220

@@ -35,6 +35,15 @@ describe('CoverLetterSection', () => {
         return fixture.nativeElement.querySelector(css) as HTMLButtonElement;
     }
 
+    function view(fixture: ComponentFixture<CoverLetterSection>): HTMLElement | null {
+        return fixture.nativeElement.querySelector('.letter-view');
+    }
+
+    function openEditor(fixture: ComponentFixture<CoverLetterSection>): void {
+        button(fixture, '.letter-edit').click();
+        fixture.detectChanges();
+    }
+
     function type(fixture: ComponentFixture<CoverLetterSection>, text: string): void {
         const area = textarea(fixture)!;
         area.value = text;
@@ -42,10 +51,13 @@ describe('CoverLetterSection', () => {
         fixture.detectChanges();
     }
 
-    it('shows the letter of a packaged application, with who wrote it', () => {
+    it('shows the letter as it reads, ready to copy, with who wrote it', () => {
         const fixture = render('PACKAGED');
 
-        expect(textarea(fixture)?.value).toBe(LETTER.text);
+        expect(textarea(fixture)).toBeNull();
+        expect(view(fixture)?.querySelectorAll('p').length).toBe(2);
+        expect(view(fixture)?.textContent).toContain('Spring Boot und Kafka');
+        expect(button(fixture, '.letter-copy')).not.toBeNull();
         expect(fixture.nativeElement.querySelector('lg-badge')?.textContent).toContain('Model draft');
     });
 
@@ -61,6 +73,8 @@ describe('CoverLetterSection', () => {
         const fixture = render('PACKAGED');
         const saved: string[] = [];
         fixture.componentInstance.saved.subscribe((text) => saved.push(text));
+        openEditor(fixture);
+        expect(textarea(fixture)?.value).toBe(LETTER.text);
 
         expect(button(fixture, '.letter-save').disabled).toBe(true);
 
@@ -80,14 +94,15 @@ describe('CoverLetterSection', () => {
         expect(asked).toBe(1);
     });
 
-    it('is read-only once the server says the letter went out, with both actions disabled', () => {
+    it('offers only Copy once the server says the letter went out', () => {
         // The server's reading decides; the restored-at-NEW case is the next spec.
         for (const status of ['SENT', 'INTERVIEW', 'LOST'] as const) {
             const fixture = render(status, {...LETTER, frozen: true});
 
-            expect(textarea(fixture)?.readOnly).toBe(true);
-            expect(button(fixture, '.letter-save').disabled).toBe(true);
-            expect(button(fixture, '.letter-regenerate').disabled).toBe(true);
+            expect(view(fixture)).not.toBeNull();
+            expect(button(fixture, '.letter-copy')).not.toBeNull();
+            expect(button(fixture, '.letter-edit')).toBeNull();
+            expect(button(fixture, '.letter-regenerate')).toBeNull();
         }
     });
 
@@ -97,7 +112,7 @@ describe('CoverLetterSection', () => {
         restored.componentRef.setInput('hasPackage', true);
         restored.componentRef.setInput('letter', {...LETTER, frozen: true});
         restored.detectChanges();
-        expect(textarea(restored)).not.toBeNull();
+        expect(view(restored)).not.toBeNull();
 
         const rejected = render('REJECTED', null);
         expect(rejected.nativeElement.textContent).not.toContain('coverLetter.noteSent');
@@ -109,7 +124,7 @@ describe('CoverLetterSection', () => {
         fixture.detectChanges();
 
         expect(button(fixture, '.letter-regenerate').disabled).toBe(true);
-        expect(button(fixture, '.letter-save').disabled).toBe(true);
+        expect(button(fixture, '.letter-edit').disabled).toBe(true);
     });
 
     it('says why a write was refused, beside the controls', () => {

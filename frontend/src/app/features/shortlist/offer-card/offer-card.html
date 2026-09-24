@@ -63,6 +63,9 @@
         </ul>
 
         <div class="badges">
+            @if (statusText(); as status) {
+                <lg-badge tone="primary">{{ status }}</lg-badge>
+            }
             @if (otherSources().length > 0) {
                 <lg-badge tone="primary" [outline]="true">
                     <lg-icon name="copy" [size]="12"/>

@@ -13,37 +13,71 @@
             {{ (letter.frozen ? 'coverLetter.noteSent' : 'coverLetter.note') | transloco }}
         </p>
 
-        <label class="type-caption text-muted" for="lg-cover-letter">{{ 'coverLetter.label' | transloco }}</label>
-        <textarea
-                id="lg-cover-letter"
-                class="textarea textarea-sm type-small letter-text"
-                rows="14"
-                [value]="draft()"
-                [readOnly]="readOnly() || busy()"
-                [attr.aria-busy]="busy()"
-                (input)="setDraft($event)"
-        ></textarea>
+        @if (editing()) {
+            <label class="type-caption text-muted" for="lg-cover-letter">{{ 'coverLetter.label' | transloco }}</label>
+            <textarea
+                    id="lg-cover-letter"
+                    class="textarea textarea-sm type-small letter-text"
+                    rows="14"
+                    [value]="draft()"
+                    [readOnly]="readOnly() || busy()"
+                    [attr.aria-busy]="busy()"
+                    (input)="setDraft($event)"
+            ></textarea>
 
-        <div class="letter-actions">
-            <button
-                    type="button"
-                    class="btn btn-sm btn-soft btn-primary letter-save"
-                    [disabled]="readOnly() || !dirty() || busy()"
-                    (click)="save()"
-            >
-                {{ (saving() ? 'common.saving' : 'coverLetter.save') | transloco }}
-            </button>
-            <!-- A model call, so a click and never something the page does by itself. -->
-            <button
-                    type="button"
-                    class="btn btn-sm btn-soft btn-primary letter-regenerate"
-                    [disabled]="readOnly() || busy()"
-                    (click)="regenerate.emit()"
-            >
-                <lg-icon name="refresh" [size]="14"/>
-                {{ (drafting() ? 'coverLetter.regenerating' : 'coverLetter.regenerate') | transloco }}
-            </button>
-        </div>
+            <div class="letter-actions">
+                <button
+                        type="button"
+                        class="btn btn-sm btn-primary letter-save"
+                        [disabled]="readOnly() || !dirty() || busy()"
+                        (click)="save()"
+                >
+                    {{ (saving() ? 'common.saving' : 'coverLetter.save') | transloco }}
+                </button>
+                <button type="button" class="btn btn-sm btn-ghost letter-close" [disabled]="busy()" (click)="closeEditor()">
+                    <lg-icon name="x" [size]="14"/>
+                    {{ 'coverLetter.view' | transloco }}
+                </button>
+            </div>
+        } @else {
+            <!-- The letter as a mail reads: paragraphs and line breaks, ready to copy. -->
+            <div class="letter-view type-body" [attr.aria-busy]="busy()">
+                @for (lines of paragraphs(); track $index) {
+                    <p>
+                        @for (line of lines; track $index) {
+                            @if (!$first) {<br/>}{{ line }}
+                        }
+                    </p>
+                }
+            </div>
+
+            <div class="letter-actions">
+                <button type="button" class="btn btn-sm btn-primary letter-copy" (click)="copy()">
+                    <lg-icon name="copy" [size]="14"/>
+                    {{ 'coverLetter.copy' | transloco }}
+                </button>
+                @if (!readOnly()) {
+                    <button type="button" class="btn btn-sm btn-soft btn-primary letter-edit" [disabled]="busy()" (click)="edit()">
+                        {{ 'coverLetter.edit' | transloco }}
+                    </button>
+                    <!-- A model call, so a click and never something the page does by itself. -->
+                    <button
+                            type="button"
+                            class="btn btn-sm btn-soft btn-primary letter-regenerate"
+                            [disabled]="busy()"
+                            (click)="regenerate.emit()"
+                    >
+                        <lg-icon name="refresh" [size]="14"/>
+                        {{ (drafting() ? 'coverLetter.regenerating' : 'coverLetter.regenerate') | transloco }}
+                    </button>
+                }
+                @if (copied(); as outcome) {
+                    <span class="type-caption text-muted letter-copied" aria-live="polite">
+                        {{ (outcome === 'ok' ? 'coverLetter.copied' : 'coverLetter.copyFailed') | transloco }}
+                    </span>
+                }
+            </div>
+        }
     } @else if (loading()) {
         <p class="type-caption text-muted">{{ 'common.loading' | transloco }}</p>
     } @else {

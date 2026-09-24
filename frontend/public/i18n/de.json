@@ -369,6 +369,11 @@
     "regenerate": "Neu entwerfen",
     "regenerating": "Wird entworfen…",
     "none": "Noch kein Anschreiben. Es entsteht, wenn das Paket gebaut wird.",
+    "copy": "Kopieren",
+    "copied": "Kopiert, mit Formatierung",
+    "copyFailed": "Der Browser hat das Kopieren nicht erlaubt",
+    "edit": "Bearbeiten",
+    "view": "Editor schließen",
     "author": {
       "model": "Modell-Entwurf",
       "template": "Vorlage",
