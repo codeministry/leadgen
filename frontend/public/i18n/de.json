@@ -58,7 +58,10 @@
       "analytics": "Wo Angebote herausfallen und welche Quellen sich lohnen.",
       "rules": "Was als passend gilt und was ein Angebot ausschließt.",
       "sources": "Woher die Angebote kommen und wie du eine Quelle hinzufügst.",
-      "review": "Von Hand hinzugefügte Anzeigen prüfen."
+      "offer-detail": "Ein Angebot lesen: die Anzeige, ihre Bewertung, ihre Felder, und sie befragen.",
+      "application": "Wo eine Bewerbung steht, ihr Anschreiben und ihr Paket.",
+      "filters-views": "Die Liste eingrenzen und ordnen, und das Eingestellte speichern.",
+      "app-basics": "Einen Lauf starten, die Einstellungen, die Tastatur und die installierte App."
     },
     "loading": "Lade das Kapitel…",
     "failed": "Dieses Kapitel konnte nicht geladen werden.",
@@ -70,12 +73,32 @@
       "analytics": "Auswertung",
       "rules": "Regeln",
       "sources": "Quellen",
-      "review": "Prüfung"
+      "offer-detail": "Angebotsdetail",
+      "application": "Bewerbung und Anschreiben",
+      "filters-views": "Filter, Sortierung und Sichten",
+      "app-basics": "Kopfzeile, Tastatur und App"
     },
     "diagram": {
       "run-phases": "Die fünf Phasen eines Laufs, vom Postfach bis zum bewerteten Angebot",
       "parts": "Wie Quellen, Pipeline, Modell, Datenbank und Oberfläche zusammenspielen",
       "application-states": "Der Weg einer Bewerbung durch ihre Zustände"
+    },
+    "shot": {
+      "run-phases-rail": "Der Regeln-Bildschirm zeigt einen Lauf in seinen fünf Phasen und markiert jeden KI-Schritt",
+      "dashboard": "Das Dashboard nach einem Lauf: was durchkam, die letzten 14 Tage, die Bewertungsbänder und der harte Filter Stufe für Stufe",
+      "shortlist-split": "Die Auswahl mit einem geöffneten Angebot: links die Liste, rechts das Detail mit dem Anschreiben",
+      "pipeline-board": "Das Pipeline-Board, eine Spalte je Gruppe von Status",
+      "analytics-overview": "Die Auswertung: die Kacheln oben und die Angebote im Zeitverlauf",
+      "rules-stage": "Der harte Filter auf dem Regeln-Bildschirm: was jedes Ausschlusskriterium zurückhält und welche Schlüssel es liest",
+      "sources-panel": "Eine geöffnete Quelle: ihre letzten Läufe und der Block, der sie festlegt",
+      "offer-why-scored": "Warum ein Angebot seine Punktzahl hat: jeder Faktor mit seinen Punkten",
+      "offer-ask": "Diese Anzeige fragen: fünf Fragen, allein aus der Anzeige beantwortet",
+      "application-panel": "Wie es hier steht: der Status, die Daten, eine Notiz und der Verlauf",
+      "cover-letter": "Das Anschreiben, wie es rausging, mit Verfasser und Datum",
+      "filters-panel": "Das Filterfeld über der Liste, die gesetzten Filter als Chips",
+      "sort-menu": "Die Sortierungen, davor der Schalter für die Richtung",
+      "run-confirm": "Quellen einlesen fragt einmal nach, bevor ein Lauf startet",
+      "settings-panel": "Die Einstellungen hinter dem Zahnrad: Farbschema und Sprache"
     }
   },
   "toast": {

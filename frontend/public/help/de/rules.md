@@ -1,5 +1,7 @@
 Unter Regeln stehen der harte Filter, die Gewichte der Bewertung und die Schwellen hinter jeder Zahl in der Auswahl. Die Leiste links zeigt die Pipeline-Stufen in ihren fünf Phasen **Lesen**, **Sortieren**, **Verstehen**, **Bewerten** und **Übergeben** und markiert jeden **KI-Schritt**, an dem ein Modell mitarbeitet.
 
+<!-- screenshot: rules-stage -->
+
 Wählst du eine Stufe, zeigt die rechte Seite, was sie entscheidet: die Einstellungen, die sie liest, nach Datei gruppiert; beim harten Filter seine Ausschlusskriterien und was jedes zurückhält; bei der Bewertung Gewichte, Abzüge, Bänder und Themen; und bei jedem KI-Schritt den Prompt genau so, wie das Modell ihn bekommt. Die Zahlen in der Leiste sind das, was der letzte Lauf an dieser Stufe hinterlassen hat.
 
 Der Bildschirm liest nur: Er zeigt die Konfiguration, wie sie ist, geändert wird sie in der Konfiguration selbst. **Tipp:** Was unter **Von nichts gelesen** auftaucht, steht zwar in der Konfiguration, wird aber von keiner Stufe benutzt. Meistens ist das ein Tippfehler.

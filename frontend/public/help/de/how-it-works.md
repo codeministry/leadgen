@@ -20,6 +20,8 @@ Ein Lauf beginnt, wenn du **Quellen einlesen** drückst, oder zeitgesteuert. Er 
 
 An einer Handvoll Stellen hilft ein Modell, und unter Regeln ist jede davon als **KI-Schritt** markiert: Angebote nach Bedeutung vergleichen, für die Deduplizierung und die Ähnlichkeitssuche; die Anzeige vom Drumherum des Portals trennen; Termine und Dauer aus freiem Text lesen; die Passung der Rolle beurteilen; und das Anschreiben entwerfen. All das läuft auf einem lokalen Modell auf deinem eigenen Rechner – kostenlos, und nichts geht an Dritte. Ein gehostetes Modell kommt nur zum Einsatz, wenn du es für einen bestimmten Lauf ausdrücklich wählst; von sich aus weicht die App nie darauf aus. Und weil die Regeln zuerst kommen, funktioniert die App auch ganz ohne Modell, nur weniger scharf: Es fällt nichts weg, die Angebote werden nur nicht gereiht.
 
+<!-- screenshot: run-phases-rail -->
+
 ## Wie die Teile zusammenspielen
 
 <!-- diagram: parts -->

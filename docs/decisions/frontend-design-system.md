@@ -311,6 +311,30 @@ what a model takes part in. The claims and the measurements are in
   header keeps its one primary button and the dialog has its own; cancel and Escape start
   nothing.
 
+### Screenshots in the help, and four more chapters (spec 014, 2026-09-24)
+
+- **Every chapter shows the screen it describes, in four files.** A raster image cannot follow
+  the theme the way the diagrams' tokens do, and a German reader looking at an English screen
+  translates twice, so each shot exists as `public/help/shots/<en|de>/<id>-<light|dark>.webp` and
+  the drawer builds the path from the active language and the *resolved* theme ("system" follows
+  the operating system like the page). `HELP_SHOTS` states each file's pixel size, which the
+  `<img>` carries as `width`/`height`, so the figure has its height before the file arrives.
+- **The drawer places the image, not the Markdown.** A chapter says `<!-- screenshot: id -->`
+  beside the diagram placeholder, and the drawer renders its own `<img>`. `shared/markdown` also
+  renders adverts, and nothing a text says should be able to point it at a file. A placeholder
+  for a shot the chapter does not list is dropped, and the parity spec fails on it.
+- **`bun run help:shots` retakes all of them, from the demo stack only.** The script asks the
+  instance which sources it reads and refuses anything but the demo's, and it refuses a frame
+  that prints one of the instance's model names, which the header, an AI step and a score line
+  all do; a line that names one in the middle of a shot is hidden, not cropped around. Every
+  rectangle starts below the header and has a fixed size, so the four variants of a shot are
+  one size although German runs longer. `help-shots.spec.ts` fails on a missing variant, a file
+  with no entry, a wrong size or more than 160 KB. The files sit under `/help/`, which the
+  service worker fetches lazily; they are never part of the prefetched shell.
+- **Four chapters were added, and the parked review chapter left** until its screen has a route
+  again. An offer open under the shortlist or the pipeline opens the offer-detail chapter; the
+  overview is the last entry of the contents, set apart by a rule.
+
 ### Installable (spec 012, 2026-09-24)
 
 - **Angular's own service worker, not the house's hand-written one.** The house rules

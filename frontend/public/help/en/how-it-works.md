@@ -20,6 +20,8 @@ A run starts when you press **Run ingest**, or on a schedule. It works through t
 
 A model helps in a handful of places, and the Rules screen marks each one as an **AI step**: comparing offers by meaning for deduplication and for the related search, telling the advert from the portal's furniture, reading dates and durations out of free text, judging the role fit, and drafting the cover letter. Every one of these runs on a local model on your own machine, so it is free and nothing is sent to a third party. A hosted model is used only when you choose one for a specific run; the app never falls back to one on its own. And because the rules come first, the app still works without any model at all, only less sharply: nothing is skipped, the offers are just not ranked.
 
+<!-- screenshot: run-phases-rail -->
+
 ## How the parts work together
 
 <!-- diagram: parts -->

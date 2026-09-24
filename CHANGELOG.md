@@ -11,6 +11,13 @@ may change in any release. See the status note in the README.
 
 ### Added
 
+- The help shows the app: every chapter carries a screenshot of its screen, in the reader's
+  language and theme, retaken from the demo stack by `bun run help:shots`. Four chapters are new
+  (offer detail, application and cover letter, filters, sorting and views, header, keyboard and
+  app); opening the help on an open offer lands on the offer-detail chapter, and the overview is
+  now the last chapter. The chapter on the parked review screen is gone until the screen returns
+  (spec `014-help-screenshots`).
+
 - The app is installable, from the browser's own install affordance: a web app manifest, the
   lead-ring icons rendered from `brand/mark.svg` (192 and 512 on the round plate, a 512 maskable
   icon on an opaque square plate, a 180 touch icon), a title bar in the surface colour of the

@@ -12,6 +12,7 @@
     "lint:fix": "eslint . --fix",
     "lint:css": "stylelint \"src/**/*.css\"",
     "help:diagrams": "bun tools/build-help-diagrams.ts",
+    "help:shots": "bun tools/capture-help-shots.ts",
     "format": "prettier --write \"src/**/*.{ts,html,css,json}\"",
     "check:static": "bun run lint && bun run lint:css && tsc -p tsconfig.app.json --noEmit",
     "verify:quick": "bun run check:static && bun run test",

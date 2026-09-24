@@ -5,7 +5,7 @@ import {ComponentFixture, TestBed} from '@angular/core/testing';
 import {provideRouter, Router} from '@angular/router';
 import {TranslocoService} from '@jsverse/transloco';
 import {Dispatcher} from '@ngrx/signals/events';
-import {HELP_CHAPTERS} from '@core/help/help-chapters';
+import {HELP_CHAPTERS, HELP_SHOTS} from '@core/help/help-chapters';
 import {themeEvents} from '@core/theme/theme.events';
 import en from '../../../../public/i18n/en.json';
 import {HelpDrawer} from './help-drawer';
@@ -154,8 +154,15 @@ describe('HelpDrawer (ISC-311, ISC-312, ISC-313)', () => {
             expect(fixture.nativeElement.querySelector('.lg-help-content').textContent).toContain('The rules decide what survives.');
         });
 
-        it('opens at the shortlist chapter from a detail under /shortlist', async () => {
+        it('opens at the offer-detail chapter while an offer is open (ISC-355)', async () => {
             await openAt('/shortlist/7');
+            await answer('offer-detail', 'The offer.');
+
+            expect(current()).toBe(en.help.chapter['offer-detail']);
+        });
+
+        it('opens at the shortlist chapter on the list itself', async () => {
+            await openAt('/shortlist');
             await answer('shortlist', 'The shortlist.');
 
             expect(current()).toBe(en.help.chapter.shortlist);
@@ -213,7 +220,7 @@ describe('HelpDrawer (ISC-311, ISC-312, ISC-313)', () => {
             expect(fixture.nativeElement.querySelector('.lg-help-nav')).toBeNull();
         });
 
-        it('lists the eight chapters, the overview first, each with an icon, its title and a hint', async () => {
+        it('lists every chapter, the overview last, each with an icon, its title and a hint', async () => {
             await openAt('/rules');
             await answer('rules', 'Rules.');
             await toContents();
@@ -221,7 +228,7 @@ describe('HelpDrawer (ISC-311, ISC-312, ISC-313)', () => {
             const nav = fixture.nativeElement.querySelector('nav.lg-help-toc') as HTMLElement;
             expect(nav.getAttribute('aria-label')).toBe(en.help.chapters);
             expect(rows().map(b => b.dataset['chapter'])).toEqual([...HELP_CHAPTERS]);
-            expect(HELP_CHAPTERS[0]).toBe('how-it-works');
+            expect(HELP_CHAPTERS.at(-1)).toBe('how-it-works');
             for (const [i, b] of rows().entries()) {
                 const id = HELP_CHAPTERS[i];
                 expect(b.querySelector('lg-icon'), `${id} has no icon`).not.toBeNull();
@@ -296,16 +303,18 @@ describe('HelpDrawer (ISC-311, ISC-312, ISC-313)', () => {
             await settle();
         }
 
-        const inlined = () => figures().map(f => f.querySelector('svg'));
+        /** The diagram figures only; how-it-works also carries a screenshot figure. */
+        const diagrams = () => figures().filter(f => f.querySelector('lg-help-diagram') !== null);
+        const inlined = () => diagrams().map(f => f.querySelector('svg'));
 
         it('inlines the three how-it-works diagrams, named by their captions (ISC-314)', async () => {
             await openAt('/elsewhere');
             await answer('how-it-works', 'From a mail to a package.');
             await answerDiagrams();
 
-            expect(figures().length).toBe(3);
+            expect(diagrams().length).toBe(3);
             expect(inlined().map(svg => svg?.id)).toEqual(HOW_IT_WORKS.map(id => `help-diagram-${id}`));
-            expect(figures().map(f => f.querySelector('figcaption')!.textContent?.trim())).toEqual([
+            expect(diagrams().map(f => f.querySelector('figcaption')!.textContent?.trim())).toEqual([
                 en.help.diagram['run-phases'],
                 en.help.diagram.parts,
                 en.help.diagram['application-states'],
@@ -348,22 +357,71 @@ describe('HelpDrawer (ISC-311, ISC-312, ISC-313)', () => {
 
             const content = fixture.nativeElement.querySelector('.lg-help-content') as HTMLElement;
             const order = [...content.querySelectorAll('lg-markdown, figure')].map(node =>
-                node.tagName === 'FIGURE' ? node.querySelector('svg')!.id : node.textContent?.trim(),
+                node.tagName === 'FIGURE'
+                    ? (node.querySelector('svg')?.id ?? node.querySelector('img')!.getAttribute('src'))
+                    : node.textContent?.trim(),
             );
+            // The chapter's screenshot is listed but not placed either, so it follows the diagrams.
             expect(order).toEqual([
                 'Before the parts.',
                 'help-diagram-parts',
                 'After the parts.',
                 'help-diagram-run-phases',
                 'help-diagram-application-states',
+                '/help/shots/en/run-phases-rail-dark.webp',
             ]);
         });
 
-        it('shows no figure on a screen chapter', async () => {
+        it('shows a screen chapter\'s screenshot and no diagram', async () => {
             await openAt('/rules');
             await answer('rules', 'Rules.');
 
-            expect(figures().length).toBe(0);
+            expect(figures().length).toBe(1);
+            expect(diagrams().length).toBe(0);
+            expect(figures()[0]!.querySelector('img')).not.toBeNull();
+        });
+    });
+
+    describe('the screenshots', () => {
+        const shot = () => fixture.nativeElement.querySelector('.lg-help-content img') as HTMLImageElement | null;
+
+        it('shows the file for the reader\'s language and resolved theme, and follows both (ISC-353)', async () => {
+            TestBed.inject(Dispatcher).dispatch(themeEvents.chosen('light'));
+            await openAt('/rules');
+            await answer('rules', 'Before.\n\n<!-- screenshot: rules-stage -->\n\nAfter.');
+
+            expect(shot()!.getAttribute('src')).toBe('/help/shots/en/rules-stage-light.webp');
+            expect(shot()!.getAttribute('alt')).toBe(en.help.shot['rules-stage']);
+
+            TestBed.inject(Dispatcher).dispatch(themeEvents.chosen('dark'));
+            await settle();
+            expect(shot()!.getAttribute('src')).toBe('/help/shots/en/rules-stage-dark.webp');
+
+            TestBed.inject(TranslocoService).setActiveLang('de');
+            fixture.detectChanges();
+            TestBed.tick();
+            await answer('rules', '<!-- screenshot: rules-stage -->', 'de');
+            expect(shot()!.getAttribute('src')).toBe('/help/shots/de/rules-stage-dark.webp');
+        });
+
+        it('reserves the registered size before the file loads, and loads it lazily', async () => {
+            await openAt('/rules');
+            await answer('rules', 'Rules.');
+
+            expect(shot()!.getAttribute('width')).toBe(String(HELP_SHOTS['rules-stage'].width));
+            expect(shot()!.getAttribute('height')).toBe(String(HELP_SHOTS['rules-stage'].height));
+            expect(shot()!.getAttribute('loading')).toBe('lazy');
+        });
+
+        it('puts a screenshot where its placeholder is, and drops one the chapter does not list', async () => {
+            await openAt('/rules');
+            await answer('rules', 'Before.\n\n<!-- screenshot: dashboard -->\n<!-- screenshot: rules-stage -->\n\nAfter.');
+
+            const content = fixture.nativeElement.querySelector('.lg-help-content') as HTMLElement;
+            expect(content.querySelectorAll('img').length).toBe(1);
+            expect(content.textContent!.indexOf('Before.')).toBeLessThan(content.textContent!.indexOf('After.'));
+            const figure = shot()!.closest('figure')!;
+            expect(figure.previousElementSibling?.textContent).toContain('Before.');
         });
     });
 });

@@ -58,7 +58,10 @@
       "analytics": "Where offers drop out and which sources pay off.",
       "rules": "What counts as a fit, and what rules an offer out.",
       "sources": "Where offers come from and how to add one.",
-      "review": "Checking adverts that were added by hand."
+      "offer-detail": "Reading one offer: the ad, its score, its fields, and asking it.",
+      "application": "Where an application stands, its cover letter and its package.",
+      "filters-views": "Narrowing and ordering the list, and saving what you set.",
+      "app-basics": "Running a pass, the settings, the keyboard and the installed app."
     },
     "loading": "Loading the chapter…",
     "failed": "This chapter could not be loaded.",
@@ -70,12 +73,32 @@
       "analytics": "Analytics",
       "rules": "Rules",
       "sources": "Sources",
-      "review": "Review"
+      "offer-detail": "Offer detail",
+      "application": "Application and cover letter",
+      "filters-views": "Filters, sorting and views",
+      "app-basics": "Header, keyboard and app"
     },
     "diagram": {
       "run-phases": "The five phases of a run, from the mailbox to a scored offer",
       "parts": "How sources, the pipeline, the model, the database and the screens work together",
       "application-states": "The path of an application through its states"
+    },
+    "shot": {
+      "run-phases-rail": "The rules screen lays a run out in its five phases and marks every AI step",
+      "dashboard": "The dashboard after a run: what survived, the last 14 days, the score bands and the hard filter stage by stage",
+      "shortlist-split": "The shortlist with an offer open: the list on the left, the detail with its cover letter on the right",
+      "pipeline-board": "The pipeline board, one lane per group of states",
+      "analytics-overview": "Analytics: the tiles at the top and the offers over time",
+      "rules-stage": "The hard filter selected on the rules screen: what each knockout holds back and the keys it reads",
+      "sources-panel": "A source opened on the sources screen: its recent runs and the block that defines it",
+      "offer-why-scored": "Why an offer scored what it scored: each factor with its points",
+      "offer-ask": "Ask this advert: five questions, answered from the advert alone",
+      "application-panel": "Where this stands: the status, the dates, a note and the history",
+      "cover-letter": "The cover letter as it went out, with who wrote it and when",
+      "filters-panel": "The filter panel open over the list, with the filters that are on as chips",
+      "sort-menu": "The orders, with the direction toggle in front of them",
+      "run-confirm": "Run ingest asks once before a run starts",
+      "settings-panel": "The settings behind the gear: colour theme and language"
     }
   },
   "toast": {
