@@ -79,10 +79,12 @@ a.is-active::before {
     background-color: var(--lg-section);
 }
 
-/* Icons only below 90rem: seven labels plus the brand and the two operational controls do
-   not fit, and this is the rail's collapsed presentation, moved. Measured in rule pixels,
-   not query ones — `html` sits at 93.75 %, so this query flips at 1440. */
-@media (width < 90rem) {
+/* Icons only below 64rem, which keeps the labels on a landscape tablet. It was 90rem while
+   there were seven destinations; with five, the row with labels, the brand and the ops group
+   left 180px spare at 1024 (measured with the English and the German catalog, which run
+   the same length). Media queries resolve against 16px, not against the 93.75 % on `html`,
+   so this flips at 1024 — the portrait tablet below it keeps the icon row. */
+@media (width < 64rem) {
   .nav-label {
     position: absolute;
     width: 1px;

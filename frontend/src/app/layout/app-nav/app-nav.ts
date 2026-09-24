@@ -14,8 +14,8 @@ interface NavItem {
 }
 
 /**
- * Seven destinations in three groups, separated by a hairline rather than by a heading: the
- * row is icons only below 90rem and a bottom bar below 48rem, and at neither width does a
+ * Five destinations in two groups, separated by a hairline rather than by a heading: the
+ * row is icons only below 64rem and a bottom bar below 48rem, and at neither width does a
  * group heading have anywhere to go.
  *
  * <p>The groups answer three different questions. <b>Today</b> is the morning's work in the

@@ -80,11 +80,12 @@
 }
 
 /* The wordmark is the first thing to give up when the header row gets tight: the mark alone
-   still says which application this is, and the seven navigation labels beside it are worth
-   more. The rule lives here rather than in the header's stylesheet because view
-   encapsulation puts `.wordmark` out of a parent's reach, and toggling the input by width
-   would mean `matchMedia` in TypeScript for a decision CSS already makes. */
-@media (width < 90rem) {
+   still says which application this is. It goes at the same 64rem as the navigation labels
+   in `app-nav.css`, so a landscape tablet keeps both. The rule lives here rather than in the
+   header's stylesheet because view encapsulation puts `.wordmark` out of a parent's reach,
+   and toggling the input by width would mean `matchMedia` in TypeScript for a decision CSS
+   already makes. */
+@media (width < 64rem) {
   :host(.compact) .wordmark {
     display: none;
   }

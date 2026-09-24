@@ -65,6 +65,23 @@
         }
     </p>
 }
+<!-- The hard filter, always in view: the stages in run order with what each removed, and
+     the rail that narrows to what is left. Standing numbers over the archive, not this
+     run's, so it needs no run to mean something and no click to be seen. -->
+<section class="lg-panel hard-filter">
+    <h2 class="type-h2">{{ 'dashboard.hardFilter' | transloco }}</h2>
+    <p class="type-small text-muted panel-note">{{ 'dashboard.hardFilterNote' | transloco }}</p>
+    @if (total() > 0) {
+        <lg-funnel-rail [stages]="stages()" [total]="total()"/>
+        @if (archived() > 0) {
+            <p class="type-small text-muted panel-note archived">
+                {{ 'dashboard.archivedNote' | transloco: {count: archived()} }}
+            </p>
+        }
+    } @else {
+        <p class="type-small text-muted">{{ 'dashboard.nothingFiltered' | transloco }}</p>
+    }
+</section>
 <!-- The machine room: the per-source table, the stage timings, the model, the archive
      note. Closed by default, because it is the same content as before one click away; open
      by itself when the run failed or a source came up short, because a failure must never
@@ -88,24 +105,6 @@
             </span>
         }
     </summary>
-    <!-- The hard filter, as the old dashboard's own section: the stages in run order with what
-         each removed, and the rail that narrows to what is left. Standing numbers over the
-         archive, not this run's — the same rail the hero folds into one line. -->
-    <section class="hard-filter">
-        <h3 class="type-h3">{{ 'dashboard.hardFilter' | transloco }}</h3>
-        <p class="type-small text-muted panel-note">{{ 'dashboard.hardFilterNote' | transloco }}</p>
-        @if (total() > 0) {
-            <lg-funnel-rail [stages]="stages()" [total]="total()"/>
-            @if (archived() > 0) {
-                <p class="type-small text-muted panel-note archived">
-                    {{ 'dashboard.archivedNote' | transloco: {count: archived()} }}
-                </p>
-            }
-        } @else {
-            <p class="type-small text-muted">{{ 'dashboard.nothingFiltered' | transloco }}</p>
-        }
-    </section>
-
     @if (ingest.error(); as error) {
         <p class="type-small run-error" role="alert">
             <lg-icon name="triangle-alert" [size]="16"/>

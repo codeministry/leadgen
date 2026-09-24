@@ -1,10 +1,12 @@
 /* The bento grid (spec 006): four columns, the hero cell two by two, four small cells in
-   the remaining half. Auto rows rather than a fixed height, so a cell with a long label
-   grows and its row with it; the hero fills its two rows through `height: 100%`. Below
-   48rem the grid is one column in document order, which is the order the cells are read. */
+   the remaining half. Both rows are `1fr` rather than a fixed height, so the four small
+   cells stand as one even block: the taller row sets the height and a cell with a long
+   label still grows both. The hero fills its two rows through `height: 100%`. Below 48rem
+   the grid is one column of auto rows in document order, the order the cells are read. */
 .bento {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-auto-rows: 1fr;
     gap: 0.75rem;
     margin-bottom: 1rem;
 }
@@ -16,6 +18,12 @@
 
 .cell {
     min-width: 0;
+}
+
+/* A stat tile's host is inline and its panel sits inside it, so the panel only reaches the
+   row's height when the host is a grid that stretches its one child. */
+lg-stat-tile.cell {
+    display: grid;
 }
 
 .cell-label {
@@ -45,8 +53,10 @@
 }
 
 @media (width < 48rem) {
+    /* One column: back to auto rows, or every cell would stand as tall as the hero. */
     .bento {
         grid-template-columns: minmax(0, 1fr);
+        grid-auto-rows: auto;
     }
 
     .hero-cell {
@@ -186,13 +196,13 @@ lg-empty-state {
     padding-top: 0.125rem;
 }
 
-/* The hard filter, first in the open room: a titled block with the rail, set off from the
-   run's tables under it. */
+/* The hard filter, its own panel between the bento and the machine room: always in view,
+   because it is the standing answer to "what does the filter take out". */
 .hard-filter {
-    margin-bottom: 1.5rem;
+    margin-bottom: 1rem;
 }
 
-.hard-filter h3 {
+.hard-filter h2 {
     margin-bottom: 0.25rem;
 }
 
