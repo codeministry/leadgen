@@ -212,6 +212,10 @@ class OfferQueryServiceTest {
                         .entries())
                 .extracting(entry -> entry.offer().title())
                 .containsExactly("Mittel");
+        assertThat(offers.shortlist(ShortlistQuery.first().withScore(band("discarded")))
+                        .entries())
+                .extracting(entry -> entry.offer().title())
+                .containsExactly("Schwach");
     }
 
     @Test

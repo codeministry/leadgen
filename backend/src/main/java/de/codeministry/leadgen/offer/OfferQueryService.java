@@ -290,6 +290,11 @@ public class OfferQueryService {
             sql.append(" AND o.score_value >= :reviewAt AND o.score_value < :shortlistAt\n");
             params.put("reviewAt", thresholds.review());
             params.put("shortlistAt", thresholds.autoShortlist());
+        } else if ("discarded".equals(score.band())) {
+            // Below the review line, which is what `Score` calls DISCARDED. An offer nobody
+            // judged has no score to be below anything, so it is left out as in the other two.
+            sql.append(" AND o.score_value IS NOT NULL AND o.score_value < :reviewAt\n");
+            params.put("reviewAt", thresholds.review());
         }
         if (score.min() != null) {
             // `NULL >= 60` already drops an unjudged offer; the IS NOT NULL is written because

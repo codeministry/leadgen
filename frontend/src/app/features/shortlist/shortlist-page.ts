@@ -34,7 +34,7 @@ import {FacetPanel} from './facet-panel/facet-panel';
 import {SavedViews} from './saved-views/saved-views';
 import {SortMenu} from './sort-menu/sort-menu';
 
-type BandFilter = 'all' | 'shortlist' | 'review';
+type BandFilter = 'all' | 'shortlist' | 'review' | 'discarded';
 
 /**
  * One filter the panel hides, as the bar displays it.
@@ -315,6 +315,7 @@ export class ShortlistPage {
             label: 'shortlist.bandBetween',
             params: {from: this.reviewAt(), to: this.shortlistAt() - 1},
         },
+        {id: 'discarded', label: 'shortlist.bandBetween', params: {from: 0, to: this.reviewAt() - 1}},
     ]);
 
     /**

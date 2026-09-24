@@ -137,6 +137,23 @@ describe('ShortlistPage', () => {
         expect(cards(fixture)).toBe(1);
     });
 
+    it('offers the band under the review line as the fourth button, from the thresholds', () => {
+        // The analogue of the other two: its upper bound is derived from `reviewAt` rather than
+        // written, and its id is the band name the server knows.
+        const fixture = render();
+        fixture.componentRef.setInput('band', 'discarded');
+        fixture.detectChanges();
+
+        const request = expectPage();
+        expect(request.request.params.get('band')).toBe('discarded');
+        request.flush(page());
+        fixture.detectChanges();
+
+        const labels = Array.from(fixture.nativeElement.querySelectorAll('.band-group button'))
+            .map((button) => (button as HTMLElement).textContent!.trim());
+        expect(labels.at(-1)).toBe('0–49');
+    });
+
     it('offers every portal on the shortlist, not only those on this page', () => {
       // Derived from the loaded entries, the list offered fewer choices the further you
         // scrolled — so the server sends the whole set beside the page.

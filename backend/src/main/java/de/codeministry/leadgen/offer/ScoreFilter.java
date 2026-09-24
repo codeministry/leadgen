@@ -29,7 +29,8 @@ package de.codeministry.leadgen.offer;
  * one home. Spread across the query's own compact constructor it would sit beside seven
  * unrelated normalisations and read as one more of them.
  *
- * @param band  {@code shortlist}, {@code review}, or anything else for all of them. The two
+ * @param band  {@code shortlist}, {@code review}, {@code discarded}, or anything else for all of
+ *              them. The two
  *              boundaries are the configured thresholds and are deliberately not stated in a
  *              request: naming them would be the browser deciding what a band is.
  * @param min   the lowest score to include, inclusive. <b>Excludes offers with no score</b>,
