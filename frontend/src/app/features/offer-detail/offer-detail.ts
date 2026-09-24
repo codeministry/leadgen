@@ -20,7 +20,6 @@ import {ScoreReason} from '@core/model/score';
 import {ShortlistEntry} from '@core/model/shortlist-entry';
 import {applicationEvents} from '@core/store/applications.events';
 import {ApplicationsStore} from '@core/store/applications.store';
-import {hasLetter} from '@core/model/cover-letter';
 import {coverLetterEvents} from '@core/store/cover-letter.events';
 import {CoverLetterStore} from '@core/store/cover-letter.store';
 import {shortlistEvents} from '@core/store/shortlist.events';
@@ -376,7 +375,7 @@ export class OfferDetail implements OnInit {
      */
     private readonly letterKey = computed(() => {
         const application = this.application();
-        return application !== undefined && hasLetter(application.status) && application.packageDir !== null
+        return application !== undefined && application.packageDir !== null
             ? `${application.offerId}:${application.packageDir}`
             : null;
     });

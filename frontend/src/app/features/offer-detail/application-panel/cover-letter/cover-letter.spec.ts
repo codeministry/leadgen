@@ -7,6 +7,7 @@ const LETTER: CoverLetter = {
     text: 'Guten Tag Frau Beispiel,\n\nSpring Boot und Kafka habe ich zuletzt bei …',
     author: 'model',
     at: '2026-09-24T08:00:00Z',
+    frozen: false,
 };
 
 /**
@@ -79,14 +80,27 @@ describe('CoverLetterSection', () => {
         expect(asked).toBe(1);
     });
 
-    it('is read-only once the application is sent, with both actions disabled', () => {
+    it('is read-only once the server says the letter went out, with both actions disabled', () => {
+        // The server's reading decides; the restored-at-NEW case is the next spec.
         for (const status of ['SENT', 'INTERVIEW', 'LOST'] as const) {
-            const fixture = render(status);
+            const fixture = render(status, {...LETTER, frozen: true});
 
             expect(textarea(fixture)?.readOnly).toBe(true);
             expect(button(fixture, '.letter-save').disabled).toBe(true);
             expect(button(fixture, '.letter-regenerate').disabled).toBe(true);
         }
+    });
+
+    it('shows the letter of a package even at NEW, and no "went out" note above an empty letter', () => {
+        const restored = TestBed.createComponent(CoverLetterSection);
+        restored.componentRef.setInput('status', 'NEW');
+        restored.componentRef.setInput('hasPackage', true);
+        restored.componentRef.setInput('letter', {...LETTER, frozen: true});
+        restored.detectChanges();
+        expect(textarea(restored)).not.toBeNull();
+
+        const rejected = render('REJECTED', null);
+        expect(rejected.nativeElement.textContent).not.toContain('coverLetter.noteSent');
     });
 
     it('holds both actions while a save or a draft is in flight', () => {

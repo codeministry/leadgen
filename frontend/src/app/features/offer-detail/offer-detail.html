@@ -363,6 +363,7 @@
                 }
                 <lg-cover-letter
                         [status]="application.status"
+                        [hasPackage]="application.packageDir !== null"
                         [letter]="letter()"
                         [loading]="coverLetters.loading()"
                         [saving]="coverLetters.saving()"

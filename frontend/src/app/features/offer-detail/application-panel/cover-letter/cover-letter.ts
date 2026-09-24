@@ -39,6 +39,8 @@ const AUTHOR_TONE: Readonly<Record<CoverLetterAuthor, BadgeTone>> = {
 })
 export class CoverLetterSection {
     readonly status = input.required<ApplicationStatus>();
+    /** A package folder exists; a sent-then-restored application at `NEW` still has one. */
+    readonly hasPackage = input(false);
     readonly letter = input<CoverLetter | null>(null);
     readonly loading = input(false);
     readonly saving = input(false);
@@ -49,8 +51,9 @@ export class CoverLetterSection {
     readonly saved = output<string>();
     readonly regenerate = output<void>();
 
-    protected readonly shown = computed(() => hasLetter(this.status()));
-    protected readonly readOnly = computed(() => !letterEditable(this.status()));
+    protected readonly shown = computed(() => hasLetter(this.status()) || this.hasPackage());
+    // The server says whether the letter went out; the status is only the guess before it answered.
+    protected readonly readOnly = computed(() => this.letter()?.frozen ?? !letterEditable(this.status()));
     protected readonly busy = computed(() => this.saving() || this.drafting());
 
     protected readonly draft = linkedSignal(() => this.letter()?.text ?? '');

@@ -8,19 +8,19 @@
             </span>
         }
     </div>
-    <p class="type-small text-muted letter-note">
-        {{ (readOnly() ? 'coverLetter.noteSent' : 'coverLetter.note') | transloco }}
-    </p>
-
     @if (letter(); as letter) {
+        <p class="type-small text-muted letter-note">
+            {{ (letter.frozen ? 'coverLetter.noteSent' : 'coverLetter.note') | transloco }}
+        </p>
+
         <label class="type-caption text-muted" for="lg-cover-letter">{{ 'coverLetter.label' | transloco }}</label>
         <textarea
                 id="lg-cover-letter"
                 class="textarea textarea-sm type-small letter-text"
                 rows="14"
                 [value]="draft()"
-                [readOnly]="readOnly()"
-                [disabled]="busy()"
+                [readOnly]="readOnly() || busy()"
+                [attr.aria-busy]="busy()"
                 (input)="setDraft($event)"
         ></textarea>
 

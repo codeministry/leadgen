@@ -17,10 +17,12 @@ import java.time.Instant;
  * @param text   the letter, byte for byte what `cover_letter.txt` in the package holds
  * @param author `model`, `template` or `edited`
  * @param at     when the text was last written, by a build or a save
+ * @param frozen whether the application has ever been sent, so neither a save nor a redraft is
+ *               accepted; the server's one reading of "sent", so the page does not guess
  */
-public record CoverLetterView(String text, String author, Instant at) {
+public record CoverLetterView(String text, String author, Instant at, boolean frozen) {
 
     static CoverLetterView of(CoverLetter letter) {
-        return new CoverLetterView(letter.text(), letter.author(), letter.at());
+        return new CoverLetterView(letter.text(), letter.author(), letter.at(), letter.frozen());
     }
 }

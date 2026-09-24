@@ -221,7 +221,7 @@ describe('ToastStore', () => {
     describe('a cover letter', () => {
         const letter = (author: 'model' | 'template' | 'edited') => ({
             offerId: 7,
-            letter: {text: 'Guten Tag,', author, at: '2026-09-24T08:00:00Z'},
+            letter: {text: 'Guten Tag,', author, at: '2026-09-24T08:00:00Z', frozen: false},
         });
 
         it('confirms a save and a redraft from the stored answer, and says when the template wrote it', () => {

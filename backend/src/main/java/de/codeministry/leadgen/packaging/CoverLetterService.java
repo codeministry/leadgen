@@ -67,7 +67,7 @@ public class CoverLetterService {
     public CoverLetter read(long offerId) {
         Stored stored = stored(offerId).orElseThrow(() -> new NoLetter(offerId));
         if (stored.text() != null) {
-            return new CoverLetter(stored.text(), stored.author(), stored.at());
+            return new CoverLetter(stored.text(), stored.author(), stored.at(), packages.wentOut(offerId));
         }
         Path file = folder(offerId).resolve(PackagingService.LETTER_FILE);
         if (!Files.isRegularFile(file)) {
@@ -77,7 +77,8 @@ public class CoverLetterService {
             return new CoverLetter(
                     Files.readString(file, StandardCharsets.UTF_8),
                     PackagingService.Letter.TEMPLATE,
-                    stored.packagedAt());
+                    stored.packagedAt(),
+                    packages.wentOut(offerId));
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
@@ -132,7 +133,8 @@ public class CoverLetterService {
                 .params(letter.text(), letter.author(), offerId)
                 .query((rs, n) -> rs.getObject(1, OffsetDateTime.class).toInstant())
                 .single();
-        return new CoverLetter(letter.text(), letter.author(), at);
+        // Not frozen: both writes refused a sent application before they got here.
+        return new CoverLetter(letter.text(), letter.author(), at, false);
     }
 
     /**

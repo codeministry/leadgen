@@ -9,7 +9,7 @@ import {CoverLetterStore} from './cover-letter.store';
 const URL = '/api/v1/offers/7/cover-letter';
 
 function letter(overrides: Partial<CoverLetter> = {}): CoverLetter {
-    return {text: 'Guten Tag,\n\n…', author: 'model', at: '2026-09-24T08:00:00Z', ...overrides};
+    return {text: 'Guten Tag,\n\n…', author: 'model', at: '2026-09-24T08:00:00Z', frozen: false, ...overrides};
 }
 
 describe('CoverLetterStore', () => {
