@@ -38,7 +38,7 @@
                 aria-keyshortcuts="a"
                 (click)="setArchived(entry.offer.id, entry.offer.archivedAt === null)"
         >
-            <lg-icon [name]="entry.offer.archivedAt ? 'archive-restore' : 'archive'" [size]="16"/>
+            <lg-icon [name]="entry.offer.archivedAt ? 'archive-x' : 'archive-restore'" [size]="16"/>
             {{ (entry.offer.archivedAt ? 'detail.restore' : 'detail.archive') | transloco }}
         </button>
     </lg-page-header>

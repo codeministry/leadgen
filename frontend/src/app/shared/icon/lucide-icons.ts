@@ -1,6 +1,7 @@
 import {
   Archive,
   ArchiveRestore,
+  ArchiveX,
   ArrowDown,
   ArrowLeft,
   ArrowUp,
@@ -69,6 +70,7 @@ export const LG_ICONS = {
     'arrow-left': ArrowLeft,
   'arrow-up': ArrowUp,
     'archive-restore': ArchiveRestore,
+    'archive-x': ArchiveX,
     ban: Ban,
     'book-open': BookOpen,
   bookmark: Bookmark,
