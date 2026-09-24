@@ -292,4 +292,14 @@ class AdFetcherTest {
         verify(cache).store(url(0), 0, null);
         PORTAL.verify(0, getRequestedFor(urlPathEqualTo("/ad")));
     }
+
+    @Test
+    void namesTheCauseWhenTheRootExceptionCarriesNoMessage() {
+        // A refused connection arrives without a message; the note must not read "unreachable: null".
+        Exception refused = new RuntimeException("wrapper", new java.net.ConnectException());
+
+        assertThat(AdFetcher.rootMessage(refused)).isEqualTo("ConnectException");
+        assertThat(AdFetcher.rootMessage(new RuntimeException("outer", new IllegalStateException("closed"))))
+                .isEqualTo("closed");
+    }
 }

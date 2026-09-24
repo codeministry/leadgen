@@ -365,6 +365,27 @@ class OfferRefetchTest {
     }
 
     @Test
+    void keepsTheValuesTheOfferAlreadyHadWhenTheRefetchFails() {
+        // A failed fetch answers null for every field it could not read; those nulls must not
+        // wipe what the newsletter or FIELDS stored before, or the card forgets its duration.
+        String path = "/projekt/fails-again";
+        long id = unfetchedOffer(path);
+        jdbc.update("UPDATE offer SET duration = '9 Monate', rate_eur = 95, workload = 'Vollzeit' WHERE id = ?", id);
+        stubFor(get(urlEqualTo(path)).willReturn(aResponse().withStatus(500)));
+
+        assertThat(mvc.post().uri("/api/v1/offers/{id}/fetch", id).exchange()).hasStatusOk();
+
+        assertThat(jdbc.queryForObject("SELECT duration FROM offer WHERE id = ?", String.class, id))
+                .isEqualTo("9 Monate");
+        assertThat(jdbc.queryForObject("SELECT rate_eur FROM offer WHERE id = ?", Integer.class, id))
+                .isEqualTo(95);
+        assertThat(jdbc.queryForObject("SELECT workload FROM offer WHERE id = ?", String.class, id))
+                .isEqualTo("Vollzeit");
+        assertThat(jdbc.queryForObject("SELECT enrichment_note FROM offer WHERE id = ?", String.class, id))
+                .isEqualTo("status 500");
+    }
+
+    @Test
     void keepsTheOfferAndRecordsTheNewReasonWhenThePortalTimesOut() {
         // ISC-247, the timeout half. A page that does not answer within the fetch timeout is
         // unreachable, and that replaces the night's "status 403" the same way a 500 does.

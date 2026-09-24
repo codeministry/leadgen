@@ -213,12 +213,17 @@ public class AdFetcher {
         }
     }
 
-    private static String rootMessage(Throwable e) {
+    /**
+     * The innermost cause's message, or its class name when it has none: a refused connection
+     * arrives without a message, and the note would otherwise read "unreachable: null".
+     */
+    static String rootMessage(Throwable e) {
         Throwable cause = e;
         while (cause.getCause() != null) {
             cause = cause.getCause();
         }
-        return cause.getMessage();
+        String message = cause.getMessage();
+        return message == null || message.isBlank() ? cause.getClass().getSimpleName() : message;
     }
 
     /**

@@ -57,10 +57,17 @@ public class EnrichmentService {
           AND url IS NOT NULL AND full_text IS NULL AND id = ?
         """;
 
+    /**
+     * A fetch that failed or read nothing for a field answers null there, and null never
+     * overwrites a value the newsletter or FIELDS already stored: a refused refetch used to
+     * wipe the duration a card had shown a minute earlier.
+     */
     private static final String RECORD = """
         UPDATE offer
-        SET rate_eur = ?, duration = ?, workload = ?, remote_percent = ?, starts_on = ?,
-            contact = ?, full_text = ?, enriched_at = now(), enrichment_note = ?
+        SET rate_eur = COALESCE(?, rate_eur), duration = COALESCE(?, duration),
+            workload = COALESCE(?, workload), remote_percent = COALESCE(?, remote_percent),
+            starts_on = COALESCE(?, starts_on), contact = COALESCE(?, contact),
+            full_text = ?, enriched_at = now(), enrichment_note = ?
         WHERE id = ?
         """;
 
