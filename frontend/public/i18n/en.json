@@ -521,7 +521,6 @@
     "emptyHint": "Run ingest from the header. One pass is enough for the first bar; a few days make it a trend.",
     "emptyAxisTitle": "No dates on this axis",
     "emptyAxisHint": "No offer states a publication date yet. Switch to Arrived, which every offer carries.",
-    "recomputed": "Recomputed",
     "market": "Where the offers come from",
     "portals": "Portals",
     "portalsNote": "What each portal published, with the projects that cleared the filter marked inside the bar. A listing another portal carried first still counts as published.",

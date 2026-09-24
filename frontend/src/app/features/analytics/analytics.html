@@ -99,7 +99,7 @@
         }
     </section>
 
-    <!-- The recorded panels first, the recomputed one under its own heading below: a grid that
+    <!-- The recorded panels first, the recomputed stage mix last and on its own: a grid that
          mixes a measurement with a recomputation makes them look equally trustworthy. -->
     <div class="grid">
         <section class="lg-panel panel-wide">
@@ -125,9 +125,7 @@
         </section>
     </div>
 
-    <h2 class="type-h3 group">{{ 'analytics.recomputed' | transloco }}</h2>
-
-    <section class="lg-panel">
+    <section class="lg-panel stage-mix">
         <h2 class="type-h2 lg-anchor-target" id="stage-mix" tabindex="-1">{{ 'analytics.stageMix' | transloco }}</h2>
         <lg-stage-mix-panel
                 [stageMix]="store.view()!.market.stageMix"

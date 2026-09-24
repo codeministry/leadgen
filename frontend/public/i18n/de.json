@@ -521,7 +521,6 @@
     "emptyHint": "Lies die Quellen oben im Kopf ein. Ein Lauf reicht für den ersten Balken, ein paar Tage machen daraus einen Verlauf.",
     "emptyAxisTitle": "Keine Daten auf dieser Achse",
     "emptyAxisHint": "Noch nennt keine Anzeige ein Veröffentlichungsdatum. Wechsle auf Eingegangen, das trägt jedes Angebot.",
-    "recomputed": "Nachgerechnet",
     "market": "Woher die Angebote kommen",
     "portals": "Portale",
     "portalsNote": "Was jedes Portal veröffentlicht hat, mit den Projekten durch den Filter im Balken markiert. Eine Anzeige, die ein anderes Portal zuerst hatte, zählt trotzdem als veröffentlicht.",

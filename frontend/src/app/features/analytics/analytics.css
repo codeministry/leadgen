@@ -28,11 +28,6 @@
     color: var(--color-error);
 }
 
-.group {
-    margin-top: 2rem;
-    margin-bottom: 0.75rem;
-}
-
 .grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -50,6 +45,11 @@
 /* Three ranked lists side by side need the room; the two narrow panels sit below. */
 .panel-wide {
     grid-column: 1 / -1;
+}
+
+/* The last panel, under the grid without a divider heading. */
+.stage-mix {
+    margin-top: 1rem;
 }
 
 .excluded {
