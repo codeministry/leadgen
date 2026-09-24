@@ -1,3 +1,5 @@
+<img src="brand/leadgen.png" alt="LEADgen / AI" height="28">
+
 # Configuration
 
 Nothing individual is baked into the artifact, and nothing individual is committed. This

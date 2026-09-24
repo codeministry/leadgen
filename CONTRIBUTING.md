@@ -1,3 +1,5 @@
+<img src="docs/brand/leadgen.png" alt="LEADgen / AI" height="28">
+
 # Contributing
 
 Thanks for looking. This is a small, opinionated project in alpha, built by one person with

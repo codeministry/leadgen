@@ -1,4 +1,6 @@
-# leadgen
+<h1 align="center">
+  <img alt="LEADgen / AI" src="docs/brand/leadgen.png" width="420">
+</h1>
 
 **An acquisition tool for freelancers.** It collects project offers from sources you
 configure, throws out everything that was never a fit, and turns the rest into scored,
@@ -260,3 +262,11 @@ provider or personal datum enters a committed file**. Both are enforced by tests
 ## License
 
 [Apache License 2.0](LICENSE). See [NOTICE](NOTICE).
+
+---
+
+<p align="center">
+  <a href="https://codeministry.de"><img src="docs/brand/codeministry.png" alt="codeministry" width="88"></a>
+  <br>
+  <sub>Built and maintained by <a href="https://codeministry.de">codeministry</a>.</sub>
+</p>

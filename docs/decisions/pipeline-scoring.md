@@ -1,3 +1,5 @@
+<img src="../brand/leadgen.png" alt="LEADgen / AI" height="28">
+
 # Scoring, the digest and the application package
 
 Rules before model, the weight table that outranks the judge, and the folder a run leaves on disk.

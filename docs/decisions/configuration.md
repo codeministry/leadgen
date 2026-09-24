@@ -1,3 +1,5 @@
+<img src="../brand/leadgen.png" alt="LEADgen / AI" height="28">
+
 # The configuration layer and the startup banner
 
 The two layers, the three files read as one snapshot, and the box that says which layer won.

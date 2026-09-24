@@ -1,3 +1,5 @@
+<img src="../brand/leadgen.png" alt="LEADgen / AI" height="28">
+
 # Order of work
 
 The sixteen steps this tool was built in, each with what it had to prove before the next one

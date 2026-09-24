@@ -1,3 +1,5 @@
+<img src="brand/leadgen.png" alt="LEADgen / AI" height="28">
+
 # Adding an offer source
 
 A new source is a block of YAML. If you find yourself editing Java to add one, that is a

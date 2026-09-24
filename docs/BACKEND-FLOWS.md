@@ -1,3 +1,5 @@
+<img src="brand/leadgen.png" alt="LEADgen / AI" height="28">
+
 # Backend flows
 
 What happens, in order, when work starts: the pipeline run as a sequence with what every stage

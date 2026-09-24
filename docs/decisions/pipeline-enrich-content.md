@@ -1,3 +1,5 @@
+<img src="../brand/leadgen.png" alt="LEADgen / AI" height="28">
+
 # Enrichment, content segmentation and the three fields
 
 The only stage that leaves the machine, the split of a fetched advert into what is actually the advert, and the

@@ -1,3 +1,5 @@
+<img src="../brand/leadgen.png" alt="LEADgen / AI" height="28">
+
 # Retrieval
 
 What a vector is allowed to decide in this tool, and what it is not.

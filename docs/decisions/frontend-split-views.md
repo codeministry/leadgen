@@ -1,3 +1,5 @@
+<img src="../brand/leadgen.png" alt="LEADgen / AI" height="28">
+
 # The split views and the write path
 
 One list on the left, one thing being read on the right, and the board that writes back.

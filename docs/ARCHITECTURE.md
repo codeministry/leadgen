@@ -1,3 +1,5 @@
+<img src="brand/leadgen.png" alt="LEADgen / AI" height="28">
+
 # Architecture
 
 What this is, stage by stage, and the reasoning behind the parts that are not obvious.

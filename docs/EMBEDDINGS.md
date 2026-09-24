@@ -1,3 +1,5 @@
+<img src="brand/leadgen.png" alt="LEADgen / AI" height="28">
+
 # Embeddings
 
 What this tool turns into a vector, when, where the vector lands, and what it is allowed to

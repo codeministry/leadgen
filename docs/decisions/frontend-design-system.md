@@ -1,3 +1,5 @@
+<img src="../brand/leadgen.png" alt="LEADgen / AI" height="28">
+
 # The design system and the interface language
 
 Two themes, one accent with one meaning, the navigation, the tokens, and the two catalogs behind them.

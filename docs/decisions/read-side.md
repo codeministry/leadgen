@@ -1,3 +1,5 @@
+<img src="../brand/leadgen.png" alt="LEADgen / AI" height="28">
+
 # The read side
 
 Every screen reads one of these, and none of them writes: the working-set predicate, keyset paging, the sort keys and

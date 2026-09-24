@@ -1,3 +1,5 @@
+<img src="brand/leadgen.png" alt="LEADgen / AI" height="28">
+
 # Documentation
 
 Three kinds of document live here, and the difference between them is who they are written

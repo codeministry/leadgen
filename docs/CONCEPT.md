@@ -1,3 +1,5 @@
+<img src="brand/leadgen.png" alt="LEADgen / AI" height="28">
+
 # lead-generation — Concept
 
 Last updated: 2026-09-01

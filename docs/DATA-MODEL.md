@@ -1,3 +1,5 @@
+<img src="brand/leadgen.png" alt="LEADgen / AI" height="28">
+
 # Data model
 
 The thirteen tables, how they point at each other, and which class writes and reads each one.

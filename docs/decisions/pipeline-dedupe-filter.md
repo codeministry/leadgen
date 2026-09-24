@@ -1,3 +1,5 @@
+<img src="../brand/leadgen.png" alt="LEADgen / AI" height="28">
+
 # Deduplication, the hard filter and the archive
 
 What collapses one project advertised twice, what the six deterministic stages reject, and what falls off the working

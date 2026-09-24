@@ -1,3 +1,5 @@
+<img src="../brand/leadgen.png" alt="LEADgen / AI" height="28">
+
 # The AOT cache, the native image, and the hints written by hand
 
 Why leadgen is compiled twice, what each artifact is worth, and which reachability metadata

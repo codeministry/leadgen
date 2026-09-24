@@ -1,3 +1,5 @@
+<img src="brand/leadgen.png" alt="LEADgen / AI" height="28">
+
 # Writing rules
 
 How to change what survives the filter and what reaches the shortlist, without reading any

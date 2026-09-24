@@ -1,3 +1,5 @@
+<img src="../brand/leadgen.png" alt="LEADgen / AI" height="28">
+
 # Ingest, extraction and manual entry
 
 How a document becomes an offer: connectors, the configured extraction table, the Markdown inbox and the review in front
