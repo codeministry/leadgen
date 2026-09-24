@@ -77,6 +77,23 @@ be rude to the portals and slow for nothing.
 - **The page cache lives in Postgres.** The TTL is a week, the container has no volume for
   a scratch directory, and a cache that does not survive a restart turns a rate limit into
   a promise nobody keeps.
+- **The one way past the cache is a person, one offer at a time.** A failed fetch stamps `enriched_at` and the
+  cache keeps the refusal for its TTL, so the run never asks that page again, which is right for a 403 and wrong for a
+  page that only answered badly for a minute. `POST /api/v1/offers/{id}/fetch` skips the cache read and nothing
+  else: robots.txt is still asked and its refusal still remembered, and the answer is stored like any other. It is the
+  run's own code narrowed to one id, stage by stage, so the button cannot drift from the night (spec
+  `004-refetch-original-ad`).
+- **The rate window is one instance, shared by the run and the button.** It lived in `AdFetcher`, which is built per
+  pass, so every pass and every press had a window of its own and a click during a run could exceed the limit it
+  promises the portal. `FetchWindow` is a singleton; the run waits for a permit because nobody is watching it, the
+  button asks once and answers 429 with the reason, writing nothing. The budget stays per pass.
+- **The button takes its permit before robots.txt, the run after it.** The run reads robots.txt once per host per
+  pass, so its order costs nothing; the button builds a fetcher per press, and robots-first let every press send one
+  request no window counted, even with the minute spent. A permit spent on a path robots then refuses is the price.
+- **The button never fetches an offer that already has its ad.** A failed fetch records its reason over the enrichment
+  columns, `full_text` among them, so a press on an offer whose page answers 500 today would throw away an ad read
+  last week. The lookup refuses such an offer with 409, and the button's write is a no-op once text has landed, which
+  closes the window between two presses.
 
 ## Content segmentation
 

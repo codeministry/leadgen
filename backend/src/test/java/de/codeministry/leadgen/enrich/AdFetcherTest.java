@@ -27,18 +27,16 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 /**
- * The rate limiter, on its own and against a clock that can be moved.
+ * The gates in front of one fetch, in their order, and the per-pass budget.
  *
  * <p>Separate from {@link EnrichmentServiceTest}, which is about what the stage does with a
- * result. This is about the gate in front of it, and it needs no database: the cache is
+ * result. This is about the gates in front of it, and it needs no database: the cache is
  * stubbed to miss every time, which is exactly the condition the limiter exists for.
  *
- * <p>Two properties are pinned here, and both of them are the difference between this
- * implementation and every off-the-shelf one. It <b>rejects rather than waits</b>: a fetch
- * over the limit fails immediately and the offer stays in the pipeline marked incomplete,
- * because a stage that blocks would turn a busy minute into a stalled run. And the window
- * <b>slides</b>: twenty a minute means twenty in any sixty seconds, not twenty at the top of
- * each minute and forty across the boundary.
+ * <p>The sliding window itself is pinned in {@link FetchWindowTest}; it moved there when it
+ * became one shared bean. What is pinned here is what the fetcher does with it: a pass whose
+ * budget is spent <b>refuses rather than waits</b>, cache and robots.txt come before a permit,
+ * and a fresh fetch passes the cache but neither robots.txt nor the window.
  */
 class AdFetcherTest {
 
@@ -106,10 +104,20 @@ class AdFetcherTest {
      * Separate budget and limit, which is the pair every waiting question is about.
      */
     private AdFetcher fetcher(int perMinute, int maxPerRun, PageCache cache, Duration timeout) {
+        return fetcher(perMinute, maxPerRun, cache, timeout, window());
+    }
+
+    private AdFetcher fetcher(int perMinute, int maxPerRun, PageCache cache, Duration timeout, FetchWindow window) {
         Fetch settings = new Fetch(timeout, perMinute, maxPerRun, "leadgen-test", Duration.ofDays(7), true);
-        // The wait is served by moving the same clock the window is read from, so the
-        // sliding behaviour is exercised in full without a minute of real sleeping.
-        return new AdFetcher(settings, cache, clock) {
+        return new AdFetcher(settings, cache, window);
+    }
+
+    /**
+     * A window of its own per fetcher unless a test shares one on purpose. The wait is served
+     * by moving the same clock the window is read from, so no test sleeps for a minute.
+     */
+    private FetchWindow window() {
+        return new FetchWindow(clock) {
             @Override
             void pause(Duration wait) {
                 waited.add(wait);
@@ -143,46 +151,6 @@ class AdFetcherTest {
         assertThat(refused.fromCache()).isFalse();
         assertThat(tookMillis).isLessThan(200);
         PORTAL.verify(3, getRequestedFor(urlPathEqualTo("/ad")));
-    }
-
-    @Test
-    void waitsForTheWindowWhileTheRunStillHasBudgetForTheAd() {
-        // The limiter refuses rather than waits, which is right for the limiter and wrong
-        // for the pass on top of it: a run stopped at one minute's worth and deferred the
-        // rest, so a backlog needed one run per `rate_limit_per_minute` offers to clear.
-        // Measured on the live database: 97 of 101 scored offers had never had their
-        // original ad fetched at all.
-        AdFetcher fetcher = fetcher(3, 5, mock(PageCache.class), Duration.ofSeconds(5));
-        for (int i = 0; i < 3; i++) {
-            assertThat(fetcher.fetch(url(i)).succeeded()).isTrue();
-        }
-
-        assertThat(fetcher.fetch(url(3)).succeeded()).isTrue();
-
-        // It waited for a permit the window would have granted anyway; it did not take one
-        // the window had refused. The wait is the first request's remaining sixty seconds.
-        assertThat(waited).hasSize(1);
-        assertThat(waited.getFirst()).isBetween(Duration.ofSeconds(59), Duration.ofSeconds(61));
-        PORTAL.verify(4, getRequestedFor(urlPathEqualTo("/ad")));
-    }
-
-    @Test
-    void freesOneTokenSixtySecondsAfterTheRequestThatTookIt() {
-        // The sliding half. A fixed window would free all three at the top of the next
-        // minute and allow six inside one real minute; this frees exactly the one that has
-        // aged out, and does it at that request's own sixtieth second.
-        AdFetcher fetcher = fetcher(3);
-        fetcher.fetch(url(0));
-        clock.advance(Duration.ofSeconds(20));
-        fetcher.fetch(url(1));
-        fetcher.fetch(url(2));
-
-        assertThat(fetcher.fetch(url(3)).succeeded()).isFalse();
-
-        // Past the first request's sixtieth second, and only that one token is back.
-        clock.advance(Duration.ofSeconds(41));
-        assertThat(fetcher.fetch(url(4)).succeeded()).isTrue();
-        assertThat(fetcher.fetch(url(5)).succeeded()).isFalse();
     }
 
     @Test
@@ -257,5 +225,71 @@ class AdFetcherTest {
             assertThat(fetcher.fetch(url(i)).succeeded()).isTrue();
         }
         PORTAL.verify(1, getRequestedFor(urlPathEqualTo("/robots.txt")));
+    }
+
+    @Test
+    void waitsForTheWindowWhileTheRunStillHasBudgetForTheAd() {
+        // The fetcher's half of the waiting question: with budget left it waits for the
+        // window rather than deferring. How long, and for which permit, is FetchWindowTest's.
+        AdFetcher fetcher = fetcher(3, 5, mock(PageCache.class), Duration.ofSeconds(5));
+        for (int i = 0; i < 4; i++) {
+            assertThat(fetcher.fetch(url(i)).succeeded()).isTrue();
+        }
+
+        assertThat(waited).hasSize(1);
+        PORTAL.verify(4, getRequestedFor(urlPathEqualTo("/ad")));
+    }
+
+    @Test
+    void twoFetchersDrawFromOneWindow() {
+        // The reason the window is a bean. A window per fetcher let a run and a button
+        // together ask a portal twice as often as the limit says; sharing one, the second
+        // finds the minute the first one spent, and its budget of its own does not help it.
+        FetchWindow shared = window();
+        AdFetcher run = fetcher(3, 3, mock(PageCache.class), Duration.ofSeconds(5), shared);
+        AdFetcher button = fetcher(3, 3, mock(PageCache.class), Duration.ofSeconds(5), shared);
+        for (int i = 0; i < 3; i++) {
+            assertThat(run.fetch(url(i)).succeeded()).isTrue();
+        }
+
+        FetchResult refused = button.fetchFresh(url(3));
+
+        assertThat(refused.deferred()).isTrue();
+        assertThat(refused.note()).contains("3").containsIgnoringCase("minute");
+        assertThat(waited).isEmpty();
+        PORTAL.verify(3, getRequestedFor(urlPathEqualTo("/ad")));
+    }
+
+    @Test
+    void aFreshFetchAsksPastACachedFailureAndStoresTheNewAnswer() {
+        // The whole point of the button: a 403 remembered for a week is right for the night
+        // and wrong once the operator has seen the page open in a browser.
+        PageCache cache = mock(PageCache.class);
+        when(cache.find(eq(url(0)), any())).thenReturn(Optional.of(new PageCache.Entry(403, null)));
+
+        FetchResult fresh = fetcher(3, cache).fetchFresh(url(0));
+
+        assertThat(fresh.succeeded()).isTrue();
+        assertThat(fresh.fromCache()).isFalse();
+        verify(cache, never()).find(anyString(), any());
+        verify(cache).store(eq(url(0)), eq(200), contains("ad"));
+        PORTAL.verify(1, getRequestedFor(urlPathEqualTo("/ad")));
+    }
+
+    @Test
+    void aFreshFetchStillAsksRobotsTxtFirstAndRemembersItsRefusal() {
+        // The cache is the one gate the button passes. robots.txt is why the tool may fetch
+        // at all, and its refusal is remembered exactly as the night remembers it.
+        PORTAL.stubFor(
+                get(urlPathEqualTo("/robots.txt")).willReturn(aResponse().withBody("User-agent: *\nDisallow: /ad\n")));
+        PageCache cache = mock(PageCache.class);
+
+        FetchResult refused = fetcher(3, cache).fetchFresh(url(0));
+
+        assertThat(refused.succeeded()).isFalse();
+        assertThat(refused.deferred()).isFalse();
+        assertThat(refused.note()).contains("robots.txt");
+        verify(cache).store(url(0), 0, null);
+        PORTAL.verify(0, getRequestedFor(urlPathEqualTo("/ad")));
     }
 }

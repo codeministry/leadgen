@@ -11,6 +11,11 @@ may change in any release. See the status note in the README.
 
 ### Added
 
+- An offer whose original ad was never fetched offers to fetch it again, from the ad card: the note says why the
+  last attempt failed, the button asks the page once more past the cached refusal (robots.txt and the rate limit
+  still apply), and a page that answers brings the advert, its sections, its fields and a fresh score with it.
+  `POST /api/v1/offers/{id}/fetch`; `OfferView` carries `enrichmentNote`. The run and the button now share one
+  fetch window (spec `004-refetch-original-ad`).
 - Every write a person makes in the browser and every ingest run that begins or ends,
   whoever started it, is confirmed by one toast: archive and restore, a bulk archive with
   the count the server wrote, a status change on the board, a rescore, a manual document

@@ -189,6 +189,18 @@
     color: var(--lg-warning-text);
 }
 
+/* What is missing, why, and the way to ask again, as one group under the advert. */
+.from-source {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+}
+
+.fetch-refusal {
+    color: var(--lg-warning-text);
+}
+
 /* An offer that is not on the working list says so once, under the title. */
 .archived-note {
     margin-top: -0.5rem;

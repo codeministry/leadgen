@@ -27,6 +27,10 @@ function scoreAnswer(id: number, title: string, value: number | null): Shortlist
     return {offer: {id, title, archivedAt: null}, score: {value}} as unknown as ShortlistEntry;
 }
 
+function fetchAnswer(id: number, title: string, fullText: string | null, note: string | null): ShortlistEntry {
+    return {offer: {id, title, fullText, enrichmentNote: note}} as unknown as ShortlistEntry;
+}
+
 function application(overrides: Partial<ApplicationView> = {}): ApplicationView {
     return {
         id: 3,
@@ -239,6 +243,14 @@ describe('ToastStore', () => {
 
             expect(store.toasts().map((standing) => standing.tone)).toEqual(['info', 'info']);
         });
+
+        it('is green for an advert that arrived and blue for one still missing', () => {
+            shortlist.fetched(fetchAnswer(4, 'Senior Java Entwickler', 'Das Inserat.', null));
+            shortlist.fetched(fetchAnswer(5, 'Angular Frontend Developer', null, 'status 403'));
+
+            expect(store.toasts().map((standing) => standing.tone)).toEqual(['success', 'info']);
+            expect(store.toasts().map((standing) => standing.link)).toEqual(['/shortlist/4', '/shortlist/5']);
+        });
     });
 
     describe('a failure', () => {
@@ -246,6 +258,7 @@ describe('ToastStore', () => {
             shortlist.archiveFailed('error.archive');
             shortlist.bulkArchiveFailed('error.bulkArchive');
             shortlist.rescoreFailed('error.rescore');
+            shortlist.fetchFailed('error.fetch');
             shortlist.failed('error.shortlistLoad');
             applications.changeFailed({id: 3, message: 'error.statusSave'});
             applications.failed('error.boardLoad');

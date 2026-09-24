@@ -128,6 +128,25 @@ export const ToastStore = signalStore(
                     ),
                 ),
             ),
+            // What the fetch left on the offer, not whether the request went through: a page
+            // that refused once more still answers with the entry, and its note is the reason.
+            // Green for an advert that arrived; info for one still missing, the sibling of a rescore
+            // still unscored rather than of an offer closed against us. A request the server
+            // turned away raises nothing here: that sentence stays by the button.
+            events.on(shortlistEvents.fetched).pipe(
+                map(({payload}) =>
+                    toastEvents.raised(
+                        payload.offer.fullText
+                            ? toast('success', 'toast.fetched', {title: payload.offer.title}, `/shortlist/${payload.offer.id}`)
+                            : toast(
+                                'info',
+                                'toast.fetchRefused',
+                                {title: payload.offer.title, reason: payload.offer.enrichmentNote ?? ''},
+                                `/shortlist/${payload.offer.id}`,
+                            ),
+                    ),
+                ),
+            ),
             /*
              * A run beginning, from the heartbeat's first sight of it and never from
              * `requested`: the heartbeat sees a click here and a CronJob elsewhere alike, and

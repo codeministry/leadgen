@@ -70,6 +70,13 @@ class EnrichmentServiceTest {
     @Autowired
     private EnrichmentService enrichment;
 
+    /**
+     * One window for the whole context, so every test starts it empty: the rate-limit test
+     * spends all twenty permits, and the next test that fetches would wait the minute out.
+     */
+    @Autowired
+    private FetchWindow window;
+
     @Autowired
     private JdbcTemplate jdbc;
 
@@ -99,6 +106,7 @@ class EnrichmentServiceTest {
         sourceId =
                 jdbc.queryForObject("INSERT INTO source (name, kind) VALUES ('test', 'file') RETURNING id", Long.class);
         PORTAL.resetAll();
+        window.clear();
         allowEverything();
     }
 

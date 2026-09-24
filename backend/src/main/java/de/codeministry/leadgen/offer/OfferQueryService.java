@@ -581,7 +581,8 @@ public class OfferQueryService {
                 rs.getTimestamp("archived_at") == null
                         ? null
                         : rs.getTimestamp("archived_at").toInstant(),
-                rs.getString("archive_source"));
+                rs.getString("archive_source"),
+                rs.getString("enrichment_note"));
         return new Row(
                 id,
                 offer,

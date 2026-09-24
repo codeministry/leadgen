@@ -298,6 +298,43 @@ class ScoringWithAModelTest {
         assertThatCode(() -> scoring.checkModel(null)).doesNotThrowAnyException();
     }
 
+    /**
+     * ISC-246/T8: the extracted branch {@code scoreFor} shares with {@code run}'s loop,
+     * proven from the judged side — a judge that answers writes {@code Score.of} for exactly
+     * the offer asked about, and a second due offer this call never names stays untouched.
+     */
+    @Test
+    void scoreForJudgesExactlyThatOfferAndWritesAJudgedScore() {
+        answers("""
+            {"reasons":[
+              {"factor":"role_fit","label":"backend engagement, the target role","points":15},
+              {"factor":"vague_description","label":"team size and scope are left open","points":-10}
+            ]}
+            """);
+        long asked = offer("Senior Java Entwickler (m/w/d)", "Java 21 und Spring Boot, 12 Monate");
+        long untouched = offer("Senior Java Entwickler (m/w/d)", "Java 21 und Spring Boot, 12 Monate");
+
+        var result = scoring.scoreFor(asked);
+
+        assertThat(result).isPresent();
+        assertThat(result.get().value()).isEqualTo(90);
+        assertThat(result.get().model()).isEqualTo("test-model");
+        assertThat(jdbc.queryForObject("SELECT score_value FROM offer WHERE id = ?", Integer.class, asked))
+                .isEqualTo(90);
+        assertThat(jdbc.queryForObject("SELECT score_model FROM offer WHERE id = ?", String.class, asked))
+                .isEqualTo("test-model");
+        assertThat(factorsOf(asked))
+                .containsExactly("core_skill_overlap", "seniority_fit", "role_fit", "vague_description");
+
+        // The other due offer never entered this call and stays exactly as it was written —
+        // one row, not the whole standing backlog.
+        assertThat(jdbc.queryForObject("SELECT score_value FROM offer WHERE id = ?", Integer.class, untouched))
+                .isNull();
+        assertThat(jdbc.queryForObject("SELECT scored_at FROM offer WHERE id = ?", java.sql.Timestamp.class, untouched))
+                .isNull();
+        MODEL.verify(1, postRequestedFor(urlPathEqualTo("/chat/completions")));
+    }
+
     private String modelOf(long offerId) {
         return jdbc.queryForObject("SELECT score_model FROM offer WHERE id = ?", String.class, offerId);
     }

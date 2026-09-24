@@ -20,6 +20,7 @@ import de.codeministry.leadgen.archive.ArchiveService;
 import de.codeministry.leadgen.ask.AdvertAnswer;
 import de.codeministry.leadgen.ask.AdvertAskService;
 import de.codeministry.leadgen.ask.AdvertQuestion;
+import de.codeministry.leadgen.enrich.OfferRefetch;
 import de.codeministry.leadgen.offer.*;
 import de.codeministry.leadgen.score.ScoringService;
 import java.time.Instant;
@@ -54,6 +55,9 @@ class OfferControllerTest {
 
     @MockitoBean
     private AdvertAskService asks;
+
+    @MockitoBean
+    private OfferRefetch refetch;
 
     @Test
     void answersWithTheWholeEntryRatherThanWithNothing() {
@@ -414,7 +418,8 @@ class OfferControllerTest {
                 null,
                 Instant.parse("2026-09-01T05:00:00Z"),
                 archivedAt,
-                source);
+                source,
+                null);
         return new ShortlistEntry(
                 offer,
                 new OfferScoreView(88, true, List.of(), null, null),

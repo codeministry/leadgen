@@ -40,6 +40,7 @@ function entry(id: number, title: string, value: number | null, portal: string):
           ingestedAt: '2026-09-02T05:12:00Z',
             archivedAt: null,
             archiveSource: null,
+            enrichmentNote: null,
         },
         score: {value, hardPass: true, reasons: [], model: null, rulesetVersion: '1'},
       flags: {incomplete: false, remoteUnknown: true, possibleDuplicate: false},

@@ -48,6 +48,7 @@ function entry(
           ingestedAt: '2026-09-02T05:12:00Z',
             archivedAt: null,
             archiveSource: null,
+            enrichmentNote: null,
         },
         score: {value: 80, hardPass: true, reasons: [], model: 'test', rulesetVersion: '3'},
       flags: {incomplete: false, remoteUnknown: true, possibleDuplicate: false},
@@ -256,5 +257,64 @@ describe('OfferDetail', () => {
     fixture.detectChanges();
 
     expect(ad(fixture).textContent).not.toContain('Save to watchlist');
+  });
+
+  function fetchAgain(fixture: ComponentFixture<OfferDetail>): HTMLButtonElement | null {
+    return fixture.nativeElement.querySelector('.fetch-again');
+  }
+
+  it('offers to fetch the ad again only where the run would fetch it', () => {
+    // ISC-243. The four conditions the server checks, flipped one at a time: a button that
+    // appeared on any of the four would offer a request that can only come back refused.
+    const missing = entry(21, null);
+    expect(fetchAgain(render(missing))).not.toBeNull();
+
+    const variants: ShortlistEntry[] = [
+      {...entry(22, 'Das ganze Inserat.')},
+      {...entry(23, null), offer: {...entry(23, null).offer, url: null}},
+      {...entry(24, null), offer: {...entry(24, null).offer, archivedAt: '2026-09-20T05:00:00Z'}},
+      {...entry(25, null), score: {...entry(25, null).score, hardPass: false}},
+    ];
+    for (const variant of variants) {
+      expect(fetchAgain(render(variant)), `offer ${variant.offer.id}`).toBeNull();
+    }
+  });
+
+  it('keeps the offer on screen and says why when a fetch is turned away', () => {
+    // ISC-247, the page's half. The note the run recorded stands beside the button, and a
+    // request the server refused adds its own sentence there — the detail is not replaced by
+    // an error, because the offer on it is still the right one and still worth reading.
+    const refused = {...entry(26, null), offer: {...entry(26, null).offer, enrichmentNote: 'status 403'}};
+    const fixture = render(refused);
+    expect(fixture.nativeElement.textContent).toContain('Last attempt: status 403');
+
+    fetchAgain(fixture)!.click();
+    http.expectOne({method: 'POST', url: '/api/v1/offers/26/fetch'})
+        .flush('the fetch rate limit of 20 ads a minute is spent; try again in a minute', {
+          status: 429,
+          statusText: 'Too Many Requests',
+        });
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.fetch-refusal').textContent).toContain('rate limit');
+    expect(fixture.nativeElement.textContent).toContain('Senior Java Entwickler');
+    expect(ad(fixture)).not.toBeNull();
+    expect(fetchAgain(fixture)!.disabled).toBe(false);
+  });
+
+  it('replaces the caption with the advert once the fetch brings it back', () => {
+    // ISC-246, the page's half: the entry the server stored replaces the one on screen.
+    const fixture = render(entry(27, null));
+    expect(fixture.nativeElement.textContent).toContain('The original ad was not fetched');
+
+    fetchAgain(fixture)!.click();
+    fixture.detectChanges();
+    expect(fetchAgain(fixture)!.disabled).toBe(true);
+    http.expectOne({method: 'POST', url: '/api/v1/offers/27/fetch'}).flush(entry(27, 'Das ganze Inserat, abgerufen.'));
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).not.toContain('The original ad was not fetched');
+    expect(ad(fixture).textContent).toContain('Das ganze Inserat, abgerufen.');
+    expect(fetchAgain(fixture)).toBeNull();
   });
 });

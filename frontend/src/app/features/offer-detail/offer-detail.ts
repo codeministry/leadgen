@@ -17,6 +17,7 @@ import {TranslocoPipe, TranslocoService} from '@jsverse/transloco';
 import {ApplicationUpdate} from '@core/model/application';
 import {ContentBlock, Offer} from '@core/model/offer';
 import {ScoreReason} from '@core/model/score';
+import {ShortlistEntry} from '@core/model/shortlist-entry';
 import {applicationEvents} from '@core/store/applications.events';
 import {ApplicationsStore} from '@core/store/applications.store';
 import {shortlistEvents} from '@core/store/shortlist.events';
@@ -316,6 +317,24 @@ export class OfferDetail implements OnInit {
      */
     protected rescore(id: number): void {
         this.dispatch.rescoreRequested(id);
+    }
+
+    /**
+     * Whether the original ad can be asked for again from here: the same four conditions the
+     * server checks, so the button never offers a request that would come back refused. An
+     * offer the filter rejected or the archive holds is one no stage fetches for, and one that
+     * has its ad already is not missing anything.
+     */
+    protected canFetch(entry: ShortlistEntry): boolean {
+        return entry.score.hardPass && !entry.offer.archivedAt && !!entry.offer.url && !entry.offer.fullText;
+    }
+
+    /**
+     * Ask the portal for this offer's ad again, past the failure the run remembered. A click,
+     * because it leaves the machine and spends one of the minute's fetches.
+     */
+    protected refetch(id: number): void {
+        this.dispatch.fetchRequested(id);
     }
 
     /**

@@ -149,8 +149,36 @@
                     {{ (adFolded() ? 'detail.showMore' : 'detail.showLess') | transloco }}
                 </button>
             }
+            <!--
+              The caption says what is missing; the note says why, in the words enrichment
+              recorded; the button asks the page again. The button is there only where the run
+              would fetch too — a passed, unarchived offer with somewhere to ask — so it never
+              offers what the server would refuse.
+            -->
             @if (!entry.offer.fullText) {
-                <p class="type-caption text-muted">{{ 'detail.fromSource' | transloco }}</p>
+                <div class="from-source">
+                    <p class="type-caption text-muted">{{ 'detail.fromSource' | transloco }}</p>
+                    @if (entry.offer.enrichmentNote; as note) {
+                        <p class="type-caption text-muted">{{ 'detail.fetchReason' | transloco: {reason: note} }}</p>
+                    }
+                    @if (canFetch(entry)) {
+                        <button
+                                type="button"
+                                class="btn btn-sm btn-soft btn-primary fetch-again"
+                                [disabled]="store.fetching() !== null"
+                                (click)="refetch(entry.offer.id)"
+                        >
+                            <lg-icon name="refresh" [size]="14"/>
+                            {{
+                                (store.fetching() === entry.offer.id ? 'detail.fetching' : 'detail.fetchAgain')
+                                    | transloco
+                            }}
+                        </button>
+                    }
+                    @if (store.fetchError(); as refusal) {
+                        <p class="type-small fetch-refusal">{{ refusal | transloco }}</p>
+                    }
+                </div>
             }
 
             <div class="tags">

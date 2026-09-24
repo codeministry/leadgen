@@ -59,6 +59,16 @@ public class FieldsService {
         """;
 
     /**
+     * The same predicate as {@link #DUE}, narrowed to one id and derived from it, so a change to
+     * the condition cannot reach the night and miss the button. {@code runFor} is called by the
+     * manual-fetch orchestrator after it has reset {@code fields_at} for that offer, so the
+     * predicate already matches it; a second look here (rather than trusting the caller) is
+     * what keeps the button from ever recording an offer the night would not touch — the same
+     * reasoning {@code run()} applies to every row it reads.
+     */
+    private static final String DUE_FOR = DUE.replace("ORDER BY id", "AND id = ?");
+
+    /**
      * {@code fields_at} is stamped only when the pass is finished with the offer: a model that
      * was configured and did not answer leaves it null, so the offer comes back rather than
      * being remembered as read by nobody.
@@ -120,25 +130,22 @@ public class FieldsService {
         int rejudged = 0;
 
         for (Due offer : due) {
-            if (!budget.take()) {
+            Attempt attempt = attempt(extractor.get(), model, offer);
+            if (attempt.budgetExhausted()) {
                 // The rest keep their columns and stay due, which is the same thing an
                 // unanswered request leaves behind — so the next run simply continues.
                 break;
             }
             requests++;
-            Optional<ExtractedFields> answer = extractor.get().extract(offer.asCandidate());
-            if (answer.isEmpty()) {
+            if (attempt.fields().isEmpty()) {
                 // Not settled: the offer keeps its columns and comes back on the next run.
                 continue;
             }
-            ExtractedFields fields = answer.get();
-            boolean changed = fields.changes(offer.startsOn(), offer.duration());
-            record(offer.id(), fields, model, changed);
             extracted++;
-            if (!fields.isEmpty()) {
+            if (!attempt.fields().get().isEmpty()) {
                 stated++;
             }
-            if (changed) {
+            if (attempt.changed()) {
                 rejudged++;
             }
         }
@@ -152,6 +159,59 @@ public class FieldsService {
                 report.stated(),
                 report.rejudged());
         return report;
+    }
+
+    /**
+     * The one-offer path the manual-fetch orchestrator calls after a successful refetch, once
+     * {@code fields_at} has been reset for that id. Disabled stage, no model configured, or the
+     * offer not matching {@link #DUE_FOR} (already handled, archived, no longer PASSED) all mean
+     * the same thing here as a night with nothing to do: nothing is written and nothing thrown —
+     * the caller does not have to tell "skipped" apart from "the model did not answer".
+     *
+     * @return whether a model actually answered and its fields were recorded; {@code false}
+     *     covers every way the stage did nothing, deliberately kept as one boolean rather than a
+     *     reason enum, because the orchestrator's only decision is whether to move on
+     */
+    public boolean runFor(long id) {
+        PipelineConfig.Fields settings = config.snapshot().application().fields();
+        if (settings == null || !settings.enabled()) {
+            return false;
+        }
+
+        Optional<FieldExtractor> extractor = extractors.current();
+        if (extractor.isEmpty()) {
+            return false;
+        }
+
+        Optional<Due> offer =
+                jdbc.sql(DUE_FOR).param(id).query(FieldsService::due).optional();
+        if (offer.isEmpty()) {
+            return false;
+        }
+
+        Attempt attempt = attempt(extractor.get(), extractor.get().model(), offer.get());
+        return attempt.fields().isPresent();
+    }
+
+    /**
+     * The per-offer step {@code run()} and {@code runFor} both need: the budget check, the
+     * model call, and the write. Pulled out once both had to run it against a single {@link Due}
+     * — {@code run()} still decides for itself whether a spent budget ends its loop or a
+     * candidate is a candidate, which is why that decision stays outside this method rather than
+     * inside it.
+     */
+    private Attempt attempt(FieldExtractor extractor, String model, Due offer) {
+        if (!budget.take()) {
+            return Attempt.noBudget();
+        }
+        Optional<ExtractedFields> answer = extractor.extract(offer.asCandidate());
+        if (answer.isEmpty()) {
+            return Attempt.notAnswered();
+        }
+        ExtractedFields fields = answer.get();
+        boolean changed = fields.changes(offer.startsOn(), offer.duration());
+        record(offer.id(), fields, model, changed);
+        return Attempt.recorded(fields, changed);
     }
 
     private void record(long id, ExtractedFields fields, String model, boolean changed) {
@@ -186,6 +246,28 @@ public class FieldsService {
 
         FieldExtractor.Candidate asCandidate() {
             return new FieldExtractor.Candidate(id, title, description, advert, startsOn, duration);
+        }
+    }
+
+    /**
+     * What {@link #attempt} found out for one offer. {@code fields} empty with
+     * {@code budgetExhausted} false is "the model did not answer" (the offer stays due);
+     * {@code budgetExhausted} true is the one case {@code run()}'s loop has to tell apart from
+     * that, because it is the only one that ends the whole pass rather than moving to the next
+     * candidate.
+     */
+    private record Attempt(boolean budgetExhausted, Optional<ExtractedFields> fields, boolean changed) {
+
+        private static Attempt noBudget() {
+            return new Attempt(true, Optional.empty(), false);
+        }
+
+        private static Attempt notAnswered() {
+            return new Attempt(false, Optional.empty(), false);
+        }
+
+        private static Attempt recorded(ExtractedFields fields, boolean changed) {
+            return new Attempt(false, Optional.of(fields), changed);
         }
     }
 }

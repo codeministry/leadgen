@@ -14,6 +14,8 @@ import de.codeministry.leadgen.archive.ArchiveService;
 import de.codeministry.leadgen.ask.AdvertAnswer;
 import de.codeministry.leadgen.ask.AdvertAskService;
 import de.codeministry.leadgen.ask.AdvertQuestion;
+import de.codeministry.leadgen.enrich.EnrichmentService;
+import de.codeministry.leadgen.enrich.OfferRefetch;
 import de.codeministry.leadgen.offer.*;
 import de.codeministry.leadgen.retrieval.SemanticFilter;
 import de.codeministry.leadgen.score.Judges;
@@ -39,12 +41,19 @@ class OfferController {
     private final ScoringService scoring;
     private final ArchiveService archive;
     private final AdvertAskService asks;
+    private final OfferRefetch refetch;
 
-    OfferController(OfferQueryService offers, ScoringService scoring, ArchiveService archive, AdvertAskService asks) {
+    OfferController(
+            OfferQueryService offers,
+            ScoringService scoring,
+            ArchiveService archive,
+            AdvertAskService asks,
+            OfferRefetch refetch) {
         this.offers = offers;
         this.scoring = scoring;
         this.archive = archive;
         this.asks = asks;
+        this.refetch = refetch;
     }
 
     /**
@@ -156,6 +165,27 @@ class OfferController {
     }
 
     /**
+     * Fetch this offer's original ad again, now.
+     *
+     * <p>A fetch that failed once is never tried again by a run: enrichment stamps the offer
+     * either way, and the page cache remembers a refusal for its whole TTL. This is the way
+     * past the cache for one offer, when the operator knows the page answers now. It is not a
+     * way past robots.txt or the fetch rate limit, which is why a spent minute is a 429 rather
+     * than a wait.
+     *
+     * <p>A fetch that reached the page and failed is not an error here: it answers 200 with
+     * the entry, whose enrichment note carries the new reason, because a recorded refusal is
+     * as much an outcome as a fetched ad. The lookup comes first so that an id nobody has is a
+     * 404, and not a 409 whose sentence would describe an offer that does not exist.
+     */
+    @PostMapping("/{id}/fetch")
+    ShortlistEntry refetch(@PathVariable long id) {
+        offers.find(id).orElseThrow(() -> new NotFound(id));
+        refetch.refetch(id);
+        return offers.find(id).orElseThrow(() -> new NotFound(id));
+    }
+
+    /**
      * Take this offer off the working list, or put it back.
      *
      * <p>A PATCH and not two endpoints: archiving and restoring are one decision with two
@@ -204,6 +234,20 @@ class OfferController {
     @ExceptionHandler({NotOnTheShortlist.class, ScoringService.NoJudge.class})
     @ResponseStatus(HttpStatus.CONFLICT)
     String cannotScore(RuntimeException e) {
+        return e.getMessage();
+    }
+
+    /** The offer exists, but it is not one the night would fetch either. */
+    @ExceptionHandler(EnrichmentService.NotFetchable.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    String cannotFetch(EnrichmentService.NotFetchable e) {
+        return e.getMessage();
+    }
+
+    /** No request left in the shared window this minute; nothing was written. */
+    @ExceptionHandler(EnrichmentService.NoPermit.class)
+    @ResponseStatus(HttpStatus.TOO_MANY_REQUESTS)
+    String noPermit(EnrichmentService.NoPermit e) {
         return e.getMessage();
     }
 

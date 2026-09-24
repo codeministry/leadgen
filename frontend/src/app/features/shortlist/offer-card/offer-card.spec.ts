@@ -34,6 +34,7 @@ function entry(id: number): ShortlistEntry {
           ingestedAt: '2026-09-02T05:12:00Z',
             archivedAt: null,
             archiveSource: null,
+            enrichmentNote: null,
         },
         score: {value: 88, hardPass: true, reasons: [], model: null, rulesetVersion: '1'},
       flags: {incomplete: false, remoteUnknown: true, possibleDuplicate: false},
