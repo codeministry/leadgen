@@ -6,7 +6,7 @@ isa_master: ../../ISA.md
 isa_feature: F33
 constitution: ../constitution.md
 phase: climbing
-progress: 9/15
+progress: 14/15
 started: 2026-09-24T12:00:00Z
 updated: 2026-09-24T14:00:00Z
 principal_stated_goal: "Die Mailvorlagen jedes Offers soll verbessert werden und wenig nach KI klingen. zudem sind sie zugeschnittener als die Skill und Projekte, auf die sich die Anforderungen bezieht."
@@ -99,13 +99,13 @@ an edit and regenerates it until the application is sent.
 - [x] ISC-254: A draft that contains a phrase from the banned list in `cover-letter.yaml`, or exceeds its word limit, is rejected.
 - [x] ISC-255: Without a writing model, with the call budget spent, after a failed call or a rejected draft, the template writes the letter and the package build completes. (after: ISC-252)
 - [x] ISC-256: Anti: a failed or rejected draft is never retried against any provider or model other than the configured writing model.
-- [ ] ISC-257: `meta.json` and the stored letter record its author as `model`, `template` or `edited`. (after: ISC-255)
+- [x] ISC-257: `meta.json` and the stored letter record its author as `model`, `template` or `edited`. (after: ISC-255)
 - [x] ISC-258: `cover-letter.yaml` resolves over both configuration layers, its classpath default carries style rules and no example letter, and `LeadGenRuntimeHintsTest` stays green.
-- [ ] ISC-259: The offer detail view of a packaged application shows its letter, and saving an edit rewrites `cover_letter.txt` and the stored copy so the package download carries the edited text. (after: ISC-250)
-- [ ] ISC-260: Regenerating replaces the letter with a fresh draft at one budget call, and both editing and regenerating are refused once the application is SENT. (after: ISC-259)
-- [ ] ISC-261: Anti: neither the run's retry path nor a rebuild of the package overwrites a letter whose author is `edited`. (after: ISC-259)
+- [x] ISC-259: The offer detail view of a packaged application shows its letter, and saving an edit rewrites `cover_letter.txt` and the stored copy so the package download carries the edited text. (after: ISC-250)
+- [x] ISC-260: Regenerating replaces the letter with a fresh draft at one budget call, and both editing and regenerating are refused once the application is SENT. (after: ISC-259)
+- [x] ISC-261: Anti: neither the run's retry path nor a rebuild of the package overwrites a letter whose author is `edited`. (after: ISC-259)
 - [x] ISC-262: Archiving discards the stored letter together with the package unless the application was ever sent, and a restored application that was never sent carries no letter.
-- [ ] ISC-263: `pipeline.yaml` no longer marks `llm.models.writing` as unread, and `docs/decisions/pipeline-scoring.md` names the model as the letter's author and the template as its fallback.
+- [x] ISC-263: `pipeline.yaml` no longer marks `llm.models.writing` as unread, and `docs/decisions/pipeline-scoring.md` names the model as the letter's author and the template as its fallback.
 - [ ] ISC-264: On five real German offers the operator ranks, blind, the configured model's letters above the template's.
 
 ## Test Strategy
@@ -167,3 +167,8 @@ an edit and regenerates it until the application is sent.
 - ISC-250 — `PackagingServiceTest.writesTheLetterFromTheWritingModelsDraftInTheLanguageOfTheAd` (stub keyed on "Letter language", byte-equal de + en letters) and `asksTheWritingModelOutsideAnyDatabaseTransaction` (red with @Transactional) green; full backend suite green in an isolated tree copy (95 result files, 0 failures); second look Max: pass after F2–F4 rework (2026-09-24)
 - ISC-251 — `CoverLetterWriterTest` (ad names Frau <name>, ad names nobody, fragment greetings, paragraph greeting, labels, short surnames, Dr.-companies, Herrn) + `PackagingServiceTest.greetsNobodyByNameWhenOnlyTheContactColumnHoldsAFragment` green; red before = contact-column heuristic greeted "CD Ers"; second look Max concerns, all six adopted (2026-09-24)
 - ISC-262 — `PackageArchiveServiceTest.throwsAwayTheStoredLetterWithAnUnsentPackageAndRestoresNone` (red at the discard assertion) + `keepsTheStoredLetterOfAnApplicationThatWentOut` green; full suite 784/0 in the isolated copy; second look Max: holds, wording refined (2026-09-24)
+- ISC-257 — `CoverLetterControllerTest.savingAnEditRewritesTheLetterThePackageDownloadCarries` (row + meta.json `edited`) and the model/template cases in `PackagingServiceTest` green; second look Max: holds (2026-09-24)
+- ISC-259 — `CoverLetterControllerTest` (PUT, then the zip carries the edit) 12/0 and Vitest `cover-letter.spec.ts` green; second look Max: holds, two minor UI findings recorded as Remaining Work (2026-09-24)
+- ISC-260 — `CoverLetterControllerTest` (one permit, 429 without one, 409 once ever sent incl. sent→archived→restored and sent→LOST) green, mutation on the gate red; second look Max: holds (2026-09-24)
+- ISC-261 — `PackagingServiceTest.neitherTheRetryNorARebuildOverwritesAnEditedLetter` green (red before the passthrough); second look Max: holds (2026-09-24)
+- ISC-263 — `rg "not read yet" pipeline.yaml` 0 hits; `pipeline-scoring.md` § The application package names model, guard and template fallback; CONFIGURATION, DATA-MODEL, BACKEND-FLOWS and CHANGELOG updated; second look Max: holds (2026-09-24)

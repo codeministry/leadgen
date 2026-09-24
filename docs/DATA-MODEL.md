@@ -175,7 +175,7 @@ table below is the map. "Written by" is the class whose `UPDATE offer SET …` n
 | Fields | `start_text`, `starts_on`, `duration`, `duration_months`, `apply_by`, `apply_by_text`, `fields_at`, `fields_model` | `V5`, `V18` | `fields/FieldsService`, which also nulls `score_model` when a value moved | `ScoringService`, the three sort keys in `OfferQueryService` |
 | Score | `score_value`, `score_band`, `score_model`, `ruleset_version`, `scored_at`, `score_batch_id`, `profile_digest` | `V6`, `V10`, `V28` | `score/ScoreWriter` (the five score columns), `score/ScoreBatchService` (`score_batch_id`), `ScoringService` (`profile_digest`) | `OfferQueryService`, `DigestService`, `application/ApplicationService` (`score_band`), `PackagingService`, `analytics/PipelineRunRecorder` |
 | Retrieval | `retrieval_embedding`, `retrieval_embedding_model`, `retrieval_embedded_at` | `V26` | `retrieval/RetrievalIndexService` | `retrieval/SemanticFilter` |
-| Package | `package_dir`, `packaged_at`, `language`, `cover_letter_text`, `cover_letter_author`, `cover_letter_at` | `V7`, `V29` | `packaging/PackagingService` (sets all six in the build's one transaction; the letter's three after its file), `packaging/PackageArchiveService` (clears all six in one `UPDATE`); a person's save of the letter (`PUT /api/v1/offers/{id}/cover-letter`, `packaging/CoverLetterService`) writes the three letter columns with author `edited` | `OfferQueryService`, `ApplicationService`, `packaging/OrphanSweep` |
+| Package | `package_dir`, `packaged_at`, `language`, `cover_letter_text`, `cover_letter_author`, `cover_letter_at` | `V7`, `V29` | `packaging/PackagingService` (sets all six in the build's one transaction; the letter's three after its file), `packaging/PackageArchiveService` (clears all six in one `UPDATE`), `packaging/CoverLetterService` (the three letter columns on a redraft, author `model` or `template`); a person's save of the letter (`PUT /api/v1/offers/{id}/cover-letter`, `packaging/CoverLetterService`) writes the three letter columns with author `edited` | `OfferQueryService`, `ApplicationService`, `packaging/OrphanSweep` |
 
 Two groups share a column. `starts_on` and `duration` were created for enrichment in `V5` and
 are reused by the fields stage in `V18`, which is why they appear twice; after the fields stage
@@ -246,7 +246,7 @@ scoring again.
 | `profile_digest` | `text` | `V28` | SHA-256 of the profile the deterministic reasons were computed against |
 | `cover_letter_text` | `text` | `V29` | the package's letter as written to `cover_letter.txt`; null without a package or for one built before `V29` |
 | `cover_letter_author` | `text` | `V29` | `model`, `template` or `edited` (checked); the build writes the first two, a save the third |
-| `cover_letter_at` | `timestamptz` | `V29` | when the letter was last written; the build stamps it with `packaged_at` |
+| `cover_letter_at` | `timestamptz` | `V29` | when the letter was last written: `packaged_at` on a build, `now()` on a save or a redraft, and unchanged when a rebuild carries an edited letter |
 
 `V22` first added `embedding` at 768 dimensions; `V25` dropped and re-created it at 2000, so
 both vector columns are the same width. Why 2000 and not 4096 is in
