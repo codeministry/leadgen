@@ -11,6 +11,7 @@ package de.codeministry.leadgen.packaging;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import de.codeministry.leadgen.application.ApplicationStatus;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
@@ -33,11 +34,12 @@ import org.springframework.stereotype.Service;
  * rebuild checks before it would draft. Every write goes file, then {@code meta.json}, then row,
  * so a crash leaves the file newer than the row and the next save or rebuild writes both again.
  *
- * <p><b>A letter that went out is frozen.</b> Saving and drafting are refused once the
- * application has ever been sent — the reading {@link PackageArchiveService#wentOut} gives, which
- * is also what keeps a sent folder through an archive. The current status alone would not do: a
- * sent application that is archived and restored comes back at NEW with its folder and letter
- * intact, and the letter in it is still the one the client received.
+ * <p><b>From SENT on the letter is frozen.</b> Saving and drafting are refused while the
+ * application stands at SENT or any state after it, and allowed at NEW, SHORTLISTED and
+ * PACKAGED. The current status decides, not the event log: an application moved back from SENT,
+ * or restored to NEW after an archive, is being prepared again, and its letter with it. The log
+ * still decides what an archive keeps — that is {@link PackageArchiveService#wentOut}, and it is
+ * a different question.
  *
  * <p><b>Deliberately not {@code @Transactional}.</b> A draft waits on the writing model, and a
  * transaction around it would hold a connection for as long as the model takes. The row is one
@@ -67,7 +69,7 @@ public class CoverLetterService {
     public CoverLetter read(long offerId) {
         Stored stored = stored(offerId).orElseThrow(() -> new NoLetter(offerId));
         if (stored.text() != null) {
-            return new CoverLetter(stored.text(), stored.author(), stored.at(), packages.wentOut(offerId));
+            return new CoverLetter(stored.text(), stored.author(), stored.at(), frozen(offerId));
         }
         Path file = folder(offerId).resolve(PackagingService.LETTER_FILE);
         if (!Files.isRegularFile(file)) {
@@ -78,7 +80,7 @@ public class CoverLetterService {
                     Files.readString(file, StandardCharsets.UTF_8),
                     PackagingService.Letter.TEMPLATE,
                     stored.packagedAt(),
-                    packages.wentOut(offerId));
+                    frozen(offerId));
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
@@ -89,7 +91,7 @@ public class CoverLetterService {
      * {@code edited}, which no build drafts over.
      *
      * @throws NoLetter    when the offer has no package
-     * @throws AlreadySent when the application has ever been sent
+     * @throws AlreadySent when the application stands at SENT or later
      */
     public CoverLetter save(long offerId, String text) {
         Path folder = folder(offerId);
@@ -103,7 +105,7 @@ public class CoverLetterService {
      * for this, so it replaces an edited letter too.
      *
      * @throws NoLetter    when the offer has no package
-     * @throws AlreadySent when the application has ever been sent, before the call or during it
+     * @throws AlreadySent when the application stands at SENT or later, before the call or during it
      * @throws NoPermit    when the budget refused the call; nothing is written
      */
     public CoverLetter draft(long offerId) {
@@ -154,8 +156,18 @@ public class CoverLetterService {
                 meta, json.writerWithDefaultPrettyPrinter().writeValueAsString(object), StandardCharsets.UTF_8);
     }
 
+    /** At SENT or past it; an offer without an application row has nothing that went out. */
+    private boolean frozen(long offerId) {
+        return jdbc.sql("SELECT status FROM application WHERE offer_id = ?")
+                .param(offerId)
+                .query(String.class)
+                .optional()
+                .map(status -> ApplicationStatus.valueOf(status).compareTo(ApplicationStatus.SENT) >= 0)
+                .orElse(false);
+    }
+
     private void refuseIfSent(long offerId) {
-        if (packages.wentOut(offerId)) {
+        if (frozen(offerId)) {
             throw new AlreadySent(offerId);
         }
     }
@@ -199,11 +211,11 @@ public class CoverLetterService {
         }
     }
 
-    /** The letter went out and is the record of what the client received. */
+    /** The application stands at SENT or later, so the letter is the record of what went out. */
     public static class AlreadySent extends RuntimeException {
         AlreadySent(long offerId) {
             super("the application for offer " + offerId
-                    + " has been sent, so its cover letter is what the client received and can no longer be changed");
+                    + " stands at sent or later, so its cover letter can no longer be changed");
         }
     }
 

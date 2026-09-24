@@ -94,8 +94,7 @@ describe('CoverLetterSection', () => {
         expect(asked).toBe(1);
     });
 
-    it('offers only Copy once the server says the letter went out', () => {
-        // The server's reading decides; the restored-at-NEW case is the next spec.
+    it('offers only Copy from SENT on', () => {
         for (const status of ['SENT', 'INTERVIEW', 'LOST'] as const) {
             const fixture = render(status, {...LETTER, frozen: true});
 
@@ -106,13 +105,16 @@ describe('CoverLetterSection', () => {
         }
     });
 
-    it('shows the letter of a package even at NEW, and no "went out" note above an empty letter', () => {
+    it('offers Copy, Edit and Regenerate at NEW when a package exists, and no "went out" note above an empty letter', () => {
         const restored = TestBed.createComponent(CoverLetterSection);
         restored.componentRef.setInput('status', 'NEW');
         restored.componentRef.setInput('hasPackage', true);
-        restored.componentRef.setInput('letter', {...LETTER, frozen: true});
+        restored.componentRef.setInput('letter', LETTER);
         restored.detectChanges();
         expect(view(restored)).not.toBeNull();
+        expect(button(restored, '.letter-copy')).not.toBeNull();
+        expect(button(restored, '.letter-edit')).not.toBeNull();
+        expect(button(restored, '.letter-regenerate')).not.toBeNull();
 
         const rejected = render('REJECTED', null);
         expect(rejected.nativeElement.textContent).not.toContain('coverLetter.noteSent');

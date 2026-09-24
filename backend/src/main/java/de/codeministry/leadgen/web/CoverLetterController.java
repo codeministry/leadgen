@@ -21,7 +21,7 @@ import org.springframework.web.bind.annotation.*;
  * copy on the offer row; there is no recipient and no channel, which is what
  * {@code NothingIsSentTest} reads the repository for.
  *
- * <p><b>A letter that went out is frozen.</b> Once the application has been sent, the letter is
+ * <p><b>From SENT on the letter is frozen.</b> While the application stands at SENT or later, the letter is
  * the record of what the client received, so both writes answer 409 rather than changing it.
  *
  * <p>The draft is synchronous, like {@code POST /offers/{id}/fetch}: one model call for one

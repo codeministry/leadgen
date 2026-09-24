@@ -21,10 +21,10 @@ const AUTHOR_TONE: Readonly<Record<CoverLetterAuthor, BadgeTone>> = {
  * The letter in the package, where it can still be changed before it goes out.
  *
  * Presentational: the offer detail feeds it from `CoverLetterStore` and turns its two outputs
- * into events. It renders nothing before `PACKAGED`, because before that there is no folder
- * and so no letter, and it is read-only from `SENT` on, because the letter is then what was
- * sent — the server refuses both writes with 409 there, and a button it would refuse is not
- * offered.
+ * into events. It renders nothing without a folder, because then there is no letter, and it is
+ * read-only from `SENT` on, because the letter is then what was sent: only Copy is offered
+ * there, since the server refuses both writes with 409. Before `SENT` — `NEW` included, when
+ * an application was moved back with its folder — Edit and Redraft stand beside Copy.
  *
  * The draft is a `linkedSignal` of the stored letter, the same as the application panel's
  * form: the store replaces the letter with the server's answer after a save or a redraft,

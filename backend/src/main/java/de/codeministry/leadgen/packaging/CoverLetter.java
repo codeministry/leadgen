@@ -17,7 +17,7 @@ import java.time.Instant;
  * @param author `model`, `template` or `edited`
  * @param at     when the text was last written; for a package built before the letter was
  *               stored, when the package was built
- * @param frozen whether the application has ever been sent, so neither a save nor a redraft is
+ * @param frozen whether the application stands at SENT or later, so neither a save nor a redraft is
  *               accepted; the server's one reading of "sent", so the page does not guess
  */
 public record CoverLetter(String text, String author, Instant at, boolean frozen) {}

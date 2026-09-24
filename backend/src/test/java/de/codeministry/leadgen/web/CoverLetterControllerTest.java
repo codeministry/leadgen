@@ -302,8 +302,8 @@ class CoverLetterControllerTest {
     }
 
     /**
-     * Sent and later lost is still sent: the event log says the letter went out, and the current
-     * status does not undo that. The same reading the archive keeps a folder by.
+     * Every state after SENT is frozen as well: a LOST application's letter is what it was when
+     * the application closed.
      */
     @Test
     void refusesBothWritesForAnApplicationThatWasSentAndHasMovedOn() throws IOException {
@@ -322,11 +322,11 @@ class CoverLetterControllerTest {
 
     /**
      * Sent, archived, restored: the restore puts the application back at NEW and keeps the folder
-     * and the letter of an application that went out. The status says nothing was sent; the letter
-     * in the folder is still the one the client received, so both writes stay refused.
+     * and the letter. The current status decides, not the event log, so an application at NEW is
+     * being prepared again and its letter may change with it.
      */
     @Test
-    void refusesBothWritesAfterASentApplicationIsArchivedAndRestored() throws IOException {
+    void acceptsWritesAfterASentApplicationIsArchivedAndRestored() throws IOException {
         long id = packaged();
         save(id, EDIT);
         Long application = jdbc.queryForObject("SELECT id FROM application WHERE offer_id = ?", Long.class, id);
@@ -348,10 +348,15 @@ class CoverLetterControllerTest {
         assertThat(jdbc.queryForObject("SELECT status FROM application WHERE id = ?", String.class, application))
                 .as("the restore reset the status")
                 .isEqualTo("NEW");
-        AtomicInteger calls = new AtomicInteger();
-        given(chatModels.writing(any())).willReturn(Optional.of(answering(DRAFT, calls)));
+        assertThat(mvc.get().uri("/api/v1/offers/{id}/cover-letter", id))
+                .hasStatusOk()
+                .bodyJson()
+                .extractingPath("$.frozen")
+                .isEqualTo(false);
 
-        assertRefused(id, calls);
+        save(id, "a later thought");
+
+        assertThat(letterFile(id)).isEqualTo("a later thought");
     }
 
     private void assertRefused(long id, AtomicInteger calls) {

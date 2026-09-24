@@ -15,7 +15,7 @@ export interface CoverLetter {
     readonly author: CoverLetterAuthor;
     /** ISO instant of the last write, by whichever author. */
     readonly at: string;
-    /** The application has ever been sent: the server refuses a save and a redraft. Its reading, not the status. */
+    /** The application stands at SENT or later: the server refuses a save and a redraft. Its answer, not the page's guess. */
     readonly frozen: boolean;
 }
 
@@ -42,9 +42,10 @@ export function hasLetter(status: ApplicationStatus): boolean {
 }
 
 /**
- * Whether the letter may still change. Only while it is `PACKAGED`: from `SENT` on the letter
- * is what went out, and the server answers an edit or a redraft with 409.
+ * Whether the letter may still change: before `SENT`, including an application moved back to
+ * `NEW` with its folder. From `SENT` on the letter is what went out, only copying is offered,
+ * and the server answers an edit or a redraft with 409.
  */
 export function letterEditable(status: ApplicationStatus): boolean {
-    return status === 'PACKAGED';
+    return !LETTER_STATES.has(status) || status === 'PACKAGED';
 }
