@@ -361,18 +361,24 @@
                         {{ error | transloco }}
                     </p>
                 }
-                <lg-cover-letter
-                        [status]="application.status"
-                        [hasPackage]="application.packageDir !== null"
-                        [letter]="letter()"
-                        [loading]="coverLetters.loading()"
-                        [saving]="coverLetters.saving()"
-                        [drafting]="coverLetters.drafting()"
-                        [error]="coverLetters.error()"
-                        (saved)="saveLetter($event)"
-                        (regenerate)="redraftLetter()"
-                />
             </section>
+
+            <!-- Full width like the summary: a letter is read as a page, not as a side note. -->
+            @if (application.packageDir !== null) {
+                <section class="lg-panel panel-wide">
+                    <lg-cover-letter
+                            [status]="application.status"
+                            [hasPackage]="application.packageDir !== null"
+                            [letter]="letter()"
+                            [loading]="coverLetters.loading()"
+                            [saving]="coverLetters.saving()"
+                            [drafting]="coverLetters.drafting()"
+                            [error]="coverLetters.error()"
+                            (saved)="saveLetter($event)"
+                            (regenerate)="redraftLetter()"
+                    />
+                </section>
+            }
         }
     </div>
 } @else if (store.detailLoading()) {

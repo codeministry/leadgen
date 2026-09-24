@@ -1,6 +1,6 @@
 @if (shown()) {
     <div class="letter-head">
-        <h3 class="type-h4">{{ 'coverLetter.title' | transloco }}</h3>
+        <h2 class="type-h2">{{ 'coverLetter.title' | transloco }}</h2>
         @if (letter(); as letter) {
             <lg-badge [tone]="tone()">{{ 'coverLetter.author.' + letter.author | transloco }}</lg-badge>
             <span class="type-caption text-muted">
