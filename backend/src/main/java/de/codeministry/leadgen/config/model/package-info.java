@@ -8,7 +8,7 @@
  */
 
 /**
- * The records the four YAML files bind to, and nothing else.
+ * The records the five YAML files bind to, and nothing else.
  *
  * <p>They mirror the nesting of their file rather than flattening it, which is the one place
  * this repository nests records inside a type: the structure <em>is</em> the documentation of

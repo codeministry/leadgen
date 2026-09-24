@@ -41,11 +41,15 @@ docs/samples/embedding-observed-*.md
 # individual profile, so it is corpus-derived like everything above.
 docs/samples/reference-selection-*.md
 docs/samples/embedding-cache-*.json
+# What each candidate writing model drafted, the blind sheet and its key: real adverts and
+# the operator's letters, written by measure_cover_letters.ts.
+docs/samples/cover-letters/
 # The analysis scripts are the reference implementation and stay in the repo:
 !docs/samples/analyze_samples.py
 !docs/samples/simulate_filter.py
 !docs/samples/measure_embeddings.ts
 !docs/samples/measure_references.ts
+!docs/samples/measure_cover_letters.ts
 
 # Build
 target/
@@ -89,3 +93,11 @@ frontend/coverage/
 # The demo uses the repository as its configuration directory, so its manual inbox
 # is a working directory rather than a committed one.
 demo/inbox/
+
+# /Spec implement's per-round log and the lane board rendered from it. Regenerable from
+# spec.md, tasks.md and the master's locks on every run, so tracking it would put a diff
+# in every PR for a file nobody reviews — the same reasoning as target/ and build/, not the
+# content-sensitivity reasoning behind ISA.md above. Path is spec-folder-relative, so this
+# matches under every specs/NNN-slug/.
+specs/*/rounds.jsonl
+specs/*/report.html

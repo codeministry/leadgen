@@ -6,11 +6,13 @@ import {ApplicationStatus, statusLabel} from '@core/model/application';
 import {LastRunView} from '@core/model/last-run';
 import {refreshEvents} from '@core/refresh/refresh.events';
 import {applicationEvents} from '@core/store/applications.events';
+import {coverLetterEvents} from '@core/store/cover-letter.events';
 import {ingestEvents} from '@core/store/ingest.events';
 import {manualEvents} from '@core/store/manual.events';
 import {shortlistEvents} from '@core/store/shortlist.events';
 import {toastEvents} from './toast.events';
 import {TOAST_CAP, TOAST_LIFETIME_MS, Toast, toast} from './toast.model';
+import {withAppDevtools} from '@core/store/devtools';
 
 interface ToastState {
     /** Oldest first. The stack renders them in this order and the cap drops from the front. */
@@ -40,6 +42,7 @@ const CLOSED_AGAINST_US: ReadonlySet<ApplicationStatus> = new Set<ApplicationSta
 export const ToastStore = signalStore(
     {providedIn: 'root'},
     withState(initialState),
+    withAppDevtools('toast'),
     withReducer(
         // The cap drops the oldest, never refuses the newest: the newest is the one that
         // just happened, and the one the person is most likely looking for.
@@ -211,6 +214,23 @@ export const ToastStore = signalStore(
                         payload.outcome === 'confirmed'
                             ? toast('success', 'toast.documentConfirmed', {name: payload.name})
                             : toast('warning', 'toast.documentRejected', {name: payload.name}),
+                    ),
+                ),
+            ),
+            // A saved letter, from the server's answer. A refused save or draft raises nothing
+            // here: that sentence stays beside the letter's buttons.
+            events.on(coverLetterEvents.saved).pipe(
+                map(() => toastEvents.raised(toast('success', 'toast.letterSaved'))),
+            ),
+            // A redraft, told by the author the server stored: a `template` answer means the
+            // model's draft was refused or there was none, which the operator should know before
+            // sending it — info, the sibling of a rescore that is still unscored.
+            events.on(coverLetterEvents.drafted).pipe(
+                map(({payload}) =>
+                    toastEvents.raised(
+                        payload.letter.author === 'template'
+                            ? toast('info', 'toast.letterDraftedTemplate')
+                            : toast('success', 'toast.letterDrafted'),
                     ),
                 ),
             ),

@@ -19,9 +19,9 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
- * Notices changes to the four configuration files and asks the registry to reload.
+ * Notices changes to the five configuration files and asks the registry to reload.
  *
- * <p>Polling rather than {@link java.nio.file.WatchService}: for four files the
+ * <p>Polling rather than {@link java.nio.file.WatchService}: for five files the
  * efficiency argument is worth nothing, and the watch service is native only on Linux.
  * On macOS the JDK falls back to a polling implementation whose default latency is ten
  * seconds — the same mechanism as here, but with platform-dependent timing nobody can
@@ -89,7 +89,7 @@ public class ConfigWatcher {
     }
 
     /**
-     * The four paths to stamp, derived once per snapshot rather than once per poll. Only a
+     * The five paths to stamp, derived once per snapshot rather than once per poll. Only a
      * reload can change which files these are, and a reload is exactly what swaps the
      * snapshot.
      */

@@ -28,6 +28,9 @@ import java.util.Map;
  */
 public final class ConfigFixtures {
 
+    // cover-letter.yaml is left out on purpose: a test that does not write one reads the
+    // shipped file from the jar, and ConfigLoaderTest#theCoverLetterStyleShipsRulesAndNoExampleLetter
+    // asserts exactly that. Adding it here breaks that test for a reason its message won't name.
     private static final List<String> FILES = List.of(
             ConfigLoader.PIPELINE_FILE, ConfigLoader.RULES_FILE, ConfigLoader.SOURCES_FILE, ConfigLoader.PROFILE_FILE);
 

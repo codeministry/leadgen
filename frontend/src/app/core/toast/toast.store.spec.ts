@@ -7,6 +7,7 @@ import {LastRunView} from '@core/model/last-run';
 import {refreshEvents} from '@core/refresh/refresh.events';
 import {ShortlistEntry} from '@core/model/shortlist-entry';
 import {applicationEvents} from '@core/store/applications.events';
+import {coverLetterEvents} from '@core/store/cover-letter.events';
 import {ingestEvents} from '@core/store/ingest.events';
 import {manualEvents} from '@core/store/manual.events';
 import {shortlistEvents} from '@core/store/shortlist.events';
@@ -212,6 +213,33 @@ describe('ToastStore', () => {
             ingest.lastRunLoaded(lastRun('2026-09-22T03:00:00Z'));
             refresh.requested('tab-focused');
             ingest.lastRunLoaded(lastRun('2026-09-22T03:00:00Z'));
+
+            expect(store.toasts().length).toBe(0);
+        });
+    });
+
+    describe('a cover letter', () => {
+        const letter = (author: 'model' | 'template' | 'edited') => ({
+            offerId: 7,
+            letter: {text: 'Guten Tag,', author, at: '2026-09-24T08:00:00Z'},
+        });
+
+        it('confirms a save and a redraft from the stored answer, and says when the template wrote it', () => {
+            const cover = TestBed.runInInjectionContext(() => injectDispatch(coverLetterEvents));
+            cover.saved(letter('edited'));
+            cover.drafted(letter('model'));
+            cover.drafted(letter('template'));
+
+            expect(store.toasts().map((standing) => [standing.tone, standing.key])).toEqual([
+                ['success', 'toast.letterSaved'],
+                ['success', 'toast.letterDrafted'],
+                ['info', 'toast.letterDraftedTemplate'],
+            ]);
+        });
+
+        it('raises nothing for a refused save or draft', () => {
+            const cover = TestBed.runInInjectionContext(() => injectDispatch(coverLetterEvents));
+            cover.writeFailed({offerId: 7, message: 'error.letterSent'});
 
             expect(store.toasts().length).toBe(0);
         });

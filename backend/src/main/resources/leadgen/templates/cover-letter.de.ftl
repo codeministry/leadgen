@@ -1,7 +1,9 @@
 <#-- The German cover letter. Content, not repository language: this text goes
      verbatim to a client, so it is written in the language of the ad.
      Available: offer, profile, projects (ProjectView, already in this letter's
-     language), matchedSkills, startsOnText, score.
+     language), matchedSkills, startsOnText, score, closing (the closing line from
+     cover-letter.yaml; absent when that file names no rules for this language, and the
+     literal below is printed instead).
 
      Every text line below starts in column 0, and it has to. Freemarker strips a line
      holding nothing but a directive; it does not strip the indentation of a text line
@@ -24,6 +26,6 @@ Ein Einstieg zum ${startsOnText} ist möglich.
 </#if>
 Meinen Lebenslauf finden Sie im Anhang. Für ein kurzes Gespräch, in dem wir Details und Verfügbarkeit klären, stehe ich Ihnen gerne zur Verfügung.
 
-Mit freundlichen Grüßen
+${closing!"Mit freundlichen Grüßen"}
 ${profile.identity.name}<#if profile.identity.brand??>
 ${profile.identity.brand}</#if>

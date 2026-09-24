@@ -13,6 +13,7 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import de.codeministry.leadgen.application.ApplicationService;
 import de.codeministry.leadgen.application.ApplicationStatus;
 import de.codeministry.leadgen.config.*;
+import de.codeministry.leadgen.config.model.CoverLetterStyle;
 import de.codeministry.leadgen.config.model.PipelineConfig;
 import de.codeministry.leadgen.config.model.SkillProfile;
 import de.codeministry.leadgen.content.ContentText;
@@ -25,6 +26,7 @@ import freemarker.template.TemplateExceptionHandler;
 import java.io.IOException;
 import java.io.StringReader;
 import java.io.StringWriter;
+import java.io.UncheckedIOException;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -37,11 +39,14 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.sql.DataSource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * Assembles the folder an application is sent from — by hand, by a person, later.
@@ -55,6 +60,21 @@ import org.springframework.transaction.annotation.Transactional;
  * <p><b>No CV is tailored.</b> The language of the ad picks a fixed PDF and nothing else,
  * which is the whole of the rule. A generated CV would be a different document every time
  * and impossible to stand behind six months later.
+ *
+ * <p><b>The cover letter is the writing model's draft when the guard accepts it, and the
+ * template otherwise.</b> {@link CoverLetterWriter} asks the model configured under
+ * {@code llm.models.writing} and nothing else; {@link CoverLetterGuard} refuses a draft that
+ * claims a skill, a project or a phrase it may not. Every miss — no model, no budget, a failed
+ * call, a rejected draft, a language {@code cover-letter.yaml} names no rules for — renders the
+ * {@code .ftl} exactly as before, so the build completes whatever the model does.
+ *
+ * <p><b>Deliberately not {@code @Transactional}</b>, the shape {@code FieldsService} and the
+ * other model-calling stages document: a build waits on the writing model, and a transaction
+ * around it would hold a connection and the locks of every offer it had stamped for as long as
+ * the model takes to answer. Only the per-offer stamp — {@code packaged_at}, the stored letter
+ * and its author, and the application it stands for — is one transaction, written after the
+ * folder, so a build that fails anywhere
+ * before it leaves the offer due for the next run exactly as before.
  */
 @Slf4j
 @Service
@@ -80,12 +100,15 @@ public class PackagingService {
      * <p>{@code packaged_at IS NULL} still carries "not built yet", so a restored offer whose
      * folder survived the archive is not rebuilt.
      */
-    private static final String REQUESTED = """
+    private static final String COLUMNS = """
         SELECT id, title, description, full_text, url, location, portal, agency, tags,
                published_on, rate_eur, duration, workload, remote_percent, starts_on, contact,
                score_value, score_band, score_model, enrichment_note, content_blocks,
-               retrieval_embedding
+               retrieval_embedding, cover_letter_text, cover_letter_author
         FROM offer
+        """;
+
+    private static final String REQUESTED = COLUMNS + """
         WHERE status = 'PASSED' AND duplicate_of_id IS NULL AND archived_at IS NULL
           AND packaged_at IS NULL
           AND EXISTS (SELECT 1 FROM application a
@@ -98,6 +121,11 @@ public class PackagingService {
 
     private static final String DUE_ONE = REQUESTED + """
           AND id = ?
+        """;
+
+    /** One offer whose package exists, whatever its status: what a fresh draft is written for. */
+    private static final String PACKAGED_ONE = COLUMNS + """
+        WHERE id = ? AND package_dir IS NOT NULL
         """;
 
     /**
@@ -115,13 +143,21 @@ public class PackagingService {
      */
     private static final int REFERENCES = 2;
 
+    /** The document id `pipeline.yaml` gives the letter, and the one the writing model may fill. */
+    private static final String COVER_LETTER = "cover_letter";
+
+    /** The letter's file in the folder; the name both {@link #write} and a {@code .ftl} give it. */
+    static final String LETTER_FILE = COVER_LETTER + ".txt";
+
     private static final Pattern UNSAFE = Pattern.compile("[^a-z0-9]+");
 
     private final ConfigRegistry config;
     private final ConfigProperties properties;
     private final ApplicationService applications;
     private final ProfileEmbeddings profileEmbeddings;
+    private final CoverLetterWriter writer;
     private final JdbcClient jdbc;
+    private final TransactionTemplate transactions;
     private final JsonMapper json;
     private final Configuration freemarker;
 
@@ -130,12 +166,16 @@ public class PackagingService {
             ConfigProperties properties,
             ApplicationService applications,
             ProfileEmbeddings profileEmbeddings,
-            DataSource dataSource) {
+            CoverLetterWriter writer,
+            DataSource dataSource,
+            PlatformTransactionManager transactionManager) {
         this.config = config;
         this.properties = properties;
         this.applications = applications;
         this.profileEmbeddings = profileEmbeddings;
+        this.writer = writer;
         this.jdbc = JdbcClient.create(dataSource);
+        this.transactions = new TransactionTemplate(transactionManager);
         // Named, not discovered. `findAndRegisterModules()` is a ServiceLoader scan, which
         // means the set of modules depends on the classpath's order and, in a native image,
         // is empty unless somebody registered the scan as a hint. This mapper writes
@@ -189,7 +229,9 @@ public class PackagingService {
             String scoreModel,
             String enrichmentNote,
             String contentBlocks,
-            String retrievalEmbedding) {
+            String retrievalEmbedding,
+            String coverLetterText,
+            String coverLetterAuthor) {
 
         static Due of(ResultSet rs, int row) throws SQLException {
             return new Due(
@@ -217,7 +259,9 @@ public class PackagingService {
                     // A `vector` column comes back as text, the way it went in. Read with
                     // `getString` and never through `listOfRows()`, where the driver hands over a
                     // `PGobject` and the cast that looks right is a 500.
-                    rs.getString("retrieval_embedding"));
+                    rs.getString("retrieval_embedding"),
+                    rs.getString("cover_letter_text"),
+                    rs.getString("cover_letter_author"));
         }
 
         private static List<String> tags(ResultSet rs) throws SQLException {
@@ -268,8 +312,9 @@ public class PackagingService {
      * retry. A build that failed, or one whose listener never ran because the process went
      * down between the commit and the disk, leaves the offer due and this picks it up. On a
      * healthy instance it reports zero, and that is the expected reading.
+     *
+     * <p>Not {@code @Transactional}: see the class comment.
      */
-    @Transactional
     public PackageReport run() {
         return buildAll(jdbc.sql(DUE).query(Due::of).list());
     }
@@ -280,8 +325,9 @@ public class PackagingService {
      * <p>Called after the status change has committed, so a rolled-back move never leaves a
      * folder behind. A no-op when the offer's application is not PACKAGED or the folder is
      * already there: the query is the authority, not the caller.
+     *
+     * <p>Not {@code @Transactional}: see the class comment.
      */
-    @Transactional
     public PackageReport buildFor(long offerId) {
         return buildAll(jdbc.sql(DUE_ONE).param(offerId).query(Due::of).list());
     }
@@ -316,8 +362,20 @@ public class PackagingService {
         return new PackageReport(due.size(), built, failed, folders);
     }
 
-    private Path build(ConfigSnapshot snapshot, PipelineConfig.Packaging settings, Due row)
-            throws IOException, TemplateException {
+    /**
+     * Everything a build decides about one offer before it writes anything: the language, the
+     * projects, the skills, and the model every template renders from. Shared by the build and
+     * by {@link #redraft}, so a fresh draft is written against exactly what the package holds.
+     */
+    private record Prepared(
+            String language,
+            List<SkillProfile.ReferenceProject> projects,
+            List<ProjectView> views,
+            List<String> matchedSkills,
+            String startsOnText,
+            Map<String, Object> model) {}
+
+    private Prepared prepare(ConfigSnapshot snapshot, Due row) {
         SkillProfile profile = snapshot.profile();
         String language = languageOf(row, profile);
         // After the language, because the pitch is compared in the language the letter is
@@ -326,48 +384,272 @@ public class PackagingService {
         List<SkillProfile.ReferenceProject> projects = referencesFor(row, profile, language);
         List<String> matchedSkills = matchedSkills(row, profile);
 
-        Path folder = Path.of(settings.outputDir()).resolve(folderName(settings.naming(), row));
-        Files.createDirectories(folder);
+        // Views and not the profile's own records: the language is decided once, here,
+        // rather than by each template guessing which of two title and two pitch fields
+        // it wants. Both letters then read identically, and the writing model and the guard
+        // see the same titles the template would print.
+        List<ProjectView> views = projects.stream()
+                .map(project -> ProjectView.of(project, language))
+                .toList();
+        // `offer.startsOn` is a LocalDate and Freemarker renders one as ISO, which reads as
+        // a machine's date in a sentence written for a person. The archive keeps the ISO
+        // form on purpose; a letter does not.
+        String startsOnText = startsOnText(row.startsOn(), language);
 
         Map<String, Object> model = new LinkedHashMap<>();
         model.put("offer", row.model());
         model.put("profile", profile);
-        // Views and not the profile's own records: the language is decided once, here,
-        // rather than by each template guessing which of two title and two pitch fields
-        // it wants. Both letters then read identically.
-        model.put(
-                "projects",
-                projects.stream()
-                        .map(project -> ProjectView.of(project, language))
-                        .toList());
+        model.put("projects", views);
         model.put("matchedSkills", matchedSkills);
-        // `offer.startsOn` is a LocalDate and Freemarker renders one as ISO, which reads as
-        // a machine's date in a sentence written for a person. The archive keeps the ISO
-        // form on purpose; a letter does not.
-        model.put("startsOnText", startsOnText(row.startsOn(), language));
+        model.put("startsOnText", startsOnText);
+        // The closing line of the letter's language from cover-letter.yaml, or null when the
+        // file names no rules for it; the template then prints its own.
+        CoverLetterStyle style = snapshot.coverLetter();
+        model.put(
+                "closing",
+                style != null && style.hasRulesFor(language)
+                        ? style.forLanguage(language).closing()
+                        : null);
         model.put("archivedAt", Instant.now().toString());
+        return new Prepared(language, projects, views, matchedSkills, startsOnText, model);
+    }
+
+    /**
+     * The writing model's letter if it drafts one the guard accepts, the template's otherwise.
+     * Outside every transaction: this is where the writing model is waited on.
+     */
+    private Drafting letterFor(
+            ConfigSnapshot snapshot, PipelineConfig.Packaging.Document document, Due row, Prepared prepared)
+            throws IOException, TemplateException {
+        Drafting drafting = drafted(snapshot, row, prepared.language(), prepared.views(), prepared.startsOnText());
+        if (drafting.letter() != null || drafting.budgetRefused()) {
+            return drafting;
+        }
+        return new Drafting(
+                new Letter(renderText(document, prepared.language(), prepared.model()), Letter.TEMPLATE), false);
+    }
+
+    /**
+     * A fresh letter for one packaged offer, written nowhere: {@link CoverLetterService} stores
+     * it. The same draft, guard and template fallback a build runs, at most one budget permit,
+     * and no transaction around the model call.
+     *
+     * @throws CoverLetterService.NoLetter when the offer has no package, or the configuration
+     *                                     builds no cover letter
+     * @throws CoverLetterService.NoPermit when a writing model is configured and the budget
+     *                                     refused the call
+     */
+    Letter redraft(long offerId) {
+        ConfigSnapshot snapshot = config.snapshot();
+        PipelineConfig.Packaging settings = snapshot.application().packaging();
+        PipelineConfig.Packaging.Document document = settings == null
+                ? null
+                : settings.documents().stream()
+                        .filter(d -> COVER_LETTER.equals(d.id()))
+                        .findFirst()
+                        .orElse(null);
+        Due row =
+                jdbc.sql(PACKAGED_ONE).param(offerId).query(Due::of).optional().orElse(null);
+        if (document == null || row == null) {
+            throw new CoverLetterService.NoLetter(offerId);
+        }
+        Drafting drafting;
+        try {
+            drafting = letterFor(snapshot, document, row, prepare(snapshot, row));
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        } catch (TemplateException e) {
+            throw new IllegalStateException("the cover letter template failed: " + e.getMessage(), e);
+        }
+        if (drafting.budgetRefused()) {
+            throw new CoverLetterService.NoPermit(offerId);
+        }
+        return drafting.letter();
+    }
+
+    /** A letter a person saved, which a build writes back and never replaces (ISC-261). */
+    private static boolean isEdited(Due row) {
+        return Letter.EDITED.equals(row.coverLetterAuthor()) && row.coverLetterText() != null;
+    }
+
+    private Path build(ConfigSnapshot snapshot, PipelineConfig.Packaging settings, Due row)
+            throws IOException, TemplateException {
+        SkillProfile profile = snapshot.profile();
+        Prepared prepared = prepare(snapshot, row);
+        String language = prepared.language();
+
+        Path folder = Path.of(settings.outputDir()).resolve(folderName(settings.naming(), row));
+        Files.createDirectories(folder);
+
+        // The letter is decided before any document is written, because `meta.json` names its
+        // author and the configuration decides the order the documents come in.
+        Optional<Letter> letter = Optional.empty();
+        for (PipelineConfig.Packaging.Document document : settings.documents()) {
+            if (COVER_LETTER.equals(document.id()) && isEdited(row)) {
+                // A person's letter is read first and written back as it is: never drafted, never
+                // rendered, and no budget spent on it. Only a person's regenerate replaces it.
+                letter = Optional.of(new Letter(row.coverLetterText(), Letter.EDITED));
+                break;
+            }
+            if (COVER_LETTER.equals(document.id())) {
+                Drafting drafting = letterFor(snapshot, document, row, prepared);
+                // A spent budget is one of the build's misses like any other: the template.
+                letter = Optional.of(
+                        drafting.letter() != null
+                                ? drafting.letter()
+                                : new Letter(renderText(document, language, prepared.model()), Letter.TEMPLATE));
+                break;
+            }
+        }
 
         List<String> written = new ArrayList<>();
         for (PipelineConfig.Packaging.Document document : settings.documents()) {
             written.add(
                     switch (document.id()) {
                         case "cv" -> copyCv(folder, profile, language);
-                        case "meta" -> writeMeta(folder, row, language, projects, matchedSkills);
-                        default -> render(folder, document, language, model);
+                        case "meta" ->
+                            writeMeta(folder, row, language, prepared.projects(), prepared.matchedSkills(), letter);
+                        case COVER_LETTER -> {
+                            Letter chosen = letter.orElseThrow();
+                            yield Letter.TEMPLATE.equals(chosen.author())
+                                    ? writeRendered(folder, document, language, chosen.text())
+                                    : write(folder, document, chosen.text());
+                        }
+                        default -> render(folder, document, language, prepared.model());
                     });
         }
 
-        jdbc.sql("UPDATE offer SET package_dir = ?, packaged_at = now(), language = ? WHERE id = ?")
-                .params(folder.toString(), language, row.id())
-                .update();
+        // The one transaction of a build, and the last thing it does: nothing above has
+        // stamped the offer, so a failure anywhere before this leaves it due for the next run.
+        // The letter's row is written here too, after its file: `cover_letter_at` and
+        // `packaged_at` are the same `now()`, and a build that never commits leaves neither.
+        Optional<Letter> stored = letter;
+        transactions.executeWithoutResult(status -> {
+            jdbc.sql("""
+                    UPDATE offer
+                    SET package_dir = ?, packaged_at = now(), language = ?,
+                        cover_letter_text = ?, cover_letter_author = ?,
+                        cover_letter_at = CASE WHEN ?::text IS NULL THEN NULL
+                                               WHEN ?::text = 'edited' THEN cover_letter_at
+                                               ELSE now() END
+                    WHERE id = ?
+                    """)
+                    .params(
+                            folder.toString(),
+                            language,
+                            stored.map(Letter::text).orElse(null),
+                            stored.map(Letter::author).orElse(null),
+                            stored.map(Letter::author).orElse(null),
+                            stored.map(Letter::author).orElse(null),
+                            row.id())
+                    .update();
 
-        // A no-op on the normal path: the PACKAGED application is what asked for this
-        // folder, so the row is already there. It stands for the abnormal one — a folder
-        // with no application behind it would be invisible on the only screen that reads
-        // this state. Idempotent, so it cannot reset a status anybody has moved on.
-        applications.open(row.id(), ApplicationStatus.PACKAGED);
+            // A no-op on the normal path: the PACKAGED application is what asked for this
+            // folder, so the row is already there. It stands for the abnormal one — a folder
+            // with no application behind it would be invisible on the only screen that reads
+            // this state. Idempotent, so it cannot reset a status anybody has moved on.
+            applications.open(row.id(), ApplicationStatus.PACKAGED);
+        });
         log.info("Offer {} packaged into {} ({})", row.id(), folder, String.join(", ", written));
         return folder;
+    }
+
+    /**
+     * The model's letter, when there is a writing model, a call left in the budget, an
+     * answer, and the guard accepts it — and nothing otherwise, which the caller answers with
+     * the template.
+     *
+     * <p>The guard reads the same folded advert the skill matcher and the ranking read, and
+     * the projects this build chose, so it cannot disagree with the rest of the package about
+     * what the advert asked for.
+     *
+     * <p>A language {@code cover-letter.yaml} names no rules for is never drafted: it has no
+     * greeting and no closing anybody chose, and no banned phrase or word limit to check the
+     * draft against. The template writes that letter, and the startup log has already warned.
+     */
+    private Drafting drafted(
+            ConfigSnapshot snapshot, Due row, String language, List<ProjectView> views, String startsOnText) {
+        SkillProfile profile = snapshot.profile();
+        CoverLetterStyle style = snapshot.coverLetter();
+        if (style == null || !style.hasRulesFor(language)) {
+            return Drafting.MISSED;
+        }
+        CoverLetterStyle.Rules rules = style.forLanguage(language);
+        CoverLetterWriter.Attempt attempt = writer.attempt(
+                snapshot.application().llm(),
+                new CoverLetterWriter.Request(
+                        row.id(),
+                        language,
+                        readable(row),
+                        row.agency(),
+                        profile,
+                        views,
+                        startsOnText,
+                        rules,
+                        style.examplesFor(language)));
+        if (attempt.draft().isEmpty()) {
+            return attempt.budgetRefused() ? Drafting.REFUSED : Drafting.MISSED;
+        }
+        Optional<CoverLetterGuard.Draft> draft = attempt.draft();
+        CoverLetterGuard.Verdict verdict = new CoverLetterGuard(rules.bannedPhrases(), rules.wordLimit())
+                .check(draft.get(), profile, haystack(row), views);
+        if (!verdict.accepted()) {
+            log.info(
+                    "Offer {}: the drafted cover letter was rejected, the template writes it: {}",
+                    row.id(),
+                    verdict.reason());
+            return Drafting.MISSED;
+        }
+        return new Drafting(new Letter(letter(draft.get(), profile, rules.closing()), Letter.MODEL), false);
+    }
+
+    /**
+     * What a try at a letter came to: the letter, or null for a miss, and whether the miss was the
+     * budget refusing the call — the one miss a person asking for a fresh draft is told about
+     * rather than handed the template for.
+     */
+    private record Drafting(Letter letter, boolean budgetRefused) {
+        static final Drafting MISSED = new Drafting(null, false);
+        static final Drafting REFUSED = new Drafting(null, true);
+    }
+
+    /**
+     * Salutation, blank line, body, blank line, then the closing and the signature the template
+     * prints from {@code profile.identity}. The closing is content in the letter's language, so
+     * it comes from {@code cover-letter.yaml} like the salutations, never from this class.
+     */
+    static String letter(CoverLetterGuard.Draft draft, SkillProfile profile, String closing) {
+        StringBuilder out = new StringBuilder();
+        out.append(draft.salutation().strip()).append("\n\n");
+        out.append(draft.body().strip()).append("\n\n");
+        out.append(closing);
+        SkillProfile.Identity identity = profile == null ? null : profile.identity();
+        if (identity != null && identity.name() != null) {
+            out.append('\n').append(identity.name());
+        }
+        if (identity != null && identity.brand() != null) {
+            out.append('\n').append(identity.brand());
+        }
+        return out.append('\n').toString();
+    }
+
+    /**
+     * A cover letter and who wrote it: {@code model} when the guard accepted the writing model's
+     * draft, {@code template} when the {@code .ftl} wrote it, {@code edited} when a person saved
+     * it through {@link CoverLetterService}. A build never drafts over {@code edited}.
+     */
+    record Letter(String text, String author) {
+        static final String MODEL = "model";
+        static final String TEMPLATE = "template";
+        static final String EDITED = "edited";
+    }
+
+    /** Written under the same file name the template would have used. */
+    private static String write(Path folder, PipelineConfig.Packaging.Document document, String text)
+            throws IOException {
+        String fileName = document.id() + ".txt";
+        Files.writeString(folder.resolve(fileName), text, StandardCharsets.UTF_8);
+        return fileName;
     }
 
     /**
@@ -376,7 +658,22 @@ public class PackagingService {
     private String render(
             Path folder, PipelineConfig.Packaging.Document document, String language, Map<String, Object> model)
             throws IOException, TemplateException {
-        String name = document.template().replace("{lang}", language);
+        return writeRendered(folder, document, language, renderText(document, language, model));
+    }
+
+    /** A template's output, under the file name that template gives it. */
+    private static String writeRendered(
+            Path folder, PipelineConfig.Packaging.Document document, String language, String text) throws IOException {
+        String name = templateName(document, language);
+        String fileName = document.id() + (name.endsWith(".ftl") ? ".txt" : "");
+        Files.writeString(folder.resolve(fileName), text, StandardCharsets.UTF_8);
+        return fileName;
+    }
+
+    /** The template's output, without writing it anywhere. */
+    private String renderText(PipelineConfig.Packaging.Document document, String language, Map<String, Object> model)
+            throws IOException, TemplateException {
+        String name = templateName(document, language);
         ConfigSource source = ConfigSource.resolve(properties.configDirectory(), name)
                 .orElseThrow(() -> new IllegalStateException(
                         "packaging document '%s' names template '%s', which is neither in the configuration directory nor on the classpath"
@@ -384,10 +681,11 @@ public class PackagingService {
 
         StringWriter out = new StringWriter();
         new Template(name, new StringReader(source.content()), freemarker).process(model, out);
+        return out.toString();
+    }
 
-        String fileName = document.id() + (name.endsWith(".ftl") ? ".txt" : "");
-        Files.writeString(folder.resolve(fileName), out.toString(), StandardCharsets.UTF_8);
-        return fileName;
+    private static String templateName(PipelineConfig.Packaging.Document document, String language) {
+        return document.template().replace("{lang}", language);
     }
 
     /**
@@ -439,7 +737,8 @@ public class PackagingService {
             Due row,
             String language,
             List<SkillProfile.ReferenceProject> projects,
-            List<String> matchedSkills)
+            List<String> matchedSkills,
+            Optional<Letter> letter)
             throws IOException {
         Map<String, Object> meta = new LinkedHashMap<>();
         meta.put("offerId", row.id());
@@ -471,6 +770,8 @@ public class PackagingService {
                 "referenceProjects",
                 projects.stream().map(SkillProfile.ReferenceProject::id).toList());
         meta.put("packagedAt", Instant.now().toString());
+        // Who wrote the letter in this folder. Absent when the configuration builds no letter.
+        letter.ifPresent(l -> meta.put("cover_letter", Map.of("author", l.author())));
         // Every portal the cluster came through, so a duplicate is one package and not three.
         meta.put(
                 "sources",
@@ -520,20 +821,26 @@ public class PackagingService {
                 .toList();
     }
 
-    /**
-     * The advert as the skill matcher and the language detector read it: the content blocks
-     * when the advert has been read that way, `full_text` when it has not. A portal's own tag
-     * cloud otherwise decides which reference projects a cover letter pitches.
-     */
+    /** The advert as the skill matcher and the language detector read it — see {@link AdText}. */
     private static String haystack(Due row) {
+        return AdText.of(row.title(), row.description(), row.contentBlocks(), row.fullText());
+    }
+
+    /**
+     * The advert as a person reads it, for the writing model: the same three parts as
+     * {@link #haystack}, unfolded, because a model writes better German from "für" than from
+     * "fur".
+     */
+    private static String readable(Due row) {
         String advert = ContentText.of(row.contentBlocks(), row.fullText() == null ? "" : row.fullText());
-        return TextFold.fold(
-                "%s %s %s".formatted(row.title(), row.description() == null ? "" : row.description(), advert));
+        return Stream.of(row.title(), row.description(), advert)
+                .filter(part -> part != null && !part.isBlank())
+                .map(String::strip)
+                .collect(Collectors.joining("\n\n"));
     }
 
     private static boolean names(String haystack, String keyword) {
-        Pattern pattern = TextFold.keyword(keyword);
-        return pattern != null && pattern.matcher(haystack).find();
+        return AdText.names(haystack, keyword);
     }
 
     /**

@@ -46,7 +46,10 @@
     "documentRejected": "Rejected: {name}",
     "runStarted": "A run has started",
     "runFinished": "Run finished: {written, plural, =0 {nothing written} one {1 offer written} other {# offers written}}, {shortlisted, plural, =0 {none shortlisted} one {1 shortlisted} other {# shortlisted}}",
-    "runFailed": "Run failed in stage {stage}"
+    "runFailed": "Run failed in stage {stage}",
+    "letterSaved": "Cover letter saved, the package carries the edit",
+    "letterDrafted": "New cover letter drafted",
+    "letterDraftedTemplate": "The model's draft did not pass, so the template wrote this letter"
   },
   "theme": {
     "legend": "Colour theme",
@@ -356,6 +359,22 @@
     "history": "History",
     "openedAs": "opened as {status}"
   },
+  "coverLetter": {
+    "title": "Cover letter",
+    "note": "The letter in the package. Saving rewrites cover_letter.txt, so the download carries your edit, and a rebuild keeps it.",
+    "noteSent": "This is the letter that went out. It stays as it was sent.",
+    "label": "Letter text",
+    "writtenOn": "written {date}",
+    "save": "Save letter",
+    "regenerate": "Draft again",
+    "regenerating": "Drafting…",
+    "none": "No letter yet. It is written when the package is built.",
+    "author": {
+      "model": "Model draft",
+      "template": "Template",
+      "edited": "Edited by you"
+    }
+  },
   "pipeline": {
     "title": "Pipeline",
     "subtitle": "The half of the loop the tool cannot see. Nothing is sent from here, so everything here is recorded by hand.",
@@ -572,6 +591,11 @@
     "lastRun": "The last run could not be read.",
     "rescore": "The offer was not scored again.",
     "fetch": "The ad was not fetched again.",
+    "letterLoad": "The cover letter did not load.",
+    "letterSave": "The cover letter was not saved.",
+    "letterDraft": "No new cover letter was drafted.",
+    "letterSent": "This application has been sent, so its letter stays as it went out.",
+    "letterBudget": "The model budget is spent for now. Try again later, or edit the letter by hand.",
     "analyticsLoad": "The analytics did not load.",
     "scoringModelsLoad": "The scoring models did not load.",
     "archive": "The archive could not be changed.",

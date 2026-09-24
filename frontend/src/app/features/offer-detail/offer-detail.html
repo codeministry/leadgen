@@ -361,6 +361,16 @@
                         {{ error | transloco }}
                     </p>
                 }
+                <lg-cover-letter
+                        [status]="application.status"
+                        [letter]="letter()"
+                        [loading]="coverLetters.loading()"
+                        [saving]="coverLetters.saving()"
+                        [drafting]="coverLetters.drafting()"
+                        [error]="coverLetters.error()"
+                        (saved)="saveLetter($event)"
+                        (regenerate)="redraftLetter()"
+                />
             </section>
         }
     </div>

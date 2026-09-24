@@ -11,6 +11,18 @@ may change in any release. See the status note in the README.
 
 ### Added
 
+- The cover letter is written against the ad. With `LLM_MODEL_WRITING` set, the package build asks
+  that model once for a structured draft and `CoverLetterGuard` checks it before a byte is written:
+  every skill it names is in the profile and in the ad or the stack of a chosen reference project,
+  every project is one the ranking chose, no banned phrase, within the word limit. The greeting
+  names a person only when the ad names them with an honorific. A rejected, failed or unbudgeted
+  draft falls back to the template, never to another model; `meta.json` says who wrote it. The new
+  `cover-letter.yaml` holds the style rules, the salutations, the closing and your example letters
+  (tone only), overridable file by file like the other four. The offer detail shows the letter from
+  PACKAGED on, saves an edit into the package and drafts it again at one model call; once an
+  application was ever sent, both are refused. `GET`/`PUT /api/v1/offers/{id}/cover-letter`,
+  `POST …/cover-letter/draft`; `V29` adds three columns to `offer`. `llm.models.writing` is read at
+  last (spec `005-tailored-cover-letter`).
 - An offer whose original ad was never fetched offers to fetch it again, from the ad card: the note says why the
   last attempt failed, the button asks the page once more past the cached refusal (robots.txt and the rate limit
   still apply), and a page that answers brings the advert, its sections, its fields and a fresh score with it.

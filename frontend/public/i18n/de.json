@@ -46,7 +46,10 @@
     "documentRejected": "Abgelehnt: {name}",
     "runStarted": "Ein Lauf hat begonnen",
     "runFinished": "Lauf beendet: {written, plural, =0 {nichts geschrieben} one {1 Offer geschrieben} other {# Offers geschrieben}}, {shortlisted, plural, =0 {keins auf der Shortlist} one {1 auf der Shortlist} other {# auf der Shortlist}}",
-    "runFailed": "Lauf in Stufe {stage} fehlgeschlagen"
+    "runFailed": "Lauf in Stufe {stage} fehlgeschlagen",
+    "letterSaved": "Anschreiben gespeichert, das Paket enthält die Änderung",
+    "letterDrafted": "Neues Anschreiben entworfen",
+    "letterDraftedTemplate": "Der Entwurf des Modells kam nicht durch, deshalb stammt dieses Anschreiben aus der Vorlage"
   },
   "theme": {
     "legend": "Farbschema",
@@ -356,6 +359,22 @@
     "history": "Verlauf",
     "openedAs": "angelegt als {status}"
   },
+  "coverLetter": {
+    "title": "Anschreiben",
+    "note": "Das Anschreiben im Paket. Speichern überschreibt cover_letter.txt, der Download enthält also deine Änderung, und ein Neubau behält sie.",
+    "noteSent": "So ist das Anschreiben rausgegangen. Es bleibt, wie es gesendet wurde.",
+    "label": "Text des Anschreibens",
+    "writtenOn": "geschrieben {date}",
+    "save": "Anschreiben speichern",
+    "regenerate": "Neu entwerfen",
+    "regenerating": "Wird entworfen…",
+    "none": "Noch kein Anschreiben. Es entsteht, wenn das Paket gebaut wird.",
+    "author": {
+      "model": "Modell-Entwurf",
+      "template": "Vorlage",
+      "edited": "Von dir bearbeitet"
+    }
+  },
   "pipeline": {
     "title": "Verlauf",
     "subtitle": "Die Hälfte der Schleife, die das Werkzeug nicht sieht. Von hier wird nichts versendet, also steht hier alles von Hand.",
@@ -572,6 +591,11 @@
     "lastRun": "Der letzte Lauf konnte nicht gelesen werden.",
     "rescore": "Das Angebot wurde nicht neu bewertet.",
     "fetch": "Die Anzeige wurde nicht erneut abgerufen.",
+    "letterLoad": "Das Anschreiben konnte nicht geladen werden.",
+    "letterSave": "Das Anschreiben wurde nicht gespeichert.",
+    "letterDraft": "Es wurde kein neues Anschreiben entworfen.",
+    "letterSent": "Diese Bewerbung ist gesendet, ihr Anschreiben bleibt, wie es rausging.",
+    "letterBudget": "Das Modellbudget ist vorerst aufgebraucht. Versuch es später noch einmal oder bearbeite das Anschreiben von Hand.",
     "analyticsLoad": "Die Auswertung konnte nicht geladen werden.",
     "scoringModelsLoad": "Die Bewertungsmodelle wurden nicht geladen.",
     "archive": "Das Archiv konnte nicht geändert werden.",

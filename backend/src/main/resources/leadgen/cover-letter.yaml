@@ -1,0 +1,65 @@
+# How a drafted cover letter should read. Copy to your config directory to change it; the
+# copy there replaces this file as a whole, not key by key.
+#
+# Everything is keyed by the language of the advert (ISO 639-1, lower case). A language
+# that is not listed under `rules` gets no banned phrases and no word limit, its letters
+# are always written from the template, and the startup log warns for German, English and
+# every language a CV variant is kept for.
+version: 1
+
+rules:
+  de:
+    # Phrases that make a letter sound generated. A draft containing any of them is
+    # rejected. Matching ignores case and starts at a word boundary but may run on, so a
+    # stem catches its inflections: "hervorragend" also rejects "hervorragende". Keep
+    # them short and specific.
+    banned_phrases:
+      - hervorragend
+      - leidenschaftlich
+      - Synergien
+      - in der heutigen schnelllebigen Welt
+      - mit großer Begeisterung
+      - ich bin überzeugt, dass
+    # The most words the letter body may have. A draft above it is rejected. Required in
+    # every language block: an override that names a language without it fails to load.
+    word_limit: 220
+    # Short notes on structure, handed to the model as written.
+    structure_notes:
+      - Open with the one requirement of the advert you match best, not with yourself.
+      - Name only skills and projects that answer a requirement of the advert.
+      - End with availability and a plain offer to talk; no closing flourish.
+    # The fixed lines of a drafted letter, in the letter's language. Required in every
+    # language block, like word_limit.
+    # The greeting when the advert names no contact person. The model's greeting is
+    # replaced by this line whenever the advert's own text names nobody.
+    neutral_salutation: "Sehr geehrte Damen und Herren,"
+    # The greeting when the advert names a person with an honorific ("Frau Schmidt").
+    # {name} becomes the honorific and surname as the advert writes them. Used when the
+    # model's own greeting does not name that person, names someone the advert does not,
+    # or says more than a greeting.
+    named_salutation: "Guten Tag {name},"
+    # The line above the signature. The template prints the same line.
+    closing: "Mit freundlichen Grüßen"
+  en:
+    banned_phrases:
+      - passionate
+      - leverage
+      - synergy
+      - in today's fast-paced world
+      - I am excited to
+      - I am confident that
+    word_limit: 220
+    structure_notes:
+      - Open with the one requirement of the advert you match best, not with yourself.
+      - Name only skills and projects that answer a requirement of the advert.
+      - End with availability and a plain offer to talk; no closing flourish.
+    neutral_salutation: "Dear Sir or Madam,"
+    named_salutation: "Dear {name},"
+    closing: "Kind regards"
+
+# Your own example letters, per language, used for tone only and never for facts. They
+# carry your projects and your voice, so they belong in the config directory and never
+# in this file.
+examples:
+  de: [ ]
+  en: [ ]

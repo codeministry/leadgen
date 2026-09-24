@@ -20,10 +20,14 @@ import {ScoreReason} from '@core/model/score';
 import {ShortlistEntry} from '@core/model/shortlist-entry';
 import {applicationEvents} from '@core/store/applications.events';
 import {ApplicationsStore} from '@core/store/applications.store';
+import {hasLetter} from '@core/model/cover-letter';
+import {coverLetterEvents} from '@core/store/cover-letter.events';
+import {CoverLetterStore} from '@core/store/cover-letter.store';
 import {shortlistEvents} from '@core/store/shortlist.events';
 import {ScoringModelStore} from '@core/store/scoring-model.store';
 import {ShortlistStore} from '@core/store/shortlist.store';
 import {ApplicationPanel} from './application-panel/application-panel';
+import {CoverLetterSection} from './application-panel/cover-letter/cover-letter';
 import {AskPanel} from './ask-panel/ask-panel';
 import {Badge} from '@shared/badge/badge';
 import {EmptyState} from '@shared/empty-state/empty-state';
@@ -85,6 +89,7 @@ interface Field {
     imports: [
         ApplicationPanel,
       AskPanel,
+        CoverLetterSection,
         Badge,
       DayPipe,
         EmptyState,
@@ -112,6 +117,8 @@ export class OfferDetail implements OnInit {
     protected readonly store = inject(ShortlistStore);
   private readonly scoringModels = inject(ScoringModelStore);
     protected readonly applications = inject(ApplicationsStore);
+    protected readonly coverLetters = inject(CoverLetterStore);
+    private readonly coverLetterDispatch = injectDispatch(coverLetterEvents);
 
     /** Bound from the route parameter by `withComponentInputBinding()`. */
     readonly id = input.required<string>();
@@ -361,6 +368,24 @@ export class OfferDetail implements OnInit {
         return application === undefined ? [] : (this.applications.history()[application.id] ?? []);
     });
 
+    /**
+     * Which letter to read, as one string so the effect below fires when it changes and not
+     * on every board refresh that hands back an equal row. Null until there is a folder: a
+     * PACKAGED row whose build is still running has no letter to read yet, and the key
+     * changes by itself once the poll brings the folder in.
+     */
+    private readonly letterKey = computed(() => {
+        const application = this.application();
+        return application !== undefined && hasLetter(application.status) && application.packageDir !== null
+            ? `${application.offerId}:${application.packageDir}`
+            : null;
+    });
+
+    /** The store's letter only when it is this offer's: it holds one offer at a time. */
+    protected readonly letter = computed(() =>
+        String(this.coverLetters.offerId()) === this.id() ? this.coverLetters.letter() : null,
+    );
+
     constructor() {
         // The id comes from the URL, so it changes without the component being recreated.
         effect(() => {
@@ -378,6 +403,12 @@ export class OfferDetail implements OnInit {
                 this.applicationDispatch.historyRequested(application.id);
             }
         });
+
+        effect(() => {
+            if (this.letterKey() !== null) {
+                this.coverLetterDispatch.requested(Number(this.id()));
+            }
+        });
     }
 
     /**
@@ -389,6 +420,15 @@ export class OfferDetail implements OnInit {
      */
     protected packageUrl(id: number): string {
         return `/api/v1/offers/${id}/package`;
+    }
+
+    protected saveLetter(text: string): void {
+        this.coverLetterDispatch.saveRequested({offerId: Number(this.id()), text});
+    }
+
+    /** A model call at one budget permit, so it is a click and never something the page does. */
+    protected redraftLetter(): void {
+        this.coverLetterDispatch.draftRequested(Number(this.id()));
     }
 
     protected record(update: ApplicationUpdate): void {

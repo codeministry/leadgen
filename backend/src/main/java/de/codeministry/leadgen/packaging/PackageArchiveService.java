@@ -52,18 +52,25 @@ public class PackageArchiveService {
      * <p>An offer with no application row at all has trivially never been sent, which is why
      * both halves are a {@code NOT EXISTS} rather than a join.
      */
+    private static final String WENT_OUT = """
+        (EXISTS (
+              SELECT 1 FROM application a WHERE a.offer_id = o.id AND a.status = ANY (?))
+          OR EXISTS (
+              SELECT 1 FROM application a
+              JOIN application_event e ON e.application_id = a.id
+              WHERE a.offer_id = o.id AND e.to_status = ANY (?)))
+        """;
+
     private static final String DISCARDABLE = """
         SELECT o.id, o.package_dir
         FROM offer o
         WHERE o.id = ANY (?)
           AND o.package_dir IS NOT NULL
-          AND NOT EXISTS (
-              SELECT 1 FROM application a WHERE a.offer_id = o.id AND a.status = ANY (?))
-          AND NOT EXISTS (
-              SELECT 1 FROM application a
-              JOIN application_event e ON e.application_id = a.id
-              WHERE a.offer_id = o.id AND e.to_status = ANY (?))
-        """;
+          AND NOT
+        """ + WENT_OUT;
+
+    /** The same question for one offer, asked by whatever must not change a letter that went out. */
+    private static final String ONE_WENT_OUT = "SELECT " + WENT_OUT + " FROM offer o WHERE o.id = ?";
 
     /**
      * The states that mean the mail has left; decided by the enum, not here.
@@ -79,6 +86,22 @@ public class PackageArchiveService {
     PackageArchiveService(ConfigRegistry config, DataSource dataSource) {
         this.config = config;
         this.jdbc = JdbcClient.create(dataSource);
+    }
+
+    /**
+     * Whether this offer's application was ever sent: it stands at a state past sending now, or
+     * the event log shows it reached one. The same reading {@link #discard} keeps a folder by,
+     * so "this package went out" means one thing wherever it is asked. False for an offer that
+     * does not exist.
+     */
+    public boolean wentOut(long offerId) {
+        return jdbc.sql(ONE_WENT_OUT)
+                .param(OUT)
+                .param(OUT)
+                .param(offerId)
+                .query(Boolean.class)
+                .optional()
+                .orElse(false);
     }
 
     /**
@@ -154,9 +177,14 @@ public class PackageArchiveService {
         if (cleared.isEmpty()) {
             return 0;
         }
-        jdbc.sql("UPDATE offer SET package_dir = NULL, packaged_at = NULL, language = NULL WHERE id = ANY (?)")
-                .param(cleared.toArray(Long[]::new))
-                .update();
+        // The stored letter goes in the same statement: it is part of the package, and a letter
+        // with no folder behind it would come back with a restore that is meant to start clean.
+        jdbc.sql("""
+                UPDATE offer
+                SET package_dir = NULL, packaged_at = NULL, language = NULL,
+                    cover_letter_text = NULL, cover_letter_author = NULL, cover_letter_at = NULL
+                WHERE id = ANY (?)
+                """).param(cleared.toArray(Long[]::new)).update();
         log.info("{} of {} archived offers lost their package", cleared.size(), ids.length);
         return cleared.size();
     }

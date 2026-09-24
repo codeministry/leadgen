@@ -1,0 +1,39 @@
+:host {
+    display: block;
+}
+
+.letter-head {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 1.25rem;
+}
+
+.letter-note {
+    margin: 0.25rem 0 0.75rem;
+}
+
+/* Same reason as the application form's textarea: DaisyUI sizes it from `cols`, not from the
+   panel, so without this it stays 300px wide inside a column twice that. */
+.letter-text {
+    display: block;
+    width: 100%;
+    margin-top: 0.25rem;
+    resize: vertical;
+}
+
+.letter-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+}
+
+.letter-error {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+    color: var(--color-error);
+}

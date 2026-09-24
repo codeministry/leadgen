@@ -8,7 +8,7 @@
  */
 
 /**
- * Loading, validating and hot-reloading the four YAML files. Everything else in the
+ * Loading, validating and hot-reloading the five YAML files. Everything else in the
  * application reads {@code ConfigRegistry.snapshot()} and nothing reads a file itself.
  *
  * <p><b>Two layers, the same as Spring's own.</b> Working defaults ship on the classpath under

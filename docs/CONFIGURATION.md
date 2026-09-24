@@ -7,7 +7,7 @@ document says where every value comes from and what happens when it is missing.
 
 Working defaults ship on the classpath under `backend/src/main/resources/leadgen/` and are
 part of the jar. The directory named by `leadgen.config-dir` overrides them **file by
-file** — put one file there and the other three still come from the jar.
+file** — put one file there and the other four still come from the jar.
 
 That is the same shape Spring's own configuration has, and it buys two things: the tool
 runs on a fresh clone with no configuration at all, and a value belonging to one person is
@@ -24,15 +24,16 @@ backend/src/main/resources/leadgen/    the defaults, in the jar — every value 
   matching-rules.yaml
   sources.yaml
   skill-profile.yaml
+  cover-letter.yaml
   templates/
 
 config/                                yours, gitignored, overriding the above file by file
 .env                                    the values behind the placeholders, gitignored
 ```
 
-With two of the four files overridden, the resolution looks like this. A file in the
-directory shadows the whole shipped file of the same name; the two that are not there come
-from the jar; `.env` fills the placeholders in whichever four were chosen; and the result is
+With two of the five files overridden, the resolution looks like this. A file in the
+directory shadows the whole shipped file of the same name; the three that are not there come
+from the jar; `.env` fills the placeholders in whichever five were chosen; and the result is
 one snapshot the watcher swaps whole.
 
 ```mermaid
@@ -50,6 +51,7 @@ flowchart LR
         j2["matching-rules.yaml"]
         j3["sources.yaml"]
         j4["skill-profile.yaml"]
+        j5["cover-letter.yaml"]
     end
     subgraph dir["leadgen.config-dir: yours, gitignored"]
         direction TB
@@ -60,22 +62,23 @@ flowchart LR
     snap[("ConfigSnapshot<br/>one object, swapped whole")]
     j1 --> snap
     j3 --> snap
+    j5 --> snap
     d2 --> snap
     d4 --> snap
     j2 -. "shadowed: the directory has one" .- d2
     j4 -. "shadowed" .- d4
-    env -- "fills the placeholders in all four" --> snap
+    env -- "fills the placeholders in all five" --> snap
     snap --> banner["startup banner:<br/>per file, which layer won"]
     watcher["ConfigWatcher, every 2 s"] -- "a file moved on disk: reload" --> snap
 
-    class j1,j3,d2,d4,env file
+    class j1,j3,j5,d2,d4,env file
     class j2,j4 gone
     class banner,watcher free
     class snap row
     class jar,dir zone
 ```
 
-## The four files
+## The five files
 
 | File                  | Bound to         | What it decides                                                                                                                                                               |
 |-----------------------|------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -83,6 +86,7 @@ flowchart LR
 | `matching-rules.yaml` | `MatchingRules`  | The six knockout stages, the scoring weights and penalties, the three thresholds, deduplication, freshness, follow-up — see [WRITING-RULES.md](WRITING-RULES.md).             |
 | `skill-profile.yaml`  | `SkillProfile`   | Who is applying: skills with weights and aliases, industries, reference projects, topics, CVs.                                                    |
 | `pipeline.yaml`       | `PipelineConfig` | The process itself: provider and model, enrichment, content segmentation, packaging, digest, auth.                                                                            |
+| `cover-letter.yaml`   | `CoverLetterStyle` | How a model-written cover letter may read, per language: banned phrases, a word limit, structure notes, and example letters the model takes its tone from. The shipped file has rules and no example; yours carries the letters. It has no path key in `pipeline.yaml`. |
 
 **`pipeline.yaml` is not `application.yaml`.** The latter is Spring's and only Spring's: it
 wires the *process* — datasource, ports, where the configuration directory is. The two used
@@ -106,7 +110,7 @@ to share a name, which meant a stack trace naming it could mean either file.
   advert, and a bare `datenschutz` would delete exactly the offers a data-protection contractor is looking for. Regexes
   need **single quotes** in YAML — a double-quoted scalar allows only a fixed set of escapes, `\-` is not among them,
   and the file then fails to parse with nothing pointing at the pattern.
-- **The four files are one snapshot**, read together and swapped atomically, which is why
+- **The five files are one snapshot**, read together and swapped atomically, which is why
   `rules.hot_reload` is one switch for all of them. Reloading one without the others would
   hand the pipeline a picture that never existed on disk. The profile joined the watch list
   with the topic lists; a change to it re-totals the scored offers on the next run without a
@@ -126,7 +130,7 @@ to share a name, which meant a stack trace naming it could mean either file.
   and removed: resolving `config/local/matching-rules.yaml` upwards from the working
   directory made a run read a file from *outside* the directory it was pointed at, and look
   entirely normal doing it.
-- **Change detection polls timestamps.** For four files the efficiency argument is worth
+- **Change detection polls timestamps.** For five files the efficiency argument is worth
   nothing, and `WatchService` is native only on Linux — on macOS the JDK falls back to
   polling with a ten-second default latency anyway. A change is applied one cycle after it
   is first seen, so a save in progress finishes first.
@@ -177,7 +181,7 @@ rationale. `*` marks a credential.
 | `LLM_MODEL_SCORING_OPTIONS` | —       | Comma separated. An **allowlist**, checked before the run starts: the chosen model travels as a request parameter to an endpoint billed per token. It governs the judge alone — which classifier reads an advert is not a parameter of the run, because two judges are two scales and comparing them is the point, while a label is a fact about a paragraph and there is nothing to compare.                             |
 | `LLM_MODEL_EXTRACTION`      | —       | Read by the extraction fallback: a source with `fallback: llm` hands it a document the deterministic rules could not read. Empty falls back to `LLM_MODEL_SCORING`, and the startup log says which was taken.                                                                                                                                                                                                             |
 | `LLM_MODEL_EMBEDDING`       | —       | Read by deduplication's two similarity strategies. **No fallback**: a chat model is not an embedding model, so unset means only `exact_fingerprint` runs. Must return at least 2000-dimensional vectors, the width of the `offer.embedding` column and the widest pgvector will index; a wider model is truncated to the leading 2000.                                                                                                                                                                          |
-| `LLM_MODEL_WRITING`         | —       | **Not read.** The cover letter is a Freemarker template; a value here changes nothing.                                                                                                                                                                                                                                                                                                                                    |
+| `LLM_MODEL_WRITING`         | —       | Drafts the cover letter when an application moves to PACKAGED. The draft is checked against the profile and `cover-letter.yaml` before it is written; unset, failed or rejected, the Freemarker template writes the letter. **No fallback** to `LLM_MODEL_SCORING`. |
 
 ### Database
 

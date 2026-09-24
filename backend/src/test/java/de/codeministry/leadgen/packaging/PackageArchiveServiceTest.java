@@ -11,6 +11,7 @@ package de.codeministry.leadgen.packaging;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import de.codeministry.leadgen.Databases;
+import de.codeministry.leadgen.archive.ArchiveService;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -49,6 +50,9 @@ class PackageArchiveServiceTest {
 
     @Autowired
     private PackageArchiveService packages;
+
+    @Autowired
+    private ArchiveService archive;
 
     @Autowired
     private JdbcTemplate jdbc;
@@ -130,6 +134,58 @@ class PackageArchiveServiceTest {
 
         assertThat(jdbc.queryForObject("SELECT package_dir FROM offer WHERE id = ?", String.class, id))
                 .isNull();
+    }
+
+    /**
+     * ISC-262: the stored letter is part of the package. An unsent one goes with the folder,
+     * and the restore that brings the offer back at NEW brings no letter with it.
+     */
+    @Test
+    void throwsAwayTheStoredLetterWithAnUnsentPackageAndRestoresNone() {
+        Path folder = PackagesFixture.aPackage("2026-09-02_acme_brief-weg");
+        long id = packaged("Brief weg", folder, "PACKAGED");
+        letter(id);
+        jdbc.update("UPDATE offer SET archived_at = now(), archive_source = 'MANUAL' WHERE id = ?", id);
+
+        assertThat(packages.discard(List.of(id))).isEqualTo(1);
+        assertThat(letterIsGone(id)).isTrue();
+
+        assertThat(archive.setArchived(id, false)).isTrue();
+        assertThat(jdbc.queryForObject("SELECT status FROM application WHERE offer_id = ?", String.class, id))
+                .isEqualTo("NEW");
+        assertThat(letterIsGone(id)).isTrue();
+    }
+
+    /** ISC-262: what went out keeps its letter, as it keeps its folder. */
+    @Test
+    void keepsTheStoredLetterOfAnApplicationThatWentOut() {
+        Path folder = PackagesFixture.aPackage("2026-09-02_acme_brief-bleibt");
+        long id = packaged("Brief bleibt", folder, "SENT");
+        letter(id);
+
+        assertThat(packages.discard(List.of(id))).isZero();
+
+        assertThat(jdbc.queryForObject(
+                        "SELECT cover_letter_text = 'Sehr geehrte Damen und Herren' AND cover_letter_author = 'edited'"
+                                + " AND cover_letter_at IS NOT NULL FROM offer WHERE id = ?",
+                        Boolean.class,
+                        id))
+                .isTrue();
+    }
+
+    private void letter(long offerId) {
+        jdbc.update(
+                "UPDATE offer SET cover_letter_text = 'Sehr geehrte Damen und Herren', cover_letter_author = 'edited',"
+                        + " cover_letter_at = now() WHERE id = ?",
+                offerId);
+    }
+
+    private Boolean letterIsGone(long offerId) {
+        return jdbc.queryForObject(
+                "SELECT cover_letter_text IS NULL AND cover_letter_author IS NULL AND cover_letter_at IS NULL"
+                        + " FROM offer WHERE id = ?",
+                Boolean.class,
+                offerId);
     }
 
     @Test

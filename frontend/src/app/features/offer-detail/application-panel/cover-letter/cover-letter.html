@@ -1,0 +1,59 @@
+@if (shown()) {
+    <div class="letter-head">
+        <h3 class="type-h4">{{ 'coverLetter.title' | transloco }}</h3>
+        @if (letter(); as letter) {
+            <lg-badge [tone]="tone()">{{ 'coverLetter.author.' + letter.author | transloco }}</lg-badge>
+            <span class="type-caption text-muted">
+                {{ 'coverLetter.writtenOn' | transloco: {date: letter.at | lgDay} }}
+            </span>
+        }
+    </div>
+    <p class="type-small text-muted letter-note">
+        {{ (readOnly() ? 'coverLetter.noteSent' : 'coverLetter.note') | transloco }}
+    </p>
+
+    @if (letter(); as letter) {
+        <label class="type-caption text-muted" for="lg-cover-letter">{{ 'coverLetter.label' | transloco }}</label>
+        <textarea
+                id="lg-cover-letter"
+                class="textarea textarea-sm type-small letter-text"
+                rows="14"
+                [value]="draft()"
+                [readOnly]="readOnly()"
+                [disabled]="busy()"
+                (input)="setDraft($event)"
+        ></textarea>
+
+        <div class="letter-actions">
+            <button
+                    type="button"
+                    class="btn btn-sm btn-soft btn-primary letter-save"
+                    [disabled]="readOnly() || !dirty() || busy()"
+                    (click)="save()"
+            >
+                {{ (saving() ? 'common.saving' : 'coverLetter.save') | transloco }}
+            </button>
+            <!-- A model call, so a click and never something the page does by itself. -->
+            <button
+                    type="button"
+                    class="btn btn-sm btn-soft btn-primary letter-regenerate"
+                    [disabled]="readOnly() || busy()"
+                    (click)="regenerate.emit()"
+            >
+                <lg-icon name="refresh" [size]="14"/>
+                {{ (drafting() ? 'coverLetter.regenerating' : 'coverLetter.regenerate') | transloco }}
+            </button>
+        </div>
+    } @else if (loading()) {
+        <p class="type-caption text-muted">{{ 'common.loading' | transloco }}</p>
+    } @else {
+        <p class="type-caption text-muted">{{ 'coverLetter.none' | transloco }}</p>
+    }
+
+    @if (error(); as error) {
+        <p class="type-small letter-error" role="alert">
+            <lg-icon name="triangle-alert" [size]="16"/>
+            {{ error | transloco }}
+        </p>
+    }
+}

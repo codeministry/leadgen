@@ -90,7 +90,7 @@ Violating one of these is expensive, and most of them fail silently.
 - **Archiving discards the package unless the application was ever sent, and a restore comes
   back at `NEW`.** Both halves keep "PACKAGED" and "there is a folder" the same fact.
 - **Anything reached by a name computed at runtime needs a hint in `LeadGenRuntimeHints`.**
-  The four YAML files and the three templates are; a missing hint is an empty result in a
+  The five YAML files and the three templates are; a missing hint is an empty result in a
   native image, not an error. `LeadGenRuntimeHintsTest` fails when a new one has none.
 - **Never commit.** Do the work, leave it uncommitted, offer the commit — the maintainer
   reviews the diff and decides what lands.
@@ -171,7 +171,8 @@ backend/src/main/resources/leadgen/    the committed defaults — neutral, all v
   matching-rules.yaml                  no second copy to drift.
   sources.yaml
   skill-profile.yaml
-config/*.yaml                     the same four names, overriding file by file (gitignored)
+  cover-letter.yaml
+config/*.yaml                     the same five names, overriding file by file (gitignored)
 .env.example
 docs/samples/emails/*.eml         14 real newsletter mails (gitignored)
 docs/samples/analyze_samples.py   extraction, field coverage, duplicates
@@ -193,8 +194,8 @@ backend/…/llm/                    ChatModels and Answers, shared by the judge 
 frontend/src/styles.css           both DaisyUI themes, the fonts, the @theme block —
                                   the only file allowed to hold a colour literal
 frontend/src/styles/tokens.css    semantic aliases, layout constants, the type scale
-frontend/src/app/core/            api seams, stores, models, theme, shell
 frontend/src/styles/primitives.css  `.lg-panel`, the one bordered surface, with the section edge
+frontend/src/app/core/            api seams, stores, models, theme, shell
 frontend/src/app/layout/          shell, header, nav rail, theme toggle
 frontend/src/app/shared/          icon, brand mark, score, funnel rail, badge, stat tile,
                                   empty state, page header, the day pipe

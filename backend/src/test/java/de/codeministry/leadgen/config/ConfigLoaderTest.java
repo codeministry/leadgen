@@ -15,6 +15,7 @@ import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
+import de.codeministry.leadgen.config.model.CoverLetterStyle;
 import de.codeministry.leadgen.config.model.PipelineConfig;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
@@ -23,6 +24,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -396,6 +398,149 @@ class ConfigLoaderTest {
                 .singleElement()
                 .satisfies(
                         message -> assertThat(message).contains("Example topic").contains("PostgreSQL"));
+    }
+
+    @Test
+    void theCoverLetterStyleShipsRulesAndNoExampleLetter() {
+        // The fixture materialises the four older files only, so this one comes from the jar.
+        assertThat(configDir.resolve(ConfigLoader.STYLE_FILE)).doesNotExist();
+
+        ListAppender<ILoggingEvent> log = new ListAppender<>();
+        Logger loaderLog = (Logger) LoggerFactory.getLogger(ConfigLoader.class);
+        log.start();
+        loaderLog.addAppender(log);
+        CoverLetterStyle style;
+        try {
+            style = ConfigFixtures.loaderFor(configDir, VALIDATOR).load().coverLetter();
+        } finally {
+            loaderLog.detachAppender(log);
+        }
+
+        assertThat(style.forLanguage("de").neutralSalutation()).isEqualTo("Sehr geehrte Damen und Herren,");
+        assertThat(style.forLanguage("de").closing()).isEqualTo("Mit freundlichen Grüßen");
+        assertThat(style.forLanguage("en").neutralSalutation()).isEqualTo("Dear Sir or Madam,");
+        assertThat(style.forLanguage("en").closing()).isEqualTo("Kind regards");
+        for (String language : List.of("de", "en")) {
+            var rules = style.forLanguage(language);
+            assertThat(rules.bannedPhrases())
+                    .as("banned phrases for %s", language)
+                    .isNotEmpty();
+            assertThat(rules.wordLimit()).as("word limit for %s", language).isPositive();
+            // The letter's fixed lines are content, so they ship here and not in the code.
+            assertThat(rules.neutralSalutation())
+                    .as("neutral salutation for %s", language)
+                    .isNotBlank();
+            assertThat(rules.namedSalutation())
+                    .as("named salutation for %s", language)
+                    .contains("{name}");
+            assertThat(rules.closing()).as("closing for %s", language).isNotBlank();
+            assertThat(style.examplesFor(language))
+                    .as("a committed example letter would be a personal datum")
+                    .isEmpty();
+        }
+        // Not only the two named languages: no key of the shipped file may carry a letter.
+        assertThat(style.examples().values())
+                .allSatisfy(letters -> assertThat(letters).isEmpty());
+        assertThat(log.list)
+                .extracting(ILoggingEvent::getFormattedMessage)
+                .contains("cover-letter.yaml read from classpath:/leadgen/cover-letter.yaml")
+                .noneMatch(message -> message.contains("names no rules for"));
+    }
+
+    @Test
+    void anOverrideInTheConfigDirectoryWinsForTheCoverLetterStyle() throws IOException {
+        Files.writeString(configDir.resolve(ConfigLoader.STYLE_FILE), """
+                version: 1
+                rules:
+                  de:
+                    banned_phrases: [ "mit großer Freude" ]
+                    word_limit: 150
+                    neutral_salutation: "Guten Tag,"
+                    named_salutation: "Hallo {name},"
+                    closing: "Beste Grüße"
+                examples:
+                  de:
+                    - "An example letter, used for tone only."
+                """);
+
+        ListAppender<ILoggingEvent> log = new ListAppender<>();
+        Logger loaderLog = (Logger) LoggerFactory.getLogger(ConfigLoader.class);
+        log.start();
+        loaderLog.addAppender(log);
+        CoverLetterStyle style;
+        try {
+            style = ConfigFixtures.loaderFor(configDir, VALIDATOR).load().coverLetter();
+        } finally {
+            loaderLog.detachAppender(log);
+        }
+
+        // English letters are now unguarded on phrases and length, and the log has to say so.
+        assertThat(log.list)
+                .extracting(ILoggingEvent::getFormattedMessage)
+                .anyMatch(message -> message.contains("names no rules for 'en'"))
+                .noneMatch(message -> message.contains("names no rules for 'de'"));
+        assertThat(style.forLanguage("DE").bannedPhrases()).containsExactly("mit großer Freude");
+        assertThat(style.forLanguage("de").wordLimit()).isEqualTo(150);
+        assertThat(style.forLanguage("de").structureNotes()).isEmpty();
+        assertThat(style.forLanguage("de").namedSalutation()).isEqualTo("Hallo {name},");
+        assertThat(style.forLanguage("de").closing()).isEqualTo("Beste Grüße");
+        assertThat(style.examplesFor("de")).hasSize(1);
+        // The layers override file by file, never key by key: English is simply absent now.
+        assertThat(style.forLanguage("en").bannedPhrases()).isEmpty();
+        assertThat(style.examplesFor("en")).isEmpty();
+    }
+
+    @Test
+    void rejectsACoverLetterWordLimitBelowOne() throws IOException {
+        Files.writeString(configDir.resolve(ConfigLoader.STYLE_FILE), """
+                version: 1
+                rules:
+                  en:
+                    word_limit: 0
+                    neutral_salutation: "Dear Sir or Madam,"
+                    named_salutation: "Dear {name},"
+                    closing: "Kind regards"
+                """);
+
+        assertThatThrownBy(() -> ConfigFixtures.loaderFor(configDir, VALIDATOR).load())
+                .isInstanceOf(ConfigValidationException.class)
+                .hasMessageContaining("wordLimit");
+    }
+
+    @Test
+    void rejectsACoverLetterLanguageWithoutItsLetterLines() throws IOException {
+        // A drafted letter is assembled from these three lines; a language without them has
+        // no greeting and no closing anybody chose, and the code has none of its own.
+        Files.writeString(configDir.resolve(ConfigLoader.STYLE_FILE), """
+                version: 1
+                rules:
+                  en:
+                    word_limit: 200
+                """);
+
+        assertThatThrownBy(() -> ConfigFixtures.loaderFor(configDir, VALIDATOR).load())
+                .isInstanceOf(ConfigValidationException.class)
+                .hasMessageContaining("neutralSalutation")
+                .hasMessageContaining("namedSalutation")
+                .hasMessageContaining("closing");
+    }
+
+    @Test
+    void rejectsANamedSalutationWithoutTheNamePlaceholder() throws IOException {
+        // Without {name} the greeting silently drops the person the advert named.
+        Files.writeString(configDir.resolve(ConfigLoader.STYLE_FILE), """
+                version: 1
+                rules:
+                  de:
+                    word_limit: 200
+                    neutral_salutation: "Sehr geehrte Damen und Herren,"
+                    named_salutation: "Guten Tag,"
+                    closing: "Mit freundlichen Grüßen"
+                """);
+
+        assertThatThrownBy(() -> ConfigFixtures.loaderFor(configDir, VALIDATOR).load())
+                .isInstanceOf(ConfigValidationException.class)
+                .hasMessageContaining("namedSalutation");
     }
 
     private void rewrite(String file, String from, String to) throws IOException {
