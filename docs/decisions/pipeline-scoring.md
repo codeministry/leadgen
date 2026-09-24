@@ -384,3 +384,23 @@ they decide it.
   behind it, the fields, the matched skills, the reference projects chosen, and every
   portal in the duplicate cluster, so one project advertised three times is one package
   that says so.
+
+## Traps moved from backend/CLAUDE.md
+
+- **`listOfRows()` hands the driver's own types straight on, and a cast is how that becomes a
+  500.** A `jsonb` column arrives as a `PGobject` and a `TEXT[]` as a `PgArray`, so
+  `(String) row.get("content_blocks")` threw a `ClassCastException` for every advert that had
+  been segmented. `PackagingService`'s per-offer catch turned that into a counter,
+  `package_dir` was never written, and the screen said every offer above the threshold had no
+  package — for nine days, with a green suite, because every fixture set `full_text` alone.
+  The `tags` array beside it never threw at all; it simply reached Freemarker as a wrapper
+  around a JDBC array. **Read a row with a `RowMapper` and `rs.getString(...)`**, which is
+  where the driver renders jsonb as text and where the other three readers of that column
+  already are.
+
+## Moved from the root CLAUDE.md
+
+- **Ollama is the provider, and there is no automatic fallback.** Scoring, classification and
+  embeddings run locally and for free. Anthropic is never wired in as a fallback for a failed
+  or slow local call — it is used only when the operator sets it for that specific run. A silent
+  fallback turns a free pipeline into a billed one without anything in the output to show it.

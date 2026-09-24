@@ -39,11 +39,12 @@ import de.codeministry.leadgen.retrieval.RetrievalIndexService;
 import de.codeministry.leadgen.retrieval.RetrievalReport;
 import de.codeministry.leadgen.score.ScoringReport;
 import de.codeministry.leadgen.score.ScoringService;
+import jakarta.annotation.PostConstruct;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
-import java.util.stream.Collectors;
+import java.util.Optional;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -58,6 +59,7 @@ import org.springframework.stereotype.Service;
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class IngestService {
 
     private static final String HTML_BLOCKS = "html-blocks";
@@ -83,7 +85,7 @@ public class IngestService {
             java.util.Set.of(HTML_BLOCKS, MARKDOWN_FRONTMATTER, LLM);
 
     private final ConfigRegistry config;
-    private final Map<String, SourceConnector> connectors;
+    private final List<SourceConnector> connectors;
     private final HtmlBlockExtractor extractor;
     private final MarkdownExtractor markdown;
     private final LlmDocumentExtractor prose;
@@ -102,45 +104,28 @@ public class IngestService {
     private final DigestService digest;
     private final PipelineRunRecorder history;
 
-    IngestService(
-            ConfigRegistry config,
-            List<SourceConnector> connectors,
-            HtmlBlockExtractor extractor,
-            MarkdownExtractor markdown,
-            LlmDocumentExtractor prose,
-            OfferMapper mapper,
-            OfferStore store,
-            DeduplicationService dedupe,
-            FilterService filter,
-            ArchiveService archive,
-            EnrichmentService enrich,
-            ContentService content,
-            FieldsService fields,
-            ScoringService scoring,
-            RetrievalIndexService retrieval,
-            ApplicationService applications,
-            PackagingService packaging,
-            DigestService digest,
-            PipelineRunRecorder history) {
-        this.config = config;
-        this.connectors = connectors.stream().collect(Collectors.toMap(SourceConnector::type, Function.identity()));
-        this.extractor = extractor;
-        this.markdown = markdown;
-        this.prose = prose;
-        this.mapper = mapper;
-        this.store = store;
-        this.dedupe = dedupe;
-        this.filter = filter;
-        this.archive = archive;
-        this.enrich = enrich;
-        this.content = content;
-        this.fields = fields;
-        this.scoring = scoring;
-        this.retrieval = retrieval;
-        this.applications = applications;
-        this.packaging = packaging;
-        this.digest = digest;
-        this.history = history;
+    /**
+     * The connector answering to a source's `type`, looked up in the injected list rather than
+     * a map built in a constructor: there are a handful of connectors and one lookup per source.
+     */
+    private Optional<SourceConnector> connector(String type) {
+        return connectors.stream().filter(c -> c.type().equals(type)).findFirst();
+    }
+
+    /**
+     * Two connectors answering to one `type` used to fail the context when the constructor
+     * built its map; a lookup over the list would let the first one win in silence. Same
+     * refusal, at the same moment, from the container's own lifecycle instead of the
+     * constructor.
+     */
+    @PostConstruct
+    void refuseDuplicateConnectorTypes() {
+        var seen = new java.util.HashSet<String>();
+        for (SourceConnector connector : connectors) {
+            if (!seen.add(connector.type())) {
+                throw new IllegalStateException("Two source connectors answer to type '" + connector.type() + "'");
+            }
+        }
     }
 
     /**
@@ -268,7 +253,7 @@ public class IngestService {
         var runnable = config.snapshot().sources().sources().stream()
                 .filter(Source::enabled)
                 .filter(source -> {
-                    if (connectors.containsKey(source.type())) {
+                    if (connector(source.type()).isPresent()) {
                         return true;
                     }
                     // Not fatal: a config may declare a source type a later step implements.
@@ -306,10 +291,11 @@ public class IngestService {
         OpenReport opened = OpenReport.nothing();
         PackageReport packages = PackageReport.nothing();
         java.nio.file.Path written = null;
+        RuntimeException failure = null;
 
         try {
             for (Source source : runnable) {
-                SourceConnector connector = connectors.get(source.type());
+                SourceConnector connector = connector(source.type()).orElseThrow();
                 try {
                     // Timed per source rather than as one block: "ingest took four minutes" is
                     // not actionable, "the mailbox took four minutes and the two file sources
@@ -373,50 +359,42 @@ public class IngestService {
         } catch (RuntimeException e) {
             // A stage threw. `StageLog` has recorded it as FAILED and rethrown; what is left is
             // to close the row with what the run had counted up to here, so the history says
-            // where it stopped. The stage is the last timing, because `StageLog.time` appends
-            // before it rethrows and nothing runs after a throw. Logged here with the trace:
-            // the controller answers this with a sentence, and then Boot logs nothing itself.
-            var partial = new IngestReport(
-                    results,
-                    deduplicated,
-                    filtered,
-                    archived,
-                    enriched,
-                    segmented,
-                    extractedFields,
-                    scored,
-                    indexed,
-                    written,
-                    opened,
-                    packages,
-                    java.time.Instant.now());
+            // where it stopped. Kept rather than handled here, so the report below is assembled
+            // once for both endings instead of twice with the same thirteen components.
+            failure = e;
+        }
+        // `now()` here and not `startedAt`: the panel answers "when did this finish", the
+        // history row answers "how long did it take", and they are different questions.
+        var report = IngestReport.builder()
+                .sources(results)
+                .merged(deduplicated)
+                .filtered(filtered)
+                .archived(archived)
+                .enriched(enriched)
+                .segmented(segmented)
+                .fields(extractedFields)
+                .scored(scored)
+                .indexed(indexed)
+                .digest(written)
+                .opened(opened)
+                .packaged(packages)
+                .finishedAt(java.time.Instant.now())
+                .build();
+        if (failure != null) {
+            // The stage is the last timing, because `StageLog.time` appends before it rethrows
+            // and nothing runs after a throw. Logged here with the trace: the controller answers
+            // this with a sentence, and then Boot logs nothing itself.
             var timings = stages.timings();
             String stage = timings.isEmpty()
                             || !StageTiming.FAILED.equals(timings.getLast().status())
                     ? "?"
                     : timings.getLast().stage();
-            log.error("The run failed in stage {}: {}", stage, e.getMessage(), e);
-            history.recordFailure(runId, partial, startedAt, scoringModel, timings);
-            throw new StageFailed(stage, e);
+            log.error("The run failed in stage {}: {}", stage, failure.getMessage(), failure);
+            history.recordFailure(runId, report, startedAt, scoringModel, timings);
+            throw new StageFailed(stage, failure);
         }
-        // `now()` here and not `startedAt`: the panel answers "when did this finish", the
-        // history row answers "how long did it take", and they are different questions.
-        var report = new IngestReport(
-                results,
-                deduplicated,
-                filtered,
-                archived,
-                enriched,
-                segmented,
-                extractedFields,
-                scored,
-                indexed,
-                written,
-                opened,
-                packages,
-                java.time.Instant.now());
         // After the work, never before it: a run that failed halfway must not leave a row
-        // claiming a clean pass — it leaves one saying FAILED instead, from the catch above.
+        // claiming a clean pass — it leaves one saying FAILED instead, from the branch above.
         // The same placement rule the per-source row follows, and the recorder cannot throw:
         // a history row is worth less than the run.
         history.record(runId, report, startedAt, scoringModel, stages.timings());

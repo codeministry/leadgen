@@ -14,7 +14,7 @@ import de.codeministry.leadgen.llm.EmbeddingModels;
 import de.codeministry.leadgen.llm.LlmBudget;
 import de.codeministry.leadgen.llm.Vectors;
 import java.util.List;
-import javax.sql.DataSource;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.ai.embedding.EmbeddingRequest;
@@ -37,6 +37,7 @@ import org.springframework.stereotype.Component;
  */
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class OfferEmbedder {
 
     /**
@@ -69,13 +70,6 @@ public class OfferEmbedder {
     private final EmbeddingModels models;
     private final LlmBudget budget;
     private final JdbcClient jdbc;
-
-    OfferEmbedder(ConfigRegistry config, EmbeddingModels models, LlmBudget budget, DataSource dataSource) {
-        this.config = config;
-        this.models = models;
-        this.budget = budget;
-        this.jdbc = JdbcClient.create(dataSource);
-    }
 
     /**
      * The model this configuration would embed with, or nothing.

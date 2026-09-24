@@ -14,6 +14,7 @@ import de.codeministry.leadgen.llm.Answers;
 import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatModel;
@@ -32,6 +33,7 @@ import org.springframework.ai.chat.model.ChatResponse;
  * makes a signature recognisable as a signature.
  */
 @Slf4j
+@RequiredArgsConstructor
 public class ContentClassifier {
 
     private static final String INSTRUCTIONS = """
@@ -67,12 +69,6 @@ public class ContentClassifier {
     private final ChatModel chatModel;
     private final String model;
     private final ObjectMapper json;
-
-    public ContentClassifier(ChatModel chatModel, String model, ObjectMapper json) {
-        this.chatModel = chatModel;
-        this.model = model;
-        this.json = json;
-    }
 
     public String model() {
         return model;

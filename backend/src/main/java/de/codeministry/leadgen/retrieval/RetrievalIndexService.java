@@ -15,7 +15,7 @@ import de.codeministry.leadgen.llm.LlmBudget;
 import de.codeministry.leadgen.llm.Vectors;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
-import javax.sql.DataSource;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.ai.embedding.EmbeddingRequest;
@@ -41,6 +41,7 @@ import org.springframework.stereotype.Service;
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class RetrievalIndexService {
 
     /**
@@ -90,13 +91,6 @@ public class RetrievalIndexService {
     private final EmbeddingModels models;
     private final LlmBudget budget;
     private final JdbcClient jdbc;
-
-    RetrievalIndexService(ConfigRegistry config, EmbeddingModels models, LlmBudget budget, DataSource dataSource) {
-        this.config = config;
-        this.models = models;
-        this.budget = budget;
-        this.jdbc = JdbcClient.create(dataSource);
-    }
 
     /**
      * The embedding model this configuration would index with, or null.

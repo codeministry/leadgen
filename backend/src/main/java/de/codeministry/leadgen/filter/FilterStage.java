@@ -9,6 +9,7 @@
 package de.codeministry.leadgen.filter;
 
 import java.util.Locale;
+import lombok.RequiredArgsConstructor;
 
 /**
  * The stages, in the order they run. The order is not cosmetic: each one is cheaper and
@@ -24,6 +25,7 @@ import java.util.Locale;
  * and the config loader refuses any other value, because the sources state a rate in
  * 0.0 % of offers — applied here it would discard everything or nothing.
  */
+@RequiredArgsConstructor
 public enum FilterStage {
     ABROAD("abroad"),
     REMOTE_SHARE("remote share below the minimum"),
@@ -33,10 +35,6 @@ public enum FilterStage {
     CONTRACT_FORM("contract form rejected");
 
     private final String description;
-
-    FilterStage(String description) {
-        this.description = description;
-    }
 
     public String description() {
         return description;

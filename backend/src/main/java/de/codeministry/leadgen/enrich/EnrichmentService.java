@@ -11,7 +11,7 @@ package de.codeministry.leadgen.enrich;
 import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.config.model.PipelineConfig;
 import java.util.List;
-import javax.sql.DataSource;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
@@ -30,6 +30,7 @@ import org.springframework.stereotype.Service;
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class EnrichmentService {
 
     /**
@@ -90,13 +91,6 @@ public class EnrichmentService {
     private final PageCache cache;
     private final JdbcClient jdbc;
     private final FetchWindow window;
-
-    EnrichmentService(ConfigRegistry config, PageCache cache, DataSource dataSource, FetchWindow window) {
-        this.config = config;
-        this.cache = cache;
-        this.jdbc = JdbcClient.create(dataSource);
-        this.window = window;
-    }
 
     /**
      * <b>Deliberately not {@code @Transactional}, and that is what lets a pass wait.</b>

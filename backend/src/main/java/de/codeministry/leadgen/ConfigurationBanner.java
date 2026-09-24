@@ -77,6 +77,7 @@ public class ConfigurationBanner {
     /**
      * Where a value won. The label is what the row carries, so it stays short.
      */
+    @RequiredArgsConstructor
     private enum Origin {
         YAML("yaml"),
         DOTENV(".env"),
@@ -84,10 +85,6 @@ public class ConfigurationBanner {
         RESOLVED("path");
 
         private final String label;
-
-        Origin(String label) {
-            this.label = label;
-        }
     }
 
     private record Entry(String key, String value, Origin origin) {}

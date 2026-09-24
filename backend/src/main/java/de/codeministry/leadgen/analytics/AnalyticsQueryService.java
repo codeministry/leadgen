@@ -22,7 +22,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import javax.sql.DataSource;
+import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 
@@ -43,6 +43,7 @@ import org.springframework.stereotype.Service;
  * the screen carries it in two headings; there is no way to carry it in the numbers.
  */
 @Service
+@RequiredArgsConstructor
 public class AnalyticsQueryService {
 
     /**
@@ -466,12 +467,6 @@ public class AnalyticsQueryService {
     private final JdbcClient jdbc;
     private final OfferQueryService offers;
     private final ConfigRegistry config;
-
-    AnalyticsQueryService(DataSource dataSource, OfferQueryService offers, ConfigRegistry config) {
-        this.jdbc = JdbcClient.create(dataSource);
-        this.offers = offers;
-        this.config = config;
-    }
 
     public AnalyticsView analytics() {
         String zone = ZoneId.systemDefault().getId();

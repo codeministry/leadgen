@@ -11,6 +11,7 @@ package de.codeministry.leadgen.ask;
 import de.codeministry.leadgen.offer.BadShortlistRequest;
 import java.util.Arrays;
 import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
 
 /**
  * What may be asked of an advert.
@@ -32,6 +33,7 @@ import java.util.stream.Collectors;
  * is repository language; the advert is German and so is the answer, which the instruction
  * settles rather than this enum.
  */
+@RequiredArgsConstructor
 public enum AdvertQuestion {
 
     /** The number the newsletter never carries and the portal sometimes does. */
@@ -51,11 +53,6 @@ public enum AdvertQuestion {
 
     private final String key;
     private final String text;
-
-    AdvertQuestion(String key, String text) {
-        this.key = key;
-        this.text = text;
-    }
 
     /** The name this question travels under, in a request and in the browser's catalog. */
     public String key() {

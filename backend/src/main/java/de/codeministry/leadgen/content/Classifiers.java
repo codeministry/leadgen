@@ -12,8 +12,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.config.model.PipelineConfig;
 import de.codeministry.leadgen.llm.ChatModels;
-import java.util.List;
+import de.codeministry.leadgen.llm.ModelChoice;
 import java.util.Optional;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -32,6 +33,7 @@ import org.springframework.stereotype.Component;
  */
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class Classifiers {
 
     /**
@@ -44,11 +46,6 @@ public class Classifiers {
     private final ConfigRegistry config;
     private final ChatModels chatModels;
 
-    Classifiers(ConfigRegistry config, ChatModels chatModels) {
-        this.config = config;
-        this.chatModels = chatModels;
-    }
-
     /**
      * The classifier this run may ask, or nothing when the configuration cannot reach a model.
      *
@@ -57,18 +54,12 @@ public class Classifiers {
      */
     public Optional<ContentClassifier> current() {
         PipelineConfig.Llm llm = config.snapshot().application().llm();
-        if (llm == null) {
-            return Optional.empty();
-        }
-        List<String> choices = llm.models() == null ? List.of() : llm.models().scoringChoices();
-        if (choices.isEmpty()) {
-            return Optional.empty();
-        }
-        // The configured default and never one the browser named. Which model judges is a
-        // parameter of the run because two judges are two scales and the comparison is the
-        // point; a label is a fact about a paragraph, so there is nothing to compare and
-        // nothing worth letting a request decide.
-        String model = choices.getFirst();
-        return chatModels.of(llm, model).map(chatModel -> new ContentClassifier(chatModel, model, json));
+        // The configured default (ModelChoice) and never one the browser named. Which model
+        // judges is a parameter of the run because two judges are two scales and the
+        // comparison is the point; a label is a fact about a paragraph, so there is nothing to
+        // compare and nothing worth letting a request decide.
+        return ModelChoice.defaultScoring(llm)
+                .flatMap(model ->
+                        chatModels.of(llm, model).map(chatModel -> new ContentClassifier(chatModel, model, json)));
     }
 }

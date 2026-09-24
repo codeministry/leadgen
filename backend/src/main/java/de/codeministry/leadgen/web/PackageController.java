@@ -12,6 +12,7 @@ import de.codeministry.leadgen.packaging.PackageArchive;
 import de.codeministry.leadgen.packaging.PackageArchiveService;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
@@ -28,13 +29,10 @@ import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBo
  */
 @RestController
 @RequestMapping("/api/v1/offers")
+@RequiredArgsConstructor
 class PackageController {
 
     private final PackageArchiveService packages;
-
-    PackageController(PackageArchiveService packages) {
-        this.packages = packages;
-    }
 
     @GetMapping("/{id}/package")
     ResponseEntity<StreamingResponseBody> download(@PathVariable long id) {

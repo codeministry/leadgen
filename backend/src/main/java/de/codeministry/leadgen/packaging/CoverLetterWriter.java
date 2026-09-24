@@ -26,6 +26,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatModel;
@@ -68,6 +69,7 @@ import org.springframework.stereotype.Component;
  */
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class CoverLetterWriter {
 
     /**
@@ -157,11 +159,6 @@ public class CoverLetterWriter {
     private final ChatModels chatModels;
     private final LlmBudget budget;
     private final JsonMapper json = JsonMapper.builder().build();
-
-    CoverLetterWriter(ChatModels chatModels, LlmBudget budget) {
-        this.chatModels = chatModels;
-        this.budget = budget;
-    }
 
     /**
      * Everything the model is shown for one letter.

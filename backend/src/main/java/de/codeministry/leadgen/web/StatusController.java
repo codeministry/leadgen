@@ -8,7 +8,9 @@
  */
 package de.codeministry.leadgen.web;
 
-import org.springframework.beans.factory.annotation.Value;
+import de.codeministry.leadgen.config.ConfigProperties;
+import lombok.RequiredArgsConstructor;
+import org.springframework.core.env.Environment;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -19,22 +21,16 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping("/api/v1")
+@RequiredArgsConstructor
 public class StatusController {
 
-    private final String application;
-    private final String version;
-
-    // Not `@RequiredArgsConstructor`: the parameters carry `@Value`, and Lombok would
-    // generate a constructor without them.
-    StatusController(
-            @Value("${spring.application.name}") String application,
-            @Value("${leadgen.version:0.5.0}") String version) {
-        this.application = application;
-        this.version = version;
-    }
+    // `spring.application.name` is Boot's key rather than ours, and one key is not worth a
+    // second `@ConfigurationProperties` record, so the environment answers it directly.
+    private final Environment environment;
+    private final ConfigProperties config;
 
     @GetMapping("/status")
     AppStatus status() {
-        return new AppStatus(application, version);
+        return new AppStatus(environment.getRequiredProperty("spring.application.name"), config.version());
     }
 }

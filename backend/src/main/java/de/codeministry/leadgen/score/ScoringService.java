@@ -15,7 +15,7 @@ import de.codeministry.leadgen.config.model.PipelineConfig;
 import de.codeministry.leadgen.llm.LlmBudget;
 import java.util.List;
 import java.util.Optional;
-import javax.sql.DataSource;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
@@ -38,6 +38,7 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class ScoringService {
 
     /**
@@ -119,21 +120,6 @@ public class ScoringService {
     private final ScoreWriter writer;
     private final LlmBudget budget;
     private final JdbcClient jdbc;
-
-    ScoringService(
-            ConfigRegistry config,
-            Judges judges,
-            ScoreBatchService batches,
-            ScoreWriter writer,
-            LlmBudget budget,
-            DataSource dataSource) {
-        this.config = config;
-        this.judges = judges;
-        this.batches = batches;
-        this.writer = writer;
-        this.budget = budget;
-        this.jdbc = JdbcClient.create(dataSource);
-    }
 
     /**
      * Refuses a model nobody configured, before a run does any work. Asked through this

@@ -12,8 +12,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.config.model.PipelineConfig;
 import de.codeministry.leadgen.llm.ChatModels;
-import java.util.List;
+import de.codeministry.leadgen.llm.ModelChoice;
 import java.util.Optional;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -38,6 +39,7 @@ import org.springframework.stereotype.Component;
  */
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class FieldExtractors {
 
     /**
@@ -50,11 +52,6 @@ public class FieldExtractors {
     private final ConfigRegistry config;
     private final ChatModels chatModels;
 
-    FieldExtractors(ConfigRegistry config, ChatModels chatModels) {
-        this.config = config;
-        this.chatModels = chatModels;
-    }
-
     /**
      * The extractor this run may ask, or nothing when the configuration cannot reach a model.
      *
@@ -63,14 +60,8 @@ public class FieldExtractors {
      */
     public Optional<FieldExtractor> current() {
         PipelineConfig.Llm llm = config.snapshot().application().llm();
-        if (llm == null) {
-            return Optional.empty();
-        }
-        List<String> choices = llm.models() == null ? List.of() : llm.models().scoringChoices();
-        if (choices.isEmpty()) {
-            return Optional.empty();
-        }
-        String model = choices.getFirst();
-        return chatModels.of(llm, model).map(chatModel -> new FieldExtractor(chatModel, model, json));
+        return ModelChoice.defaultScoring(llm)
+                .flatMap(model ->
+                        chatModels.of(llm, model).map(chatModel -> new FieldExtractor(chatModel, model, json)));
     }
 }

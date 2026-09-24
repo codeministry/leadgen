@@ -11,7 +11,7 @@ package de.codeministry.leadgen.enrich;
 import de.codeministry.leadgen.content.ContentService;
 import de.codeministry.leadgen.fields.FieldsService;
 import de.codeministry.leadgen.score.ScoringService;
-import javax.sql.DataSource;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
@@ -32,6 +32,7 @@ import org.springframework.stereotype.Service;
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class OfferRefetch {
 
     /**
@@ -48,19 +49,6 @@ public class OfferRefetch {
     private final FieldsService fields;
     private final ScoringService scoring;
     private final JdbcClient jdbc;
-
-    OfferRefetch(
-            EnrichmentService enrichment,
-            ContentService content,
-            FieldsService fields,
-            ScoringService scoring,
-            DataSource dataSource) {
-        this.enrichment = enrichment;
-        this.content = content;
-        this.fields = fields;
-        this.scoring = scoring;
-        this.jdbc = JdbcClient.create(dataSource);
-    }
 
     /**
      * A fetch that reached the page and failed is recorded by enrichment and ends here: the

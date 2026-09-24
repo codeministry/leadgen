@@ -222,3 +222,13 @@ none of it gets faster:
 
 Steps 1, 2 and 4 are disk and network. What an AOT cache and a native image remove is JVM
 bootstrap, class loading, and the reflective half of step 3.
+
+## Moved from the root CLAUDE.md
+
+- **Pre-1.0 a breaking change is a PATCH; only the runtime moves the MINOR.** SemVer would ask
+  for a minor bump on a broken API or schema; this repository does not, and will not until 1.0.
+  A breaking `/api/sources` response shape shipped as `v0.3.1`, and the dropped `ingest_cursor`
+  table plus changed `remote.accept_unknown` semantics as `v0.3.2`. The minor is kept for a
+  change in how the artifact is built or run: `v0.4.0` ships the jar unpacked with Spring AOT
+  switched on, and carries three breaking changes along with it. The breaking part belongs in
+  the release notes, not in the number.

@@ -22,6 +22,7 @@ import de.codeministry.leadgen.score.Judges;
 import de.codeministry.leadgen.score.ScoringService;
 import jakarta.validation.Valid;
 import java.util.List;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
@@ -35,6 +36,7 @@ import org.springframework.web.bind.annotation.*;
  */
 @RestController
 @RequestMapping("/api/v1/offers")
+@RequiredArgsConstructor
 class OfferController {
 
     private final OfferQueryService offers;
@@ -42,19 +44,6 @@ class OfferController {
     private final ArchiveService archive;
     private final AdvertAskService asks;
     private final OfferRefetch refetch;
-
-    OfferController(
-            OfferQueryService offers,
-            ScoringService scoring,
-            ArchiveService archive,
-            AdvertAskService asks,
-            OfferRefetch refetch) {
-        this.offers = offers;
-        this.scoring = scoring;
-        this.archive = archive;
-        this.asks = asks;
-        this.refetch = refetch;
-    }
 
     /**
      * One page of the shortlist, filtered.

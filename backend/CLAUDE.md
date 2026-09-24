@@ -13,9 +13,9 @@ The reasoning stage by stage lives in `docs/decisions/pipeline-ingest.md`,
 
 - **Lombok for the boilerplate, records for the data.** `@Slf4j` instead of a hand-written
   logger, `@RequiredArgsConstructor` where the constructor is nothing but assignments. Not
-  where it does work (`ConfigRegistry` loads, `IngestService` builds a map) and not where
-  the parameters carry annotations (`@Value` in `StatusController`) — Lombok would generate
-  a constructor without them.
+  where it does work (`ConfigRegistry` loads) and not where the parameters would carry
+  annotations — Lombok would generate a constructor without them, which is why no `@Value`
+  is left under `src/main`: the `leadgen.*` keys bind on `ConfigProperties` instead.
 - **API types are records, each in its own file.** `AppStatus`, `IngestReport`,
   `SourceIngestResult`, `DocumentIngestResult`. No response type nested inside its
   controller or service. The configuration model is the exception: those records mirror the
@@ -77,57 +77,22 @@ The reasoning is in `docs/decisions/pipeline-scoring.md`.
 
 ## Traps that have already cost money
 
-- **`listOfRows()` hands the driver's own types straight on, and a cast is how that becomes a
-  500.** A `jsonb` column arrives as a `PGobject` and a `TEXT[]` as a `PgArray`, so
-  `(String) row.get("content_blocks")` threw a `ClassCastException` for every advert that had
-  been segmented. `PackagingService`'s per-offer catch turned that into a counter,
-  `package_dir` was never written, and the screen said every offer above the threshold had no
-  package — for nine days, with a green suite, because every fixture set `full_text` alone.
-  The `tags` array beside it never threw at all; it simply reached Freemarker as a wrapper
-  around a JDBC array. **Read a row with a `RowMapper` and `rs.getString(...)`**, which is
-  where the driver renders jsonb as text and where the other three readers of that column
-  already are.
+- **Read a row with a `RowMapper` and `rs.getString(...)`, never by casting a `listOfRows()` value.** — reasoning in `docs/decisions/pipeline-scoring.md`.
+- **A raw control byte in a source file makes `rg` skip it as binary, silently.** `'\0'` is written as the escape, never as the byte; a repo-wide count runs `rg -a`. Measured: one such byte hid a whole class from the Lombok sweep and its probe.
 
-- **Masking a YAML document before parsing it breaks the parse, and silently.** The mask is
-  `********`; a plain scalar beginning with `*` is a YAML *alias*, so a masked file stops
-  composing and every block lookup after it comes back empty — no exception, just nothing
-  found. `SourceDetailService` therefore cuts the block out of the file's own bytes first and
-  masks what it is about to show. Found only by the fixture that writes a literal password into
-  a `sources.yaml`; the shipped file is all `${PLACEHOLDER}`s and can never reproduce it.
-- **SnakeYAML's `getEndMark()` is not the node's last line.** It points at the first token of
-  whatever follows, which in a sequence of blocks is the next item — measured on the shipped
-  `sources.yaml`, the newsletter block reported its end on the line reading
-  `- id: sample-portal-feed`, swallowing the comment that belongs to that one. Checking for
-  column zero does not save it, because that token begins at the dash's column. Bound a block
-  by the *next* item's start mark instead.
-- Search terms are wrapped in `<mark>` inside the title on some sources. Strip before any
-  title comparison, or deduplication trips over `<mark>DevOps</mark>`. Not present in the
-  current sample corpus; jsoup's `text()` handles it either way.
+- **Cut a YAML block out of the file's bytes before masking it; a masked document parses to nothing.** — reasoning in `docs/decisions/read-side.md`.
+- **Bound a YAML block by the next item's start mark, never by `getEndMark()`.** — reasoning in `docs/decisions/read-side.md`.
 - Strip `(m/w/d)`, `(w/m/d)`, `(m/f/d)` before normalizing. Every title comparison goes
   through `TitleNormalizer`, so two of them cannot disagree.
 - The location sits behind a `📍` prefix in one of four `span`s in `div.job-meta` —
   address it by the prefix, never by position.
-- **A test context never resolves a `${PLACEHOLDER}` from the machine it runs on.**
-  `NeutralDefaultsInitializer` (test tree, `spring.factories`) gives every context a primary
-  `PlaceholderResolver` fed from `ConfigFixtures.NEUTRAL_PLACEHOLDERS` and the shipped defaults
-  as its config directory. A new placeholder in a shipped file goes into that set, or
-  `ConfigFixturesTest` fails naming it. Measured: `AUTH_MODE=oidc` in `.env` refused fifteen
-  MockMvc contexts; a filled-in LLM key once sent the keyless scoring test to a real endpoint.
-  Reasoning in `docs/decisions/configuration.md`.
-- **Several IMAP sources may share a folder only because `selector.from` is in the `SearchTerm`.** The progress flag is
-  one `progress_flag` per connection and the receiver writes it to whatever its *search* returned, before `matches()` sees sender or
-  subject — so without that term the first source flags the others' mail and they read zero documents in silence.
-  `subject_matches` cannot join it (Java regex vs. IMAP SEARCH), and `match_all: true` switches the check off: both mean
-  separate folders. Reasoning in `docs/decisions/pipeline-ingest.md`.
+- **A test context never resolves a `${PLACEHOLDER}` from the machine; a new one goes into `ConfigFixtures.NEUTRAL_PLACEHOLDERS`.** — reasoning in `docs/decisions/configuration.md`.
+- **IMAP sources share a folder only through `selector.from` in the `SearchTerm`; `subject_matches` or `match_all: true` means separate folders.** — reasoning in `docs/decisions/pipeline-ingest.md`.
 - **`match_all: true` short-circuits `subject_matches` and not `from`,** because `fromAnyOf` builds the IMAP `SEARCH`
   term without looking at the flag, and with neither filter set it changes nothing at all.
   `ConfigLoader.checkSelectors` refuses the three arrangements where that bites; reasoning in
   `docs/decisions/pipeline-ingest.md`.
-- **`<mark>` reaches the title as text, and stripping the angle brackets is not stripping the tag.** `[^a-z0-9]+` turns
-  `<` and `>` into spaces and leaves the word `mark` standing twice, so `<mark>DevOps</mark> Engineer` fingerprints as
-  `mark devops mark engineer` and never meets its twin. Measured: 402 of 13240 titles carry it. `TitleNormalizer`
-  removes it before the gender suffixes, because a term matching "w" arrives as `(m/<mark>w</mark>/d)` and the suffix
-  pattern does not recognise its own shape until then. Numbers in `docs/SAMPLE-ANALYSIS.md` § 4.
+- **`TitleNormalizer` removes `<mark>` as a tag, before the gender suffixes, never as angle brackets; every title comparison goes through it.** — reasoning in `docs/decisions/pipeline-dedupe-filter.md`.
 - **A comma in a jsoup selector is a union, and `selectFirst` answers in document order.**
   Adding a narrower class to `article, main, .job-description, #content` therefore changes nothing whenever a `<main>`
   wraps the page — which is every page that has one. The selector list reads like a priority order and is not one.

@@ -14,7 +14,7 @@ import de.codeministry.leadgen.llm.LlmBudget;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import javax.sql.DataSource;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
@@ -36,6 +36,7 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class ScoreBatchService {
 
     private static final String OPEN = """
@@ -53,15 +54,6 @@ public class ScoreBatchService {
     private final ScoreWriter writer;
     private final LlmBudget budget;
     private final JdbcClient jdbc;
-
-    ScoreBatchService(
-            ConfigRegistry config, Judges judges, ScoreWriter writer, LlmBudget budget, DataSource dataSource) {
-        this.config = config;
-        this.judges = judges;
-        this.writer = writer;
-        this.budget = budget;
-        this.jdbc = JdbcClient.create(dataSource);
-    }
 
     /**
      * Hand the whole set over and record what is now in flight.

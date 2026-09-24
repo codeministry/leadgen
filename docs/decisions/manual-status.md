@@ -71,3 +71,10 @@ write endpoint in the application.
   a `DataIntegrityViolationException` naming the whole query rather than the column. Read
   it with `getTimestamp(...).toInstant()`.
 
+
+## Moved from the root CLAUDE.md
+
+- **A package is built when a person moves an application to `PACKAGED`, never by a run.**
+  The shortlist opens an application at `NEW` and costs one row; the folder is built after
+  that status write commits. So `PACKAGED` is the one transition the endpoint refuses to let
+  anything skip — otherwise a SENT application stands for a document nobody ever made.

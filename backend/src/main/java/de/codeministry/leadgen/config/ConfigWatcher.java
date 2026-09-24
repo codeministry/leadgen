@@ -59,6 +59,7 @@ public class ConfigWatcher {
         watchedFiles().forEach(file -> applied.put(file, stamp(file)));
     }
 
+    // Names the same key as `ConfigProperties.configPollInterval`; an annotation attribute cannot read a bean.
     @Scheduled(fixedDelayString = "${leadgen.config-poll-interval:PT2S}")
     public void pollForChanges() {
         Map<Path, Stamp> now = new HashMap<>();

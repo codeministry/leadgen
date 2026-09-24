@@ -17,7 +17,7 @@ import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
-import javax.sql.DataSource;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
@@ -38,6 +38,7 @@ import org.springframework.stereotype.Service;
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class FieldsService {
 
     /**
@@ -96,13 +97,6 @@ public class FieldsService {
     private final FieldExtractors extractors;
     private final LlmBudget budget;
     private final JdbcClient jdbc;
-
-    FieldsService(ConfigRegistry config, FieldExtractors extractors, LlmBudget budget, DataSource dataSource) {
-        this.config = config;
-        this.extractors = extractors;
-        this.budget = budget;
-        this.jdbc = JdbcClient.create(dataSource);
-    }
 
     public FieldsReport run() {
         PipelineConfig.Fields settings = config.snapshot().application().fields();

@@ -175,11 +175,6 @@ Credentials never appear in any of them. Every value is a `${PLACEHOLDER}` resol
 Named rather than hidden, because a gap you find yourself is worse than one you were told
 about.
 
-- **The formatting gate is switched off.** JaCoCo, ESLint, Stylelint and Vitest all run on every push behind one
-  `./gradlew check`. Spotless does not: it disagreed with the formatting already in the tree, so it failed on layout
-  alone and was routed around in CI before being turned off in the build. The consequence worth knowing is that the SPDX
-  header on a new Java file is now copied by hand rather than enforced. The reason and the way back are in
-  `backend/build.gradle.kts`.
 - **Reading a mailbox writes to it.** The IMAP source is Spring Integration's
   `ImapMailReceiver`, which remembers what it has handed over by setting a user flag on each
   message. Nothing the owner sees is touched — no `\Seen`, no `\Flagged`, no `\Deleted` —

@@ -14,6 +14,7 @@ import de.codeministry.leadgen.llm.Answers;
 import java.io.IOException;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatModel;
@@ -34,6 +35,7 @@ import org.springframework.ai.chat.model.ChatResponse;
  * separately would triple the bill for an answer that fits in three lines.
  */
 @Slf4j
+@RequiredArgsConstructor
 public class FieldExtractor {
 
     /**
@@ -96,12 +98,6 @@ public class FieldExtractor {
     private final ChatModel chatModel;
     private final String model;
     private final ObjectMapper json;
-
-    public FieldExtractor(ChatModel chatModel, String model, ObjectMapper json) {
-        this.chatModel = chatModel;
-        this.model = model;
-        this.json = json;
-    }
 
     public String model() {
         return model;

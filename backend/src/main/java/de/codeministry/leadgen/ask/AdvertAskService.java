@@ -16,7 +16,7 @@ import de.codeministry.leadgen.llm.ChatModels;
 import de.codeministry.leadgen.llm.LlmBudget;
 import java.util.List;
 import java.util.Optional;
-import javax.sql.DataSource;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
@@ -32,6 +32,7 @@ import org.springframework.stereotype.Service;
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class AdvertAskService {
 
     /** Its own mapper, not the web one: this reads a model's answer, not an HTTP body. */
@@ -41,13 +42,6 @@ public class AdvertAskService {
     private final ChatModels chatModels;
     private final LlmBudget budget;
     private final JdbcClient jdbc;
-
-    AdvertAskService(ConfigRegistry config, ChatModels chatModels, LlmBudget budget, DataSource dataSource) {
-        this.config = config;
-        this.chatModels = chatModels;
-        this.budget = budget;
-        this.jdbc = JdbcClient.create(dataSource);
-    }
 
     /** The questions this installation offers, or none when it cannot ask any. */
     public List<String> questions() {

@@ -17,6 +17,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatModel;
@@ -36,6 +37,7 @@ import org.springframework.ai.chat.model.ChatResponse;
  * would mean the same offer scores differently depending on who was asked.
  */
 @Slf4j
+@RequiredArgsConstructor
 public class ChatClientJudge implements Judge {
 
     /**
@@ -97,15 +99,6 @@ public class ChatClientJudge implements Judge {
      * Who the offer is being judged for. Null is tolerated and yields no profile block.
      */
     private final SkillProfile profile;
-
-    public ChatClientJudge(
-            ChatModel chatModel, String model, ObjectMapper json, Map<String, Integer> bounds, SkillProfile profile) {
-        this.chatModel = chatModel;
-        this.model = model;
-        this.json = json;
-        this.bounds = bounds;
-        this.profile = profile;
-    }
 
     /**
      * The bounds for the four judged factors, read out of the configured weight table.

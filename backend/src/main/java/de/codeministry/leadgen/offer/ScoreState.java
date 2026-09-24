@@ -10,6 +10,7 @@ package de.codeministry.leadgen.offer;
 
 import java.util.Arrays;
 import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
 
 /**
  * Whether an offer carries a score at all, as a filter.
@@ -24,6 +25,7 @@ import java.util.stream.Collectors;
  * unrecognised band quietly meaning "all" is a defensible reading of a range, while an
  * unrecognised state here would quietly hand back the list this filter exists to narrow.
  */
+@RequiredArgsConstructor
 public enum ScoreState {
 
     /**
@@ -44,11 +46,6 @@ public enum ScoreState {
 
     private final String key;
     private final String clause;
-
-    ScoreState(String key, String clause) {
-        this.key = key;
-        this.clause = clause;
-    }
 
     public String key() {
         return key;

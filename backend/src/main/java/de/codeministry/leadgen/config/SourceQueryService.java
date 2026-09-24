@@ -13,7 +13,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import javax.sql.DataSource;
+import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 
@@ -25,6 +25,7 @@ import org.springframework.stereotype.Service;
  * where somebody is looking for it.
  */
 @Service
+@RequiredArgsConstructor
 public class SourceQueryService {
 
     private static final String LAST_RUN = """
@@ -52,12 +53,6 @@ public class SourceQueryService {
     private final ConfigRegistry config;
     private final ConfigProperties properties;
     private final JdbcClient jdbc;
-
-    SourceQueryService(ConfigRegistry config, ConfigProperties properties, DataSource dataSource) {
-        this.config = config;
-        this.properties = properties;
-        this.jdbc = JdbcClient.create(dataSource);
-    }
 
     public SourcesView summaries() {
         Map<String, Run> runs = runs();

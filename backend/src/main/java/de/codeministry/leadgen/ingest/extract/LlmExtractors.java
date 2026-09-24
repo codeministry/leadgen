@@ -13,10 +13,11 @@ import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.config.model.PipelineConfig;
 import de.codeministry.leadgen.llm.ChatModels;
 import de.codeministry.leadgen.llm.LlmBudget;
+import de.codeministry.leadgen.llm.ModelChoice;
 import java.time.Clock;
-import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -36,6 +37,7 @@ import org.springframework.stereotype.Component;
  */
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class LlmExtractors implements ExtractionFallback {
 
     /**
@@ -62,12 +64,6 @@ public class LlmExtractors implements ExtractionFallback {
     private final ConfigRegistry config;
     private final ChatModels chatModels;
     private final LlmBudget budget;
-
-    LlmExtractors(ConfigRegistry config, ChatModels chatModels, LlmBudget budget) {
-        this.config = config;
-        this.chatModels = chatModels;
-        this.budget = budget;
-    }
 
     @Override
     public Optional<LlmExtractor.Reading> read(String document) {
@@ -118,18 +114,10 @@ public class LlmExtractors implements ExtractionFallback {
      * <p>Static and public because the Rules screen shows which model would answer, and a
      * second copy of this choice would disagree with the run exactly once: the screen would
      * name the scoring model while the run used the extraction one, and both would look
-     * right.
+     * right. The choice itself is {@link ModelChoice#extraction}.
      */
     public static String modelFor(PipelineConfig.Llm.Models models) {
-        if (models == null) {
-            return null;
-        }
-        String configured = models.extraction();
-        if (configured != null && !configured.isBlank()) {
-            return configured;
-        }
-        List<String> choices = models.scoringChoices();
-        return choices.isEmpty() ? null : choices.getFirst();
+        return ModelChoice.extraction(models).orElse(null);
     }
 
     private void announce(String key, String model) {

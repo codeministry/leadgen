@@ -12,7 +12,7 @@ import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.config.model.MatchingRules.Deduplication;
 import de.codeministry.leadgen.config.model.MatchingRules.Deduplication.Strategy;
 import java.util.List;
-import javax.sql.DataSource;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
@@ -38,6 +38,7 @@ import org.springframework.stereotype.Service;
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class DeduplicationService {
 
     /**
@@ -87,13 +88,6 @@ public class DeduplicationService {
     private final OfferEmbedder embedder;
     private final SimilarOffers similar;
     private final JdbcClient jdbc;
-
-    DeduplicationService(ConfigRegistry config, OfferEmbedder embedder, SimilarOffers similar, DataSource dataSource) {
-        this.config = config;
-        this.embedder = embedder;
-        this.similar = similar;
-        this.jdbc = JdbcClient.create(dataSource);
-    }
 
     /**
      * Clusters every offer inside the configured window and returns how many are attached

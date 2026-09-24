@@ -24,6 +24,44 @@ may change in any release. See the status note in the README.
   manifest and the worker scripts, `immutable` on the hashed bundles and fonts, and the
   manifest's mime type. The deployed chart carries its own copy of that file and needs the same
   blocks.
+- **The web image runs nginx as a non-root user, on port 8080.** The runtime stage is
+  `nginxinc/nginx-unprivileged`, `frontend/nginx.conf` listens on 8080 and Compose maps the
+  published `WEB_PORT` to it. A deployment that sets the container port itself (the chart's
+  `web.ports.service` and its nginx ConfigMap) has to move to 8080 before it deploys this image,
+  or the web pod never answers its readiness probe. The build stage runs on a pinned Node with the
+  bun that `packageManager` pins copied onto it, because the Angular CLI refuses bun's own Node
+  shim; `BunPinTest` holds the four bun pins to one version and Renovate bumps them together.
+- Compose gives `api` and `web` a healthcheck, `web` waits for a healthy `api` as `api` waits for
+  `postgres`, every service restarts unless stopped, and the api's container port is pinned to
+  8080 whatever `SERVER_PORT` in `.env` says for the host side (spec `013-tech-debt`).
+- `.env.example` is held to the placeholders the shipped files read, in both directions, by
+  `EnvExampleTest`: it gained `RETRIEVAL_TOPIC_FLOOR` and `LEADGEN_CONFIG_MOUNT` and lost a key
+  nothing read. The four newsletter keys stay as operator-config keys while
+  `docs/CONFIGURATION.md` names them.
+- Every `leadgen.*` Spring property binds on the `ConfigProperties` record; no `@Value` is left
+  under `backend/src/main`. `leadgen.version` keeps its `LEADGEN_VERSION` override from the image
+  tag and its literal default, and an empty value still shows as empty rather than refusing to
+  start.
+- Backend boilerplate: `@RequiredArgsConstructor` on every class whose constructor only assigned
+  its fields, the `JdbcClient` Boot configures injected where a constructor built one from a
+  `DataSource` (33 `create` calls → 7), `IngestService` looking a connector up in its injected
+  list and refusing two of one type at startup as before, a Lombok builder assembling
+  `IngestReport` at one site, and one `ModelChoice` in `llm/` answering "the
+  first scoring choice, or none without a model" for the classifier, the field extractor, both
+  judges and the LLM extractor. Nothing reflective, so the AOT and native-image builds are
+  unaffected. No endpoint, field, migration or configuration key changed meaning.
+- The three working-notes files (`CLAUDE.md`, `backend/CLAUDE.md`, `frontend/CLAUDE.md`) sit at
+  or under 85 % of the budget `WorkingNotesStaySmallTest` holds them to; sixteen trap paragraphs
+  moved whole into `docs/decisions/`, each leaving its one-line rule behind. `README.md` and
+  `docs/DEVELOPMENT.md` no longer claim the formatting gate is off; `.dockerignore` and
+  `CLAUDE.md` name `config/`, not a `config/local/` that never existed.
+- Frontend: route titles and the document title resolve through a `TitleStrategy` from the
+  catalogs (German users see German tab titles; `/sources/:id` titles "Source"), the manual
+  store's fallback sentences are catalog keys, and the parity spec fails on a catalog key no
+  source file references (eight dead keys removed). `ShortlistPage` removes its media-query
+  listener on destroy and the ask panel's request ends with the component. `angular.json`
+  declares the `lg` prefix and `experimentalDecorators` is off; `@angular/forms` stays as a
+  required peer of the cdk.
 
 ## [0.5.0] — 2026-09-24
 
