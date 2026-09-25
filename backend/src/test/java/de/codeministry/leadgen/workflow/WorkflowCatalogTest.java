@@ -12,10 +12,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import de.codeministry.leadgen.workflow.WorkflowCatalog.KeyRef;
 import de.codeministry.leadgen.workflow.WorkflowCatalog.StageEntry;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
+import org.yaml.snakeyaml.Yaml;
 
 /**
  * The catalog on its own: no Spring, no files. What it pins is the shape the service builds on —
@@ -157,6 +161,41 @@ class WorkflowCatalogTest {
                 .contains("ARCHIVE");
         assertThat(WorkflowCatalog.ownerOf(WorkflowCatalog.FILE_MATCHING_RULES, "follow_up.after_days"))
                 .isEmpty();
+    }
+
+    @Test
+    void theModelWidthAndPerStageModelKeysAreFiledWhereTheyFirstTakeEffect() {
+        // ISC-373: the screen names the key each stage reads, so a key the stage reads but the
+        // catalog does not file lands in the unread group and the stage looks unconfigurable.
+        assertThat(WorkflowCatalog.ownerOf(WorkflowCatalog.FILE_PIPELINE, "llm.models.content"))
+                .contains("CONTENT");
+        assertThat(WorkflowCatalog.ownerOf(WorkflowCatalog.FILE_PIPELINE, "llm.models.fields"))
+                .contains("FIELDS");
+        // Read by the embedding batches of DEDUPE first, then RETRIEVAL, CONTENT, FIELDS and the
+        // synchronous SCORE; filed once, under the first of them in run order.
+        assertThat(WorkflowCatalog.ownerOf(WorkflowCatalog.FILE_PIPELINE, "llm.concurrency"))
+                .contains("DEDUPE");
+        assertThat(WorkflowCatalog.ownerOf(WorkflowCatalog.FILE_PIPELINE, "enrichment.fetch.concurrency"))
+                .contains("ENRICH");
+    }
+
+    @Test
+    void everyModelKeyTheShippedPipelineDeclaresIsFiledUnderAStage() throws IOException {
+        // A new `llm.models.*` key is a new model a stage asks, so it is never "read by nothing".
+        Map<String, Object> pipeline;
+        try (InputStream in = WorkflowCatalogTest.class.getResourceAsStream("/leadgen/pipeline.yaml")) {
+            pipeline = new Yaml().load(in);
+        }
+        @SuppressWarnings("unchecked")
+        Map<String, Object> llm = (Map<String, Object>) pipeline.get("llm");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> models = (Map<String, Object>) llm.get("models");
+        assertThat(models).isNotEmpty();
+        for (String name : models.keySet()) {
+            assertThat(WorkflowCatalog.ownerOf(WorkflowCatalog.FILE_PIPELINE, "llm.models." + name))
+                    .as("llm.models.%s", name)
+                    .isPresent();
+        }
     }
 
     private static List<KeyRef> allKeys() {

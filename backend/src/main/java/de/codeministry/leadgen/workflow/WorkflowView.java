@@ -74,6 +74,9 @@ public record WorkflowView(List<Phase> phases, List<Setting> unread) {
      * @param settings    the keys it reads, each with its value and the file it came from
      * @param knockouts   the hard filters, in {@code FilterStage} order, on the stage that applies
      *                    them; null on every other stage
+     * @param width       how many adverts the stage works on at once and the key that sets it, at
+     *                    every width including one; null on a stage no width bounds and on every
+     *                    ingest entry
      */
     public record Stage(
             String id,
@@ -83,7 +86,8 @@ public record WorkflowView(List<Phase> phases, List<Setting> unread) {
             List<String> costClasses,
             String promptId,
             List<Setting> settings,
-            List<Knockout> knockouts) {
+            List<Knockout> knockouts,
+            StageWidth width) {
 
         public Stage {
             costClasses = List.copyOf(costClasses);
@@ -102,7 +106,15 @@ public record WorkflowView(List<Phase> phases, List<Setting> unread) {
                 String promptId,
                 List<Setting> settings) {
             return new Stage(
-                    "INGEST " + sourceId, KIND_INGEST, sourceId, description, costClasses, promptId, settings, null);
+                    "INGEST " + sourceId,
+                    KIND_INGEST,
+                    sourceId,
+                    description,
+                    costClasses,
+                    promptId,
+                    settings,
+                    null,
+                    null);
         }
 
         /** A stage every run passes once. */
@@ -112,8 +124,9 @@ public record WorkflowView(List<Phase> phases, List<Setting> unread) {
                 List<String> costClasses,
                 String promptId,
                 List<Setting> settings,
-                List<Knockout> knockouts) {
-            return new Stage(id, KIND_STAGE, null, description, costClasses, promptId, settings, knockouts);
+                List<Knockout> knockouts,
+                StageWidth width) {
+            return new Stage(id, KIND_STAGE, null, description, costClasses, promptId, settings, knockouts, width);
         }
     }
 

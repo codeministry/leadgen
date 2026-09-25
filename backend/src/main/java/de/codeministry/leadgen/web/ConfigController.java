@@ -11,6 +11,7 @@ package de.codeministry.leadgen.web;
 import de.codeministry.leadgen.config.*;
 import de.codeministry.leadgen.ingest.extract.LlmExtractors;
 import de.codeministry.leadgen.llm.ChatModels;
+import de.codeministry.leadgen.llm.ModelChoice;
 import de.codeministry.leadgen.score.Judges;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -106,7 +107,10 @@ class ConfigController {
                 // Each stage's own choice, asked rather than reproduced: a copy of it here
                 // would name one model on the screen while the run used the other.
                 LlmExtractors.modelFor(models),
-                ChatModels.writingModelFor(models));
+                ModelChoice.content(models).orElse(null),
+                ModelChoice.fields(models).orElse(null),
+                ChatModels.writingModelFor(models),
+                models);
     }
 
     /**

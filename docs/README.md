@@ -99,13 +99,14 @@ room.
 
 ## samples/ — the measuring instruments
 
-Three scripts are committed; everything they read and everything they write is gitignored,
+The scripts are committed; everything they read and everything they write is gitignored,
 because the corpus is real mail and real mail carries an address.
 
 ```bash
 python3 docs/samples/analyze_samples.py    # extraction, field coverage, duplicates
 python3 docs/samples/simulate_filter.py    # the hard filters, writes filter-baseline.json
 bun docs/samples/measure_embeddings.ts <model> [dims]   # observed pair similarities
+bun docs/samples/measure_routing.ts --models=<a>,<b> <ids…>   # a smaller model per bounded question
 ```
 
 The two Python scripts are the **reference implementation**: whatever they do, the Java has
@@ -117,6 +118,10 @@ out of the repository for size, and the conclusions drawn from them live in
 [decisions/retrieval.md](decisions/retrieval.md) and
 [decisions/pipeline-dedupe-filter.md](decisions/pipeline-dedupe-filter.md); which number each
 script guards is [EMBEDDINGS.md § 6](EMBEDDINGS.md#6-thresholds-and-how-they-are-measured).
+`measure_routing.ts` is what `llm.models.content` and `llm.models.fields` are chosen with: it asks
+each candidate the pipeline's own bounded questions through `POST /api/v1/offers/{id}/answer` and
+prints its agreement with the stored answers beside an empty-answer baseline; the reasoning is in
+[decisions/pipeline-scoring.md](decisions/pipeline-scoring.md#measuring-a-candidate).
 
 `screenshots/` holds what the root README renders; the light and dark ones are chosen per
 screen there, not by theme.

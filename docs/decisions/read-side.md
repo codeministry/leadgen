@@ -221,6 +221,16 @@ screen reads one of these, and none of them writes.
   to render: a prompt is a fact about the configuration, not about whether anybody can currently
   be asked it. `PromptView` lives in `web/` because it needs the two stages that own the
   prompts, and the configuration model deliberately depends on no stage.
+- **Which model, which key, how wide (spec 015).** Each `PromptView` carries its own `model`,
+  the `modelKey` that decided it and `modelFallback`. The key is the stage's own `llm.models.*`,
+  or `llm.models.scoring` when an extraction, content or fields key is empty and the scoring
+  model answers in its place, which is the one case `modelFallback` is true; the judge and the
+  writer never fall back. The key is decided from the configured value, never by comparing model
+  names, which would name the wrong key the day both hold the same model; with no model at all,
+  `model` and `modelKey` are null. `/api/v1/workflow` gives a stage `width` (the `key` and the
+  resolved `value`) on every stage a width bounds, one included, and null elsewhere. The last
+  run's stage row carries `width`, read out of its `width=N` note once on the server and null on
+  a failed row, so the browser never parses `note`.
 - **The enum writes its stage descriptions as sentence fragments**, because that is how they
   read in a log line. The read side capitalises them; a chart label is not a log line.
 

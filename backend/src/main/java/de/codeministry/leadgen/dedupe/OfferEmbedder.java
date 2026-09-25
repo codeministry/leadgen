@@ -8,12 +8,15 @@
  */
 package de.codeministry.leadgen.dedupe;
 
+import de.codeministry.leadgen.concurrent.BoundedWork;
 import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.config.model.PipelineConfig;
 import de.codeministry.leadgen.llm.EmbeddingModels;
 import de.codeministry.leadgen.llm.LlmBudget;
 import de.codeministry.leadgen.llm.Vectors;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.embedding.EmbeddingModel;
@@ -66,6 +69,13 @@ public class OfferEmbedder {
     private final java.util.concurrent.atomic.AtomicBoolean saidTruncating =
             new java.util.concurrent.atomic.AtomicBoolean();
 
+    /**
+     * The width the last {@link #embed} worked its batches at, {@code 1} when it asked no model.
+     * Volatile because the pass that writes it and the run that reads it off the stage row are not
+     * guaranteed to share a thread; runs themselves never overlap.
+     */
+    private volatile int lastWidth = 1;
+
     private final ConfigRegistry config;
     private final EmbeddingModels models;
     private final LlmBudget budget;
@@ -107,6 +117,7 @@ public class OfferEmbedder {
      * @return how many offers were given a vector, 0 when nothing could be.
      */
     public int embed(int ttlDays) {
+        lastWidth = 1;
         String model = model();
         if (model == null) {
             return 0;
@@ -122,25 +133,56 @@ public class OfferEmbedder {
             return 0;
         }
 
-        int written = 0;
+        List<List<Pending>> batches = new ArrayList<>();
         for (int from = 0; from < pending.size(); from += BATCH) {
-            List<Pending> batch = pending.subList(from, Math.min(from + BATCH, pending.size()));
-            // One request carries thirty-two adverts and counts as one call, because the
-            // number in the configuration says calls and an exception to that would live
-            // only in the code rather than beside the number a person reads.
-            if (!budget.take()) {
-                break;
-            }
-            int done = embed(embeddings.get(), model, batch);
-            if (done < 0) {
-                // A refusal that is about the configuration rather than about this batch, so
-                // the next batch would be refused the same way.
-                break;
-            }
-            written += done;
+            batches.add(pending.subList(from, Math.min(from + BATCH, pending.size())));
         }
-        log.info("Deduplication: {} of {} offers embedded with '{}'", written, pending.size(), model);
+        // Up to `llm.concurrency` batches in flight at once. Each batch writes only its own
+        // rows and none reads a vector another one wrote, so the order they finish in changes
+        // nothing; `forEach` returns once every batch it handed out has, which is what lets
+        // `DeduplicationService` compare vectors straight after this.
+        int width = llm.concurrency();
+        lastWidth = width;
+        List<Optional<Batch>> results =
+                BoundedWork.forEach(width, batches, batch -> embedBatch(embeddings.get(), model, batch), Batch::stops);
+        int written = results.stream()
+                .flatMap(Optional::stream)
+                .mapToInt(Batch::written)
+                .sum();
+        log.info(
+                "Deduplication: {} of {} offers embedded with '{}'{}",
+                written,
+                pending.size(),
+                model,
+                BoundedWork.atWidth(width));
         return written;
+    }
+
+    /**
+     * The width the last pass worked at, the one its log line named: {@code 1} when it had no
+     * model, nothing pending, or ran sequentially.
+     */
+    public int lastWidth() {
+        return lastWidth;
+    }
+
+    /**
+     * One batch: the budget first, then the request and its rows.
+     *
+     * <p>A refused budget stops the batches not yet handed out, because the budget is a count
+     * for the day and the next one would be refused the same way. So does an answer that says
+     * the configuration cannot be used at all. A failed request is neither: it leaves this
+     * batch's adverts without a vector and due for the next run, and the other batches go on.
+     */
+    private Batch embedBatch(EmbeddingModel embeddings, String model, List<Pending> batch) {
+        // One request carries thirty-two adverts and counts as one call, because the
+        // number in the configuration says calls and an exception to that would live
+        // only in the code rather than beside the number a person reads.
+        if (!budget.take()) {
+            return new Batch(0, true);
+        }
+        int done = embed(embeddings, model, batch);
+        return done < 0 ? new Batch(0, true) : new Batch(done, false);
     }
 
     /**
@@ -244,4 +286,7 @@ public class OfferEmbedder {
     }
 
     private record Pending(long id, String text) {}
+
+    /** What one batch wrote, and whether the batches after it should still start. */
+    private record Batch(int written, boolean stops) {}
 }

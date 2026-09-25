@@ -20,6 +20,10 @@ Ein Lauf beginnt, wenn du **Quellen einlesen** drückst, oder zeitgesteuert. Er 
 
 An einer Handvoll Stellen hilft ein Modell, und unter Regeln ist jede davon als **KI-Schritt** markiert: Angebote nach Bedeutung vergleichen, für die Deduplizierung und die Ähnlichkeitssuche; die Anzeige vom Drumherum des Portals trennen; Termine und Dauer aus freiem Text lesen; die Passung der Rolle beurteilen; und das Anschreiben entwerfen. All das läuft auf einem lokalen Modell auf deinem eigenen Rechner – kostenlos, und nichts geht an Dritte. Ein gehostetes Modell kommt nur zum Einsatz, wenn du es für einen bestimmten Lauf ausdrücklich wählst; von sich aus weicht die App nie darauf aus. Und weil die Regeln zuerst kommen, funktioniert die App auch ganz ohne Modell, nur weniger scharf: Es fällt nichts weg, die Angebote werden nur nicht gereiht.
 
+Die Anzeige vom Drumherum trennen und die Termine lesen sind kleine, eng umrissene Fragen, deshalb kann jede davon ein eigenes, kleineres Modell bekommen; bleibt es leer, beantwortet sie das Modell, das bewertet. Die Auswahl neben **Quellen einlesen** wählt das Bewertungsmodell für einen Lauf und ändert keins der beiden, und sie lesen die Anzeigen nur dann neu, wenn ein eigenes Modell gesetzt ist und sich ändert.
+
+Von sich aus arbeitet ein Lauf an einer Anzeige nach der anderen. Die Konfiguration kann ihm eine Breite geben: Deduplizierung, die Anzeige vom Drumherum trennen, Termine lesen, bewerten und indexieren arbeiten dann an mehreren Anzeigen gleichzeitig, und das Abholen der Anzeigen ebenso, weiterhin innerhalb der Abruf-Obergrenze des Portals und der Höchstzahl pro Lauf. Eine Breite verschiebt die Uhr, nie die Rechnung, denn das Tagesbudget des Modells zählt Anfragen, nicht Zeit – und sie hilft nur, wenn die Laufzeitumgebung des Modells so viele Anfragen gleichzeitig beantworten kann; sonst stehen die zusätzlichen nur an.
+
 <!-- screenshot: run-phases-rail -->
 
 ## Wie die Teile zusammenspielen

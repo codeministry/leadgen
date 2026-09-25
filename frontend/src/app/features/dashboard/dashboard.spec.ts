@@ -2,10 +2,19 @@ import {provideHttpClient} from '@angular/common/http';
 import {HttpTestingController, provideHttpClientTesting} from '@angular/common/http/testing';
 import {ComponentFixture, TestBed} from '@angular/core/testing';
 import {provideRouter} from '@angular/router';
+import {TranslocoService} from '@jsverse/transloco';
 import {LastRunStage, LastRunView} from '@core/model/last-run';
+import de from '../../../../public/i18n/de.json';
 import {Dashboard} from './dashboard';
 
-function stage(position: number, name: string, millis: number, status = 'OK', note: string | null = null): LastRunStage {
+function stage(
+    position: number,
+    name: string,
+    millis: number,
+    status = 'OK',
+    note: string | null = null,
+    width: number | null = null,
+): LastRunStage {
     const startedAt = Date.parse('2026-09-24T04:10:00Z') + position * 60_000;
     return {
         position,
@@ -15,6 +24,7 @@ function stage(position: number, name: string, millis: number, status = 'OK', no
         millis,
         status,
         note,
+        width,
     };
 }
 
@@ -130,6 +140,66 @@ describe('Dashboard', () => {
 
         expect(fixture.nativeElement.textContent).not.toContain('This run stopped');
         expect(stageRows(fixture)[0].textContent).toContain('mailbox unreachable');
+    });
+
+    describe('the width a stage ran at', () => {
+        function status(row: HTMLTableRowElement): string {
+            return row.querySelector('.stage-status')?.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+        }
+
+        it('shows the width instead of the dash on an OK row that ran wider than one', () => {
+            const fixture = render(
+                lastRun({stages: [stage(0, 'DEDUPE', 200, 'OK', 'width=4', 4), stage(1, 'FILTER', 9_000)]}),
+            );
+
+            const cell = status(stageRows(fixture)[0]);
+            expect(cell).toBe('4 at once');
+            expect(cell).not.toContain('—');
+        });
+
+        it('puts the width after the slowest badge when both apply', () => {
+            const fixture = render(lastRun({stages: [stage(0, 'DEDUPE', 200), stage(1, 'FILTER', 9_000, 'OK', 'width=4', 4)]}));
+
+            // The flex gap spaces them, so read the order off the children, not the joined text.
+            const parts = Array.from(stageRows(fixture)[1].querySelector('.stage-status')!.children).map((el) =>
+                el.textContent?.trim(),
+            );
+            expect(parts).toEqual(['slowest', '4 at once']);
+        });
+
+        it('changes nothing at width one or without a width', () => {
+            const fixture = render(
+                lastRun({
+                    stages: [stage(0, 'DEDUPE', 200, 'OK', 'width=1', 1), stage(1, 'FILTER', 9_000), stage(2, 'ARCHIVE', 50)],
+                }),
+            );
+
+            const rows = stageRows(fixture);
+            expect(status(rows[0])).toBe('—');
+            expect(status(rows[2])).toBe('—');
+            expect(fixture.nativeElement.textContent).not.toContain('at once');
+        });
+
+        it('keeps a failed row on its reason and never shows a width there', () => {
+            const fixture = render(
+                lastRun({stages: [stage(0, 'DEDUPE', 200, 'FAILED', 'width=4 then the portal went down'), stage(1, 'FILTER', 9_000)]}),
+            );
+
+            const cell = status(stageRows(fixture)[0]);
+            expect(cell).toContain('failed');
+            expect(cell).toContain('width=4 then the portal went down');
+            expect(cell).not.toContain('at once');
+        });
+
+        it('says it in German', () => {
+            const transloco = TestBed.inject(TranslocoService);
+            transloco.setTranslation(de, 'de');
+            transloco.setActiveLang('de');
+            const fixture = render(lastRun({stages: [stage(0, 'DEDUPE', 200, 'OK', 'width=4', 4), stage(1, 'FILTER', 9_000)]}));
+
+            expect(status(stageRows(fixture)[0])).toBe('4 gleichzeitig');
+            transloco.setActiveLang('en');
+        });
     });
 
     it('draws no stage table for a run recorded before timings existed', () => {

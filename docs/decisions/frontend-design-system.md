@@ -278,10 +278,23 @@ what a model takes part in. The claims and the measurements are in
 - **Two uses, never a third.** The rail marks a stage in the `model` cost class, or an ingest
   source that sends the extraction prompt, with a sparkle icon carrying `--lg-ai` on its edge
   and an accessible name (`rules.ai.marker`); the detail pane repeats the same stage as a head
-  band in the same colour, naming it an AI step (`rules.ai.band`) and, where the last run named
-  a model, which one (`rules.ai.model`). Both read `isAi()` off the same stage, so the two
-  markers can never disagree about which stages are AI steps and which are not.
+  band in the same colour, naming it an AI step (`rules.ai.band`) and, where a model answers,
+  which one (`rules.ai.model`). That model is the configuration's and not the last run's: it
+  comes from `/api/v1/prompts`, per stage, with the `modelKey` that decided it and
+  `modelFallback` when the stage's own key is empty and the scoring judge answers in its place,
+  so the band names the key beside the model either way. Both markers read `isAi()` off the
+  same stage, so they can never disagree about which stages are AI steps and which are not.
   `FILTER` is deterministic and carries neither.
+- **The AI band says only what a model does; a stage's width is a neutral fact in the head and
+  takes no semantic colour, because `ENRICH` has a width and no model.** "Works on up to N
+  adverts at once" beside `llm.concurrency` or `enrichment.fetch.concurrency` sits in the
+  stage head in muted text on every stage a width bounds, one included. Put into the violet band
+  it would claim a model for the fetch; given a hue of its own it would be a third meaning to
+  learn for a number that decides nothing about an offer.
+- **A stage row's width is text in the status cell, never a badge; a badge is a state.** The
+  dashboard's machine room writes "N at once" as small muted text beside an OK stage that ran
+  wider than one, and nothing at one. A badge there would read as a verdict on the stage, the
+  way `OK` and `FAILED` do, when the width is only how the stage was run.
 - **Contrast measured in the browser tier, the same gate as the signal.** `contrast.browser.spec.ts`
   holds the icon to ≥ 3:1 as an object, on the selected row too, and the band's text to ≥ 4.5:1,
   in both themes, headless Chromium — jsdom cannot answer a contrast question, only report the

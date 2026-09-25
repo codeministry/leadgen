@@ -297,6 +297,25 @@ describe.each(THEMES)('%s: the AI marker reads (ISC-309)', theme => {
             expect(ratio(token(colour), token('--lg-ai-surface')), `${colour} on --lg-ai-surface`).toBeGreaterThanOrEqual(TEXT_FLOOR);
         }
     });
+
+    it('the band\'s second line and its key read at ≥ 4.5:1 on the band (ISC-386)', () => {
+        // Rendered, not read off a token: the line and its <code> inherit the band's ink, and a
+        // global rule on `code` or on `.type-mono-data` would show up here as a different colour.
+        // The band's own declarations are repeated inline because core/ may not import the
+        // rules screen; `stage-detail.css` sets exactly these two on `.ai-band`.
+        const host = mount(
+            '<p class="type-small" style="background-color: var(--lg-ai-surface); color: var(--color-base-content)">' +
+                '<span class="ai-band-origin"><code class="type-mono-data">llm.models.fields</code> is empty, so the scoring judge answers</span>' +
+                '</p>',
+        );
+        const band = host.firstElementChild!;
+        const surface = painted(computed(band, 'backgroundColor'), token('--color-base-100'));
+        const ground = `rgb(${surface.r}, ${surface.g}, ${surface.b})`;
+        for (const el of [band.querySelector('.ai-band-origin')!, band.querySelector('code')!]) {
+            expect(contrastRatio(painted(computed(el, 'color'), ground), surface), el.tagName).toBeGreaterThanOrEqual(TEXT_FLOOR);
+        }
+        document.body.replaceChildren();
+    });
 });
 
 describe('the fonts (ISC-234)', () => {
@@ -362,6 +381,43 @@ describe.each(THEMES)('%s: the control room reads (ISC-272)', theme => {
         const surface = computed(panel, 'backgroundColor');
         for (const child of Array.from(panel.children)) {
             expect(ratio(computed(child, 'color'), surface), child.className).toBeGreaterThanOrEqual(TEXT_FLOOR);
+        }
+    });
+});
+
+describe.each(THEMES)('%s: the shortlist card reads on both of its surfaces (ISC-383)', theme => {
+    beforeEach(() => useTheme(theme));
+    afterEach(() => document.documentElement.removeAttribute('data-theme'));
+
+    // The card is base-100, and the open one is the selection wash over it. The status is
+    // text in the primary's text twin (the bare primary read 4.35:1 on the light hover wash), the flags are text in the warning twin, the facts and the source
+    // are muted; each has to read on both. The icons take their text's colour, except two that
+    // carry their own: the lift's trending-up in success and the topic's tag in the primary.
+    // Those two are objects, not text, so 3:1 is their floor.
+    const grounds = () => {
+        const base = token('--color-base-100');
+        const wash = painted(token('--lg-selected-surface'), base);
+        const hover = painted(token('--lg-selected-surface-hover'), base);
+        return [
+            {label: 'base-100', css: base},
+            {label: 'selected', css: `rgb(${wash.r}, ${wash.g}, ${wash.b})`},
+            {label: 'selected hover', css: `rgb(${hover.r}, ${hover.g}, ${hover.b})`},
+        ];
+    };
+
+    it('the status, the flags and the muted lines are ≥ 4.5:1', () => {
+        for (const ground of grounds()) {
+            for (const colour of ['--lg-primary-text', '--lg-warning-text', '--lg-muted', '--color-base-content']) {
+                expect(ratio(token(colour), ground.css), `${colour} on ${ground.label}`).toBeGreaterThanOrEqual(TEXT_FLOOR);
+            }
+        }
+    });
+
+    it('the lift and topic icons are ≥ 3:1', () => {
+        for (const ground of grounds()) {
+            for (const colour of ['--color-success', '--color-primary']) {
+                expect(ratio(token(colour), ground.css), `${colour} on ${ground.label}`).toBeGreaterThanOrEqual(OBJECT_FLOOR);
+            }
         }
     });
 });

@@ -36,6 +36,16 @@ be rude to the portals and slow for nothing.
   `enriched_at`** and only 23 rows in the whole table had a `full_text`. `AdFetcher` now waits for a permit the window
   would have granted anyway, up to the run's budget, and refuses beyond it. Unset means the old behaviour, so a
   configuration written before this key behaves as it did.
+- **`max_per_run` is a hard cap on what a pass sends, so the unit is reserved before the wait.** The budget used to be
+  asked only when the window was full, so a pass ran past it whenever the window happened to have room — measured, a
+  budget of 25 over 30 adverts at 20 a minute sent 30. Reserving first also keeps it a cap under
+  `enrichment.fetch.concurrency`: counted after a permit was granted, four workers could each see one unit left and all
+  four take a permit for it. Only an interrupted wait gives its unit back, because it sent nothing.
+- **A window permit is taken per request attempt, retries included; the budget per advert.** The retry template's two
+  extra attempts on a 5xx are requests, and one permit per advert let a permit buy three of them — a pass against a
+  portal answering 503 could send three times `rate_limit_per_minute`. Each retry now takes a permit inside the
+  retryable body: the run waits for it like the first, the button asks once and on a refusal stops with the 5xx it
+  already had. `max_per_run` stays a number of adverts, because that is what a pass promises to look at.
 - **The stage is therefore deliberately not `@Transactional`**, the same shape
   `ScoringService` documents. Each result is one statement and nothing needs atomicity across offers; held as one
   transaction, a pass that now waits for minutes by design would hold a write lock on every offer it had touched, and
@@ -142,17 +152,30 @@ be rude to the portals and slow for nothing.
   judges are two scales and a model change makes every score stale. A label is a fact about a paragraph: once decided it
   stands, and re-labelling is a deliberate act — truncate the table, null `content_at` — never something a configuration
   edit triggers. The `sample` column is the first 200 characters, because a table of hashes nobody can audit is a table
-  nobody trusts.
+  nobody trusts. That holds for a switched `llm.models.content` too: the adverts come due again, but a rule or a cached
+  label still answers first, so a new key re-walks blocks, not requests, and only the blocks nobody has a label for go
+  to the new model.
+- **Above width 1 a shared, uncached block may be asked up to `width` times in one run.** The cache is consulted per
+  advert when that advert starts, so adverts of one portal that share a block no run has labelled yet may each ask the
+  model for it before the first answer is remembered. The upsert settles the label either way, the budget still bounds
+  the total, and from the next wave on the block is free. Holding a lock per digest across a model call would buy back
+  a few requests on the first night of a new portal at the price of serialising exactly the waits the width exists to
+  overlap.
 - **`content_at` is stamped only when the pass is finished with the offer.** A model that was configured and did not
   answer leaves it null, so the offer comes back; no model configured stamps it, because rules-only is a legitimate
   terminal state and not a failure to retry. The second half of the due query is `content_model IS NULL` — the same
   self-healing shape
   `score_model IS NULL` already has, so configuring a key at five in the afternoon makes the standing backlog due with
   no migration.
-- **Scoring is made to re-read by nulling `score_model`,** and only when something was actually taken out. That is the
-  mechanism already documented as self-healing rather than a fourth staleness criterion invented for the scoring stage,
-  and an advert that is all advert costs no re-judge. The price is one full re-judge of the standing shortlist on the
-  first pass, which is what fixing a corrupted score costs.
+- **Scoring is made to re-read by nulling `score_model`,** and only when what scoring reads actually moved. That is
+  the mechanism already documented as self-healing rather than a fourth staleness criterion invented for the scoring
+  stage. Segmented for the first time, the comparison is against the whole page, so the answer is "something was taken
+  out" and an advert that is all advert costs no re-judge. Segmented before — a refetch, or a switched
+  `llm.models.content` — it is the texts of the blocks kept as the advert against the row's previous ones, so a new
+  model that agrees with the old reading costs no re-judge either; a block's reason and decider are not compared,
+  because scoring reads neither, and neither is a change between two furniture kinds. The comparison over-nulls rather
+  than under-nulls: two block splits that join to the same text still read as a move. The price of the first pass is one full re-judge of
+  the standing shortlist, which is what fixing a corrupted score costs.
 - **The blocks carry their text inline in `offer.content_blocks`, and `full_text` is never edited.** A second copy per
   offer buys three things: the browser needs no splitter of its own, so there is no second implementation to drift; the
   indices cannot slip; and a later change of mind in the shared cache cannot rewrite what was decided for an advert
@@ -172,10 +195,10 @@ be rude to the portals and slow for nothing.
   A loose pattern here does not produce a wrong label, it hides a paragraph of somebody's advert — a bare `datenschutz`
   would delete exactly the offers this tool is looking for. `apply now\s+save to watchlist` and not either word alone,
   for the same reason and because a block arrives as one line.
-- **The classifier reads `llm.models.scoring`.** A `models.content` key would mean a second allowlist, a second entry in
-  the run history and a second select in the header, for a bounded classifier answering three lines of JSON. One key
-  that two stages read keeps the "an unread
-  `models.*` key is a lie" rule true; the shipped file says so.
+- **The classifier reads `llm.models.content`, and empty means `llm.models.scoring`.** It used to read `scoring`
+  alone, on the argument that a second key would mean a second allowlist, a second history entry and a second select;
+  those costs belong to a per-run choice, which this stage does not have. The reversal and what it cost are in
+  [pipeline-scoring.md § A model per bounded question](pipeline-scoring.md#a-model-per-bounded-question).
 - **Which classifier answers is not a parameter of the run**, unlike the judge. Two judges are two scales and comparing
   them is the point; a label is a fact about a paragraph, so there is nothing to compare and nothing worth letting a
   request decide.
@@ -242,10 +265,18 @@ actually sorts adverts by.
 - **No model configured means the stage is skipped**, and the columns keep whatever the
   regexes wrote. *Rules before model* held: there is no deterministic half here that could
   decide anything for free, unlike content where a pattern can label a block.
-- **It reads `llm.models.scoring`, the third stage to do so.** A `models.fields` key would
-  be a third allowlist, a third entry in the run history and a third select in the header,
-  for a bounded question answered in three lines of JSON. Which extractor answers is not a
-  parameter of the run, for the classifier's reason: a fact about an advert is not a scale.
+- **It reads `llm.models.fields`, and empty means `llm.models.scoring`**, for the
+  classifier's reason — see [pipeline-scoring.md § A model per bounded question](pipeline-scoring.md#a-model-per-bounded-question).
+  Which extractor answers is still not a parameter of the run: a fact about an advert is not
+  a scale.
+- **`score_model` is nulled when any of the six columns moved, compared against the row.**
+  It used to be "the answer states something", which was right while every advert was read
+  once; a switched `fields` key reads every advert again, and a new model that states what
+  the old one did must not buy a re-judge for a score that cannot move. So the answer is
+  compared with `start_text`, `starts_on`, `duration`, `duration_months`, `apply_by_text` and
+  `apply_by` as the row holds them — whatever an earlier model or the patterns left. Scoring
+  reads fewer than six, so this over-nulls on a changed phrase with the same date, and never
+  under-nulls.
 - **Deliberately not `@Transactional`**, the shape `EnrichmentService`, `ContentService` and
   `ScoringService` all document.
 - **One meaning changed under an existing column.** `duration` held the regex's capture

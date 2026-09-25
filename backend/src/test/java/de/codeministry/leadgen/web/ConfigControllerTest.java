@@ -26,6 +26,7 @@ import de.codeministry.leadgen.config.SourceQueryService;
 import de.codeministry.leadgen.config.SourceTrend;
 import de.codeministry.leadgen.config.SourcesView;
 import de.codeministry.leadgen.config.YamlBlock;
+import de.codeministry.leadgen.config.model.PipelineConfig;
 import de.codeministry.leadgen.score.Judges;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
@@ -185,6 +186,60 @@ class ConfigControllerTest {
     }
 
     @Test
+    void promptsNameTheModelEachStageWouldReallyAsk() throws Exception {
+        // ISC-368: `content` has a key of its own and `fields` falls back to scoring. The screen
+        // must name what the run would use, not the judge for all three.
+        // Built before the outer stubbing starts: Mockito refuses a stub inside another.
+        ConfigSnapshot snapshot =
+                snapshotWith(new PipelineConfig.Llm.Models(null, "a-judge", null, null, null, "a-small-model", null));
+        given(config.snapshot()).willReturn(snapshot);
+        given(judges.choices()).willReturn(List.of("a-judge"));
+
+        MvcTestResult result = mvc.get().uri("/api/v1/prompts").exchange();
+        assertThat(result).hasStatusOk();
+        JsonNode body = JSON.readTree(result.getResponse().getContentAsString());
+
+        assertThat(modelOf(body, "content")).isEqualTo("a-small-model");
+        assertThat(modelOf(body, "fields")).isEqualTo("a-judge");
+        assertThat(modelOf(body, "scoring")).isEqualTo("a-judge");
+        // ISC-386: and the key that decided each, as data the screen renders as text.
+        assertThat(fieldOf(body, "content", "modelKey")).isEqualTo("llm.models.content");
+        assertThat(fieldOf(body, "content", "modelFallback")).isEqualTo("false");
+        assertThat(fieldOf(body, "fields", "modelKey")).isEqualTo("llm.models.scoring");
+        assertThat(fieldOf(body, "fields", "modelFallback")).isEqualTo("true");
+        assertThat(fieldOf(body, "scoring", "modelKey")).isEqualTo("llm.models.scoring");
+        assertThat(fieldOf(body, "scoring", "modelFallback")).isEqualTo("false");
+        assertThat(fieldOf(body, "fields", "ownKey")).isEqualTo("llm.models.fields");
+        assertThat(fieldOf(body, "content", "ownKey")).isEqualTo("llm.models.content");
+    }
+
+    private static String fieldOf(JsonNode prompts, String id, String field) {
+        for (JsonNode prompt : prompts) {
+            if (id.equals(prompt.path("id").asText())) {
+                return prompt.path(field).asText(null);
+            }
+        }
+        throw new AssertionError("no prompt " + id);
+    }
+
+    private static ConfigSnapshot snapshotWith(PipelineConfig.Llm.Models models) {
+        var snapshot = org.mockito.Mockito.mock(ConfigSnapshot.class);
+        var pipeline = org.mockito.Mockito.mock(PipelineConfig.class);
+        given(snapshot.application()).willReturn(pipeline);
+        given(pipeline.llm()).willReturn(new PipelineConfig.Llm(null, null, null, null, false, models, null));
+        return snapshot;
+    }
+
+    private static String modelOf(JsonNode prompts, String id) {
+        for (JsonNode prompt : prompts) {
+            if (id.equals(prompt.path("id").asText())) {
+                return prompt.path("model").asText(null);
+            }
+        }
+        throw new AssertionError("no prompt " + id);
+    }
+
+    @Test
     void promptsKeepsTheFieldNamesTheMcpPipelineConfigToolReadsToday() throws Exception {
         given(config.snapshot()).willReturn(shippedSnapshot());
 
@@ -193,7 +248,10 @@ class ConfigControllerTest {
         JsonNode body = JSON.readTree(result.getResponse().getContentAsString());
 
         assertThat(body).isNotEmpty();
-        assertThat(fieldNames(body.get(0))).containsExactlyInAnyOrder("id", "model", "system", "user");
+        // The four the MCP tool reads, plus ISC-386's two: additive, so a reader of the four
+        // keeps working.
+        assertThat(fieldNames(body.get(0)))
+                .containsExactlyInAnyOrder("id", "model", "modelKey", "ownKey", "modelFallback", "system", "user");
     }
 
     // --- ISC-326: the cover-letter writer's prompt is served beside the four the MCP tool

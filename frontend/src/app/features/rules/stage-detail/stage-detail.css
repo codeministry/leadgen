@@ -34,6 +34,42 @@
     overflow-wrap: anywhere;
 }
 
+/* The band's second line (ISC-386): the key that picked the model, on a line of its own under
+   the model name. Base-content like the band, never muted; the key wraps anywhere. */
+.ai-band-origin {
+    flex-basis: 100%;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.ai-band-key {
+    overflow-wrap: anywhere;
+}
+
+/* The width of a bounded stage (ISC-386): a plain line in the head, the icon dimmed the way
+   the settings file icon is. No chip, no signal, no section colour. */
+.detail-width {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.25rem 0.5rem;
+    min-width: 0;
+    color: var(--color-base-content);
+}
+
+.detail-width-icon {
+    display: inline-flex;
+    flex-shrink: 0;
+    color: var(--color-base-content);
+    opacity: 0.7;
+}
+
+.detail-width-text,
+.detail-width-key {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
 .detail-head,
 .detail-section {
     display: flex;

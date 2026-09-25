@@ -229,10 +229,17 @@
                                             @if (stage.note) {
                                                 <span class="type-small text-muted">{{ stage.note }}</span>
                                             }
-                                        } @else if (stage.position === slowestStage()) {
-                                            <lg-badge tone="warning">{{ 'dashboard.slowestStage' | transloco }}</lg-badge>
                                         } @else {
-                                            <span class="type-small text-muted">—</span>
+                                            @if (stage.position === slowestStage()) {
+                                                <lg-badge tone="warning">{{ 'dashboard.slowestStage' | transloco }}</lg-badge>
+                                            }
+                                            <!-- The width a model-bound stage ran at, parsed on the server. Width one
+                                                 is the default and says nothing, so that row keeps its dash. -->
+                                            @if (stage.width !== null && stage.width > 1) {
+                                                <span class="type-small text-muted">{{ 'dashboard.stageWidth' | transloco: {count: stage.width} }}</span>
+                                            } @else if (stage.position !== slowestStage()) {
+                                                <span class="type-small text-muted">—</span>
+                                            }
                                         }
                                     </span>
                                 </td>

@@ -133,6 +133,74 @@ class ConfigLoaderTest {
     }
 
     @Test
+    void readsBothWidthsAsOneWhenTheKeysAreAbsent() throws IOException {
+        // A configuration written before the keys existed runs exactly as it did: one advert
+        // at a time in the model-bound stages, one fetch at a time in ENRICH.
+        rewrite("pipeline.yaml", "  concurrency: ${LLM_CONCURRENCY:1}\n", "");
+        rewrite("pipeline.yaml", "    concurrency: ${FETCH_CONCURRENCY:1}\n", "");
+
+        var pipeline = ConfigFixtures.loaderFor(configDir, VALIDATOR).load().application();
+
+        assertThat(pipeline.llm().concurrency()).isEqualTo(1);
+        assertThat(pipeline.enrichment().fetch().concurrency()).isEqualTo(1);
+    }
+
+    @Test
+    void theShippedWidthsAreOne() {
+        var pipeline = ConfigFixtures.loaderFor(configDir, VALIDATOR).load().application();
+
+        assertThat(pipeline.llm().concurrency()).isEqualTo(1);
+        assertThat(pipeline.enrichment().fetch().concurrency()).isEqualTo(1);
+    }
+
+    @Test
+    void acceptsAWidthWithinTheConnectionPool() {
+        var env = Map.of("LLM_CONCURRENCY", "4", "FETCH_CONCURRENCY", "4");
+        var pipeline =
+                ConfigFixtures.loaderFor(configDir, VALIDATOR, env).load().application();
+
+        assertThat(pipeline.llm().concurrency()).isEqualTo(4);
+        assertThat(pipeline.enrichment().fetch().concurrency()).isEqualTo(4);
+    }
+
+    @Test
+    void refusesAWidthOfZero() {
+        assertThatThrownBy(() -> ConfigFixtures.loaderFor(configDir, VALIDATOR, Map.of("LLM_CONCURRENCY", "0"))
+                        .load())
+                .isInstanceOf(ConfigValidationException.class)
+                .hasMessageContaining("llm.concurrency");
+        assertThatThrownBy(() -> ConfigFixtures.loaderFor(configDir, VALIDATOR, Map.of("FETCH_CONCURRENCY", "0"))
+                        .load())
+                .isInstanceOf(ConfigValidationException.class)
+                .hasMessageContaining("enrichment.fetch.concurrency");
+    }
+
+    @Test
+    void refusesAWidthAboveTheConnectionPoolAndSaysWhichPool() {
+        // Every worker holds a connection while it writes; a width above the pool turns into
+        // workers waiting 30 s for one and failing, which reads like a broken database.
+        assertThatThrownBy(() -> ConfigFixtures.loaderFor(configDir, VALIDATOR, Map.of("LLM_CONCURRENCY", "11"))
+                        .load())
+                .isInstanceOf(ConfigValidationException.class)
+                .hasMessageContaining("llm.concurrency is 11")
+                .hasMessageContaining("connection pool of 10");
+        assertThatThrownBy(() -> ConfigFixtures.loaderFor(configDir, VALIDATOR, Map.of("FETCH_CONCURRENCY", "11"))
+                        .load())
+                .isInstanceOf(ConfigValidationException.class)
+                .hasMessageContaining("enrichment.fetch.concurrency is 11")
+                .hasMessageContaining("connection pool of 10");
+    }
+
+    @Test
+    void measuresTheWidthAgainstTheConfiguredPoolRatherThanTheDefault() {
+        var env = Map.of("LLM_CONCURRENCY", "11");
+        var pipeline =
+                ConfigFixtures.loaderFor(configDir, VALIDATOR, env, 20).load().application();
+
+        assertThat(pipeline.llm().concurrency()).isEqualTo(11);
+    }
+
+    @Test
     void acceptsBatchingOnTheProviderThatHasOne() throws IOException {
         rewrite("pipeline.yaml", "batch: ${LLM_BATCH:false}", "batch: true");
         rewrite("pipeline.yaml", "provider: ${LLM_PROVIDER:}", "provider: anthropic");

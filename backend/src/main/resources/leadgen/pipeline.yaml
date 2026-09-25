@@ -28,12 +28,27 @@ llm:
   # within itself is the simpler thing to reason about, and the saving is worth having only
   # once the nightly pass is large.
   batch: ${LLM_BATCH:false}
+  # How many adverts the model-bound stages work at once: CONTENT, FIELDS, the synchronous
+  # SCORE, and the embedding batches of DEDUPE and RETRIEVAL. `1` is the sequential run every
+  # version before this did. The model endpoint has to serve that many requests side by side;
+  # one that answers one at a time only queues the extra ones, and they then run into
+  # `timeout` above rather than finishing sooner. The budget below counts requests, not
+  # seconds, so a wider run moves the clock and never the bill. The loader refuses a width
+  # above the database connection pool, where the extra workers would wait for a connection
+  # and fail.
+  concurrency: ${LLM_CONCURRENCY:1}
   models:
-    # `scoring` is read by three stages — the scoring judge, the content classifier and
-    # the field extractor. One key rather than three, because a `models.content` or
-    # `models.fields` key would mean a second and third allowlist, a second and third
-    # entry in the run history and a second and third select in the header — for two
-    # bounded classifiers that answer in three lines of JSON.
+    # `content` labels the blocks of an advert and `fields` reads start, duration and
+    # apply-by out of it — two bounded questions answered in three lines of JSON, which a
+    # smaller model than the judge can answer. A key of their own could look as though it
+    # needed a second allowlist, a second entry in the run history and a second select in
+    # the header. Those three costs (second allowlist, history entry, select) belong to a
+    # per-run choice, which the judge has and these two do not: `content` and `fields` are
+    # settings, `content_model` and `fields_model` already record which model answered, and
+    # the select beside the run button stays the judge's alone. Empty means `scoring`, so
+    # one line to fill in is still enough. The startup log says per key which was taken.
+    content: ${LLM_MODEL_CONTENT}
+    fields: ${LLM_MODEL_FIELDS}
     #
     # `writing` drafts the cover letter when an application moves to PACKAGED. A draft
     # is checked against the profile and `cover-letter.yaml` before it is written; empty,
@@ -45,7 +60,7 @@ llm:
     # applies, which is what most installations want — one model, one line to fill in.
     # The startup log says which of the two was taken.
     extraction: ${LLM_MODEL_EXTRACTION}
-    scoring: ${LLM_MODEL_SCORING}     # the judge, the classifier, the field extractor
+    scoring: ${LLM_MODEL_SCORING}     # the judge; the default of every key above left empty
     # The alternatives offered in the select beside the run button, comma separated.
     # An allowlist, not a suggestion: the chosen model travels as a request parameter,
     # and a name passed through unchecked is an arbitrary string deciding what gets
@@ -91,15 +106,20 @@ enrichment:
   fetch:
     timeout: PT10S
     rate_limit_per_minute: 20
-    # How many ads one pass will wait for. The limiter refuses rather than waits, so
-    # without this a pass fetches one minute's worth and defers the rest — a backlog then
+    # How many ads one pass fetches, at most — a hard cap, whether the window is full or
+    # has room. It is also how long a run waits: the limiter refuses rather than waits, so
+    # without this a pass fetches one minute's worth and defers the rest, and a backlog then
     # needs one run per `rate_limit_per_minute` offers to clear. Unset means that older
-    # behaviour. The window itself is untouched: this only says how long a run waits for
-    # permits it would have been granted anyway.
+    # behaviour. Counted per ad; a retried 5xx takes a window permit per request, not a unit.
     max_per_run: 200
     user_agent: "lead-generation/0.1"
     cache_ttl: P7D
     respect_robots_txt: true
+    # How many fetches ENRICH has in flight at once; `1` is the sequential pass. Width only:
+    # `rate_limit_per_minute` and `max_per_run` still bound what leaves the machine, and this
+    # only lets several ads wait on the network inside that window instead of one after the
+    # other. Refused above the database connection pool, like `llm.concurrency`.
+    concurrency: ${FETCH_CONCURRENCY:1}
   extract:
     # A selector or a regular expression per field, never a rule in Java: every
     # portal renders an ad differently, so a new one has to be a YAML block. The

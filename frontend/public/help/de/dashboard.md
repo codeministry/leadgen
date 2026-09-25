@@ -2,6 +2,6 @@ Die Übersicht ist dein Blick am Morgen: was der letzte Lauf hereingebracht hat 
 
 <!-- screenshot: dashboard -->
 
-Einen Lauf startest du oben im Kopf mit **Quellen einlesen**; die Übersicht verfolgt ihn dann Stufe für Stufe. Im **Maschinenraum** steht, was der letzte Lauf im Einzelnen getan hat: jede Quelle, der harte Filter Stufe für Stufe und wo die Zeit geblieben ist.
+Einen Lauf startest du oben im Kopf mit **Quellen einlesen**; die Übersicht verfolgt ihn dann Stufe für Stufe. Im **Maschinenraum** steht, was der letzte Lauf im Einzelnen getan hat: jede Quelle, der harte Filter Stufe für Stufe und wo die Zeit geblieben ist. Eine Stufe, die an mehr als einer Anzeige gleichzeitig gearbeitet hat, sagt das in ihrer Statuszelle, als „N gleichzeitig“.
 
 **Tipp:** Meldet der Zustand des Laufs eine Quelle als zu kurz, hat sie mehr Angebote angekündigt, als aus ihr gelesen wurden. Schau sie dir unter Quellen an, bevor du den Zahlen des Tages traust.

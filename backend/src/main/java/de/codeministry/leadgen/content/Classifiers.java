@@ -14,6 +14,7 @@ import de.codeministry.leadgen.config.model.PipelineConfig;
 import de.codeministry.leadgen.llm.ChatModels;
 import de.codeministry.leadgen.llm.ModelChoice;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -24,17 +25,22 @@ import org.springframework.stereotype.Component;
  * <p>Per run, not once at startup, for the same reason {@code Judges} is: the configuration
  * is hot-reloadable, so a key added to `.env` should start labelling without a restart.
  *
- * <p><b>It reads {@code llm.models.scoring}, deliberately.</b> Adding a {@code models.content}
- * key would mean a second allowlist, a second entry in the run history and a second select in
- * the header — for a bounded classifier that answers with three lines of JSON and is asked the
- * same kind of question the judge is. The repository's rule is that a {@code models.*} key
- * nothing reads is a lie; the honest way to keep that true is to have one key that two stages
- * read, and to say so in the shipped file.
+ * <p><b>It reads {@code llm.models.content}, and {@code llm.models.scoring} when that is
+ * empty.</b> A bounded classifier that answers in three lines of JSON is a question a smaller
+ * model than the judge can answer. The key is a setting and not a per-run choice — no second
+ * allowlist, no history entry, no select — because {@code content_model} already records which
+ * model answered. {@link ModelChoice#content} decides, and the log names the key that won.
  */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class Classifiers {
+
+    /**
+     * The line last written to the log. Once per change rather than once per run: the
+     * configuration is hot-reloadable, so a new model is worth a line and the same one is not.
+     */
+    private final AtomicReference<String> announced = new AtomicReference<>();
 
     /**
      * Its own mapper, not the web one, for the same reason the judge has one: this reads a
@@ -54,12 +60,23 @@ public class Classifiers {
      */
     public Optional<ContentClassifier> current() {
         PipelineConfig.Llm llm = config.snapshot().application().llm();
-        // The configured default (ModelChoice) and never one the browser named. Which model
+        // Its own configured key (ModelChoice) and never one the browser named. Which model
         // judges is a parameter of the run because two judges are two scales and the
         // comparison is the point; a label is a fact about a paragraph, so there is nothing to
         // compare and nothing worth letting a request decide.
-        return ModelChoice.defaultScoring(llm)
-                .flatMap(model ->
-                        chatModels.of(llm, model).map(chatModel -> new ContentClassifier(chatModel, model, json)));
+        PipelineConfig.Llm.Models models = llm == null ? null : llm.models();
+        return ModelChoice.content(models)
+                .flatMap(model -> chatModels.of(llm, model).map(chatModel -> {
+                    // After a client exists: the line means "will be asked", not "was chosen".
+                    announce(model, ModelChoice.decidedBy("llm.models.content", models.content()));
+                    return new ContentClassifier(chatModel, model, json);
+                }));
+    }
+
+    private void announce(String model, String key) {
+        String line = "Content blocks are labelled by '" + model + "', from " + key;
+        if (!line.equals(announced.getAndSet(line))) {
+            log.info("{}", line);
+        }
     }
 }

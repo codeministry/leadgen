@@ -2,7 +2,7 @@ The header carries what is the same on every screen: the navigation, the run, th
 
 <!-- screenshot: run-confirm -->
 
-**Run ingest** starts a run by hand, after asking once, because a run reads the mailbox, calls the configured models and spends part of the call budget. While a run is going the button waits, and the stage it has reached shows beside it. Where more than one scoring model is configured, a select before the button picks the one the next run judges with; your choice is remembered in this browser.
+**Run ingest** starts a run by hand, after asking once, because a run reads the mailbox, calls the configured models and spends part of the call budget. While a run is going the button waits, and the stage it has reached shows beside it. Where more than one scoring model is configured, a select before the button picks the one the next run judges with; your choice is remembered in this browser. It picks only the judge: the models that tell an advert from its furniture and read its dates stay as configured.
 
 <!-- screenshot: settings-panel -->
 

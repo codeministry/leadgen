@@ -25,10 +25,42 @@ const RULES: RulesView = {
 };
 
 const PROMPTS: readonly PromptView[] = [
-    {id: 'scoring', model: 'judge-model', system: 'Score this offer.', user: 'OFFER {title}'},
-    {id: 'content', model: 'label-model', system: 'Label every block.', user: 'BLOCKS {blocks}'},
-    {id: 'fields', model: 'label-model', system: 'Read the dates.', user: 'ADVERT {advert}'},
-    {id: 'writing', model: 'writer-model', system: 'Write one cover letter.', user: 'STYLE RULES {rules}'},
+    {
+        id: 'scoring',
+        model: 'judge-model',
+        modelKey: 'llm.models.scoring',
+        ownKey: 'llm.models.scoring',
+        modelFallback: false,
+        system: 'Score this offer.',
+        user: 'OFFER {title}',
+    },
+    {
+        id: 'content',
+        model: 'label-model',
+        modelKey: 'llm.models.content',
+        ownKey: 'llm.models.content',
+        modelFallback: false,
+        system: 'Label every block.',
+        user: 'BLOCKS {blocks}',
+    },
+    {
+        id: 'fields',
+        model: 'label-model',
+        modelKey: 'llm.models.fields',
+        ownKey: 'llm.models.fields',
+        modelFallback: false,
+        system: 'Read the dates.',
+        user: 'ADVERT {advert}',
+    },
+    {
+        id: 'writing',
+        model: 'writer-model',
+        modelKey: 'llm.models.writing',
+        ownKey: 'llm.models.writing',
+        modelFallback: false,
+        system: 'Write one cover letter.',
+        user: 'STYLE RULES {rules}',
+    },
 ];
 
 /** Six filter stages, as the server sends them; the survivors are stated, not derived. */
@@ -61,6 +93,7 @@ function stage(
         promptId: null,
         settings: [],
         knockouts: null,
+        width: null,
         ...extra,
     };
 }

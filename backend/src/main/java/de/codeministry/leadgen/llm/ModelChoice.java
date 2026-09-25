@@ -21,6 +21,8 @@ import java.util.Optional;
  */
 public final class ModelChoice {
 
+    private static final String SCORING_KEY = "llm.models.scoring";
+
     private ModelChoice() {}
 
     /**
@@ -43,12 +45,42 @@ public final class ModelChoice {
      * neither does — which is the fresh clone, where the tool runs without a model at all.
      */
     public static Optional<String> extraction(PipelineConfig.Llm.Models models) {
+        return ownOrScoring(models, models == null ? null : models.extraction());
+    }
+
+    /**
+     * {@code content} when it names one, the first scoring choice otherwise, and none when
+     * neither does. The content classifier asks a bounded question, which a smaller model than
+     * the judge can answer; empty keeps the one-line configuration working.
+     */
+    public static Optional<String> content(PipelineConfig.Llm.Models models) {
+        return ownOrScoring(models, models == null ? null : models.content());
+    }
+
+    /**
+     * {@code fields} when it names one, the first scoring choice otherwise, and none when
+     * neither does. Same argument as {@link #content}.
+     */
+    public static Optional<String> fields(PipelineConfig.Llm.Models models) {
+        return ownOrScoring(models, models == null ? null : models.fields());
+    }
+
+    /**
+     * The key the startup log names beside the model: the stage's own when it holds a value,
+     * {@code llm.models.scoring} when the fallback answered. Decided from the configured value
+     * and not by comparing model names, which would name the wrong key the day both hold the
+     * same model.
+     */
+    public static String decidedBy(String ownKey, String configured) {
+        return configured != null && !configured.isBlank() ? ownKey : SCORING_KEY;
+    }
+
+    private static Optional<String> ownOrScoring(PipelineConfig.Llm.Models models, String configured) {
         if (models == null) {
             return Optional.empty();
         }
-        String configured = models.extraction();
         if (configured != null && !configured.isBlank()) {
-            return Optional.of(configured);
+            return Optional.of(configured.trim());
         }
         return scoring(models).stream().findFirst();
     }

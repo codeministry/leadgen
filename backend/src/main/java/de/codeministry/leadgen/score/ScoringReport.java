@@ -8,6 +8,8 @@
  */
 package de.codeministry.leadgen.score;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 /**
  * What the shortlist looks like, and what this pass had to do to get there.
  *
@@ -32,9 +34,28 @@ package de.codeministry.leadgen.score;
  *                    minutes later through the collector, which then finishes the run by packaging and
  *                    writing the digest. `scored` and `submitted` are never both non-zero: batching is on
  *                    for a run or it is not.
+ * @param width      the width the stage's bounded loop actually ran at: {@code 1} when it ran
+ *                   sequentially, was skipped, had nothing due or no model to ask. The
+ *                   {@code pipeline_stage} note and the {@code " at width N"} of the log line
+ *                   are both read off this one value. Not part of the JSON a run answers with:
+ *                   a response field is part of the API, and this one is already on the stage
+ *                   row.
  */
 public record ScoringReport(
-        int considered, int scored, int unscored, int shortlisted, int review, int unusable, int submitted) {
+        int considered,
+        int scored,
+        int unscored,
+        int shortlisted,
+        int review,
+        int unusable,
+        int submitted,
+        @JsonIgnore int width) {
+
+    /** At width 1, which is what every caller outside the stage's own run means. */
+    public ScoringReport(
+            int considered, int scored, int unscored, int shortlisted, int review, int unusable, int submitted) {
+        this(considered, scored, unscored, shortlisted, review, unusable, submitted, 1);
+    }
 
     public static ScoringReport nothing() {
         return new ScoringReport(0, 0, 0, 0, 0, 0, 0);

@@ -372,3 +372,34 @@ being read on the right, and neither column scrolls the other — with rules' ow
   paragraph twice says nothing the second time. The caption says where it came from, because the field is easy to
   mistake for something generated here.
 
+
+## The offer card, and the list's two densities
+
+The shortlist card is the surface scanned twenty at a time, and by v0.5.0 it carried up to
+thirteen elements: a 56px ring, the title, two meta lines whose first slot read "rate unknown"
+on nearly every card (the newsletter states a rate in 0.0 % of offers), up to six reasons with
+signed points, up to seven badges of one weight for four kinds of fact, an "also advertised by"
+line that repeated the "also on N" badge, and the checkbox. It was 254.8px on average over the
+demo shortlist (spec `016-offer-card-redesign`, measured headless at the list width).
+
+A card now answers four questions and leaves the rest to the detail: does it fit (ring and
+title), why this score (the strongest lift and the strongest penalty as bare labels, every
+matched interest topic by name — ISC-194.2 still holds), where the application stands (the
+status as text with an icon at the right edge of the title row, where the eye runs down the
+list), and when it came in (`ingestedAt`, relative, first on the facts line). Everything is an
+icon plus a value, never an icon alone, and there are no badges at all. Only values the advert
+carried appear: an absent rate or location leaves no slot and no placeholder.
+
+Two measured consequences. The facts line is one line and cuts at its end, because wrapping it
+was where the height went (45.8px of a 149.5px mean on the first after-run); with it on one
+line the card is 120.2px, less than half. And the status takes `--lg-primary-text`, not the
+primary: the bare primary read 4.35:1 as small text on the light theme's selected-hover wash.
+A reason label is shortened for the card only — its trailing `( … )` and `and N more` go —
+because the skill-overlap label runs to 120 characters with digits and pushed the penalty and
+the topics off the line.
+
+The density — comfortable or compact, a two-button toggle beside the sort menu — is a display
+preference kept in this browser like the theme (`DensityStore`, `lg-list-density`). It is never
+written to the URL or into a saved view: a link says what the list is, not how dense this
+reader likes it. Compact is two rows a card (53px): the title with the status, then the facts
+with the lift and a warning glyph when a flag is set.

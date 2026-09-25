@@ -7,6 +7,19 @@
             @if (prompt()?.model; as model) {
                 <span class="type-mono-data ai-band-model">{{ 'rules.ai.model' | transloco: {model} }}</span>
             }
+            <!-- ISC-386: which key picked that model, as text. In the ink: only base-content is
+                 measured on the band, so never text-muted here. -->
+            @if (modelOrigin(); as origin) {
+                <span class="ai-band-origin">
+                    <code class="type-mono-data ai-band-key">{{ origin.key }}</code>
+                    @if (origin.fallback; as fallback) {
+                        {{ 'rules.ai.origin.fallback' | transloco }}
+                        (<code class="type-mono-data ai-band-key">{{ fallback }}</code>)
+                    } @else {
+                        {{ 'rules.ai.origin.own' | transloco }}
+                    }
+                </span>
+            }
         </p>
     }
     <header class="detail-head">
@@ -19,6 +32,15 @@
         </h2>
         <!-- The server's prose, English on every screen. -->
         <p class="type-body text-muted">{{ stage.description }}</p>
+        <!-- ISC-386: how many adverts the stage works on at once, stated at every width, one
+             included, and the key that sets it. Plain text: no signal, no AI, no section colour. -->
+        @if (stage.width; as width) {
+            <p class="type-small detail-width">
+                <lg-icon class="detail-width-icon" name="layers" [size]="16" aria-hidden="true"/>
+                <!-- One span, so the sentence and its key read as one line of text, space included. -->
+                <span class="detail-width-text">{{ 'rules.width.line' | transloco: {count: width.value} }} <code class="type-mono-data detail-width-key">{{ width.key }}</code></span>
+            </p>
+        }
     </header>
 
     @if (isFilter()) {

@@ -316,26 +316,26 @@ public class IngestService {
             // cluster judged once. Enrichment comes last and only touches what survived:
             // fetching a thousand ads to then discard eight hundred would be rude to the
             // portals and slow for nothing.
-            deduplicated = stages.time("DEDUPE", dedupe::run);
+            deduplicated = stages.time("DEDUPE", dedupe::run, attached -> widthNote(dedupe.lastWidth()));
             filtered = stages.time("FILTER", filter::run);
             // After the filter, so an offer somebody restores carries a current verdict; before
             // enrichment, because that is the stage that leaves the machine and scoring is the
             // one that costs money. An offer that has aged off the working list must pay for
             // neither.
             archived = stages.time("ARCHIVE", archive::run);
-            enriched = stages.time("ENRICH", enrich::run);
+            enriched = stages.time("ENRICH", enrich::run, report -> widthNote(report.width()));
             // Between the two on purpose. After enrichment because it reads `full_text`, and
             // before scoring because scoring has to judge the advert rather than the portal's
             // furniture around it — a tag cloud of sixty technology names the client never asked
             // for otherwise counts as skill overlap.
-            segmented = stages.time("CONTENT", content::run);
+            segmented = stages.time("CONTENT", content::run, report -> widthNote(report.width()));
             // After content because it reads the advert the content stage left, not the page the
             // portal wrapped it in — a deadline found in a footer is the same class of error as a
             // tag cloud counted as skill overlap. Before scoring because what it writes feeds
             // `project_setup` and the judge's description of an offer, and because it nulls
             // `score_model` on the offers whose values actually moved.
-            extractedFields = stages.time("FIELDS", fields::run);
-            scored = stages.time("SCORE", () -> scoring.run(scoringModel));
+            extractedFields = stages.time("FIELDS", fields::run, report -> widthNote(report.width()));
+            scored = stages.time("SCORE", () -> scoring.run(scoringModel), report -> widthNote(report.width()));
             // After scoring and not after content, where its input is ready — and the order is the
             // whole argument, so it is written here rather than left to be rediscovered.
             // `LlmBudget` is one allowance shared by every stage, and the first pass after this is
@@ -345,7 +345,7 @@ public class IngestService {
             // tool exists for. Behind it, the same backfill degrades only the semantic search, and
             // the search has a deterministic fallback. Nothing between CONTENT and SCORE reads the
             // column, so waiting costs nothing.
-            indexed = stages.time("RETRIEVAL", retrieval::run);
+            indexed = stages.time("RETRIEVAL", retrieval::run, report -> widthNote(report.width()));
             // What the run owes a person: a card for everything it decided to recommend. It used
             // to build the folder here as well, for all of them, which is how the deployed
             // instance came to hold 93 packages against 2 applications ever sent. The folder now
@@ -399,6 +399,17 @@ public class IngestService {
         // a history row is worth less than the run.
         history.record(runId, report, startedAt, scoringModel, stages.timings());
         return report;
+    }
+
+    /**
+     * The note on a model-bound stage's {@code pipeline_stage} row: {@code width=N} when it ran
+     * above width 1, and nothing at width 1, so a sequential run writes the rows it always has.
+     * The width comes from the stage's own report — the one its log line named — so a stage that
+     * was skipped, had nothing due, had no model to ask or handed its work to a batch reads as
+     * 1 here exactly as it does there.
+     */
+    static String widthNote(int width) {
+        return width > 1 ? "width=" + width : null;
     }
 
     /**

@@ -3,6 +3,6 @@ and its details open on the right; the **Offer detail** chapter walks through th
 
 <!-- screenshot: shortlist-split -->
 
-Above the list sit the search, the score bands, **Filters**, the sort order, **Views** and **Archive**. What each of them does, and how they combine, is in the chapter **Filters, sorting and views**. Move through the list with **j** and **k** or the arrow keys, and archive the open offer with **a**.
+Above the list sit the search, the score bands, **Filters**, the sort order, **Views** and **Archive**. What each of them does, and how they combine, is in the chapter **Filters, sorting and views**. Each card shows the score, the title, the state of your application at the right, one line of facts starting with when the offer came in, what lifted and what held back its score, and where it was advertised. The two buttons beside the sort order switch the list between **comfortable** and **compact** (two lines a card); the choice stays in this browser. Move through the list with **j** and **k** or the arrow keys, and archive the open offer with **a**.
 
 **Tip:** the list is the working set, not everything that came in. An offer the filter removed or you archived is one click away under **Archive**, never gone.

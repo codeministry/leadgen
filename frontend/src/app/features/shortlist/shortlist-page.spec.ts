@@ -1,14 +1,18 @@
 import {provideHttpClient} from '@angular/common/http';
 import {HttpTestingController, provideHttpClientTesting} from '@angular/common/http/testing';
 import {ComponentFixture, TestBed} from '@angular/core/testing';
-import {provideRouter, Router} from '@angular/router';
-import {signal} from '@angular/core';
+import {provideRouter, Router, withComponentInputBinding} from '@angular/router';
+import {RouterTestingHarness} from '@angular/router/testing';
+import {Component, signal} from '@angular/core';
 import {Dispatcher, injectDispatch} from '@ngrx/signals/events';
 import {configEvents} from '@core/store/config.events';
 import {shortlistEvents} from '@core/store/shortlist.events';
 import {ShortlistEntry} from '@core/model/shortlist-entry';
 import {ShortlistPage as ShortlistPayload} from '@core/model/shortlist-page';
 import {SCORE_THRESHOLDS} from '@shared/shared.ports';
+import {DENSITY_STORAGE_KEY, ListDensity} from '@core/density/density.model';
+import {FILTER_VIEWS_STORAGE_KEY} from '@core/filter-views/filter-view.model';
+import {FilterViewsStore} from '@core/filter-views/filter-views.store';
 import {ShortlistPage} from './shortlist-page';
 
 function entry(id: number, title: string, value: number | null, portal: string): ShortlistEntry {
@@ -75,6 +79,7 @@ describe('ShortlistPage', () => {
     let http: HttpTestingController;
 
     beforeEach(async () => {
+        localStorage.removeItem(DENSITY_STORAGE_KEY);
         await TestBed.configureTestingModule({
             providers: [
                 provideRouter([]),
@@ -884,6 +889,79 @@ describe('ShortlistPage', () => {
         expect(navigate).not.toHaveBeenCalled();
     });
 
+  describe('the density toggle (ISC-380, ISC-382)', () => {
+    function densityButton(fixture: ComponentFixture<ShortlistPage>, density: ListDensity): HTMLButtonElement {
+      return fixture.nativeElement.querySelector(`.density-toggle [data-density="${density}"]`) as HTMLButtonElement;
+    }
+
+    function compactCards(fixture: ComponentFixture<ShortlistPage>): number {
+      return fixture.nativeElement.querySelectorAll('lg-offer-card .offer.is-compact').length;
+    }
+
+    function choose(fixture: ComponentFixture<ShortlistPage>, density: ListDensity): void {
+      densityButton(fixture, density).click();
+      fixture.detectChanges();
+    }
+
+    it('sits in the toolbar beside the sort menu, comfortable until chosen', () => {
+      const fixture = render();
+
+      const toggle = fixture.nativeElement.querySelector('.density-toggle') as HTMLElement;
+      expect(toggle.previousElementSibling?.tagName.toLowerCase()).toBe('lg-sort-menu');
+      expect(toggle.getAttribute('role')).toBe('radiogroup');
+      expect(densityButton(fixture, 'comfortable').getAttribute('aria-checked')).toBe('true');
+      expect(densityButton(fixture, 'compact').getAttribute('aria-checked')).toBe('false');
+      expect(compactCards(fixture)).toBe(0);
+    });
+
+    it('names the group and both choices from the catalog', () => {
+      // Transloco's missing handler hands the key back, so a missing catalog entry would
+      // read as `shortlist.density.compact` rather than fail.
+      const fixture = render();
+
+      const toggle = fixture.nativeElement.querySelector('.density-toggle') as HTMLElement;
+      expect(toggle.getAttribute('aria-label')).toBe('List density');
+      expect(densityButton(fixture, 'comfortable').textContent?.trim()).toBe('Comfortable');
+      expect(densityButton(fixture, 'compact').textContent?.trim()).toBe('Compact');
+      expect(densityButton(fixture, 'compact').getAttribute('title')).toBe('Compact');
+    });
+
+    it('switches every card to two lines and remembers the choice in this browser', () => {
+      const fixture = render();
+
+      choose(fixture, 'compact');
+
+      expect(compactCards(fixture)).toBe(3);
+      const mains = Array.from(fixture.nativeElement.querySelectorAll('lg-offer-card .main')) as HTMLElement[];
+      expect(mains.map((main) => main.children.length)).toEqual([2, 2, 2]);
+      expect(densityButton(fixture, 'compact').getAttribute('aria-checked')).toBe('true');
+      expect(localStorage.getItem(DENSITY_STORAGE_KEY)).toBe('compact');
+
+      choose(fixture, 'comfortable');
+      expect(compactCards(fixture)).toBe(0);
+      expect(localStorage.getItem(DENSITY_STORAGE_KEY)).toBe('comfortable');
+    });
+
+    it('opens compact when this browser chose compact before', () => {
+      localStorage.setItem(DENSITY_STORAGE_KEY, 'compact');
+
+      const fixture = render();
+
+      expect(compactCards(fixture)).toBe(3);
+      expect(densityButton(fixture, 'compact').getAttribute('aria-checked')).toBe('true');
+    });
+
+    it('selects the Shift-range in compact as it does in comfortable', () => {
+      const fixture = render();
+      choose(fixture, 'compact');
+
+      pick(fixture, 0);
+      pick(fixture, 2, true);
+
+      expect(selectionCount(fixture)).toBe(3);
+    });
+  });
+
     describe('when destroyed', () => {
         /**
          * A media query that keeps its listeners, so a spec can see which are still attached
@@ -926,3 +1004,112 @@ describe('ShortlistPage', () => {
         });
     });
 });
+
+/**
+ * ISC-381 needs a routed page: the open offer is a child route and the filters are query
+ * parameters bound to inputs, which the plain `provideRouter([])` above never has.
+ */
+describe('ShortlistPage density against the URL (ISC-381)', () => {
+  @Component({template: ''})
+  class DetailStub {}
+
+  let http: HttpTestingController;
+
+  beforeEach(async () => {
+    localStorage.removeItem(DENSITY_STORAGE_KEY);
+    localStorage.setItem(
+      FILTER_VIEWS_STORAGE_KEY,
+      JSON.stringify([{id: 'a', name: 'Remote', query: 'band=shortlist'}]),
+    );
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      writable: true,
+      value: (query: string) => ({
+        matches: true,
+        media: query,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+      }),
+    });
+    await TestBed.configureTestingModule({
+      providers: [
+        provideRouter(
+          [{path: 'shortlist', component: ShortlistPage, children: [{path: ':id', component: DetailStub}]}],
+          withComponentInputBinding(),
+        ),
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        {provide: SCORE_THRESHOLDS, useValue: signal({shortlistAt: 70, reviewAt: 50})},
+      ],
+    }).compileComponents();
+    http = TestBed.inject(HttpTestingController);
+  });
+
+  afterEach(() => {
+    localStorage.removeItem(FILTER_VIEWS_STORAGE_KEY);
+    localStorage.removeItem(DENSITY_STORAGE_KEY);
+  });
+
+  it('writes nothing to the URL or a saved view, and keeps the open offer, filters, sort and ticks', async () => {
+    const harness = await RouterTestingHarness.create();
+    const page = await harness.navigateByUrl('/shortlist/2?band=shortlist&sort=score&portal=portal-a', ShortlistPage);
+    http.expectOne((request) => request.url === '/api/v1/offers').flush({
+      entries: ENTRIES_FOR_URL,
+      nextCursor: null,
+      matched: 3,
+      unscored: 1,
+      total: 3,
+      portals: ['portal-a', 'portal-b'],
+      related: null,
+      relatedTo: null,
+    } satisfies ShortlistPayload);
+    harness.detectChanges();
+    const root = harness.routeNativeElement!;
+
+    const boxes = Array.from(root.querySelectorAll('lg-offer-card input[type="checkbox"]')) as HTMLInputElement[];
+    boxes[0]!.dispatchEvent(new MouseEvent('click', {bubbles: true, cancelable: true}));
+    boxes[1]!.dispatchEvent(new MouseEvent('click', {bubbles: true, cancelable: true}));
+    harness.detectChanges();
+
+    const router = TestBed.inject(Router);
+    const views = TestBed.inject(FilterViewsStore);
+    const urlBefore = router.url;
+    const storedViewsBefore = localStorage.getItem(FILTER_VIEWS_STORAGE_KEY);
+    const viewsBefore = structuredClone(views.views());
+    const navigate = vi.spyOn(router, 'navigate');
+    const navigateByUrl = vi.spyOn(router, 'navigateByUrl');
+
+    (root.querySelector('.density-toggle [data-density="compact"]') as HTMLButtonElement).click();
+    harness.detectChanges();
+
+    // It took effect…
+    expect(root.querySelectorAll('lg-offer-card .offer.is-compact')).toHaveLength(3);
+    // …and touched nothing a link or a saved view carries.
+    expect(navigate).not.toHaveBeenCalled();
+    expect(navigateByUrl).not.toHaveBeenCalled();
+    expect(router.url).toBe(urlBefore);
+    expect(router.url).not.toMatch(/density|compact/);
+    expect(localStorage.getItem(FILTER_VIEWS_STORAGE_KEY)).toBe(storedViewsBefore);
+    expect(views.views()).toEqual(viewsBefore);
+    const query = (page as unknown as {currentQuery: () => string}).currentQuery();
+    expect(query).not.toMatch(/density|compact/);
+    http.expectNone((request) => request.url === '/api/v1/offers');
+
+    // The open offer, the filters, the sort and the ticks are where they were.
+    const current = root.querySelector('[aria-current="true"]') as HTMLAnchorElement;
+    expect(current.getAttribute('href')).toContain('/shortlist/2');
+    const inputs = page as unknown as {band: () => string; sort: () => string};
+    expect(inputs.band()).toBe('shortlist');
+    expect(inputs.sort()).toBe('score');
+    expect(query).toContain('portal=portal-a');
+    expect((page as unknown as {store: {pickedCount: () => number}}).store.pickedCount()).toBe(2);
+    const ticked = Array.from(root.querySelectorAll('lg-offer-card input[type="checkbox"]')) as HTMLInputElement[];
+    expect(ticked.map((box) => box.checked)).toEqual([true, true, false]);
+  });
+});
+
+const ENTRIES_FOR_URL: readonly ShortlistEntry[] = [
+  entry(1, 'Senior Java Entwickler', 88, 'portal-a'),
+  entry(2, 'Java Entwickler', 64, 'portal-a'),
+  entry(3, 'Angular Entwickler', null, 'portal-a'),
+];

@@ -12,6 +12,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import de.codeministry.leadgen.config.model.CoverLetterStyle;
 import de.codeministry.leadgen.config.model.MatchingRules;
+import de.codeministry.leadgen.config.model.PipelineConfig;
 import de.codeministry.leadgen.config.model.SkillProfile;
 import de.codeministry.leadgen.fields.FieldExtractor;
 import de.codeministry.leadgen.packaging.CoverLetterWriter;
@@ -100,7 +101,7 @@ class PromptViewTest {
     void rendersWithNoRulesAndNoProfileAtAll() {
         // A fresh clone has neither, and a screen that throws there is a screen that cannot
         // tell somebody why nothing is being scored.
-        var prompts = PromptView.all(null, null, null, null, null, null);
+        var prompts = PromptView.all(null, null, null, null, null, null, null, null, null);
 
         assertThat(prompts).hasSize(5);
         assertThat(prompt(prompts, "scoring").system())
@@ -135,7 +136,7 @@ class PromptViewTest {
     @Test
     void namesTheSameModelForTheTwoStagesThatShareAKey() {
         // One key read by two stages, and the screen saying so twice is the point.
-        var prompts = PromptView.all(null, null, null, "a-model", "a-model", "a-model");
+        var prompts = PromptView.all(null, null, null, "a-model", "a-model", "a-model", "a-model", "a-model", null);
 
         assertThat(prompts).allMatch(prompt -> "a-model".equals(prompt.model()));
     }
@@ -145,11 +146,12 @@ class PromptViewTest {
         // `llm.models.extraction` is a key of its own, so the two can differ — and the
         // panel exists to say which one would answer. Two adjacent String parameters is
         // exactly the shape that gets swapped in silence, so the mapping is pinned here.
-        var prompts = PromptView.all(null, null, null, "the-judge", "the-reader", "the-writer");
+        var prompts = PromptView.all(
+                null, null, null, "the-judge", "the-reader", "the-labeller", "the-date-reader", "the-writer", null);
 
         assertThat(prompt(prompts, "extraction").model()).isEqualTo("the-reader");
-        assertThat(prompt(prompts, "content").model()).isEqualTo("the-judge");
-        assertThat(prompt(prompts, "fields").model()).isEqualTo("the-judge");
+        assertThat(prompt(prompts, "content").model()).isEqualTo("the-labeller");
+        assertThat(prompt(prompts, "fields").model()).isEqualTo("the-date-reader");
         assertThat(prompt(prompts, "scoring").model()).isEqualTo("the-judge");
         // `llm.models.writing` is a third key, and the one with no fallback to any other.
         assertThat(prompt(prompts, "writing").model()).isEqualTo("the-writer");
@@ -159,7 +161,7 @@ class PromptViewTest {
     void readsADocumentBeforeAnythingIsSegmentedOrScored() {
         // The order on screen is the order the pipeline asks them in, and the first question
         // is asked of a file nobody has read yet.
-        assertThat(PromptView.all(null, null, null, "a-model", "a-model", "a-model"))
+        assertThat(PromptView.all(null, null, null, "a-model", "a-model", "a-model", "a-model", "a-model", null))
                 .extracting(PromptView::id)
                 .containsExactly("extraction", "content", "fields", "scoring", "writing");
     }
@@ -220,9 +222,56 @@ class PromptViewTest {
         assertThat(extraction.user()).contains("Document:");
     }
 
+    // --- ISC-386: the screen names the key that decided each model, as text, and says when the
+    // scoring model answers because the stage's own key is empty.
+
+    @Test
+    void namesTheKeyThatDecidedEachModelAndWhenTheFallbackAnswered() {
+        // `content` holds a value of its own; `fields` and `extraction` are empty and fall back.
+        var models = new PipelineConfig.Llm.Models("", "the-judge", "the-writer", null, null, "the-labeller", "");
+        var prompts = PromptView.all(
+                null, null, null, "the-judge", "the-judge", "the-labeller", "the-judge", "the-writer", models);
+
+        assertThat(prompt(prompts, "content").modelKey()).isEqualTo("llm.models.content");
+        assertThat(prompt(prompts, "content").modelFallback()).isFalse();
+        assertThat(prompt(prompts, "fields").modelKey()).isEqualTo("llm.models.scoring");
+        assertThat(prompt(prompts, "fields").modelFallback()).isTrue();
+        assertThat(prompt(prompts, "extraction").modelKey()).isEqualTo("llm.models.scoring");
+        assertThat(prompt(prompts, "extraction").modelFallback()).isTrue();
+        // The judge's key is its own, so it never "falls back" to itself.
+        assertThat(prompt(prompts, "scoring").modelKey()).isEqualTo("llm.models.scoring");
+        assertThat(prompt(prompts, "scoring").modelFallback()).isFalse();
+        // The writer has no fallback at all.
+        assertThat(prompt(prompts, "writing").modelKey()).isEqualTo("llm.models.writing");
+        assertThat(prompt(prompts, "writing").modelFallback()).isFalse();
+        // The stage's own key is named by the server, whether it answered or fell back.
+        assertThat(prompts)
+                .extracting(PromptView::ownKey)
+                .containsExactly(
+                        "llm.models.extraction",
+                        "llm.models.content",
+                        "llm.models.fields",
+                        "llm.models.scoring",
+                        "llm.models.writing");
+    }
+
+    @Test
+    void namesNoKeyWhereNoModelAnswers() {
+        // A stage with no model has no key that decided one, and nothing fell back.
+        var models = new PipelineConfig.Llm.Models(null, null, null, null, null, null, null);
+        var prompts = PromptView.all(null, null, null, null, null, null, null, null, models);
+
+        assertThat(prompts).allSatisfy(prompt -> {
+            assertThat(prompt.modelKey()).isNull();
+            assertThat(prompt.ownKey()).isNull();
+            assertThat(prompt.modelFallback()).isFalse();
+        });
+    }
+
     private static PromptView prompt(String id, MatchingRules.Scoring scoring) {
         var rules = new MatchingRules(1, null, scoring, null, null);
-        return prompt(PromptView.all(rules, PROFILE, STYLE, "a-model", "a-model", "a-model"), id);
+        return prompt(
+                PromptView.all(rules, PROFILE, STYLE, "a-model", "a-model", "a-model", "a-model", "a-model", null), id);
     }
 
     private static PromptView prompt(List<PromptView> prompts, String id) {

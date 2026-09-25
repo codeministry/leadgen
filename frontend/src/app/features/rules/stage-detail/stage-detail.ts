@@ -47,6 +47,21 @@ export class StageDetail {
         return id === null ? null : (this.prompts().find((prompt) => prompt.id === id) ?? null);
     });
 
+    /**
+     * Which key picked the model, for the band's second line (ISC-386). On the fallback the
+     * stage's own key is the empty one and `modelKey` is `llm.models.scoring`, so both are
+     * named: "own is empty, so the scoring judge answers (scoring)". The first key is
+     * always the server's `ownKey`, never rebuilt here from the prompt id. Null when no model
+     * answers, and then the line is not drawn.
+     */
+    protected readonly modelOrigin = computed((): {key: string; fallback: string | null} | null => {
+        const prompt = this.prompt();
+        if (prompt?.model == null || prompt.modelKey === null || prompt.ownKey === null) {
+            return null;
+        }
+        return {key: prompt.ownKey, fallback: prompt.modelFallback ? prompt.modelKey : null};
+    });
+
     /** A model takes part here (ISC-308): the pane opens with the AI band. Same predicate as the rail. */
     protected readonly isAi = computed(() => {
         const stage = this.current();

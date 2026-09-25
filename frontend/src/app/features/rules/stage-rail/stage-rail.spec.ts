@@ -14,6 +14,7 @@ function stage(id: string, costClasses: readonly string[], sourceId: string | nu
         promptId: null,
         settings: [],
         knockouts: null,
+        width: null,
     };
 }
 
@@ -40,6 +41,7 @@ function runStage(position: number, name: string, status: 'OK' | 'FAILED' = 'OK'
         millis: 60_000,
         status,
         note: status === 'FAILED' ? 'boom' : null,
+        width: null,
     };
 }
 

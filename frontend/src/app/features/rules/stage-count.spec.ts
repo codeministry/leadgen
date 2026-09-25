@@ -12,6 +12,7 @@ function stage(id: string, sourceId: string | null = null): WorkflowStage {
         promptId: null,
         settings: [],
         knockouts: null,
+        width: null,
     };
 }
 

@@ -106,6 +106,14 @@ whose message names the stage. The request answers 500 with that sentence, and `
 logs it. Only a process that dies mid-run still leaves a `RUNNING` row, for the next start to
 close as `ABANDONED` (§ 2c).
 
+The six stages that can run wide — DEDUPE, CONTENT, FIELDS, SCORE and RETRIEVAL at
+`llm.concurrency`, ENRICH at `enrichment.fetch.concurrency` — go through the three-argument
+`StageLog.time(name, body, note)`, and the note is the width: an `OK` row of a stage that ran
+above width 1 carries `width=N` in `pipeline_stage.note`, and one that ran at width 1 carries
+nothing, exactly the row it wrote before the key existed. The note is read after the body and
+only when it returned, so a `FAILED` row keeps its failure reason. The same width closes the
+stage's log line as `at width N`. The dashboard does not show the note yet.
+
 > [!IMPORTANT]
 > The run's status is stated by the caller and never read off the timings. A source is the
 > exception to the rule above: an `IngestException` from one connector is caught per source,
@@ -121,14 +129,14 @@ request and what happens when the answer is no.
 | Stage | Owner | Selects | Writes | Returns | Model |
 |---|---|---|---|---|---|
 | `INGEST <source>` | `IngestService.ingest`, then `ingest/store/OfferStore` | the source's documents through its `SourceConnector` | `source` (upsert on name), `offer` (upsert on `source_id, external_id`), `source_run` | `SourceIngestResult` | only with the `llm` extraction strategy, one call per document |
-| `DEDUPE` | `dedupe/DeduplicationService.run` | every offer inside `deduplication.ttl_days`, by `fingerprint`; with an embedding model, `OfferEmbedder` and `SimilarOffers` | `duplicate_of_id`, `possible_duplicate_of_id`, `embedding`, `embedding_model` | the number attached | one call per 32 adverts to embed, none without `llm.models.embedding` |
+| `DEDUPE` | `dedupe/DeduplicationService.run` | every offer inside `deduplication.ttl_days`, by `fingerprint`; with an embedding model, `OfferEmbedder` and `SimilarOffers` | `duplicate_of_id`, `possible_duplicate_of_id`, `embedding`, `embedding_model` | the number attached | one call per 32 adverts to embed, none without `llm.models.embedding`; up to `llm.concurrency` batches in flight |
 | `FILTER` | `filter/FilterService.run` | every row of `offer`, no `WHERE` | `status`, `filter_stage`, `filter_reason`, on every row | `FilterReport` | no |
 | `ARCHIVE` | `archive/ArchiveService.run` | rows whose `published_on` is older than `hard_filters.freshness.max_age_days` with no live application; rows aged out that the window reaches again | `archived_at`, `archive_source = 'AGE'`, and back to null | `ArchiveReport` | no |
-| `ENRICH` | `enrich/EnrichmentService.run` | `status = 'PASSED' AND archived_at IS NULL AND enriched_at IS NULL AND url IS NOT NULL` | the nine enrichment columns; `fetched_page` through `PageCache` | `EnrichmentReport` | no model; this is the stage that leaves the machine |
-| `CONTENT` | `content/ContentService.run` | passed, not archived, `full_text` present, `content_at` null (or `content_model` null once a model exists) | `content_blocks`, `content_at`, `content_model`, `content_undecided`; nulls `score_model` when the blocks changed; `content_block_label` | `ContentReport` | one call per advert with blocks no rule or cache decided; refused, the advert stays due |
-| `FIELDS` | `fields/FieldsService.run` | the working set with `fields_at` null or `fields_model` changed | `start_text`, `starts_on`, `duration`, `duration_months`, `apply_by`, `apply_by_text`, `fields_at`, `fields_model`; nulls `score_model` when a value moved | `FieldsReport` | one call per advert; refused, the loop stops and the rest stay due; skipped entirely without a model |
-| `SCORE` | `score/ScoringService.run(model)` | the working set with no `score_batch_id` and `scored_at` null or `ruleset_version` or `score_model` changed; separately, rows whose `profile_digest` changed | through `ScoreWriter`: `score_value`, `score_band`, `score_model`, `ruleset_version`, `scored_at` and the `offer_score_reason` rows; `profile_digest`; or a `score_batch` row and `score_batch_id` | `ScoringReport` | one call per advert, or one for the whole batch; refused, the advert is written unscored with its deterministic reasons and stays due |
-| `RETRIEVAL` | `retrieval/RetrievalIndexService.run` | the working set with text and `retrieval_embedded_at` null, or the model changed, or `content_at` newer | `retrieval_embedding`, `retrieval_embedding_model`, `retrieval_embedded_at` | `RetrievalReport` | one call per 32 adverts; refused, the rest wait for the next run |
+| `ENRICH` | `enrich/EnrichmentService.run` | `status = 'PASSED' AND archived_at IS NULL AND enriched_at IS NULL AND url IS NOT NULL` | the nine enrichment columns; `fetched_page` through `PageCache` | `EnrichmentReport` | no model; this is the stage that leaves the machine, up to `enrichment.fetch.concurrency` fetches at once inside the rate window, `max_per_run` a hard cap per pass |
+| `CONTENT` | `content/ContentService.run` | passed, not archived, `full_text` present, `content_at` null (or, once a model exists, `content_model` null, or different from the model `llm.models.content` names when that key is set) | `content_blocks`, `content_at`, `content_model`, `content_undecided`; nulls `score_model` when the blocks kept as the advert changed; `content_block_label` | `ContentReport` | `llm.models.content`, else `llm.models.scoring`: one call per advert with blocks no rule or cache decided, up to `llm.concurrency` adverts at once; refused, the advert stays due |
+| `FIELDS` | `fields/FieldsService.run` | the working set with `fields_at` null or `fields_model` null, or different from the model `llm.models.fields` names when that key is set | `start_text`, `starts_on`, `duration`, `duration_months`, `apply_by`, `apply_by_text`, `fields_at`, `fields_model`; nulls `score_model` when any of the six values moved | `FieldsReport` | `llm.models.fields`, else `llm.models.scoring`: one call per advert, up to `llm.concurrency` at once; refused, no further advert is handed out and the rest stay due, the ones already asking finish; skipped entirely without a model |
+| `SCORE` | `score/ScoringService.run(model)` | the working set with no `score_batch_id` and `scored_at` null or `ruleset_version` or `score_model` changed; separately, rows whose `profile_digest` changed | through `ScoreWriter`: `score_value`, `score_band`, `score_model`, `ruleset_version`, `scored_at` and the `offer_score_reason` rows; `profile_digest`; or a `score_batch` row and `score_batch_id` | `ScoringReport` | one call per advert, up to `llm.concurrency` at once, or one for the whole batch; refused, the advert is written unscored with its deterministic reasons and stays due |
+| `RETRIEVAL` | `retrieval/RetrievalIndexService.run` | the working set with text and `retrieval_embedded_at` null, or the model changed, or `content_at` newer | `retrieval_embedding`, `retrieval_embedding_model`, `retrieval_embedded_at` | `RetrievalReport` | one call per 32 adverts, up to `llm.concurrency` batches in flight; refused, the rest wait for the next run |
 | `OPEN` | `application/ApplicationService.openShortlisted` | the working set at `score_band = 'SHORTLISTED'` with no application | `application` at `NEW`, `application_event` `opened` | `OpenReport` | no |
 | `PACKAGE` | `packaging/PackagingService.run` | the working set with `packaged_at` null and an application at `PACKAGED` | a folder under `packaging.output_dir`; `package_dir`, `packaged_at`, `language` | `PackageReport` | `ProfileEmbeddings` may ask the embedding model once to rank the reference projects; refused, the letter uses the lexical ranking alone |
 | `DIGEST` | `digest/DigestService.render(today)` | the working set by band, with its reasons | `digest-<date>.txt` or `.html` under `digest.output_dir` | the path | no |
@@ -138,6 +146,14 @@ are hot-reloadable, so a rejection is never final and a rule change moves offers
 directions on the next pass. And `PACKAGE` inside the run is only the retry: since `V27` the
 folder is built when a person moves the application to `PACKAGED` (§ 2b), and the stage
 picks up whatever that request could not build.
+
+A width changes when an advert is worked, never what is written for it. The six wide stages
+hand their per-advert (or per-batch) body to `concurrent/BoundedWork.forEach`: at width 1 that
+is the plain loop on the run's thread, above it each item runs on a virtual thread behind a
+semaphore of `width` permits, every item still writes only its own row in its own statement,
+and the report's counts fold over the returned list in list order. A body that throws stops
+the handing out; the items already running finish, and one failure reaches `StageLog.time`.
+The stages themselves still run one after the other, in the order the table lists them.
 
 Why the stages sit in this order is written beside each call in `IngestService.runOnce`, and
 the measurements behind it are in
@@ -312,14 +328,19 @@ column on the right is then empty and the stage says so in its log line.
 | `FILTER` | all six stages, in `filter/HardFilter`: `hard_filters.location` → `ABROAD` and `OUT_OF_REACH`; `hard_filters.remote` → `REMOTE_SHARE`; `hard_filters.role.rejected_title_keywords` → `ROLE_OR_STACK`; `skill-profile.yaml` `core` → `NO_CORE_SKILL`; `hard_filters.contract.rejected` → `CONTRACT_FORM` | nothing, ever | rule only |
 | `ARCHIVE` | `hard_filters.freshness.max_age_days` against `published_on` | nothing | rule only |
 | `ENRICH` | `enrichment.extract.fields.*.regex` and `full_text.css` in `pipeline.yaml`, read by `enrich/AdExtractor` (strategy `patterns`); the fetch settings under `enrichment.fetch` | nothing; the network, not a model | rule only |
-| `CONTENT` | `content.rules` in `pipeline.yaml`, a `kind` per regex → `RULE`; then the label cache → `CACHE` | `content/ContentClassifier` labels the blocks nothing decided. Model: `llm.models.scoring`; prompt in that class, rendered at `GET /api/v1/prompts` | rule first, cache second, model last; an unanswered block counts as content |
-| `FIELDS` | `fields.enabled` only; the regex values enrichment wrote stand in until the model overwrites them | `fields/FieldExtractor` reads start, duration and apply-by out of the advert. Model: `llm.models.scoring` | model or nothing: without one the stage skips and says so |
+| `CONTENT` | `content.rules` in `pipeline.yaml`, a `kind` per regex → `RULE`; then the label cache → `CACHE` | `content/ContentClassifier` labels the blocks nothing decided. Model: `llm.models.content`, else `llm.models.scoring`; prompt in that class, rendered at `GET /api/v1/prompts` | rule first, cache second, model last; an unanswered block counts as content |
+| `FIELDS` | `fields.enabled` only; the regex values enrichment wrote stand in until the model overwrites them | `fields/FieldExtractor` reads start, duration and apply-by out of the advert. Model: `llm.models.fields`, else `llm.models.scoring` | model or nothing: without one the stage skips and says so |
 | `SCORE` | `score/RuleScorer`, seven factors: `core_skill_overlap`, `rate_fit`, `seniority_fit`, `project_setup`, `industry_fit`, `interest_fit`, `disinterest_fit`, weighted by `scoring.weights`, matched against `skill-profile.yaml` `core`, `strong`, `peripheral`, `industries`, `interest_topics`, `disinterest_topics`, with `hard_filters.rate.min_hourly_eur` as the rate floor; `scoring.thresholds` turns the total into the band | the `Judge`, four factors: `role_fit`, `stack_mismatch_dominant`, `role_mismatch`, `vague_description`. Model: `llm.models.scoring`, or one of `scoring_options` when the run names it; prompt in `score/ChatClientJudge` and `score/AnthropicJudge`, rendered at `GET /api/v1/prompts` | both, always: the rule half is written even when the judge is silent, and then the offer stays `UNSCORED` rather than totalled from half the weights |
 | `RETRIEVAL` | `retrieval.enabled`, `neighbours` and `topic_floor`; the shortlist's lexical filter is the fallback | the whole de-furnitured advert as a vector, for the semantic search only. Model: `llm.models.embedding` | search, never a verdict: what a vector may not decide is in [decisions/retrieval.md](decisions/retrieval.md) |
 | `OPEN` | `scoring.thresholds.auto_shortlist`, through `score_band` | nothing | rule only |
 | `PACKAGE` | `packaging/ReferenceRanking`: a reference project whose `stack` the advert names is pitched, by `skill-profile.yaml` `reference_projects`; the CV by `cv_variants` and the advert's language; the templates under `packaging.documents`; the letter template `cover-letter.{lang}.ftl` and `cover-letter.yaml`; `packaging/CoverLetterGuard` checks a draft against the profile, the ad and the chosen projects | `packaging/ProfileEmbeddings` fills only the slots the lexical rule left empty (model: `llm.models.embedding`); `packaging/CoverLetterWriter` drafts the letter (model: `llm.models.writing`) | rule outranks similarity, the model breaks ties; the guard decides whether the drafted letter or the template is written |
 | `DIGEST` | the bands | nothing | rule only |
 | `POST /offers/{id}/ask` | nothing | `ask/AdvertAsker`, one of the five fixed `AdvertQuestion`s over the advert's text. Model: `llm.models.scoring` | model only, and the answer is backed by a quoted sentence |
+| `POST /offers/{id}/answer` | nothing | `answer/AnswerService` puts one of the three bounded questions (`blocks`, `fields`, `judge`) to a named candidate, with the stage's own prompt and reader, and returns it beside the stored answer. Model: the one the request names, if the configuration names it under any key | a measurement, never a verdict: nothing is written |
+
+"Else `llm.models.scoring`" is decided once, from the configuration, by `llm/ModelChoice`: an
+empty `content` or `fields` key means the stage asks the first scoring choice. It is not a
+cascade — a stage whose own model does not answer leaves the advert due and asks nobody else.
 
 The score is where the two halves meet on one row, and the picture of it is short:
 
@@ -498,21 +519,24 @@ layers and the snapshot work is in [decisions/configuration.md](decisions/config
 **The budget.** One counter per day in `llm_call_budget`, one upsert per request, and every
 class that is about to ask a model calls `LlmBudget.take()` first. A request is a request:
 an embedding of thirty-two adverts counts the same as one judge's prompt. Collecting a
-finished batch is the one exception and is not counted. What a refusal leaves behind, per
-caller:
+finished batch is the one exception and is not counted. The check and the increment are one
+statement, so the ceiling holds at any width: eight workers against five remaining calls make
+exactly five requests. Width moves when the day's calls are spent, never how many there are.
+What a refusal leaves behind, per caller, with the width each one runs at:
 
-| Caller | Stage or endpoint | One call per | Refused |
-|---|---|---|---|
-| `ingest/extract/LlmExtractors` | `INGEST`, strategy `llm` | document | the document yields no offers this run |
-| `dedupe/OfferEmbedder` | `DEDUPE` | 32 adverts | the rest keep no vector; only `exact_fingerprint` clusters them |
-| `content/ContentService` | `CONTENT` | advert with undecided blocks | `content_at` stays null, the advert is due again |
-| `fields/FieldsService` | `FIELDS` | advert | the loop breaks; every advert after it stays due |
-| `score/ScoringService` | `SCORE`, sync | advert | written unscored with a null `score_model`, due again |
-| `score/ScoreBatchService` | `SCORE`, batched | batch | nothing is submitted; every advert stays due |
-| `retrieval/RetrievalIndexService` | `RETRIEVAL` | 32 adverts | the rest wait for the next run; the search falls back to its lexical filter |
-| `packaging/ProfileEmbeddings` | `PACKAGE` | profile | the letter ranks reference projects lexically only |
-| `score/ScoringService.rescore` | `POST /offers/{id}/score` | advert | 409 with a sentence, because somebody pressed a button |
-| `ask/AdvertAskService` | `POST /offers/{id}/ask` | question | 409 `CannotAsk` |
+| Caller | Stage or endpoint | One call per | Width | Refused |
+|---|---|---|---|---|
+| `ingest/extract/LlmExtractors` | `INGEST`, strategy `llm` | document | 1 | the document yields no offers this run |
+| `dedupe/OfferEmbedder` | `DEDUPE` | 32 adverts | `llm.concurrency` batches | no further batch is handed out; the adverts without a vector keep none, and only `exact_fingerprint` clusters them. Above width 1 whichever batch asks first wins the last call, not the oldest |
+| `content/ContentService` | `CONTENT` | advert with undecided blocks | `llm.concurrency` adverts | `content_at` stays null, the advert is due again |
+| `fields/FieldsService` | `FIELDS` | advert | `llm.concurrency` adverts | no further advert is handed out and every one not yet started stays due; the ones already asking finish and keep their answers |
+| `score/ScoringService` | `SCORE`, sync | advert | `llm.concurrency` adverts | written unscored with a null `score_model`, due again |
+| `score/ScoreBatchService` | `SCORE`, batched | batch | 1 | nothing is submitted; every advert stays due |
+| `retrieval/RetrievalIndexService` | `RETRIEVAL` | 32 adverts | `llm.concurrency` batches | the rest wait for the next run; the search falls back to its lexical filter |
+| `packaging/ProfileEmbeddings` | `PACKAGE` | profile | 1 | the letter ranks reference projects lexically only |
+| `score/ScoringService.rescore` | `POST /offers/{id}/score` | advert | 1 | 409 with a sentence, because somebody pressed a button |
+| `ask/AdvertAskService` | `POST /offers/{id}/ask` | question | 1 | 409 `CannotAsk` |
+| `answer/AnswerService` | `POST /offers/{id}/answer` | question and candidate | 1 | 429 `BudgetSpent`, nothing asked; the refusals that need no call (400, 404, 409) come first and spend nothing |
 
 The reasoning, and why a refusal never falls back to another provider, is in
 [decisions/pipeline-scoring.md](decisions/pipeline-scoring.md) and in the root `CLAUDE.md`.
@@ -529,6 +553,7 @@ side of the house and are described in [decisions/read-side.md](decisions/read-s
 | `POST /api/v1/offers/{id}/score?model=` | `OfferController.rescore` → `ScoringService.rescore` | the five score columns and the reasons of one offer, without the staleness guard | | 409 `NotOnTheShortlist` or `NoJudge`, 400 `UnknownModel`, 404 |
 | `POST /api/v1/offers/{id}/fetch` | `OfferController.refetch` → `enrich/OfferRefetch.refetch` | the enrichment columns of one offer past its cached failure, `fetched_page` for its URL; once *this* fetch stored text (the store is a no-op if text landed meanwhile, and then nothing below runs), `content_at` and `fields_at` reset and content, fields and score run for that id alone | | 404; 409 `NotFetchable` (not a passed, unarchived offer with a URL and no text); 429 `NoPermit` (the shared window is spent, nothing written). A page that refused again, or a store that text beat to the row, is a 200 with the current entry |
 | `POST /api/v1/offers/{id}/ask?question=` | `OfferController.ask` → `ask/AdvertAskService.ask` | nothing; reads `content_blocks` and `full_text`, spends one budget call | | 409 `CannotAsk` when no model, no text, or no budget |
+| `POST /api/v1/offers/{id}/answer?question=&model=` | `OfferController.answer` → `answer/AnswerService.answer` | nothing; reads the stored answer to `blocks`, `fields` or `judge` beside the advert, spends one budget call, and returns `{question, model, answer, stored, raw, millis}`. The server half of `docs/samples/measure_routing.ts` | | 400 for an unknown question, a blank model or one the configuration does not name under `scoring`, `scoring_options`, `content`, `fields` or `extraction`; 404 `NoSuchOffer`; 409 `NothingToRead` (no fetched text), `NoStoredAnswer` (the stage never answered this question here) or `RulesetMoved` (`judge` only, judged under another ruleset); 429 `BudgetSpent`. All four are decided before the call, so none spends one. A candidate that fails in transport is a 200 with a null `answer` |
 | `PATCH /api/v1/offers/{id}` `{archived}` | `OfferController.patch` → `ArchiveService.setArchived(id, flag)` | `archived_at`, `archive_source` (`MANUAL` or `RESTORED`); on restore, the application back to `NEW` with an event | `OffersArchived` on archive | 404 |
 | `POST /api/v1/offers/archive` `{ids}` | `OfferController.archiveAll` → `setArchived(ids, true)` | the same, for up to `ArchiveRequest.MAX_IDS` (500) distinct offers | `OffersArchived` | 400 on validation |
 | `PATCH /api/v1/applications/{id}` | `ApplicationController.update` → `ApplicationService.update` | `application`; `application_event` when the status changed | `PackageRequested` on a move to `PACKAGED` | 404 `ApplicationNotFound`, 409 `TransitionRefused` |

@@ -604,14 +604,20 @@ class OfferRefetchTest {
             text = set(text, "llm", "timeout", "PT5S");
             text = set(text, "llm", "batch", "false");
             text = set(text, "models", "extraction", "''");
+            text = set(text, "models", "content", "''");
+            text = set(text, "models", "fields", "''");
             text = set(text, "models", "scoring", "test-model");
             text = set(text, "models", "scoring_options", "''");
             text = set(text, "models", "writing", "''");
             text = set(text, "models", "embedding", "''");
             text = set(text, "fetch", "timeout", "PT" + FETCH_TIMEOUT_MILLIS / 1000 + "S");
-            // Every one named, or the resolver fills the rest from whoever's `.env` this runs on.
-            if (text.contains("${LLM_")) {
-                throw new IllegalStateException("an ${LLM_*} placeholder is still open in the test pipeline.yaml");
+            text = set(text, "llm", "concurrency", "1");
+            text = set(text, "fetch", "concurrency", "1");
+            // Every one named or closed, or the resolver fills the rest from whoever's `.env`
+            // this runs on — including a key added after this fixture was written.
+            text = ConfigFixtures.closePlaceholders(text);
+            if (text.contains("${")) {
+                throw new IllegalStateException("a placeholder is still open in the test pipeline.yaml");
             }
             Files.writeString(pipeline, text, StandardCharsets.UTF_8);
             return dir;

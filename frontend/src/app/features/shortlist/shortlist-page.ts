@@ -25,10 +25,14 @@ import {applicationEvents} from '@core/store/applications.events';
 import {ApplicationsStore} from '@core/store/applications.store';
 import {ApplicationStatus} from '@core/model/application';
 import {ShortlistFilters} from '@core/model/shortlist-page';
+import {densityEvents} from '@core/density/density.events';
+import {ListDensity} from '@core/density/density.model';
+import {DensityStore} from '@core/density/density.store';
 import {SCORE_THRESHOLDS} from '@shared/shared.ports';
 import {EmptyState} from '@shared/empty-state/empty-state';
 import {LoadMore} from '@shared/load-more/load-more';
 import {Icon} from '@shared/icon/icon';
+import {LgIconName} from '@shared/icon/lucide-icons';
 import {PageHeader} from '@shared/page-header/page-header';
 import {OfferCard} from './offer-card/offer-card';
 import {FacetPanel} from './facet-panel/facet-panel';
@@ -83,6 +87,29 @@ export class ShortlistPage {
     protected readonly store = inject(ShortlistStore);
     private readonly applicationDispatch = injectDispatch(applicationEvents);
     private readonly applications = inject(ApplicationsStore);
+
+  /**
+   * How tightly the list is set. Read here and handed to every card as an input, so the card
+   * never reads a store; written only through `chosen`, never through `write` — the query
+   * string is for what to look at, and a density in it would travel with every link and
+   * every saved view (ISC-381).
+   */
+  protected readonly density = inject(DensityStore);
+  private readonly densityDispatch = injectDispatch(densityEvents);
+
+  protected readonly densityOptions: readonly {
+    readonly density: ListDensity;
+    readonly icon: LgIconName;
+    /** A catalog key, not a sentence. */
+    readonly label: string;
+  }[] = [
+    {density: 'comfortable', icon: 'rows-2', label: 'shortlist.density.comfortable'},
+    {density: 'compact', icon: 'rows-4', label: 'shortlist.density.compact'},
+  ];
+
+  protected chooseDensity(density: ListDensity): void {
+    this.densityDispatch.chosen(density);
+  }
 
     /** Where each offer's application stands, so every card shows it, picked or not. */
     protected readonly statusByOffer = computed(

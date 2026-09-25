@@ -11,6 +11,13 @@ may change in any release. See the status note in the README.
 
 ### Added
 
+- The shortlist card answers four questions at a glance and leaves the rest to the detail:
+  whether it fits, why it scored (the strongest lift and penalty as labels, every matched topic),
+  where the application stands and when the offer came in. Icons plus values, no badges and no
+  "unknown" placeholders; the card is less than half its former height. A toggle beside the sort
+  menu switches the list between comfortable and compact, remembered in this browser only
+  (spec `016-offer-card-redesign`).
+
 - The help shows the app: every chapter carries a screenshot of its screen, in the reader's
   language and theme, retaken from the demo stack by `bun run help:shots`. Four chapters are new
   (offer detail, application and cover letter, filters, sorting and views, header, keyboard and
@@ -24,6 +31,33 @@ may change in any release. See the status note in the README.
   active theme, an app shell that opens without a network through Angular's service worker
   (production builds only; nothing under `/api/` is ever cached), and a toast that offers to
   reload once a deploy has landed (spec `012-pwa-install`).
+- The model-bound stages work several adverts at once, and each bounded question can have its
+  own model. `llm.concurrency` (`LLM_CONCURRENCY`, default 1) is how many adverts CONTENT,
+  FIELDS and the synchronous SCORE work at once and how many embedding batches DEDUPE and
+  RETRIEVAL have in flight; `enrichment.fetch.concurrency` (`FETCH_CONCURRENCY`, default 1) is
+  how many fetches ENRICH has in flight, inside the same rate window. Both are refused at load
+  above the database connection pool; the budget still counts requests, so a width moves the
+  clock and never the bill, and the model endpoint has to serve that many requests at once.
+  `llm.models.content` (`LLM_MODEL_CONTENT`) and `llm.models.fields` (`LLM_MODEL_FIELDS`) name
+  the classifier's and the field extractor's model; empty means `llm.models.scoring`, so an
+  existing configuration behaves as before. A set key that changes makes its own stage due
+  again, and `score_model` is nulled only for adverts whose answer moved. A wide stage writes
+  `width=N` on its `pipeline_stage` row and its log line; the dashboard does not show the width
+  yet. `POST /api/v1/offers/{id}/answer` asks a configured candidate one of the pipeline's own
+  questions (`blocks`, `fields`, `judge`) and returns its parsed answer beside the stored one,
+  writing nothing but the budget counter; `docs/samples/measure_routing.ts` turns a sample of
+  those into agreement and latency per candidate. A PATCH under the pre-1.0 rule: every new key
+  defaults to today's behaviour (spec `015-workflow-parallel-model-routing`).
+
+### Fixed
+
+- `enrichment.fetch.max_per_run` is a hard cap: a pass reserves its unit before it waits for a
+  window permit, so it no longer overshoots its budget when the window has room (measured: a
+  budget of 25 over 30 adverts sent 30). Each retry of a 5xx takes a window permit of its own,
+  so the rate limit bounds requests rather than adverts. A behaviour change for any pass that
+  used to overshoot.
+- `ContentReport.requests` no longer counts an advert whose call the budget refused; no request
+  left, and the report counts requests.
 
 ### Changed
 

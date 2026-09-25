@@ -10,10 +10,12 @@ package de.codeministry.leadgen.web;
 
 import de.codeministry.leadgen.config.model.CoverLetterStyle;
 import de.codeministry.leadgen.config.model.MatchingRules;
+import de.codeministry.leadgen.config.model.PipelineConfig;
 import de.codeministry.leadgen.config.model.SkillProfile;
 import de.codeministry.leadgen.content.ContentClassifier;
 import de.codeministry.leadgen.fields.FieldExtractor;
 import de.codeministry.leadgen.ingest.extract.LlmExtractor;
+import de.codeministry.leadgen.llm.ModelChoice;
 import de.codeministry.leadgen.packaging.CoverLetterWriter;
 import de.codeministry.leadgen.score.ChatClientJudge;
 import java.util.List;
@@ -39,12 +41,25 @@ import java.util.List;
  *               for a filter stage or a content kind
  * @param model  which model answers, or null when none is configured. A prompt is a fact about
  *               the configuration, so it is shown either way
+ * @param modelKey      the configuration key that decided {@code model}: the stage's own, or
+ *                      {@code llm.models.scoring} when the stage's own key is empty and the judge's
+ *                      model answers. Null when no model answers. Decided by
+ *                      {@link ModelChoice#decidedBy}, the same call the startup log makes.
+ * @param ownKey        the stage's own key, {@code llm.models.<stage>}, whether it answered or fell
+ *                      back — named here so the browser never rebuilds it from {@code id}. Null
+ *                      when no model answers.
+ * @param modelFallback true only when the stage has a key of its own, that key is empty and the
+ *                      scoring model answers in its place; false for the judge itself, for the
+ *                      writer (which has no fallback) and whenever no model answers
  * @param system the system prompt as it stands right now
  * @param user   the shape of the message an offer arrives in, built by the real builder rather
  *               than written out beside it — a hand-written sample drifts from the method it
  *               describes and nothing fails when it does
  */
-public record PromptView(String id, String model, String system, String user) {
+public record PromptView(
+        String id, String model, String modelKey, String ownKey, boolean modelFallback, String system, String user) {
+
+    private static final String SCORING_KEY = "llm.models.scoring";
 
     /**
      * All five prompts, in the order the pipeline asks them: a document is read before its
@@ -52,12 +67,11 @@ public record PromptView(String id, String model, String system, String user) {
      * all of that happens before anything is scored, and the letter is written last, for an
      * offer somebody moved to {@code PACKAGED}.
      *
-     * <p>The middle three carry the same model on purpose, and the screen showing it three times
-     * is the point: {@code llm.models.scoring} is read by three stages, which is what keeps the rule
-     * that an unread {@code models.*} key is a lie true without adding a second allowlist.
-     * The first and the last may each carry a different one, because {@code llm.models.extraction}
-     * and {@code llm.models.writing} are keys of their own — and which one it would be is exactly
-     * what this panel is for.
+     * <p>Each prompt may carry a different model, because {@code llm.models.extraction},
+     * {@code content}, {@code fields} and {@code writing} are keys of their own beside
+     * {@code scoring} — and which one would answer is exactly what this panel is for. The first
+     * three fall back to scoring when empty; the caller asks {@code ModelChoice} for each rather
+     * than reproducing that fallback here.
      *
      * <p>The writer's user message is the one that renders configuration beyond the profile:
      * the style rules and example letters of {@code cover-letter.yaml}, for the profile's primary
@@ -66,8 +80,12 @@ public record PromptView(String id, String model, String system, String user) {
      * @param extractionModel which model reads a document with no frontmatter. Not the same
      *                        parameter as {@code model} and not interchangeable with it, which is
      *                        why {@code PromptViewTest} pins both.
+     * @param contentModel    which model labels an advert's blocks — {@code ModelChoice.content}.
+     * @param fieldsModel     which model reads start, duration and apply-by — {@code ModelChoice.fields}.
      * @param writingModel    which model drafts the letter — {@code llm.models.writing}, with no
      *                        fallback to either of the others, so null whenever the key is unset.
+     * @param models          the configured {@code llm.models} block, read only to name the key
+     *                        that decided each model; null reads as every own key empty.
      */
     public static List<PromptView> all(
             MatchingRules rules,
@@ -75,20 +93,59 @@ public record PromptView(String id, String model, String system, String user) {
             CoverLetterStyle style,
             String model,
             String extractionModel,
-            String writingModel) {
+            String contentModel,
+            String fieldsModel,
+            String writingModel,
+            PipelineConfig.Llm.Models models) {
         return List.of(
-                new PromptView("extraction", extractionModel, LlmExtractor.instructions(), LlmExtractor.exampleUser()),
-                new PromptView("content", model, ContentClassifier.instructions(), ContentClassifier.exampleUser()),
-                new PromptView("fields", model, FieldExtractor.instructions(), FieldExtractor.exampleUser()),
-                new PromptView(
+                fallingBack(
+                        "extraction",
+                        extractionModel,
+                        "llm.models.extraction",
+                        models == null ? null : models.extraction(),
+                        LlmExtractor.instructions(),
+                        LlmExtractor.exampleUser()),
+                fallingBack(
+                        "content",
+                        contentModel,
+                        "llm.models.content",
+                        models == null ? null : models.content(),
+                        ContentClassifier.instructions(),
+                        ContentClassifier.exampleUser()),
+                fallingBack(
+                        "fields",
+                        fieldsModel,
+                        "llm.models.fields",
+                        models == null ? null : models.fields(),
+                        FieldExtractor.instructions(),
+                        FieldExtractor.exampleUser()),
+                own(
                         "scoring",
                         model,
+                        SCORING_KEY,
                         ChatClientJudge.instructions(rules == null ? null : rules.scoring(), profile),
                         ChatClientJudge.exampleUser()),
-                new PromptView(
+                own(
                         "writing",
                         writingModel,
+                        "llm.models.writing",
                         CoverLetterWriter.instructions(),
                         CoverLetterWriter.exampleUser(profile, style)));
+    }
+
+    /** A stage whose empty own key hands the question to the scoring model. */
+    private static PromptView fallingBack(
+            String id, String model, String ownKey, String configured, String system, String user) {
+        if (model == null) {
+            return new PromptView(id, null, null, null, false, system, user);
+        }
+        String key = ModelChoice.decidedBy(ownKey, configured);
+        return new PromptView(id, model, key, ownKey, !key.equals(ownKey), system, user);
+    }
+
+    /** A stage answered by its own key or by nothing: the judge, and the writer with no fallback. */
+    private static PromptView own(String id, String model, String key, String system, String user) {
+        String decided = model == null ? null : key;
+        return new PromptView(id, model, decided, decided, false, system, user);
     }
 }

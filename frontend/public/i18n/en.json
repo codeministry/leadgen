@@ -190,6 +190,7 @@
     "colStatus": "Status",
     "stageFailed": "failed",
     "slowestStage": "slowest",
+    "stageWidth": "{count} at once",
     "runFailed": "Failed",
     "runFailedIn": "This run stopped in stage {stage}. The counts on this panel are what it had reached.",
     "heroEyebrow": "Survived the filter",
@@ -299,6 +300,11 @@
     "reload": "Reload",
     "sortReverse": "Reverse the order",
     "sortTrigger": "Sort: {order}",
+    "density": {
+      "legend": "List density",
+      "comfortable": "Comfortable",
+      "compact": "Compact"
+    },
     "sortUnstated": "Offers that state nothing come last in every order.",
     "filters": "Filters",
     "filtersActive": "{count, plural, =0 {Filters} other {Filters, # active}}",
@@ -354,15 +360,17 @@
     "countArchivedRelated": "{matched} of {total} archived · closest matches only"
   },
   "offer": {
-    "rateUnknown": "rate unknown",
-    "locationUnknown": "location unknown",
-    "durationUnknown": "duration unknown",
     "notScored": "Not scored. The pipeline ran without a language model, so this is the hard filter's answer only.",
-    "alsoOn": "{count, plural, one {also on # more} other {also on # more}}",
-    "alsoAdvertisedBy": "Also advertised by",
     "incomplete": "incomplete",
-    "remoteUnknown": "remote share unknown",
     "possibleDuplicate": "possible duplicate",
+    "glyph": {
+      "lift": "Lifted most by:",
+      "penalty": "Held back most by:",
+      "topic": "Matched topics:",
+      "otherSources": "{count, plural, one {also advertised by # other source} other {also advertised by # other sources}}",
+      "warning": "Warning:",
+      "cameIn": "Came in"
+    },
     "remoteShare": "{percent} % remote",
     "noAgency": "no agency stated",
     "startsAt": "starts {when}",
@@ -572,7 +580,14 @@
       "marker": "AI step",
       "band": "AI step: a model takes part here, by prompt or by embeddings.",
       "legend": "AI step: a model takes part, by prompt or by embeddings",
-      "model": "Model: {{model}}"
+      "model": "Model: {{model}}",
+      "origin": {
+        "own": "— this stage's own key",
+        "fallback": "is empty, so the scoring judge answers"
+      }
+    },
+    "width": {
+      "line": "Works on {count, plural, one {one advert} other {up to # adverts}} at once"
     },
     "legend": {
       "title": "Legend"

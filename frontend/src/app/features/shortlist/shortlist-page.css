@@ -103,6 +103,11 @@
   flex: none;
 }
 
+/* Two icon buttons, never shrunk: the sort trigger beside them is the item that gives way. */
+.density-toggle {
+  flex: none;
+}
+
 /* One chip per filter the panel hides. The whole chip is the button — a 12px glyph inside it
    could not be a 24×24 target and the chip trivially is — and the value truncates rather than
    wrapping, so no chip is ever two lines tall.

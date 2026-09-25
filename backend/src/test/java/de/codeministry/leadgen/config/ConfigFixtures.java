@@ -17,6 +17,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import org.springframework.mock.env.MockEnvironment;
 
 /**
  * Materializes the shipped defaults as an external configuration directory.
@@ -75,7 +76,11 @@ public final class ConfigFixtures {
         values.put("LLM_API_KEY", "");
         values.put("LLM_TIMEOUT", "");
         values.put("LLM_BATCH", "");
+        values.put("LLM_CONCURRENCY", "");
+        values.put("FETCH_CONCURRENCY", "");
         values.put("LLM_MODEL_EXTRACTION", "");
+        values.put("LLM_MODEL_CONTENT", "");
+        values.put("LLM_MODEL_FIELDS", "");
         values.put("LLM_MODEL_SCORING", "");
         values.put("LLM_MODEL_SCORING_OPTIONS", "");
         values.put("LLM_MODEL_WRITING", "");
@@ -120,6 +125,18 @@ public final class ConfigFixtures {
             }
             return NEUTRAL_PLACEHOLDERS.get(name);
         });
+    }
+
+    /**
+     * {@code yaml} with every {@code ${…}} closed exactly as {@link #neutralResolver()} closes
+     * it: the value in {@link #NEUTRAL_PLACEHOLDERS}, else the placeholder's own default, else
+     * nothing. For a test that writes a {@code pipeline.yaml} of its own and names a few keys:
+     * whatever it did not name — {@code content}, {@code fields}, both concurrencies, and the
+     * next key somebody adds — can no longer be read from the machine it runs on, and a name the
+     * set does not list throws here, as it does in a context.
+     */
+    public static String closePlaceholders(String yaml) {
+        return neutralResolver().resolve(yaml);
     }
 
     /**
@@ -187,6 +204,23 @@ public final class ConfigFixtures {
     public static ConfigLoader loaderFor(
             Path directory, jakarta.validation.Validator validator, Map<String, String> env) {
         return new ConfigLoader(
-                new ConfigProperties(directory.toString()), validator, new PlaceholderResolver(env::get));
+                new ConfigProperties(directory.toString()),
+                validator,
+                new PlaceholderResolver(env::get),
+                new MockEnvironment());
+    }
+
+    /**
+     * As above, with the database connection pool the loader holds the widths to set to
+     * {@code connectionPoolSize} rather than left at Hikari's default.
+     */
+    public static ConfigLoader loaderFor(
+            Path directory, jakarta.validation.Validator validator, Map<String, String> env, int connectionPoolSize) {
+        return new ConfigLoader(
+                new ConfigProperties(directory.toString()),
+                validator,
+                new PlaceholderResolver(env::get),
+                new MockEnvironment()
+                        .withProperty(ConfigLoader.CONNECTION_POOL_SIZE_KEY, String.valueOf(connectionPoolSize)));
     }
 }

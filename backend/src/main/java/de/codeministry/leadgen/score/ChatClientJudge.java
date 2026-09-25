@@ -108,7 +108,7 @@ public class ChatClientJudge implements Judge {
      * alternative is a judge that cannot be constructed at all, which would take the whole
      * run down over a table nobody filled in.
      */
-    static Map<String, Integer> boundsOf(MatchingRules.Scoring scoring) {
+    public static Map<String, Integer> boundsOf(MatchingRules.Scoring scoring) {
         if (scoring == null) {
             return Map.of();
         }
@@ -172,7 +172,7 @@ public class ChatClientJudge implements Judge {
         }
     }
 
-    String instructions() {
+    public String instructions() {
         return instructions(bounds, profile);
     }
 
@@ -312,7 +312,7 @@ public class ChatClientJudge implements Judge {
      * calling an offer vague while the row beside it states all four is answering with less
      * than the application knows.
      */
-    static String describe(ScoreCandidate offer) {
+    public static String describe(ScoreCandidate offer) {
         StringBuilder text = new StringBuilder();
         text.append("Title: ").append(offer.title()).append('\n');
         if (offer.tags() != null && !offer.tags().isEmpty()) {
@@ -346,8 +346,12 @@ public class ChatClientJudge implements Judge {
      * the weight table is what decides, not the answer. <b>The bounds live here and nowhere
      * else</b> — a second copy for the batch path would mean the same offer scores
      * differently depending on whether the night was busy.
+     *
+     * <p>Public, with {@link #instructions()} and {@link #describe(ScoreCandidate)}, because
+     * {@code answer.AnswerService} asks a candidate model this same question and has to read
+     * the reply inside the same bounds — a third copy would be the same mistake again.
      */
-    protected List<ScoreReason> reasonsOf(String content, long offerId) {
+    public List<ScoreReason> reasonsOf(String content, long offerId) {
         List<ScoreReason> reasons = new ArrayList<>();
         try {
             JsonNode parsed = json.readTree(Answers.objectIn(content));

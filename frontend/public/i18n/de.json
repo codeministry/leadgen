@@ -190,6 +190,7 @@
     "colStatus": "Status",
     "stageFailed": "fehlgeschlagen",
     "slowestStage": "langsamste",
+    "stageWidth": "{count} gleichzeitig",
     "runFailed": "Fehlgeschlagen",
     "runFailedIn": "Dieser Lauf brach in Stufe {stage} ab. Die Zahlen hier sind der Stand bis dahin.",
     "heroEyebrow": "Durch den Filter",
@@ -299,6 +300,11 @@
     "reload": "Neu laden",
     "sortReverse": "Reihenfolge umkehren",
     "sortTrigger": "Sortierung: {order}",
+    "density": {
+      "legend": "Listendichte",
+      "comfortable": "Komfortabel",
+      "compact": "Kompakt"
+    },
     "sortUnstated": "Angebote ohne Angabe stehen in jeder Ordnung hinten.",
     "filters": "Filter",
     "filtersActive": "{count, plural, =0 {Filter} other {Filter, # aktiv}}",
@@ -354,15 +360,17 @@
     "countArchivedRelated": "{matched} von {total} archiviert · nur die ähnlichsten"
   },
   "offer": {
-    "rateUnknown": "Satz unbekannt",
-    "locationUnknown": "Ort unbekannt",
-    "durationUnknown": "Dauer unbekannt",
     "notScored": "Nicht bewertet. Der Lauf fand ohne Sprachmodell statt, das hier ist allein die Antwort des harten Filters.",
-    "alsoOn": "{count, plural, one {auch auf # weiteren} other {auch auf # weiteren}}",
-    "alsoAdvertisedBy": "Ebenfalls ausgeschrieben von",
     "incomplete": "unvollständig",
-    "remoteUnknown": "Remote-Anteil unbekannt",
     "possibleDuplicate": "mögliche Dublette",
+    "glyph": {
+      "lift": "Am stärksten gehoben durch:",
+      "penalty": "Am stärksten gedrückt durch:",
+      "topic": "Passende Themen:",
+      "otherSources": "{count, plural, =1 {auch bei einer weiteren Quelle ausgeschrieben} one {auch bei # weiteren Quelle ausgeschrieben} other {auch bei # weiteren Quellen ausgeschrieben}}",
+      "warning": "Hinweis:",
+      "cameIn": "Eingegangen"
+    },
     "remoteShare": "{percent} % remote",
     "noAgency": "kein Vermittler genannt",
     "startsAt": "Start {when}",
@@ -572,7 +580,14 @@
       "marker": "KI-Schritt",
       "band": "KI-Schritt: hier arbeitet ein Modell mit, per Prompt oder per Embeddings.",
       "legend": "KI-Schritt: ein Modell arbeitet mit, per Prompt oder per Embeddings",
-      "model": "Modell: {{model}}"
+      "model": "Modell: {{model}}",
+      "origin": {
+        "own": "— der eigene Schlüssel dieses Schritts",
+        "fallback": "ist leer, daher antwortet der Scoring-Judge"
+      }
+    },
+    "width": {
+      "line": "Bearbeitet {count, plural, one {eine Anzeige} other {bis zu # Anzeigen}} gleichzeitig"
     },
     "legend": {
       "title": "Legende"

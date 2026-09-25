@@ -159,6 +159,32 @@
           [options]="sortOptions"
           (picked)="setFilter('sort', $event)"
         />
+
+        <!-- How tightly the list is set, beside the sort because that is where its effect is
+             seen. Not a filter: it goes through the density store to this browser's storage,
+             never into the query string, so a link and a saved view carry what to look at and
+             not how tightly. A radiogroup like the theme toggle's, in the ghost tier. -->
+        <div
+          class="join density-toggle"
+          role="radiogroup"
+          [attr.aria-label]="'shortlist.density.legend' | transloco"
+        >
+          @for (option of densityOptions; track option.density) {
+            <button
+              type="button"
+              role="radio"
+              class="btn btn-ghost btn-sm btn-square join-item"
+              [attr.data-density]="option.density"
+              [class.btn-active]="density.density() === option.density"
+              [attr.aria-checked]="density.density() === option.density"
+              [attr.title]="option.label | transloco"
+              (click)="chooseDensity(option.density)"
+            >
+              <lg-icon [name]="option.icon" [size]="16"/>
+              <span class="sr-only">{{ option.label | transloco }}</span>
+            </button>
+          }
+        </div>
       </div>
 
       <!-- One chip per filter the panel hides, and nothing for the two that are already
@@ -293,6 +319,7 @@
                             [pickable]="!archived()"
                             [picked]="store.pickedIds().has(entry.offer.id)"
                             [pickDisabled]="store.bulkArchiving()"
+                            [density]="density.density()"
                             (pickToggled)="onPick($event.id, $event.range)"
                           />
                         </li>

@@ -8,6 +8,7 @@
  */
 package de.codeministry.leadgen.enrich;
 
+import de.codeministry.leadgen.concurrent.BoundedWork;
 import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.config.model.PipelineConfig;
 import java.util.List;
@@ -119,19 +120,35 @@ public class EnrichmentService {
                 .query((rs, row) -> new Due(rs.getLong("id"), rs.getString("url")))
                 .list();
 
+        // One fetcher for the whole pass, shared by every worker: the budget of `max_per_run` is
+        // the pass's, so it has to be one counter however many fetches are in flight.
         AdFetcher fetcher = new AdFetcher(settings.fetch(), cache, window);
         AdExtractor extractor = new AdExtractor(settings.extract());
+
+        // Above width 1 the body runs on a virtual thread of its own. Nothing in it relies on
+        // the caller's thread: no transaction (see above), and each write is one statement.
+        int width = due.isEmpty() ? 1 : settings.fetch().concurrency();
+        List<Outcome> outcomes = BoundedWork.forEach(width, due, offer -> {
+            FetchResult fetched = fetcher.fetch(offer.url());
+            // Nothing is written, so the offer is still due next time. The due query is
+            // `enriched_at IS NULL`, and recording this would answer it forever. Reached
+            // only once the run's whole fetch budget is spent, not at the first refusal, and
+            // the loop goes on: every later offer is deferred the same way, and costs nothing.
+            if (fetched.deferred()) {
+                return new Outcome(fetched, false);
+            }
+            return new Outcome(
+                    fetched,
+                    settle(offer, fetched, extractor, RECORD).enrichment().complete());
+        });
+
         int enriched = 0;
         int incomplete = 0;
         int fromCache = 0;
         int requests = 0;
         int deferred = 0;
-
-        for (Due offer : due) {
-            FetchResult fetched = fetcher.fetch(offer.url());
-            // Nothing is written, so the offer is still due next time. The due query is
-            // `enriched_at IS NULL`, and recording this would answer it forever. Reached
-            // only once the run's whole fetch budget is spent, not at the first refusal.
+        for (Outcome outcome : outcomes) {
+            FetchResult fetched = outcome.fetched();
             if (fetched.deferred()) {
                 deferred++;
                 continue;
@@ -141,24 +158,24 @@ public class EnrichmentService {
             } else if (fetched.status() > 0) {
                 requests++;
             }
-
-            if (settle(offer, fetched, extractor, RECORD).enrichment().complete()) {
+            if (outcome.complete()) {
                 enriched++;
             } else {
                 incomplete++;
             }
         }
 
-        var report = new EnrichmentReport(due.size(), enriched, incomplete, fromCache, requests, deferred);
+        var report = new EnrichmentReport(due.size(), enriched, incomplete, fromCache, requests, deferred, width);
         log.info(
                 "Enrichment: {} due, {} enriched, {} incomplete, {} from cache, {} requests,"
-                        + " {} beyond this run's fetch budget and due again",
+                        + " {} beyond this run's fetch budget and due again{}",
                 report.considered(),
                 report.enriched(),
                 report.incomplete(),
                 report.fromCache(),
                 report.requests(),
-                report.deferred());
+                report.deferred(),
+                BoundedWork.atWidth(report.width()));
         return report;
     }
 
@@ -271,6 +288,15 @@ public class EnrichmentService {
     }
 
     private record Due(long id, String url) {}
+
+    /**
+     * What one offer of a pass came to, returned by its worker so the report is folded over the
+     * list afterwards rather than counted from several threads.
+     *
+     * @param complete whether what was recorded is complete; false for a deferral, which records
+     *     nothing
+     */
+    private record Outcome(FetchResult fetched, boolean complete) {}
 
     /**
      * What one fetch settled on, and whether this call was the one that wrote it down.

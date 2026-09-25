@@ -89,6 +89,9 @@ public class DeduplicationService {
     private final SimilarOffers similar;
     private final JdbcClient jdbc;
 
+    /** See {@link #lastWidth()}; runs never overlap, but the reader need not be the writer's thread. */
+    private volatile int lastWidth = 1;
+
     /**
      * Clusters every offer inside the configured window and returns how many are attached
      * to a primary afterwards.
@@ -105,6 +108,7 @@ public class DeduplicationService {
      * rollback — which is what the exact pass already relied on.
      */
     public int run() {
+        lastWidth = 1;
         Deduplication rules = config.snapshot().rules().deduplication();
         warnAboutUnsupported(rules.strategies());
 
@@ -143,6 +147,7 @@ public class DeduplicationService {
             return 0;
         }
         embedder.embed(rules.ttlDays());
+        lastWidth = embedder.lastWidth();
 
         int moved = 0;
         if (mergeAt != null) {
@@ -184,6 +189,15 @@ public class DeduplicationService {
                 })
                 .findFirst()
                 .orElse(null);
+    }
+
+    /**
+     * The width the last {@link #run} embedded at — the one the embedder's log line named, and
+     * {@code 1} when no similarity strategy or no embedding model made it ask anything. What
+     * the DEDUPE row's note is read from.
+     */
+    public int lastWidth() {
+        return lastWidth;
     }
 
     private int attached(int ttlDays) {

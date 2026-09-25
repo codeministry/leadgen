@@ -188,8 +188,9 @@ about.
   `llm.models.embedding` names a model of at least 2000 dimensions. Without one the pass is
   the exact fingerprint and nothing else, which is what a fresh clone does.
 - **`llm.models.writing` is the one key still read by nothing.** The cover letter is a
-  Freemarker template. `scoring` is read by the judge, the classifier and the field extractor,
-  `extraction` by the document fallback, and `embedding` by the two similarity strategies.
+  Freemarker template. `scoring` is read by the judge, `content` by the classifier and `fields`
+  by the field extractor (both empty means `scoring`), `extraction` by the document fallback, and
+  `embedding` by the two similarity strategies.
 - **Content segmentation caches a decision per block, so a mixed block is its weak spot.** A block that is nine parts
   portal furniture and one part per-offer text never repeats, so it never gets a cache hit and costs one model call per
   advert. Its counters are logged and written per offer but are not yet in `pipeline_run`, so the dashboard does not

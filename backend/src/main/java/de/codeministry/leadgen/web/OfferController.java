@@ -8,6 +8,9 @@
  */
 package de.codeministry.leadgen.web;
 
+import de.codeministry.leadgen.answer.AnswerQuestion;
+import de.codeministry.leadgen.answer.AnswerService;
+import de.codeministry.leadgen.answer.ModelAnswer;
 import de.codeministry.leadgen.archive.ArchiveRequest;
 import de.codeministry.leadgen.archive.ArchiveResult;
 import de.codeministry.leadgen.archive.ArchiveService;
@@ -43,6 +46,7 @@ class OfferController {
     private final ScoringService scoring;
     private final ArchiveService archive;
     private final AdvertAskService asks;
+    private final AnswerService answers;
     private final OfferRefetch refetch;
 
     /**
@@ -117,6 +121,19 @@ class OfferController {
                 .orElseThrow(() -> new CannotAsk(
                         "this advert cannot be asked right now: no model is configured, it has no fetched text,"
                                 + " or today's llm.budget is spent"));
+    }
+
+    /**
+     * What one candidate model answers to one of the pipeline's own bounded questions about
+     * this advert, beside the answer already stored — the server half of
+     * {@code docs/samples/measure_routing.ts}.
+     *
+     * <p>A POST for the reason `ask` is one: it spends a model call. It writes nothing. The
+     * model is required and allowlisted, so an unconfigured name is a 400 like the rescore's.
+     */
+    @PostMapping("/{id}/answer")
+    ModelAnswer answer(@PathVariable long id, @RequestParam String question, @RequestParam String model) {
+        return answers.answer(id, AnswerQuestion.of(question), model);
     }
 
     /**
@@ -295,9 +312,23 @@ class OfferController {
         }
     }
 
-    @ExceptionHandler(NotFound.class)
+    /** A candidate asked about an advert with no text, or with no stored answer to compare. */
+    @ExceptionHandler({AnswerService.NothingToRead.class, AnswerService.NoStoredAnswer.class})
+    @ResponseStatus(HttpStatus.CONFLICT)
+    String cannotAnswer(RuntimeException e) {
+        return e.getMessage();
+    }
+
+    /** The day's budget is spent; nothing was asked, and the same call works tomorrow. */
+    @ExceptionHandler(AnswerService.BudgetSpent.class)
+    @ResponseStatus(HttpStatus.TOO_MANY_REQUESTS)
+    String budgetSpent(AnswerService.BudgetSpent e) {
+        return e.getMessage();
+    }
+
+    @ExceptionHandler({NotFound.class, AnswerService.NoSuchOffer.class})
     @ResponseStatus(HttpStatus.NOT_FOUND)
-    String notFound(NotFound e) {
+    String notFound(RuntimeException e) {
         return e.getMessage();
     }
 

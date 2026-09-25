@@ -102,7 +102,7 @@ public class LlmExtractors implements ExtractionFallback {
     private String model(PipelineConfig.Llm.Models models) {
         String chosen = modelFor(models);
         if (chosen != null) {
-            announce(chosen.equals(models.extraction()) ? "llm.models.extraction" : "llm.models.scoring", chosen);
+            announce(ModelChoice.decidedBy("llm.models.extraction", models.extraction()), chosen);
         }
         return chosen;
     }
