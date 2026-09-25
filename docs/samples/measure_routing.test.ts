@@ -253,6 +253,16 @@ describe("measure_routing", () => {
     expect(render(report)).toContain("unreadable");
   });
 
+  test("announces every call before it goes out, numbered against the whole run", async () => {
+    server = stub();
+    const lines: string[] = [];
+    await run({ ...options(server.url, IDS, ["strong"]), questions: ["blocks", "fields"], progress: (l) => lines.push(l) });
+
+    expect(lines).toHaveLength(40);
+    expect(lines[0]).toBe("[1/40] blocks strong offer 101");
+    expect(lines[39]).toBe("[40/40] fields strong offer 120");
+  });
+
   test("a reply that could not be read is counted as unreadable, apart from no answer", async () => {
     server = stub({ unreadable: { id: 104, question: "fields" } });
     const report = await run(options(server.url));

@@ -59,7 +59,8 @@
 // tables, then the sentence, and exits 1. A refusal before the first call prints no table.
 //
 // No model name is written into this script: candidates are whatever the operator passes.
-// It writes no file.
+// It writes no file. Each call is announced on stderr as `[n/total] question model offer id`,
+// so a run of several hours can be followed while the tables wait for the end.
 //
 // Reads LEADGEN_API (default http://localhost:8080) and, when the API asks for one,
 // LEADGEN_TOKEN as a bearer token.
@@ -92,6 +93,8 @@ export type Options = {
   models: string[];
   questions: Question[];
   floor: number;
+  /** One line per call, before it goes out. The CLI writes it to stderr, so a long run is not silent. */
+  progress?: (line: string) => void;
 };
 
 export type Row = {
@@ -337,6 +340,7 @@ export async function run(options: Options): Promise<Report> {
     stoppedOnError: false,
   };
   let calls = 0;
+  const total = options.questions.length * options.models.length * ids.length;
   for (const question of options.questions) {
     const stored = new Map<number, unknown>();
     for (const model of options.models) {
@@ -345,6 +349,7 @@ export async function run(options: Options): Promise<Report> {
       try {
         for (const id of ids) {
           calls += 1;
+          options.progress?.(`[${calls}/${total}] ${question} ${model} offer ${id}`);
           const answered = await ask(options, id, question, model);
           if (answered) {
             answers.push(answered);
@@ -456,7 +461,10 @@ function parseArgs(argv: string[]): Options {
 
 if (import.meta.main) {
   try {
-    const report = await run(parseArgs(process.argv.slice(2)));
+    const report = await run({
+      ...parseArgs(process.argv.slice(2)),
+      progress: (line) => process.stderr.write(`${line}\n`),
+    });
     console.log(render(report));
     if (report.stoppedOnError) {
       console.error(report.stopReason);
