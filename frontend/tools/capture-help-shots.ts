@@ -1,8 +1,8 @@
 /**
  * Retakes every help screenshot from the demo stack, in both languages and both themes.
  *
- *   bun run help:shots                       # against http://127.0.0.1:14200
- *   HELP_SHOTS_URL=http://… bun run help:shots
+ *   bun run help:shots        # German shots from :14200, English shots from :14201
+ *   HELP_SHOTS_URL_DE=http://… HELP_SHOTS_URL_EN=http://… bun run help:shots
  *
  * Writes `public/help/shots/<lang>/<id>-<light|dark>.webp` for every entry of `SHOTS` below,
  * and nothing else: a file in that folder without an entry fails `help-shots.spec.ts`.
@@ -15,7 +15,17 @@
  *   POSTGRES_PORT=15433 SERVER_PORT=18080 WEB_PORT=14200 \
  *     docker compose -p leadgen-demo -f docker-compose.yml -f docker-compose.demo.yml up --build -d
  *
- * and press Run ingest once with a local model configured, so the offers carry scores.
+ * and the English one beside it, whose adverts are the same corpus in English
+ * (`bun demo/generate-corpus.ts --lang en --until 2026-09-02` first):
+ *
+ *   POSTGRES_PORT=15434 SERVER_PORT=18081 WEB_PORT=14201 docker compose -p leadgen-demo-en \
+ *     -f docker-compose.yml -f docker-compose.demo.yml -f docker-compose.demo-en.yml up --build -d
+ *
+ * An English help showing German adverts under English labels reads as a broken translation,
+ * which is why each language is taken from its own instance. Press Run ingest once on each with
+ * a local model configured, so the offers carry scores, and record a few applications (at
+ * least one sent, with its package) so the pipeline and the application shots have something
+ * to show.
  *
  * Every shot is a fixed rectangle, not an element's box: German runs longer than English, and a
  * box that grows with the text would give the four variants four sizes, while the drawer
@@ -33,9 +43,14 @@ import {join, resolve} from 'node:path';
 import {chromium, type Locator, type Page} from 'playwright';
 import {HELP_SHOTS} from '../src/app/core/help/help-chapters';
 
-const BASE = process.env['HELP_SHOTS_URL'] ?? 'http://127.0.0.1:14200';
-const OUT = resolve(import.meta.dir, '../public/help/shots');
 const LANGUAGES = ['en', 'de'] as const;
+
+/** One demo instance per language, because the adverts are content in that language. */
+const BASES: Record<(typeof LANGUAGES)[number], string> = {
+    de: process.env['HELP_SHOTS_URL_DE'] ?? 'http://127.0.0.1:14200',
+    en: process.env['HELP_SHOTS_URL_EN'] ?? 'http://127.0.0.1:14201',
+};
+const OUT = resolve(import.meta.dir, '../public/help/shots');
 const THEMES = ['light', 'dark'] as const;
 
 /** What the demo's `sources.yaml` declares, and all it declares. */
@@ -56,8 +71,8 @@ interface Rect {
 }
 
 interface Shot {
-    /** The path to open, before the language and theme are applied. */
-    readonly route: (page: Page) => Promise<string>;
+    /** The path to open on the instance at `base`, before the language and theme are applied. */
+    readonly route: (base: string, page: Page) => Promise<string>;
     /** What has to be on screen before the picture is taken, beyond the route. */
     readonly prepare?: (page: Page) => Promise<void>;
     /**
@@ -100,11 +115,19 @@ async function open(page: Page, trigger: string, opened: string): Promise<void> 
     await page.locator(opened).first().waitFor();
 }
 
-/** The best-scored offer on the working list, so the detail shows a full score. */
-async function topOffer(page: Page): Promise<number> {
-    const response = await page.request.get(`${BASE}/api/v1/offers?limit=1`);
-    const body = (await response.json()) as {entries: {offer: {id: number}}[]};
-    return body.entries[0]!.offer.id;
+/**
+ * The offer the detail shots show: the one whose application was sent last, so the detail
+ * carries a score, a letter as it went out and a package. The English instance's applications
+ * mirror the German ones, so both languages show the same offer.
+ */
+async function featuredOffer(base: string, page: Page): Promise<number> {
+    const response = await page.request.get(`${base}/api/v1/applications`);
+    const applications = (await response.json()) as {offerId: number; status: string; sentOn: string | null}[];
+    const sent = applications
+        .filter((application) => application.status === 'SENT' && application.sentOn !== null)
+        .sort((a, b) => b.sentOn!.localeCompare(a.sentOn!) || a.offerId - b.offerId);
+    if (sent.length === 0) throw new Error(`${base} has no sent application to show; record one first.`);
+    return sent[0]!.offerId;
 }
 
 const CONTENT: Rect = {x: 0, y: BELOW_HEADER, width: 1280, height: 720};
@@ -126,7 +149,7 @@ const SHOTS: Record<string, Shot> = {
         rect: CONTENT,
     },
     'shortlist-split': {
-        route: async (page) => `/shortlist/${await topOffer(page)}`,
+        route: async (base, page) => `/shortlist/${await featuredOffer(base, page)}`,
         prepare: async (page) => {
             await page.locator('lg-offer-detail h2').first().waitFor();
         },
@@ -152,24 +175,24 @@ const SHOTS: Record<string, Shot> = {
         rect: CONTENT,
     },
     'offer-why-scored': {
-        route: async (page) => `/shortlist/${await topOffer(page)}`,
+        route: async (base, page) => `/shortlist/${await featuredOffer(base, page)}`,
         anchor: (page) => page.locator('lg-offer-detail section.lg-panel:has(.reason)'),
         // The line beside the score ring names the ruleset and the model that judged.
         hide: ['lg-offer-detail .score-row > p'],
         rect: sized(660, 560),
     },
     'offer-ask': {
-        route: async (page) => `/shortlist/${await topOffer(page)}`,
+        route: async (base, page) => `/shortlist/${await featuredOffer(base, page)}`,
         anchor: (page) => page.locator('lg-offer-detail section.lg-panel:has(lg-ask-panel)'),
         rect: sized(660, 380),
     },
     'application-panel': {
-        route: async (page) => `/shortlist/${await topOffer(page)}`,
+        route: async (base, page) => `/shortlist/${await featuredOffer(base, page)}`,
         anchor: (page) => page.locator('lg-offer-detail section.lg-panel:has(lg-application-panel)'),
         rect: sized(660, 520),
     },
     'cover-letter': {
-        route: async (page) => `/shortlist/${await topOffer(page)}`,
+        route: async (base, page) => `/shortlist/${await featuredOffer(base, page)}`,
         anchor: (page) => page.locator('lg-offer-detail section.lg-panel:has(lg-cover-letter)'),
         rect: sized(660, 520),
     },
@@ -209,15 +232,15 @@ function outputSize(rect: Rect): {width: number; height: number} {
     return {width, height: Math.round((rect.height * width) / rect.width)};
 }
 
-async function refuseAnythingButTheDemo(page: Page): Promise<void> {
-    const response = await page.request.get(`${BASE}/api/v1/sources`);
+async function refuseAnythingButTheDemo(base: string, page: Page): Promise<void> {
+    const response = await page.request.get(`${base}/api/v1/sources`);
     if (!response.ok()) {
-        throw new Error(`${BASE} did not answer /api/v1/sources (${response.status()}); is the demo stack up?`);
+        throw new Error(`${base} did not answer /api/v1/sources (${response.status()}); is the demo stack up?`);
     }
     const body = (await response.json()) as {sources: {id: string}[]};
     const ids = body.sources.map((source) => source.id).sort();
     if (JSON.stringify(ids) !== JSON.stringify([...DEMO_SOURCES].sort())) {
-        throw new Error(`${BASE} reads ${ids.join(', ')}, not the demo's sources. Refusing to take screenshots of it.`);
+        throw new Error(`${base} reads ${ids.join(', ')}, not the demo's sources. Refusing to take screenshots of it.`);
     }
 }
 
@@ -226,8 +249,8 @@ async function refuseAnythingButTheDemo(page: Page): Promise<void> {
  * the header, the rules screen's AI steps and an offer's score line all print them; a shot that
  * frames one of them publishes it.
  */
-async function modelNames(page: Page): Promise<string[]> {
-    const response = await page.request.get(`${BASE}/api/v1/scoring-models`);
+async function modelNames(base: string, page: Page): Promise<string[]> {
+    const response = await page.request.get(`${base}/api/v1/scoring-models`);
     const body = (await response.json()) as {available: string[]};
     return body.available;
 }
@@ -282,12 +305,17 @@ async function main(): Promise<void> {
     const browser = await chromium.launch();
     const scratch = mkdtempSync(join(tmpdir(), 'help-shots-'));
     try {
+        // Both instances are checked before a single file is replaced.
+        const models: string[] = [];
         const probe = await browser.newPage();
-        await refuseAnythingButTheDemo(probe);
-        const models = await modelNames(probe);
+        for (const language of LANGUAGES) {
+            await refuseAnythingButTheDemo(BASES[language], probe);
+            models.push(...(await modelNames(BASES[language], probe)));
+        }
         await probe.close();
 
         for (const language of LANGUAGES) {
+            const base = BASES[language];
             const dir = resolve(OUT, language);
             rmSync(dir, {recursive: true, force: true});
             mkdirSync(dir, {recursive: true});
@@ -306,7 +334,7 @@ async function main(): Promise<void> {
                 );
                 const page = await context.newPage();
                 for (const [id, shot] of Object.entries(SHOTS)) {
-                    await page.goto(`${BASE}${await shot.route(page)}`, {waitUntil: 'networkidle'});
+                    await page.goto(`${base}${await shot.route(base, page)}`, {waitUntil: 'networkidle'});
                     await shot.prepare?.(page);
                     for (const selector of shot.hide ?? []) {
                         await page.addStyleTag({content: `${selector} { visibility: hidden !important; }`});

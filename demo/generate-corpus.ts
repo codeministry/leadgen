@@ -24,6 +24,14 @@
  *
  *     bun demo/generate-corpus.ts            # dated so the newest mail is today
  *     bun demo/generate-corpus.ts --seed 7   # a different draw, still reproducible
+ *     bun demo/generate-corpus.ts --lang en  # the same corpus with the adverts in English
+ *     bun demo/generate-corpus.ts --until 2026-09-02   # the newest mail on that day
+ *
+ * `--lang en` writes to `corpus-en/` and draws exactly as the German corpus does, so the same
+ * seed gives the same offers, only worded in English; the newsletter around them stays the
+ * German portal mail it imitates. It exists for the English help screenshots, which should
+ * not show German adverts under English labels. Place names stay as the portals write them,
+ * because the demo's reach and abroad rules match those spellings.
  *
  * The output goes through the same `html-blocks` extraction the shipped
  * `sample-newsletter` source declares, so the demo exercises the real path rather than
@@ -51,7 +59,13 @@ function mulberry32(seed: number): () => number {
 const args = process.argv.slice(2);
 const seed = Number(valueOf('--seed') ?? 20260902);
 const mailCount = Number(valueOf('--mails') ?? 5);
-const outputDir = valueOf('--out') ?? join(import.meta.dir, 'corpus');
+const lang = valueOf('--lang') ?? 'de';
+/** The day of the newest mail. Today unless stated, so a second language can match the first. */
+const until = valueOf('--until');
+if (lang !== 'de' && lang !== 'en') {
+  throw new Error(`--lang is de or en, not ${lang}`);
+}
+const outputDir = valueOf('--out') ?? join(import.meta.dir, lang === 'en' ? 'corpus-en' : 'corpus');
 const random = mulberry32(seed);
 
 function valueOf(flag: string): string | undefined {
@@ -304,6 +318,173 @@ const SHAPES: readonly Shape[] = [
 ];
 
 /**
+ * The English wording of `SHAPES`, entry by entry and list by list of the same length, so an
+ * English run draws the same indices as a German one and the two corpora are one corpus.
+ */
+const SHAPES_EN: readonly Omit<Shape, 'group'>[] = [
+  {
+    tails: ['Spring Boot / Kafka', 'REST API', 'Microservices', 'Spring Cloud', 'PostgreSQL'],
+    titles: [
+      'Senior Java Developer',
+      'Java Backend Developer',
+      'Software Architect Java',
+      'Senior Backend Engineer Java',
+      'Java Developer Spring Boot',
+    ],
+    intro: [
+      'We are looking for support in the backend team to extend an existing commerce platform.',
+      'Our client is breaking a monolith that grew over the years into services, step by step.',
+      'A new product is being built, and with it an API landscape from scratch.',
+    ],
+    tasks: [
+      'Designing and building REST interfaces',
+      'Moving existing modules into services of their own',
+      'Code reviews and alignment with the product teams',
+      'Building and maintaining the automated test coverage',
+    ],
+    skills: [
+      'Java 21, Spring Boot, Spring Data',
+      'PostgreSQL and clean data modelling',
+      'Experience with Kafka or a comparable broker',
+      'Docker, Gradle, Git',
+    ],
+  },
+  {
+    tails: ['Angular 18', 'TypeScript / RxJS', 'Design system', 'PWA'],
+    titles: [
+      'Angular Developer',
+      'Frontend Developer Angular',
+      'Senior Frontend Engineer',
+      'Fullstack Developer Angular / Java',
+    ],
+    intro: [
+      'The interface of an internal administration portal is being rebuilt from the ground up.',
+      'An existing Angular application is moving to the current major version.',
+      'The product team needs support with a data-heavy reporting interface.',
+    ],
+    tasks: [
+      'Building new screens on the existing design system',
+      'Migrating to standalone components and signals',
+      'Agreeing the interfaces with the backend team',
+      'Accessibility and test coverage in the frontend',
+    ],
+    skills: [
+      'Angular 17 or later, TypeScript',
+      'RxJS and an understanding of state management',
+      'CSS without a framework dependency',
+      'Experience with Vitest or Jest',
+    ],
+  },
+  {
+    tails: ['Java / Angular', 'Fullstack', 'Spring Boot / Angular', 'Java / Angular / Kubernetes'],
+    titles: [
+      'Senior Fullstack Developer Java and Angular',
+      'Fullstack Engineer Java / Angular',
+      'Senior Software Developer Fullstack',
+      'Fullstack Developer Spring Boot and Angular',
+    ],
+    intro: [
+      'A legacy system is being modernised from the backend to the interface; we need someone to own both ends.',
+      'A team is being set up for a new product, owning service and interface together.',
+      'The platform gains several modules, each from the REST endpoint to the finished screen.',
+    ],
+    tasks: [
+      'Building new modules from the database to the interface',
+      'Designing and building the REST interfaces',
+      'Sharing responsibility for running the services in the cluster',
+      'Code reviews across both layers',
+    ],
+    skills: [
+      'Java 21 and Spring Boot, confident with Spring Data',
+      'Angular 17 or later and TypeScript',
+      'Kubernetes and Helm, at least from the application side',
+      'PostgreSQL, Docker, Kafka a plus',
+    ],
+  },
+  {
+    tails: ['Kubernetes / Helm', 'GitOps', 'Observability', 'Cluster migration'],
+    titles: ['DevOps Engineer Kubernetes', 'Platform Engineer', 'Cloud Engineer Kubernetes', 'Site Reliability Engineer'],
+    intro: [
+      'Operations for a growing service platform are to be put on a sound footing.',
+      'We need support for a migration from virtual machines to Kubernetes.',
+      'An existing cluster landscape is to gain observability and GitOps.',
+    ],
+    tasks: [
+      'Building and maintaining Helm charts',
+      'Introducing a GitOps workflow',
+      'Monitoring, alerting and logging',
+      'Hardening the clusters and managing access',
+    ],
+    skills: [
+      'Kubernetes in production',
+      'Helm, ArgoCD or Flux',
+      'Terraform or a comparable tool',
+      'Basic Java, enough to run applications sensibly',
+    ],
+  },
+  {
+    tails: ['Kafka', 'Event Sourcing', 'Integration layer', 'Spring Boot'],
+    titles: [
+      'Senior Developer Microservices',
+      'Backend Developer Event Streaming',
+      'Software Developer Kafka',
+      'Integration Architect',
+    ],
+    intro: [
+      'A retailer is moving its order processing to event-driven processing.',
+      'An event-based integration layer is being built between two existing systems.',
+    ],
+    tasks: [
+      'Cutting and building new services',
+      'Designing the event formats and their versioning',
+      'Measuring and tuning the load behaviour',
+    ],
+    skills: ['Java and Spring Boot', 'Kafka, Schema Registry', 'PostgreSQL', 'Kubernetes from the application side'],
+  },
+  {
+    tails: ['S/4HANA', 'FI/CO', 'ABAP OO'],
+    titles: ['SAP ABAP Developer', 'SAP Consultant FI/CO', 'SAP S/4HANA Developer'],
+    intro: ['The development team is growing for an S/4HANA migration.'],
+    tasks: ['Building customer-specific extensions', 'Adapting existing reports'],
+    skills: ['ABAP OO', 'Experience with S/4HANA'],
+  },
+  {
+    tails: ['Sales Cloud', 'Apex', 'Lightning'],
+    titles: ['Salesforce Developer', 'Salesforce Consultant', 'CRM Consultant Salesforce'],
+    intro: ['An existing Salesforce instance is being extended for the sales processes.'],
+    tasks: ['Building flows and Apex classes', 'Alignment with the business departments'],
+    skills: ['Apex, Lightning Web Components', 'Experience with Sales Cloud'],
+  },
+  {
+    tails: ['Embedded Linux', 'RTOS', 'Firmware'],
+    titles: ['Embedded Software Developer C', 'Embedded Linux Developer', 'Firmware Developer'],
+    intro: ['The firmware of an industrial control unit is being developed further.'],
+    tasks: ['Developing hardware-near modules', 'Commissioning on the test bench'],
+    skills: ['C, C++', 'Experience with real-time operating systems'],
+  },
+  {
+    tails: ['dbt', 'Airflow', 'Snowflake'],
+    titles: ['Data Engineer Python', 'Data Scientist', 'Machine Learning Engineer'],
+    intro: ['An existing data warehouse is gaining automated pipelines.'],
+    tasks: ['Building data pipelines', 'Quality assurance of the delivered data'],
+    skills: ['Python, dbt', 'SQL at analysis level'],
+  },
+];
+
+/** The shapes in the language of this run; the English lists line up with the German ones. */
+const shapes: readonly Shape[] =
+  lang === 'en' ? SHAPES.map((shape, index) => ({ ...shape, ...SHAPES_EN[index] })) : SHAPES;
+
+for (const [index, shape] of SHAPES.entries()) {
+  const english = SHAPES_EN[index];
+  for (const key of ['tails', 'titles', 'intro', 'tasks', 'skills'] as const) {
+    if (english?.[key].length !== shape[key].length) {
+      throw new Error(`SHAPES_EN[${index}].${key} must have as many entries as SHAPES[${index}].${key}`);
+    }
+  }
+}
+
+/**
  * The domain an ad names, which lands in the title and in the opening sentence.
  *
  * <p>Two jobs, and the second one is the reason this list exists at all. The obvious one
@@ -328,11 +509,69 @@ const DOMAINS = [
   'Medien',
 ] as const;
 
+const DOMAINS_EN = [
+  'E-Commerce',
+  'Logistics',
+  'Insurance',
+  'Retail',
+  'Energy',
+  'Automotive',
+  'Healthcare',
+  'Public sector',
+  'Telecommunications',
+  'Financial services',
+  'Industry',
+  'Media',
+] as const;
+
+const domains: readonly string[] = lang === 'en' ? DOMAINS_EN : DOMAINS;
+
 /** Suffixes an ad carries. `TitleNormalizer` strips them before any comparison. */
 const GENDER_SUFFIXES = ['(m/w/d)', '(w/m/d)', '(m/f/d)', ''] as const;
 
 /** Contract wording that ends the assessment on the title alone. */
 const REJECTED_CONTRACT = ['Festanstellung', 'Arbeitnehmerüberlassung', 'ANÜ'] as const;
+/** The same three in English; the demo's contract rule lists them beside the German ones. */
+const REJECTED_CONTRACT_EN = ['permanent position', 'temporary agency work', 'temp staffing'] as const;
+
+/** The words an ad is written in, beyond its shape: headings, conditions, where it is. */
+const WORDS = {
+  de: {
+    remote: ['Remote', 'Remote (deutschlandweit)', 'Homeoffice'],
+    remoteAnd: (city: string) => `Remote und ${city}`,
+    area: (city: string) => `${city} und Umgebung`,
+    industry: 'Branche',
+    tasks: 'Ihre Aufgaben',
+    profile: 'Ihr Profil',
+    start: ['ab sofort', 'kurzfristig', 'zum Monatsbeginn', 'nach Absprache'],
+    startLabel: 'Start',
+    duration: (months: string) => `Laufzeit: ${months} mit Option auf Verlängerung`,
+    months: ['6 Monate', '9 Monate', '12 Monate'],
+    workload: ['Vollzeit', '4 Tage pro Woche', '80 %'],
+    workloadLabel: 'Auslastung',
+    remoteShare: 'Remote-Anteil',
+    rate: 'Stundensatz',
+    contract: REJECTED_CONTRACT as readonly string[],
+  },
+  en: {
+    // Every remote wording says "remote", which is the word the demo's remote rule reads.
+    remote: ['Remote', 'Remote (Germany-wide)', 'Remote (home office)'],
+    remoteAnd: (city: string) => `Remote and ${city}`,
+    area: (city: string) => `${city} area`,
+    industry: 'Industry',
+    tasks: 'Your tasks',
+    profile: 'Your profile',
+    start: ['immediately', 'at short notice', 'at the start of the month', 'by arrangement'],
+    startLabel: 'Start',
+    duration: (months: string) => `Duration: ${months} with an option to extend`,
+    months: ['6 months', '9 months', '12 months'],
+    workload: ['full-time', '4 days a week', '80 %'],
+    workloadLabel: 'Workload',
+    remoteShare: 'Remote share',
+    rate: 'Hourly rate',
+    contract: REJECTED_CONTRACT_EN as readonly string[],
+  },
+}[lang];
 
 // ---------------------------------------------------------------------------
 // One offer.
@@ -357,13 +596,13 @@ type Offer = {
  */
 function locationText(kind: 'near' | 'far' | 'abroad' | 'remote'): string {
   if (kind === 'remote') {
-    return pick(['Remote', 'Remote (deutschlandweit)', 'Homeoffice']);
+    return pick(WORDS.remote);
   }
   const city = kind === 'near' ? pick(NEAR_CITIES) : kind === 'far' ? pick(FAR_CITIES) : pick(ABROAD_CITIES);
   if (chance(0.45)) {
-    return `Remote und ${city}`;
+    return WORDS.remoteAnd(city);
   }
-  return chance(0.2) ? `${city} und Umgebung` : city;
+  return chance(0.2) ? WORDS.area(city) : city;
 }
 
 function slug(title: string): string {
@@ -389,36 +628,36 @@ function description(shape: Shape, domain: string, remotePercent: number | null,
   const skills = shuffle([...shape.skills]);
   const parts: string[] = [];
 
-  parts.push(`<p>Branche: ${domain}. ${pick(shape.intro)}</p>`);
-  parts.push('<p><strong>Ihre Aufgaben</strong></p>');
+  parts.push(`<p>${WORDS.industry}: ${domain}. ${pick(shape.intro)}</p>`);
+  parts.push(`<p><strong>${WORDS.tasks}</strong></p>`);
   parts.push(`<ul>${tasks.map((task) => `<li>${task}</li>`).join('')}</ul>`);
-  parts.push('<p><strong>Ihr Profil</strong></p>');
+  parts.push(`<p><strong>${WORDS.profile}</strong></p>`);
   parts.push(`<ul>${skills.map((skill) => `<li>${skill}</li>`).join('')}</ul>`);
 
   const conditions: string[] = [];
-  conditions.push(`Start: ${pick(['ab sofort', 'kurzfristig', 'zum Monatsbeginn', 'nach Absprache'])}`);
-  conditions.push(`Laufzeit: ${pick(['6 Monate', '9 Monate', '12 Monate'])} mit Option auf Verlängerung`);
-  conditions.push(`Auslastung: ${pick(['Vollzeit', '4 Tage pro Woche', '80 %'])}`);
+  conditions.push(`${WORDS.startLabel}: ${pick(WORDS.start)}`);
+  conditions.push(WORDS.duration(pick(WORDS.months)));
+  conditions.push(`${WORDS.workloadLabel}: ${pick(WORDS.workload)}`);
   if (remotePercent !== null) {
-    conditions.push(`Remote-Anteil: ${remotePercent} %`);
+    conditions.push(`${WORDS.remoteShare}: ${remotePercent} %`);
   }
   if (rateStated) {
-    conditions.push(`Stundensatz: ${65 + Math.floor(random() * 35)} EUR`);
+    conditions.push(`${WORDS.rate}: ${65 + Math.floor(random() * 35)} EUR`);
   }
   parts.push(`<p>${conditions.join('<br>')}</p>`);
   return parts.join('\n      ');
 }
 
 function makeOffer(publishedAt: Date, portal: string): Offer {
-  const shape = pick(SHAPES);
-  const domain = pick(DOMAINS);
+  const shape = pick(shapes);
+  const domain = pick(domains);
   const tail = chance(0.75) ? ` \u2013 ${pick(shape.tails)}` : '';
   let title = `${pick(shape.titles)} ${domain}${tail} ${pick(GENDER_SUFFIXES)}`.trim();
 
   // A share of ads name a contract form the profile does not take. Written into the
   // title on purpose: that is where the CONTRACT_FORM stage looks.
   if (chance(0.06)) {
-    title = `${title} – ${pick(REJECTED_CONTRACT)}`;
+    title = `${title} – ${pick(WORDS.contract)}`;
   }
 
   const draw = random();
@@ -555,9 +794,9 @@ ${groups}
 // The corpus.
 // ---------------------------------------------------------------------------
 
-/** Newest mail today, one every second day going back. */
+/** Newest mail today (or on `--until`), one every second day going back. */
 function sentAtFor(index: number): Date {
-  const date = new Date();
+  const date = until === undefined ? new Date() : new Date(`${until}T00:00:00`);
   date.setHours(7, 0, 0, 0);
   date.setDate(date.getDate() - (mailCount - 1 - index) * 2);
   return date;

@@ -323,6 +323,11 @@ what a model takes part in. The claims and the measurements are in
   beside the diagram placeholder, and the drawer renders its own `<img>`. `shared/markdown` also
   renders adverts, and nothing a text says should be able to point it at a file. A placeholder
   for a shot the chapter does not list is dropped, and the parity spec fails on it.
+- **Each language is taken from its own demo instance.** The German shots come from the demo,
+  the English ones from a second instance reading `demo/corpus-en/`, the same draw worded in
+  English, because an English help showing German adverts under English labels reads as a
+  broken translation. The instance's applications mirror the German ones, and the detail
+  shots show the offer whose application was sent last, so both languages show one offer.
 - **`bun run help:shots` retakes all of them, from the demo stack only.** The script asks the
   instance which sources it reads and refuses anything but the demo's, and it refuses a frame
   that prints one of the instance's model names, which the header, an AI step and a score line

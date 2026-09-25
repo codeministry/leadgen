@@ -1,0 +1,724 @@
+From: newsletter@example.org
+To: demo@example.org
+Subject: 38 neue Projekte sind da!
+Date: Sat, 29 Aug 2026 07:00:00 +0200
+MIME-Version: 1.0
+Content-Type: multipart/alternative; boundary="demo"
+
+--demo
+Content-Type: text/plain; charset="utf-8"
+
+Die Textfassung dieses Newsletters. Sie trägt keine der Auszeichnungen, an denen die
+Extraktion arbeitet — ein Connector, der den ersten Teil statt des HTML-Teils nimmt,
+findet hier null Angebote in einer vollkommen intakten Mail.
+
+--demo
+Content-Type: text/html; charset="utf-8"
+
+<html><body>
+<div class="tag-group">
+  <h2 class="tag-header">Java &#43; Spring Boot</h2>
+  <div class="job-card">
+    <h3 class="job-title">Senior Fullstack Developer <mark>Java</mark> and Angular Public sector – Java / Angular / Kubernetes (m/f/d)</h3>
+    <div class="job-meta">
+      <span>&#127970; Acme Consulting GmbH</span>
+      <span>&#128205; Zürich</span>
+      <span>&#128197; 28.08.2026 &#8211; 19:49 Uhr</span>
+      <span>&#128279; portal-f</span>
+    </div>
+    <div class="job-description">
+      <p>Industry: Public sector. A legacy system is being modernised from the backend to the interface; we need someone to own both ends.</p>
+      <p><strong>Your tasks</strong></p>
+      <ul><li>Code reviews across both layers</li><li>Building new modules from the database to the interface</li><li>Designing and building the REST interfaces</li></ul>
+      <p><strong>Your profile</strong></p>
+      <ul><li>Kubernetes and Helm, at least from the application side</li><li>Java 21 and Spring Boot, confident with Spring Data</li><li>Angular 17 or later and TypeScript</li><li>PostgreSQL, Docker, Kafka a plus</li></ul>
+      <p>Start: immediately<br>Duration: 9 months with an option to extend<br>Workload: full-time</p>
+    </div>
+    <a href="https://tracker.example/proxy?target=https%3A%2F%2Fportal-f.example%2Fproject%2Fsenior-fullstack-developer-java-and-angular-public-sector-java-angular-kubernetes-m-f-d-749514&amp;email=demo%2540example.org" class="job-link">Zum Projekt</a>
+  </div>
+  <div class="job-card">
+    <h3 class="job-title">Fullstack Engineer <mark>Java</mark> / Angular Public sector – Fullstack (m/w/d)</h3>
+    <div class="job-meta">
+      <span>&#127970; Vandelay Industries GmbH</span>
+      <span>&#128205; Remote (home office)</span>
+      <span>&#128197; 29.08.2026 &#8211; 00:05 Uhr</span>
+      <span>&#128279; portal-e</span>
+    </div>
+    <div class="job-description">
+      <p>Industry: Public sector. A team is being set up for a new product, owning service and interface together.</p>
+      <p><strong>Your tasks</strong></p>
+      <ul><li>Sharing responsibility for running the services in the cluster</li><li>Code reviews across both layers</li><li>Building new modules from the database to the interface</li></ul>
+      <p><strong>Your profile</strong></p>
+      <ul><li>Java 21 and Spring Boot, confident with Spring Data</li><li>Kubernetes and Helm, at least from the application side</li><li>Angular 17 or later and TypeScript</li><li>PostgreSQL, Docker, Kafka a plus</li></ul>
+      <p>Start: at the start of the month<br>Duration: 6 months with an option to extend<br>Workload: full-time</p>
+    </div>
+    <a href="https://tracker.example/proxy?target=https%3A%2F%2Fportal-e.example%2Fproject%2Ffullstack-engineer-java-angular-public-sector-fullstack-m-w-d-665608&amp;email=demo%2540example.org" class="job-link">Zum Projekt</a>
+  </div>
+  <div class="job-card">
+    <h3 class="job-title">Fullstack Developer Spring Boot and Angular Insurance (m/w/d)</h3>
+    <div class="job-meta">
+      <span>&#128205; Köln area</span>
+      <span>&#128197; 29.08.2026 &#8211; 05:08 Uhr</span>
+      <span>&#128279; portal-f</span>
+    </div>
+    <div class="job-description">
+      <p>Industry: Insurance. A team is being set up for a new product, owning service and interface together.</p>
+      <p><strong>Your tasks</strong></p>
+      <ul><li>Designing and building the REST interfaces</li><li>Building new modules from the database to the interface</li><li>Sharing responsibility for running the services in the cluster</li></ul>
+      <p><strong>Your profile</strong></p>
+      <ul><li>Java 21 and Spring Boot, confident with Spring Data</li><li>Angular 17 or later and TypeScript</li><li>Kubernetes and Helm, at least from the application side</li><li>PostgreSQL, Docker, Kafka a plus</li></ul>
+      <p>Start: by arrangement<br>Duration: 9 months with an option to extend<br>Workload: 4 days a week</p>
+    </div>
+    <a href="https://tracker.example/proxy?target=https%3A%2F%2Fportal-f.example%2Fproject%2Ffullstack-developer-spring-boot-and-angular-insurance-m-w-d-620704&amp;email=demo%2540example.org" class="job-link">Zum Projekt</a>
+  </div>
+  <div class="job-card">
+    <h3 class="job-title"><mark>Java</mark> Developer Spring Boot E-Commerce – REST API (m/w/d)</h3>
+    <div class="job-meta">
+      <span>&#127970; Vandelay Industries GmbH</span>
+      <span>&#128205; Remote</span>
+      <span>&#128197; 28.08.2026 &#8211; 11:09 Uhr</span>
+      <span>&#128279; portal-c</span>
+    </div>
+    <div class="job-description">
+      <p>Industry: E-Commerce. We are looking for support in the backend team to extend an existing commerce platform.</p>
+      <p><strong>Your tasks</strong></p>
+      <ul><li>Designing and building REST interfaces</li><li>Code reviews and alignment with the product teams</li><li>Moving existing modules into services of their own</li></ul>
+      <p><strong>Your profile</strong></p>
+      <ul><li>Experience with Kafka or a comparable broker</li><li>Docker, Gradle, Git</li><li>Java 21, Spring Boot, Spring Data</li><li>PostgreSQL and clean data modelling</li></ul>
+      <p>Start: immediately<br>Duration: 12 months with an option to extend<br>Workload: full-time</p>
+    </div>
+    <a href="https://tracker.example/proxy?target=https%3A%2F%2Fportal-c.example%2Fproject%2Fjava-developer-spring-boot-e-commerce-rest-api-m-w-d-712450&amp;email=demo%2540example.org" class="job-link">Zum Projekt</a>
+  </div>
+  <div class="job-card">
+    <h3 class="job-title"><mark>Java</mark> Developer Spring Boot Industry – Microservices</h3>
+    <div class="job-meta">
+      <span>&#127970; Hooli Engineering AG</span>
+      <span>&#128205; Stuttgart</span>
+      <span>&#128197; 28.08.2026 &#8211; 13:36 Uhr</span>
+      <span>&#128279; portal-a</span>
+    </div>
+    <div class="job-description">
+      <p>Industry: Industry. A new product is being built, and with it an API landscape from scratch.</p>
+      <p><strong>Your tasks</strong></p>
+      <ul><li>Code reviews and alignment with the product teams</li><li>Designing and building REST interfaces</li><li>Moving existing modules into services of their own</li></ul>
+      <p><strong>Your profile</strong></p>
+      <ul><li>Docker, Gradle, Git</li><li>Java 21, Spring Boot, Spring Data</li><li>Experience with Kafka or a comparable broker</li><li>PostgreSQL and clean data modelling</li></ul>
+      <p>Start: immediately<br>Duration: 6 months with an option to extend<br>Workload: 80 %</p>
+    </div>
+    <a href="https://tracker.example/proxy?target=https%3A%2F%2Fportal-a.example%2Fproject%2Fjava-developer-spring-boot-industry-microservices-676875&amp;email=demo%2540example.org" class="job-link">Zum Projekt</a>
+  </div>
+  <div class="job-card">
+    <h3 class="job-title">Senior <mark>Java</mark> Developer Telecommunications – Spring Boot / Kafka (m/f/d)</h3>
+    <div class="job-meta">
+      <span>&#127970; Hooli Engineering AG</span>
+      <span>&#128205; Remote and Düsseldorf</span>
+      <span>&#128197; 29.08.2026 &#8211; 05:41 Uhr</span>
+      <span>&#128279; portal-a</span>
+    </div>
+    <div class="job-description">
+      <p>Industry: Telecommunications. We are looking for support in the backend team to extend an existing commerce platform.</p>
+      <p><strong>Your tasks</strong></p>
+      <ul><li>Moving existing modules into services of their own</li><li>Building and maintaining the automated test coverage</li><li>Designing and building REST interfaces</li></ul>
+      <p><strong>Your profile</strong></p>
+      <ul><li>Docker, Gradle, Git</li><li>PostgreSQL and clean data modelling</li><li>Experience with Kafka or a comparable broker</li><li>Java 21, Spring Boot, Spring Data</li></ul>
+      <p>Start: immediately<br>Duration: 9 months with an option to extend<br>Workload: 80 %</p>
+    </div>
+    <a href="https://tracker.example/proxy?target=https%3A%2F%2Fportal-a.example%2Fproject%2Fsenior-java-developer-telecommunications-spring-boot-kafka-m-f-d-174032&amp;email=demo%2540example.org" class="job-link">Zum Projekt</a>
+  </div>
+  <div class="job-card">
+    <h3 class="job-title">Senior Backend Engineer <mark>Java</mark> Automotive – Spring Boot / Kafka</h3>
+    <div class="job-meta">
+      <span>&#127970; Vandelay Industries GmbH</span>
+      <span>&#128205; Remote and München</span>
+      <span>&#128197; 29.08.2026 &#8211; 06:56 Uhr</span>
+      <span>&#128279; portal-b</span>
+    </div>
+    <div class="job-description">
+      <p>Industry: Automotive. Our client is breaking a monolith that grew over the years into services, step by step.</p>
+      <p><strong>Your tasks</strong></p>
+      <ul><li>Designing and building REST interfaces</li><li>Moving existing modules into services of their own</li><li>Building and maintaining the automated test coverage</li></ul>
+      <p><strong>Your profile</strong></p>
+      <ul><li>Experience with Kafka or a comparable broker</li><li>Docker, Gradle, Git</li><li>PostgreSQL and clean data modelling</li><li>Java 21, Spring Boot, Spring Data</li></ul>
+      <p>Start: at short notice<br>Duration: 9 months with an option to extend<br>Workload: full-time</p>
+    </div>
+    <a href="https://tracker.example/proxy?target=https%3A%2F%2Fportal-b.example%2Fproject%2Fsenior-backend-engineer-java-automotive-spring-boot-kafka-269144&amp;email=demo%2540example.org" class="job-link">Zum Projekt</a>
+  </div>
+  <div class="job-card">
+    <h3 class="job-title">Fullstack Engineer <mark>Java</mark> / Angular Healthcare (m/w/d)</h3>
+    <div class="job-meta">
+      <span>&#127970; Vandelay Industries GmbH</span>
+      <span>&#128205; Remote and München</span>
+      <span>&#128197; 29.08.2026 &#8211; 04:44 Uhr</span>
+      <span>&#128279; portal-c</span>
+    </div>
+    <div class="job-description">
+      <p>Industry: Healthcare. The platform gains several modules, each from the REST endpoint to the finished screen.</p>
+      <p><strong>Your tasks</strong></p>
+      <ul><li>Sharing responsibility for running the services in the cluster</li><li>Code reviews across both layers</li><li>Building new modules from the database to the interface</li></ul>
+      <p><strong>Your profile</strong></p>
+      <ul><li>Java 21 and Spring Boot, confident with Spring Data</li><li>PostgreSQL, Docker, Kafka a plus</li><li>Kubernetes and Helm, at least from the application side</li><li>Angular 17 or later and TypeScript</li></ul>
+      <p>Start: at the start of the month<br>Duration: 9 months with an option to extend<br>Workload: 4 days a week</p>
+    </div>
+    <a href="https://tracker.example/proxy?target=https%3A%2F%2Fportal-c.example%2Fproject%2Ffullstack-engineer-java-angular-healthcare-m-w-d-910673&amp;email=demo%2540example.org" class="job-link">Zum Projekt</a>
+  </div>
+  <div class="job-card">
+    <h3 class="job-title">Senior Backend Engineer <mark>Java</mark> Healthcare – Spring Cloud (m/w/d)</h3>
+    <div class="job-meta">
+      <span>&#127970; Vandelay Industries GmbH</span>
+      <span>&#128205; Remote (home office)</span>
+      <span>&#128197; 28.08.2026 &#8211; 12:49 Uhr</span>
+      <span>&#128279; portal-c</span>
+    </div>
+    <div class="job-description">
+      <p>Industry: Healthcare. Our client is breaking a monolith that grew over the years into services, step by step.</p>
+      <p><strong>Your tasks</strong></p>
+      <ul><li>Designing and building REST interfaces</li><li>Moving existing modules into services of their own</li><li>Building and maintaining the automated test coverage</li></ul>
+      <p><strong>Your profile</strong></p>
+      <ul><li>Java 21, Spring Boot, Spring Data</li><li>Docker, Gradle, Git</li><li>PostgreSQL and clean data modelling</li><li>Experience with Kafka or a comparable broker</li></ul>
+      <p>Start: at the start of the month<br>Duration: 6 months with an option to extend<br>Workload: 80 %</p>
+    </div>
+    <a href="https://tracker.example/proxy?target=https%3A%2F%2Fportal-c.example%2Fproject%2Fsenior-backend-engineer-java-healthcare-spring-cloud-m-w-d-953252&amp;email=demo%2540example.org" class="job-link">Zum Projekt</a>
+  </div>
+  <div class="job-card">
+    <h3 class="job-title"><mark>Java</mark> Backend Developer Logistics – Spring Cloud</h3>
+    <div class="job-meta">
+      <span>&#127970; Contoso Services GmbH</span>
+      <span>&#128205; Remote and München</span>
+      <span>&#128197; 28.08.2026 &#8211; 15:56 Uhr</span>
+      <span>&#128279; portal-b</span>
+    </div>
+    <div class="job-description">
+      <p>Industry: Logistics. A new product is being built, and with it an API landscape from scratch.</p>
+      <p><strong>Your tasks</strong></p>
+      <ul><li>Building and maintaining the automated test coverage</li><li>Designing and building REST interfaces</li><li>Moving existing modules into services of their own</li></ul>
+      <p><strong>Your profile</strong></p>
+      <ul><li>Java 21, Spring Boot, Spring Data</li><li>Docker, Gradle, Git</li><li>PostgreSQL and clean data modelling</li><li>Experience with Kafka or a comparable broker</li></ul>
+      <p>Start: at the start of the month<br>Duration: 6 months with an option to extend<br>Workload: 80 %</p>
+    </div>
+    <a href="https://tracker.example/proxy?target=https%3A%2F%2Fportal-b.example%2Fproject%2Fjava-backend-developer-logistics-spring-cloud-524755&amp;email=demo%2540example.org" class="job-link">Zum Projekt</a>
+  </div>
+  <div class="job-card">
+    <h3 class="job-title">Senior Backend Engineer <mark>Java</mark> Automotive – Spring Boot / Kafka</h3>
+    <div class="job-meta">
+      <span>&#127970; Umbrella IT Partner GmbH</span>
+      <span>&#128205; Remote and München</span>
+      <span>&#128197; 29.08.2026 &#8211; 06:57 Uhr</span>
+      <span>&#128279; portal-b</span>
+    </div>
+    <div class="job-description">
+      <p>Industry: Automotive. Our client is breaking a monolith that grew over the years into services, step by step.</p>
+      <p><strong>Your tasks</strong></p>
+      <ul><li>Designing and building REST interfaces</li><li>Moving existing modules into services of their own</li><li>Building and maintaining the automated test coverage</li></ul>
+      <p><strong>Your profile</strong></p>
+      <ul><li>Experience with Kafka or a comparable broker</li><li>Docker, Gradle, Git</li><li>PostgreSQL and clean data modelling</li><li>Java 21, Spring Boot, Spring Data</li></ul>
+      <p>Start: at short notice<br>Duration: 9 months with an option to extend<br>Workload: full-time</p>
+    </div>
+    <a href="https://tracker.example/proxy?target=https%3A%2F%2Fportal-b.example%2Fproject%2Fsenior-backend-engineer-java-automotive-spring-boot-kafka-182087&amp;email=demo%2540example.org" class="job-link">Zum Projekt</a>
+  </div>
+  <div class="job-card">
+    <h3 class="job-title">Senior Software Developer Fullstack Insurance – Spring Boot / Angular (w/m/d)</h3>
+    <div class="job-meta">
+      <span>&#128205; Düsseldorf</span>
+      <span>&#128197; 28.08.2026 &#8211; 13:54 Uhr</span>
+      <span>&#128279; portal-b</span>
+    </div>
+    <div class="job-description">
+      <p>Industry: Insurance. A legacy system is being modernised from the backend to the interface; we need someone to own both ends.</p>
+      <p><strong>Your tasks</strong></p>
+      <ul><li>Building new modules from the database to the interface</li><li>Code reviews across both layers</li><li>Sharing responsibility for running the services in the cluster</li></ul>
+      <p><strong>Your profile</strong></p>
+      <ul><li>Kubernetes and Helm, at least from the application side</li><li>Java 21 and Spring Boot, confident with Spring Data</li><li>Angular 17 or later and TypeScript</li><li>PostgreSQL, Docker, Kafka a plus</li></ul>
+      <p>Start: at the start of the month<br>Duration: 6 months with an option to extend<br>Workload: full-time</p>
+    </div>
+    <a href="https://tracker.example/proxy?target=https%3A%2F%2Fportal-b.example%2Fproject%2Fsenior-software-developer-fullstack-insurance-spring-boot-angular-w-m-d-887534&amp;email=demo%2540example.org" class="job-link">Zum Projekt</a>
+  </div>
+  <div class="job-card">
+    <h3 class="job-title">Senior Software Developer Fullstack Media</h3>
+    <div class="job-meta">
+      <span>&#127970; Hooli Engineering AG</span>
+      <span>&#128205; Remote and Hamburg</span>
+      <span>&#128197; 28.08.2026 &#8211; 11:47 Uhr</span>
+      <span>&#128279; portal-a</span>
+    </div>
+    <div class="job-description">
+      <p>Industry: Media. A team is being set up for a new product, owning service and interface together.</p>
+      <p><strong>Your tasks</strong></p>
+      <ul><li>Designing and building the REST interfaces</li><li>Code reviews across both layers</li><li>Building new modules from the database to the interface</li></ul>
+      <p><strong>Your profile</strong></p>
+      <ul><li>Kubernetes and Helm, at least from the application side</li><li>Java 21 and Spring Boot, confident with Spring Data</li><li>Angular 17 or later and TypeScript</li><li>PostgreSQL, Docker, Kafka a plus</li></ul>
+      <p>Start: immediately<br>Duration: 12 months with an option to extend<br>Workload: 80 %</p>
+    </div>
+    <a href="https://tracker.example/proxy?target=https%3A%2F%2Fportal-a.example%2Fproject%2Fsenior-software-developer-fullstack-media-477524&amp;email=demo%2540example.org" class="job-link">Zum Projekt</a>
+  </div>
+  <div class="job-card">
+    <h3 class="job-title">Senior <mark>Java</mark> Developer Telecommunications – REST API (m/w/d)</h3>
+    <div class="job-meta">
+      <span>&#127970; Globex Solutions GmbH</span>
+      <span>&#128205; Hamburg</span>
+      <span>&#128197; 28.08.2026 &#8211; 13:15 Uhr</span>
+      <span>&#128279; portal-f</span>
+    </div>
+    <div class="job-description">
+      <p>Industry: Telecommunications. A new product is being built, and with it an API landscape from scratch.</p>
+      <p><strong>Your tasks</strong></p>
+      <ul><li>Designing and building REST interfaces</li><li>Building and maintaining the automated test coverage</li><li>Code reviews and alignment with the product teams</li></ul>
+      <p><strong>Your profile</strong></p>
+      <ul><li>Experience with Kafka or a comparable broker</li><li>Java 21, Spring Boot, Spring Data</li><li>Docker, Gradle, Git</li><li>PostgreSQL and clean data modelling</li></ul>
+      <p>Start: at short notice<br>Duration: 9 months with an option to extend<br>Workload: 80 %</p>
+    </div>
+    <a href="https://tracker.example/proxy?target=https%3A%2F%2Fportal-f.example%2Fproject%2Fsenior-java-developer-telecommunications-rest-api-m-w-d-715622&amp;email=demo%2540example.org" class="job-link">Zum Projekt</a>
+  </div>
+</div>
+<div class="tag-group">
+  <h2 class="tag-header">Embedded &#43; C</h2>
+  <div class="job-card">
+    <h3 class="job-title">Embedded Linux Developer Logistics (m/f/d)</h3>
+    <div class="job-meta">
+      <span>&#127970; Hooli Engineering AG</span>
+      <span>&#128205; Remote (home office)</span>
+      <span>&#128197; 28.08.2026 &#8211; 22:27 Uhr</span>
+      <span>&#128279; portal-f</span>
+    </div>
+    <div class="job-description">
+      <p>Industry: Logistics. The firmware of an industrial control unit is being developed further.</p>
+      <p><strong>Your tasks</strong></p>
+      <ul><li>Commissioning on the test bench</li><li>Developing hardware-near modules</li></ul>
+      <p><strong>Your profile</strong></p>
+      <ul><li>C, C++</li><li>Experience with real-time operating systems</li></ul>
+      <p>Start: by arrangement<br>Duration: 9 months with an option to extend<br>Workload: 80 %</p>
+    </div>
+    <a href="https://tracker.example/proxy?target=https%3A%2F%2Fportal-f.example%2Fproject%2Fembedded-linux-developer-logistics-m-f-d-312949&amp;email=demo%2540example.org" class="job-link">Zum Projekt</a>
+  </div>
+  <div class="job-card">
+    <h3 class="job-title">Embedded Linux Developer Logistics – RTOS (m/f/d)</h3>
+    <div class="job-meta">
+      <span>&#127970; Soylent Digital GmbH</span>
+      <span>&#128205; Remote</span>
+      <span>&#128197; 29.08.2026 &#8211; 06:46 Uhr</span>
+      <span>&#128279; portal-c</span>
+    </div>
+    <div class="job-description">
+      <p>Industry: Logistics. The firmware of an industrial control unit is being developed further.</p>
+      <p><strong>Your tasks</strong></p>
+      <ul><li>Developing hardware-near modules</li><li>Commissioning on the test bench</li></ul>
+      <p><strong>Your profile</strong></p>
+      <ul><li>Experience with real-time operating systems</li><li>C, C++</li></ul>
+      <p>Start: immediately<br>Duration: 6 months with an option to extend<br>Workload: full-time</p>
+    </div>
+    <a href="https://tracker.example/proxy?target=https%3A%2F%2Fportal-c.example%2Fproject%2Fembedded-linux-developer-logistics-rtos-m-f-d-283683&amp;email=demo%2540example.org" class="job-link">Zum Projekt</a>
+  </div>
+  <div class="job-card">
+    <h3 class="job-title">Firmware Developer Energy – Firmware</h3>
+    <div class="job-meta">
+      <span>&#128205; Remote</span>
+      <span>&#128197; 29.08.2026 &#8211; 06:47 Uhr</span>
+      <span>&#128279; portal-d</span>
+    </div>
+    <div class="job-description">
+      <p>Industry: Energy. The firmware of an industrial control unit is being developed further.</p>
+      <p><strong>Your tasks</strong></p>
+      <ul><li>Commissioning on the test bench</li><li>Developing hardware-near modules</li></ul>
+      <p><strong>Your profile</strong></p>
+      <ul><li>C, C++</li><li>Experience with real-time operating systems</li></ul>
+      <p>Start: immediately<br>Duration: 12 months with an option to extend<br>Workload: 80 %</p>
+    </div>
+    <a href="https://tracker.example/proxy?target=https%3A%2F%2Fportal-d.example%2Fproject%2Ffirmware-developer-energy-firmware-600078&amp;email=demo%2540example.org" class="job-link">Zum Projekt</a>
+  </div>
+  <div class="job-card">
+    <h3 class="job-title">Embedded Linux Developer E-Commerce – RTOS (m/w/d)</h3>
+    <div class="job-meta">
+      <span>&#127970; Soylent Digital GmbH</span>
+      <span>&#128205; Remote</span>
+      <span>&#128197; 29.08.2026 &#8211; 06:56 Uhr</span>
+      <span>&#128279; portal-c</span>
+    </div>
+    <div class="job-description">
+      <p>Industry: E-Commerce. The firmware of an industrial control unit is being developed further.</p>
+      <p><strong>Your tasks</strong></p>
+      <ul><li>Developing hardware-near modules</li><li>Commissioning on the test bench</li></ul>
+      <p><strong>Your profile</strong></p>
+      <ul><li>C, C++</li><li>Experience with real-time operating systems</li></ul>
+      <p>Start: at the start of the month<br>Duration: 6 months with an option to extend<br>Workload: 80 %</p>
+    </div>
+    <a href="https://tracker.example/proxy?target=https%3A%2F%2Fportal-c.example%2Fproject%2Fembedded-linux-developer-e-commerce-rtos-m-w-d-627794&amp;email=demo%2540example.org" class="job-link">Zum Projekt</a>
+  </div>
+  <div class="job-card">
+    <h3 class="job-title">Embedded Linux Developer Industry – RTOS</h3>
+    <div class="job-meta">
+      <span>&#127970; Hooli Engineering AG</span>
+      <span>&#128205; Remote</span>
+      <span>&#128197; 28.08.2026 &#8211; 17:48 Uhr</span>
+      <span>&#128279; portal-f</span>
+    </div>
+    <div class="job-description">
+      <p>Industry: Industry. The firmware of an industrial control unit is being developed further.</p>
+      <p><strong>Your tasks</strong></p>
+      <ul><li>Commissioning on the test bench</li><li>Developing hardware-near modules</li></ul>
+      <p><strong>Your profile</strong></p>
+      <ul><li>Experience with real-time operating systems</li><li>C, C++</li></ul>
+      <p>Start: at the start of the month<br>Duration: 9 months with an option to extend<br>Workload: 4 days a week</p>
+    </div>
+    <a href="https://tracker.example/proxy?target=https%3A%2F%2Fportal-f.example%2Fproject%2Fembedded-linux-developer-industry-rtos-471926&amp;email=demo%2540example.org" class="job-link">Zum Projekt</a>
+  </div>
+</div>
+<div class="tag-group">
+  <h2 class="tag-header">SAP &#43; ABAP</h2>
+  <div class="job-card">
+    <h3 class="job-title">SAP S/4HANA Developer Media – ABAP OO (w/m/d)</h3>
+    <div class="job-meta">
+      <span>&#127970; Vandelay Industries GmbH</span>
+      <span>&#128205; Remote and Düsseldorf</span>
+      <span>&#128197; 29.08.2026 &#8211; 00:11 Uhr</span>
+      <span>&#128279; portal-d</span>
+    </div>
+    <div class="job-description">
+      <p>Industry: Media. The development team is growing for an S/4HANA migration.</p>
+      <p><strong>Your tasks</strong></p>
+      <ul><li>Adapting existing reports</li><li>Building customer-specific extensions</li></ul>
+      <p><strong>Your profile</strong></p>
+      <ul><li>Experience with S/4HANA</li><li>ABAP OO</li></ul>
+      <p>Start: by arrangement<br>Duration: 6 months with an option to extend<br>Workload: 80 %</p>
+    </div>
+    <a href="https://tracker.example/proxy?target=https%3A%2F%2Fportal-d.example%2Fproject%2Fsap-s-4hana-developer-media-abap-oo-w-m-d-740716&amp;email=demo%2540example.org" class="job-link">Zum Projekt</a>
+  </div>
+  <div class="job-card">
+    <h3 class="job-title">SAP Consultant FI/CO Public sector</h3>
+    <div class="job-meta">
+      <span>&#127970; Soylent Digital GmbH</span>
+      <span>&#128205; Remote</span>
+      <span>&#128197; 28.08.2026 &#8211; 18:48 Uhr</span>
+      <span>&#128279; portal-a</span>
+    </div>
+    <div class="job-description">
+      <p>Industry: Public sector. The development team is growing for an S/4HANA migration.</p>
+      <p><strong>Your tasks</strong></p>
+      <ul><li>Adapting existing reports</li><li>Building customer-specific extensions</li></ul>
+      <p><strong>Your profile</strong></p>
+      <ul><li>ABAP OO</li><li>Experience with S/4HANA</li></ul>
+      <p>Start: at short notice<br>Duration: 12 months with an option to extend<br>Workload: 80 %</p>
+    </div>
+    <a href="https://tracker.example/proxy?target=https%3A%2F%2Fportal-a.example%2Fproject%2Fsap-consultant-fi-co-public-sector-452831&amp;email=demo%2540example.org" class="job-link">Zum Projekt</a>
+  </div>
+  <div class="job-card">
+    <h3 class="job-title">SAP S/4HANA Developer Retail – S/4HANA (w/m/d)</h3>
+    <div class="job-meta">
+      <span>&#127970; Globex Solutions GmbH</span>
+      <span>&#128205; Köln</span>
+      <span>&#128197; 29.08.2026 &#8211; 04:06 Uhr</span>
+      <span>&#128279; portal-d</span>
+    </div>
+    <div class="job-description">
+      <p>Industry: Retail. The development team is growing for an S/4HANA migration.</p>
+      <p><strong>Your tasks</strong></p>
+      <ul><li>Adapting existing reports</li><li>Building customer-specific extensions</li></ul>
+      <p><strong>Your profile</strong></p>
+      <ul><li>ABAP OO</li><li>Experience with S/4HANA</li></ul>
+      <p>Start: at the start of the month<br>Duration: 9 months with an option to extend<br>Workload: 80 %</p>
+    </div>
+    <a href="https://tracker.example/proxy?target=https%3A%2F%2Fportal-d.example%2Fproject%2Fsap-s-4hana-developer-retail-s-4hana-w-m-d-195429&amp;email=demo%2540example.org" class="job-link">Zum Projekt</a>
+  </div>
+</div>
+<div class="tag-group">
+  <h2 class="tag-header">Data Engineering &#43; Python</h2>
+  <div class="job-card">
+    <h3 class="job-title">Data Scientist Financial services – dbt (m/w/d)</h3>
+    <div class="job-meta">
+      <span>&#127970; Acme Consulting GmbH</span>
+      <span>&#128205; Remote</span>
+      <span>&#128197; 28.08.2026 &#8211; 18:50 Uhr</span>
+      <span>&#128279; portal-d</span>
+    </div>
+    <div class="job-description">
+      <p>Industry: Financial services. An existing data warehouse is gaining automated pipelines.</p>
+      <p><strong>Your tasks</strong></p>
+      <ul><li>Building data pipelines</li><li>Quality assurance of the delivered data</li></ul>
+      <p><strong>Your profile</strong></p>
+      <ul><li>Python, dbt</li><li>SQL at analysis level</li></ul>
+      <p>Start: by arrangement<br>Duration: 12 months with an option to extend<br>Workload: 4 days a week</p>
+    </div>
+    <a href="https://tracker.example/proxy?target=https%3A%2F%2Fportal-d.example%2Fproject%2Fdata-scientist-financial-services-dbt-m-w-d-536791&amp;email=demo%2540example.org" class="job-link">Zum Projekt</a>
+  </div>
+</div>
+<div class="tag-group">
+  <h2 class="tag-header">Angular &#43; TypeScript</h2>
+  <div class="job-card">
+    <h3 class="job-title">Senior Frontend Engineer Public sector – Angular 18 (m/f/d)</h3>
+    <div class="job-meta">
+      <span>&#127970; Vandelay Industries GmbH</span>
+      <span>&#128205; Remote</span>
+      <span>&#128197; 28.08.2026 &#8211; 11:10 Uhr</span>
+      <span>&#128279; portal-c</span>
+    </div>
+    <div class="job-description">
+      <p>Industry: Public sector. An existing Angular application is moving to the current major version.</p>
+      <p><strong>Your tasks</strong></p>
+      <ul><li>Building new screens on the existing design system</li><li>Migrating to standalone components and signals</li><li>Agreeing the interfaces with the backend team</li></ul>
+      <p><strong>Your profile</strong></p>
+      <ul><li>RxJS and an understanding of state management</li><li>CSS without a framework dependency</li><li>Experience with Vitest or Jest</li><li>Angular 17 or later, TypeScript</li></ul>
+      <p>Start: at the start of the month<br>Duration: 6 months with an option to extend<br>Workload: 80 %</p>
+    </div>
+    <a href="https://tracker.example/proxy?target=https%3A%2F%2Fportal-c.example%2Fproject%2Fsenior-frontend-engineer-public-sector-angular-18-m-f-d-378446&amp;email=demo%2540example.org" class="job-link">Zum Projekt</a>
+  </div>
+  <div class="job-card">
+    <h3 class="job-title">Angular Developer Energy</h3>
+    <div class="job-meta">
+      <span>&#127970; Acme Consulting GmbH</span>
+      <span>&#128205; Remote (Germany-wide)</span>
+      <span>&#128197; 28.08.2026 &#8211; 18:56 Uhr</span>
+      <span>&#128279; portal-a</span>
+    </div>
+    <div class="job-description">
+      <p>Industry: Energy. An existing Angular application is moving to the current major version.</p>
+      <p><strong>Your tasks</strong></p>
+      <ul><li>Accessibility and test coverage in the frontend</li><li>Migrating to standalone components and signals</li><li>Building new screens on the existing design system</li></ul>
+      <p><strong>Your profile</strong></p>
+      <ul><li>RxJS and an understanding of state management</li><li>CSS without a framework dependency</li><li>Angular 17 or later, TypeScript</li><li>Experience with Vitest or Jest</li></ul>
+      <p>Start: at the start of the month<br>Duration: 12 months with an option to extend<br>Workload: full-time</p>
+    </div>
+    <a href="https://tracker.example/proxy?target=https%3A%2F%2Fportal-a.example%2Fproject%2Fangular-developer-energy-504192&amp;email=demo%2540example.org" class="job-link">Zum Projekt</a>
+  </div>
+  <div class="job-card">
+    <h3 class="job-title">Senior Frontend Engineer Energy – Angular 18</h3>
+    <div class="job-meta">
+      <span>&#127970; Contoso Services GmbH</span>
+      <span>&#128205; Remote (home office)</span>
+      <span>&#128197; 28.08.2026 &#8211; 16:50 Uhr</span>
+      <span>&#128279; portal-d</span>
+    </div>
+    <div class="job-description">
+      <p>Industry: Energy. The product team needs support with a data-heavy reporting interface.</p>
+      <p><strong>Your tasks</strong></p>
+      <ul><li>Migrating to standalone components and signals</li><li>Agreeing the interfaces with the backend team</li><li>Accessibility and test coverage in the frontend</li></ul>
+      <p><strong>Your profile</strong></p>
+      <ul><li>CSS without a framework dependency</li><li>Experience with Vitest or Jest</li><li>Angular 17 or later, TypeScript</li><li>RxJS and an understanding of state management</li></ul>
+      <p>Start: immediately<br>Duration: 12 months with an option to extend<br>Workload: full-time</p>
+    </div>
+    <a href="https://tracker.example/proxy?target=https%3A%2F%2Fportal-d.example%2Fproject%2Fsenior-frontend-engineer-energy-angular-18-840742&amp;email=demo%2540example.org" class="job-link">Zum Projekt</a>
+  </div>
+  <div class="job-card">
+    <h3 class="job-title">Frontend Developer Angular Media – TypeScript / RxJS (w/m/d)</h3>
+    <div class="job-meta">
+      <span>&#128205; Remote and Neuss</span>
+      <span>&#128197; 28.08.2026 &#8211; 15:13 Uhr</span>
+      <span>&#128279; portal-d</span>
+    </div>
+    <div class="job-description">
+      <p>Industry: Media. The product team needs support with a data-heavy reporting interface.</p>
+      <p><strong>Your tasks</strong></p>
+      <ul><li>Agreeing the interfaces with the backend team</li><li>Building new screens on the existing design system</li><li>Accessibility and test coverage in the frontend</li></ul>
+      <p><strong>Your profile</strong></p>
+      <ul><li>Experience with Vitest or Jest</li><li>Angular 17 or later, TypeScript</li><li>CSS without a framework dependency</li><li>RxJS and an understanding of state management</li></ul>
+      <p>Start: by arrangement<br>Duration: 9 months with an option to extend<br>Workload: 4 days a week<br>Remote share: 40 %</p>
+    </div>
+    <a href="https://tracker.example/proxy?target=https%3A%2F%2Fportal-d.example%2Fproject%2Ffrontend-developer-angular-media-typescript-rxjs-w-m-d-582838&amp;email=demo%2540example.org" class="job-link">Zum Projekt</a>
+  </div>
+</div>
+<div class="tag-group">
+  <h2 class="tag-header">Kubernetes &#43; DevOps</h2>
+  <div class="job-card">
+    <h3 class="job-title">Site Reliability Engineer Retail</h3>
+    <div class="job-meta">
+      <span>&#127970; Globex Solutions GmbH</span>
+      <span>&#128205; Aachen</span>
+      <span>&#128197; 28.08.2026 &#8211; 13:03 Uhr</span>
+      <span>&#128279; portal-e</span>
+    </div>
+    <div class="job-description">
+      <p>Industry: Retail. We need support for a migration from virtual machines to Kubernetes.</p>
+      <p><strong>Your tasks</strong></p>
+      <ul><li>Monitoring, alerting and logging</li><li>Building and maintaining Helm charts</li><li>Introducing a GitOps workflow</li></ul>
+      <p><strong>Your profile</strong></p>
+      <ul><li>Basic Java, enough to run applications sensibly</li><li>Helm, ArgoCD or Flux</li><li>Kubernetes in production</li><li>Terraform or a comparable tool</li></ul>
+      <p>Start: immediately<br>Duration: 9 months with an option to extend<br>Workload: 4 days a week</p>
+    </div>
+    <a href="https://tracker.example/proxy?target=https%3A%2F%2Fportal-e.example%2Fproject%2Fsite-reliability-engineer-retail-981255&amp;email=demo%2540example.org" class="job-link">Zum Projekt</a>
+  </div>
+  <div class="job-card">
+    <h3 class="job-title">Cloud Engineer Kubernetes Energy – Kubernetes / Helm (w/m/d)</h3>
+    <div class="job-meta">
+      <span>&#127970; Vandelay Industries GmbH</span>
+      <span>&#128205; Bonn</span>
+      <span>&#128197; 28.08.2026 &#8211; 21:09 Uhr</span>
+      <span>&#128279; portal-a</span>
+    </div>
+    <div class="job-description">
+      <p>Industry: Energy. An existing cluster landscape is to gain observability and GitOps.</p>
+      <p><strong>Your tasks</strong></p>
+      <ul><li>Hardening the clusters and managing access</li><li>Monitoring, alerting and logging</li><li>Building and maintaining Helm charts</li></ul>
+      <p><strong>Your profile</strong></p>
+      <ul><li>Terraform or a comparable tool</li><li>Kubernetes in production</li><li>Basic Java, enough to run applications sensibly</li><li>Helm, ArgoCD or Flux</li></ul>
+      <p>Start: at short notice<br>Duration: 9 months with an option to extend<br>Workload: full-time</p>
+    </div>
+    <a href="https://tracker.example/proxy?target=https%3A%2F%2Fportal-a.example%2Fproject%2Fcloud-engineer-kubernetes-energy-kubernetes-helm-w-m-d-181298&amp;email=demo%2540example.org" class="job-link">Zum Projekt</a>
+  </div>
+</div>
+<div class="tag-group">
+  <h2 class="tag-header">Microservices &#43; Kafka</h2>
+  <div class="job-card">
+    <h3 class="job-title">Backend Developer Event Streaming Logistics – permanent position</h3>
+    <div class="job-meta">
+      <span>&#127970; Hooli Engineering AG</span>
+      <span>&#128205; Remote (Germany-wide)</span>
+      <span>&#128197; 28.08.2026 &#8211; 19:51 Uhr</span>
+      <span>&#128279; portal-e</span>
+    </div>
+    <div class="job-description">
+      <p>Industry: Logistics. A retailer is moving its order processing to event-driven processing.</p>
+      <p><strong>Your tasks</strong></p>
+      <ul><li>Designing the event formats and their versioning</li><li>Cutting and building new services</li><li>Measuring and tuning the load behaviour</li></ul>
+      <p><strong>Your profile</strong></p>
+      <ul><li>Kafka, Schema Registry</li><li>PostgreSQL</li><li>Java and Spring Boot</li><li>Kubernetes from the application side</li></ul>
+      <p>Start: immediately<br>Duration: 12 months with an option to extend<br>Workload: 80 %</p>
+    </div>
+    <a href="https://tracker.example/proxy?target=https%3A%2F%2Fportal-e.example%2Fproject%2Fbackend-developer-event-streaming-logistics-permanent-position-562941&amp;email=demo%2540example.org" class="job-link">Zum Projekt</a>
+  </div>
+  <div class="job-card">
+    <h3 class="job-title">Backend Developer Event Streaming Media – Kafka (m/w/d)</h3>
+    <div class="job-meta">
+      <span>&#127970; Soylent Digital GmbH</span>
+      <span>&#128205; Amsterdam</span>
+      <span>&#128197; 28.08.2026 &#8211; 19:55 Uhr</span>
+      <span>&#128279; portal-f</span>
+    </div>
+    <div class="job-description">
+      <p>Industry: Media. An event-based integration layer is being built between two existing systems.</p>
+      <p><strong>Your tasks</strong></p>
+      <ul><li>Cutting and building new services</li><li>Designing the event formats and their versioning</li><li>Measuring and tuning the load behaviour</li></ul>
+      <p><strong>Your profile</strong></p>
+      <ul><li>Java and Spring Boot</li><li>Kafka, Schema Registry</li><li>PostgreSQL</li><li>Kubernetes from the application side</li></ul>
+      <p>Start: at short notice<br>Duration: 12 months with an option to extend<br>Workload: 4 days a week</p>
+    </div>
+    <a href="https://tracker.example/proxy?target=https%3A%2F%2Fportal-f.example%2Fproject%2Fbackend-developer-event-streaming-media-kafka-m-w-d-291797&amp;email=demo%2540example.org" class="job-link">Zum Projekt</a>
+  </div>
+  <div class="job-card">
+    <h3 class="job-title">Backend Developer Event Streaming Insurance – Kafka (m/f/d)</h3>
+    <div class="job-meta">
+      <span>&#128205; Amsterdam</span>
+      <span>&#128197; 28.08.2026 &#8211; 16:18 Uhr</span>
+      <span>&#128279; portal-f</span>
+    </div>
+    <div class="job-description">
+      <p>Industry: Insurance. A retailer is moving its order processing to event-driven processing.</p>
+      <p><strong>Your tasks</strong></p>
+      <ul><li>Designing the event formats and their versioning</li><li>Measuring and tuning the load behaviour</li><li>Cutting and building new services</li></ul>
+      <p><strong>Your profile</strong></p>
+      <ul><li>Kubernetes from the application side</li><li>PostgreSQL</li><li>Kafka, Schema Registry</li><li>Java and Spring Boot</li></ul>
+      <p>Start: at short notice<br>Duration: 6 months with an option to extend<br>Workload: 80 %</p>
+    </div>
+    <a href="https://tracker.example/proxy?target=https%3A%2F%2Fportal-f.example%2Fproject%2Fbackend-developer-event-streaming-insurance-kafka-m-f-d-163611&amp;email=demo%2540example.org" class="job-link">Zum Projekt</a>
+  </div>
+  <div class="job-card">
+    <h3 class="job-title">Backend Developer Event Streaming Insurance – Event Sourcing (w/m/d)</h3>
+    <div class="job-meta">
+      <span>&#127970; Hooli Engineering AG</span>
+      <span>&#128205; Remote (Germany-wide)</span>
+      <span>&#128197; 28.08.2026 &#8211; 20:33 Uhr</span>
+      <span>&#128279; portal-b</span>
+    </div>
+    <div class="job-description">
+      <p>Industry: Insurance. An event-based integration layer is being built between two existing systems.</p>
+      <p><strong>Your tasks</strong></p>
+      <ul><li>Measuring and tuning the load behaviour</li><li>Designing the event formats and their versioning</li><li>Cutting and building new services</li></ul>
+      <p><strong>Your profile</strong></p>
+      <ul><li>Kubernetes from the application side</li><li>Kafka, Schema Registry</li><li>Java and Spring Boot</li><li>PostgreSQL</li></ul>
+      <p>Start: at short notice<br>Duration: 12 months with an option to extend<br>Workload: 80 %<br>Hourly rate: 90 EUR</p>
+    </div>
+    <a href="https://tracker.example/proxy?target=https%3A%2F%2Fportal-b.example%2Fproject%2Fbackend-developer-event-streaming-insurance-event-sourcing-w-m-d-179330&amp;email=demo%2540example.org" class="job-link">Zum Projekt</a>
+  </div>
+  <div class="job-card">
+    <h3 class="job-title">Senior Developer Microservices Insurance – Integration layer (m/f/d)</h3>
+    <div class="job-meta">
+      <span>&#127970; Initech Personal AG</span>
+      <span>&#128205; Remote</span>
+      <span>&#128197; 29.08.2026 &#8211; 03:25 Uhr</span>
+      <span>&#128279; portal-c</span>
+    </div>
+    <div class="job-description">
+      <p>Industry: Insurance. An event-based integration layer is being built between two existing systems.</p>
+      <p><strong>Your tasks</strong></p>
+      <ul><li>Designing the event formats and their versioning</li><li>Measuring and tuning the load behaviour</li><li>Cutting and building new services</li></ul>
+      <p><strong>Your profile</strong></p>
+      <ul><li>Java and Spring Boot</li><li>PostgreSQL</li><li>Kafka, Schema Registry</li><li>Kubernetes from the application side</li></ul>
+      <p>Start: at short notice<br>Duration: 6 months with an option to extend<br>Workload: full-time</p>
+    </div>
+    <a href="https://tracker.example/proxy?target=https%3A%2F%2Fportal-c.example%2Fproject%2Fsenior-developer-microservices-insurance-integration-layer-m-f-d-659330&amp;email=demo%2540example.org" class="job-link">Zum Projekt</a>
+  </div>
+  <div class="job-card">
+    <h3 class="job-title">Software Developer Kafka Healthcare – Kafka</h3>
+    <div class="job-meta">
+      <span>&#127970; Umbrella IT Partner GmbH</span>
+      <span>&#128205; Dresden</span>
+      <span>&#128197; 28.08.2026 &#8211; 17:12 Uhr</span>
+      <span>&#128279; portal-a</span>
+    </div>
+    <div class="job-description">
+      <p>Industry: Healthcare. A retailer is moving its order processing to event-driven processing.</p>
+      <p><strong>Your tasks</strong></p>
+      <ul><li>Cutting and building new services</li><li>Designing the event formats and their versioning</li><li>Measuring and tuning the load behaviour</li></ul>
+      <p><strong>Your profile</strong></p>
+      <ul><li>Kafka, Schema Registry</li><li>Kubernetes from the application side</li><li>Java and Spring Boot</li><li>PostgreSQL</li></ul>
+      <p>Start: immediately<br>Duration: 9 months with an option to extend<br>Workload: 80 %</p>
+    </div>
+    <a href="https://tracker.example/proxy?target=https%3A%2F%2Fportal-a.example%2Fproject%2Fsoftware-developer-kafka-healthcare-kafka-550366&amp;email=demo%2540example.org" class="job-link">Zum Projekt</a>
+  </div>
+</div>
+<div class="tag-group">
+  <h2 class="tag-header">Salesforce &#43; CRM</h2>
+  <div class="job-card">
+    <h3 class="job-title">Salesforce Developer Insurance (m/w/d)</h3>
+    <div class="job-meta">
+      <span>&#127970; Initech Personal AG</span>
+      <span>&#128205; Remote and Zürich</span>
+      <span>&#128197; 28.08.2026 &#8211; 11:19 Uhr</span>
+      <span>&#128279; portal-b</span>
+    </div>
+    <div class="job-description">
+      <p>Industry: Insurance. An existing Salesforce instance is being extended for the sales processes.</p>
+      <p><strong>Your tasks</strong></p>
+      <ul><li>Building flows and Apex classes</li><li>Alignment with the business departments</li></ul>
+      <p><strong>Your profile</strong></p>
+      <ul><li>Experience with Sales Cloud</li><li>Apex, Lightning Web Components</li></ul>
+      <p>Start: immediately<br>Duration: 9 months with an option to extend<br>Workload: 4 days a week</p>
+    </div>
+    <a href="https://tracker.example/proxy?target=https%3A%2F%2Fportal-b.example%2Fproject%2Fsalesforce-developer-insurance-m-w-d-417809&amp;email=demo%2540example.org" class="job-link">Zum Projekt</a>
+  </div>
+  <div class="job-card">
+    <h3 class="job-title">Salesforce Developer Automotive – Sales Cloud (m/f/d)</h3>
+    <div class="job-meta">
+      <span>&#127970; Umbrella IT Partner GmbH</span>
+      <span>&#128205; Remote (home office)</span>
+      <span>&#128197; 28.08.2026 &#8211; 21:33 Uhr</span>
+      <span>&#128279; portal-a</span>
+    </div>
+    <div class="job-description">
+      <p>Industry: Automotive. An existing Salesforce instance is being extended for the sales processes.</p>
+      <p><strong>Your tasks</strong></p>
+      <ul><li>Building flows and Apex classes</li><li>Alignment with the business departments</li></ul>
+      <p><strong>Your profile</strong></p>
+      <ul><li>Apex, Lightning Web Components</li><li>Experience with Sales Cloud</li></ul>
+      <p>Start: by arrangement<br>Duration: 6 months with an option to extend<br>Workload: 4 days a week</p>
+    </div>
+    <a href="https://tracker.example/proxy?target=https%3A%2F%2Fportal-a.example%2Fproject%2Fsalesforce-developer-automotive-sales-cloud-m-f-d-707768&amp;email=demo%2540example.org" class="job-link">Zum Projekt</a>
+  </div>
+  <div class="job-card">
+    <h3 class="job-title">Salesforce Developer E-Commerce – Sales Cloud (m/w/d)</h3>
+    <div class="job-meta">
+      <span>&#127970; Soylent Digital GmbH</span>
+      <span>&#128205; Remote and Bonn</span>
+      <span>&#128197; 29.08.2026 &#8211; 03:51 Uhr</span>
+      <span>&#128279; portal-d</span>
+    </div>
+    <div class="job-description">
+      <p>Industry: E-Commerce. An existing Salesforce instance is being extended for the sales processes.</p>
+      <p><strong>Your tasks</strong></p>
+      <ul><li>Alignment with the business departments</li><li>Building flows and Apex classes</li></ul>
+      <p><strong>Your profile</strong></p>
+      <ul><li>Apex, Lightning Web Components</li><li>Experience with Sales Cloud</li></ul>
+      <p>Start: immediately<br>Duration: 12 months with an option to extend<br>Workload: 4 days a week</p>
+    </div>
+    <a href="https://tracker.example/proxy?target=https%3A%2F%2Fportal-d.example%2Fproject%2Fsalesforce-developer-e-commerce-sales-cloud-m-w-d-395870&amp;email=demo%2540example.org" class="job-link">Zum Projekt</a>
+  </div>
+</div>
+</body></html>
+
+--demo--
