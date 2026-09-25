@@ -70,6 +70,9 @@ import {
   Trophy,
   Users,
   X,
+  Maximize,
+  ZoomIn,
+  ZoomOut,
 } from 'lucide';
 
 /** Lucide 1.x hands out a flat `[tag, attributes][]`; there are no nested children. */
@@ -158,6 +161,9 @@ export const LG_ICONS = {
     trophy: Trophy,
     users: Users,
     x: X,
+    maximize: Maximize,
+    'zoom-in': ZoomIn,
+    'zoom-out': ZoomOut,
 } as const satisfies Record<string, IconNode>;
 
 export type LgIconName = keyof typeof LG_ICONS;

@@ -247,3 +247,12 @@
     background: var(--color-base-200);
     border-radius: var(--radius-field);
 }
+
+/* The working list named beside its own figures (ISC-393), apart from the graph's last-run chips. */
+.funnel-working {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.5rem;
+    margin: 0;
+}

@@ -12,23 +12,26 @@
     @if (store.rulesError(); as error) {
         <p class="type-small rules-error" role="alert">{{ error | transloco }}</p>
     }
-    <lg-flow-canvas [workflow]="workflow"/>
-
-    <div class="split">
-        <lg-stage-rail class="rail-col" [workflow]="workflow" [selected]="selected()" [counts]="counts()" [lastRun]="lastRun()"/>
-
-        <section class="lg-panel detail-pane" [attr.aria-label]="'rules.detailLabel' | transloco">
-            @if (detail(); as stage) {
-                <lg-stage-detail
-                        [stage]="stage"
-                        [unread]="workflow.unread"
-                        [rules]="store.rules()"
-                        [prompts]="store.prompts()"
-                        [funnel]="funnel()"
-                />
-            }
-        </section>
+    <div class="canvas-area">
+        <lg-flow-canvas [workflow]="workflow" [lastRun]="lastRun()" [rules]="store.rules()" [selected]="selected()" [occluder]="sheetBox()"/>
+        <!-- ISC-398: what the node markers mean, and the keys nothing reads, off the flow. -->
+        <lg-flow-legend [selected]="selected()"/>
     </div>
+
+    <!-- The selected stage, at the right edge of the browser window rather than the canvas's. The
+         sheet is non-modal, so the canvas to its left stays usable while it is open (ISC-393). -->
+    @if (detail(); as stage) {
+        <lg-stage-sheet
+                [stage]="stage"
+                [unread]="workflow.unread"
+                [rules]="store.rules()"
+                [prompts]="store.prompts()"
+                [funnel]="funnel()"
+                (closed)="closeSheet()"
+        />
+    }
+
+    <lg-stage-rail class="rail-col" [workflow]="workflow" [selected]="selected()" [counts]="counts()" [lastRun]="lastRun()"/>
 } @else if (store.rulesError(); as error) {
     <p class="type-small rules-error" role="alert">{{ error | transloco }}</p>
 } @else {

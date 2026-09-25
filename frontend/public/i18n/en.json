@@ -589,9 +589,10 @@
       "line": "Works on {count, plural, one {one advert} other {up to # adverts}} at once"
     },
     "legend": {
-      "title": "Legend"
+      "title": "Legend",
+      "width": "Works on several adverts at once",
+      "widthMark": "×N"
     },
-    "detailLabel": "Selected stage",
     "phase": {
       "read": "Read",
       "sort": "Sort",
@@ -612,6 +613,13 @@
       "package": "Package",
       "digest": "Digest"
     },
+    "count": {
+      "read": "{count} read",
+      "filter": "{count} held back",
+      "enrich": "{count} enriched",
+      "score": "{count} scored",
+      "package": "{count} packaged"
+    },
     "cost": {
       "free": "Free, runs locally",
       "model": "Calls a model: a prompt or embeddings",
@@ -630,10 +638,26 @@
       "keyCount": "{count, plural, one {1 key} other {# keys}}",
       "emptyList": "empty",
       "sharedIngest": "The ingest settings every source shares are listed under the first source.",
-      "funnelScope": "The current working list, not the last run: what the filter holds back right now, stage by stage.",
+      "funnelScope": "The current working list, not the last run: what the filter holds back right now, stage by stage. The numbers on the graph count the last run.",
       "noFunnel": "No filter counts yet — the funnel appears once offers have been filtered.",
-      "reads": "reads"
-    }
+      "reads": "reads",
+      "workingList": "Working list"
+    },
+    "canvas": {
+      "label": "Workflow graph",
+      "zoomIn": "Zoom in",
+      "zoomOut": "Zoom out",
+      "fit": "Fit the whole workflow",
+      "topics": "Topics",
+      "width": "{count} at once",
+      "expand": "Open {stage}",
+      "collapse": "Close {stage}"
+    },
+    "sheet": {
+      "title": "Stage settings",
+      "close": "Close stage settings"
+    },
+    "fanIn": "{count, plural, one {1 source, feeding {stage}} other {# sources, merged at {stage}}}"
   },
   "analytics": {
     "title": "Analytics",

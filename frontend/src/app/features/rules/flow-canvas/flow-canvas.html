@@ -1,9 +1,55 @@
-<vflow view="auto" [nodes]="nodes()" [edges]="edges()">
-    <ng-template let-ctx nodeHtml>
-        <div class="flow-node" [style.inline-size.px]="ctx.data().width" [style.block-size.px]="ctx.data().height">
-            {{ ctx.data().label }}
-            <handle type="target" position="left"/>
-            <handle type="source" position="right"/>
-        </div>
-    </ng-template>
-</vflow>
+<div class="flow-canvas-box" role="group" [attr.aria-label]="'rules.canvas.label' | transloco" (wheel)="keepWheel($event)">
+    <vflow view="auto" [nodes]="nodes()" [edges]="edges()" [minZoom]="zoom.min" [maxZoom]="zoom.max">
+        <ng-template let-ctx nodeHtml>
+            @let d = ctx.data();
+            <div class="flow-canvas-node" [attr.data-node]="d.id" [style.inline-size.px]="d.width" [style.block-size.px]="d.height">
+                @if (d.kind === 'stage') {
+                    <lg-flow-node
+                            [stage]="d.stage"
+                            [phaseId]="d.phaseId"
+                            [count]="count(d.stage.id)"
+                            [failed]="failed(d.stage.id)"
+                            [selected]="selected() === d.stage.id"
+                            [expandable]="expandable(d.stage)"
+                            [expanded]="isExpanded(d.stage.id)"
+                            (toggled)="toggle($event)"
+                    />
+                } @else {
+                    <span class="type-caption flow-canvas-sub">
+                        @if (d.key; as key) {
+                            {{ key | transloco }}
+                        } @else {
+                            {{ d.text }}
+                        }
+                    </span>
+                }
+                <!-- Anchors only, on the sides the layout's edges use; flow-canvas.css hides their dots. -->
+                @for (h of d.handles; track h.id) {
+                    <handle [id]="h.id" [type]="h.type" [position]="h.position" [offsetX]="h.offsetX"
+                            [attr.data-handle]="h.id" [attr.data-type]="h.type" [attr.data-position]="h.position"/>
+                }
+            </div>
+        </ng-template>
+        <ng-template let-ctx edge>
+            <svg:path class="flow-edge" [attr.d]="ctx.path()" [attr.marker-end]="ctx.markerEnd()"
+                      [attr.data-edge]="ctx.edge.id"
+                      [attr.data-source-handle]="ctx.edge.sourceHandle"
+                      [attr.data-target-handle]="ctx.edge.targetHandle"/>
+        </ng-template>
+    </vflow>
+
+    <div class="flow-canvas-controls">
+        <button type="button" class="btn btn-ghost btn-sm btn-square" data-action="zoom-in"
+                [attr.aria-label]="'rules.canvas.zoomIn' | transloco" [title]="'rules.canvas.zoomIn' | transloco" (click)="zoomIn()">
+            <lg-icon name="zoom-in" [size]="16"/>
+        </button>
+        <button type="button" class="btn btn-ghost btn-sm btn-square" data-action="zoom-out"
+                [attr.aria-label]="'rules.canvas.zoomOut' | transloco" [title]="'rules.canvas.zoomOut' | transloco" (click)="zoomOut()">
+            <lg-icon name="zoom-out" [size]="16"/>
+        </button>
+        <button type="button" class="btn btn-ghost btn-sm btn-square" data-action="fit"
+                [attr.aria-label]="'rules.canvas.fit' | transloco" [title]="'rules.canvas.fit' | transloco" (click)="fit()">
+            <lg-icon name="maximize" [size]="16"/>
+        </button>
+    </div>
+</div>

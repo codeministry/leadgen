@@ -4,42 +4,79 @@
   min-width: 0;
 }
 
+/* The pipe (ISC-395): one 2px spine in the gutter, badges and pills hanging off it. */
 .rail {
   display: flex;
   flex-direction: column;
   gap: var(--lg-stack-gap);
 }
 
-/* The flow. Five steps top to bottom, each a stronger unit than the stage rows it holds:
-   a numbered badge, the phase's own icon and a heading a full step up the type scale. */
-.rail-phases {
+.rail-phases,
+.stages,
+.legend-entries {
   display: flex;
   flex-direction: column;
   list-style: none;
 }
 
-.rail-step {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
+.rail-step,
 .rail-phase {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
   min-width: 0;
 }
 
+/* Every connector is the same line: the spine, the heading's pass-through, the branches. */
+.rail-spine,
+.rail-spine-phase,
+.phase-heading::before,
+.is-source::before,
+.rail-branch {
+  background-color: color-mix(in oklab, var(--lg-muted) 55%, transparent);
+}
+
+.rail-spine,
+.phase-heading::before,
+.is-source::before {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: calc(0.75rem - 1px);
+  width: 2px;
+}
+
+.phase-heading::before,
+.is-source::before {
+  content: '';
+}
+
+/* The pipe starts at the first badge and ends at the last stage's node. */
+.rail-step:first-child .phase-heading::before {
+  inset-block-start: 50%;
+}
+
+.rail-step:last-child .phase-stages > .stage-row:last-child > .rail-spine {
+  inset-block-end: 50%;
+}
+
+.rail-spine-phase {
+  display: block;
+  width: 2px;
+  height: 0.5rem;
+  margin-inline-start: calc(0.75rem - 1px);
+}
+
 .phase-heading {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 0.5rem;
   min-width: 0;
+  padding-block: 0.25rem;
 }
 
 /* Neutral, never the section colour and never the signal: the number is order, not status. */
 .step-number {
+  position: relative;
   display: inline-flex;
   flex-shrink: 0;
   align-items: center;
@@ -57,130 +94,131 @@
   color: var(--lg-muted);
 }
 
-.phase-title {
+.phase-title,
+.stage-name,
+.legend-label {
   min-width: 0;
   overflow-wrap: anywhere;
 }
 
-/* The phase's stages hang off a rule under the badge, so they read as belonging to it. */
-.phase-stages {
-  margin-inline-start: calc(0.75rem - 1px);
-  padding-inline-start: 0.75rem;
-  border-inline-start: 2px solid var(--color-base-300);
-}
-
-/* The arrow sits under the badge column, centred on the rule it continues. */
-.phase-arrow {
-  display: flex;
-  justify-content: center;
-  width: 1.5rem;
-  padding-block: 0.375rem;
-  color: var(--lg-muted);
-}
-
-.stages {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  list-style: none;
-}
-
-/* Positioned so a marker can sit on the row's edge without changing its layout. */
 .stage-row {
   position: relative;
+  display: flex;
   min-width: 0;
+  padding-block: 0.1875rem;
+  padding-inline-start: 2rem;
 }
 
-/* The same row the review queue uses: a bordered link, the selection in `--color-primary`
-   and never in the signal, which means "survived the filter" and nothing else. */
-.stage-link {
-  display: flex;
+/* A node on the spine where each stage hangs off it. */
+.phase-stages > .stage-row::after {
+  position: absolute;
+  inset-block-start: calc(50% - 0.25rem);
+  inset-inline-start: calc(0.75rem - 0.25rem);
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+  background-color: color-mix(in oklab, var(--lg-muted) 55%, transparent);
+  content: '';
+}
+
+/* The sources: parallel branches off the bracket, which the merge joins into the spine. */
+.rail-sources > .stage-row {
+  padding-inline-start: 2.75rem;
+}
+
+.rail-branch {
+  position: absolute;
+  inset-block-start: calc(50% - 1px);
+  inset-inline-start: calc(0.75rem - 1px);
+  width: 1.75rem;
+  height: 2px;
+}
+
+.rail-merge {
+  height: 0.75rem;
+}
+
+/* A compact pill: as wide as its words, capped; the selection is primary, never the signal. */
+.stage-pill {
+  display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.375rem;
   min-width: 0;
-  padding: 0.5rem 0.75rem;
+  max-inline-size: min(20rem, 100%);
+  padding: 0.25rem 0.625rem;
   border: 1px solid var(--color-base-300);
-  border-radius: var(--radius-field);
+  border-radius: 9999px;
   background-color: var(--color-base-100);
   transition: border-color var(--lg-hover-duration) var(--lg-hover-ease),
   background-color var(--lg-hover-duration) var(--lg-hover-ease);
 }
 
-.stage-link:hover {
+.stage-pill:hover {
   border-color: color-mix(in oklab, var(--color-primary) 45%, var(--color-base-300));
 }
 
-.stage-link.is-selected {
+.stage-pill.is-selected {
   border-color: var(--color-primary);
   background-color: var(--lg-selected-surface);
 }
 
-/* The name takes the room and gives it up first, so a long source id wraps rather than
-   pushing the icons and the count out of the row. */
-.stage-name {
-  flex: 1;
-  min-width: 0;
-  overflow-wrap: anywhere;
+/* A model takes part (ISC-308): the violet edge, beside and never instead of the selection. */
+.stage-row.is-ai > .stage-pill {
+  border-inline-start: 3px solid var(--lg-ai);
 }
 
-/* The icons sit at the row's end in a column wide enough for the most a row carries (the AI
-   marker, two cost classes, the failed marker), so the counts before it end on one edge. */
-.stage-icons {
-  display: inline-flex;
+/* The canvas's chip: the count with its verb. */
+.stage-count {
   flex-shrink: 0;
-  justify-content: flex-end;
-  gap: 0.25rem;
-  min-width: calc(4 * 14px + 3 * 0.25rem);
+  padding-inline: 0.375rem;
+  border-radius: 9999px;
+  background-color: var(--color-base-200);
+  font-feature-settings: var(--lg-mono-features);
+  white-space: nowrap;
 }
 
+.stage-icons,
 .stage-costs {
   display: inline-flex;
+  flex-shrink: 0;
   gap: 0.25rem;
+}
+
+.stage-costs,
+.legend-icon {
+  display: inline-flex;
+  flex-shrink: 0;
   color: var(--lg-muted);
 }
 
-.stage-count {
-  flex-shrink: 0;
-  text-align: end;
-  font-feature-settings: var(--lg-mono-features);
-}
-
-/* A model takes part in this stage (ISC-308). The meaning travels in the sparkle's accessible
-   name; the violet is `--lg-ai` and never the signal, the section colour or the selection. */
-.stage-ai {
+.stage-ai,
+.legend-ai .legend-icon {
   display: inline-flex;
   color: var(--lg-ai);
 }
 
-/* The AI edge sits on the row, over the link's own border, so the selection's primary border
-   and the violet edge stay legible together. */
-.stage-row.is-ai::before {
-  position: absolute;
-  inset-block: 0;
-  inset-inline-start: 0;
-  width: 3px;
-  border-start-start-radius: var(--radius-field);
-  border-end-start-radius: var(--radius-field);
-  background-color: var(--lg-ai);
-  content: '';
-  pointer-events: none;
-}
-
-/* Inline and subtle, never the signal: a failed stage is a fact about the last run, not an
-   invitation to act. The colour lives on the icon alone, which carries its own accessible
-   name — the shape (triangle, not circle) is what actually survives without colour. */
-.stage-failed {
+/* A fact about the last run, not a call to act: the triangle carries it, colour only helps. */
+.stage-failed,
+.legend-failed .legend-icon {
   display: inline-flex;
   flex-shrink: 0;
   color: var(--color-error);
 }
 
-/* Said once, above the phases, so no stage ever needs to explain its own missing count. */
 .no-run-note {
   padding-inline: 0.75rem;
 }
 
-/* The legend (ISC-310): every row icon in the colour the row gives it, beside its words. */
+/* Set apart from the pipe: the keys nothing reads are not a step of the run. */
+.unread {
+  padding-top: var(--lg-stack-gap);
+  border-top: 1px dashed var(--color-base-300);
+}
+
+.unread > .stage-row {
+  padding-inline-start: 0;
+}
+
 .rail-legend {
   display: flex;
   flex-direction: column;
@@ -190,10 +228,7 @@
 }
 
 .legend-entries {
-  display: flex;
-  flex-direction: column;
   gap: 0.25rem;
-  list-style: none;
 }
 
 .legend-entry {
@@ -201,29 +236,4 @@
   align-items: center;
   gap: 0.5rem;
   min-width: 0;
-}
-
-.legend-icon {
-  display: inline-flex;
-  flex-shrink: 0;
-  color: var(--lg-muted);
-}
-
-.legend-ai .legend-icon {
-  color: var(--lg-ai);
-}
-
-.legend-failed .legend-icon {
-  color: var(--color-error);
-}
-
-.legend-label {
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
-/* Set apart from the last phase: the keys nothing reads are not a step of the run. */
-.unread {
-  padding-top: var(--lg-stack-gap);
-  border-top: 1px dashed var(--color-base-300);
 }

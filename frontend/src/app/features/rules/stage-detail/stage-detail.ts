@@ -1,5 +1,6 @@
-import {ChangeDetectionStrategy, Component, computed, input} from '@angular/core';
-import {TranslocoPipe} from '@jsverse/transloco';
+import {ChangeDetectionStrategy, Component, computed, inject, input} from '@angular/core';
+import {toSignal} from '@angular/core/rxjs-interop';
+import {TranslocoPipe, TranslocoService} from '@jsverse/transloco';
 import {FunnelView} from '@core/model/funnel';
 import {PromptView} from '@core/model/prompt-view';
 import {RulesView} from '@core/model/rules-view';
@@ -32,6 +33,11 @@ export class StageDetail {
     readonly rules = input<RulesView | null>(null);
     readonly prompts = input<readonly PromptView[]>([]);
     readonly funnel = input<FunnelView | null>(null);
+
+    private readonly transloco = inject(TranslocoService);
+    private readonly lang = toSignal(this.transloco.langChanges$, {initialValue: this.transloco.getActiveLang()});
+    /** The reader's own grouping for the working-list figures, following the language toggle. */
+    private readonly formatter = computed(() => new Intl.NumberFormat(this.lang()));
 
     /** Null on the unread entry, so the template can narrow once. */
     protected readonly current = computed((): WorkflowStage | null => {
@@ -81,4 +87,8 @@ export class StageDetail {
         const stage = this.current();
         return stage?.kind === 'ingest' && stage.settings.length === 0;
     });
+
+    protected format(value: number): string {
+        return this.formatter().format(value);
+    }
 }

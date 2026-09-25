@@ -1,16 +1,68 @@
+/* A fixed box the graph pans and zooms inside. It never grows with the graph and never pushes
+   the page sideways; the one sanctioned inner scroll surface of the rules screen. */
 :host {
     display: block;
-    block-size: 22rem;
+    min-inline-size: 0;
     inline-size: 100%;
+    block-size: min(36rem, 60dvh);
 }
 
-/* html-template nodes size to their content; the template binds the px box the layout used. */
-.flow-node {
-    display: flex;
-    align-items: center;
-    justify-content: center;
+.flow-canvas-box {
+    position: relative;
+    inline-size: 100%;
+    block-size: 100%;
+    overflow: hidden;
     border: 1px solid var(--color-base-300);
     border-radius: var(--radius-box);
-    background: var(--color-base-100);
+    background-color: var(--color-base-200);
+
+    /* The edges and their arrow markers draw in `currentColor`. */
+    color: var(--lg-muted);
+    overscroll-behavior: contain;
+    touch-action: none;
+}
+
+/* The node's own text is content, not an edge. */
+.flow-canvas-node {
+    color: var(--color-base-content);
+}
+
+.flow-canvas-sub {
+    display: flex;
+    align-items: center;
+    box-sizing: border-box;
+    block-size: 100%;
+    padding: 0 0.75rem;
+    overflow: hidden;
+    border: 1px dashed var(--color-base-300);
+    border-radius: var(--radius-field);
+    background-color: var(--color-base-100);
+    overflow-wrap: anywhere;
+}
+
+/* A handle is only where an edge is anchored; nothing here is connected by hand, so its dot is
+   noise. `::ng-deep` because ngx-vflow draws the dot inside its own component. Hidden rather than
+   given a null template: a null template measures itself with `getBBox`, which jsdom lacks. */
+:host ::ng-deep .default-handle {
+    display: none;
+}
+
+.flow-edge {
+    fill: none;
+    stroke: currentcolor;
+    stroke-width: 1.5;
+}
+
+.flow-canvas-controls {
+    position: absolute;
+    inset-block-end: 0.5rem;
+    inset-inline-end: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 0.25rem;
+    border: 1px solid var(--color-base-300);
+    border-radius: var(--radius-field);
+    background-color: var(--color-base-100);
     color: var(--color-base-content);
 }

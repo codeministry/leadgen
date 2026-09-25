@@ -48,6 +48,12 @@
             <h3 class="type-h3">{{ 'rules.knockouts' | transloco }}</h3>
             <p class="type-small text-muted">{{ 'rules.knockoutsNote' | transloco }}</p>
             @if (funnel(); as funnel) {
+                <!-- ISC-393: the working list's own figures, named as such — the graph's chips beside
+                     the sheet count the last run, and the two must never read as one number. -->
+                <p class="type-small funnel-working" data-figures="working-list">
+                    <span class="type-caption text-muted">{{ 'rules.detail.workingList' | transloco }}</span>
+                    <span class="type-mono-data">{{ format(funnel.total) }} → {{ format(funnel.survived) }}</span>
+                </p>
                 <p class="type-caption text-muted funnel-scope">{{ 'rules.detail.funnelScope' | transloco }}</p>
                 <lg-funnel-rail [stages]="funnel.stages" [total]="funnel.total"/>
             } @else {

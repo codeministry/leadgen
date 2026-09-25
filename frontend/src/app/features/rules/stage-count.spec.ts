@@ -1,6 +1,6 @@
 import {LastRunView} from '@core/model/last-run';
 import {WorkflowStage, WorkflowView} from '@core/model/workflow';
-import {stageCounts} from './stage-count';
+import {countVerbKey, formatStageCount, stageCounts} from './stage-count';
 
 function stage(id: string, sourceId: string | null = null): WorkflowStage {
     return {
@@ -82,11 +82,77 @@ describe('stageCounts', () => {
         expect(Object.keys(stageCounts(WORKFLOW, LAST_RUN)).sort()).toEqual([...ids].sort());
     });
 
+    it('leaves a stage the run never reached null, so a failed run shows no stand-in zero', () => {
+        const timed = (position: number, name: string, status = 'OK') => ({
+            position,
+            stage: name,
+            startedAt: '2026-09-24T04:00:00Z',
+            endedAt: '2026-09-24T04:00:01Z',
+            millis: 1000,
+            status,
+            note: null,
+            width: null,
+        });
+        const failed: LastRunView = {
+            ...LAST_RUN,
+            status: 'FAILED',
+            removed: {},
+            enriched: 0,
+            scored: 0,
+            packaged: 0,
+            stages: [timed(0, 'DEDUPE'), timed(1, 'FILTER'), timed(2, 'ENRICH', 'FAILED')],
+        };
+        const counts = stageCounts(WORKFLOW, failed);
+
+        expect(counts['FILTER']).toBe(0);
+        expect(counts['ENRICH']).toBeNull();
+        expect(counts['SCORE']).toBeNull();
+        expect(counts['PACKAGE']).toBeNull();
+        expect(counts['INGEST zeta']).toBe(61);
+    });
+
     it('is empty without a last run', () => {
         expect(stageCounts(WORKFLOW, null)).toEqual({});
     });
 
     it('is empty without a workflow', () => {
         expect(stageCounts(null, LAST_RUN)).toEqual({});
+    });
+});
+
+describe('countVerbKey', () => {
+    it.each([
+        ['INGEST zeta', 'rules.count.read'],
+        ['FILTER', 'rules.count.filter'],
+        ['ENRICH', 'rules.count.enrich'],
+        ['SCORE', 'rules.count.score'],
+        ['PACKAGE', 'rules.count.package'],
+    ])('names what %s did with %s', (id, key) => {
+        const found = WORKFLOW.phases.flatMap((phase) => phase.stages).find((s) => s.id === id)!;
+
+        expect(countVerbKey(found)).toBe(key);
+    });
+
+    it.each(['DEDUPE', 'OPEN', 'ARCHIVE', 'CONTENT', 'FIELDS', 'RETRIEVAL', 'DIGEST'])(
+        'has no verb for %s, which carries no run count',
+        (id) => {
+            expect(countVerbKey(stage(id))).toBeNull();
+        },
+    );
+});
+
+describe('formatStageCount', () => {
+    it('groups the number the way the language does', () => {
+        expect(formatStageCount(stage('ENRICH'), 12548, 'en')).toBe('12,548');
+        expect(formatStageCount(stage('ENRICH'), 12548, 'de')).toBe('12.548');
+    });
+
+    it('writes the removals FILTER held back with a leading minus sign', () => {
+        expect(formatStageCount(stage('FILTER'), 12548, 'en')).toBe('\u221212,548');
+        expect(formatStageCount(stage('FILTER'), 12548, 'de')).toBe('\u221212.548');
+    });
+
+    it('writes no minus sign before a filter that removed nothing', () => {
+        expect(formatStageCount(stage('FILTER'), 0, 'en')).toBe('0');
     });
 });

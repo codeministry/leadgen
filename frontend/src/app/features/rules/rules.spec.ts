@@ -260,15 +260,31 @@ describe('Rules', () => {
         });
     });
 
-    it('selects the first stage and names it in a labelled detail region', () => {
+    // ISC-393 replaces spec 008's "first stage when none": the graph is the page, a stage opens on demand.
+    it('opens no sheet and selects nothing when no stage is named', () => {
         const page = element(render().fixture);
-        const current = page.querySelectorAll('lg-stage-rail [aria-current="page"]');
-        const detail = page.querySelector('section.detail-pane');
 
-        expect(current).toHaveLength(1);
-        expect(current[0].getAttribute('data-stage')).toBe('INGEST zeta');
-        expect(detail?.getAttribute('aria-label')).toBe('Selected stage');
-        expect(detail?.textContent).toContain('zeta');
+        expect(page.querySelector('lg-stage-sheet')).toBeNull();
+        expect(page.querySelector('lg-stage-detail')).toBeNull();
+        expect(page.querySelector('section.detail-pane')).toBeNull();
+        expect(page.querySelectorAll('[aria-current="page"]')).toHaveLength(0);
+        expect(page.querySelector('lg-flow-canvas')).not.toBeNull();
+    });
+
+    it('opens the named stage in a sheet at the window edge', () => {
+        const page = element(render(WORKFLOW, false, 'INGEST zeta').fixture);
+        const sheet = page.querySelector('lg-stage-sheet [role="dialog"]');
+
+        expect(sheet).not.toBeNull();
+        expect(sheet?.querySelector('lg-stage-detail')?.textContent).toContain('zeta');
+    });
+
+    // ISC-393, refined: the sheet belongs to the browser window's right edge, not the canvas's.
+    it('places the sheet outside the canvas area, so nothing but the window bounds it', () => {
+        const page = element(render(WORKFLOW, false, 'FILTER').fixture);
+
+        expect(page.querySelector('lg-stage-sheet')).not.toBeNull();
+        expect(page.querySelector('.canvas-area lg-stage-sheet')).toBeNull();
     });
 
     it('shows in the rail only the counts the last run itself left there', () => {
@@ -276,11 +292,11 @@ describe('Rules', () => {
         const countOf = (id: string): string | undefined =>
             page.querySelector(`lg-stage-rail a[data-stage="${id}"] .stage-count`)?.textContent?.trim();
 
-        expect(countOf('INGEST zeta')).toBe(String(LAST_RUN.sources[0].extracted));
-        expect(countOf('FILTER')).toBe(String(LAST_RUN.removed['abroad']));
-        expect(countOf('ENRICH')).toBe(String(LAST_RUN.enriched));
-        expect(countOf('SCORE')).toBe(String(LAST_RUN.scored));
-        expect(countOf('PACKAGE')).toBe(String(LAST_RUN.packaged));
+        expect(countOf('INGEST zeta')).toBe(`${LAST_RUN.sources[0].extracted} read`);
+        expect(countOf('FILTER')).toBe(`−${LAST_RUN.removed['abroad']} held back`);
+        expect(countOf('ENRICH')).toBe(`${LAST_RUN.enriched} enriched`);
+        expect(countOf('SCORE')).toBe(`${LAST_RUN.scored} scored`);
+        expect(countOf('PACKAGE')).toBe(`${LAST_RUN.packaged} packaged`);
         // Reported by no source of the run: no number, never a zero.
         expect(countOf('INGEST alpha')).toBeUndefined();
         // Standing totals, not this run's own figures (spec 008 § Decisions): no count.
@@ -315,10 +331,50 @@ describe('Rules', () => {
         expect(page.querySelector('.btn-primary')).toBeNull();
     });
 
+    // ISC-398: the canvas legend names every marker a node can carry, drawn as the node draws it.
+
+    it('gives every marker a rendered node carries a legend entry with its icon and a label', () => {
+        const every: WorkflowView = {
+            ...WORKFLOW,
+            phases: WORKFLOW.phases.map((phase) => ({
+                ...phase,
+                stages: phase.stages.map((s) => (s.id === 'ENRICH' ? {...s, width: {key: 'enrichment.fetch.concurrency', value: 4}} : s)),
+            })),
+        };
+        const failedAt = {position: 3, stage: 'ENRICH', startedAt: '', endedAt: '', millis: 1, status: 'FAILED', note: null, width: null};
+        const page = element(render(every, false, undefined, {...LAST_RUN, stages: [failedAt]}).fixture);
+        const legend = page.querySelector('.canvas-area lg-flow-legend');
+        expect(legend, 'legend inside the canvas area').not.toBeNull();
+
+        const icons = new Set(Array.from(page.querySelectorAll('lg-flow-canvas lg-flow-node [data-icon]'), (el) => el.getAttribute('data-icon')));
+        // The fixture draws every marker a node knows: four cost classes, AI, failed.
+        expect(icons.size).toBe(6);
+        for (const icon of icons) {
+            const entry = legend!.querySelector(`[data-marker] lg-icon[data-icon="${icon}"]`)?.closest('[data-marker]');
+            expect(entry, `legend entry for ${icon}`).toBeTruthy();
+            expect(entry!.querySelector('.legend-label')?.textContent?.trim(), `label for ${icon}`).toBeTruthy();
+        }
+
+        expect(page.querySelector('lg-flow-canvas .flow-node-width')).not.toBeNull();
+        const width = legend!.querySelector('[data-marker="width"]');
+        expect(width?.querySelector('.flow-node-width')?.textContent?.trim()).toBeTruthy();
+        expect(width?.querySelector('.legend-label')?.textContent?.trim()).toBeTruthy();
+    });
+
+    it('offers "read by nothing" in the legend, off the flow, as a link to the unread keys', () => {
+        const page = element(render().fixture);
+
+        const unread = page.querySelector<HTMLAnchorElement>('.canvas-area lg-flow-legend a[data-stage="unread"]');
+        expect(unread).not.toBeNull();
+        expect(unread!.closest('lg-flow-canvas')).toBeNull();
+        expect(unread!.getAttribute('href')).toContain('stage=unread');
+        expect(unread!.textContent?.trim()).toBeTruthy();
+    });
+
     // ISC-289: the detail pane is `lg-stage-detail`, fed the stage and the data it needs.
 
     it('draws FILTER through the funnel rail with six stage rows and the survivors last', () => {
-        const detail = element(render(WORKFLOW, false, 'FILTER').fixture).querySelector('section.detail-pane lg-stage-detail');
+        const detail = element(render(WORKFLOW, false, 'FILTER').fixture).querySelector('lg-stage-sheet lg-stage-detail');
         const rows = Array.from(detail?.querySelectorAll('lg-funnel-rail li.row') ?? []);
 
         expect(detail).not.toBeNull();
@@ -328,7 +384,7 @@ describe('Rules', () => {
     });
 
     it('shows SCORE with its weights, penalties, bands and topics', () => {
-        const text = element(render(WORKFLOW, false, 'SCORE').fixture).querySelector('lg-stage-detail')?.textContent ?? '';
+        const text = element(render(WORKFLOW, false, 'SCORE').fixture).querySelector('lg-stage-sheet lg-stage-detail')?.textContent ?? '';
 
         for (const expected of ['skill', '40', 'onsite', '-15', '70', '< 50', 'kotlin', 'sap', 'Score this offer.']) {
             expect(text.replace(/\s+/g, ' '), expected).toContain(expected);
@@ -336,7 +392,7 @@ describe('Rules', () => {
     });
 
     it('shows CONTENT with the content prompt from /api/v1/prompts', () => {
-        const detail = element(render(WORKFLOW, false, 'CONTENT').fixture).querySelector('lg-stage-detail');
+        const detail = element(render(WORKFLOW, false, 'CONTENT').fixture).querySelector('lg-stage-sheet lg-stage-detail');
         const blocks = Array.from(detail?.querySelectorAll('pre') ?? [], (pre) => pre.textContent?.trim());
 
         expect(blocks).toEqual(['Label every block.', 'BLOCKS {blocks}']);
@@ -344,14 +400,14 @@ describe('Rules', () => {
     });
 
     it('shows FIELDS with the fields prompt from /api/v1/prompts', () => {
-        const detail = element(render(WORKFLOW, false, 'FIELDS').fixture).querySelector('lg-stage-detail');
+        const detail = element(render(WORKFLOW, false, 'FIELDS').fixture).querySelector('lg-stage-sheet lg-stage-detail');
         const blocks = Array.from(detail?.querySelectorAll('pre') ?? [], (pre) => pre.textContent?.trim());
 
         expect(blocks).toEqual(['Read the dates.', 'ADVERT {advert}']);
     });
 
     it('shows PACKAGE with the cover-letter writer prompt from /api/v1/prompts (ISC-326)', () => {
-        const detail = element(render(WORKFLOW, false, 'PACKAGE').fixture).querySelector('lg-stage-detail');
+        const detail = element(render(WORKFLOW, false, 'PACKAGE').fixture).querySelector('lg-stage-sheet lg-stage-detail');
         const blocks = Array.from(detail?.querySelectorAll('pre') ?? [], (pre) => pre.textContent?.trim());
 
         expect(blocks).toEqual(['Write one cover letter.', 'STYLE RULES {rules}']);
@@ -365,7 +421,7 @@ describe('Rules', () => {
 /**
  * ISC-288: the selection is the `stage` query parameter, bound as a routed input, so a reload
  * reads it back and the back button restores it. Needs `withComponentInputBinding()` — without
- * it the input stays at its default and every one of these would show the first stage.
+ * it the input stays at its default and every one of these would open no sheet.
  */
 describe('Rules — the stage query parameter', () => {
     let http: HttpTestingController;
@@ -415,48 +471,222 @@ describe('Rules — the stage query parameter', () => {
         return selected[0]?.getAttribute('data-stage');
     }
 
-    it('shows the first stage when the URL names none', async () => {
+    function page(): HTMLElement {
+        return harness!.routeNativeElement as HTMLElement;
+    }
+
+    function sheet(): HTMLElement | null {
+        return page().querySelector('lg-stage-sheet [role="dialog"]');
+    }
+
+    /** The canvas's own card link for a stage, not the rail's. */
+    function node(id: string): HTMLAnchorElement {
+        const link = page().querySelector<HTMLAnchorElement>(`lg-flow-canvas lg-flow-node a[data-stage="${id}"]`);
+        expect(link, id).not.toBeNull();
+        return link!;
+    }
+
+    /** Resolves on the next finished navigation, then lets the screen render it. */
+    async function afterNavigation(act: () => void): Promise<void> {
+        const navigated = firstValueFrom(TestBed.inject(Router).events.pipe(filter((event) => event instanceof NavigationEnd)));
+        act();
+        await navigated;
+        await settle();
+    }
+
+    /** Focus only lands on an element that is in the document. */
+    async function attached(url: string): Promise<void> {
+        await open(url);
+        document.body.appendChild(harness!.fixture.nativeElement as HTMLElement);
+        await settle();
+    }
+
+    it('opens no sheet and selects nothing when the URL names no stage', async () => {
         await open('/rules');
 
-        expect(current()).toBe('INGEST zeta');
+        expect(current()).toBeUndefined();
+        expect(sheet()).toBeNull();
     });
 
-    it('shows the stage the URL names, matched case-insensitively', async () => {
+    it('opens the stage the URL names, matched case-insensitively', async () => {
         await open('/rules?stage=filter');
 
         expect(current()).toBe('FILTER');
-        expect((harness!.routeNativeElement as HTMLElement).querySelector('lg-stage-detail lg-funnel-rail')).not.toBeNull();
+        expect(sheet()?.querySelector('lg-stage-detail lg-funnel-rail')).not.toBeNull();
     });
 
-    it('falls back to the first stage for a value the server did not name', async () => {
+    it('opens no sheet for a value the server did not name', async () => {
         await open('/rules?stage=nope');
 
-        expect(current()).toBe('INGEST zeta');
+        expect(current()).toBeUndefined();
+        expect(sheet()).toBeNull();
     });
 
     it('selects the unread entry by its own value', async () => {
         await open('/rules?stage=unread');
 
         expect(current()).toBe('unread');
+        expect(sheet()).not.toBeNull();
+    });
+
+    it('restores a reloaded ?stage=score with its blocks', async () => {
+        await open('/rules?stage=score');
+
+        const text = (sheet()?.textContent ?? '').replace(/\s+/g, ' ');
+        for (const expected of ['skill', '40', 'onsite', '-15', 'kotlin', 'Score this offer.']) {
+            expect(text, expected).toContain(expected);
+        }
+    });
+
+    it('sets ?stage= and opens the sheet on a click on a canvas node, focus on its heading', async () => {
+        await attached('/rules');
+
+        await afterNavigation(() => node('FILTER').click());
+
+        expect(TestBed.inject(Location).path()).toBe('/rules?stage=FILTER');
+        expect(sheet()?.querySelector('lg-funnel-rail')).not.toBeNull();
+        expect(document.activeElement).toBe(sheet()?.querySelector('.sheet-heading'));
+    });
+
+    it('opens the sheet from the keyboard: Enter on a focused node', async () => {
+        await attached('/rules');
+        const link = node('SCORE');
+        link.focus();
+        expect(document.activeElement).toBe(link);
+
+        // jsdom has no activation behaviour; a browser turns an unhandled Enter on a link into a click.
+        await afterNavigation(() => {
+            if (link.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', bubbles: true, cancelable: true}))) {
+                link.click();
+            }
+        });
+
+        expect(TestBed.inject(Location).path()).toBe('/rules?stage=SCORE');
+        expect(sheet()).not.toBeNull();
+        expect(document.activeElement).toBe(sheet()?.querySelector('.sheet-heading'));
+    });
+
+    it('closes on Escape: parameter removed, sheet gone, focus back on the node', async () => {
+        await attached('/rules?stage=filter');
+        expect(sheet()).not.toBeNull();
+
+        await afterNavigation(() =>
+            sheet()!.querySelector('.sheet-heading')!.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true})),
+        );
+
+        expect(TestBed.inject(Location).path()).toBe('/rules');
+        expect(sheet()).toBeNull();
+        expect(document.activeElement).toBe(node('FILTER'));
+    });
+
+    it('closes by its button the same way', async () => {
+        await attached('/rules?stage=SCORE');
+
+        await afterNavigation(() => sheet()!.querySelector<HTMLButtonElement>('button[data-action="close"]')!.click());
+
+        expect(TestBed.inject(Location).path()).toBe('/rules');
+        expect(sheet()).toBeNull();
+        expect(document.activeElement).toBe(node('SCORE'));
+    });
+
+    it('closes on Escape pressed anywhere on the screen, not only inside the sheet (ISC-403)', async () => {
+        await attached('/rules?stage=filter');
+        expect(sheet()).not.toBeNull();
+
+        await afterNavigation(() => document.body.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true})));
+
+        expect(TestBed.inject(Location).path()).toBe('/rules');
+        expect(sheet()).toBeNull();
+        expect(document.activeElement).toBe(node('FILTER'));
+    });
+
+    it('leaves Escape to an open dialog that owns it (ISC-403)', async () => {
+        await attached('/rules?stage=filter');
+        const dialog = document.createElement('dialog');
+        dialog.setAttribute('open', '');
+        document.body.appendChild(dialog);
+        try {
+            dialog.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true}));
+            await settle();
+
+            expect(TestBed.inject(Location).path()).toBe('/rules?stage=filter');
+            expect(sheet()).not.toBeNull();
+        } finally {
+            dialog.remove();
+        }
+    });
+
+    it('closes on a click outside the sheet and the canvas (ISC-403)', async () => {
+        await attached('/rules?stage=SCORE');
+
+        await afterNavigation(() => page().querySelector<HTMLElement>('lg-page-header')!.click());
+
+        expect(TestBed.inject(Location).path()).toBe('/rules');
+        expect(sheet()).toBeNull();
+    });
+
+    it('stays open on a click inside the sheet (ISC-403)', async () => {
+        await attached('/rules?stage=SCORE');
+
+        sheet()!.querySelector<HTMLElement>('lg-stage-detail')!.click();
+        await settle();
+
+        expect(TestBed.inject(Location).path()).toBe('/rules?stage=SCORE');
+        expect(sheet()).not.toBeNull();
+    });
+
+    it('selects another node on a click on it rather than closing (ISC-403)', async () => {
+        await attached('/rules?stage=filter');
+
+        await afterNavigation(() => node('SCORE').click());
+        await settle();
+
+        expect(TestBed.inject(Location).path()).toBe('/rules?stage=SCORE');
+        expect(sheet()).not.toBeNull();
+    });
+
+    it('opens the unread keys in the sheet from the legend entry (ISC-398)', async () => {
+        await attached('/rules');
+        const link = page().querySelector<HTMLAnchorElement>('lg-flow-legend a[data-stage="unread"]');
+        expect(link).not.toBeNull();
+
+        await afterNavigation(() => link!.click());
+
+        expect(TestBed.inject(Location).path()).toBe('/rules?stage=unread');
+        // The settings block groups a dotted key by its segments, so `legacy.flag` reads as two.
+        const text = sheet()?.textContent ?? '';
+        for (const expected of ['pipeline.yaml', 'legacy', 'flag']) {
+            expect(text, expected).toContain(expected);
+        }
     });
 
     it('restores the previous selection on back', async () => {
         await open('/rules');
         await open('/rules?stage=filter');
         await open('/rules?stage=nope');
-        expect(current()).toBe('INGEST zeta');
+        expect(sheet()).toBeNull();
 
         // The mock location moves at once; the router's popstate navigation finishes later.
-        const navigated = firstValueFrom(
-            TestBed.inject(Router).events.pipe(filter((event) => event instanceof NavigationEnd)),
-        );
-        TestBed.inject(Location).back();
-        await navigated;
-        await settle();
+        await afterNavigation(() => TestBed.inject(Location).back());
 
         expect(TestBed.inject(Location).path()).toBe('/rules?stage=filter');
         expect(current()).toBe('FILTER');
+        expect(sheet()?.querySelector('lg-funnel-rail')).not.toBeNull();
     });
 
-    afterEach(() => http.verify());
+    it('closes the sheet again on back after a close', async () => {
+        await open('/rules?stage=filter');
+        await afterNavigation(() => sheet()!.querySelector<HTMLButtonElement>('button[data-action="close"]')!.click());
+        expect(sheet()).toBeNull();
+
+        await afterNavigation(() => TestBed.inject(Location).back());
+
+        expect(TestBed.inject(Location).path()).toBe('/rules?stage=filter');
+        expect(sheet()).not.toBeNull();
+    });
+
+    afterEach(() => {
+        (harness?.fixture.nativeElement as HTMLElement | undefined)?.remove();
+        http.verify();
+    });
 });

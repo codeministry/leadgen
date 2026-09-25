@@ -1,30 +1,21 @@
-import {ChangeDetectionStrategy, Component, computed, input} from '@angular/core';
+import {ChangeDetectionStrategy, Component, computed, inject, input} from '@angular/core';
+import {NgTemplateOutlet} from '@angular/common';
+import {toSignal} from '@angular/core/rxjs-interop';
 import {RouterLink} from '@angular/router';
-import {TranslocoPipe} from '@jsverse/transloco';
+import {TranslocoPipe, TranslocoService} from '@jsverse/transloco';
 import {LastRunView} from '@core/model/last-run';
 import {WorkflowStage, WorkflowView} from '@core/model/workflow';
 import {Icon} from '@shared/icon/icon';
 import {LgIconName} from '@shared/icon/lucide-icons';
 import {isAiStage} from '../ai-stage';
+import {countVerbKey, formatStageCount} from '../stage-count';
+import {AI_ICON, COST_ICONS, FAILED_ICON, costIcon, costLabelKey, failedStageIds, stageLabelKey} from '../stage-marks';
 
 /** The `stage` value of the entry after DIGEST, the keys no stage reads. */
 export const UNREAD_STAGE = 'unread';
 
-/**
- * One icon per cost class, spelled out as a literal map. The meaning travels in the icon's
- * accessible name, never in a colour: `free`, `model`, `network` and `file` are what a stage
- * costs, not how good it is, and the signal colour is reserved for survivors.
- */
-export const COST_ICONS: Readonly<Record<string, LgIconName>> = {
-    free: 'list-checks',
-    model: 'message-circle-question',
-    network: 'external-link',
-    file: 'file-text',
-};
-
-/** The AI marker (ISC-308) and the failed-stage marker, named once for the rail and its legend. */
-export const AI_ICON: LgIconName = 'sparkles';
-export const FAILED_ICON: LgIconName = 'triangle-alert';
+/** Re-exported for the rail's spec and callers that named them here before the flow graph shared them. */
+export {AI_ICON, COST_ICONS, FAILED_ICON};
 
 /** One legend entry (ISC-310): the icon a stage row draws, the catalog key of its words. */
 interface LegendEntry {
@@ -56,10 +47,13 @@ const PHASE_ICONS: Readonly<Record<string, LgIconName>> = {
 };
 
 /**
- * The left half of the rules screen: the pipeline's phases as one numbered flow, top to
- * bottom, with their stages in the order the server sent them, and one entry after the last
- * phase for the keys nothing reads. The order is carried by the `<ol>` and the numbered
- * headings; the arrows between phases only draw it and are hidden from assistive technology.
+ * The workflow as a vertical flow pipe (ISC-395): the phases as numbered headings on one
+ * continuous spine, their stages as compact pills hanging off it in the order the server sent
+ * them, the ingest sources bracketed as parallel branches that merge into the stage after them,
+ * and one entry after the last phase for the keys nothing reads. The order is carried by the DOM
+ * (the `<ol>`, the numbered headings, the links in run order); the spine, the branches and the
+ * merge only draw it and are hidden from assistive technology, which hears the fan-in once as a
+ * sentence instead.
  *
  * Fed entirely through inputs. The selection is the screen's `stage` query parameter, so every
  * entry is a link that writes it — a reload and the back button then keep the selection
@@ -67,7 +61,7 @@ const PHASE_ICONS: Readonly<Record<string, LgIconName>> = {
  */
 @Component({
     selector: 'lg-stage-rail',
-    imports: [Icon, RouterLink, TranslocoPipe],
+    imports: [Icon, NgTemplateOutlet, RouterLink, TranslocoPipe],
     templateUrl: './stage-rail.html',
     styleUrl: './stage-rail.css',
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -96,21 +90,11 @@ export class StageRail {
     protected readonly legend = LEGEND;
 
     /** Stage ids the recorded run's `stages[]` marks `FAILED` — the same strings as `stage.id`. */
-    protected readonly failedStages = computed((): ReadonlySet<string> => {
-        const run = this.lastRun();
-        if (run === null) {
-            return new Set();
-        }
-        return new Set(run.stages.filter((stage) => stage.status === 'FAILED').map((stage) => stage.stage));
-    });
+    protected readonly failedStages = computed(() => failedStageIds(this.lastRun()));
 
-    /**
-     * An ingest entry is named by its source, which is configuration and not a label; every
-     * other stage by a catalog key, because the server sends a closed id and the browser holds
-     * the words.
-     */
+    /** An ingest entry is named by its source, every other stage by a catalog key. */
     protected labelKey(stage: WorkflowStage): string | null {
-        return stage.kind === 'ingest' ? null : `rules.stage.${stage.id.toLowerCase()}`;
+        return stageLabelKey(stage);
     }
 
     /** A model takes part here; the same predicate the detail pane draws its band from. */
@@ -118,28 +102,61 @@ export class StageRail {
         return isAiStage(stage);
     }
 
-    /**
-     * What the icon says on this row. The model class covers two different calls, a prompt to a
-     * language model and an embedding, so the row names the one it makes; the legend keeps the
-     * general word, because it explains the icon rather than a stage.
-     */
+    /** What the icon says on this row: the call a model stage makes, the class otherwise. */
     protected costLabel(stage: WorkflowStage, costClass: string): string {
-        if (costClass !== 'model') {
-            return `rules.cost.${costClass}`;
-        }
-        return stage.promptId === null ? 'rules.cost.modelEmbed' : 'rules.cost.modelPrompt';
+        return costLabelKey(stage, costClass);
     }
 
     protected costIcon(costClass: string): LgIconName {
-        return COST_ICONS[costClass] ?? 'ellipsis';
+        return costIcon(costClass);
     }
 
     protected phaseIcon(phaseId: string): LgIconName {
         return PHASE_ICONS[phaseId] ?? 'ellipsis';
     }
 
-    protected count(id: string): string | number | null {
-        return this.counts()[id] ?? null;
+    /** Read reactively so a language switch regroups the numbers without a reload. */
+    private readonly transloco = inject(TranslocoService);
+    private readonly lang = toSignal(this.transloco.langChanges$, {initialValue: this.transloco.getActiveLang()});
+
+    /**
+     * The fan-in (ISC-395): how many sources the bracket draws and the stage they merge into —
+     * the first stage after the last source in run order, DEDUPE on the live workflow. Null
+     * without a source or without a stage after them, so the sentence is never half true.
+     */
+    protected readonly fanIn = computed((): {count: number; targetKey: string} | null => {
+        const all = this.workflow().phases.flatMap((phase) => phase.stages);
+        const count = all.filter((stage) => stage.kind === 'ingest').length;
+        const target = all.slice(all.map((stage) => stage.kind).lastIndexOf('ingest') + 1)[0];
+        if (count === 0 || target === undefined) {
+            return null;
+        }
+        // The stage after the last source is never itself a source, so it always has a catalog key.
+        return {count, targetKey: stageLabelKey(target) ?? target.id};
+    });
+
+    protected sources(stages: readonly WorkflowStage[]): WorkflowStage[] {
+        return stages.filter((stage) => stage.kind === 'ingest');
+    }
+
+    protected spineStages(stages: readonly WorkflowStage[]): WorkflowStage[] {
+        return stages.filter((stage) => stage.kind !== 'ingest');
+    }
+
+    /**
+     * The chip the canvas draws for the same count — its verb and the grouped number — or the
+     * bare value for a count that has no verb, or nothing without a count at all.
+     */
+    protected chip(stage: WorkflowStage): {key: string | null; count: string} | null {
+        const value = this.counts()[stage.id] ?? null;
+        if (value === null) {
+            return null;
+        }
+        const key = countVerbKey(stage);
+        if (key === null || typeof value !== 'number') {
+            return {key: null, count: String(value)};
+        }
+        return {key, count: formatStageCount(stage, value, this.lang())};
     }
 
     protected failed(id: string): boolean {

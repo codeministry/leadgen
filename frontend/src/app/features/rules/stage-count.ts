@@ -38,6 +38,12 @@ function countOf(stage: WorkflowStage, run: LastRunView): number | null {
     if (stage.kind === 'ingest') {
         return run.sources.find((source) => source.sourceId === stage.sourceId)?.extracted ?? null;
     }
+    // A failed or batched run keeps its counters at zero for the stages it never finished, and a
+    // zero there would read as a measurement. A run recorded before stage timing existed has no
+    // rows at all, and keeps the old reading.
+    if (run.stages.length > 0 && !run.stages.some((row) => row.stage === stage.id && row.status === 'OK')) {
+        return null;
+    }
     switch (stage.id) {
         case 'FILTER':
             // The sum over `removed`, the figure the dashboard's run summary states as removed.
@@ -55,4 +61,37 @@ function countOf(stage: WorkflowStage, run: LastRunView): number | null {
             // DIGEST: `digestWritten` is a yes or no, not a count.
             return null;
     }
+}
+
+/**
+ * The catalog key of the words a count chip puts around its number ("8 read", "−12,548 held
+ * back"), or `null` for a stage that carries no run count. Keyed exactly as `countOf` above, so
+ * a stage cannot gain a number without gaining the words for it.
+ */
+export function countVerbKey(stage: WorkflowStage): string | null {
+    if (stage.kind === 'ingest') {
+        return 'rules.count.read';
+    }
+    switch (stage.id) {
+        case 'FILTER':
+        case 'ENRICH':
+        case 'SCORE':
+        case 'PACKAGE':
+            return `rules.count.${stage.id.toLowerCase()}`;
+        default:
+            return null;
+    }
+}
+
+/** U+2212, the typographic minus: a hyphen reads as a dash beside a grouped number. */
+const MINUS = '−';
+
+/**
+ * A stage's run count grouped the way the given language groups it (en "12,548", de "12.548").
+ * FILTER's figure is what it removed, so it carries a leading minus sign — unless it removed
+ * nothing, where "−0" would claim a removal that did not happen.
+ */
+export function formatStageCount(stage: WorkflowStage, count: number, lang: string): string {
+    const grouped = new Intl.NumberFormat(lang).format(count);
+    return stage.id === 'FILTER' && count > 0 ? `${MINUS}${grouped}` : grouped;
 }

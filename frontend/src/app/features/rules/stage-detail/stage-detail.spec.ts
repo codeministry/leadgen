@@ -288,6 +288,18 @@ describe('StageDetail', () => {
         expect(caption?.textContent).toContain('not the last run');
     });
 
+    // ISC-393: the graph's chips count the last run; the sheet's figures are the working list.
+    it('labels the FILTER figures as the working list, apart from the graph\'s last-run chips', () => {
+        const {page} = render(FILTER);
+        const figures = page.querySelector('[data-section="funnel"] [data-figures="working-list"]');
+        const text = (figures?.textContent ?? '').replace(/\s+/g, ' ').trim();
+
+        expect(figures).not.toBeNull();
+        expect(text).toContain('Working list');
+        expect(text).toContain(`${FUNNEL.total.toLocaleString('en')} → ${FUNNEL.survived.toLocaleString('en')}`);
+        expect(page.querySelector('[data-section="funnel"] .funnel-scope')?.textContent).toContain('numbers on the graph');
+    });
+
     it('points a later ingest entry at the first source for the shared settings', () => {
         const {page} = render(stage('INGEST second', {kind: 'ingest', sourceId: 'second', settings: []}));
         const settings = page.querySelector('[data-section="settings"]')?.textContent ?? '';

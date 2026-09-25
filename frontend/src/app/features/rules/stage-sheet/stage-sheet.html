@@ -1,0 +1,32 @@
+<section
+        class="lg-panel sheet"
+        role="dialog"
+        aria-modal="false"
+        [attr.aria-labelledby]="headingId"
+        (keydown.escape)="close()"
+>
+    <header class="sheet-head">
+        <h2 #heading class="type-caption text-muted sheet-heading" tabindex="-1" [id]="headingId">
+            {{ 'rules.sheet.title' | transloco }}
+        </h2>
+        <button
+                type="button"
+                class="btn btn-ghost btn-sm btn-square"
+                data-action="close"
+                [attr.aria-label]="'rules.sheet.close' | transloco"
+                [title]="'rules.sheet.close' | transloco"
+                (click)="close()"
+        >
+            <lg-icon name="x" [size]="16"/>
+        </button>
+    </header>
+    <div class="sheet-body">
+        <lg-stage-detail
+                [stage]="stage()"
+                [unread]="unread()"
+                [rules]="rules()"
+                [prompts]="prompts()"
+                [funnel]="funnel()"
+        />
+    </div>
+</section>

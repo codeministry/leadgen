@@ -132,16 +132,17 @@ describe('StageRail', () => {
             expect(new Set(icons.map((svg) => svg?.innerHTML)).size).toBe(5);
         });
 
-        it('draws four decorative arrows, one between each pair of phases and none after the last', () => {
-            const items = Array.from(element(render('DEDUPE')).querySelectorAll('ol.rail-phases > li'));
-            const arrows = items.map((li) => li.querySelectorAll(':scope > .phase-arrow'));
+        it('joins the phases with four hidden spine segments, none after the last', () => {
+            const rail = element(render('DEDUPE'));
+            const items = Array.from(rail.querySelectorAll('ol.rail-phases > li'));
+            const segments = items.map((li) => li.querySelectorAll(':scope > .rail-spine-phase'));
 
-            expect(arrows.map((found) => found.length)).toEqual([1, 1, 1, 1, 0]);
-            for (const found of arrows.slice(0, 4)) {
-                const arrow = found[0];
-                expect(arrow.getAttribute('aria-hidden')).toBe('true');
-                expect(arrow.querySelector('svg')).not.toBeNull();
+            expect(segments.map((found) => found.length)).toEqual([1, 1, 1, 1, 0]);
+            for (const found of segments.slice(0, 4)) {
+                expect(found[0].getAttribute('aria-hidden')).toBe('true');
             }
+            // 008's arrows are gone: the spine draws the order now.
+            expect(rail.querySelector('.phase-arrow')).toBeNull();
         });
 
         it('keeps the entry for unread keys outside the numbered flow', () => {
@@ -232,13 +233,15 @@ describe('StageRail', () => {
         expect(current[0].querySelector('.stage-name')?.textContent?.trim()).toBe('Read by nothing');
     });
 
-    it('shows a count where one is given and nothing where none is', () => {
-        const rail = element(render('DEDUPE', {DEDUPE: 42, FILTER: null}));
+    it('shows a count as the chip the canvas draws, with its verb, and nothing where none is', () => {
+        const rail = element(render('DEDUPE', {'INGEST zeta': 8, FILTER: 12548, SCORE: 12537, ENRICH: null}));
         const count = (id: string) => rail.querySelector(`a[data-stage="${id}"] .stage-count`)?.textContent?.trim() ?? null;
 
-        expect(count('DEDUPE')).toBe('42');
-        expect(count('FILTER')).toBeNull();
-        expect(count('SCORE')).toBeNull();
+        expect(count('INGEST zeta')).toBe('8 read');
+        expect(count('FILTER')).toBe('−12,548 held back');
+        expect(count('SCORE')).toBe('12,537 scored');
+        expect(count('ENRICH')).toBeNull();
+        expect(count('DEDUPE')).toBeNull();
     });
 
     it('never paints the signal and never offers a primary action', () => {
@@ -420,5 +423,68 @@ describe('StageRail legend (ISC-310)', () => {
 
         expect(lists.length).toBeGreaterThan(1);
         lists.forEach((list) => expect(list.getAttribute('role')).toBe('list'));
+    });
+});
+
+describe('StageRail is a flow pipe (ISC-395)', () => {
+    beforeEach(() => {
+        TestBed.configureTestingModule({providers: [provideRouter([])]});
+    });
+
+    function rail(selected = 'FILTER'): HTMLElement {
+        const fixture = TestBed.createComponent(StageRail);
+        fixture.componentRef.setInput('workflow', WORKFLOW);
+        fixture.componentRef.setInput('selected', selected);
+        fixture.detectChanges();
+        return fixture.nativeElement as HTMLElement;
+    }
+
+    const ALL = WORKFLOW.phases.flatMap((phase) => phase.stages);
+    const SOURCES = ALL.filter((s) => s.kind === 'ingest');
+    const SPINE_STAGES = ALL.filter((s) => s.kind !== 'ingest');
+
+    it('draws a hidden spine segment on every stage from the merge on', () => {
+        const rows = Array.from(rail().querySelectorAll('ol.rail-phases .stage-row:not(.is-source)'));
+
+        expect(rows.map((row) => row.querySelector('a')?.getAttribute('data-stage'))).toEqual(SPINE_STAGES.map((s) => s.id));
+        for (const row of rows) {
+            const spine = row.querySelector(':scope > .rail-spine');
+            expect(spine).not.toBeNull();
+            expect(spine?.getAttribute('aria-hidden')).toBe('true');
+        }
+    });
+
+    it('brackets the sources, one hidden branch per source, merging before DEDUPE', () => {
+        const root = rail();
+        const bracket = root.querySelector('.rail-sources');
+        const branches = Array.from(bracket?.querySelectorAll(':scope > li > .rail-branch') ?? []);
+
+        expect(bracket).not.toBeNull();
+        expect(branches).toHaveLength(SOURCES.length);
+        expect(branches.every((b) => b.getAttribute('aria-hidden') === 'true')).toBe(true);
+        expect(Array.from(bracket?.querySelectorAll('a') ?? [], (a) => a.getAttribute('data-stage'))).toEqual(SOURCES.map((s) => s.id));
+        const merge = root.querySelector('.rail-merge');
+        expect(merge?.getAttribute('aria-hidden')).toBe('true');
+        const dedupe = root.querySelector('a[data-stage="DEDUPE"]') as Node;
+        expect(merge?.compareDocumentPosition(dedupe)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    });
+
+    it('says the fan-in once in words, visually hidden, for a screen reader', () => {
+        const sentences = Array.from(rail().querySelectorAll('.rail-fan-in'));
+
+        expect(sentences).toHaveLength(1);
+        expect(sentences[0].classList.contains('sr-only')).toBe(true);
+        expect(sentences[0].textContent?.trim()).toBe('2 sources, merged at Deduplicate');
+    });
+
+    it('keeps every link in run order, the unread entry last, with one aria-current', () => {
+        const links = Array.from(rail('SCORE').querySelectorAll('nav a'));
+
+        expect(links.map((a) => a.getAttribute('data-stage'))).toEqual([...ALL.map((s) => s.id), 'unread']);
+        expect(links.filter((a) => a.getAttribute('aria-current') === 'page').map((a) => a.getAttribute('data-stage'))).toEqual(['SCORE']);
+    });
+
+    it('draws every entry as a compact pill, not a full-width row', () => {
+        expect(rail().querySelectorAll('a.stage-pill[data-stage]')).toHaveLength(STAGE_COUNT + 1);
     });
 });

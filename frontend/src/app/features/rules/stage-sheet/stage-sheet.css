@@ -1,0 +1,65 @@
+/* Fixed to the right edge of the browser window, the way the help drawer (spec 010) is, from
+   under the sticky app header to the bottom of the viewport. Placed against the window rather
+   than the canvas, so it covers no more of the graph than its own width and the canvas to its
+   left stays usable: a non-modal sheet, not the help drawer's modal `<dialog>`, so no backdrop.
+
+   The help drawer's width, `--lg-help-w`: the operator asked for a wider sheet than the 36rem it
+   started at, which was the least the funnel rail's four columns need (29.25rem before its bar
+   gets any width). Never wider than the window; below 60rem the rail folds to two columns anyway.
+
+   `z-index` 15: over the page, under the 20 of the fixed bottom bar the navigation becomes
+   below 48rem and the header's 30, so neither the navigation nor the run button is covered. */
+:host {
+    position: fixed;
+    inset-block: var(--lg-header-h) 0;
+    inset-inline: auto 0;
+    z-index: 15;
+    display: block;
+    inline-size: min(var(--lg-help-w), 100vw);
+    min-inline-size: 0;
+}
+
+/* The panel's surface and section edge, squared off where it meets the window's edges. */
+.sheet {
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+    block-size: 100%;
+    border-inline-end: 0;
+    border-block-end: 0;
+    border-radius: 0;
+}
+
+.sheet-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-block-end: 0.5rem;
+}
+
+/* Focused by script only (tabindex -1): the ring shows where focus went without a tab stop. */
+.sheet-heading {
+    margin: 0;
+}
+
+.sheet-heading:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+}
+
+/* The sheet's own scroll: SCORE's keys and a long prompt never grow the canvas area. */
+.sheet-body {
+    flex: 1 1 auto;
+    min-block-size: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+/* Below 48rem the navigation is a fixed bottom bar over the sheet's foot; the body keeps the
+   shell's own 5rem clearance for it, so the last row scrolls out from under the bar. */
+@media (width < 48rem) {
+    .sheet-body {
+        padding-block-end: calc(5rem + env(safe-area-inset-bottom));
+    }
+}

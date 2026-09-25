@@ -589,9 +589,10 @@
       "line": "Bearbeitet {count, plural, one {eine Anzeige} other {bis zu # Anzeigen}} gleichzeitig"
     },
     "legend": {
-      "title": "Legende"
+      "title": "Legende",
+      "width": "Arbeitet an mehreren Anzeigen zugleich",
+      "widthMark": "×N"
     },
-    "detailLabel": "Gewählte Stufe",
     "phase": {
       "read": "Lesen",
       "sort": "Sortieren",
@@ -612,6 +613,13 @@
       "package": "Paket",
       "digest": "Digest"
     },
+    "count": {
+      "read": "{count} gelesen",
+      "filter": "{count} zurückgehalten",
+      "enrich": "{count} angereichert",
+      "score": "{count} bewertet",
+      "package": "{count} gepackt"
+    },
     "cost": {
       "free": "Kostenlos, läuft lokal",
       "model": "Ruft ein Modell auf: Prompt oder Embeddings",
@@ -630,10 +638,26 @@
       "keyCount": "{count, plural, one {1 Schlüssel} other {# Schlüssel}}",
       "emptyList": "leer",
       "sharedIngest": "Die Ingest-Einstellungen, die alle Quellen teilen, stehen bei der ersten Quelle.",
-      "funnelScope": "Die aktuelle Arbeitsliste, nicht der letzte Lauf: was der Filter gerade zurückhält, Stufe für Stufe.",
+      "funnelScope": "Die aktuelle Arbeitsliste, nicht der letzte Lauf: was der Filter gerade zurückhält, Stufe für Stufe. Die Zahlen im Graphen zählen den letzten Lauf.",
       "noFunnel": "Noch keine Filterzahlen — der Trichter erscheint, sobald Angebote gefiltert wurden.",
-      "reads": "liest"
-    }
+      "reads": "liest",
+      "workingList": "Arbeitsliste"
+    },
+    "canvas": {
+      "label": "Ablauf als Graph",
+      "zoomIn": "Vergrößern",
+      "zoomOut": "Verkleinern",
+      "fit": "Ganzen Ablauf einpassen",
+      "topics": "Themen",
+      "width": "{count} gleichzeitig",
+      "expand": "{stage} aufklappen",
+      "collapse": "{stage} zuklappen"
+    },
+    "sheet": {
+      "title": "Stufeneinstellungen",
+      "close": "Stufeneinstellungen schließen"
+    },
+    "fanIn": "{count, plural, one {1 Quelle, weiter zu {stage}} other {# Quellen, zusammengeführt bei {stage}}}"
   },
   "analytics": {
     "title": "Auswertung",

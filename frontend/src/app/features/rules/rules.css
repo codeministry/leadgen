@@ -1,4 +1,4 @@
-/* The same frame the review screen takes: the page capped at the split measure, centred. */
+/* The page capped at the shell measure, centred, like the other screens. */
 :host {
     display: block;
     width: 100%;
@@ -6,35 +6,21 @@
     margin-inline: auto;
 }
 
-/* The rail is a column of stage names, the detail is what is read. Review's shape and
-   breakpoint, so the three split views fold at the same width. */
-.split {
-    display: grid;
-    grid-template-columns: var(--lg-list-w) minmax(0, 1fr);
-    gap: var(--lg-split-gap);
-    align-items: start;
+/* The graph's box. The stage sheet is not in it: it is fixed to the browser window's right edge. */
+.canvas-area {
+    min-width: 0;
 }
 
-/* One scroll, the page's. The rail is not sticky, unlike review's queue: with every source and
-   the unread entry it is taller than the viewport below the header, and a pinned column
-   taller than the window cannot show its own end until the page does, so the two columns
-   move against each other. Bounding it with its own scroller is the other fix and adds a
-   second scrollbar, which is the complaint this replaces. */
+/* Below the canvas until it becomes the pipe (ISC-395). Not sticky: with every source and the
+   unread entry it is taller than the viewport, and a pinned column taller than the window
+   cannot show its own end. */
 .rail-col {
+    display: block;
     min-width: 0;
-}
-
-.detail-pane {
-    min-width: 0;
+    margin-block-start: var(--lg-split-gap);
 }
 
 .rules-error {
     margin-block-end: var(--lg-stack-gap);
     color: var(--color-error);
-}
-
-@media (width < 72rem) {
-    .split {
-        grid-template-columns: minmax(0, 1fr);
-    }
 }

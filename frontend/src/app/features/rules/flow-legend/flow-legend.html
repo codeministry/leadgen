@@ -1,0 +1,27 @@
+<!-- The icons are decorative here: the label beside each one carries the meaning. -->
+<section class="flow-legend" aria-labelledby="flow-legend-title">
+    <h2 class="type-caption text-muted flow-legend-title" id="flow-legend-title">{{ 'rules.legend.title' | transloco }}</h2>
+    <ul class="flow-legend-entries" role="list">
+        @for (entry of entries; track entry.icon) {
+            <li class="type-caption flow-legend-entry" [attr.data-marker]="entry.kind" [class.is-ai]="entry.kind === 'ai'"
+                [class.is-failed]="entry.kind === 'failed'">
+                <lg-icon class="flow-legend-icon" [name]="entry.icon" [attr.data-icon]="entry.icon" [size]="14"/>
+                <span class="legend-label">{{ entry.labelKey | transloco }}</span>
+            </li>
+        }
+        <li class="type-caption flow-legend-entry" data-marker="width">
+            <span class="type-caption flow-node-width" aria-hidden="true">{{ 'rules.legend.widthMark' | transloco }}</span>
+            <span class="legend-label">{{ 'rules.legend.width' | transloco }}</span>
+        </li>
+    </ul>
+    <!-- Off the flow and dashed, like the rail's entry: these keys belong to no stage. -->
+    <a
+            class="type-caption flow-legend-unread"
+            [class.is-selected]="selected() === unread"
+            [attr.data-stage]="unread"
+            routerLink="."
+            [queryParams]="{ stage: unread }"
+            queryParamsHandling="merge"
+            [attr.aria-current]="selected() === unread ? 'page' : null"
+    >{{ 'rules.unread.title' | transloco }}</a>
+</section>
