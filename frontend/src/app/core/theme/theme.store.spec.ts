@@ -134,7 +134,8 @@ describe('ThemeStore and the theme-color meta (ISC-333)', () => {
  */
 describe('the inline theme script (ISC-333)', () => {
     const html = readFileSync(resolve(process.cwd(), 'src/index.html'), 'utf8');
-    const script = /<script>([\s\S]*?)<\/script>/.exec(html)?.[1] ?? '';
+    const parsed = new DOMParser().parseFromString(html, 'text/html');
+    const script = parsed.querySelector('script')?.textContent ?? '';
 
     it('carries both surfaces, each equal to THEME_SURFACE_HEX', () => {
         expect(script).toContain(`'lg-light': '${THEME_SURFACE_HEX['lg-light']}'`);
