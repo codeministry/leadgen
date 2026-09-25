@@ -34,10 +34,20 @@ function dynamicPrefixes(source: string): Set<string> {
 
 /** Source without its line, block and HTML comments, so a key named in a note does not count. */
 function withoutComments(source: string): string {
-    return source
-        .replace(/\/\*[\s\S]*?\*\//g, '')
-        .replace(/<!--[\s\S]*?-->/g, '')
-        .replace(/(^|[^:'"`])\/\/[^\n]*/g, '$1');
+    // The HTML pass repeats until nothing changes: one pass over `<!<!-- a -->-- b -->` leaves
+    // a comment standing, and a key inside it would then count as a reference.
+    let text = source.replace(/\/\*[\s\S]*?\*\//g, '');
+    let previous: string;
+    do {
+        previous = text;
+        text = text.replace(/<!--[\s\S]*?-->/g, '');
+    } while (text !== previous);
+    return text.replace(/(^|[^:'"`])\/\/[^\n]*/g, '$1');
+}
+
+/** Escapes regex metacharacters so a key is matched literally inside a RegExp source. */
+function escapeRegExp(value: string): string {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 /**
@@ -79,7 +89,7 @@ describe('i18n catalogs', () => {
             .join('\n');
         const prefixes = dynamicPrefixes(source);
         const referenced = (key: string) =>
-            new RegExp(`(^|[^\\w.])${key.replace(/\./g, '\\.')}(?![\\w.])`, 'm').test(source);
+            new RegExp(`(^|[^\\w.])${escapeRegExp(key)}(?![\\w.])`, 'm').test(source);
         const unused = keys(en).filter(
             (key) => !referenced(key) && !prefixes.has(key.slice(0, key.lastIndexOf('.'))),
         );
