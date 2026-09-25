@@ -1,0 +1,16 @@
+:host {
+    display: block;
+    block-size: 22rem;
+    inline-size: 100%;
+}
+
+/* html-template nodes size to their content; the template binds the px box the layout used. */
+.flow-node {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--color-base-300);
+    border-radius: var(--radius-box);
+    background: var(--color-base-100);
+    color: var(--color-base-content);
+}

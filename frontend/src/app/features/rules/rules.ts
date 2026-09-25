@@ -8,6 +8,7 @@ import {IngestStore} from '@core/store/ingest.store';
 import {ShortlistStore} from '@core/store/shortlist.store';
 import {Badge} from '@shared/badge/badge';
 import {PageHeader} from '@shared/page-header/page-header';
+import {FlowCanvas} from './flow-canvas/flow-canvas';
 import {StageDetail} from './stage-detail/stage-detail';
 import {StageRail, UNREAD_STAGE} from './stage-rail/stage-rail';
 import {stageCounts} from './stage-count';
@@ -21,7 +22,7 @@ import {stageCounts} from './stage-count';
  */
 @Component({
     selector: 'lg-rules',
-    imports: [Badge, PageHeader, StageDetail, StageRail, TranslocoPipe],
+    imports: [Badge, FlowCanvas, PageHeader, StageDetail, StageRail, TranslocoPipe],
     templateUrl: './rules.html',
     styleUrl: './rules.css',
     changeDetection: ChangeDetectionStrategy.OnPush,

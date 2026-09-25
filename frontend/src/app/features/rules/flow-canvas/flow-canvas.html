@@ -1,0 +1,9 @@
+<vflow view="auto" [nodes]="nodes()" [edges]="edges()">
+    <ng-template let-ctx nodeHtml>
+        <div class="flow-node" [style.inline-size.px]="ctx.data().width" [style.block-size.px]="ctx.data().height">
+            {{ ctx.data().label }}
+            <handle type="target" position="left"/>
+            <handle type="source" position="right"/>
+        </div>
+    </ng-template>
+</vflow>

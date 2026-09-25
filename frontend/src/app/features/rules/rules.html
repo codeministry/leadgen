@@ -12,6 +12,8 @@
     @if (store.rulesError(); as error) {
         <p class="type-small rules-error" role="alert">{{ error | transloco }}</p>
     }
+    <lg-flow-canvas [workflow]="workflow"/>
+
     <div class="split">
         <lg-stage-rail class="rail-col" [workflow]="workflow" [selected]="selected()" [counts]="counts()" [lastRun]="lastRun()"/>
 
