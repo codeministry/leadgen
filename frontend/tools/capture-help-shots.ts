@@ -3,6 +3,7 @@
  *
  *   bun run help:shots        # German shots from :14200, English shots from :14201
  *   HELP_SHOTS_URL_DE=http://… HELP_SHOTS_URL_EN=http://… bun run help:shots
+ *   HELP_SHOTS_ONLY=rules-stage,run-phases-rail bun run help:shots   # retake just these, keep the rest
  *
  * Writes `public/help/shots/<lang>/<id>-<light|dark>.webp` for every entry of `SHOTS` below,
  * and nothing else: a file in that folder without an entry fails `help-shots.spec.ts`.
@@ -52,6 +53,9 @@ const BASES: Record<(typeof LANGUAGES)[number], string> = {
 };
 const OUT = resolve(import.meta.dir, '../public/help/shots');
 const THEMES = ['light', 'dark'] as const;
+
+/** Ids to retake, comma-separated; unset retakes every shot and clears the folder first. */
+const ONLY = (process.env['HELP_SHOTS_ONLY'] ?? '').split(',').map((id) => id.trim()).filter((id) => id !== '');
 
 /** What the demo's `sources.yaml` declares, and all it declares. */
 const DEMO_SOURCES = ['demo-newsletter', 'manual-inbox'];
@@ -137,10 +141,11 @@ const CONTENT: Rect = {x: 0, y: BELOW_HEADER, width: 1280, height: 720};
  * `<!-- screenshot: id -->` and which `HELP_SHOTS` lists with its output size.
  */
 const SHOTS: Record<string, Shot> = {
+    // The workflow graph since spec 017; the id stays, because the chapters place it by name.
     'run-phases-rail': {
         route: async () => '/rules',
         prepare: async (page) => {
-            await page.locator('lg-stage-rail').waitFor();
+            await page.locator('lg-flow-canvas lg-flow-node').first().waitFor();
         },
         rect: {x: 0, y: BELOW_HEADER, width: 1280, height: 620},
     },
@@ -164,9 +169,9 @@ const SHOTS: Record<string, Shot> = {
         rect: CONTENT,
     },
     'rules-stage': {
-        route: async () => '/rules?stage=filter',
+        route: async () => '/rules?stage=FILTER',
         prepare: async (page) => {
-            await page.locator('lg-stage-rail').waitFor();
+            await page.locator('lg-stage-sheet lg-stage-detail').waitFor();
         },
         rect: CONTENT,
     },
@@ -317,7 +322,7 @@ async function main(): Promise<void> {
         for (const language of LANGUAGES) {
             const base = BASES[language];
             const dir = resolve(OUT, language);
-            rmSync(dir, {recursive: true, force: true});
+            if (ONLY.length === 0) rmSync(dir, {recursive: true, force: true});
             mkdirSync(dir, {recursive: true});
             for (const theme of THEMES) {
                 const context = await browser.newContext({
@@ -334,6 +339,7 @@ async function main(): Promise<void> {
                 );
                 const page = await context.newPage();
                 for (const [id, shot] of Object.entries(SHOTS)) {
+                    if (ONLY.length > 0 && !ONLY.includes(id)) continue;
                     await page.goto(`${base}${await shot.route(base, page)}`, {waitUntil: 'networkidle'});
                     await shot.prepare?.(page);
                     for (const selector of shot.hide ?? []) {

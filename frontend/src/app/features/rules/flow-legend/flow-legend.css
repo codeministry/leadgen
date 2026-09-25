@@ -32,6 +32,29 @@
   gap: 0.375rem;
   align-items: center;
   min-width: 0;
+  padding: 0.125rem 0.25rem;
+  border-radius: var(--radius-field);
+  outline: 1px solid transparent;
+  transition:
+    opacity var(--lg-hover-duration) var(--lg-hover-ease),
+    outline-color var(--lg-hover-duration) var(--lg-hover-ease);
+}
+
+/* ISC-405: the hovered or focused node's markers stand out, the others step back. Faded, never
+   hidden: the words stay on screen and in the accessibility tree. An outline rather than a
+   heavier weight, which would rewrap the strip under the pointer. */
+.flow-legend-entry.is-active {
+  outline-color: var(--lg-muted);
+}
+
+.flow-legend-entry.is-faded {
+  opacity: 0.35;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flow-legend-entry {
+    transition: none;
+  }
 }
 
 /* The colours the node gives each marker, and nothing else: the signal stays with survivors. */

@@ -1,8 +1,11 @@
 import {TestBed} from '@angular/core/testing';
+import {By} from '@angular/platform-browser';
 import {provideRouter} from '@angular/router';
+import {VflowComponent} from 'ngx-vflow';
 import {LastRunView} from '@core/model/last-run';
 import {RulesView} from '@core/model/rules-view';
 import {WorkflowStage, WorkflowView} from '@core/model/workflow';
+import {SUB_ICONS} from '../stage-marks';
 import {layoutWorkflow} from '../workflow-layout';
 import {FLOW_NODE_SIZES, FlowCanvas} from './flow-canvas';
 
@@ -86,6 +89,16 @@ function rendered(host: HTMLElement): Rendered[] {
         const id = g.querySelector<HTMLElement>('[data-node]')?.dataset['node'] ?? '';
         return {label: id.replace(/^(ingest|stage):/, ''), x: Number(match[1]), y: Number(match[2])};
     });
+}
+
+/*
+ * jsdom gap, for the whole file: its `SVGSVGElement` has no `width`/`height`, and the first fit's
+ * d3 transition reads `svg.width.baseVal` when its timer fires — which may be after the test that
+ * mounted the canvas has ended. Left in place until the file is done; the environment goes with it.
+ */
+const fileSvgProto = SVGSVGElement.prototype as unknown as Record<string, unknown>;
+for (const side of ['width', 'height'].filter((s) => !(s in fileSvgProto))) {
+    Object.defineProperty(fileSvgProto, side, {configurable: true, get: () => ({baseVal: {value: 0}})});
 }
 
 describe('FlowCanvas', () => {
@@ -387,6 +400,129 @@ describe('FlowCanvas', () => {
             expect(subs(host, 'score:')).toHaveLength(4);
             expect(subs(host, 'prompt:')).toHaveLength(1);
             expectRunOrder(host);
+        });
+
+        it('expands every openable stage with one toolbar control and collapses them all again, keeping the viewport (ISC-408)', async () => {
+            TestBed.configureTestingModule({imports: [FlowCanvas], providers: [provideRouter([])]});
+            const fixture = TestBed.createComponent(FlowCanvas);
+            fixture.componentRef.setInput('workflow', OPENABLE);
+            fixture.componentRef.setInput('rules', RULES);
+            await fixture.whenStable();
+            const host = fixture.nativeElement as HTMLElement;
+            const vflow = fixture.debugElement.query(By.directive(VflowComponent)).componentInstance as VflowComponent;
+            const control = (): HTMLButtonElement => {
+                const found = host.querySelector<HTMLButtonElement>('.flow-canvas-controls button[data-action="expand-all"]');
+                if (found === null) throw new Error('no expand-all control');
+                return found;
+            };
+            const expandedStages = (): string[] =>
+                Array.from(host.querySelectorAll<HTMLElement>('button[data-action="expand"][aria-expanded="true"]'), (b) =>
+                    b.closest<HTMLElement>('[data-node]')?.dataset['node'] ?? '',
+                ).sort();
+            // Let the library initialise and the first fit go out; what must not happen is a second one.
+            for (let i = 0; i < 50 && !vflow.initialized(); i++) {
+                await new Promise((resolve) => setTimeout(resolve, 10));
+                await fixture.whenStable();
+            }
+            expect(vflow.initialized()).toBe(true);
+            await fixture.whenStable();
+            const moves = [vi.spyOn(vflow, 'fitView'), vi.spyOn(vflow, 'viewportTo'), vi.spyOn(vflow, 'zoomTo'), vi.spyOn(vflow, 'panTo')];
+            const expandName = control().getAttribute('aria-label') ?? '';
+            expect(expandName.trim()).not.toBe('');
+
+            control().click();
+            await fixture.whenStable();
+            expect(expandedStages()).toEqual(['stage:CONTENT', 'stage:FILTER', 'stage:SCORE']);
+            expect(subs(host, 'knockout:')).toEqual(KNOCKOUTS);
+            const collapseName = control().getAttribute('aria-label') ?? '';
+            expect(collapseName.trim()).not.toBe('');
+            expect(collapseName).not.toBe(expandName);
+            for (const move of moves) expect(move).not.toHaveBeenCalled();
+
+            control().click();
+            await fixture.whenStable();
+            expect(expandedStages()).toEqual([]);
+            expect(subs(host, 'knockout:')).toEqual([]);
+            expect(control().getAttribute('aria-label')).toBe(expandName);
+            for (const move of moves) expect(move).not.toHaveBeenCalled();
+        });
+
+        describe('a sub-node is a link into its stage\'s sheet (ISC-406)', () => {
+            /** The sub-node's link, its `stage` and `section` query parameters, and the icon it shows. */
+            function link(host: HTMLElement, nodeId: string): {params: URLSearchParams; icon: string | undefined; a: HTMLAnchorElement} {
+                const a = host.querySelector<HTMLAnchorElement>(`[data-node="${nodeId}"] a[href]`);
+                if (a === null) throw new Error(`no link on ${nodeId}`);
+                const href = a.getAttribute('href') ?? '';
+                return {a, params: new URLSearchParams(href.slice(href.indexOf('?') + 1)), icon: a.querySelector<HTMLElement>('[data-icon]')?.dataset['icon']};
+            }
+
+            it('links a knockout, a SCORE block and a prompt to their parent stage and their section, each with its kind\'s icon', async () => {
+                const {host, click} = await mount();
+                await click('FILTER');
+                await click('SCORE');
+                await click('CONTENT');
+
+                const rate = link(host, 'knockout:rate');
+                expect(rate.params.get('stage')).toBe('FILTER');
+                expect(rate.params.get('section')).toBe('knockout:rate');
+                expect(rate.icon).toBe(SUB_ICONS.knockout);
+
+                const bands = link(host, 'score:bands');
+                expect(bands.params.get('stage')).toBe('SCORE');
+                expect(bands.params.get('section')).toBe('score:bands');
+                expect(bands.icon).toBe(SUB_ICONS.bands);
+                expect(link(host, 'score:weights').icon).toBe(SUB_ICONS.weights);
+                expect(link(host, 'score:penalties').icon).toBe(SUB_ICONS.penalties);
+                expect(link(host, 'score:topics').icon).toBe(SUB_ICONS.topics);
+
+                const prompt = link(host, 'prompt:content-classifier');
+                expect(prompt.params.get('stage')).toBe('CONTENT');
+                expect(prompt.params.get('section')).toBe('prompt:content-classifier');
+                expect(prompt.icon).toBe(SUB_ICONS.prompt);
+
+                // six kinds, six different icons
+                expect(new Set(Object.values(SUB_ICONS)).size).toBe(6);
+            });
+
+            it('toggles nothing when a sub-node is clicked', async () => {
+                const {host, click} = await mount();
+                await click('FILTER');
+                link(host, 'knockout:rate').a.click();
+                expect(subs(host, 'knockout:')).toEqual(KNOCKOUTS);
+            });
+        });
+    });
+
+    describe('fullscreen control (ISC-407)', () => {
+        function mountPlain(fullscreen: boolean | null) {
+            TestBed.configureTestingModule({imports: [FlowCanvas], providers: [provideRouter([])]});
+            const fixture = TestBed.createComponent(FlowCanvas);
+            fixture.componentRef.setInput('workflow', WORKFLOW);
+            fixture.componentRef.setInput('fullscreen', fullscreen);
+            fixture.detectChanges();
+            return {fixture, host: fixture.nativeElement as HTMLElement};
+        }
+
+        it('offers a named toggle beside the zoom controls with its state in aria-pressed', () => {
+            const {fixture, host} = mountPlain(false);
+            const button = host.querySelector<HTMLButtonElement>('.flow-canvas-controls button[data-action="fullscreen"]');
+            expect(button).not.toBeNull();
+            expect((button?.getAttribute('aria-label') ?? '').trim().length).toBeGreaterThan(0);
+            expect(button?.getAttribute('aria-pressed')).toBe('false');
+
+            let asked = 0;
+            fixture.componentInstance.fullscreenToggle.subscribe(() => asked++);
+            button?.click();
+            expect(asked).toBe(1);
+
+            fixture.componentRef.setInput('fullscreen', true);
+            fixture.detectChanges();
+            expect(button?.getAttribute('aria-pressed')).toBe('true');
+        });
+
+        it('hides the control where the browser has no Fullscreen API', () => {
+            const {host} = mountPlain(null);
+            expect(host.querySelector('button[data-action="fullscreen"]')).toBeNull();
         });
     });
 });

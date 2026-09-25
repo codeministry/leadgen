@@ -1,10 +1,12 @@
 /* A fixed box the graph pans and zooms inside. It never grows with the graph and never pushes
-   the page sideways; the one sanctioned inner scroll surface of the rules screen. */
+   the page sideways; the one sanctioned inner scroll surface of the rules screen. Taller since
+   the operator asked for more room: most of the viewport, capped so a large screen keeps the
+   rail in reach. */
 :host {
     display: block;
     min-inline-size: 0;
     inline-size: 100%;
-    block-size: min(36rem, 60dvh);
+    block-size: min(42rem, 68dvh);
 }
 
 .flow-canvas-box {
@@ -27,8 +29,11 @@
     color: var(--color-base-content);
 }
 
+/* A sub-node is a link into its stage's sheet (ISC-406): the card itself, in the content ink,
+   with its kind's icon ahead of the words. */
 .flow-canvas-sub {
     display: flex;
+    gap: 0.5rem;
     align-items: center;
     box-sizing: border-box;
     block-size: 100%;
@@ -37,7 +42,27 @@
     border: 1px dashed var(--color-base-300);
     border-radius: var(--radius-field);
     background-color: var(--color-base-100);
+    color: inherit;
+    text-decoration: none;
     overflow-wrap: anywhere;
+}
+
+.flow-canvas-sub:hover {
+    border-color: var(--color-base-content);
+}
+
+.flow-canvas-sub:focus-visible {
+    outline: 2px solid var(--color-base-content);
+    outline-offset: 2px;
+}
+
+.flow-canvas-sub-icon {
+    flex: none;
+    color: var(--lg-muted);
+}
+
+.flow-canvas-sub-text {
+    min-inline-size: 0;
 }
 
 /* A handle is only where an edge is anchored; nothing here is connected by hand, so its dot is

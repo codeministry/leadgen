@@ -93,7 +93,7 @@ describe('FlowNode', () => {
         const text = chip(render({stage: FILTER, phaseId: 'sort', count: 12548}))?.textContent ?? '';
 
         expect(text).toContain('−12.548');
-        expect(text).toContain('zurückgehalten');
+        expect(text).toContain('aussortiert');
     });
 
     it('shows no chip and no zero without a run count', () => {

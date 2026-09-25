@@ -1,4 +1,4 @@
-import {ChangeDetectionStrategy, Component, computed, ElementRef, inject, input, OnInit, viewChild} from '@angular/core';
+import {ChangeDetectionStrategy, Component, computed, DestroyRef, ElementRef, inject, input, OnInit, signal, viewChild} from '@angular/core';
 import {ActivatedRoute, Router} from '@angular/router';
 import {injectDispatch} from '@ngrx/signals/events';
 import {TranslocoPipe} from '@jsverse/transloco';
@@ -14,9 +14,23 @@ import {FlowLegend} from './flow-legend/flow-legend';
 import {StageSheet} from './stage-sheet/stage-sheet';
 import {StageRail, UNREAD_STAGE} from './stage-rail/stage-rail';
 import {stageCounts} from './stage-count';
+import {fanIn} from './fan-in';
+import {failedStageIds, markersOf} from './stage-marks';
+
+/**
+ * The content width, in px, below which the canvas gives way to the pipe (ISC-395): 44rem at the
+ * default root size. Measured, not guessed — the fitted canvas scales its 184 px stage cards with
+ * the box, about 0.143 px per px of width over this workflow: 207 px at 1440, 147 at 1024, 110 at
+ * 768 and 100 at 700, the point where a card's label stops reading. Pixels rather than rem because
+ * the fit that shrinks the cards works in pixels too.
+ */
+export const PIPE_BELOW_PX = 704;
 
 /** How far a pointer may travel between down and up and still count as a click rather than a pan. */
 const PAN_SLOP_PX = 4;
+
+/** How long after leaving the full screen an Escape still counts as the one that left it. */
+const FULLSCREEN_ESCAPE_MS = 250;
 
 /** An open `<dialog>` or popover, which owns the Escape key while it is up. */
 function otherOverlayOpen(): boolean {
@@ -33,8 +47,8 @@ function otherOverlayOpen(): boolean {
 
 /**
  * The pipeline as a flow graph, the selected stage opened in a sheet at the right edge of the window
- * (spec 017, ISC-393). The graph replaced 008's split view; the stage rail stays below the canvas
- * until it becomes the pipe.
+ * (spec 017, ISC-393). The graph replaced 008's split view; below {@link PIPE_BELOW_PX} the stage
+ * rail, drawn as a vertical pipe, replaces the graph (ISC-395).
  *
  * Replaces spec 007's anchor rail on this screen (spec 008, § Decisions): the stages are the
  * navigation, so a second list of in-page anchors would be two answers to one question.
@@ -47,8 +61,13 @@ function otherOverlayOpen(): boolean {
     changeDetection: ChangeDetectionStrategy.OnPush,
     host: {
         '(document:keydown.escape)': 'escapeAnywhere($event)',
+        '(document:fullscreenchange)': 'fullscreenChanged()',
         '(document:pointerdown)': 'pressed($event)',
         '(document:click)': 'clickedAnywhere($event)',
+        '(pointerover)': 'pointerOver($event)',
+        '(pointerout)': 'pointerOut($event)',
+        '(focusin)': 'focusIn($event)',
+        '(focusout)': 'focusOut($event)',
     },
 })
 export class Rules implements OnInit {
@@ -77,6 +96,81 @@ export class Rules implements OnInit {
      * absent from the URL rather than leaving the declared default.
      */
     readonly stage = input('', {transform: (value: string | undefined) => value ?? ''});
+
+    /**
+     * The `section` query parameter (ISC-406): the canvas sub-node the sheet was opened from, which
+     * the sheet scrolls to. A second query parameter rather than a fragment — a fragment fights the
+     * base href — and cleared with `stage` whenever the sheet closes or another stage is picked.
+     */
+    readonly section = input<string | null, string | undefined>(null, {transform: (value: string | undefined) => value ?? null});
+
+    /** The box that goes full screen (ISC-407): canvas, legend and sheet together. */
+    private readonly stageBox = viewChild<ElementRef<HTMLElement>>('stageBox');
+
+    /**
+     * Whether that box is the full-screen element; null where the browser offers no Fullscreen API,
+     * and then the canvas draws no control. Set from `fullscreenchange`, so Escape — which the
+     * browser handles itself — lands here the same way the control does.
+     */
+    protected readonly fullscreen = signal<boolean | null>(
+        typeof document !== 'undefined' && document.fullscreenEnabled === true ? false : null,
+    );
+
+    /** When the box last left the full screen, so the Escape that left it does not also close the sheet. */
+    private leftFullscreenAt = 0;
+
+    protected fullscreenChanged(): void {
+        if (this.fullscreen() === null) {
+            return;
+        }
+        const box = this.stageBox()?.nativeElement;
+        const now = box !== undefined && document.fullscreenElement === box;
+        if (this.fullscreen() && !now) {
+            this.leftFullscreenAt = performance.now();
+        }
+        this.fullscreen.set(now);
+    }
+
+    protected toggleFullscreen(): void {
+        const box = this.stageBox()?.nativeElement;
+        if (box === undefined) {
+            return;
+        }
+        const request = document.fullscreenElement === box ? document.exitFullscreen() : box.requestFullscreen();
+        // A refused request (no user gesture, a sandboxed frame) leaves the screen as it was.
+        void request.catch(() => undefined);
+    }
+
+    /** The screen's own content width as the ResizeObserver last reported it; null before the first report. */
+    private readonly boxWidth = signal<number | null>(null);
+
+    /**
+     * Canvas or pipe (ISC-395) — a container query on this screen's box, done with a ResizeObserver
+     * rather than CSS because the narrow side must not instantiate vflow at all, and `display: none`
+     * would. Until the first report — and without an observer at all — the pipe is drawn, so a
+     * 320 px screen never builds the canvas even for a frame.
+     */
+    protected readonly wide = computed((): boolean => {
+        const width = this.boxWidth();
+        return width !== null && width >= PIPE_BELOW_PX;
+    });
+
+    /** The fan-in the canvas draws, said in words beside it; the pipe says its own. */
+    protected readonly fanIn = computed(() => fanIn(this.store.workflow()));
+
+    constructor() {
+        if (typeof ResizeObserver === 'undefined') {
+            return;
+        }
+        const observer = new ResizeObserver((entries) => {
+            const width = entries.at(-1)?.contentRect.width;
+            if (width !== undefined) {
+                this.boxWidth.set(width);
+            }
+        });
+        observer.observe(this.host.nativeElement);
+        inject(DestroyRef).onDestroy(() => observer.disconnect());
+    }
 
     private readonly stages = computed(
         (): readonly WorkflowStage[] => this.store.workflow()?.phases.flatMap((phase) => phase.stages) ?? [],
@@ -115,6 +209,55 @@ export class Rules implements OnInit {
     /** The six filter stages' removals, drawn on FILTER's detail pane. */
     protected readonly funnel = computed(() => this.shortlist.funnel());
 
+    /**
+     * The stage under the pointer and the stage holding keyboard focus (ISC-405). View state, not
+     * in the URL: it answers where the reader is looking, which no reload should restore. Two
+     * signals so a pointer leaving a node does not clear the answer to the focused one.
+     */
+    private readonly hoveredStage = signal<string | null>(null);
+    private readonly focusedStage = signal<string | null>(null);
+
+    /**
+     * The markers the legend highlights: those the hovered (else focused) stage carries, read by
+     * `markersOf`, the function built from the node's own predicates. Null leaves the legend as is.
+     */
+    protected readonly legendActive = computed((): ReadonlySet<string> | null => {
+        const id = this.hoveredStage() ?? this.focusedStage();
+        const stage = id === null ? undefined : this.stages().find((s) => s.id === id);
+        return stage === undefined ? null : markersOf(stage, failedStageIds(this.lastRun()).has(stage.id));
+    });
+
+    /**
+     * The canvas node or pipe pill an event came from. Delegated here rather than emitted by each
+     * node, because `pointerover` and `focusin` bubble — one listener covers both drawings, and
+     * the pipe below the breakpoint answers without a change to the rail.
+     */
+    private stageAt(target: EventTarget | null): string | null {
+        if (!(target instanceof Element)) {
+            return null;
+        }
+        return target.closest<HTMLElement>('lg-flow-node [data-stage], lg-stage-rail [data-stage]')?.dataset['stage'] ?? null;
+    }
+
+    protected pointerOver(event: Event): void {
+        this.hoveredStage.set(this.stageAt(event.target));
+    }
+
+    /** Only a pointer that left for somewhere outside every node clears; one moving inside a node does not. */
+    protected pointerOut(event: MouseEvent): void {
+        if (this.stageAt(event.relatedTarget) === null) {
+            this.hoveredStage.set(null);
+        }
+    }
+
+    protected focusIn(event: FocusEvent): void {
+        this.focusedStage.set(this.stageAt(event.target));
+    }
+
+    protected focusOut(event: FocusEvent): void {
+        this.focusedStage.set(this.stageAt(event.relatedTarget));
+    }
+
     ngOnInit(): void {
         this.dispatch.rulesOpened();
     }
@@ -128,6 +271,11 @@ export class Rules implements OnInit {
      * one key would push two history entries. An open dialog or popover owns its Escape.
      */
     protected escapeAnywhere(event: Event): void {
+        // In the full screen, Escape is the browser's key for leaving it, whichever of the key and
+        // the change event arrives first; it never closes the sheet as well.
+        if (document.fullscreenElement != null || performance.now() - this.leftFullscreenAt < FULLSCREEN_ESCAPE_MS) {
+            return;
+        }
         if (this.detail() === null || event.defaultPrevented || this.inSheet(event.target) || otherOverlayOpen()) {
             return;
         }
@@ -171,7 +319,7 @@ export class Rules implements OnInit {
      */
     protected async closeSheet(): Promise<void> {
         const stage = this.selected();
-        await this.router.navigate([], {relativeTo: this.route, queryParams: {stage: null}, queryParamsHandling: 'merge'});
+        await this.router.navigate([], {relativeTo: this.route, queryParams: {stage: null, section: null}, queryParamsHandling: 'merge'});
         if (stage === null) {
             return;
         }
@@ -186,3 +334,4 @@ export class Rules implements OnInit {
         origin?.focus({preventScroll: true});
     }
 }
+

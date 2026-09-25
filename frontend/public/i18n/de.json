@@ -615,7 +615,7 @@
     },
     "count": {
       "read": "{count} gelesen",
-      "filter": "{count} zurückgehalten",
+      "filter": "{count} aussortiert",
       "enrich": "{count} angereichert",
       "score": "{count} bewertet",
       "package": "{count} gepackt"
@@ -648,6 +648,9 @@
       "zoomIn": "Vergrößern",
       "zoomOut": "Verkleinern",
       "fit": "Ganzen Ablauf einpassen",
+      "expandAll": "Alle Schritte aufklappen",
+      "collapseAll": "Alle Schritte zuklappen",
+      "fullscreen": "Vollbild",
       "topics": "Themen",
       "width": "{count} gleichzeitig",
       "expand": "{stage} aufklappen",

@@ -12,8 +12,7 @@
 }
 
 .rail-phases,
-.stages,
-.legend-entries {
+.stages {
   display: flex;
   flex-direction: column;
   list-style: none;
@@ -95,8 +94,7 @@
 }
 
 .phase-title,
-.stage-name,
-.legend-label {
+.stage-name {
   min-width: 0;
   overflow-wrap: anywhere;
 }
@@ -184,22 +182,19 @@
   gap: 0.25rem;
 }
 
-.stage-costs,
-.legend-icon {
+.stage-costs {
   display: inline-flex;
   flex-shrink: 0;
   color: var(--lg-muted);
 }
 
-.stage-ai,
-.legend-ai .legend-icon {
+.stage-ai {
   display: inline-flex;
   color: var(--lg-ai);
 }
 
 /* A fact about the last run, not a call to act: the triangle carries it, colour only helps. */
-.stage-failed,
-.legend-failed .legend-icon {
+.stage-failed {
   display: inline-flex;
   flex-shrink: 0;
   color: var(--color-error);
@@ -219,21 +214,5 @@
   padding-inline-start: 0;
 }
 
-.rail-legend {
-  display: flex;
-  flex-direction: column;
-  gap: 0.375rem;
-  padding-top: var(--lg-stack-gap);
-  border-top: 1px solid var(--color-base-300);
-}
 
-.legend-entries {
-  gap: 0.25rem;
-}
 
-.legend-entry {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  min-width: 0;
-}

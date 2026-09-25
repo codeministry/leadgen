@@ -17,23 +17,6 @@ export const UNREAD_STAGE = 'unread';
 /** Re-exported for the rail's spec and callers that named them here before the flow graph shared them. */
 export {AI_ICON, COST_ICONS, FAILED_ICON};
 
-/** One legend entry (ISC-310): the icon a stage row draws, the catalog key of its words. */
-interface LegendEntry {
-    readonly kind: 'cost' | 'ai' | 'failed';
-    readonly icon: LgIconName;
-    readonly labelKey: string;
-}
-
-/**
- * Derived from the same constants the rows read, so a new cost class or marker cannot reach
- * a row without reaching the legend too.
- */
-const LEGEND: readonly LegendEntry[] = [
-    ...Object.entries(COST_ICONS).map(([costClass, icon]): LegendEntry => ({kind: 'cost', icon, labelKey: `rules.cost.${costClass}`})),
-    {kind: 'ai', icon: AI_ICON, labelKey: 'rules.ai.legend'},
-    {kind: 'failed', icon: FAILED_ICON, labelKey: 'rules.stageFailed'},
-];
-
 /**
  * One icon per phase, beside its heading and therefore decorative: the heading's words carry
  * the meaning. A phase id the server adds later falls back to a neutral glyph, never to none.
@@ -87,7 +70,6 @@ export class StageRail {
     protected readonly unread = UNREAD_STAGE;
     protected readonly aiIcon = AI_ICON;
     protected readonly failedIcon = FAILED_ICON;
-    protected readonly legend = LEGEND;
 
     /** Stage ids the recorded run's `stages[]` marks `FAILED` — the same strings as `stage.id`. */
     protected readonly failedStages = computed(() => failedStageIds(this.lastRun()));

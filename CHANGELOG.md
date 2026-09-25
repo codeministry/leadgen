@@ -11,6 +11,16 @@ may change in any release. See the status note in the README.
 
 ### Added
 
+- The rules screen draws the run as a workflow graph: five phase columns from reading the sources
+  to handing over, the sources merging into deduplication, straight edges, each stage a card with
+  its cost, model and width markers and a count chip from the last run. The operator pans with the
+  wheel, zooms with a pinch or Ctrl, fits, opens a stage's knockouts, scoring blocks and prompt as
+  sub-nodes, and reads a stage's settings in a sheet at the window's edge that Escape or a click
+  outside closes. The legend answers the hovered card; below 704 px the graph becomes a vertical
+  pipe of links (spec `017-rules-flow-graph`). The toolbar also expands or collapses every stage
+  at once and takes the graph, its legend and the sheet to full screen, and panning keeps part of
+  the graph in view however far it goes.
+
 - The shortlist card answers four questions at a glance and leaves the rest to the detail:
   whether it fits, why it scored (the strongest lift and penalty as labels, every matched topic),
   where the application stands and when the offer came in. Icons plus values, no badges and no

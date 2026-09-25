@@ -9,6 +9,7 @@ import {FunnelRail} from '@shared/funnel-rail/funnel-rail';
 import {Icon} from '@shared/icon/icon';
 import {isAiStage} from '../ai-stage';
 import {settingsView} from '../settings-view';
+import {knockoutIcon, SUB_ICONS} from '../stage-marks';
 import {AI_ICON, UNREAD_STAGE} from '../stage-rail/stage-rail';
 
 /**
@@ -74,6 +75,10 @@ export class StageDetail {
         return stage !== null && isAiStage(stage);
     });
     protected readonly aiIcon = AI_ICON;
+    /** The icon of each section a canvas sub-node opens (ISC-406), the same one the sub-node shows. */
+    protected readonly subIcons = SUB_ICONS;
+    /** The icon of one knockout, the same one its sub-node carries on the canvas. */
+    protected readonly knockoutIcon = knockoutIcon;
 
     protected readonly isFilter = computed(() => this.current()?.id === 'FILTER');
     protected readonly isScore = computed(() => this.current()?.id === 'SCORE');

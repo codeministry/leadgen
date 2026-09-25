@@ -1,5 +1,6 @@
-<div class="flow-canvas-box" role="group" [attr.aria-label]="'rules.canvas.label' | transloco" (wheel)="keepWheel($event)">
-    <vflow view="auto" [nodes]="nodes()" [edges]="edges()" [minZoom]="zoom.min" [maxZoom]="zoom.max">
+<div class="flow-canvas-box" role="group" [attr.aria-label]="'rules.canvas.label' | transloco" #wheelBox>
+    <!-- ngx-vflow paints a literal white on its root svg by default; the canvas box's own base-200 instead (ISC-400). -->
+    <vflow view="auto" background="var(--color-base-200)" [nodes]="nodes()" [edges]="edges()" [minZoom]="zoom.min" [maxZoom]="zoom.max">
         <ng-template let-ctx nodeHtml>
             @let d = ctx.data();
             <div class="flow-canvas-node" [attr.data-node]="d.id" [style.inline-size.px]="d.width" [style.block-size.px]="d.height">
@@ -15,23 +16,29 @@
                             (toggled)="toggle($event)"
                     />
                 } @else {
-                    <span class="type-caption flow-canvas-sub">
-                        @if (d.key; as key) {
-                            {{ key | transloco }}
-                        } @else {
-                            {{ d.text }}
-                        }
-                    </span>
+                    <!-- ISC-406: a link like a stage node, opening its stage's sheet at its own section.
+                         Router-driven query parameters, never a fragment (the base-href trap). -->
+                    <a class="type-caption flow-canvas-sub" routerLink="." queryParamsHandling="merge"
+                       [queryParams]="{ stage: d.stageId, section: d.id }" [attr.data-sub]="d.id">
+                        <lg-icon class="flow-canvas-sub-icon" [name]="d.icon" [size]="14" [attr.data-icon]="d.icon"/>
+                        <span class="flow-canvas-sub-text">
+                            @if (d.key; as key) {
+                                {{ key | transloco }}
+                            } @else {
+                                {{ d.text }}
+                            }
+                        </span>
+                    </a>
                 }
                 <!-- Anchors only, on the sides the layout's edges use; flow-canvas.css hides their dots. -->
                 @for (h of d.handles; track h.id) {
-                    <handle [id]="h.id" [type]="h.type" [position]="h.position" [offsetX]="h.offsetX"
+                    <handle aria-hidden="true" [id]="h.id" [type]="h.type" [position]="h.position" [offsetX]="h.offsetX"
                             [attr.data-handle]="h.id" [attr.data-type]="h.type" [attr.data-position]="h.position"/>
                 }
             </div>
         </ng-template>
         <ng-template let-ctx edge>
-            <svg:path class="flow-edge" [attr.d]="ctx.path()" [attr.marker-end]="ctx.markerEnd()"
+            <svg:path class="flow-edge" aria-hidden="true" [attr.d]="ctx.path()" [attr.marker-end]="ctx.markerEnd()"
                       [attr.data-edge]="ctx.edge.id"
                       [attr.data-source-handle]="ctx.edge.sourceHandle"
                       [attr.data-target-handle]="ctx.edge.targetHandle"/>
@@ -51,5 +58,21 @@
                 [attr.aria-label]="'rules.canvas.fit' | transloco" [title]="'rules.canvas.fit' | transloco" (click)="fit()">
             <lg-icon name="maximize" [size]="16"/>
         </button>
+        <!-- ISC-408: named by what it will do next. -->
+        @let collapse = allExpanded();
+        <button type="button" class="btn btn-ghost btn-sm btn-square" data-action="expand-all"
+                [attr.aria-label]="(collapse ? 'rules.canvas.collapseAll' : 'rules.canvas.expandAll') | transloco"
+                [title]="(collapse ? 'rules.canvas.collapseAll' : 'rules.canvas.expandAll') | transloco" (click)="toggleAll()">
+            <lg-icon [name]="collapse ? 'chevrons-down-up' : 'chevrons-up-down'" [size]="16"/>
+        </button>
+        <!-- ISC-407: only where the browser offers the Fullscreen API. The screen owns the wrapper. -->
+        @if (fullscreen() !== null) {
+            <button type="button" class="btn btn-ghost btn-sm btn-square" data-action="fullscreen"
+                    [attr.aria-pressed]="fullscreen() ? 'true' : 'false'"
+                    [attr.aria-label]="'rules.canvas.fullscreen' | transloco" [title]="'rules.canvas.fullscreen' | transloco"
+                    (click)="fullscreenToggle.emit()">
+                <lg-icon [name]="fullscreen() ? 'minimize-2' : 'maximize-2'" [size]="16"/>
+            </button>
+        }
     </div>
 </div>

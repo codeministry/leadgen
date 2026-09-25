@@ -421,3 +421,78 @@ describe.each(THEMES)('%s: the shortlist card reads on both of its surfaces (ISC
         }
     });
 });
+
+describe.each(THEMES)('%s: the rules flow graph reads (ISC-400)', theme => {
+    beforeEach(() => useTheme(theme));
+    afterEach(() => document.documentElement.removeAttribute('data-theme'));
+
+    // Read off the tokens the rules screen's stylesheets name, because core/ may not import the
+    // rules screen: `flow-node.css` (the card in base-100, the selection wash over it, the count
+    // chip in base-200), `flow-canvas.css` (the canvas in base-200, which is also handed to
+    // the graph library as its background and checked rendered in `flow-canvas.browser.spec.ts`, with
+    // edges and arrows in `--lg-muted` through currentColor), `flow-legend.css` (the strip on the
+    // page) and `stage-sheet.css` (a `.lg-panel`, so base-100). The selection is a wash, so it is
+    // composited over the card before anything is measured on it.
+    const opaque = (name: string, over: string): string => {
+        const c = painted(token(name), token(over));
+        return `rgb(${c.r}, ${c.g}, ${c.b})`;
+    };
+    const grounds = () => ({
+        node: token('--color-base-100'),
+        selected: opaque('--lg-selected-surface', '--color-base-100'),
+        chip: token('--color-base-200'),
+        canvas: token('--color-base-200'),
+        sheet: token('--color-base-100'),
+        page: token('--color-base-200'),
+    });
+    type Ground = keyof ReturnType<typeof grounds>;
+
+    const measure = (pairs: [string, Ground][], floor: number): string[] => {
+        const g = grounds();
+        return pairs
+            .map(([colour, ground]) => ({label: `${colour} on ${ground}`, ratio: ratio(token(colour), g[ground])}))
+            .filter(p => p.ratio < floor)
+            .map(p => `${p.label}: ${p.ratio.toFixed(2)}`);
+    };
+
+    it('node phase, name, ×N and chip, the legend and the sheet are ≥ 4.5:1', () => {
+        expect(
+            measure(
+                [
+                    ['--lg-muted', 'node'], // phase line, ×N
+                    ['--lg-muted', 'selected'],
+                    ['--color-base-content', 'node'], // name, sub-row
+                    ['--color-base-content', 'selected'],
+                    ['--color-base-content', 'chip'], // count chip
+                    ['--color-base-content', 'page'], // legend labels
+                    ['--lg-muted', 'page'], // legend title, ×N in the legend
+                    ['--lg-muted', 'sheet'], // sheet heading
+                    ['--color-base-content', 'sheet'], // sheet body
+                ],
+                TEXT_FLOOR,
+            ),
+        ).toEqual([]);
+    });
+
+    it('cost, AI and failed markers, the selection, edges and arrows are ≥ 3:1', () => {
+        expect(
+            measure(
+                [
+                    ['--lg-muted', 'node'], // cost icons
+                    ['--lg-muted', 'selected'],
+                    ['--lg-ai', 'node'], // AI sparkle and edge
+                    ['--lg-ai', 'selected'],
+                    ['--color-error', 'node'], // failed triangle
+                    ['--color-error', 'selected'],
+                    ['--color-primary', 'canvas'], // the selected node's border against the canvas
+                    ['--color-primary', 'selected'],
+                    ['--lg-muted', 'canvas'], // edges and arrow markers
+                    ['--lg-muted', 'page'], // legend cost icon
+                    ['--lg-ai', 'page'], // legend AI icon
+                    ['--color-error', 'page'], // legend failed icon
+                ],
+                OBJECT_FLOOR,
+            ),
+        ).toEqual([]);
+    });
+});

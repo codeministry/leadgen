@@ -58,7 +58,7 @@
                     [class.is-selected]="selected() === unread"
                     [attr.data-stage]="unread"
                     routerLink="."
-                    [queryParams]="{ stage: unread }"
+                    [queryParams]="{ stage: unread, section: null }"
                     queryParamsHandling="merge"
                     [attr.aria-current]="selected() === unread ? 'page' : null"
             >
@@ -66,20 +66,6 @@
             </a>
         </li>
     </ul>
-
-    <!-- ISC-310: every icon a stage pill can carry, drawn as the pill draws it, beside its words.
-         The icons are decorative here because the label sits right next to them. -->
-    <section class="rail-legend" aria-labelledby="rail-legend-title">
-        <h2 class="type-caption text-muted" id="rail-legend-title">{{ 'rules.legend.title' | transloco }}</h2>
-        <ul class="legend-entries">
-            @for (entry of legend; track entry.icon) {
-                <li class="type-caption legend-entry" [class.legend-ai]="entry.kind === 'ai'" [class.legend-failed]="entry.kind === 'failed'">
-                    <lg-icon class="legend-icon" [name]="entry.icon" [attr.data-icon]="entry.icon" [size]="14"/>
-                    <span class="legend-label">{{ entry.labelKey | transloco }}</span>
-                </li>
-            }
-        </ul>
-    </section>
 </nav>
 
 <!-- One pill, drawn the same on a branch and on the spine. -->
@@ -89,7 +75,7 @@
             [class.is-selected]="stage.id === selected()"
             [attr.data-stage]="stage.id"
             routerLink="."
-            [queryParams]="{ stage: stage.id }"
+            [queryParams]="{ stage: stage.id, section: null }"
             queryParamsHandling="merge"
             [attr.aria-current]="stage.id === selected() ? 'page' : null"
     >

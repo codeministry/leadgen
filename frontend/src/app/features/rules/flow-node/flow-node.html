@@ -7,7 +7,7 @@
         [class.has-toggle]="expandable()"
         [attr.data-stage]="stage().id"
         routerLink="."
-        [queryParams]="{ stage: stage().id }"
+        [queryParams]="{ stage: stage().id, section: null }"
         queryParamsHandling="merge"
         [attr.aria-current]="selected() ? 'page' : null"
 >

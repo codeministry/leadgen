@@ -7,6 +7,7 @@ import {
     inject,
     input,
     model,
+    output,
     signal,
     untracked,
     viewChild,
@@ -16,10 +17,12 @@ import {LastRunView} from '@core/model/last-run';
 import {RulesView} from '@core/model/rules-view';
 import {WorkflowStage, WorkflowView} from '@core/model/workflow';
 import {Icon} from '@shared/icon/icon';
-import {Edge, HtmlTemplateNode, Vflow, VflowComponent, ViewportState} from 'ngx-vflow';
+import {Curve, CurveFactory, Edge, HtmlTemplateNode, Vflow, VflowComponent, ViewportState} from 'ngx-vflow';
 import {FlowNode} from '../flow-node/flow-node';
 import {stageCounts} from '../stage-count';
-import {failedStageIds} from '../stage-marks';
+import {LgIconName} from '@shared/icon/lucide-icons';
+import {RouterLink} from '@angular/router';
+import {failedStageIds, subIcon} from '../stage-marks';
 import {
     LayoutEdge,
     LayoutNode,
@@ -59,13 +62,40 @@ interface StageNodeData {
  */
 interface SubNodeData {
     readonly kind: 'sub';
+    /** The node id, which is also the `section` query parameter its link sets. */
     readonly id: string;
+    /** The server id of the stage it opened from, the link's `stage`. */
+    readonly stageId: string;
+    readonly icon: LgIconName;
     readonly text: string | null;
     readonly key: string | null;
     readonly width: number;
     readonly height: number;
     readonly handles: readonly FlowHandle[];
 }
+
+/**
+ * A sub-edge as a file-tree branch: from the rail point on the stage's bottom straight down to the
+ * sub-node's middle, then right into its left edge. The library's `step` curve pushes a fixed
+ * offset out of each handle, which overshoots an indent this narrow and doubles back in a zig-zag.
+ */
+const treeBranch: CurveFactory = (params) => {
+    const {sourcePoint: from, targetPoint: to} = params;
+    if (params.mode !== 'edge') return {path: `M ${from.x},${from.y} V ${to.y} H ${to.x}`};
+    // From the layout's own boxes rather than the handles: the library sets a bottom handle's point
+    // a few px below the box, which would leave a gap between the card and its rail.
+    const box = (id: string) => {
+        const node = params.allNodes.find((n) => n.id === id);
+        if (node === undefined) return null;
+        const size = node as {width?: () => number; height?: () => number};
+        return {...node.point(), width: size.width?.() ?? 0, height: size.height?.() ?? 0};
+    };
+    const parent = box(params.edge.source);
+    const sub = box(params.edge.target);
+    if (parent === null || sub === null) return {path: `M ${from.x},${from.y} V ${to.y} H ${to.x}`};
+    const railX = parent.x + SUB_RAIL_X;
+    return {path: `M ${railX},${parent.y + parent.height} V ${sub.y + sub.height / 2} H ${sub.x}`};
+};
 
 const sourceHandleOf = (edge: LayoutEdge): string => `${edge.kind}-out`;
 const targetHandleOf = (edge: LayoutEdge): string => `${edge.kind}-in`;
@@ -109,12 +139,29 @@ type FlowNodeData = StageNodeData | SubNodeData;
  * stage holds `lg-flow-node`'s three lines: phase, name, markers and count.
  */
 export const FLOW_NODE_SIZES: WorkflowLayoutSizes = {
-    stage: {width: 184, height: 92},
+    stage: {width: 200, height: 92},
     sub: {width: 160, height: 44},
 };
 
 /** How far the canvas zooms. The floor is low enough to fit the whole live workflow at 1440 px. */
 export const FLOW_ZOOM = {min: 0.2, max: 2, step: 1.25} as const;
+
+/**
+ * How much of the graph, in px on each axis, stays inside the box however it is panned (ISC-409).
+ * Declared ahead of the clamp so the red run of its probe is a failed assertion, not a missing name.
+ */
+export const FLOW_PAN_MARGIN = 48;
+
+/** How far one wheel delta px zooms: a mouse notch (~100) is about 14 %, a pinch's small deltas stay continuous. */
+const WHEEL_ZOOM_RATE = 0.0015;
+
+/** The most one wheel event zooms, either way, as a fraction. */
+const WHEEL_ZOOM_STEP = 0.15;
+
+/** The px a wheel line counts for, when the browser reports its deltas in lines. */
+/** How long a set viewport outranks the published one if the library never reports it back. */
+const PENDING_MS = 250;
+const WHEEL_LINE_PX = 16;
 
 /** Padding around the graph after a fit, as a fraction of the box. */
 const FIT_PADDING = 0.06;
@@ -136,13 +183,13 @@ const SCORE_BLOCK_KEYS: Readonly<Record<string, string>> = {
  * `lg-flow-node` carrying what the last run did there.
  *
  * The box pans and zooms and never moves the page: it fits the whole graph once the nodes are
- * measured, offers zoom in, zoom out and fit as named buttons, and swallows every wheel it
- * receives — d3-zoom stops calling `preventDefault` at its zoom limits, and the page would
- * scroll from there.
+ * measured, offers zoom in, zoom out and fit as named buttons, and takes every wheel it
+ * receives away from d3-zoom: a wheel or a two-finger scroll pans, a pinch or Ctrl/Cmd with the
+ * wheel zooms about the pointer, and the page never scrolls. Dragging still pans through d3.
  */
 @Component({
     selector: 'lg-flow-canvas',
-    imports: [Vflow, FlowNode, Icon, TranslocoPipe],
+    imports: [Vflow, FlowNode, Icon, RouterLink, TranslocoPipe],
     templateUrl: './flow-canvas.html',
     styleUrl: './flow-canvas.css',
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -169,12 +216,27 @@ export class FlowCanvas {
      */
     readonly expanded = model<ReadonlySet<string>>(new Set<string>());
 
+    /**
+     * Whether the screen holds the canvas in the full screen (ISC-407); null where the browser has
+     * no Fullscreen API, and then the control is not drawn. The screen owns the wrapper that goes
+     * full screen, so the canvas only asks, through `fullscreenToggle`, and refits on each change.
+     */
+    readonly fullscreen = input<boolean | null>(null);
+    readonly fullscreenToggle = output();
+
     protected readonly zoom = FLOW_ZOOM;
 
     private readonly vflow = viewChild.required(VflowComponent);
     private readonly box = inject<ElementRef<HTMLElement>>(ElementRef);
-    /** The viewport a zoom button set during this frame, before the library has published it. */
+    private readonly wheelBox = viewChild.required<ElementRef<HTMLElement>>('wheelBox');
+    /**
+     * The viewport this component last set, until the library has published it. A trackpad's
+     * momentum tail arrives sparser than one event a frame and the library can take longer than a
+     * frame to publish, so building on the published value then stepped back and flickered.
+     */
     private pending: ViewportState | null = null;
+    /** Drops `pending` if the library never publishes it, so a drag afterwards is not undone. */
+    private pendingTimer: ReturnType<typeof setTimeout> | null = null;
 
     private readonly layout = computed(() => layoutWorkflow(this.workflow(), this.expanded(), FLOW_NODE_SIZES, this.rules()));
 
@@ -213,12 +275,28 @@ export class FlowCanvas {
             sourceHandle: sourceHandleOf(edge),
             targetHandle: targetHandleOf(edge),
             type: 'template',
-            // `currentColor` resolves to the canvas's edge token; the library's own default is a hex.
-            markers: signal({end: {type: 'arrow-closed', color: 'currentColor', width: 14, height: 14}}),
+            ...(edge.kind === 'sub'
+                ? // A file tree: down the indent rail, then one branch right into the sub-node. No arrow —
+                  // the branch is a few px long, and every sub-edge shares the one vertical line.
+                  {curve: signal<Curve>(treeBranch), markers: signal({})}
+                : {
+                      // Straight segments with square corners: the operator asked for no rounded lines.
+                      curve: signal<Curve>('step'),
+                      // `currentColor` resolves to the canvas's edge token; the library's own default is a hex.
+                      markers: signal({end: {type: 'arrow-closed' as const, color: 'currentColor', width: 14, height: 14}}),
+                  }),
         })),
     );
 
     constructor() {
+        // A capture listener rather than a template binding: it has to run before d3-zoom's own
+        // wheel listener on the svg below, and it has to be non-passive to prevent the default.
+        effect((onCleanup) => {
+            const box = this.wheelBox().nativeElement;
+            const listener = (event: WheelEvent): void => this.onWheel(event);
+            box.addEventListener('wheel', listener, {capture: true, passive: false});
+            onCleanup(() => box.removeEventListener('wheel', listener, {capture: true}));
+        });
         // Fit once the library has measured the nodes, and again whenever the workflow itself
         // changes. Opening or closing a stage keeps the viewport: the reader just pointed at
         // that stage, and a refit would move it out from under the pointer — the sub-nodes land
@@ -228,6 +306,37 @@ export class FlowCanvas {
             if (!vflow.initialized()) return;
             this.workflow();
             untracked(() => this.fit());
+        });
+        // A drag pans through d3-zoom inside the library, past `moveTo`, whose behaviour is not
+        // reachable for a `translateExtent`. So every viewport the library publishes is clamped the
+        // way `moveTo` clamps, and written back when it strayed (ISC-409). A viewport set here
+        // arrives clamped already and passes unchanged.
+        let published: ViewportState | null = null;
+        effect(() => {
+            const vflow = this.vflow();
+            if (!vflow.initialized()) return;
+            const now = vflow.viewport();
+            const before = published;
+            published = now;
+            if (before === null) return;
+            untracked(() => {
+                // Its own viewport, set through `moveTo`, was clamped there — a reveal less tightly.
+                const own = this.pending;
+                if (own !== null && Math.abs(own.x - now.x) < 0.5 && Math.abs(own.y - now.y) < 0.5 && Math.abs(own.zoom - now.zoom) < 1e-4) return;
+                const clamped = this.clamp(now, before, true);
+                if (Math.abs(clamped.x - now.x) > 0.5 || Math.abs(clamped.y - now.y) > 0.5) this.moveTo(clamped);
+            });
+        });
+        // Refit whenever the box enters or leaves the full screen (ISC-407): its size just changed
+        // by the whole window. Two frames on, after the new box has been laid out and measured.
+        let wasFullscreen: boolean | null = null;
+        effect((onCleanup) => {
+            const now = this.fullscreen();
+            const before = wasFullscreen;
+            wasFullscreen = now;
+            if (now === null || before === null || now === before) return;
+            let frame = requestAnimationFrame(() => (frame = requestAnimationFrame(() => this.fit())));
+            onCleanup(() => cancelAnimationFrame(frame));
         });
         // Pan the selected node out from under the occluder, once per selection and two frames
         // on, after the library has published the viewport — a fit on the same tick included.
@@ -258,6 +367,29 @@ export class FlowCanvas {
             if (!next.delete(stageId)) next.add(stageId);
             return next;
         });
+    }
+
+    /** The stages that open anything, by server id: the ones the expand-all control acts on (ISC-408). */
+    private readonly openable = computed((): readonly string[] =>
+        this.workflow()
+            .phases.flatMap((phase) => phase.stages)
+            .filter((stage) => opensSubNodes(stage, this.rules()))
+            .map((stage) => stage.id),
+    );
+
+    /** Every stage that opens anything is open, so the control's next act is to collapse them all. */
+    protected readonly allExpanded = computed(() => {
+        const open = this.expanded();
+        const openable = this.openable();
+        return openable.length > 0 && openable.every((id) => open.has(id));
+    });
+
+    /**
+     * Opens every stage that has sub-nodes, or, when all of them already are, closes them all. The
+     * viewport stays where it is, as it does for one stage's own toggle.
+     */
+    toggleAll(): void {
+        this.expanded.set(this.allExpanded() ? new Set<string>() : new Set(this.openable()));
     }
 
     protected count(stageId: string): number | null {
@@ -299,54 +431,143 @@ export class FlowCanvas {
         const dx = shiftInto(node.left, node.right, box.left + REVEAL_MARGIN, right - REVEAL_MARGIN);
         const dy = shiftInto(node.top, node.bottom, box.top + REVEAL_MARGIN, box.bottom - REVEAL_MARGIN);
         if (dx === 0 && dy === 0) return;
-        const vflow = this.vflow();
-        const {x, y, zoom} = this.pending ?? vflow.viewport();
-        const target: ViewportState = {zoom, x: x + dx, y: y + dy};
-        if (this.pending === null) requestAnimationFrame(() => (this.pending = null));
-        this.pending = target;
-        vflow.viewportTo(target);
-    }
-
-    /** A wheel over the box is the canvas's alone, even where d3-zoom lets it through. */
-    protected keepWheel(event: WheelEvent): void {
-        event.preventDefault();
+        const {x, y, zoom} = this.current();
+        // Not contained: getting the node out from under the sheet may push a fitted graph partly
+        // out of the box. The margin still holds.
+        this.moveTo({zoom, x: x + dx, y: y + dy}, false);
     }
 
     /**
-     * Zooms about the centre of the box, not the graph's origin, clamped to the zoom range. The
-     * library publishes a new viewport a frame after it is set, so clicks inside one frame build
-     * on the last viewport this method set rather than on the stale published one.
+     * Every wheel over the box, taken in the capture phase before d3-zoom's own listener on the
+     * svg sees it, and never passed on: the page does not scroll, and d3's zoom-per-notch never
+     * runs. A plain wheel or a two-finger scroll pans by its deltas at the current zoom; Ctrl or
+     * Cmd with the wheel — and a trackpad pinch, which the browser sends as a Ctrl wheel — zooms
+     * about the pointer by `exp(-deltaY * WHEEL_ZOOM_RATE)`, one step clamped to `WHEEL_ZOOM_STEP`.
      */
+    private onWheel(event: WheelEvent): void {
+        event.preventDefault();
+        event.stopPropagation();
+        const box = this.wheelBox().nativeElement;
+        const unit = event.deltaMode === WheelEvent.DOM_DELTA_LINE ? WHEEL_LINE_PX : event.deltaMode === WheelEvent.DOM_DELTA_PAGE ? box.clientHeight : 1;
+        const deltaX = event.deltaX * unit;
+        const deltaY = event.deltaY * unit;
+        const {x, y, zoom} = this.current();
+        if (event.ctrlKey || event.metaKey) {
+            const factor = Math.min(1 + WHEEL_ZOOM_STEP, Math.max(1 - WHEEL_ZOOM_STEP, Math.exp(-deltaY * WHEEL_ZOOM_RATE)));
+            const next = Math.min(FLOW_ZOOM.max, Math.max(FLOW_ZOOM.min, zoom * factor));
+            if (next === zoom) return;
+            const rect = box.getBoundingClientRect();
+            const px = event.clientX - rect.left;
+            const py = event.clientY - rect.top;
+            this.moveTo({zoom: next, x: px - ((px - x) * next) / zoom, y: py - ((py - y) * next) / zoom});
+            return;
+        }
+        // Shift turns a vertical-only wheel sideways, where the browser has not done so already.
+        const sideways = event.shiftKey && deltaX === 0;
+        const dx = sideways ? deltaY : deltaX;
+        const dy = sideways ? 0 : deltaY;
+        if (dx === 0 && dy === 0) return;
+        this.moveTo({zoom, x: x - dx, y: y - dy});
+    }
+
+    /** The viewport as last set: the one set here until the library has caught up, then the published one. */
+    private current(): ViewportState {
+        const published = this.vflow().viewport();
+        const pending = this.pending;
+        if (pending === null) return published;
+        const caughtUp =
+            Math.abs(published.x - pending.x) < 0.5 &&
+            Math.abs(published.y - pending.y) < 0.5 &&
+            Math.abs(published.zoom - pending.zoom) < 1e-4;
+        if (caughtUp) this.pending = null;
+        return caughtUp ? published : pending;
+    }
+
+    /**
+     * Sets the viewport. The library publishes it a frame or more later, so anything moving it again
+     * before then (rapid clicks, a wheel run, a swipe's momentum tail) builds on the one set here
+     * rather than on the stale published one.
+     */
+    private moveTo(wanted: ViewportState, contain = true): void {
+        const target = this.clamp(wanted, this.current(), contain);
+        this.pending = target;
+        if (this.pendingTimer !== null) clearTimeout(this.pendingTimer);
+        this.pendingTimer = setTimeout(() => ((this.pending = null), (this.pendingTimer = null)), PENDING_MS);
+        this.vflow().viewportTo(target);
+    }
+
+    /**
+     * The viewport moved as little as possible so the graph stays in reach (ISC-409): a graph that
+     * fits in the box stays wholly inside it when `contain` holds, and any graph keeps at least
+     * `FLOW_PAN_MARGIN` px on each axis inside the box. Measured against the layout's node boxes,
+     * sub-nodes included. Never further out than `from`: a reveal may leave the fitted graph
+     * partly outside, and the next gesture must be free to bring it back rather than jump.
+     * Unclamped where the box has no size (jsdom) or there is no graph.
+     */
+    private clamp(next: ViewportState, from: ViewportState | null, contain: boolean): ViewportState {
+        const nodes = this.layout().nodes;
+        const box = this.wheelBox().nativeElement;
+        if (nodes.length === 0 || box.clientWidth === 0 || box.clientHeight === 0) return next;
+        const zoom = next.zoom;
+        const axis = (pos: number, before: number | null, lo: number, hi: number, size: number): number => {
+            const start = lo * zoom;
+            const end = hi * zoom;
+            let min: number;
+            let max: number;
+            if (contain && end - start <= size) {
+                min = -start;
+                max = size - end;
+            } else {
+                const keep = Math.min(FLOW_PAN_MARGIN, end - start);
+                min = keep - end;
+                max = size - keep - start;
+            }
+            if (before !== null) {
+                min = Math.min(min, before);
+                max = Math.max(max, before);
+            }
+            return Math.min(max, Math.max(min, pos));
+        };
+        const sameZoom = from !== null && Math.abs(from.zoom - zoom) < 1e-4;
+        const x0 = Math.min(...nodes.map((n) => n.x));
+        const x1 = Math.max(...nodes.map((n) => n.x + n.width));
+        const y0 = Math.min(...nodes.map((n) => n.y));
+        const y1 = Math.max(...nodes.map((n) => n.y + n.height));
+        return {
+            zoom,
+            x: axis(next.x, sameZoom ? from.x : null, x0, x1, box.clientWidth),
+            y: axis(next.y, sameZoom ? from.y : null, y0, y1, box.clientHeight),
+        };
+    }
+
+    /** Zooms about the centre of the box, not the graph's origin, clamped to the zoom range. */
     private zoomBy(factor: number): void {
-        const vflow = this.vflow();
-        const {x, y, zoom} = this.pending ?? vflow.viewport();
+        const {x, y, zoom} = this.current();
         const next = Math.min(FLOW_ZOOM.max, Math.max(FLOW_ZOOM.min, zoom * factor));
         const host = this.box.nativeElement;
         const cx = host.clientWidth / 2;
         const cy = host.clientHeight / 2;
-        const target: ViewportState = {zoom: next, x: cx - ((cx - x) / zoom) * next, y: cy - ((cy - y) / zoom) * next};
-        if (this.pending === null) requestAnimationFrame(() => (this.pending = null));
-        this.pending = target;
-        vflow.viewportTo(target);
+        this.moveTo({zoom: next, x: cx - ((cx - x) / zoom) * next, y: cy - ((cy - y) / zoom) * next});
     }
 
     private dataOf(node: LayoutNode, stage: WorkflowStage, phaseId: string, handles: readonly FlowHandle[]): FlowNodeData {
         const box = {id: node.id, width: node.width, height: node.height, handles};
+        if (node.kind === 'stage') return {...box, kind: 'stage', stage, phaseId};
+        // A sub-node links to its stage's sheet at the section its id names (ISC-406).
+        const sub = {...box, kind: 'sub' as const, stageId: stage.id, icon: subIcon(node.id)};
         switch (node.kind) {
-            case 'stage':
-                return {...box, kind: 'stage', stage, phaseId};
             case 'knockout': {
                 const id = node.id.replace(/^knockout:/, '');
                 const text = stage.knockouts?.find((knockout) => knockout.id === id)?.description ?? id;
-                return {...box, kind: 'sub', text, key: null};
+                return {...sub, text, key: null};
             }
             case 'score-block': {
                 const block = node.id.replace(/^score:/, '');
                 const key = SCORE_BLOCK_KEYS[block] ?? null;
-                return {...box, kind: 'sub', text: key === null ? block : null, key};
+                return {...sub, text: key === null ? block : null, key};
             }
             case 'prompt':
-                return {...box, kind: 'sub', text: null, key: `rules.prompt.${stage.promptId ?? ''}`};
+                return {...sub, text: null, key: `rules.prompt.${stage.promptId ?? ''}`};
         }
     }
 }

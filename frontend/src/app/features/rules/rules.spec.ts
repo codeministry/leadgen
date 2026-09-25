@@ -11,7 +11,36 @@ import {PromptView} from '@core/model/prompt-view';
 import {filter, firstValueFrom} from 'rxjs';
 import {RulesView} from '@core/model/rules-view';
 import {WorkflowStage, WorkflowView} from '@core/model/workflow';
-import {Rules} from './rules';
+import {PIPE_BELOW_PX, Rules} from './rules';
+
+/**
+ * A ResizeObserver that reports one content width at once, so jsdom, which has neither layout nor
+ * a reporting observer, can take either side of the breakpoint (ISC-395).
+ */
+function boxWidth(width: number): void {
+    vi.stubGlobal(
+        'ResizeObserver',
+        class {
+            private readonly callback: ResizeObserverCallback;
+            constructor(callback: ResizeObserverCallback) {
+                this.callback = callback;
+            }
+            observe(target: Element): void {
+                this.callback([{target, contentRect: {width}} as unknown as ResizeObserverEntry], this as unknown as ResizeObserver);
+            }
+            unobserve(): void {
+                // Nothing to stop: the width was reported once.
+            }
+            disconnect(): void {
+                // As above.
+            }
+        },
+    );
+}
+
+// The desktop canvas unless a test narrows the box; test-setup's observer never reports at all.
+beforeEach(() => boxWidth(1440));
+afterEach(() => vi.unstubAllGlobals());
 
 const RULES: RulesView = {
     version: '2026-09-01',
@@ -230,6 +259,7 @@ describe('Rules', () => {
     });
 
     it('renders the stage rail with the five phases in the order the server sent them', () => {
+        boxWidth(375);
         const page = element(render().fixture);
         const rail = page.querySelector('lg-stage-rail');
 
@@ -239,6 +269,7 @@ describe('Rules', () => {
     });
 
     it('lists every stage in server order with the unread entry last', () => {
+        boxWidth(375);
         const links = Array.from(element(render().fixture).querySelectorAll('lg-stage-rail nav a'));
 
         expect(links.map((a) => a.getAttribute('data-stage'))).toEqual([...STAGES.map((s) => s.id), 'unread']);
@@ -246,6 +277,7 @@ describe('Rules', () => {
     });
 
     it('marks every cost class of every stage with an icon that has an accessible name', () => {
+        boxWidth(375);
         const page = element(render().fixture);
         const links = Array.from(page.querySelectorAll('lg-stage-rail nav a'));
 
@@ -288,6 +320,7 @@ describe('Rules', () => {
     });
 
     it('shows in the rail only the counts the last run itself left there', () => {
+        boxWidth(375);
         const page = element(render().fixture);
         const countOf = (id: string): string | undefined =>
             page.querySelector(`lg-stage-rail a[data-stage="${id}"] .stage-count`)?.textContent?.trim();
@@ -306,6 +339,7 @@ describe('Rules', () => {
     });
 
     it('says in words that no run has finished, and draws no counts, before the first run', () => {
+        boxWidth(375);
         const rail = element(render(WORKFLOW, false, undefined, null).fixture).querySelector('lg-stage-rail');
 
         expect(rail?.querySelector('.no-run-note')?.textContent?.trim()).toBe(
@@ -315,6 +349,7 @@ describe('Rules', () => {
     });
 
     it('keeps a failed rules request visible beside a loaded workflow', () => {
+        boxWidth(375);
         const page = element(render(WORKFLOW, true).fixture);
         const alert = page.querySelector('[role="alert"]');
 
@@ -322,6 +357,54 @@ describe('Rules', () => {
         expect(alert).not.toBeNull();
         expect(alert?.textContent?.trim()).toBeTruthy();
         expect(alert?.textContent).not.toContain('error.rulesLoad');
+    });
+
+    // ISC-395: one drawing of the workflow per width, never both, and vflow never below the breakpoint.
+    it('draws the canvas with its legend beside it and no pipe from the breakpoint up', () => {
+        boxWidth(PIPE_BELOW_PX);
+        const page = element(render().fixture);
+
+        expect(page.querySelector('.canvas-area lg-flow-canvas')).not.toBeNull();
+        expect(page.querySelector('.canvas-area lg-flow-legend a[data-stage="unread"]')).not.toBeNull();
+        expect(page.querySelector('lg-stage-rail')).toBeNull();
+    });
+
+    it('draws the pipe with the one legend under it and no canvas below the breakpoint', () => {
+        boxWidth(PIPE_BELOW_PX - 1);
+        const page = element(render().fixture);
+        const rail = page.querySelector('lg-stage-rail');
+        const legend = page.querySelector('lg-flow-legend');
+
+        expect(page.querySelector('lg-flow-canvas')).toBeNull();
+        expect(page.querySelector('vflow')).toBeNull();
+        expect(rail).not.toBeNull();
+        expect(rail?.compareDocumentPosition(legend as Node)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+        // The rail's own legend is gone: one implementation, the canvas's.
+        expect(page.querySelector('.rail-legend')).toBeNull();
+        // "Read by nothing" is the pipe's last entry, so the legend under it does not repeat the link.
+        expect(page.querySelectorAll('a[data-stage="unread"]')).toHaveLength(1);
+        expect(legend?.querySelector('a[data-stage]')).toBeNull();
+    });
+
+    it('leaves no icon on a pipe entry that the legend under it lacks', () => {
+        boxWidth(375);
+        const page = element(render().fixture);
+        const legend = new Set(Array.from(page.querySelectorAll('lg-flow-legend [data-icon]'), (icon) => icon.getAttribute('data-icon')));
+        const used = Array.from(page.querySelectorAll('lg-stage-rail a[data-stage] [data-icon]'), (icon) => icon.getAttribute('data-icon'));
+
+        expect(used.length).toBeGreaterThan(0);
+        expect(used.filter((name) => !legend.has(name))).toEqual([]);
+    });
+
+    // ISC-396: above the breakpoint the pipe's fan-in sentence is gone with it, so the screen says it.
+    it('says the fan-in in words beside the canvas, and only there', () => {
+        const page = element(render().fixture);
+        const sentences = page.querySelectorAll('.rules-fan-in, .rail-fan-in');
+
+        expect(sentences).toHaveLength(1);
+        expect(sentences[0].closest('.canvas-area')).not.toBeNull();
+        expect(sentences[0].classList.contains('sr-only')).toBe(true);
+        expect(sentences[0].textContent?.trim()).toBe('2 sources, merged at Deduplicate');
     });
 
     it('carries no anchor rail and offers no primary action', () => {
@@ -359,6 +442,82 @@ describe('Rules', () => {
         const width = legend!.querySelector('[data-marker="width"]');
         expect(width?.querySelector('.flow-node-width')?.textContent?.trim()).toBeTruthy();
         expect(width?.querySelector('.legend-label')?.textContent?.trim()).toBeTruthy();
+    });
+
+    // ISC-405: hovering or focusing a node answers in the legend; leaving it restores the legend.
+
+    function legendState(page: HTMLElement, scope: string): {active: string[]; faded: string[]} {
+        const all = Array.from(page.querySelectorAll<HTMLElement>(`${scope} [data-marker-id]`));
+        const ids = (cls: string): string[] => all.filter((e) => e.classList.contains(cls)).map((e) => e.dataset['markerId'] ?? '');
+        return {active: ids('is-active'), faded: ids('is-faded')};
+    }
+
+    function stageLink(page: HTMLElement, host: string, stageId: string): HTMLElement {
+        const link = Array.from(page.querySelectorAll<HTMLElement>(`${host} [data-stage]`)).find((a) => a.dataset['stage'] === stageId);
+        expect(link, `${stageId} in ${host}`).toBeTruthy();
+        return link!;
+    }
+
+    it("highlights the hovered or focused node's markers in the legend and restores it on leaving", () => {
+        const {fixture} = render();
+        const page = element(fixture);
+        expect(legendState(page, '.canvas-area lg-flow-legend')).toEqual({active: [], faded: []});
+
+        // A source that fetches and asks a model: network, model and the AI marker.
+        const zeta = stageLink(page, 'lg-flow-canvas lg-flow-node', 'INGEST zeta');
+        zeta.dispatchEvent(new MouseEvent('pointerover', {bubbles: true}));
+        fixture.detectChanges();
+        expect(legendState(page, '.canvas-area lg-flow-legend')).toEqual({active: ['model', 'network', 'ai'], faded: ['free', 'file', 'failed', 'width']});
+
+        zeta.dispatchEvent(new MouseEvent('pointerout', {bubbles: true, relatedTarget: null}));
+        fixture.detectChanges();
+        expect(legendState(page, '.canvas-area lg-flow-legend')).toEqual({active: [], faded: []});
+
+        // Keyboard focus answers the same way: DEDUPE only costs nothing.
+        const dedupe = stageLink(page, 'lg-flow-canvas lg-flow-node', 'DEDUPE');
+        dedupe.dispatchEvent(new FocusEvent('focusin', {bubbles: true}));
+        fixture.detectChanges();
+        expect(legendState(page, '.canvas-area lg-flow-legend')).toEqual({active: ['free'], faded: ['model', 'network', 'file', 'ai', 'failed', 'width']});
+        for (const label of page.querySelectorAll('.canvas-area lg-flow-legend [data-marker-id] .legend-label')) {
+            expect(label.textContent?.trim()).toBeTruthy();
+        }
+
+        dedupe.dispatchEvent(new FocusEvent('focusout', {bubbles: true, relatedTarget: null}));
+        fixture.detectChanges();
+        expect(legendState(page, '.canvas-area lg-flow-legend')).toEqual({active: [], faded: []});
+    });
+
+    it("marks a failed, stacked node's failed and width markers active", () => {
+        const every: WorkflowView = {
+            ...WORKFLOW,
+            phases: WORKFLOW.phases.map((phase) => ({
+                ...phase,
+                stages: phase.stages.map((s) => (s.id === 'ENRICH' ? {...s, width: {key: 'enrichment.fetch.concurrency', value: 4}} : s)),
+            })),
+        };
+        const failedAt = {position: 3, stage: 'ENRICH', startedAt: '', endedAt: '', millis: 1, status: 'FAILED', note: null, width: null};
+        const {fixture} = render(every, false, undefined, {...LAST_RUN, stages: [failedAt]});
+        const page = element(fixture);
+
+        stageLink(page, 'lg-flow-canvas lg-flow-node', 'ENRICH').dispatchEvent(new MouseEvent('pointerover', {bubbles: true}));
+        fixture.detectChanges();
+
+        expect(legendState(page, '.canvas-area lg-flow-legend').active).toEqual(['network', 'failed', 'width']);
+    });
+
+    it('lets a pipe pill below the breakpoint answer in the legend under the pipe', () => {
+        boxWidth(375);
+        const {fixture} = render();
+        const page = element(fixture);
+
+        const pill = stageLink(page, 'lg-stage-rail', 'ENRICH');
+        pill.dispatchEvent(new MouseEvent('pointerover', {bubbles: true}));
+        fixture.detectChanges();
+        expect(legendState(page, 'lg-flow-legend.pipe-legend').active).toEqual(['network']);
+
+        pill.dispatchEvent(new MouseEvent('pointerout', {bubbles: true, relatedTarget: null}));
+        fixture.detectChanges();
+        expect(legendState(page, 'lg-flow-legend.pipe-legend')).toEqual({active: [], faded: []});
     });
 
     it('offers "read by nothing" in the legend, off the flow, as a link to the unread keys', () => {
@@ -466,7 +625,8 @@ describe('Rules — the stage query parameter', () => {
 
     function current(): string | null | undefined {
         const page = harness!.routeNativeElement as HTMLElement;
-        const selected = page.querySelectorAll('lg-stage-rail [aria-current="page"]');
+        // The canvas card or the legend's entry above the breakpoint, the pipe's link below it.
+        const selected = page.querySelectorAll('[aria-current="page"]');
         expect(selected.length).toBeLessThanOrEqual(1);
         return selected[0]?.getAttribute('data-stage');
     }

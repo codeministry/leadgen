@@ -2,7 +2,7 @@ import {ComponentFixture, TestBed} from '@angular/core/testing';
 import {provideRouter} from '@angular/router';
 import {LastRunStage, LastRunView} from '@core/model/last-run';
 import {WorkflowStage, WorkflowView} from '@core/model/workflow';
-import {AI_ICON, COST_ICONS, FAILED_ICON, StageRail} from './stage-rail';
+import {COST_ICONS, StageRail} from './stage-rail';
 
 function stage(id: string, costClasses: readonly string[], sourceId: string | null = null): WorkflowStage {
     return {
@@ -363,7 +363,9 @@ describe('StageRail marks the AI steps (ISC-308)', () => {
     });
 });
 
-describe('StageRail legend (ISC-310)', () => {
+// The legend moved to lg-flow-legend, one implementation under the canvas and the pipe alike
+// (ISC-395); its entries and the icons-subset check are in flow-legend and rules.spec.ts.
+describe('StageRail markers (ISC-310)', () => {
     beforeEach(() => {
         TestBed.configureTestingModule({providers: [provideRouter([])]});
     });
@@ -378,39 +380,6 @@ describe('StageRail legend (ISC-310)', () => {
         fixture.detectChanges();
         return fixture.nativeElement as HTMLElement;
     }
-
-    const entries = (root: HTMLElement) => Array.from(root.querySelectorAll('.rail-legend li'));
-
-    it('sits after the unread entry under a heading', () => {
-        const root = rail();
-        const legend = root.querySelector('.rail-legend');
-
-        expect(legend).not.toBeNull();
-        expect(legend?.querySelector('h2')?.textContent?.trim()).toBe('Legend');
-        expect(root.querySelector('.unread')?.compareDocumentPosition(legend as Node)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
-    });
-
-    it('has one entry per cost class, the AI marker and the failed marker, each icon beside a label', () => {
-        const root = rail();
-        const expected = [...Object.values(COST_ICONS), AI_ICON, FAILED_ICON];
-
-        expect(entries(root).map((li) => li.querySelector('lg-icon')?.getAttribute('data-icon')).sort()).toEqual(expected.sort());
-        for (const li of entries(root)) {
-            expect(li.querySelector('.legend-label')?.textContent?.trim()).toBeTruthy();
-            // Decorative: the label sits beside it, so the icon is not read twice.
-            expect(li.querySelector('svg')?.getAttribute('aria-hidden')).toBe('true');
-        }
-        expect(root.querySelector('.rail-legend .legend-ai .legend-label')?.textContent?.trim()).toBe('AI step: a model takes part, by prompt or by embeddings');
-    });
-
-    it('leaves no icon in a stage row that the legend lacks', () => {
-        const root = rail();
-        const legend = new Set(entries(root).map((li) => li.querySelector('lg-icon')?.getAttribute('data-icon')));
-        const used = Array.from(root.querySelectorAll('a[data-stage] lg-icon'), (icon) => icon.getAttribute('data-icon'));
-
-        expect(used.length).toBeGreaterThan(0);
-        expect(used.filter((name) => !legend.has(name))).toEqual([]);
-    });
 
     it('draws an icon for every cost class the server sends, so the fallback never reaches a row', () => {
         // WorkflowView.COST_* on the server; a fifth class would draw `ellipsis`, which the legend lacks.

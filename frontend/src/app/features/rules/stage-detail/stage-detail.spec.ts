@@ -7,6 +7,7 @@ import {PromptView} from '@core/model/prompt-view';
 import {RulesView} from '@core/model/rules-view';
 import {WorkflowSetting, WorkflowStage} from '@core/model/workflow';
 import de from '../../../../../public/i18n/de.json';
+import {SUB_ICONS} from '../stage-marks';
 import {StageDetail} from './stage-detail';
 
 const RULES: RulesView = {
@@ -120,6 +121,29 @@ describe('StageDetail', () => {
         fixture.detectChanges();
         return {fixture, page: fixture.nativeElement as HTMLElement};
     }
+
+    describe('marks each section a sub-node links to, headed by its kind\'s icon (ISC-406)', () => {
+        const sub = (page: HTMLElement, id: string): HTMLElement | undefined =>
+            Array.from(page.querySelectorAll<HTMLElement>('[data-sub]')).find((el) => el.dataset['sub'] === id);
+        const headingIcon = (el: HTMLElement | undefined): string | undefined =>
+            el?.querySelector<HTMLElement>('h3 [data-icon]')?.dataset['icon'];
+
+        it('gives every knockout row its sub id and heads the knockouts with the knockout icon', () => {
+            const {page} = render(FILTER);
+            expect(sub(page, 'knockout:remote')?.tagName).toBe('LI');
+            expect(sub(page, 'knockout:stack')?.textContent).toContain('Drops offers without the stack.');
+            expect(page.querySelector<HTMLElement>('[data-section="funnel"] h3 [data-icon]')?.dataset['icon']).toBe(SUB_ICONS.knockout);
+        });
+
+        it('gives SCORE\'s four blocks their sub ids and each heading its block\'s icon', () => {
+            const {page} = render(stage('SCORE', {promptId: 'scoring'}));
+            for (const block of ['weights', 'penalties', 'bands', 'topics'] as const) {
+                expect(sub(page, `score:${block}`), block).toBeDefined();
+                expect(headingIcon(sub(page, `score:${block}`)), block).toBe(SUB_ICONS[block]);
+            }
+            expect(headingIcon(sub(page, 'prompt:scoring'))).toBe(SUB_ICONS.prompt);
+        });
+    });
 
     it('names the stage and carries the server description', () => {
         const {page} = render(FILTER);

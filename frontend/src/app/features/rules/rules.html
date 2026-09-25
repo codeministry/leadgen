@@ -12,11 +12,29 @@
     @if (store.rulesError(); as error) {
         <p class="type-small rules-error" role="alert">{{ error | transloco }}</p>
     }
-    <div class="canvas-area">
-        <lg-flow-canvas [workflow]="workflow" [lastRun]="lastRun()" [rules]="store.rules()" [selected]="selected()" [occluder]="sheetBox()"/>
-        <!-- ISC-398: what the node markers mean, and the keys nothing reads, off the flow. -->
-        <lg-flow-legend [selected]="selected()"/>
-    </div>
+    <!-- ISC-395: the canvas from the measured breakpoint up, the pipe below it — never both, and
+         below it vflow is not instantiated at all. Either way the stages are one path of links in
+         run order with aria-current on the selected one (ISC-396). -->
+    <!-- ISC-407: what goes full screen — the canvas, its legend and the sheet, together. -->
+    <div class="rules-stage" #stageBox [class.is-fullscreen]="fullscreen() === true">
+    @if (wide()) {
+        <div class="canvas-area">
+            <!-- The canvas draws the fan-in; a screen reader, which skips the drawing, hears it here. -->
+            @if (fanIn(); as merge) {
+                <p class="sr-only rules-fan-in">
+                    {{ 'rules.fanIn' | transloco: { count: merge.count, stage: merge.targetKey | transloco } }}
+                </p>
+            }
+            <lg-flow-canvas [workflow]="workflow" [lastRun]="lastRun()" [rules]="store.rules()" [selected]="selected()" [occluder]="sheetBox()"
+                            [fullscreen]="fullscreen()" (fullscreenToggle)="toggleFullscreen()"/>
+            <!-- ISC-398: what the node markers mean, and the keys nothing reads, off the flow. -->
+            <lg-flow-legend [selected]="selected()" [active]="legendActive()"/>
+        </div>
+    } @else {
+        <lg-stage-rail class="rail-col" [workflow]="workflow" [selected]="selected()" [counts]="counts()" [lastRun]="lastRun()"/>
+        <!-- The same legend as beside the canvas; the pipe ends with "read by nothing" itself. -->
+        <lg-flow-legend class="pipe-legend" [selected]="selected()" [withUnread]="false" [active]="legendActive()"/>
+    }
 
     <!-- The selected stage, at the right edge of the browser window rather than the canvas's. The
          sheet is non-modal, so the canvas to its left stays usable while it is open (ISC-393). -->
@@ -27,11 +45,12 @@
                 [rules]="store.rules()"
                 [prompts]="store.prompts()"
                 [funnel]="funnel()"
+                [section]="section()"
                 (closed)="closeSheet()"
         />
     }
+    </div>
 
-    <lg-stage-rail class="rail-col" [workflow]="workflow" [selected]="selected()" [counts]="counts()" [lastRun]="lastRun()"/>
 } @else if (store.rulesError(); as error) {
     <p class="type-small rules-error" role="alert">{{ error | transloco }}</p>
 } @else {

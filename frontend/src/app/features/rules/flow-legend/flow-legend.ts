@@ -9,9 +9,14 @@ import {UNREAD_STAGE} from '../stage-rail/stage-rail';
 /** One icon a flow node can carry, and the catalog key of its words. */
 interface IconEntry {
     readonly kind: 'cost' | 'ai' | 'failed';
+    /** The marker's id in `markersOf`'s vocabulary: the cost class, `ai` or `failed`. */
+    readonly id: string;
     readonly icon: LgIconName;
     readonly labelKey: string;
 }
+
+/** The width stack's id in `markersOf`'s vocabulary; its entry is drawn apart from the icons. */
+const WIDTH_MARKER = 'width';
 
 /**
  * Derived from the constants `lg-flow-node` reads, so a new cost class or marker cannot reach a
@@ -19,9 +24,11 @@ interface IconEntry {
  * explains the icon, a node names the call it makes.
  */
 const ICON_ENTRIES: readonly IconEntry[] = [
-    ...Object.entries(COST_ICONS).map(([costClass, icon]): IconEntry => ({kind: 'cost', icon, labelKey: `rules.cost.${costClass}`})),
-    {kind: 'ai', icon: AI_ICON, labelKey: 'rules.ai.legend'},
-    {kind: 'failed', icon: FAILED_ICON, labelKey: 'rules.stageFailed'},
+    ...Object.entries(COST_ICONS).map(
+        ([costClass, icon]): IconEntry => ({kind: 'cost', id: costClass, icon, labelKey: `rules.cost.${costClass}`}),
+    ),
+    {kind: 'ai', id: 'ai', icon: AI_ICON, labelKey: 'rules.ai.legend'},
+    {kind: 'failed', id: 'failed', icon: FAILED_ICON, labelKey: 'rules.stageFailed'},
 ];
 
 /**
@@ -39,7 +46,29 @@ const ICON_ENTRIES: readonly IconEntry[] = [
 export class FlowLegend {
     /** The `stage` the screen has selected, so the unread entry can show it is the open one. */
     readonly selected = input<string | null>(null);
+    /**
+     * Whether the legend carries the "read by nothing" link. Under the pipe it does not: the pipe
+     * ends with that entry itself, and one screen has one link per destination (ISC-396).
+     */
+    readonly withUnread = input(true);
+    /**
+     * The markers of the hovered or focused stage (ISC-405), from `markersOf`: those entries are
+     * highlighted and the rest faded. Null, no stage under the reader, leaves every entry as is.
+     * A faded entry keeps its words in the DOM and in the accessibility tree; the highlight is
+     * never the only way a marker is named.
+     */
+    readonly active = input<ReadonlySet<string> | null>(null);
 
     protected readonly entries = ICON_ENTRIES;
+    protected readonly widthMarker = WIDTH_MARKER;
+
+    protected isActive(id: string): boolean {
+        return this.active()?.has(id) ?? false;
+    }
+
+    protected isFaded(id: string): boolean {
+        const active = this.active();
+        return active !== null && !active.has(id);
+    }
     protected readonly unread = UNREAD_STAGE;
 }

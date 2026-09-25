@@ -130,23 +130,24 @@ Every paragraph here was paid for once; none of it is a summary.
 
 ## The split views
 
-`features/shortlist/`, `features/pipeline/`, `features/review/` and, since ISC-287,
-`features/rules/`, with `layout/app-shell/` underneath all four. One list on the left, one thing
-being read on the right, and neither column scrolls the other — with rules' own exception below.
+`features/shortlist/`, `features/pipeline/` and `features/review/`, with `layout/app-shell/`
+underneath all three. One list on the left, one thing being read on the right, and neither column
+scrolls the other. Rules was the fourth from ISC-287 until spec 017 took it out; the bullet below
+says what it became and why.
 
-- **Rules is the fourth split view, and its rail does not follow the pattern of the other
-  three.** The rail is the phases and their stages, left; the selected stage's detail is right;
-  the selection lives in the `stage` query parameter, routed input exactly like the shortlist's
-  and the board's own selection. Where it diverges: the rail is **not** `position: sticky`. The
-  rail is taller than the viewport on any workflow with more than a couple of stages open at
-  once, so a sticky rail and a scrolling detail pane become two columns scrolling against each
-  other — the operator reported two scrollbars on the same screen, one nested inside the other,
-  and reached for the wrong one more than once. The rail simply scrolls with the document instead.
-  The counts on each stage are last-run figures only, from `/api/v1/ingest/last` and
-  `/api/v1/offers/funnel`, never a live figure — ENRICH's `enriched` count is now served there
-  too, additively, so every run figure the rail shows exists on the same read path. The legend
-  sits under the rail, not beside it, because it explains the rail's own icons and reads as the
-  rail's closing line rather than as a third column.
+- **Rules left the split views for a graph and a sheet (spec 017).** The operator found 008's
+  rail "zu statisch als liste": every stage drawn as the review queue's row read as "pick one of
+  N", and the four sources that merge at DEDUPE looked like serial stages. The screen is now a
+  workflow graph (ngx-vflow, laid out by hand in five phase columns, because one row of twelve
+  ranks fitted only at 0.28 zoom and a node's text was unreadable) with the selected stage's
+  settings in a sheet fixed to the window's right edge, the help drawer's width. The selection is
+  still the `stage` query parameter; a sub-node adds `section`. The canvas is **the one sanctioned
+  inner scroll surface** on this screen: it pans and zooms inside its own box, owns every wheel
+  over it (a plain wheel pans, a pinch or Ctrl zooms) and never scrolls the page, because a graph
+  that moved the page under the pointer is unusable. The sheet scrolls inside itself for the same
+  reason. Below 704 px of the screen's own width the graph is not built at all and the old rail
+  returns as a vertical pipe; that is where a fitted card drops under 100 px. The counts are still
+  last-run figures only, now as chips with a verb, and a stage the run never reached carries none.
 - **The board is bounded; the shortlist and the review hand their reading column to the document.** A route asks to be
   bounded with
   `data: { fill: true }` and `AppShell` reads that exactly where it reads `data.measure`, because the element that has

@@ -6,18 +6,58 @@
     margin-inline: auto;
 }
 
-/* The graph's box. The stage sheet is not in it: it is fixed to the browser window's right edge. */
+/* The graph's box. The stage sheet is not in it: it is fixed to the browser window's right edge.
+   Positioned so the absolutely positioned fan-in sentence resolves against this box and not a
+   distant ancestor, where its static position could count toward the page's overflow. */
 .canvas-area {
+    position: relative;
     min-width: 0;
 }
 
-/* Below the canvas until it becomes the pipe (ISC-395). Not sticky: with every source and the
-   unread entry it is taller than the viewport, and a pinned column taller than the window
+/* The pipe, below the breakpoint in place of the canvas (ISC-395). Not sticky: with every source
+   and the unread entry it is taller than the viewport, and a pinned column taller than the window
    cannot show its own end. */
 .rail-col {
     display: block;
     min-width: 0;
-    margin-block-start: var(--lg-split-gap);
+}
+
+.pipe-legend {
+    margin-block-start: var(--lg-stack-gap);
+}
+
+/* Canvas, legend and sheet as one box, so the three go full screen together (ISC-407). */
+.rules-stage {
+    min-width: 0;
+}
+
+/* In the full screen the box fills the window — the browser does that for the real full-screen
+   element, and this says it for every browser — and the canvas takes every row the legend leaves. */
+.rules-stage.is-fullscreen {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    display: flex;
+    flex-direction: column;
+    gap: var(--lg-stack-gap);
+    box-sizing: border-box;
+    padding: var(--lg-stack-gap);
+    overflow: hidden;
+    background-color: var(--color-base-100);
+}
+
+.rules-stage.is-fullscreen .canvas-area {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: var(--lg-stack-gap);
+    min-block-size: 0;
+}
+
+.rules-stage.is-fullscreen lg-flow-canvas {
+    flex: 1 1 auto;
+    block-size: auto;
+    min-block-size: 0;
 }
 
 .rules-error {

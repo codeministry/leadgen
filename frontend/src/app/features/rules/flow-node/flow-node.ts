@@ -7,7 +7,7 @@ import {Icon} from '@shared/icon/icon';
 import {LgIconName} from '@shared/icon/lucide-icons';
 import {isAiStage} from '../ai-stage';
 import {countVerbKey, formatStageCount} from '../stage-count';
-import {AI_ICON, FAILED_ICON, costIcon, costLabelKey, stageLabelKey} from '../stage-marks';
+import {AI_ICON, FAILED_ICON, costIcon, costLabelKey, stackWidth, stageLabelKey} from '../stage-marks';
 
 /** The count chip's words and the grouped number they carry, or nothing to draw. */
 interface CountChip {
@@ -63,14 +63,8 @@ export class FlowNode {
     protected readonly labelKey = computed(() => stageLabelKey(this.stage()));
     protected readonly isAi = computed(() => isAiStage(this.stage()));
 
-    /**
-     * How many adverts the stage works on at once, only when that is more than one: a width of
-     * one, or none, draws the card exactly as a stage no width bounds (ISC-402).
-     */
-    protected readonly stackWidth = computed((): number | null => {
-        const value = this.stage().width?.value ?? null;
-        return value !== null && value > 1 ? value : null;
-    });
+    /** The width stack, drawn by the predicate the legend's hover answer reads (ISC-402, ISC-405). */
+    protected readonly stackWidth = computed(() => stackWidth(this.stage()));
 
     protected readonly chip = computed((): CountChip | null => {
         const count = this.count();

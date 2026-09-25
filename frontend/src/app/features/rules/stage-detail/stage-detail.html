@@ -45,7 +45,10 @@
 
     @if (isFilter()) {
         <section class="detail-section" data-section="funnel">
-            <h3 class="type-h3">{{ 'rules.knockouts' | transloco }}</h3>
+            <h3 class="type-h3 section-title">
+                <lg-icon class="section-icon" [name]="subIcons.knockout" [size]="16" [attr.data-icon]="subIcons.knockout"/>
+                {{ 'rules.knockouts' | transloco }}
+            </h3>
             <p class="type-small text-muted">{{ 'rules.knockoutsNote' | transloco }}</p>
             @if (funnel(); as funnel) {
                 <!-- ISC-393: the working list's own figures, named as such — the graph's chips beside
@@ -62,7 +65,12 @@
             @if (stage.knockouts; as knockouts) {
                 <ol class="knockouts">
                     @for (knockout of knockouts; track knockout.id) {
-                        <li class="knockout">
+                        <li class="knockout" [attr.data-sub]="'knockout:' + knockout.id">
+                            <lg-icon
+                                class="knockout-icon"
+                                [name]="knockoutIcon(knockout.id)"
+                                [size]="14"
+                                [attr.data-icon]="knockoutIcon(knockout.id)"/>
                             <span class="type-mono-data knockout-id">{{ knockout.id }}</span>
                             <span class="type-small">{{ knockout.description }}</span>
                             @if (knockout.keys.length > 0) {
@@ -88,8 +96,11 @@
 
     @if (isScore() && rules(); as rules) {
         <div class="score-grid">
-            <section class="detail-section" data-section="weights">
-                <h3 class="type-h3">{{ 'rules.weights' | transloco }}</h3>
+            <section class="detail-section" data-section="weights" data-sub="score:weights">
+                <h3 class="type-h3 section-title">
+                    <lg-icon class="section-icon" [name]="subIcons.weights" [size]="16" [attr.data-icon]="subIcons.weights"/>
+                    {{ 'rules.weights' | transloco }}
+                </h3>
                 <dl class="pairs">
                     @for (weight of rules.weights; track weight.key) {
                         <dt class="type-small">{{ weight.key }}</dt>
@@ -98,8 +109,11 @@
                 </dl>
             </section>
 
-            <section class="detail-section" data-section="penalties">
-                <h3 class="type-h3">{{ 'rules.penalties' | transloco }}</h3>
+            <section class="detail-section" data-section="penalties" data-sub="score:penalties">
+                <h3 class="type-h3 section-title">
+                    <lg-icon class="section-icon" [name]="subIcons.penalties" [size]="16" [attr.data-icon]="subIcons.penalties"/>
+                    {{ 'rules.penalties' | transloco }}
+                </h3>
                 <dl class="pairs">
                     @for (penalty of rules.penalties; track penalty.key) {
                         <dt class="type-small">{{ penalty.key }}</dt>
@@ -108,8 +122,11 @@
                 </dl>
             </section>
 
-            <section class="detail-section" data-section="bands">
-                <h3 class="type-h3">{{ 'rules.thresholds' | transloco }}</h3>
+            <section class="detail-section" data-section="bands" data-sub="score:bands">
+                <h3 class="type-h3 section-title">
+                    <lg-icon class="section-icon" [name]="subIcons.bands" [size]="16" [attr.data-icon]="subIcons.bands"/>
+                    {{ 'rules.thresholds' | transloco }}
+                </h3>
                 <dl class="pairs">
                     <dt class="type-mono-data">&ge; {{ rules.thresholds.autoShortlist }}</dt>
                     <dd class="type-small">{{ 'rules.bandStrong' | transloco }}</dd>
@@ -121,8 +138,11 @@
                 </dl>
             </section>
 
-            <section class="detail-section" data-section="topics">
-                <h3 class="type-h3">{{ 'rules.interestTopics' | transloco }}</h3>
+            <section class="detail-section" data-section="topics" data-sub="score:topics">
+                <h3 class="type-h3 section-title">
+                    <lg-icon class="section-icon" [name]="subIcons.topics" [size]="16" [attr.data-icon]="subIcons.topics"/>
+                    {{ 'rules.interestTopics' | transloco }}
+                </h3>
                 <dl class="pairs">
                     @for (topic of rules.interestTopics; track topic.name) {
                         <dt class="type-small">{{ topic.name }}</dt>
@@ -147,8 +167,11 @@
     }
 
     @if (prompt(); as prompt) {
-        <section class="detail-section" data-section="prompt">
-            <h3 class="type-h3">{{ 'rules.prompt.' + prompt.id | transloco }}</h3>
+        <section class="detail-section" data-section="prompt" [attr.data-sub]="'prompt:' + prompt.id">
+            <h3 class="type-h3 section-title">
+                <lg-icon class="section-icon" [name]="subIcons.prompt" [size]="16" [attr.data-icon]="subIcons.prompt"/>
+                {{ 'rules.prompt.' + prompt.id | transloco }}
+            </h3>
             <p class="type-small text-muted">
                 @if (prompt.model; as model) {
                     {{ 'rules.promptModel' | transloco: {model} }}

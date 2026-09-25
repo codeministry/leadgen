@@ -82,13 +82,14 @@ function nodeId(stage: WorkflowStage): string {
 const COLUMN_GAP = 72;
 const ROW_GAP = 28;
 const SUB_GAP = 10;
-const SUB_INDENT = 16;
+const SUB_INDENT = 24;
 
 /**
- * The x, from a stage's left edge, of the rail its sub-edges run down: the middle of the indent,
- * so the rail stays clear of the sub-nodes' boxes and each edge turns right into its node's left.
+ * The x, from a stage's left edge, of the rail its sub-edges run down, a file tree's vertical
+ * line: clear of the sub-nodes' boxes, with a 14 px branch left for each edge to turn right into
+ * its node's left side.
  */
-export const SUB_RAIL_X = SUB_INDENT / 2;
+export const SUB_RAIL_X = 10;
 
 /**
  * The sides per kind. A column reads top to bottom, so within a phase the edge is a short
