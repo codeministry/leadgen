@@ -13,15 +13,15 @@ import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import de.codeministry.leadgen.config.model.*;
+import de.codeministry.leadgen.config.model.CoverLetterStyle;
+import de.codeministry.leadgen.config.model.MatchingRules;
+import de.codeministry.leadgen.config.model.PipelineConfig;
+import de.codeministry.leadgen.config.model.SkillProfile;
+import de.codeministry.leadgen.config.model.SourcesConfig;
 import de.codeministry.leadgen.filter.TextFold;
 import de.codeministry.leadgen.security.SecurityConfig;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.env.Environment;
-import org.springframework.stereotype.Component;
-
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -29,31 +29,24 @@ import java.time.Instant;
 import java.util.*;
 import java.util.stream.Stream;
 
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.env.Environment;
+import org.springframework.stereotype.Component;
+
 /**
  * Reads, resolves, binds and validates the configuration.
  *
- * <p>
- * <b>Two layers, the same as Spring's own.</b> Working defaults ship on the
- * classpath
- * under {@code /leadgen/} and are part of the jar; an external directory
- * overrides them
- * file by file. Running the tool needs no configuration at all, and anything
- * individual —
+ * <p><b>Two layers, the same as Spring's own.</b> Working defaults ship on the classpath
+ * under {@code /leadgen/} and are part of the jar; an external directory overrides them
+ * file by file. Running the tool needs no configuration at all, and anything individual —
  * credentials, the profile, the real sources — lives outside the artifact.
  *
- * <p>
- * <b>These are not Spring properties.</b> They are the tool's own data with
- * their own
- * schema, read by Jackson, bound strictly and validated across files. Strictly,
- * because an
- * unknown key is an error and not a shrug: a misspelled `min_remote_percent`
- * would
- * otherwise disable a hard filter and nothing would say so — the only visible
- * effect is a
- * slightly longer shortlist, which looks exactly like a good day on the market.
- * Spring's
- * relaxed binding would ignore it silently, which is why this layer exists at
- * all.
+ * <p><b>These are not Spring properties.</b> They are the tool's own data with their own
+ * schema, read by Jackson, bound strictly and validated across files. Strictly, because an
+ * unknown key is an error and not a shrug: a misspelled `min_remote_percent` would
+ * otherwise disable a hard filter and nothing would say so — the only visible effect is a
+ * slightly longer shortlist, which looks exactly like a good day on the market. Spring's
+ * relaxed binding would ignore it silently, which is why this layer exists at all.
  */
 @Slf4j
 @Component
@@ -72,30 +65,22 @@ public class ConfigLoader {
     private final int connectionPoolSize;
 
     /**
-     * The Spring key that sizes the database connection pool.
-     * {@code application.yaml} sets
-     * none, so the running pool is Hikari's own default,
-     * {@link #DEFAULT_CONNECTION_POOL_SIZE}.
+     * The Spring key that sizes the database connection pool. {@code application.yaml} sets
+     * none, so the running pool is Hikari's own default, {@link #DEFAULT_CONNECTION_POOL_SIZE}.
      */
     static final String CONNECTION_POOL_SIZE_KEY = "spring.datasource.hikari.maximum-pool-size";
 
     /**
-     * Hikari's {@code maximumPoolSize} when nothing sets it. A copy of the
-     * library's value
-     * rather than a read of it: the loader runs before the pool exists and must not
-     * wait for
+     * Hikari's {@code maximumPoolSize} when nothing sets it. A copy of the library's value
+     * rather than a read of it: the loader runs before the pool exists and must not wait for
      * one, and a test context without a datasource still loads the configuration.
      */
     static final int DEFAULT_CONNECTION_POOL_SIZE = 10;
 
-    // One constructor, and the resolver arrives through it: in a running
-    // application it is
-    // the bean in PlaceholderResolverConfiguration, the process environment with
-    // `.env`
-    // behind it; a test hands in its own and never resolves from the machine it
-    // runs on.
-    // The Spring environment is read for one key only, the pool size the widths are
-    // held to —
+    // One constructor, and the resolver arrives through it: in a running application it is
+    // the bean in PlaceholderResolverConfiguration, the process environment with `.env`
+    // behind it; a test hands in its own and never resolves from the machine it runs on.
+    // The Spring environment is read for one key only, the pool size the widths are held to —
     // not a `@Value`, see backend/CLAUDE.md.
     ConfigLoader(
             ConfigProperties properties,
@@ -105,8 +90,8 @@ public class ConfigLoader {
         this.properties = properties;
         this.validator = validator;
         this.placeholders = placeholders;
-        this.connectionPoolSize = environment.getProperty(CONNECTION_POOL_SIZE_KEY, Integer.class,
-            DEFAULT_CONNECTION_POOL_SIZE);
+        this.connectionPoolSize =
+            environment.getProperty(CONNECTION_POOL_SIZE_KEY, Integer.class, DEFAULT_CONNECTION_POOL_SIZE);
         this.mapper = JsonMapper.builder(new YAMLFactory())
                 .addModule(new JavaTimeModule())
                 .propertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE)
@@ -131,32 +116,20 @@ public class ConfigLoader {
     }
 
     /**
-     * The files a reload has to watch — the external ones only. A default lives
-     * inside the
-     * jar and cannot change while the process runs, so watching it would be
-     * watching
+     * The files a reload has to watch — the external ones only. A default lives inside the
+     * jar and cannot change while the process runs, so watching it would be watching
      * nothing.
      *
-     * <p>
-     * <b>The pipeline is passed in and not read here.</b> This used to bind and
-     * validate
-     * `pipeline.yaml` on every call purely to learn the two configurable file
-     * names, and the
-     * watcher calls it twice a second: measured on the deployed instance, thirty
-     * log lines a
-     * minute announcing that the configuration had been read while nothing had
-     * changed, and a
+     * <p><b>The pipeline is passed in and not read here.</b> This used to bind and validate
+     * `pipeline.yaml` on every call purely to learn the two configurable file names, and the
+     * watcher calls it twice a second: measured on the deployed instance, thirty log lines a
+     * minute announcing that the configuration had been read while nothing had changed, and a
      * full parse behind each one.
      *
-     * <p>
-     * The caller passes the running snapshot, so a `pipeline.yaml` that renames the
-     * rules or
-     * sources file is watched under its new name one cycle later — the same cycle
-     * the rename
-     * takes effect in, because `pipeline.yaml` itself is always in the list. A file
-     * that is
-     * broken on disk therefore stays watched too: the reload is rejected, the last
-     * good
+     * <p>The caller passes the running snapshot, so a `pipeline.yaml` that renames the rules or
+     * sources file is watched under its new name one cycle later — the same cycle the rename
+     * takes effect in, because `pipeline.yaml` itself is always in the list. A file that is
+     * broken on disk therefore stays watched too: the reload is rejected, the last good
      * snapshot stays, and fixing the file is still seen without a restart.
      */
     public List<Path> watchedFiles(PipelineConfig pipeline) {
@@ -182,16 +155,12 @@ public class ConfigLoader {
     }
 
     /**
-     * A path in `pipeline.yaml` names a file, never a location. Only the file name
-     * is used,
+     * A path in `pipeline.yaml` names a file, never a location. Only the file name is used,
      * and the two-layer lookup decides where it comes from.
      *
-     * <p>
-     * Anything more forgiving was measured and removed: resolving a path like
-     * `config/local/matching-rules.yaml` from the working directory upwards made a
-     * run read
-     * a file from outside the directory it was pointed at, and look entirely normal
-     * doing
+     * <p>Anything more forgiving was measured and removed: resolving a path like
+     * `config/local/matching-rules.yaml` from the working directory upwards made a run read
+     * a file from outside the directory it was pointed at, and look entirely normal doing
      * it. Two configurations became one, silently.
      */
     private static String fileName(String configured, String fallback) {
@@ -232,10 +201,8 @@ public class ConfigLoader {
     }
 
     /**
-     * Replaces every `extraction.inherit: <id>` with the named source's extraction.
-     * One
-     * level only: an inherited block that inherits again is rejected rather than
-     * followed,
+     * Replaces every `extraction.inherit: <id>` with the named source's extraction. One
+     * level only: an inherited block that inherits again is rejected rather than followed,
      * because a chain is a cycle waiting to happen and nothing here needs one.
      */
     private static SourcesConfig resolveInheritance(SourcesConfig sources) {
@@ -276,7 +243,8 @@ public class ConfigLoader {
         }
 
         sources.sources().forEach(source -> {
-            String strategy = source.extraction().inherit() == null ? source.extraction().strategy() : "inherited";
+            String strategy =
+                source.extraction().inherit() == null ? source.extraction().strategy() : "inherited";
             if (strategy == null || strategy.isBlank()) {
                 problems.add("source '%s' states no extraction strategy and inherits none".formatted(source.id()));
             }
@@ -291,23 +259,14 @@ public class ConfigLoader {
     /**
      * What an IMAP selector has to say about which messages are this source's.
      *
-     * <p>
-     * Both checks exist because the failure is silent in the direction that costs
-     * mail.
-     * A selector naming no filter at all reads the whole folder, which is dedicated
-     * mode
-     * arrived at by accident: it looks identical to a deliberate one until the day
-     * a second
-     * kind of mail lands in that folder, and then the run extracts from it and
-     * nothing says
-     * so. And `from` beside `match_all` reads as "take everything" while behaving
-     * as a
-     * sender filter, because the senders are in the IMAP `SEARCH` term and no flag
-     * in the
-     * selector takes them out again — removing them there is what lets one source
-     * flag a
-     * neighbour's mail as taken. Saying so at load is the only place either can be
-     * said
+     * <p>Both checks exist because the failure is silent in the direction that costs mail.
+     * A selector naming no filter at all reads the whole folder, which is dedicated mode
+     * arrived at by accident: it looks identical to a deliberate one until the day a second
+     * kind of mail lands in that folder, and then the run extracts from it and nothing says
+     * so. And `from` beside `match_all` reads as "take everything" while behaving as a
+     * sender filter, because the senders are in the IMAP `SEARCH` term and no flag in the
+     * selector takes them out again — removing them there is what lets one source flag a
+     * neighbour's mail as taken. Saying so at load is the only place either can be said
      * before it has already happened.
      */
     private static SourcesConfig checkSelectors(SourcesConfig sources) {
@@ -346,23 +305,15 @@ public class ConfigLoader {
     }
 
     /**
-     * Dedicated mode in a folder somebody else reads, which is the one arrangement
-     * that
+     * Dedicated mode in a folder somebody else reads, which is the one arrangement that
      * loses mail rather than merely misreading it.
      *
-     * <p>
-     * The progress flag is the single name {@code leadgen} and the receiver writes
-     * it to
-     * everything its search returned. A source with {@code match_all} asks for the
-     * whole
-     * folder, so it flags the other source's mail as taken before that source has
-     * run, and
-     * the other source is then told the folder is empty. There is no error and no
-     * counter:
-     * it looks exactly like a quiet week. Only enabled sources can do it to each
-     * other, so
-     * only they are compared, and enabling one later fails here rather than in the
-     * mailbox.
+     * <p>The progress flag is the single name {@code leadgen} and the receiver writes it to
+     * everything its search returned. A source with {@code match_all} asks for the whole
+     * folder, so it flags the other source's mail as taken before that source has run, and
+     * the other source is then told the folder is empty. There is no error and no counter:
+     * it looks exactly like a quiet week. Only enabled sources can do it to each other, so
+     * only they are compared, and enabling one later fails here rather than in the mailbox.
      */
     private static List<String> dedicatedSourcesSharingAFolder(SourcesConfig sources) {
         List<SourcesConfig.Source> live = sources.sources().stream()
@@ -391,12 +342,9 @@ public class ConfigLoader {
     }
 
     /**
-     * The checks no single file can make on its own — plus the one repo-wide
-     * invariant that
-     * fails silently in both directions: the rate filter applied before enrichment
-     * discards
-     * either every offer or none, because the sources state a rate in 0.0 % of
-     * them.
+     * The checks no single file can make on its own — plus the one repo-wide invariant that
+     * fails silently in both directions: the rate filter applied before enrichment discards
+     * either every offer or none, because the sources state a rate in 0.0 % of them.
      */
     private void checkConsistency(
             Path dir, PipelineConfig pipeline, MatchingRules rules, SourcesConfig sources, SkillProfile profile) {
@@ -410,16 +358,14 @@ public class ConfigLoader {
                             .formatted(rules.hardFilters().rate().applyAfter()));
         }
         // Not a problem: a fresh clone ships an empty list on purpose, because the
-        // places you can reach are the one thing no default can guess. But a filter
-        // that
+        // places you can reach are the one thing no default can guess. But a filter that
         // silently passes only remote offers looks exactly like a quiet market.
         var onsite = rules.hardFilters().location().onsiteCities();
         if (onsite == null || onsite.isEmpty()) {
             log.warn("hard_filters.location.onsite_cities is empty; only remote offers can pass the filter");
         }
 
-        // Same class of lie as an unimplemented auth mode: `batch: true` on a provider
-        // with
+        // Same class of lie as an unimplemented auth mode: `batch: true` on a provider with
         // no batch endpoint would be read, ignored, and score synchronously, while the
         // person who wrote it believes they are paying half.
         var llm = pipeline.llm();
@@ -429,22 +375,17 @@ public class ConfigLoader {
                             .formatted(llm.provider(), PipelineConfig.Llm.BATCHING_PROVIDER));
         }
 
-        // A worker holds a connection while it writes its advert back. Wider than the
-        // pool, the
-        // extra workers wait for one and give up after Hikari's 30 s, which reads like
-        // a broken
+        // A worker holds a connection while it writes its advert back. Wider than the pool, the
+        // extra workers wait for one and give up after Hikari's 30 s, which reads like a broken
         // database rather than like a number in pipeline.yaml.
         if (llm != null) {
             checkWidth("llm.concurrency", llm.concurrency(), problems);
         }
         checkWidth("enrichment.fetch.concurrency", pipeline.enrichment().fetch().concurrency(), problems);
 
-        // Inverted, this does not fail: `Score.band` tests the shortlist bound first,
-        // so a
-        // `review` above `auto_shortlist` deletes the REVIEW band outright and builds
-        // an
-        // application package for every offer above the lower of the two. Found live,
-        // with
+        // Inverted, this does not fail: `Score.band` tests the shortlist bound first, so a
+        // `review` above `auto_shortlist` deletes the REVIEW band outright and builds an
+        // application package for every offer above the lower of the two. Found live, with
         // `auto_shortlist: 30` under `review: 50`.
         var thresholds = rules.scoring() == null ? null : rules.scoring().thresholds();
         if (thresholds != null && thresholds.review() > thresholds.autoShortlist()) {
@@ -459,16 +400,12 @@ public class ConfigLoader {
                     "deduplication.merge_policy is '%s'; only 'keep_first_seen_as_primary' is implemented — any other value would be read, ignored, and silently do the first-seen thing anyway"
                             .formatted(mergePolicy));
         }
-        // The worst possible failure here is the quiet one: someone writes a mode,
-        // believes
+        // The worst possible failure here is the quiet one: someone writes a mode, believes
         // the write endpoints are protected, and they are not. So a mode that is not
         // implemented is refused by name, and `oidc` without an issuer is refused too —
-        // there is nothing to verify a token against, and a resource server with no
-        // issuer
-        // would either reject everything or, worse, be assembled as if it were
-        // configured.
-        // `none` stays safe because the service binds to 127.0.0.1 unless
-        // SERVER_ADDRESS
+        // there is nothing to verify a token against, and a resource server with no issuer
+        // would either reject everything or, worse, be assembled as if it were configured.
+        // `none` stays safe because the service binds to 127.0.0.1 unless SERVER_ADDRESS
         // says otherwise.
         String auth = pipeline.security().auth();
         if (!SecurityConfig.NONE.equals(auth) && !SecurityConfig.OIDC.equals(auth)) {
@@ -541,10 +478,8 @@ public class ConfigLoader {
     }
 
     /**
-     * Keys that used to exist and now live somewhere else. Jackson would refuse
-     * them anyway,
-     * as "Unrecognized field", which names the key but not where it went, and the
-     * person
+     * Keys that used to exist and now live somewhere else. Jackson would refuse them anyway,
+     * as "Unrecognized field", which names the key but not where it went, and the person
      * reading it has a configuration that worked yesterday.
      */
     private static final Map<String, String> RETIRED = Map.of(
@@ -565,12 +500,9 @@ public class ConfigLoader {
     }
 
     /**
-     * A topic in both lists would lift and sink the same offer, and which one wins
-     * would be
-     * a question of weights nobody set with that in mind, so it is refused. A topic
-     * spelled
-     * like a skill is allowed, because wanting more of a thing you can already do
-     * is the
+     * A topic in both lists would lift and sink the same offer, and which one wins would be
+     * a question of weights nobody set with that in mind, so it is refused. A topic spelled
+     * like a skill is allowed, because wanting more of a thing you can already do is the
      * normal case, but it is said out loud: the same word then moves a score twice.
      */
     private static void checkTopics(SkillProfile profile, List<String> problems) {
@@ -611,14 +543,10 @@ public class ConfigLoader {
     }
 
     /**
-     * Not a problem, a warning: an override that names rules for one language only
-     * leaves
-     * the letters of the other without a salutation, a closing, a banned phrase or
-     * a word
-     * limit, so every letter in it falls back to the template — which looks exactly
-     * like a
-     * writing model that never answered. A letter is written in German or English,
-     * and in any
+     * Not a problem, a warning: an override that names rules for one language only leaves
+     * the letters of the other without a salutation, a closing, a banned phrase or a word
+     * limit, so every letter in it falls back to the template — which looks exactly like a
+     * writing model that never answered. A letter is written in German or English, and in any
      * language a CV variant is kept for.
      */
     private static void checkCoverLetterLanguages(SkillProfile profile, CoverLetterStyle coverLetter) {
@@ -637,8 +565,7 @@ public class ConfigLoader {
     }
 
     /**
-     * Only for the log line at startup: which of the files came from outside the
-     * jar.
+     * Only for the log line at startup: which of the files came from outside the jar.
      */
     public List<String> overriddenFiles() {
         Path dir = properties.configDirectory();

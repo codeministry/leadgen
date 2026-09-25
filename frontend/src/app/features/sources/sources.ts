@@ -1,4 +1,4 @@
-import {ChangeDetectionStrategy, Component, computed, inject, OnInit} from '@angular/core';
+import {ChangeDetectionStrategy, Component, computed, effect, inject, OnInit} from '@angular/core';
 import {toSignal} from '@angular/core/rxjs-interop';
 import {ActivatedRoute, NavigationEnd, Router, RouterLink, RouterOutlet} from '@angular/router';
 import {filter, map} from 'rxjs';
@@ -36,6 +36,23 @@ export class Sources implements OnInit {
     protected readonly store = inject(ConfigStore);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
+
+  constructor() {
+    /*
+     * An empty space under a full table is a screen waiting for a click it does not need, so
+     * the first source opens by itself — the same rule the shortlist follows. `replaceUrl`,
+     * because `/sources` and `/sources/:id` are then the same screen, and a history entry
+     * between them would make the back button undo a selection nobody made. Only when nothing
+     * is open, so a deep link or a click is never overridden.
+     */
+    effect(() => {
+      const first = this.store.sources()[0];
+      if (this.openId() !== null || first === undefined) {
+        return;
+      }
+      void this.router.navigate(['/sources', first.id], {replaceUrl: true});
+    });
+  }
 
     ngOnInit(): void {
         this.dispatch.sourcesOpened();

@@ -525,7 +525,6 @@
     "note": "Eine Quelle hinzuzufügen ist ein YAML-Block in sources.yaml, kein Deploy. Die Datei wird im Betrieb neu geladen, dieser Bildschirm liest also nur und ändert nichts.",
     "fileLabel": "Konfigurationsdatei",
     "readsOnly": "liest nur, ändert nichts",
-    "close": "Schließen",
     "runsTitle": "Letzte Läufe",
     "runsCaption": "{count, plural, one {# Lauf, neuester zuerst} other {# Läufe, neuester zuerst}}",
     "neverRan": "Diese Quelle ist noch nicht gelaufen.",

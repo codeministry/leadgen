@@ -525,7 +525,6 @@
     "note": "Adding a source is a YAML block in sources.yaml, not a deploy. The file is hot-reloaded, so this screen reads and does not edit.",
     "fileLabel": "Configuration file",
     "readsOnly": "reads, never edits",
-    "close": "Close",
     "runsTitle": "Recent runs",
     "runsCaption": "{count, plural, one {# run, newest first} other {# runs, newest first}}",
     "neverRan": "This source has not run yet.",
