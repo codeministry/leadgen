@@ -1,4 +1,5 @@
-The shortlist is where you read offers: everything that cleared the hard filter, ranked by its score. Pick an offer on the left and its details open on the right; the **Offer detail** chapter walks through them.
+The shortlist is where you read offers: everything that cleared the hard filter, newest first. Pick an offer on the left
+and its details open on the right; the **Offer detail** chapter walks through them.
 
 <!-- screenshot: shortlist-split -->
 

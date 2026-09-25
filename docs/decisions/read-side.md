@@ -105,6 +105,12 @@ screen reads one of these, and none of them writes.
   `java.sql.Date` binds the same day), `score-asc` to 9999; V30 adds the two date indexes,
   and `fresh-asc` reads the V20 index backwards. `walksEveryReverseAsTheExactMirrorOfItsKey`
   pins each pair.
+- **The screen opens newest first; the API's default stays the score.** What came in since the
+  last look is what a morning visit is for (the operator's call, 2026-09-24), so the shortlist's
+  own default is `fresh` and a link without `sort` means newest first. The API keeps `score` as
+  its default, because the MCP server and any other caller rely on it, which is why the
+  browser sends `sort` on every request instead of leaving the default out as it does for the
+  other filters.
 - **The cursor names its sort, and a mismatch is a 400.** Without the name, a cursor minted
   under `score` with a leading 88 replayed under `start` reads as epoch day 88 and returns
   an arbitrary slice with no error anywhere. The filters need no such guard: they narrow the

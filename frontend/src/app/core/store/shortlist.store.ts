@@ -109,7 +109,7 @@ const NO_FILTERS: ShortlistFilters = {
   scoreState: 'any',
   portals: [],
   archived: false,
-  sort: 'score',
+  sort: 'fresh',
   startWindow: 'any',
   minMonths: 0,
   deadlineOpen: false,

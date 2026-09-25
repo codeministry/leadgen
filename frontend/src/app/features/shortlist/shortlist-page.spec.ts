@@ -137,6 +137,20 @@ describe('ShortlistPage', () => {
         expect(cards(fixture)).toBe(1);
     });
 
+  it('opens newest first, and says so to the server rather than leaving it to the API default', () => {
+    // The API's own default is the score order, which its other callers rely on, so the
+    // screen's default has to be sent; and a link without `sort` means newest first.
+    const fixture = TestBed.createComponent(ShortlistPage);
+    fixture.componentRef.setInput('sort', undefined);
+    fixture.detectChanges();
+
+    const request = expectPage();
+    expect(request.request.params.get('sort')).toBe('fresh');
+    request.flush(page());
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.sort-label').textContent.trim()).toBe('Newest first');
+  });
+
     it('offers the band under the review line as the fourth button, from the thresholds', () => {
         // The analogue of the other two: its upper bound is derived from `reviewAt` rather than
         // written, and its id is the band name the server knows.

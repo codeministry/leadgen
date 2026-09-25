@@ -6,7 +6,9 @@ Die Bewertungsbänder wählen **Alle**, die Angebote ab der Auswahl-Schwelle, di
 
 <!-- screenshot: sort-menu -->
 
-Das Sortiermenü bietet fünf Ordnungen: höchste Punktzahl, neueste zuerst, frühester Start, nächste Frist und längste Dauer. Der Schalter davor kehrt die aktuelle Ordnung um. In jeder Ordnung und in beide Richtungen steht ein Angebot, das zum Feld nichts sagt, am Ende, es wird also nie versteckt.
+Das Sortiermenü bietet fünf Ordnungen, beim Öffnen neueste zuerst: höchste Punktzahl, neueste zuerst, frühester Start,
+nächste Frist und längste Dauer. Der Schalter davor kehrt die aktuelle Ordnung um. In jeder Ordnung und in beide
+Richtungen steht ein Angebot, das zum Feld nichts sagt, am Ende, es wird also nie versteckt.
 
 **Sichten** speichert die Liste, wie sie steht, unter einem Namen und bringt sie mit einem Klick zurück. Eine Sicht lebt nur in diesem Browser. **Ähnliche finden** sucht Angebote, die mit anderen Worten dasselbe meinen wie deine Suche, und der Chip, den es hinterlässt, führt zurück. **Archiv** oben zeigt, was die Arbeitsliste verlassen hat; markiere mehrere Angebote mit ihren Kästchen, um sie auf einmal zu archivieren, und jedes archivierte Angebot kann zurück.
 

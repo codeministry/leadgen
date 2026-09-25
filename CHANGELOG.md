@@ -27,6 +27,9 @@ may change in any release. See the status note in the README.
 
 ### Changed
 
+- The shortlist opens newest first rather than by score, so what came in since the last look is
+  on top; a link without `sort` means newest first. The API's default order is unchanged, and
+  the browser now always sends the order it wants.
 - `frontend/nginx.conf` sets a cache policy: `no-cache` on `index.html`, `ngsw.json`, the
   manifest and the worker scripts, `immutable` on the hashed bundles and fonts, and the
   manifest's mime type. The deployed chart carries its own copy of that file and needs the same

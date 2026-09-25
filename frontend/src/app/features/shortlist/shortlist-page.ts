@@ -204,7 +204,7 @@ export class ShortlistPage {
    * clears `entries` and `cursor` on any change here, which is exactly what a sort change
    * needs and what stops a mismatched cursor ever being sent.
    */
-  readonly sort = input('score', {transform: (value: string | undefined) => value ?? 'score'});
+  readonly sort = input('fresh', {transform: (value: string | undefined) => value ?? 'fresh'});
 
   /**
    * When the engagement starts. Four values that partition the set, `unknown` included:
@@ -497,7 +497,7 @@ export class ShortlistPage {
         this.q() !== '' ||
         this.band() !== 'all' ||
         this.archived() ||
-        this.sort() !== 'score' ||
+        this.sort() !== 'fresh' ||
         this.related() !== null ||
         this.facetChips().length > 0,
     );
@@ -833,14 +833,15 @@ export class ShortlistPage {
   }
 
   /**
-   * `''`, `'all'`, `'score'`, `'any'` and `'0'` are the defaults, and a default is dropped
+   * `''`, `'all'`, `'fresh'`, `'any'` and `'0'` are the defaults, and a default is dropped
    * from the URL rather than written into it: a link should say what is unusual about the
-   * view and nothing else.
+   * view and nothing else. The list opens newest first (the operator's call, 2026-09-24): what
+   * came in since the last look is what a morning visit is for.
    *
    * <p>Only the stringy filters go through it. A score bound must not: `'0'` is in this set,
    * and `minScore=0` is a filter somebody asked for.
    */
-  private static readonly DEFAULTS = new Set(['', 'all', 'score', 'any', '0']);
+  private static readonly DEFAULTS = new Set(['', 'all', 'fresh', 'any', '0']);
 
   /**
    * The one writer of the query string.
