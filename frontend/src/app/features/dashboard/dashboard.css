@@ -1,19 +1,38 @@
-/* The bento grid (spec 006): four columns, the hero cell two by two, four small cells in
-   the remaining half. Both rows are `1fr` rather than a fixed height, so the four small
-   cells stand as one even block: the taller row sets the height and a cell with a long
-   label still grows both. The hero fills its two rows through `height: 100%`. Below 48rem
-   the grid is one column of auto rows in document order, the order the cells are read. */
+/* The bento grid (spec 006): four columns in two rows. The first row is two halves — the
+   hero beside the hard filter, both of them about the same thing, so they are read as one
+   statement and the rail no longer waits below the fold. The four small cells stand side by
+   side in the second row, each a quarter, which is the width they already had.
+
+   The rows are `auto` and not `1fr`: with the small cells all in one row they are even
+   anyway, while `1fr` would stretch them to the height of the hard filter panel above.
+
+   Both halves are placed by the stylesheet rather than by their position in the markup, so
+   document order stays reading order — hero, the four cells, the hard filter — and the one
+   column below 48rem needs no reordering. Row 1 is full before the cells are auto-placed,
+   which is what puts them in row 2 although they come first in the template. */
 .bento {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    grid-auto-rows: 1fr;
+    grid-auto-rows: auto;
     gap: 0.75rem;
     margin-bottom: 1rem;
 }
 
+/* The two halves of the first row, placed together and above the breakpoint that undoes
+   them: written further down the file they would win the cascade over the one-column reset
+   and the hard filter would climb above the hero on a phone. The hard filter is always in
+   view because it is the standing answer to "what does the filter take out", and it carries
+   `min-width: 0` for the same reason every other cell does — the rail inside has three fixed
+   columns and would otherwise push its grid track wider than its share. */
 .hero-cell {
-    grid-column: span 2;
-    grid-row: span 2;
+    grid-column: 1 / span 2;
+    grid-row: 1;
+}
+
+.hard-filter {
+    grid-column: 3 / span 2;
+    grid-row: 1;
+    min-width: 0;
 }
 
 .cell {
@@ -59,7 +78,8 @@ lg-stat-tile.cell {
         grid-auto-rows: auto;
     }
 
-    .hero-cell {
+    .hero-cell,
+    .hard-filter {
         grid-column: auto;
         grid-row: auto;
     }
@@ -194,12 +214,6 @@ lg-empty-state {
 
 .machine-summary .fact-label {
     padding-top: 0.125rem;
-}
-
-/* The hard filter, its own panel between the bento and the machine room: always in view,
-   because it is the standing answer to "what does the filter take out". */
-.hard-filter {
-    margin-bottom: 1rem;
 }
 
 .hard-filter h2 {

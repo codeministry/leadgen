@@ -257,3 +257,22 @@
 .offer-facts .offer-fact + .offer-fact {
     margin-inline-start: 0.75rem;
 }
+
+/* Every line on this card that clips itself is also the containing block for what it clips.
+
+   `sr-only` is `position: absolute`, so its containing block is the nearest positioned
+   ancestor — `.offer`, which is `position: relative` for the stretched link. A clipping
+   ancestor does not clip a box whose containing block sits outside it, so each screen-reader
+   span kept its static position on the un-clipped `white-space: nowrap` line and stuck out
+   to the right of the card: invisible (it is 1px wide), but part of the list's scrollable
+   overflow all the same. Measured on the demo shortlist: the pane scrolled 912px inside a
+   540px column, and the whole list could be dragged sideways. `position: relative` here puts
+   the containing block back on the box that does the clipping, and the pane's scrollWidth
+   equals its clientWidth again. */
+.offer-facts,
+.offer-brief-facts,
+.offer-topics,
+.offer-penalty,
+.offer-lift {
+    position: relative;
+}

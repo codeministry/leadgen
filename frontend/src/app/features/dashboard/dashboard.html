@@ -2,9 +2,31 @@
         [title]="'dashboard.title' | transloco"
         [subtitle]="'dashboard.subtitle' | transloco"
 />
-<!-- The bento grid (spec 006): the hero cell spans two columns and two rows, four small cells
-     around it answer the next four questions without a click, and everything about the
-     machinery sits in the machine room below, closed unless something went wrong. -->
+<!--
+  The first line of the screen, and nothing above it but the title: a run that is going is
+  about now, and it must not need a scroll or a click to be noticed. `role="status"` so the
+  stage change is announced rather than only painted. The stage name is the server's and
+  stays English, like every score reason on this screen.
+-->
+@if (ingest.current(); as run) {
+    <p class="type-small running-run" role="status">
+        <lg-icon name="refresh" [size]="16"/>
+        {{ 'dashboard.runningSince' | transloco: {time: runStartedAt()} }}
+        @if (runStage(); as stage) {
+            <span class="type-mono-data running-stage">{{ stage }}</span>
+        }
+        @if (run.scoreModel; as model) {
+            <span class="type-mono-data text-muted">{{ model }}</span>
+        }
+    </p>
+}
+<!-- The bento grid (spec 006): one row of two halves, the hero beside the hard filter, and
+     the four small cells side by side under them, answering the next four questions without a
+     click. Everything about the machinery sits in the machine room below, closed unless
+     something went wrong.
+
+     Document order is reading order — hero, the four cells, then the hard filter — and the
+     stylesheet does the placing, so the one column below 48rem needs no reordering. -->
 <div class="bento">
     <lg-dashboard-hero
             class="hero-cell"
@@ -46,42 +68,24 @@
             [value]="runHealth().value | transloco: runHealth().params"
             [hint]="runHealth().hint | transloco: runHealth().params"
     />
+    <!-- The hard filter, always in view: the stages in run order with what each removed, and
+         the rail that narrows to what is left. Standing numbers over the archive, not this
+         run's, so it needs no run to mean something and no click to be seen. -->
+    <section class="lg-panel hard-filter">
+        <h2 class="type-h2">{{ 'dashboard.hardFilter' | transloco }}</h2>
+        <p class="type-small text-muted panel-note">{{ 'dashboard.hardFilterNote' | transloco }}</p>
+        @if (total() > 0) {
+            <lg-funnel-rail [stages]="stages()" [total]="total()"/>
+            @if (archived() > 0) {
+                <p class="type-small text-muted panel-note archived">
+                    {{ 'dashboard.archivedNote' | transloco: {count: archived()} }}
+                </p>
+            }
+        } @else {
+            <p class="type-small text-muted">{{ 'dashboard.nothingFiltered' | transloco }}</p>
+        }
+    </section>
 </div>
-<!--
-  Above the machine room and not inside it: a run that is going is about now, and it must
-  not need a click to be noticed. `role="status"` so the stage change is announced rather
-  than only painted. The stage name is the server's and stays English, like every score
-  reason on this screen.
--->
-@if (ingest.current(); as run) {
-    <p class="type-small running-run" role="status">
-        <lg-icon name="refresh" [size]="16"/>
-        {{ 'dashboard.runningSince' | transloco: {time: runStartedAt()} }}
-        @if (runStage(); as stage) {
-            <span class="type-mono-data running-stage">{{ stage }}</span>
-        }
-        @if (run.scoreModel; as model) {
-            <span class="type-mono-data text-muted">{{ model }}</span>
-        }
-    </p>
-}
-<!-- The hard filter, always in view: the stages in run order with what each removed, and
-     the rail that narrows to what is left. Standing numbers over the archive, not this
-     run's, so it needs no run to mean something and no click to be seen. -->
-<section class="lg-panel hard-filter">
-    <h2 class="type-h2">{{ 'dashboard.hardFilter' | transloco }}</h2>
-    <p class="type-small text-muted panel-note">{{ 'dashboard.hardFilterNote' | transloco }}</p>
-    @if (total() > 0) {
-        <lg-funnel-rail [stages]="stages()" [total]="total()"/>
-        @if (archived() > 0) {
-            <p class="type-small text-muted panel-note archived">
-                {{ 'dashboard.archivedNote' | transloco: {count: archived()} }}
-            </p>
-        }
-    } @else {
-        <p class="type-small text-muted">{{ 'dashboard.nothingFiltered' | transloco }}</p>
-    }
-</section>
 <!-- The machine room: the per-source table, the stage timings, the model, the archive
      note. Closed by default, because it is the same content as before one click away; open
      by itself when the run failed or a source came up short, because a failure must never

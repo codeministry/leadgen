@@ -100,6 +100,18 @@ Carried over from a sibling Angular project, which is the house style:
   right edge against the viewport flags the kanban board and the wide tables, which scroll
   inside their own `overflow-x: auto` on purpose. The real check is
   `document.scrollWidth > document.clientWidth`.
+- **A page-level overflow check says nothing about a pane that scrolls on purpose — compare
+  `scrollWidth` with `clientWidth` on the scroller itself.** The shortlist's list column has
+  `overflow-y: auto`, which computes the other axis to `auto` as well, so the pane could be
+  dragged sideways over 912px inside a 540px column while `document.scrollWidth` stayed
+  exactly the viewport. The cause is the next trap, and the page check is blind to both.
+- **An absolutely positioned `.sr-only` is not clipped by an ancestor that is not its
+  containing block.** Tailwind's utility is `position: absolute`, so it resolves against the
+  nearest positioned ancestor — on the offer card that is `.offer`, several levels above the
+  `overflow: hidden` line it sits in. Clipping only applies to boxes contained by the clipper,
+  so each 1px span kept its static position out on the un-wrapped `nowrap` line, invisible and
+  far outside the card, and every one of them counted toward the list's scrollable overflow.
+  A box that clips its own line and holds a screen-reader span needs `position: relative`.
 - **Treat a DOM-render screenshot as evidence about layout and colour only; read widget state from the accessibility tree and confirm a suspected overlap in a real browser.** — reasoning in `docs/decisions/frontend-design-system.md`.
 - **A componentless leaf route is refused outright.** `{ path: ':name' }` with neither component, `loadComponent`,
   `redirectTo`, `children` nor `loadChildren` throws `NG04014`
