@@ -28,7 +28,6 @@ import java.nio.file.Path;
 import java.time.Instant;
 import java.util.*;
 import java.util.stream.Stream;
-
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
@@ -91,7 +90,7 @@ public class ConfigLoader {
         this.validator = validator;
         this.placeholders = placeholders;
         this.connectionPoolSize =
-            environment.getProperty(CONNECTION_POOL_SIZE_KEY, Integer.class, DEFAULT_CONNECTION_POOL_SIZE);
+                environment.getProperty(CONNECTION_POOL_SIZE_KEY, Integer.class, DEFAULT_CONNECTION_POOL_SIZE);
         this.mapper = JsonMapper.builder(new YAMLFactory())
                 .addModule(new JavaTimeModule())
                 .propertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE)
@@ -135,11 +134,11 @@ public class ConfigLoader {
     public List<Path> watchedFiles(PipelineConfig pipeline) {
         Path dir = properties.configDirectory();
         return Stream.of(
-                PIPELINE_FILE,
-                fileName(pipeline.rules().path(), RULES_FILE),
-                fileName(sourcesPath(pipeline), SOURCES_FILE),
-                fileName(pipeline.profile().path(), PROFILE_FILE),
-                STYLE_FILE)
+                        PIPELINE_FILE,
+                        fileName(pipeline.rules().path(), RULES_FILE),
+                        fileName(sourcesPath(pipeline), SOURCES_FILE),
+                        fileName(pipeline.profile().path(), PROFILE_FILE),
+                        STYLE_FILE)
                 .distinct()
                 .map(dir::resolve)
                 .toList();
@@ -244,7 +243,7 @@ public class ConfigLoader {
 
         sources.sources().forEach(source -> {
             String strategy =
-                source.extraction().inherit() == null ? source.extraction().strategy() : "inherited";
+                    source.extraction().inherit() == null ? source.extraction().strategy() : "inherited";
             if (strategy == null || strategy.isBlank()) {
                 problems.add("source '%s' states no extraction strategy and inherits none".formatted(source.id()));
             }
@@ -285,15 +284,15 @@ public class ConfigLoader {
                     && !selector.subjectMatches().isBlank();
             if (selector.matchAll() && namesSenders) {
                 problems.add(("source '%s' sets both 'match_all: true' and 'from'. The senders stay in the IMAP search"
-                    + " either way, so this reads as dedicated mode and behaves as a sender"
-                    + " filter — name one or the other")
+                                + " either way, so this reads as dedicated mode and behaves as a sender"
+                                + " filter — name one or the other")
                         .formatted(source.id()));
             }
             if (!selector.matchAll() && !namesSenders && !namesSubject) {
                 problems.add(
                         ("source '%s' names neither 'from' nor 'subject_matches' nor 'match_all: true', so it would"
-                            + " read every message in '%s'. Say 'match_all: true' if that is the"
-                            + " intention")
+                                        + " read every message in '%s'. Say 'match_all: true' if that is the"
+                                        + " intention")
                                 .formatted(source.id(), selector.folder()));
             }
         }
@@ -333,8 +332,8 @@ public class ConfigLoader {
                             other.selector().folder(), dedicated.selector().folder()))
                     .forEach(other -> problems.add(
                             ("source '%s' reads '%s' with 'match_all: true' while '%s' reads the same folder."
-                                + " The dedicated source marks that source's mail as taken before it"
-                                + " runs, and the loss is silent — give one of them a folder of its own")
+                                            + " The dedicated source marks that source's mail as taken before it"
+                                            + " runs, and the loss is silent — give one of them a folder of its own")
                                     .formatted(
                                             dedicated.id(), dedicated.selector().folder(), other.id())));
         }
