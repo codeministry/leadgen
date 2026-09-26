@@ -146,6 +146,9 @@ export class ShortlistPage {
      */
     private readonly focusWanted = signal<number | null>(null);
 
+    /** Which way the key press walked: `landCard` looks one card ahead in that direction. */
+    private focusStep: 1 | -1 = 1;
+
     /**
      * The URL, only as a reason to look again — the same shape the shell uses, and for the
      * same reason: route state is read from the snapshot, so something has to say when the
@@ -439,14 +442,16 @@ export class ShortlistPage {
             if (stillListed || pending.next === null) {
                 return;
             }
+            this.focusStep = 1;
             this.focusWanted.set(pending.next);
             void this.router.navigate(['/shortlist', pending.next], {queryParamsHandling: 'preserve'});
         });
 
-        // The focus follows a key press, which is what makes the browser scroll the card into
-        // view — no measuring, no `scrollIntoView`, and the ring lands where the reader is.
-        // `afterNextRender` because `aria-current` is on the new card only after the change
-        // detection the navigation triggers.
+        // The focus follows a key press. `afterNextRender` because `aria-current` is on the new
+        // card only after the change detection the navigation triggers. The browser's own
+        // scroll-on-focus is switched off: it drops the card mid-pane, which on a long list
+        // leaves half the scroller showing offers the reader has already walked past.
+        // `landCard` puts it at the top instead, and only when it was not fully in view.
         effect(() => {
             const wanted = this.focusWanted();
             if (wanted === null || this.selectedId() !== wanted) {
@@ -455,9 +460,19 @@ export class ShortlistPage {
             this.focusWanted.set(null);
             afterNextRender(
                 () => {
-                    this.listPane()
-                        ?.nativeElement.querySelector<HTMLAnchorElement>('[aria-current="true"]')
-                        ?.focus();
+                    const pane = this.listPane()?.nativeElement;
+                    const card = pane?.querySelector<HTMLAnchorElement>('[aria-current="true"]');
+                    if (pane === undefined || !card) {
+                        return;
+                    }
+                    // The pane scrolls only while it is a scroller (both columns fit); below
+                    // the breakpoint the list runs in the document and the browser's own
+                    // scroll-on-focus is the right one.
+                    const paneScrolls = pane.scrollHeight > pane.clientHeight;
+                    card.focus({preventScroll: paneScrolls});
+                    if (paneScrolls) {
+                        this.landCard(pane, card, this.focusStep);
+                    }
                 },
                 {injector: this.injector},
             );
@@ -480,6 +495,44 @@ export class ShortlistPage {
             scroller.scrollTop = 0;
             }
         });
+    }
+
+    /**
+     * Keeps one card of lookahead while the keys walk the list, scrolling only the pane.
+     *
+     * <p>Not `scrollIntoView`: that aligns the card in every scrolling ancestor at once, and
+     * the document is one of them — the page took a visible hop downwards before the
+     * selection effect reset it to zero (Marcello: "die ganze Page scrollt kurz nach unten
+     * mit"). Writing `scrollTop` on the pane touches nothing else.
+     *
+     * <p>The trigger is the neighbour in the walking direction rather than the card itself,
+     * so the list moves one offer before the reader hits the edge and the next card is always
+     * already in view. Downwards the card lands at the top, which turns the rest of the pane
+     * into what comes next; upwards the neighbour lands at the top, since that is the card
+     * being walked towards. Nothing moves while the neighbour is fully visible, so a step in
+     * the middle of the pane does not shift the list under the pointer.
+     *
+     * <p>Measured on the `li`, not the title link that carries `aria-current`: the link is
+     * one line inside the card. The offset is the pane's own block padding, the ring room, so
+     * a card at the top edge keeps its focus ring. jsdom lays nothing out, so every rect is
+     * zero there, which reads as "in view" and moves nothing.
+     */
+    private landCard(pane: HTMLElement, card: HTMLElement, step: 1 | -1): void {
+        const row = card.closest('li');
+        if (row === null) {
+            return;
+        }
+        const neighbour = step > 0 ? row.nextElementSibling : row.previousElementSibling;
+        const lookahead = neighbour instanceof HTMLElement ? neighbour : row;
+        const paneBox = pane.getBoundingClientRect();
+        const aheadBox = lookahead.getBoundingClientRect();
+        if (aheadBox.top >= paneBox.top && aheadBox.bottom <= paneBox.bottom) {
+            return;
+        }
+        const target = step > 0 ? row : lookahead;
+        const view = this.document.defaultView;
+        const ringRoom = view ? parseFloat(view.getComputedStyle(pane).paddingTop) || 0 : 0;
+        pane.scrollTop += target.getBoundingClientRect().top - paneBox.top - ringRoom;
     }
 
     /** What the server sent for these filters. The browser no longer decides what is shown. */
@@ -1044,6 +1097,7 @@ export class ShortlistPage {
         }
 
         const id = entries[next].offer.id;
+        this.focusStep = step;
         this.focusWanted.set(id);
         void this.router.navigate(['/shortlist', id], {queryParamsHandling: 'preserve'});
     }

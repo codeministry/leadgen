@@ -47,7 +47,7 @@ describe('HelpDrawer (ISC-311, ISC-312, ISC-313)', () => {
         TestBed.configureTestingModule({
             providers: [
                 provideRouter([
-                    {path: 'rules', data: {section: 'rules'}, component: StubScreen},
+                    {path: 'workflow', data: {section: 'workflow'}, component: StubScreen},
                     {path: 'shortlist', data: {section: 'shortlist'}, component: StubScreen, children: [{path: ':id', component: StubScreen}]},
                     {path: 'elsewhere', component: StubScreen},
                 ]),
@@ -95,7 +95,7 @@ describe('HelpDrawer (ISC-311, ISC-312, ISC-313)', () => {
     describe('opening and closing', () => {
         it('opens modally, moves focus inside, and closes on Escape with focus back on the button', async () => {
             const showModal = vi.spyOn(HTMLDialogElement.prototype, 'showModal');
-            await openAt('/rules');
+            await openAt('/workflow');
 
             expect(showModal).toHaveBeenCalled();
             expect(isOpen()).toBe(true);
@@ -111,7 +111,7 @@ describe('HelpDrawer (ISC-311, ISC-312, ISC-313)', () => {
         });
 
         it('closes on its close button', async () => {
-            await openAt('/rules');
+            await openAt('/workflow');
 
             (fixture.nativeElement.querySelector('.lg-help-close') as HTMLButtonElement).click();
             fixture.detectChanges();
@@ -121,7 +121,7 @@ describe('HelpDrawer (ISC-311, ISC-312, ISC-313)', () => {
         });
 
         it('closes on the backdrop, and not on a click inside the panel', async () => {
-            await openAt('/rules');
+            await openAt('/workflow');
 
             (fixture.nativeElement.querySelector('.lg-help-body') as HTMLElement).click();
             fixture.detectChanges();
@@ -147,10 +147,10 @@ describe('HelpDrawer (ISC-311, ISC-312, ISC-313)', () => {
             (fixture.nativeElement.querySelector('.lg-help-chapter-title') as HTMLElement).textContent?.trim();
 
         it('opens at the rules chapter from /rules and loads its text', async () => {
-            await openAt('/rules');
-            await answer('rules', 'The rules decide what survives.');
+            await openAt('/workflow');
+            await answer('workflow', 'The rules decide what survives.');
 
-            expect(current()).toBe(en.help.chapter.rules);
+            expect(current()).toBe(en.help.chapter.workflow);
             expect(fixture.nativeElement.querySelector('.lg-help-content').textContent).toContain('The rules decide what survives.');
         });
 
@@ -177,20 +177,20 @@ describe('HelpDrawer (ISC-311, ISC-312, ISC-313)', () => {
 
 
         it('follows the language toggle: switching to German loads the German chapter (ISC-315)', async () => {
-            await openAt('/rules');
-            await answer('rules', 'Rules.');
+            await openAt('/workflow');
+            await answer('workflow', 'Rules.');
 
             TestBed.inject(TranslocoService).setActiveLang('de');
             fixture.detectChanges();
             TestBed.tick();
-            await answer('rules', 'Regeln.', 'de');
+            await answer('workflow', 'Regeln.', 'de');
 
             expect(fixture.nativeElement.textContent).toContain('Regeln.');
         });
 
         it('says so when a chapter cannot be loaded', async () => {
-            await openAt('/rules');
-            http.expectOne('/help/en/rules.md').flush('nope', {status: 404, statusText: 'Not Found'});
+            await openAt('/workflow');
+            http.expectOne('/help/en/workflow.md').flush('nope', {status: 404, statusText: 'Not Found'});
             await fixture.whenStable();
             fixture.detectChanges();
 
@@ -210,10 +210,10 @@ describe('HelpDrawer (ISC-311, ISC-312, ISC-313)', () => {
         }
 
         it('opens from /rules at the rules chapter with a way back to all chapters, and no chapter row', async () => {
-            await openAt('/rules');
-            await answer('rules', 'Rules.');
+            await openAt('/workflow');
+            await answer('workflow', 'Rules.');
 
-            expect(heading()!.textContent?.trim()).toBe(en.help.chapter.rules);
+            expect(heading()!.textContent?.trim()).toBe(en.help.chapter.workflow);
             expect(back()!.tagName).toBe('BUTTON');
             expect(back()!.textContent).toContain(en.help.allChapters);
             expect(fixture.nativeElement.querySelector('.lg-help-toc')).toBeNull();
@@ -221,8 +221,8 @@ describe('HelpDrawer (ISC-311, ISC-312, ISC-313)', () => {
         });
 
         it('lists every chapter, the overview last, each with an icon, its title and a hint', async () => {
-            await openAt('/rules');
-            await answer('rules', 'Rules.');
+            await openAt('/workflow');
+            await answer('workflow', 'Rules.');
             await toContents();
 
             const nav = fixture.nativeElement.querySelector('nav.lg-help-toc') as HTMLElement;
@@ -240,16 +240,16 @@ describe('HelpDrawer (ISC-311, ISC-312, ISC-313)', () => {
         });
 
         it('marks the current screen\'s chapter, and only that one', async () => {
-            await openAt('/rules');
-            await answer('rules', 'Rules.');
+            await openAt('/workflow');
+            await answer('workflow', 'Rules.');
             await toContents();
 
-            expect(rows().filter(b => b.getAttribute('aria-current') === 'true').map(b => b.dataset['chapter'])).toEqual(['rules']);
+            expect(rows().filter(b => b.getAttribute('aria-current') === 'true').map(b => b.dataset['chapter'])).toEqual(['workflow']);
         });
 
         it('opens a chosen chapter, loads it and moves focus to its heading', async () => {
-            await openAt('/rules');
-            await answer('rules', 'Rules.');
+            await openAt('/workflow');
+            await answer('workflow', 'Rules.');
             await toContents();
 
             row('sources').click();
@@ -262,8 +262,8 @@ describe('HelpDrawer (ISC-311, ISC-312, ISC-313)', () => {
         });
 
         it('goes back to the list with focus on the row of the chapter it came from', async () => {
-            await openAt('/rules');
-            await answer('rules', 'Rules.');
+            await openAt('/workflow');
+            await answer('workflow', 'Rules.');
             await toContents();
             row('sources').click();
             await settle();
@@ -275,8 +275,8 @@ describe('HelpDrawer (ISC-311, ISC-312, ISC-313)', () => {
         });
 
         it('opens at the chapter again, not at the list, the next time', async () => {
-            await openAt('/rules');
-            await answer('rules', 'Rules.');
+            await openAt('/workflow');
+            await answer('workflow', 'Rules.');
             await toContents();
             (fixture.nativeElement.querySelector('.lg-help-close') as HTMLButtonElement).click();
             fixture.detectChanges();
@@ -372,9 +372,11 @@ describe('HelpDrawer (ISC-311, ISC-312, ISC-313)', () => {
             ]);
         });
 
+        // The shortlist rather than the workflow chapter: that one lists two shots since the
+        // running pass (ISC-420), and this case is about a screen chapter carrying no diagram.
         it('shows a screen chapter\'s screenshot and no diagram', async () => {
-            await openAt('/rules');
-            await answer('rules', 'Rules.');
+            await openAt('/shortlist');
+            await answer('shortlist', 'The shortlist.');
 
             expect(figures().length).toBe(1);
             expect(diagrams().length).toBe(0);
@@ -387,8 +389,8 @@ describe('HelpDrawer (ISC-311, ISC-312, ISC-313)', () => {
 
         it('shows the file for the reader\'s language and resolved theme, and follows both (ISC-353)', async () => {
             TestBed.inject(Dispatcher).dispatch(themeEvents.chosen('light'));
-            await openAt('/rules');
-            await answer('rules', 'Before.\n\n<!-- screenshot: rules-stage -->\n\nAfter.');
+            await openAt('/workflow');
+            await answer('workflow', 'Before.\n\n<!-- screenshot: rules-stage -->\n\nAfter.');
 
             expect(shot()!.getAttribute('src')).toBe('/help/shots/en/rules-stage-light.webp');
             expect(shot()!.getAttribute('alt')).toBe(en.help.shot['rules-stage']);
@@ -400,13 +402,13 @@ describe('HelpDrawer (ISC-311, ISC-312, ISC-313)', () => {
             TestBed.inject(TranslocoService).setActiveLang('de');
             fixture.detectChanges();
             TestBed.tick();
-            await answer('rules', '<!-- screenshot: rules-stage -->', 'de');
+            await answer('workflow', '<!-- screenshot: rules-stage -->', 'de');
             expect(shot()!.getAttribute('src')).toBe('/help/shots/de/rules-stage-dark.webp');
         });
 
         it('reserves the registered size before the file loads, and loads it lazily', async () => {
-            await openAt('/rules');
-            await answer('rules', 'Rules.');
+            await openAt('/workflow');
+            await answer('workflow', 'Rules.');
 
             expect(shot()!.getAttribute('width')).toBe(String(HELP_SHOTS['rules-stage'].width));
             expect(shot()!.getAttribute('height')).toBe(String(HELP_SHOTS['rules-stage'].height));
@@ -414,8 +416,9 @@ describe('HelpDrawer (ISC-311, ISC-312, ISC-313)', () => {
         });
 
         it('puts a screenshot where its placeholder is, and drops one the chapter does not list', async () => {
-            await openAt('/rules');
-            await answer('rules', 'Before.\n\n<!-- screenshot: dashboard -->\n<!-- screenshot: rules-stage -->\n\nAfter.');
+            // A one-shot chapter, so the count answers the dropped placeholder and nothing else.
+            await openAt('/shortlist');
+            await answer('shortlist', 'Before.\n\n<!-- screenshot: rules-stage -->\n<!-- screenshot: shortlist-split -->\n\nAfter.');
 
             const content = fixture.nativeElement.querySelector('.lg-help-content') as HTMLElement;
             expect(content.querySelectorAll('img').length).toBe(1);

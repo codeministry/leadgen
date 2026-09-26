@@ -17,6 +17,10 @@ import {PromptView} from '@core/model/prompt-view';
 import {RulesView} from '@core/model/rules-view';
 import {WorkflowSetting, WorkflowStage} from '@core/model/workflow';
 import {Icon} from '@shared/icon/icon';
+import {CurrentRunView} from '@core/model/current-run';
+import {LastRunView} from '@core/model/last-run';
+import {RunDetail} from '../run-detail/run-detail';
+import {RUN_STATUS} from '../run-state';
 import {StageDetail} from '../stage-detail/stage-detail';
 import {UNREAD_STAGE} from '../stage-rail/stage-rail';
 
@@ -36,13 +40,21 @@ const HIGHLIGHT_MS = 1600;
  */
 @Component({
     selector: 'lg-stage-sheet',
-    imports: [Icon, StageDetail, TranslocoPipe],
+    imports: [Icon, RunDetail, StageDetail, TranslocoPipe],
     templateUrl: './stage-sheet.html',
     styleUrl: './stage-sheet.css',
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class StageSheet {
-    readonly stage = input.required<WorkflowStage | typeof UNREAD_STAGE>();
+    readonly stage = input.required<WorkflowStage | typeof UNREAD_STAGE | typeof RUN_STATUS>();
+    /** The run status's two payloads and its clock; read only when `stage` is the run sentinel. */
+    readonly current = input<CurrentRunView | null>(null);
+    readonly lastRun = input<LastRunView | null>(null);
+    readonly elapsed = input<number | null>(null);
+    readonly removalLabels = input<ReadonlyMap<string, string>>(new Map());
+
+    /** The sentinel the template branches on, so the string is spelled once. */
+    protected readonly runStatus = RUN_STATUS;
     readonly unread = input<readonly WorkflowSetting[]>([]);
     readonly rules = input<RulesView | null>(null);
     readonly prompts = input<readonly PromptView[]>([]);

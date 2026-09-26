@@ -5,6 +5,7 @@ import {VflowComponent} from 'ngx-vflow';
 import {LastRunView} from '@core/model/last-run';
 import {RulesView} from '@core/model/rules-view';
 import {WorkflowStage, WorkflowView} from '@core/model/workflow';
+import {runState} from '../run-state';
 import {SUB_ICONS} from '../stage-marks';
 import {layoutWorkflow} from '../workflow-layout';
 import {FLOW_NODE_SIZES, FlowCanvas} from './flow-canvas';
@@ -304,11 +305,27 @@ describe('FlowCanvas', () => {
             for (const side of shimmed) Reflect.deleteProperty(svgProto, side);
         });
 
-        async function mount() {
+        /** A pass in flight at the named stage, placed against the fixture's own workflow. */
+        function at(stageId: string) {
+            return runState(OPENABLE, {
+                id: 1,
+                startedAt: '2026-09-26T00:00:00Z',
+                scoreModel: null,
+                stage: stageId,
+                stagePosition: null,
+                stageTotal: null,
+                stageStartedAt: '2026-09-26T00:00:00Z',
+            });
+        }
+
+        async function mount(running: string | null = null) {
             TestBed.configureTestingModule({imports: [FlowCanvas], providers: [provideRouter([])]});
             const fixture = TestBed.createComponent(FlowCanvas);
             fixture.componentRef.setInput('workflow', OPENABLE);
             fixture.componentRef.setInput('rules', RULES);
+            if (running !== null) {
+                fixture.componentRef.setInput('run', at(running));
+            }
             await fixture.whenStable();
             const host = fixture.nativeElement as HTMLElement;
             const click = async (stageId: string) => {
@@ -491,38 +508,111 @@ describe('FlowCanvas', () => {
                 expect(subs(host, 'knockout:')).toEqual(KNOCKOUTS);
             });
         });
+
+        /** Every drawn edge by id, with the run state and the eclipse the template painted on it. */
+        function edgePaint(host: HTMLElement): Map<string, {run: string | null; eclipsed: boolean}> {
+            return new Map(
+                Array.from(host.querySelectorAll<SVGPathElement>('g[edge] path.flow-edge'), (path) => [
+                    path.dataset['edge'] ?? '',
+                    {run: path.dataset['run'] ?? null, eclipsed: path.classList.contains('is-eclipsed')},
+                ]),
+            );
+        }
+
+        // The side lines carry the run: with the connector under an expanded stage gone, they are
+        // the only thing left to carry the eye down through that stage.
+        it("gives an expanded stage's side lines the run state of the stage they hang off", async () => {
+            // The run at CONTENT puts all three states on screen at once: FILTER is behind it,
+            // CONTENT is the stage in flight, SCORE is still ahead.
+            const {host, click} = await mount('CONTENT');
+            for (const stageId of ['FILTER', 'CONTENT', 'SCORE']) await click(stageId);
+
+            const subs = [...edgePaint(host)].filter(([id]) => /->(knockout|prompt|block):/.test(id));
+            expect(subs.length).toBeGreaterThan(0);
+            const expected: Readonly<Record<string, string>> = {FILTER: 'behind', CONTENT: 'entering', SCORE: 'ahead'};
+            for (const [id, {run}] of subs) {
+                expect(run, id).toBe(expected[id.replace(/^stage:/, '').replace(/->.*$/, '')]);
+            }
+        });
+
+        it('carries no side-line run state at all when no pass is reported', async () => {
+            const {host, click} = await mount();
+            await click('FILTER');
+
+            for (const [id, {run}] of edgePaint(host)) expect(run, id).toBeNull();
+        });
+
+        // The sub-rail runs down the same channel as the connector to the next stage, so with a
+        // stage open the graph drew two parallel vertical lines and the lower one read as an
+        // underline. The edge stays in the layout — ISC-389 still joins every consecutive pair.
+        it('eclipses the connector under an expanded stage and brings it back on collapse', async () => {
+            const {host, click} = await mount();
+            const connector = 'stage:FILTER->stage:ARCHIVE';
+            const before = edgePaint(host);
+            expect(before.get(connector)?.eclipsed).toBe(false);
+
+            await click('FILTER');
+            const open = edgePaint(host);
+            expect(open.get(connector)?.eclipsed).toBe(true);
+            // Only that one, and the edge INTO the expanded stage is untouched.
+            expect([...open].filter(([, paint]) => paint.eclipsed).map(([id]) => id)).toEqual([connector]);
+            expect(open.get('stage:DEDUPE->stage:FILTER')?.eclipsed).toBe(false);
+
+            await click('FILTER');
+            expect(edgePaint(host).get(connector)?.eclipsed).toBe(false);
+        });
     });
 
-    describe('fullscreen control (ISC-407)', () => {
-        function mountPlain(fullscreen: boolean | null) {
+    // ISC-407, refined 2026-09-26: the control gives the graph the whole window and takes it back.
+    // The real full screen is gone — it hid the browser's own tabs and address bar, which is the
+    // wrong trade for watching a pass, and this size never needed the Fullscreen API.
+    describe('whole-window control (ISC-407)', () => {
+        function mountPlain(wide: boolean) {
             TestBed.configureTestingModule({imports: [FlowCanvas], providers: [provideRouter([])]});
             const fixture = TestBed.createComponent(FlowCanvas);
             fixture.componentRef.setInput('workflow', WORKFLOW);
-            fixture.componentRef.setInput('fullscreen', fullscreen);
+            fixture.componentRef.setInput('wide', wide);
             fixture.detectChanges();
             return {fixture, host: fixture.nativeElement as HTMLElement};
         }
 
-        it('offers a named toggle beside the zoom controls with its state in aria-pressed', () => {
-            const {fixture, host} = mountPlain(false);
+        function control(host: HTMLElement): HTMLButtonElement {
             const button = host.querySelector<HTMLButtonElement>('.flow-canvas-controls button[data-action="fullscreen"]');
             expect(button).not.toBeNull();
-            expect((button?.getAttribute('aria-label') ?? '').trim().length).toBeGreaterThan(0);
-            expect(button?.getAttribute('aria-pressed')).toBe('false');
+            return button!;
+        }
+
+        it('offers a named toggle beside the zoom controls with its state in aria-pressed', () => {
+            const {fixture, host} = mountPlain(false);
+            const inPlace = (control(host).getAttribute('aria-label') ?? '').trim();
+            expect(inPlace).not.toBe('');
+            expect(control(host).getAttribute('aria-pressed')).toBe('false');
 
             let asked = 0;
-            fixture.componentInstance.fullscreenToggle.subscribe(() => asked++);
-            button?.click();
+            fixture.componentInstance.wideToggle.subscribe(() => asked++);
+            control(host).click();
             expect(asked).toBe(1);
+            // The canvas asks; the screen owns the size, so nothing moved on its own.
+            expect(control(host).getAttribute('aria-pressed')).toBe('false');
 
-            fixture.componentRef.setInput('fullscreen', true);
+            fixture.componentRef.setInput('wide', true);
             fixture.detectChanges();
-            expect(button?.getAttribute('aria-pressed')).toBe('true');
+            expect(control(host).getAttribute('aria-pressed')).toBe('true');
+            // Named by what it will do next, so the two states never read the same.
+            expect((control(host).getAttribute('aria-label') ?? '').trim()).not.toBe(inPlace);
         });
 
-        it('hides the control where the browser has no Fullscreen API', () => {
-            const {host} = mountPlain(null);
-            expect(host.querySelector('button[data-action="fullscreen"]')).toBeNull();
+        // jsdom has no Fullscreen API at all, so the method is planted before it can be missed:
+        // a press that reached for it would call this and fail the count.
+        it('asks the Fullscreen API for nothing', () => {
+            const requested = vi.fn(() => Promise.resolve());
+            Object.defineProperty(Element.prototype, 'requestFullscreen', {configurable: true, value: requested});
+            const {host} = mountPlain(false);
+
+            control(host).click();
+
+            expect(requested).not.toHaveBeenCalled();
+            Reflect.deleteProperty(Element.prototype, 'requestFullscreen');
         });
     });
 });

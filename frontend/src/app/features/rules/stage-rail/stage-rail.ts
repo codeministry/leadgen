@@ -4,10 +4,12 @@ import {toSignal} from '@angular/core/rxjs-interop';
 import {RouterLink} from '@angular/router';
 import {TranslocoPipe, TranslocoService} from '@jsverse/transloco';
 import {LastRunView} from '@core/model/last-run';
-import {WorkflowStage, WorkflowView} from '@core/model/workflow';
+import {WorkflowPhase, WorkflowStage, WorkflowView} from '@core/model/workflow';
 import {Icon} from '@shared/icon/icon';
 import {LgIconName} from '@shared/icon/lucide-icons';
 import {isAiStage} from '../ai-stage';
+import {formatElapsed} from '../flow-node/flow-node';
+import {RunState, StageRunState} from '../run-state';
 import {countVerbKey, formatStageCount} from '../stage-count';
 import {AI_ICON, COST_ICONS, FAILED_ICON, costIcon, costLabelKey, failedStageIds, stageLabelKey} from '../stage-marks';
 
@@ -66,6 +68,18 @@ export class StageRail {
      * feeds it `ingest.lastRun()`, the same signal `stageCounts` already reads.
      */
     readonly lastRun = input<LastRunView | null>(null);
+
+    /**
+     * This pipe's place against a run in flight, from `runState()` (ISC-417); null when no pass
+     * is running, the way `flow-canvas.ts` takes it. The parent binds `[run]="…"`, `rules.ts`
+     * feeds it the same `RunState` it already hands the canvas — one input, read by both views.
+     */
+    readonly run = input<RunState | null>(null);
+    /**
+     * Seconds spent in the running stage, or null. Read only for the stop whose own state is
+     * `running`, exactly as `flow-node.ts` reads it.
+     */
+    readonly elapsed = input<number | null>(null);
 
     protected readonly unread = UNREAD_STAGE;
     protected readonly aiIcon = AI_ICON;
@@ -126,10 +140,34 @@ export class StageRail {
     }
 
     /**
+     * This stage's place against the run in flight (ISC-417, ISC-410.1 shared with the canvas):
+     * null with no pass running, and also null for a stage `runState` did not place.
+     */
+    protected stopState(stage: WorkflowStage): StageRunState | null {
+        return this.run()?.states.get(stage.id) ?? null;
+    }
+
+    /**
+     * Whether the connector leading into a phase — its heading, or the short segment that joins
+     * it to the one before — should draw dashed: the run has not reached this phase's first
+     * stage yet. Read off that stage alone; a phase's own stages are contiguous in run order, so
+     * once the run has entered a phase every connector before it is already solid.
+     */
+    protected phaseLeadPending(phase: WorkflowPhase): boolean {
+        const lead = phase.stages[0];
+        return lead !== undefined && this.stopState(lead) === 'pending';
+    }
+
+    /**
      * The chip the canvas draws for the same count — its verb and the grouped number — or the
-     * bare value for a count that has no verb, or nothing without a count at all.
+     * bare value for a count that has no verb, or nothing without a count at all. Hidden while a
+     * pass places this stage (ISC-412's rule, shared with `flow-node.ts`): a `RUNNING` row holds
+     * no numbers, and the running stop shows its elapsed time in the same spot instead.
      */
     protected chip(stage: WorkflowStage): {key: string | null; count: string} | null {
+        if (this.stopState(stage) !== null) {
+            return null;
+        }
         const value = this.counts()[stage.id] ?? null;
         if (value === null) {
             return null;
@@ -139,6 +177,19 @@ export class StageRail {
             return {key: null, count: String(value)};
         }
         return {key, count: formatStageCount(stage, value, this.lang())};
+    }
+
+    /**
+     * The running stop's elapsed time, formatted like the canvas node's (ISC-417) — null on
+     * every stop that is not the one running, and also null on it before an `elapsed` value has
+     * reached this component.
+     */
+    protected elapsedLabel(stage: WorkflowStage): string | null {
+        if (this.stopState(stage) !== 'running') {
+            return null;
+        }
+        const elapsed = this.elapsed();
+        return elapsed === null ? null : formatElapsed(elapsed);
     }
 
     protected failed(id: string): boolean {

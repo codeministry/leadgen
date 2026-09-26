@@ -31,6 +31,12 @@
     --lg-edge-w: 3px;
     --lg-panel-pad: 1rem;
     --lg-hero-wash: 6%;
+
+    /* How strongly a tone glows out of its cell's corner (`.lg-tone-wash`). The two custom
+       properties a tone sets default to the neutral tone here, so a reader is never undefined. */
+    --lg-tone-wash: 14%;
+    --lg-tone: var(--lg-muted);
+    --lg-tone-text: var(--color-base-content);
     --lg-stack-gap: 1rem;
 
   /* The shell. The header is the only chrome left: the navigation is a row inside it
@@ -328,6 +334,6 @@
     --lg-section: var(--lg-section-review);
 }
 
-[data-section='rules'] {
-    --lg-section: var(--lg-section-rules);
+[data-section='workflow'] {
+    --lg-section: var(--lg-section-workflow);
 }

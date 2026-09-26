@@ -1,10 +1,62 @@
 <lg-page-header [title]="'rules.title' | transloco" [subtitle]="'rules.subtitle' | transloco">
-    @if (store.rules(); as rules) {
-        <lg-badge tone="ghost" [outline]="true">{{
-                'rules.ruleset' | transloco: {version: rules.version}
-            }}
-        </lg-badge>
-    }
+    <!-- The keys no stage reads, beside the ruleset they came out of (operator, 2026-09-26). They
+         belong to the configuration rather than to the drawing, so they sit with the page's other
+         fact about the configuration instead of on the canvas, where they read as a control. -->
+    <!-- One row, one height: both are facts about the configuration, so they are drawn as a
+         pair of equal chips on a shared centre line. The unread one warns when it holds keys,
+         and says how many, because a leftover key is exactly what nobody goes looking for. -->
+    @let unreadCount = store.workflow()?.unread?.length ?? 0;
+    <div class="rules-facts">
+        <!-- First in the row (operator, 2026-09-26): the same chip shape as the two facts beside
+             it, because it opens the same sheet the unread one does and one mechanism should not
+             have two vocabularies. It carries the run hue only while a pass is in flight, and the
+             glyph and the step pill say so too — colour is never the only carrier. A failed last
+             run does not paint it: two alarm colours in one row is noise, and the failure has its
+             own badge in the panel and its own marker on the graph. -->
+        @let running = ingest.current();
+        <a
+                class="type-caption rules-chip rules-status"
+                [class.is-running]="running !== null"
+                [class.has-failed]="running === null && lastRunFailed()"
+                [class.is-selected]="selected() === runStatus"
+                [attr.data-stage]="runStatus"
+                routerLink="."
+                [queryParams]="{ stage: runStatus, section: null }"
+                queryParamsHandling="merge"
+                [attr.aria-current]="selected() === runStatus ? 'page' : null"
+                [attr.aria-label]="statusLabel()"
+        >
+            <lg-icon [name]="running !== null ? 'refresh' : 'activity'" [size]="14"/>
+            {{ 'rules.status.title' | transloco }}
+            @if (running?.stagePosition; as position) {
+                <!-- The figure plain, no pill (operator, 2026-09-26): the chip is already a shape,
+                     and a second one inside it says nothing the number does not. -->
+                <span class="type-mono-data">{{ position }}/{{ running?.stageTotal }}</span>
+            } @else if (running === null && lastRun(); as last) {
+                <span class="type-mono-data text-muted">{{ finishedAtLabel() }}</span>
+            }
+        </a>
+        <a
+                class="type-caption rules-chip rules-unread"
+                [class.has-keys]="unreadCount > 0"
+                [class.is-selected]="selected() === unread"
+                [attr.data-stage]="unread"
+                routerLink="."
+                [queryParams]="{ stage: unread, section: null }"
+                queryParamsHandling="merge"
+                [attr.aria-current]="selected() === unread ? 'page' : null"
+        >
+            <lg-icon name="eye-off" [size]="14"/>
+            {{ 'rules.unread.title' | transloco }}
+            <span class="rules-count">{{ unreadCount }}</span>
+        </a>
+        @if (store.rules(); as rules) {
+            <span class="type-caption rules-chip rules-ruleset">
+                <lg-icon name="scale" [size]="14"/>
+                {{ 'rules.ruleset' | transloco: {version: rules.version} }}
+            </span>
+        }
+    </div>
 </lg-page-header>
 
 @if (store.workflow(); as workflow) {
@@ -15,8 +67,16 @@
     <!-- ISC-395: the canvas from the measured breakpoint up, the pipe below it — never both, and
          below it vflow is not instantiated at all. Either way the stages are one path of links in
          run order with aria-current on the selected one (ISC-396). -->
-    <!-- ISC-407: what goes full screen — the canvas, its legend and the sheet, together. -->
-    <div class="rules-stage" #stageBox [class.is-fullscreen]="fullscreen() === true">
+    <!-- ISC-416: what the drawing says, said. Always in the DOM and empty until there is
+         something to say: a live region inserted together with its first sentence is announced by
+         no screen reader at all. Polite, because a stage change is news and not an interruption. -->
+    <p class="sr-only rules-live" role="status" aria-live="polite">
+        @if (announcement(); as said) {
+            {{ said.key | transloco: said.params }}
+        }
+    </p>
+    <!-- ISC-407: what takes the whole window — the canvas, its legend and the sheet, together. -->
+    <div class="rules-stage" [class.is-filling]="wholeWindow()">
     @if (wide()) {
         <div class="canvas-area">
             <!-- The canvas draws the fan-in; a screen reader, which skips the drawing, hears it here. -->
@@ -26,14 +86,19 @@
                 </p>
             }
             <lg-flow-canvas [workflow]="workflow" [lastRun]="lastRun()" [rules]="store.rules()" [selected]="selected()" [occluder]="sheetBox()"
-                            [fullscreen]="fullscreen()" (fullscreenToggle)="toggleFullscreen()"/>
-            <!-- ISC-398: what the node markers mean, and the keys nothing reads, off the flow. -->
-            <lg-flow-legend [selected]="selected()" [active]="legendActive()"/>
+                            [run]="shownRun()" [elapsed]="elapsedSeconds()" [lit]="litStages()"
+                            [wide]="wholeWindow()" (wideToggle)="toggleWholeWindow()">
+                <!-- ISC-398: what the node markers mean, and the keys nothing reads, off the flow.
+                     Projected into the canvas box (operator, 2026-09-26) — it explains the drawing,
+                     so it sits on the drawing's surface rather than under the box. -->
+                <lg-flow-legend canvasLegend [active]="legendActive()"/>
+            </lg-flow-canvas>
         </div>
     } @else {
-        <lg-stage-rail class="rail-col" [workflow]="workflow" [selected]="selected()" [counts]="counts()" [lastRun]="lastRun()"/>
+        <lg-stage-rail class="rail-col" [workflow]="workflow" [selected]="selected()" [counts]="counts()" [lastRun]="lastRun()"
+                       [run]="shownRun()" [elapsed]="elapsedSeconds()"/>
         <!-- The same legend as beside the canvas; the pipe ends with "read by nothing" itself. -->
-        <lg-flow-legend class="pipe-legend" [selected]="selected()" [withUnread]="false" [active]="legendActive()"/>
+        <lg-flow-legend class="pipe-legend" [active]="legendActive()"/>
     }
 
     <!-- The selected stage, at the right edge of the browser window rather than the canvas's. The
@@ -41,6 +106,10 @@
     @if (detail(); as stage) {
         <lg-stage-sheet
                 [stage]="stage"
+                [current]="ingest.current()"
+                [lastRun]="lastRun()"
+                [elapsed]="elapsedSeconds()"
+                [removalLabels]="removalLabels()"
                 [unread]="workflow.unread"
                 [rules]="store.rules()"
                 [prompts]="store.prompts()"

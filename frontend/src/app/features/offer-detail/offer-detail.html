@@ -290,9 +290,26 @@
 
             @if (entry.sources.length > 1) {
                 <h3 class="type-h4 sources-head">{{ 'detail.advertisedBy' | transloco }}</h3>
+                <!-- Every portal in the cluster is reachable, not just the one the merge kept
+                     (operator, 2026-09-26): a possible duplicate is exactly the case where both
+                     adverts are worth reading, and the page named them without offering them.
+                     Same pair as the header's link and for the same reason — this URL came off a
+                     portal, and a page opened from here could otherwise reach back through
+                     `window.opener`. A source without a URL stays plain text rather than becoming
+                     a dead link. -->
                 <ul class="type-small sources">
                     @for (source of entry.sources; track source.url) {
-                        <li>{{ source.agency ?? ('offer.noAgency' | transloco) }} · {{ source.portal }}</li>
+                        @let name = (source.agency ?? ('offer.noAgency' | transloco)) + ' · ' + source.portal;
+                        <li>
+                            @if (source.url; as url) {
+                                <a class="source-link" [href]="url" [title]="url" target="_blank" rel="noopener noreferrer">
+                                    {{ name }}
+                                    <lg-icon name="external-link" [size]="12"/>
+                                </a>
+                            } @else {
+                                {{ name }}
+                            }
+                        </li>
                     }
                 </ul>
             }

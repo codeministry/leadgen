@@ -21,6 +21,16 @@ may change in any release. See the status note in the README.
   at once and takes the graph, its legend and the sheet to full screen, and panning keeps part of
   the graph in view however far it goes.
 
+- The workflow graph shows the pass in flight, in colour, where it stands: the stage being worked
+  carries a ring and its own reserved colour with the seconds it has spent there, every stage
+  behind it a check, every stage ahead a dashed outline, and the edge entering the running stage a
+  marching dash. Above the graph a header names since when the pass has been running, which step
+  of how many the server reports, that stage and the model it scores with, and offers a link to the
+  running stage. The pipe below 704 px says the same. A screen reader hears each stage change once
+  and the end of the pass once, and every stage says which of running, passed and waiting it
+  carries. When the pass ends the last run's counts come back in one step, carrying the run that
+  just finished (spec `018-rules-live-run`).
+
 - The shortlist card answers four questions at a glance and leaves the rest to the detail:
   whether it fits, why it scored (the strongest lift and penalty as labels, every matched topic),
   where the application stands and when the offer came in. Icons plus values, no badges and no

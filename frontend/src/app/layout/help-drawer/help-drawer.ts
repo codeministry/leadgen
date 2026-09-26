@@ -50,7 +50,7 @@ export const CHAPTER_ICONS: Record<HelpChapter, LgIconName> = {
     shortlist: 'list-checks',
     pipeline: 'columns-3',
     analytics: 'chart-line',
-    rules: 'sliders-horizontal',
+    workflow: 'sliders-horizontal',
     sources: 'database',
     'offer-detail': 'file-text',
     application: 'send',

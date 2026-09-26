@@ -12,6 +12,10 @@
 
 :root {
     --lg-hover-duration: 140ms;
+
+    /* The marching dash on the edge a run is entering (spec 018, ISC-413). One cycle of the
+       10px dash pattern; slow enough to read as direction rather than as flicker. */
+    --lg-run-march-duration: 600ms;
     --lg-hover-ease: ease;
     --lg-reveal-duration: 520ms;
     --lg-reveal-ease: cubic-bezier(0.16, 1, 0.3, 1);
@@ -21,4 +25,17 @@
     --lg-drag-ease: cubic-bezier(0, 0, 0.2, 1);
     --lg-toast-enter: 0.25s;
     --lg-toast-ease: ease-out;
+
+    /* The dashboard stage. The sift is the sieve filling on first paint, band after band from
+       the outside in, one stagger apart, so the reader watches the archive narrow to its
+       survivors; it does not play for a run that brought nothing. The orbit and the aurora
+       are ambient and slow enough to be noticed only on a second look: one turn of a band
+       takes minutes, one drift of the glow half a minute. The pulse is the core breathing.
+       All four are off under reduced motion. */
+    --lg-sift-duration: 900ms;
+    --lg-sift-stagger: 110ms;
+    --lg-sift-ease: cubic-bezier(0.16, 1, 0.3, 1);
+    --lg-orbit-duration: 240s;
+    --lg-aurora-duration: 28s;
+    --lg-pulse-duration: 4.8s;
 }

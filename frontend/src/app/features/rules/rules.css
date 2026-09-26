@@ -1,64 +1,202 @@
-/* The page capped at the shell measure, centred, like the other screens. */
+/* No cap and no growing, unlike the reading screens: the route carries `measure: 'full'` and
+   `fill` for the same reason the pipeline board does. A cap here would take back exactly what the
+   first flag gives, and a height that grows with the content would take back the second — the
+   content is a drawing, so every rem withheld from it is width or height taken off the graph
+   (operator, 2026-09-26). Every `min-height: 0` below is load-bearing: a flex item's default is
+   its content height, which is how a "bounded" pane grows the page instead of filling it. */
 :host {
-    display: block;
+    display: flex;
+    flex: 1;
+    flex-direction: column;
     width: 100%;
-    max-width: var(--lg-split-max);
-    margin-inline: auto;
+    min-height: 0;
 }
 
 /* The graph's box. The stage sheet is not in it: it is fixed to the browser window's right edge.
    Positioned so the absolutely positioned fan-in sentence resolves against this box and not a
-   distant ancestor, where its static position could count toward the page's overflow. */
+   distant ancestor, where its static position could count toward the page's overflow. It is also
+   the column that hands the canvas whatever the legend under it leaves. */
 .canvas-area {
     position: relative;
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: var(--lg-stack-gap);
     min-width: 0;
+    min-block-size: 0;
+}
+
+/* The canvas takes the rest of the column rather than its own fixed height (`flow-canvas.css`
+   caps itself at `min(42rem, 68dvh)` for anywhere it is not given a height). */
+.canvas-area lg-flow-canvas {
+    flex: 1 1 auto;
+    block-size: auto;
+    min-block-size: 0;
 }
 
 /* The pipe, below the breakpoint in place of the canvas (ISC-395). Not sticky: with every source
    and the unread entry it is taller than the viewport, and a pinned column taller than the window
-   cannot show its own end. */
+   cannot show its own end. With the screen bounded to the window it scrolls inside itself for the
+   same reason — the page no longer grows to hold it. */
 .rail-col {
     display: block;
+    flex: 1 1 auto;
     min-width: 0;
+    min-block-size: 0;
+    overflow-y: auto;
+}
+
+/* The two configuration facts in the header, as one pair: the same height, the same centre line,
+   an icon each (operator, 2026-09-26). */
+.rules-facts {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.rules-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    box-sizing: border-box;
+    height: 1.875rem;
+    padding: 0 0.625rem;
+    border: 1px solid var(--color-base-300);
+    border-radius: var(--radius-field);
+    color: inherit;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.rules-ruleset {
+    color: var(--lg-muted);
+}
+
+/* The status chip: the same shape as the facts beside it, and interactive like the unread one —
+   it opens the same sheet. While a pass runs it takes `--lg-run`, the one colour that means "being
+   worked right now", with the step pill beside it; finished, it is neutral and carries the time
+   the last run ended. A failed run is not painted here — see the comment in `rules.html`. */
+.rules-status {
+    text-decoration: none;
+    transition: border-color var(--lg-hover-duration) var(--lg-hover-ease),
+        background-color var(--lg-hover-duration) var(--lg-hover-ease);
+}
+
+.rules-status:hover,
+.rules-status.is-selected {
+    border-color: var(--lg-muted);
+}
+
+.rules-status.is-running {
+    border-color: var(--lg-run);
+    background-color: color-mix(in oklab, var(--lg-run) 12%, var(--color-base-100));
+}
+
+.rules-status.is-running:hover,
+.rules-status.is-running.is-selected {
+    background-color: color-mix(in oklab, var(--lg-run) 22%, var(--color-base-100));
+}
+
+/* A failed last run paints the chip (operator, 2026-09-26): the error's wash and text twin, the
+   same shape the unread chip uses for its warning. A pass in flight wins over it — `is-running`
+   follows this rule in the file, so the live colour is what shows while one is going. */
+.rules-status.has-failed {
+    border-color: var(--color-error);
+    background-color: color-mix(in oklab, var(--color-error) 12%, var(--color-base-100));
+    color: var(--color-error);
+    font-weight: 600;
+}
+
+.rules-status.has-failed:hover,
+.rules-status.has-failed.is-selected {
+    background-color: color-mix(in oklab, var(--color-error) 22%, var(--color-base-100));
+}
+
+/* The unread entry: dashed like the rail's, because these keys belong to no stage, and a link
+   rather than a badge, because it opens the sheet. With keys in it, it warns — the warning's wash
+   and text twin, never the signal — and the count sits in a filled pill at its end. */
+.rules-unread {
+    border-style: dashed;
+    text-decoration: none;
+    transition: border-color var(--lg-hover-duration) var(--lg-hover-ease),
+        background-color var(--lg-hover-duration) var(--lg-hover-ease);
+}
+
+.rules-unread:hover,
+.rules-unread.is-selected {
+    border-color: var(--lg-muted);
+}
+
+.rules-unread.has-keys {
+    border-style: solid;
+    border-color: var(--color-warning);
+    background-color: color-mix(in oklab, var(--color-warning) 12%, var(--color-base-100));
+    color: var(--lg-warning-text);
+    font-weight: 600;
+}
+
+.rules-unread.has-keys:hover,
+.rules-unread.has-keys.is-selected {
+    background-color: color-mix(in oklab, var(--color-warning) 22%, var(--color-base-100));
+}
+
+.rules-count {
+    display: inline-grid;
+    place-items: center;
+    min-width: 1.25rem;
+    height: 1.25rem;
+    padding: 0 0.3125rem;
+    border-radius: 999px;
+    background-color: var(--color-base-300);
+    color: var(--color-base-content);
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+}
+
+/* The count reads white on the warning's darker text twin, not near-black on the warning itself:
+   at `--color-warning` (62 % lightness) against `--color-warning-content` the two are both warm
+   and saturated, and the figure turned to mud on screen (operator, 2026-09-26). The text twin is
+   the colour this house already reserves for warning text, so nothing new is invented. */
+.rules-unread.has-keys .rules-count {
+    background-color: var(--lg-warning-text);
+    color: var(--color-base-100);
+}
+
+
+.rules-unread:focus-visible {
+    outline: 2px solid var(--color-base-content);
+    outline-offset: 2px;
 }
 
 .pipe-legend {
     margin-block-start: var(--lg-stack-gap);
 }
 
-/* Canvas, legend and sheet as one box, so the three go full screen together (ISC-407). */
+/* Canvas, legend and sheet as one box, so the three take the whole window together (ISC-407) —
+   and, bounded by `fill`, the column that divides the height between them. */
 .rules-stage {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: var(--lg-stack-gap);
     min-width: 0;
+    min-block-size: 0;
 }
 
-/* In the full screen the box fills the window — the browser does that for the real full-screen
-   element, and this says it for every browser — and the canvas takes every row the legend leaves. */
-.rules-stage.is-fullscreen {
+/* The whole window (ISC-407): the same column as above, lifted out of the page over the app's own
+   chrome. Everything about how the height is divided is already the normal case now, so this rule
+   is only about where the box sits and what is behind it. */
+.rules-stage.is-filling {
     position: fixed;
     inset: 0;
     z-index: 40;
-    display: flex;
-    flex-direction: column;
-    gap: var(--lg-stack-gap);
     box-sizing: border-box;
     padding: var(--lg-stack-gap);
     overflow: hidden;
     background-color: var(--color-base-100);
 }
 
-.rules-stage.is-fullscreen .canvas-area {
-    display: flex;
-    flex: 1 1 auto;
-    flex-direction: column;
-    gap: var(--lg-stack-gap);
-    min-block-size: 0;
-}
-
-.rules-stage.is-fullscreen lg-flow-canvas {
-    flex: 1 1 auto;
-    block-size: auto;
-    min-block-size: 0;
-}
 
 .rules-error {
     margin-block-end: var(--lg-stack-gap);

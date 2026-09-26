@@ -420,6 +420,42 @@ what a model takes part in. The claims and the measurements are in
   because it resolves the API upstream at parse time, so the blocks are written self-contained
   and copied there by the operator in the same rollout as the image.
 
+### The running pass (spec 018, 2026-09-26)
+
+The workflow graph draws the pass in flight: one node running, everything behind it done,
+everything ahead of it pending. The claims and the measurements are in
+`specs/018-rules-live-run/spec.md`.
+
+- **`--lg-run` is the third reserved colour, and the last one.** `--lg-signal` means "survived the
+  filter", `--lg-ai` means "a model takes part here", and `--lg-run` means one thing only: **this
+  stage is being worked right now.** It may never mean good, bad, selected, new, or finished —
+  a stage the run has already passed carries a muted check and no hue at all, and a failed stage
+  keeps its own marker. Defined once per theme in `styles.css` beside the other two, measured at
+  7.1:1 light and 7.6:1 dark against the node and canvas surfaces and pairwise distinct from both
+  neighbours in both themes (`contrast.browser.spec.ts`). `rg -l "lg-run" frontend/src` names
+  `styles.css`, files under `features/rules` and the contrast spec, which is ISC-415's own gate.
+- **The hue was chosen on screen, against three that were rejected.** Violet collided with
+  `--lg-ai`, red read as a failure, green read as a verdict on the offers; the pink at neon
+  strength (`oklch(64% 0.26 345)` light, `oklch(70% 0.24 345)` dark) is far enough from all three
+  reserved meanings to read as motion rather than as judgement.
+- **Colour is never the only carrier of the three states.** The running node adds a ring outside
+  the card and a refresh glyph, the passed nodes a check, the nodes ahead a dashed border, and
+  every node carries its state as a visually hidden word (`rules.run.state.*`), so a screen
+  reader — which gets none of the drawing — hears the same three states. The screen also says each
+  stage change once in a polite live region, and the end of the pass once, never once per poll.
+- **The one animation on the canvas is the edge entering the running node**, a marching dash,
+  static under `prefers-reduced-motion` with its colour kept. Anything else moving on a diagram
+  that already carries fourteen cards is noise.
+- **The run header sits above the canvas box, not inside it.** Tried as an overlay on the drawing
+  first, so that the full screen would keep it; on screen it read as something stuck to the
+  diagram rather than as the screen's own status, which is how the dashboard says the same thing.
+  The cost is accepted: in full screen the header is outside the full-screen element and is not
+  shown.
+- **The chips and the live encoding never overlap.** During a pass the last run's count chips give
+  way — the running node shows the time spent in its stage instead — and when the pass ends the
+  encoding is held until the reloaded last run has arrived, so the chips come back once, carrying
+  the run that just finished, rather than flashing the previous run's numbers first.
+
 ## The interface language
 
 `frontend/src/app/core/i18n/` plus the two catalogs in `frontend/public/i18n/`. Transloco,
@@ -530,3 +566,35 @@ One line at the edge of the screen after a write or a run, and the decisions tha
   height chain — were all correct in the same Safari, and the same page measured correctly a minute later.
   `OfferDetail.relayoutAd` detaches the box and reads a metric off it after the toggle. It is a workaround on an
   observation, not on a reproduced cause, and it says so.
+
+## The stage, the sieve and the tones (2026-09-26)
+
+The control room of spec 006 read well and still read as a log: about forty numerals above the fold, a
+monospace chain of stage totals in the hero repeating the hard-filter panel beside it, and one light surface
+everywhere. The operator asked for an eyecatcher, for marketing reasons, and for more colour and contrast. A
+Designer pass offered seven concepts; the sieve with a narrative headline was taken, the best-match card is the
+runner-up and was not built.
+
+- **`.lg-stage` is a dark surface in both themes, and only the hero stands on it.** The hard filter beside it
+  was a second stage for an afternoon and competed with "worth a look" however far its ground was dimmed; it is the
+  ordinary panel again, lit faintly from its corners by the stage's two glows, related to the hero and never its
+  equal. The stage re-points the tokens its content reads — ink, muted, dividers, the signal and its text twin, and
+  `--score-strong` by name, because an alias resolves where it is declared — so the funnel rail renders on it
+  without knowing. Its colours are `--lg-stage-*` in the three corrective blocks; every text and the held-back dots
+  are measured on `--lg-stage` itself in `contrast.browser.spec.ts`, never on the glows.
+- **The signal on the stage is `--lg-stage-signal`, the night twin of the signal, and it still means one thing.**
+  The hero figure and the sieve's core take it; the files that read it are the hero, the sieve and
+  `primitives.css`, which is where the ISC-224 allowlist grows.
+- **The sieve is the brand mark drawn from the funnel.** Every offer is a dot, a stage's rejections scatter in its
+  ring with the first stage outermost, the survivors fill the core as a sunflower with the strong matches at the
+  centre, and the logo's open ring and its lead frame it. The layout is deterministic (a low-discrepancy sequence
+  seeded by the band), so a screenshot changes only when the numbers do; past 380 dots one dot stands for several
+  offers and the legend says so. It sifts in on first paint and not for a run that brought nothing; the orbit, the
+  aurora and the core's breathing are ambient and slow, and all of it stops under reduced motion.
+- **The headline is a sentence, and it explains the two counts that looked like a miscount.** "64 offers out of 146
+  are worth a look" names the archive; the run line says how many listings the run read and how many of them were
+  repeats (`extracted − written`), which is why a run can read more than the archive holds.
+- **A tone is the colour a cell takes by what its value means**: `lg-tone-info|success|warning|error|primary|neutral`
+  in `primitives.css`, a chip, a corner glow and the value's colour. Never the signal and never a section. Intake is
+  information, the scores are the primary, what is due warns and nothing due is success, said in words; the run's
+  health is green, amber or red.

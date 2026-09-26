@@ -5,6 +5,9 @@ import {provideLocationMocks} from '@angular/common/testing';
 import {ComponentFixture, TestBed} from '@angular/core/testing';
 import {NavigationEnd, provideRouter, Router, withComponentInputBinding} from '@angular/router';
 import {RouterTestingHarness} from '@angular/router/testing';
+import {Dispatcher} from '@ngrx/signals/events';
+import {CurrentRunView} from '@core/model/current-run';
+import {ingestEvents} from '@core/store/ingest.events';
 import {FunnelView} from '@core/model/funnel';
 import {LastRunView} from '@core/model/last-run';
 import {PromptView} from '@core/model/prompt-view';
@@ -174,12 +177,24 @@ const LAST_RUN: LastRunView = {
     stages: [],
 };
 
+/** A pass in flight at DEDUPE, for ISC-414's header (T11). */
+const CURRENT_RUN: CurrentRunView = {
+    id: 1,
+    startedAt: '2026-09-26T00:00:00Z',
+    scoreModel: 'judge-model',
+    stage: 'DEDUPE',
+    stagePosition: 2,
+    stageTotal: 5,
+    stageStartedAt: '2026-09-26T00:00:00Z',
+};
+
 /** Answers every request the screen and the stores it injects make; returns the URLs asked. */
 function answer(
     http: HttpTestingController,
     workflow: WorkflowView = WORKFLOW,
     rulesFail = false,
     lastRun: LastRunView | null = LAST_RUN,
+    currentRun: CurrentRunView | null = null,
 ): string[] {
     const urls: string[] = [];
     for (const request of http.match(() => true)) {
@@ -202,6 +217,10 @@ function answer(
             request.flush(null, {status: 204, statusText: 'No Content'});
         } else if (url === '/api/v1/ingest/last') {
             request.flush(lastRun);
+        } else if (url === '/api/v1/ingest/current' && currentRun === null) {
+            request.flush(null, {status: 204, statusText: 'No Content'});
+        } else if (url === '/api/v1/ingest/current') {
+            request.flush(currentRun);
         } else if (url === '/api/v1/offers/funnel') {
             request.flush(FUNNEL);
         } else if (url === '/api/v1/scoring-models') {
@@ -235,13 +254,14 @@ describe('Rules', () => {
         rulesFail = false,
         selected?: string,
         lastRun: LastRunView | null = LAST_RUN,
+        currentRun: CurrentRunView | null = null,
     ): {fixture: ComponentFixture<Rules>; urls: string[]} {
         const fixture = TestBed.createComponent(Rules);
         if (selected !== undefined) {
             fixture.componentRef.setInput('stage', selected);
         }
         fixture.detectChanges();
-        const urls = answer(http, workflow, rulesFail, lastRun);
+        const urls = answer(http, workflow, rulesFail, lastRun, currentRun);
         fixture.detectChanges();
         return {fixture, urls};
     }
@@ -365,7 +385,7 @@ describe('Rules', () => {
         const page = element(render().fixture);
 
         expect(page.querySelector('.canvas-area lg-flow-canvas')).not.toBeNull();
-        expect(page.querySelector('.canvas-area lg-flow-legend a[data-stage="unread"]')).not.toBeNull();
+        expect(page.querySelector('lg-flow-canvas lg-flow-legend')).not.toBeNull();
         expect(page.querySelector('lg-stage-rail')).toBeNull();
     });
 
@@ -381,8 +401,10 @@ describe('Rules', () => {
         expect(rail?.compareDocumentPosition(legend as Node)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
         // The rail's own legend is gone: one implementation, the canvas's.
         expect(page.querySelector('.rail-legend')).toBeNull();
-        // "Read by nothing" is the pipe's last entry, so the legend under it does not repeat the link.
-        expect(page.querySelectorAll('a[data-stage="unread"]')).toHaveLength(1);
+        // "Read by nothing" is the pipe's last entry and the header's link; the legend carries
+        // neither, on either side of the breakpoint (operator, 2026-09-26).
+        expect(page.querySelectorAll('a[data-stage="unread"]')).toHaveLength(2);
+        expect(page.querySelector('lg-page-header a[data-stage="unread"]')).not.toBeNull();
         expect(legend?.querySelector('a[data-stage]')).toBeNull();
     });
 
@@ -412,6 +434,161 @@ describe('Rules', () => {
 
         expect(page.querySelector('lg-anchor-rail')).toBeNull();
         expect(page.querySelector('.btn-primary')).toBeNull();
+    });
+
+    // ISC-414 retired (operator, 2026-09-26): the strip above the graph is gone, and the status
+    // chip with its panel says the same things in one place instead of two. This keeps the
+    // retirement honest — a strip that comes back would be a second answer to one question.
+
+    it('draws no run strip above the graph, running or not', () => {
+        for (const run of [null, CURRENT_RUN]) {
+            const page = element(render(WORKFLOW, false, undefined, LAST_RUN, run).fixture);
+            expect(page.querySelector('lg-run-header'), String(run !== null)).toBeNull();
+        }
+    });
+
+    // ISC-416: the pass is said as well as drawn — one sentence per stage change, one when it
+    // ends, nothing on a poll that changed nothing, and the state word inside every node's name.
+
+    /** A pass in flight at the named stage, as the heartbeat reports it. */
+    function inFlight(stage: string): CurrentRunView {
+        return {...CURRENT_RUN, stage};
+    }
+
+    /** One heartbeat answer, delivered the way `IngestStore`'s own poll delivers it. */
+    function poll(fixture: ComponentFixture<Rules>, run: CurrentRunView | null): void {
+        TestBed.inject(Dispatcher).dispatch(ingestEvents.currentLoaded(run));
+        fixture.detectChanges();
+    }
+
+    /** What the live region currently holds, and that it is polite while we are at it. */
+    function said(page: HTMLElement): string {
+        const region = page.querySelector('.rules-live');
+        expect(region, 'the live region').not.toBeNull();
+        expect(region!.getAttribute('aria-live')).toBe('polite');
+        return region!.textContent?.trim() ?? '';
+    }
+
+    /** The state word a node carries, or null when it carries none. */
+    function nodeState(page: HTMLElement, id: string): string | null {
+        return stageLink(page, 'lg-flow-canvas lg-flow-node', id).querySelector('.sr-only')?.textContent?.trim() ?? null;
+    }
+
+    /** The count chip a node carries, or null while a running pass has taken its place. */
+    function nodeChip(page: HTMLElement, id: string): string | null {
+        return stageLink(page, 'lg-flow-canvas lg-flow-node', id).querySelector('.flow-node-count')?.textContent?.trim() ?? null;
+    }
+
+    it('says one sentence per stage change and one when the pass ends, and nothing on a poll that changed nothing', () => {
+        const {fixture} = render();
+        const page = element(fixture);
+        // Empty but present before the first pass: a region inserted together with its text is
+        // not announced at all.
+        expect(said(page)).toBe('');
+
+        const heard: string[] = [];
+        for (const stage of ['DEDUPE', 'FILTER', 'SCORE']) {
+            poll(fixture, inFlight(stage));
+            heard.push(said(page));
+            poll(fixture, inFlight(stage));
+            heard.push(said(page));
+        }
+        poll(fixture, null);
+        heard.push(said(page));
+
+        // Seven polls, four sentences: the second poll of a stage repeats what the first said.
+        expect(heard).toHaveLength(7);
+        expect(heard[0]).toBe(heard[1]);
+        expect(heard[2]).toBe(heard[3]);
+        expect(heard[4]).toBe(heard[5]);
+        expect(new Set(heard).size).toBe(4);
+        expect(heard[0]).toContain('DEDUPE');
+        expect(heard[2]).toContain('FILTER');
+        expect(heard[4]).toContain('SCORE');
+        expect(heard[6]).toBe('The pass has ended.');
+    });
+
+    it("says inside every node's accessible name which of running, done and pending it carries", () => {
+        const page = element(render(WORKFLOW, false, undefined, LAST_RUN, inFlight('DEDUPE')).fixture);
+
+        // DEDUPE is the third stage of the fixture's run order; the two ingest nodes precede it.
+        expect(nodeState(page, 'INGEST zeta')).toBe('Passed');
+        expect(nodeState(page, 'INGEST alpha')).toBe('Passed');
+        expect(nodeState(page, 'DEDUPE')).toBe('Running now');
+        for (const id of ['FILTER', 'ARCHIVE', 'ENRICH', 'SCORE', 'DIGEST']) {
+            expect(nodeState(page, id), id).toBe('Not started yet');
+        }
+    });
+
+    it('carries no state word on any node while no pass is reported', () => {
+        const page = element(render().fixture);
+
+        for (const s of STAGES) {
+            expect(nodeState(page, s.id), s.id).toBeNull();
+        }
+    });
+
+    // ISC-410.2: the three states over the whole screen as the stubbed pass walks the graph.
+
+    it('moves the running state along the graph as the pass walks it, done behind and pending ahead', () => {
+        const {fixture} = render();
+        const page = element(fixture);
+        const order = STAGES.map((s) => s.id);
+
+        for (const at of ['INGEST zeta', 'DEDUPE', 'SCORE', 'DIGEST']) {
+            poll(fixture, inFlight(at));
+            const running = order.indexOf(at);
+            const drawn = order.map((id) => nodeState(page, id));
+            expect(drawn, at).toEqual(
+                order.map((_, index) => (index < running ? 'Passed' : index === running ? 'Running now' : 'Not started yet')),
+            );
+            // Exactly one node is the one in flight, whatever the workflow's shape.
+            expect(drawn.filter((word) => word === 'Running now'), at).toHaveLength(1);
+        }
+    });
+
+    // ISC-418: the end of a pass leaves no gap — the encoding holds until the reloaded last run
+    // arrives, and the chips come back in one step, whether that reload lands or fails.
+
+    /** The reload `RefreshStore` asks for after a pass, as the store delivers it. */
+    function reloaded(fixture: ComponentFixture<Rules>, run: LastRunView | null, failed = false): void {
+        const dispatch = TestBed.inject(Dispatcher);
+        dispatch.dispatch(failed ? ingestEvents.lastRunFailed('error.lastRun') : ingestEvents.lastRunLoaded(run));
+        fixture.detectChanges();
+    }
+
+    it('holds the live encoding after the pass ends and returns to the chips when the reloaded run arrives', () => {
+        const {fixture} = render(WORKFLOW, false, undefined, LAST_RUN, inFlight('DEDUPE'));
+        const page = element(fixture);
+        expect(nodeState(page, 'DEDUPE')).toBe('Running now');
+        expect(nodeChip(page, 'SCORE')).toBeNull();
+
+        // The heartbeat says the pass is over while `lastRun` is still the one before it.
+        poll(fixture, null);
+        expect(nodeState(page, 'DEDUPE')).toBe('Running now');
+        expect(nodeChip(page, 'SCORE')).toBeNull();
+
+        // The reload lands, recognised by its newer finish time: one transition, chips back.
+        reloaded(fixture, {...LAST_RUN, finishedAt: '2026-09-26T00:11:00Z', scored: 30});
+        for (const s of STAGES) {
+            expect(nodeState(page, s.id), s.id).toBeNull();
+        }
+        expect(nodeChip(page, 'SCORE')).toBeTruthy();
+    });
+
+    it('returns to the chips anyway when the reload after the pass fails', () => {
+        const {fixture} = render(WORKFLOW, false, undefined, LAST_RUN, inFlight('DEDUPE'));
+        const page = element(fixture);
+
+        poll(fixture, null);
+        expect(nodeState(page, 'DEDUPE')).toBe('Running now');
+
+        // `lastRunFailed` clears the run rather than retrying: a graph that waited for a reload
+        // that never comes would show a finished pass as running forever.
+        reloaded(fixture, null, true);
+        for (const s of STAGES) {
+            expect(nodeState(page, s.id), s.id).toBeNull();
+        }
     });
 
     // ISC-398: the canvas legend names every marker a node can carry, drawn as the node draws it.
@@ -487,6 +664,44 @@ describe('Rules', () => {
         expect(legendState(page, '.canvas-area lg-flow-legend')).toEqual({active: [], faded: []});
     });
 
+    // The reverse of ISC-405 (operator, 2026-09-26): pointing at a legend entry answers in the
+    // drawing, so "which stages call a model?" is one hover rather than a reading of fourteen cards.
+    it('lights the stages a hovered legend entry names and greys the rest', () => {
+        const {fixture} = render();
+        const page = element(fixture);
+        const entry = (id: string): HTMLElement => {
+            const el = page.querySelector<HTMLElement>(`.canvas-area lg-flow-legend [data-marker-id="${id}"]`);
+            expect(el, id).not.toBeNull();
+            return el!;
+        };
+        // The dim is a host style, not a class: `flow-node.css` carries no opacity rule at all,
+        // which is ISC-410.2's own gate, so the fade lives on the element instead of in that file.
+        const dimmed = (): string[] =>
+            Array.from(page.querySelectorAll<HTMLElement>('lg-flow-canvas lg-flow-node'))
+                .filter((n) => n.style.opacity !== '')
+                .map((n) => n.querySelector<HTMLElement>('[data-stage]')?.dataset['stage'] ?? '');
+        const nodesBy = (cls: string): string[] =>
+            Array.from(page.querySelectorAll<HTMLElement>(`lg-flow-canvas .flow-node.${cls}`), (a) => a.dataset['stage'] ?? '');
+
+        expect(nodesBy('is-lit')).toEqual([]);
+        expect(dimmed()).toEqual([]);
+
+        entry('model').dispatchEvent(new MouseEvent('pointerover', {bubbles: true}));
+        fixture.detectChanges();
+
+        // The fixture's model stages: zeta reads with a model, and CONTENT, FIELDS, SCORE and
+        // RETRIEVAL each carry the class.
+        expect(nodesBy('is-lit').sort()).toEqual(['CONTENT', 'FIELDS', 'INGEST zeta', 'RETRIEVAL', 'SCORE']);
+        expect(dimmed()).not.toHaveLength(0);
+        // Every node is one or the other, never both and never neither.
+        expect(nodesBy('is-lit').length + dimmed().length).toBe(page.querySelectorAll('lg-flow-canvas .flow-node').length);
+
+        entry('model').dispatchEvent(new MouseEvent('pointerout', {bubbles: true, relatedTarget: null}));
+        fixture.detectChanges();
+        expect(nodesBy('is-lit')).toEqual([]);
+        expect(dimmed()).toEqual([]);
+    });
+
     it("marks a failed, stacked node's failed and width markers active", () => {
         const every: WorkflowView = {
             ...WORKFLOW,
@@ -520,14 +735,108 @@ describe('Rules', () => {
         expect(legendState(page, 'lg-flow-legend.pipe-legend')).toEqual({active: [], faded: []});
     });
 
-    it('offers "read by nothing" in the legend, off the flow, as a link to the unread keys', () => {
+    // The legend moved onto the canvas surface (operator, 2026-09-26) and took the unread entry
+    // with it: both explain the drawing. Still off the flow — it is the legend's own strip under
+    // the graph, never a node in it.
+    // The status chip (operator, 2026-09-26): first in the header's trailing group, opening the
+    // same sheet the unread chip does, and saying in words what its colour says in pixels.
+
+    it('offers a status chip first in the header, naming its state, and opens the run panel', () => {
+        const page = element(render(WORKFLOW, false, undefined, LAST_RUN, CURRENT_RUN).fixture);
+        const chip = page.querySelector<HTMLAnchorElement>('lg-page-header a[data-stage="run"]');
+
+        expect(chip).not.toBeNull();
+        // First: the two facts beside it follow.
+        expect(chip!.parentElement?.firstElementChild).toBe(chip);
+        expect(chip!.getAttribute('href')).toContain('stage=run');
+        // While a pass runs the chip takes the run class and says the step in its accessible name.
+        expect(chip!.classList).toContain('is-running');
+        expect(chip!.getAttribute('aria-label')).toBe('Status: a pass is running, step 2 of 5');
+    });
+
+    it('says in the chip when only a finished run exists, and never paints it as running', () => {
+        const page = element(render().fixture);
+        const chip = page.querySelector<HTMLAnchorElement>('lg-page-header a[data-stage="run"]')!;
+
+        expect(chip.classList).not.toContain('is-running');
+        expect(chip.getAttribute('aria-label')).toContain('Status:');
+        expect(chip.getAttribute('aria-label')).not.toContain('step');
+    });
+
+    // The operator overruled the design pass here (2026-09-26): a failed night is worth seeing
+    // before the graph is read, and the chip is what always answers about a run.
+    it('paints the chip when the last run failed, and says so in its name', () => {
+        const failed = {...LAST_RUN, status: 'FAILED'};
+        const page = element(render(WORKFLOW, false, undefined, failed).fixture);
+        const chip = page.querySelector<HTMLAnchorElement>('lg-page-header a[data-stage="run"]')!;
+
+        expect(chip.classList).toContain('has-failed');
+        expect(chip.getAttribute('aria-label')).toContain('failed');
+    });
+
+    it('lets a pass in flight outrank the failed run on the chip', () => {
+        const failed = {...LAST_RUN, status: 'FAILED'};
+        const page = element(render(WORKFLOW, false, undefined, failed, CURRENT_RUN).fixture);
+        const chip = page.querySelector<HTMLAnchorElement>('lg-page-header a[data-stage="run"]')!;
+
+        // What is happening now is the more useful fact; the failure is still in the panel.
+        expect(chip.classList).toContain('is-running');
+        expect(chip.classList).not.toContain('has-failed');
+    });
+
+    it('opens the run status in the sheet, with the last run every fact it holds', () => {
+        const page = element(render(WORKFLOW, false, 'run').fixture);
+        const panel = page.querySelector('lg-stage-sheet lg-run-detail');
+
+        expect(panel, 'the run panel').not.toBeNull();
+        expect(page.querySelector('lg-stage-sheet lg-stage-detail'), 'never both').toBeNull();
+        const text = (panel!.textContent ?? '').replace(/\s+/g, ' ');
+        // The status, the figures and the digest — three of the four groups of the finished case.
+        for (const expected of ['COMPLETE', 'Read', 'Shortlisted', 'digest']) {
+            expect(text.toLowerCase(), expected).toContain(expected.toLowerCase());
+        }
+        // The fourth names no model: the fixture's run recorded none, and the panel says so
+        // rather than leaving an empty row.
+        expect(panel!.querySelector('[data-section="judge"]')?.textContent).toContain('No scoring model');
+        // The per-source table names the source the fixture recorded.
+        expect(panel!.querySelector('[data-source="zeta"]')).not.toBeNull();
+    });
+
+    it('shows the running pass in the panel and keeps the finished run\'s numbers out of it', () => {
+        const page = element(render(WORKFLOW, false, 'run', LAST_RUN, CURRENT_RUN).fixture);
+        const panel = page.querySelector('lg-stage-sheet lg-run-detail')!;
+
+        expect(panel.querySelector('.run-head.is-running'), 'the running head').not.toBeNull();
+        // A running row carries zeros; the last run's figures would claim they are this pass's.
+        expect(panel.querySelector('[data-section="numbers"]'), 'no figures while running').toBeNull();
+        expect(panel.querySelector('[data-section="sources"]')).toBeNull();
+        expect(panel.textContent).toContain('DEDUPE');
+    });
+
+    it('says no run yet in the panel when nothing has ever run', () => {
+        const page = element(render(WORKFLOW, false, 'run', null, null).fixture);
+        const panel = page.querySelector('lg-stage-sheet lg-run-detail')!;
+
+        expect(panel.querySelector('lg-empty-state')).not.toBeNull();
+        expect(panel.querySelector('[data-section="numbers"]')).toBeNull();
+    });
+
+    // The unread entry sits beside the ruleset badge in the page header (operator, 2026-09-26):
+    // these keys are a fact about the configuration, like the ruleset, and not about the drawing.
+    it('offers "read by nothing" beside the ruleset badge as a link to the unread keys', () => {
         const page = element(render().fixture);
 
-        const unread = page.querySelector<HTMLAnchorElement>('.canvas-area lg-flow-legend a[data-stage="unread"]');
+        const unread = page.querySelector<HTMLAnchorElement>('lg-page-header a[data-stage="unread"]');
         expect(unread).not.toBeNull();
-        expect(unread!.closest('lg-flow-canvas')).toBeNull();
+        expect(unread!.closest('lg-flow-canvas'), 'never on the canvas').toBeNull();
         expect(unread!.getAttribute('href')).toContain('stage=unread');
         expect(unread!.textContent?.trim()).toBeTruthy();
+        // Beside the ruleset, in one row of equal chips, each with its icon, and with the count of
+        // unread keys on it — a warning while there are any.
+        expect(unread!.parentElement?.querySelector('.rules-ruleset lg-icon')).not.toBeNull();
+        expect(unread!.querySelector('lg-icon')).not.toBeNull();
+        expect(unread!.querySelector('.rules-count')?.textContent?.trim()).toBe('1');
+        expect(unread!.classList).toContain('has-keys');
     });
 
     // ISC-289: the detail pane is `lg-stage-detail`, fed the stage and the data it needs.
@@ -589,7 +898,7 @@ describe('Rules — the stage query parameter', () => {
     beforeEach(() => {
         TestBed.configureTestingModule({
             providers: [
-                provideRouter([{path: 'rules', component: Rules}], withComponentInputBinding()),
+                provideRouter([{path: 'workflow', component: Rules}], withComponentInputBinding()),
                 provideLocationMocks(),
                 provideHttpClient(),
                 provideHttpClientTesting(),
@@ -662,35 +971,35 @@ describe('Rules — the stage query parameter', () => {
     }
 
     it('opens no sheet and selects nothing when the URL names no stage', async () => {
-        await open('/rules');
+        await open('/workflow');
 
         expect(current()).toBeUndefined();
         expect(sheet()).toBeNull();
     });
 
     it('opens the stage the URL names, matched case-insensitively', async () => {
-        await open('/rules?stage=filter');
+        await open('/workflow?stage=filter');
 
         expect(current()).toBe('FILTER');
         expect(sheet()?.querySelector('lg-stage-detail lg-funnel-rail')).not.toBeNull();
     });
 
     it('opens no sheet for a value the server did not name', async () => {
-        await open('/rules?stage=nope');
+        await open('/workflow?stage=nope');
 
         expect(current()).toBeUndefined();
         expect(sheet()).toBeNull();
     });
 
     it('selects the unread entry by its own value', async () => {
-        await open('/rules?stage=unread');
+        await open('/workflow?stage=unread');
 
         expect(current()).toBe('unread');
         expect(sheet()).not.toBeNull();
     });
 
     it('restores a reloaded ?stage=score with its blocks', async () => {
-        await open('/rules?stage=score');
+        await open('/workflow?stage=score');
 
         const text = (sheet()?.textContent ?? '').replace(/\s+/g, ' ');
         for (const expected of ['skill', '40', 'onsite', '-15', 'kotlin', 'Score this offer.']) {
@@ -699,17 +1008,17 @@ describe('Rules — the stage query parameter', () => {
     });
 
     it('sets ?stage= and opens the sheet on a click on a canvas node, focus on its heading', async () => {
-        await attached('/rules');
+        await attached('/workflow');
 
         await afterNavigation(() => node('FILTER').click());
 
-        expect(TestBed.inject(Location).path()).toBe('/rules?stage=FILTER');
+        expect(TestBed.inject(Location).path()).toBe('/workflow?stage=FILTER');
         expect(sheet()?.querySelector('lg-funnel-rail')).not.toBeNull();
         expect(document.activeElement).toBe(sheet()?.querySelector('.sheet-heading'));
     });
 
     it('opens the sheet from the keyboard: Enter on a focused node', async () => {
-        await attached('/rules');
+        await attached('/workflow');
         const link = node('SCORE');
         link.focus();
         expect(document.activeElement).toBe(link);
@@ -721,47 +1030,47 @@ describe('Rules — the stage query parameter', () => {
             }
         });
 
-        expect(TestBed.inject(Location).path()).toBe('/rules?stage=SCORE');
+        expect(TestBed.inject(Location).path()).toBe('/workflow?stage=SCORE');
         expect(sheet()).not.toBeNull();
         expect(document.activeElement).toBe(sheet()?.querySelector('.sheet-heading'));
     });
 
     it('closes on Escape: parameter removed, sheet gone, focus back on the node', async () => {
-        await attached('/rules?stage=filter');
+        await attached('/workflow?stage=filter');
         expect(sheet()).not.toBeNull();
 
         await afterNavigation(() =>
             sheet()!.querySelector('.sheet-heading')!.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true})),
         );
 
-        expect(TestBed.inject(Location).path()).toBe('/rules');
+        expect(TestBed.inject(Location).path()).toBe('/workflow');
         expect(sheet()).toBeNull();
         expect(document.activeElement).toBe(node('FILTER'));
     });
 
     it('closes by its button the same way', async () => {
-        await attached('/rules?stage=SCORE');
+        await attached('/workflow?stage=SCORE');
 
         await afterNavigation(() => sheet()!.querySelector<HTMLButtonElement>('button[data-action="close"]')!.click());
 
-        expect(TestBed.inject(Location).path()).toBe('/rules');
+        expect(TestBed.inject(Location).path()).toBe('/workflow');
         expect(sheet()).toBeNull();
         expect(document.activeElement).toBe(node('SCORE'));
     });
 
     it('closes on Escape pressed anywhere on the screen, not only inside the sheet (ISC-403)', async () => {
-        await attached('/rules?stage=filter');
+        await attached('/workflow?stage=filter');
         expect(sheet()).not.toBeNull();
 
         await afterNavigation(() => document.body.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true})));
 
-        expect(TestBed.inject(Location).path()).toBe('/rules');
+        expect(TestBed.inject(Location).path()).toBe('/workflow');
         expect(sheet()).toBeNull();
         expect(document.activeElement).toBe(node('FILTER'));
     });
 
     it('leaves Escape to an open dialog that owns it (ISC-403)', async () => {
-        await attached('/rules?stage=filter');
+        await attached('/workflow?stage=filter');
         const dialog = document.createElement('dialog');
         dialog.setAttribute('open', '');
         document.body.appendChild(dialog);
@@ -769,7 +1078,7 @@ describe('Rules — the stage query parameter', () => {
             dialog.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true}));
             await settle();
 
-            expect(TestBed.inject(Location).path()).toBe('/rules?stage=filter');
+            expect(TestBed.inject(Location).path()).toBe('/workflow?stage=filter');
             expect(sheet()).not.toBeNull();
         } finally {
             dialog.remove();
@@ -777,42 +1086,42 @@ describe('Rules — the stage query parameter', () => {
     });
 
     it('closes on a click outside the sheet and the canvas (ISC-403)', async () => {
-        await attached('/rules?stage=SCORE');
+        await attached('/workflow?stage=SCORE');
 
         await afterNavigation(() => page().querySelector<HTMLElement>('lg-page-header')!.click());
 
-        expect(TestBed.inject(Location).path()).toBe('/rules');
+        expect(TestBed.inject(Location).path()).toBe('/workflow');
         expect(sheet()).toBeNull();
     });
 
     it('stays open on a click inside the sheet (ISC-403)', async () => {
-        await attached('/rules?stage=SCORE');
+        await attached('/workflow?stage=SCORE');
 
         sheet()!.querySelector<HTMLElement>('lg-stage-detail')!.click();
         await settle();
 
-        expect(TestBed.inject(Location).path()).toBe('/rules?stage=SCORE');
+        expect(TestBed.inject(Location).path()).toBe('/workflow?stage=SCORE');
         expect(sheet()).not.toBeNull();
     });
 
     it('selects another node on a click on it rather than closing (ISC-403)', async () => {
-        await attached('/rules?stage=filter');
+        await attached('/workflow?stage=filter');
 
         await afterNavigation(() => node('SCORE').click());
         await settle();
 
-        expect(TestBed.inject(Location).path()).toBe('/rules?stage=SCORE');
+        expect(TestBed.inject(Location).path()).toBe('/workflow?stage=SCORE');
         expect(sheet()).not.toBeNull();
     });
 
-    it('opens the unread keys in the sheet from the legend entry (ISC-398)', async () => {
-        await attached('/rules');
-        const link = page().querySelector<HTMLAnchorElement>('lg-flow-legend a[data-stage="unread"]');
+    it('opens the unread keys in the sheet from the header entry (ISC-398)', async () => {
+        await attached('/workflow');
+        const link = page().querySelector<HTMLAnchorElement>('lg-page-header a[data-stage="unread"]');
         expect(link).not.toBeNull();
 
         await afterNavigation(() => link!.click());
 
-        expect(TestBed.inject(Location).path()).toBe('/rules?stage=unread');
+        expect(TestBed.inject(Location).path()).toBe('/workflow?stage=unread');
         // The settings block groups a dotted key by its segments, so `legacy.flag` reads as two.
         const text = sheet()?.textContent ?? '';
         for (const expected of ['pipeline.yaml', 'legacy', 'flag']) {
@@ -821,28 +1130,43 @@ describe('Rules — the stage query parameter', () => {
     });
 
     it('restores the previous selection on back', async () => {
-        await open('/rules');
-        await open('/rules?stage=filter');
-        await open('/rules?stage=nope');
+        await open('/workflow');
+        await open('/workflow?stage=filter');
+        await open('/workflow?stage=nope');
         expect(sheet()).toBeNull();
 
         // The mock location moves at once; the router's popstate navigation finishes later.
         await afterNavigation(() => TestBed.inject(Location).back());
 
-        expect(TestBed.inject(Location).path()).toBe('/rules?stage=filter');
+        expect(TestBed.inject(Location).path()).toBe('/workflow?stage=filter');
         expect(current()).toBe('FILTER');
         expect(sheet()?.querySelector('lg-funnel-rail')).not.toBeNull();
     });
 
     it('closes the sheet again on back after a close', async () => {
-        await open('/rules?stage=filter');
+        await open('/workflow?stage=filter');
         await afterNavigation(() => sheet()!.querySelector<HTMLButtonElement>('button[data-action="close"]')!.click());
         expect(sheet()).toBeNull();
 
         await afterNavigation(() => TestBed.inject(Location).back());
 
-        expect(TestBed.inject(Location).path()).toBe('/rules?stage=filter');
+        expect(TestBed.inject(Location).path()).toBe('/workflow?stage=filter');
         expect(sheet()).not.toBeNull();
+    });
+
+    // ISC-419 Anti: the selection is the operator's, and a pass walking the graph never moves it.
+    it('leaves ?stage= alone as a pass walks past the selected stage', async () => {
+        await open('/workflow?stage=filter');
+        expect(current()).toBe('FILTER');
+        const dispatch = TestBed.inject(Dispatcher);
+
+        for (const at of ['DEDUPE', 'FILTER', 'SCORE', null]) {
+            dispatch.dispatch(ingestEvents.currentLoaded(at === null ? null : {...CURRENT_RUN, stage: at}));
+            await settle();
+
+            expect(TestBed.inject(Location).path(), at ?? 'ended').toBe('/workflow?stage=filter');
+            expect(current(), at ?? 'ended').toBe('FILTER');
+        }
     });
 
     afterEach(() => {

@@ -23,7 +23,7 @@ const CHAPTERS = [
     'filters-views',
     'pipeline',
     'analytics',
-    'rules',
+    'workflow',
     'sources',
     'app-basics',
     'how-it-works',

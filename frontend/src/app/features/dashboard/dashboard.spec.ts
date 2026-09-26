@@ -259,16 +259,37 @@ describe('Dashboard', () => {
             return fixture;
         }
 
-        it('leads with the survivor count in the signal and one primary button to the shortlist', () => {
+        it('leads with the survivor count inside a sentence and one primary button to the shortlist', () => {
             const fixture = renderRoom(lastRun());
             const figure = fixture.nativeElement.querySelector('lg-dashboard-hero .figure') as HTMLElement;
             expect(figure.textContent?.trim()).toBe('64');
-            expect(figure.classList).toContain('text-signal');
-            expect(fixture.nativeElement.querySelector('lg-dashboard-hero .sentence')?.textContent).toContain('510');
+            expect(fixture.nativeElement.querySelector('lg-dashboard-hero .sentence')?.textContent).toContain('offers out of 510 are worth a look');
+            // The strong matches are the score cell's shortlisted band, a second quieter line.
+            expect(fixture.nativeElement.querySelector('lg-dashboard-hero .strong')?.textContent).toContain('64 of them match strongly');
             const primaries = fixture.nativeElement.querySelectorAll('.btn-primary') as NodeListOf<HTMLAnchorElement>;
             expect(primaries.length).toBe(1);
             expect(primaries[0].getAttribute('href')).toBe('/shortlist');
-            expect(fixture.nativeElement.querySelector('lg-dashboard-hero .chain')?.textContent).toContain('64');
+        });
+
+        it('draws the sieve instead of the number chain, and says why the run read more than the archive holds', () => {
+            const fixture = renderRoom(lastRun());
+            const hero = fixture.nativeElement.querySelector('lg-dashboard-hero') as HTMLElement;
+            expect(hero.querySelector('lg-funnel-rail')).toBeNull();
+            expect(hero.querySelector('lg-sieve svg')?.getAttribute('aria-hidden')).toBe('true');
+            expect(hero.querySelector('lg-sieve .legend')?.textContent).toContain('64 made it through');
+            expect(hero.querySelector('lg-sieve .legend')?.textContent).toContain('446 held back in 5 stages');
+            // 169 read, 151 written: the 18 between them are repeats, said in words.
+            expect(hero.querySelector('.morning')?.textContent).toContain('read 169 listings; 18 of them were repeats.');
+        });
+
+        it('colours the small cells by what their value means', () => {
+            const fixture = renderRoom(lastRun());
+            const tiles = fixture.nativeElement.querySelectorAll('lg-stat-tile .lg-panel') as NodeListOf<HTMLElement>;
+            // Nothing due is good news, in words rather than a large zero.
+            expect(tiles[0].classList).toContain('lg-tone-success');
+            expect(tiles[0].textContent).toContain('All caught up');
+            expect(tiles[1].classList).toContain('lg-tone-success');
+            expect(fixture.nativeElement.querySelector('.bento section.lg-tone-info .cell-label')?.textContent).toContain('Last 14 days');
         });
 
         it('says a quiet night in words and never as a number', () => {

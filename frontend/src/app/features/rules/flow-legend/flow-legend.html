@@ -16,16 +16,4 @@
             <span class="legend-label">{{ 'rules.legend.width' | transloco }}</span>
         </li>
     </ul>
-    @if (withUnread()) {
-        <!-- Off the flow and dashed, like the rail's entry: these keys belong to no stage. -->
-        <a
-                class="type-caption flow-legend-unread"
-                [class.is-selected]="selected() === unread"
-                [attr.data-stage]="unread"
-                routerLink="."
-                [queryParams]="{ stage: unread, section: null }"
-                queryParamsHandling="merge"
-                [attr.aria-current]="selected() === unread ? 'page' : null"
-        >{{ 'rules.unread.title' | transloco }}</a>
-    }
 </section>

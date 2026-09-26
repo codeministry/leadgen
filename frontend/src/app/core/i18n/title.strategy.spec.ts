@@ -68,7 +68,7 @@ describe('CatalogTitleStrategy', () => {
             '/pipeline/:id': 'Offer · Lead Generation',
             '/sources': 'Sources · Lead Generation',
             '/sources/:id': 'Source · Lead Generation',
-            '/rules': 'Rules · Lead Generation',
+            '/workflow': 'Workflow · Lead Generation',
         });
     });
 });

@@ -143,15 +143,22 @@ const CONTENT: Rect = {x: 0, y: BELOW_HEADER, width: 1280, height: 720};
 const SHOTS: Record<string, Shot> = {
     // The workflow graph since spec 017; the id stays, because the chapters place it by name.
     'run-phases-rail': {
-        route: async () => '/rules',
+        route: async () => '/workflow',
         prepare: async (page) => {
             await page.locator('lg-flow-canvas lg-flow-node').first().waitFor();
         },
         rect: {x: 0, y: BELOW_HEADER, width: 1280, height: 620},
     },
+    // Down to the four small cells and no further: since the first row went onto the stage it is
+    // taller, and the machine room under the cells names the model its last run was judged by.
     dashboard: {
         route: async () => '/dashboard',
-        rect: CONTENT,
+        prepare: async (page) => {
+            await page.locator('lg-sieve svg').waitFor();
+            // The sieve sifts in on first paint; the shot is of the settled drawing.
+            await page.waitForTimeout(2500);
+        },
+        rect: {x: 0, y: BELOW_HEADER, width: 1280, height: 610},
     },
     'shortlist-split': {
         route: async (base, page) => `/shortlist/${await featuredOffer(base, page)}`,
@@ -169,9 +176,26 @@ const SHOTS: Record<string, Shot> = {
         rect: CONTENT,
     },
     'rules-stage': {
-        route: async () => '/rules?stage=FILTER',
+        route: async () => '/workflow?stage=FILTER',
         prepare: async (page) => {
             await page.locator('lg-stage-sheet lg-stage-detail').waitFor();
+        },
+        rect: CONTENT,
+    },
+    /*
+     * The same graph with one stage opened, so the chapter's paragraph about the steps inside a
+     * stage has the thing beside it. The hard filter rather than scoring: its sub-nodes are one
+     * card per criterion and carry no model name, which the frame check would refuse. No sheet —
+     * the point of this shot is the cards under the card, not the settings.
+     */
+    'workflow-substeps': {
+        route: async () => '/workflow',
+        prepare: async (page) => {
+            await page.locator('lg-flow-node:has(a[data-stage="FILTER"]) button[data-action="expand"]').click();
+            await page.locator('a.flow-canvas-sub[data-sub]').first().waitFor();
+            // Expanding does not re-fit — the sixth knockout otherwise falls out of the frame.
+            await page.locator('lg-flow-canvas button[data-action="fit"]').click();
+            await page.waitForTimeout(400);
         },
         rect: CONTENT,
     },

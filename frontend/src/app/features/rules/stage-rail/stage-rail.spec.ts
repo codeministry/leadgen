@@ -1,7 +1,9 @@
 import {ComponentFixture, TestBed} from '@angular/core/testing';
 import {provideRouter} from '@angular/router';
+import {CurrentRunView} from '@core/model/current-run';
 import {LastRunStage, LastRunView} from '@core/model/last-run';
 import {WorkflowStage, WorkflowView} from '@core/model/workflow';
+import {RunState, runState} from '../run-state';
 import {COST_ICONS, StageRail} from './stage-rail';
 
 function stage(id: string, costClasses: readonly string[], sourceId: string | null = null): WorkflowStage {
@@ -455,5 +457,92 @@ describe('StageRail is a flow pipe (ISC-395)', () => {
 
     it('draws every entry as a compact pill, not a full-width row', () => {
         expect(rail().querySelectorAll('a.stage-pill[data-stage]')).toHaveLength(STAGE_COUNT + 1);
+    });
+});
+
+describe('StageRail draws the running pass (ISC-417)', () => {
+    beforeEach(() => {
+        TestBed.configureTestingModule({providers: [provideRouter([])]});
+    });
+
+    function currentRun(stageId: string, stageStartedAt: string | null): CurrentRunView {
+        return {
+            id: 1,
+            startedAt: '2026-09-24T09:50:00Z',
+            scoreModel: 'gpt-oss:20b',
+            stage: stageId,
+            stagePosition: null,
+            stageTotal: null,
+            stageStartedAt,
+        };
+    }
+
+    // The 13-stage run order of WORKFLOW (the two sources, then DEDUPE through DIGEST): CONTENT
+    // sits sixth, the middle stop, with everything through ENRICH already done and everything
+    // from FIELDS on still pending.
+    const MID_RUN = runState(WORKFLOW, currentRun('CONTENT', '2026-09-24T09:58:25Z'));
+    const DONE = ['INGEST zeta', 'INGEST alpha', 'DEDUPE', 'FILTER', 'ARCHIVE', 'ENRICH'];
+    const PENDING = ['FIELDS', 'SCORE', 'RETRIEVAL', 'OPEN', 'PACKAGE', 'DIGEST'];
+
+    function render(run: RunState | null, elapsed: number | null = null, counts: Record<string, string | number | null> = {}): ComponentFixture<StageRail> {
+        const fixture = TestBed.createComponent(StageRail);
+        fixture.componentRef.setInput('workflow', WORKFLOW);
+        fixture.componentRef.setInput('selected', 'CONTENT');
+        fixture.componentRef.setInput('counts', counts);
+        fixture.componentRef.setInput('run', run);
+        fixture.componentRef.setInput('elapsed', elapsed);
+        fixture.detectChanges();
+        return fixture;
+    }
+
+    function element(fixture: ComponentFixture<StageRail>): HTMLElement {
+        return fixture.nativeElement as HTMLElement;
+    }
+
+    function rowOf(rail: HTMLElement, id: string): Element | null {
+        return rail.querySelector(`[data-stage="${id}"]`)?.closest('.stage-row') ?? null;
+    }
+
+    it('draws the spine solid down to the running stop and dashed below it', () => {
+        const rail = element(render(MID_RUN));
+
+        for (const id of DONE) {
+            expect(rowOf(rail, id)?.classList.contains('is-run-pending')).toBe(false);
+        }
+        expect(rowOf(rail, 'CONTENT')?.classList.contains('is-run-running')).toBe(true);
+        expect(rowOf(rail, 'CONTENT')?.classList.contains('is-run-pending')).toBe(false);
+        for (const id of PENDING) {
+            expect(rowOf(rail, id)?.classList.contains('is-run-pending')).toBe(true);
+        }
+        // A phase the run has not entered yet dashes its own heading, the same line continued;
+        // one it has already entered (even mid-way through, as here) keeps it solid.
+        expect(rail.querySelector('#rail-phase-judge')?.classList.contains('is-run-pending')).toBe(true);
+        expect(rail.querySelector('#rail-phase-understand')?.classList.contains('is-run-pending')).toBe(false);
+    });
+
+    it('carries the running stop in the run colour with its elapsed time, and no chip', () => {
+        const rail = element(render(MID_RUN, 95));
+        const link = rail.querySelector('a[data-stage="CONTENT"]');
+        const elapsed = link?.querySelector('.stage-elapsed');
+
+        expect(link?.closest('.stage-row')?.classList.contains('is-run-running')).toBe(true);
+        expect(elapsed?.textContent?.trim()).toBe('1:35');
+        expect(elapsed?.getAttribute('aria-hidden')).toBe('true');
+        expect(link?.querySelector('.stage-count')).toBeNull();
+    });
+
+    it('hides every last-run chip while a pass is placed, not only the running stop', () => {
+        const rail = element(render(MID_RUN, 95, {FILTER: 12548, SCORE: 12537}));
+
+        expect(rail.querySelector('a[data-stage="FILTER"] .stage-count')).toBeNull();
+        expect(rail.querySelector('a[data-stage="SCORE"] .stage-count')).toBeNull();
+    });
+
+    it('looks exactly as it does today with no run reported', () => {
+        const rail = element(render(null, null, {SCORE: 12537}));
+
+        expect(rail.querySelectorAll('.is-run-pending, .is-run-running')).toHaveLength(0);
+        expect(rail.querySelector('.stage-elapsed')).toBeNull();
+        expect(rail.querySelector('a[data-stage="SCORE"] .stage-count')?.textContent?.trim()).toBe('12,537 scored');
     });
 });

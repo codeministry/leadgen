@@ -23,6 +23,14 @@ export const AI_ICON: LgIconName = 'sparkles';
 export const FAILED_ICON: LgIconName = 'triangle-alert';
 
 /**
+ * The running-pass markers (ISC-410.2): a refresh glyph on the one node currently in flight, a
+ * muted check on every node the run has already passed. Named once so the node and any later
+ * legend entry cannot disagree about which glyph a state carries.
+ */
+export const RUNNING_ICON: LgIconName = 'refresh';
+export const DONE_ICON: LgIconName = 'circle-check';
+
+/**
  * One icon per kind of sub-node an expanded stage opens (ISC-406): a knockout, each of SCORE's
  * four blocks, and a prompt. Shared by the sub-node card on the canvas and the heading of the
  * section it opens in the sheet, so the two cannot disagree.

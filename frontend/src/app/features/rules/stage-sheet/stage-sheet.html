@@ -7,26 +7,33 @@
 >
     <header class="sheet-head">
         <h2 #heading class="type-caption text-muted sheet-heading" tabindex="-1" [id]="headingId">
-            {{ 'rules.sheet.title' | transloco }}
+            {{ (stage() === runStatus ? 'rules.status.heading' : 'rules.sheet.title') | transloco }}
         </h2>
         <button
                 type="button"
                 class="btn btn-ghost btn-sm btn-square"
                 data-action="close"
-                [attr.aria-label]="'rules.sheet.close' | transloco"
-                [title]="'rules.sheet.close' | transloco"
+                [attr.aria-label]="(stage() === runStatus ? 'rules.status.close' : 'rules.sheet.close') | transloco"
+                [title]="(stage() === runStatus ? 'rules.status.close' : 'rules.sheet.close') | transloco"
                 (click)="close()"
         >
             <lg-icon name="x" [size]="16"/>
         </button>
     </header>
     <div class="sheet-body" #body>
-        <lg-stage-detail
-                [stage]="stage()"
-                [unread]="unread()"
-                [rules]="rules()"
-                [prompts]="prompts()"
-                [funnel]="funnel()"
-        />
+        <!-- One sheet, two things it can hold: a stage's settings, or the run status the header's
+             chip opens (operator, 2026-09-26). The shell — the placement, the focus, Escape, the
+             scroll box — is the same for both, which is the point of putting it here. -->
+        @if (stage() === runStatus) {
+            <lg-run-detail [current]="current()" [lastRun]="lastRun()" [elapsed]="elapsed()" [removalLabels]="removalLabels()"/>
+        } @else {
+            <lg-stage-detail
+                    [stage]="$any(stage())"
+                    [unread]="unread()"
+                    [rules]="rules()"
+                    [prompts]="prompts()"
+                    [funnel]="funnel()"
+            />
+        }
     </div>
 </section>

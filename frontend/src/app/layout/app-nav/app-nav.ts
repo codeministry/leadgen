@@ -39,7 +39,7 @@ export class AppNav {
         {path: '/shortlist', label: 'nav.shortlist', icon: 'list-checks', opensGroup: true},
         {path: '/pipeline', label: 'nav.pipeline', icon: 'columns-3'},
         {path: '/analytics', label: 'nav.analytics', icon: 'chart-line', opensGroup: true},
-        {path: '/rules', label: 'nav.rules', icon: 'sliders-horizontal'},
+        {path: '/workflow', label: 'nav.rules', icon: 'sliders-horizontal'},
         {path: '/sources', label: 'nav.sources', icon: 'database'},
     ];
 }

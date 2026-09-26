@@ -8,9 +8,10 @@
     <ol class="rail-phases" role="list">
         @for (phase of workflow().phases; track phase.id; let step = $index, last = $last) {
             @let branches = sources(phase.stages);
+            @let nextPhase = workflow().phases[step + 1];
             <li class="rail-step">
                 <div class="rail-phase" role="group" [attr.aria-labelledby]="'rail-phase-' + phase.id">
-                    <h2 class="type-h4 phase-heading" [id]="'rail-phase-' + phase.id">
+                    <h2 class="type-h4 phase-heading" [id]="'rail-phase-' + phase.id" [class.is-run-pending]="phaseLeadPending(phase)">
                         <span class="type-mono-data step-number">{{ step + 1 }}</span>
                         <span class="phase-icon"><lg-icon [name]="phaseIcon(phase.id)" [size]="18"/></span>
                         <span class="phase-title">{{ 'rules.phase.' + phase.id | transloco }}</span>
@@ -19,7 +20,12 @@
                         <!-- The sources run side by side; each is a short branch into one bracket. -->
                         <ul class="stages rail-sources" role="list">
                             @for (stage of branches; track stage.id) {
-                                <li class="stage-row is-source" [class.is-ai]="isAi(stage)">
+                                <li
+                                        class="stage-row is-source"
+                                        [class.is-ai]="isAi(stage)"
+                                        [class.is-run-pending]="stopState(stage) === 'pending'"
+                                        [class.is-run-running]="stopState(stage) === 'running'"
+                                >
                                     <span class="rail-branch" aria-hidden="true"></span>
                                     <ng-container *ngTemplateOutlet="pill; context: {$implicit: stage}"/>
                                 </li>
@@ -35,7 +41,12 @@
                     @if (spine.length > 0) {
                         <ul class="stages phase-stages" role="list">
                             @for (stage of spine; track stage.id) {
-                                <li class="stage-row" [class.is-ai]="isAi(stage)">
+                                <li
+                                        class="stage-row"
+                                        [class.is-ai]="isAi(stage)"
+                                        [class.is-run-pending]="stopState(stage) === 'pending'"
+                                        [class.is-run-running]="stopState(stage) === 'running'"
+                                >
                                     <span class="rail-spine" aria-hidden="true"></span>
                                     <ng-container *ngTemplateOutlet="pill; context: {$implicit: stage}"/>
                                 </li>
@@ -44,7 +55,12 @@
                     }
                 </div>
                 @if (!last) {
-                    <span class="rail-spine-phase" [class.rail-merge]="branches.length > 0" aria-hidden="true"></span>
+                    <span
+                            class="rail-spine-phase"
+                            [class.rail-merge]="branches.length > 0"
+                            [class.is-run-pending]="nextPhase !== undefined && phaseLeadPending(nextPhase)"
+                            aria-hidden="true"
+                    ></span>
                 }
             </li>
         }
@@ -86,8 +102,12 @@
                 {{ stage.sourceId }}
             }
         </span>
-        <!-- The same chip the canvas draws: the count with its verb. -->
-        @if (chip(stage); as c) {
+        <!-- The running stop's elapsed time (ISC-417), aria-hidden like the canvas node's — a
+             number changing every second must not be announced. Otherwise the same chip the
+             canvas draws: the count with its verb. -->
+        @if (elapsedLabel(stage); as label) {
+            <span class="type-mono-data stage-elapsed" aria-hidden="true">{{ label }}</span>
+        } @else if (chip(stage); as c) {
             <span class="type-caption stage-count">{{ c.key === null ? c.count : (c.key | transloco: { count: c.count }) }}</span>
         }
         <span class="stage-icons">

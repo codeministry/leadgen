@@ -18,6 +18,8 @@ import {DashboardHero} from './dashboard-hero/dashboard-hero';
 import {Icon} from '@shared/icon/icon';
 import {PageHeader} from '@shared/page-header/page-header';
 import {StatTile} from '@shared/stat-tile/stat-tile';
+import {LgIconName} from '@shared/icon/lucide-icons';
+import {Tone} from '@shared/tone/tone';
 
 /**
  * One row of the run table, from either kind of run.
@@ -148,6 +150,21 @@ export class Dashboard implements OnInit {
     );
 
     /**
+     * What that run wrote. Lower than what it extracted by the listings it read twice — the same
+     * project in two newsletters — which is what the hero says in words, so that a run count
+     * larger than the archive does not read as a miscount.
+     */
+    protected readonly runWritten = computed<number | null>(
+        () => this.ingest.report()?.written ?? this.ingest.lastRun()?.written ?? null,
+    );
+
+    /**
+     * The strong matches among the survivors: the score cell's shortlisted band. Null until the
+     * summary has answered, so the hero leaves the line out rather than claiming none.
+     */
+    protected readonly strong = computed<number | null>(() => this.summary.summary()?.scoreBands.shortlisted ?? null);
+
+    /**
      * When the run on screen finished, on the reader's own clock — whichever run it is.
      *
      * <p>`finishedAt` is an ISO instant in UTC, and slicing the string would show an 08:47 run
@@ -163,41 +180,6 @@ export class Dashboard implements OnInit {
             }).format(new Date(finishedAt))
             : null;
     });
-
-  /**
-   * When the pass now going started, on the reader's clock.
-   *
-   * <p>A time and not a date: a run that has been going since yesterday is a run that is
-   * stuck, and the missing date is what makes that obvious rather than reassuring.
-   */
-  protected readonly runStartedAt = computed<string>(() => {
-    const startedAt = this.ingest.current()?.startedAt;
-    return startedAt
-      ? new Intl.DateTimeFormat(this.transloco.getActiveLang(), {timeStyle: 'short'}).format(
-        new Date(startedAt),
-      )
-      : '';
-  });
-
-  /**
-   * Where the pass has got to, as one string. Assembled here rather than in the template,
-   * because the number sits in a different place in every language; the stage name itself
-   * is the server's and stays English, like every score reason on this screen.
-   */
-  protected readonly runStage = computed<string | null>(() => {
-    const run = this.ingest.current();
-    if (run === null) {
-      return null;
-    }
-    if (run.stage === null || run.stagePosition === null || run.stageTotal === null) {
-      return this.transloco.translate('shell.runStageUnknown');
-    }
-    return this.transloco.translate('shell.runStage', {
-      stage: run.stage,
-      position: run.stagePosition,
-      total: run.stageTotal,
-    });
-  });
 
     /**
      * Where the recorded run spent its time, stage by stage.
@@ -284,6 +266,12 @@ export class Dashboard implements OnInit {
         this.applications.error() === null ? this.applications.followUpsDue() : '—',
     );
 
+    /** Due is a warning, nothing due is good news, and an unknown count is neither. */
+    protected readonly followUpsTone = computed<Tone>(() => {
+        const due = this.followUpsDue();
+        return typeof due !== 'number' ? 'neutral' : due > 0 ? 'warning' : 'success';
+    });
+
 
     /**
      * The four band labels for the score cell, translated here because `shared/` holds no
@@ -306,20 +294,34 @@ export class Dashboard implements OnInit {
         readonly value: string;
         readonly hint: string;
         readonly params: Record<string, unknown>;
+        readonly tone: Tone;
+        readonly icon: LgIconName;
     }>(() => {
         const failed = this.failedStage();
         const mismatches = this.mismatches();
         const when = this.finishedAt() ?? '';
         if (!this.hasRun()) {
-            return {value: 'dashboard.healthNone', hint: 'dashboard.healthNoneHint', params: {}};
+            return {value: 'dashboard.healthNone', hint: 'dashboard.healthNoneHint', params: {}, tone: 'neutral', icon: 'circle-dot'};
         }
         if (failed !== null) {
-            return {value: 'dashboard.healthFailed', hint: 'dashboard.healthFailedHint', params: {stage: failed.stage, when}};
+            return {
+                value: 'dashboard.healthFailed',
+                hint: 'dashboard.healthFailedHint',
+                params: {stage: failed.stage, when},
+                tone: 'error',
+                icon: 'circle-x',
+            };
         }
         if (mismatches > 0) {
-            return {value: 'dashboard.healthShort', hint: 'dashboard.healthShortHint', params: {count: mismatches, when}};
+            return {
+                value: 'dashboard.healthShort',
+                hint: 'dashboard.healthShortHint',
+                params: {count: mismatches, when},
+                tone: 'warning',
+                icon: 'triangle-alert',
+            };
         }
-        return {value: 'dashboard.healthOk', hint: 'dashboard.healthOkHint', params: {when}};
+        return {value: 'dashboard.healthOk', hint: 'dashboard.healthOkHint', params: {when}, tone: 'success', icon: 'circle-check'};
     });
 
     /**

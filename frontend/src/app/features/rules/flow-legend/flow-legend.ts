@@ -4,7 +4,6 @@ import {TranslocoPipe} from '@jsverse/transloco';
 import {Icon} from '@shared/icon/icon';
 import {LgIconName} from '@shared/icon/lucide-icons';
 import {AI_ICON, COST_ICONS, FAILED_ICON} from '../stage-marks';
-import {UNREAD_STAGE} from '../stage-rail/stage-rail';
 
 /** One icon a flow node can carry, and the catalog key of its words. */
 interface IconEntry {
@@ -44,13 +43,6 @@ const ICON_ENTRIES: readonly IconEntry[] = [
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class FlowLegend {
-    /** The `stage` the screen has selected, so the unread entry can show it is the open one. */
-    readonly selected = input<string | null>(null);
-    /**
-     * Whether the legend carries the "read by nothing" link. Under the pipe it does not: the pipe
-     * ends with that entry itself, and one screen has one link per destination (ISC-396).
-     */
-    readonly withUnread = input(true);
     /**
      * The markers of the hovered or focused stage (ISC-405), from `markersOf`: those entries are
      * highlighted and the rest faded. Null, no stage under the reader, leaves every entry as is.
@@ -70,5 +62,4 @@ export class FlowLegend {
         const active = this.active();
         return active !== null && !active.has(id);
     }
-    protected readonly unread = UNREAD_STAGE;
 }

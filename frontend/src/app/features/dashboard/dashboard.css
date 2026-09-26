@@ -29,10 +29,18 @@
     grid-row: 1;
 }
 
+/* The hard filter is the hero's companion, and it is not a second stage (operator, 2026-09-26):
+   a dark ground beside the hero competed with "worth a look" however far it was dimmed. It is the
+   ordinary panel, lit faintly by the stage's two glows from the corners, so it reads as related
+   to the hero and never as its equal. Its texts stand on the theme's own surface, as measured
+   for every other panel. */
 .hard-filter {
     grid-column: 3 / span 2;
     grid-row: 1;
     min-width: 0;
+    background-image:
+        radial-gradient(70% 90% at 0% 0%, color-mix(in oklab, var(--lg-stage-glow) 12%, transparent), transparent 70%),
+        radial-gradient(60% 80% at 100% 100%, color-mix(in oklab, var(--lg-stage-glow-2) 9%, transparent), transparent 70%);
 }
 
 .cell {
@@ -46,6 +54,9 @@ lg-stat-tile.cell {
 }
 
 .cell-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
     margin: 0 0 0.5rem;
 }
 
@@ -136,21 +147,6 @@ lg-empty-state {
 
    The top margin is the same 1rem the panel note keeps below the heading: without it the box
    sat tight under "Last run" while everything else on the panel breathed. */
-.running-run {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
-  margin: 1rem 0 1.25rem;
-  padding: 0.5rem 0.75rem;
-  border: 1px solid var(--color-primary);
-  border-radius: var(--radius-field);
-  background-color: var(--lg-selected-surface);
-}
-
-.running-stage {
-  font-weight: 600;
-}
 
 /* The failure line carries a server exception in monospace, which is one unbreakable word
    of eighty characters: measured at 320 px it pushed the page 168 px sideways. It wraps, and

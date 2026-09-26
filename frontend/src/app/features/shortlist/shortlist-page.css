@@ -42,9 +42,13 @@
 }
 
 /* A focus ring at `outline-offset: 2px` on a card at the pane's edge is otherwise clipped by
-   the scroll container. */
+   the scroll container: 2px of offset plus 2px of ring is 4px outside the card, on every
+   side. The list pane pays it on the block axis too, because it is the one that scrolls —
+   the first card sits exactly on its top edge and the last one on its bottom edge. In px and
+   not rem, because the ring is: at a 15px root, 0.25rem is 3.75px and the top quarter pixel
+   of the ring still went under the edge. */
 .pane {
-  padding-inline: 0.25rem;
+  padding-inline: 4px;
 }
 
 /* The list is the half that still scrolls on its own, inside the pinned column. */
@@ -52,6 +56,10 @@
   flex: 1;
     min-height: 0;
     overflow-y: auto;
+
+  /* Ring room on the block axis, see `.pane` above. The keys read it back as the offset a
+     card keeps from the top edge when the list scrolls to it. */
+  padding-block: 4px;
 
   /* A flick through the list does not throw the advert behind it. */
     overscroll-behavior: contain;
@@ -86,7 +94,10 @@
     flex-direction: column;
     max-width: var(--lg-list-w);
     gap: 0.5rem;
-    margin-bottom: 1.25rem;
+
+    /* The list pane's 4px of ring room sits below this, so the visible distance to the first
+       card is this plus 4px. */
+    margin-bottom: 1.5rem;
 }
 
 .filters-row {

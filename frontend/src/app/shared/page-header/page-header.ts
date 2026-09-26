@@ -5,6 +5,10 @@ import {ChangeDetectionStrategy, Component, input} from '@angular/core';
     templateUrl: './page-header.html',
     styleUrl: './page-header.css',
     changeDetection: ChangeDetectionStrategy.OnPush,
+    // A screen's own title row keeps the shell's measure whatever the content under it does
+    // (operator, 2026-09-26) — see the `:host(.is-page-title)` rule. An `h2` or `h3` header sits
+    // inside a screen and takes its container's width, as it always did.
+    host: {'[class.is-page-title]': "heading() === 'h1'"},
 })
 export class PageHeader {
     readonly title = input.required<string>();

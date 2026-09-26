@@ -1,4 +1,4 @@
-The dashboard is the morning view: what the last run brought in, and how much of it survived the filter. The large number counts the offers that made it through; **Open shortlist** takes you straight to them. Below it, the cells show the last 14 days of intake, how the scores fall into shortlisted, to review, discarded and unscored, the run health, and the follow-ups you have due.
+The dashboard is the morning view: what the last run brought in, and how much of it survived the filter. The large number counts the offers that made it through; **Open shortlist** takes you straight to them. Beside it, the sieve draws the same archive as dots: each ring holds what one filter stage held back, the first stage outermost, and the survivors glow in the centre, the strong matches in the middle. Next to the hero, the hard filter lists the stages with what each removed. Below both, the cells show the last 14 days of intake, how the scores fall into shortlisted, to review, discarded and unscored, the run health, and the follow-ups you have due.
 
 <!-- screenshot: dashboard -->
 

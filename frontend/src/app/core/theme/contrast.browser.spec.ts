@@ -22,7 +22,7 @@ const LIGHT_PRIMARY_HEX = FALLBACK.primary;
 const THEMES = ['lg-light', 'lg-dark'] as const;
 type Theme = (typeof THEMES)[number];
 
-const SECTIONS = ['dashboard', 'shortlist', 'pipeline', 'analytics', 'sources', 'review', 'rules'] as const;
+const SECTIONS = ['dashboard', 'shortlist', 'pipeline', 'analytics', 'sources', 'review', 'workflow'] as const;
 
 /** Resolve any CSS colour the browser understands to sRGB, through a 1×1 canvas. */
 export function resolveColour(css: string): Rgb & {alpha: number} {
@@ -318,6 +318,31 @@ describe.each(THEMES)('%s: the AI marker reads (ISC-309)', theme => {
     });
 });
 
+describe.each(THEMES)('%s: the run marker reads and stays clear of its neighbours (ISC-415)', theme => {
+    beforeEach(() => useTheme(theme));
+    afterEach(() => document.documentElement.removeAttribute('data-theme'));
+
+    it('defines --lg-run', () => {
+        expect(token('--lg-run')).toMatch(/^oklch\(/);
+    });
+
+    it('is at least 3:1 on the node surface and the canvas surface', () => {
+        for (const ground of ['--color-base-100', '--color-base-200']) {
+            expect(ratio(token('--lg-run'), token(ground)), `--lg-run on ${ground}`).toBeGreaterThanOrEqual(OBJECT_FLOOR);
+        }
+    });
+
+    it('resolves to a colour distinct from --lg-signal and --lg-ai, pairwise', () => {
+        const run = resolveColour(token('--lg-run'));
+        const signal = resolveColour(token('--lg-signal'));
+        const ai = resolveColour(token('--lg-ai'));
+        const same = (a: typeof run, b: typeof run) => a.r === b.r && a.g === b.g && a.b === b.b;
+        expect(same(run, signal), 'run vs signal').toBe(false);
+        expect(same(run, ai), 'run vs ai').toBe(false);
+        expect(same(signal, ai), 'signal vs ai').toBe(false);
+    });
+});
+
 describe('the fonts (ISC-234)', () => {
     it('serves the three self-hosted families, and the page uses them', async () => {
         await document.fonts.ready;
@@ -373,6 +398,24 @@ describe.each(THEMES)('%s: the control room reads (ISC-272)', theme => {
         expect(ratio(computed(figure, 'color'), surface), 'figure').toBeGreaterThanOrEqual(OBJECT_FLOOR);
         expect(ratio(computed(sentence, 'color'), surface), 'sentence').toBeGreaterThanOrEqual(TEXT_FLOOR);
         expect(ratio(computed(note, 'color'), surface), 'note').toBeGreaterThanOrEqual(TEXT_FLOOR);
+    });
+
+    it('the stage: figure, sentence, muted lines and held-back dots read on --lg-stage', () => {
+        // The hero stands on `.lg-stage`, a dark surface in both themes, which
+        // re-points the tokens its content reads. Measured on the stage's own colour: the glows
+        // are light over it and never the ground under a text.
+        const host = mount(
+            '<section class="lg-stage"><span class="text-signal">82</span>'
+            + '<span class="type-h1">offers</span>'
+            + '<p class="text-muted">quiet</p><svg><circle style="fill: var(--lg-stage-dot)"/></svg></section>',
+        );
+        const stage = host.firstElementChild!;
+        const surface = computed(stage, 'backgroundColor');
+        const [figure, sentence, note, svg] = Array.from(stage.children);
+        expect(ratio(computed(figure, 'color'), surface), 'figure').toBeGreaterThanOrEqual(TEXT_FLOOR);
+        expect(ratio(computed(sentence, 'color'), surface), 'sentence').toBeGreaterThanOrEqual(TEXT_FLOOR);
+        expect(ratio(computed(note, 'color'), surface), 'muted').toBeGreaterThanOrEqual(TEXT_FLOOR);
+        expect(ratio(getComputedStyle(svg.firstElementChild!).fill, surface), 'held-back dot').toBeGreaterThanOrEqual(OBJECT_FLOOR);
     });
 
     it('a cell label, a value and the two chart sums are ≥ 4.5:1 on the cell surface', () => {
@@ -444,6 +487,10 @@ describe.each(THEMES)('%s: the rules flow graph reads (ISC-400)', theme => {
         canvas: token('--color-base-200'),
         sheet: token('--color-base-100'),
         page: token('--color-base-200'),
+        // The unread chip's count pill. It reads on the warning's text twin, not on
+        // `--color-warning`: near-black on a 62 %-light warm hue turned the figure to mud on
+        // screen (operator, 2026-09-26). The status chip carries its figure as plain text.
+        unreadPill: token('--lg-warning-text'),
     });
     type Ground = keyof ReturnType<typeof grounds>;
 
@@ -468,6 +515,7 @@ describe.each(THEMES)('%s: the rules flow graph reads (ISC-400)', theme => {
                     ['--lg-muted', 'page'], // legend title, ×N in the legend
                     ['--lg-muted', 'sheet'], // sheet heading
                     ['--color-base-content', 'sheet'], // sheet body
+                    ['--color-base-100', 'unreadPill'], // the unread count, white on the text twin
                 ],
                 TEXT_FLOOR,
             ),

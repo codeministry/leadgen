@@ -1,22 +1,28 @@
-<section class="lg-panel lg-panel-hero control-hero">
-    <p class="type-caption text-muted eyebrow">{{ 'dashboard.heroEyebrow' | transloco }}</p>
-    <p class="headline">
-        <span class="type-display-xl text-signal figure">{{ survived() }}</span>
-        <span class="type-h2 sentence">
-            @if (total() > 0) {
-                {{ 'dashboard.heroSentence' | transloco: {total: total()} }}
-            } @else {
-                {{ 'dashboard.nothingFiltered' | transloco }}
+<section class="lg-stage stage">
+    <div class="copy">
+        <p class="type-caption eyebrow"><span class="beacon" aria-hidden="true"></span>{{ 'dashboard.heroEyebrow' | transloco }}</p>
+        @if (total() > 0) {
+            <p class="headline">
+                <span class="type-display-xl figure">{{ survived() }}</span>
+                <span class="type-h1 sentence">{{ 'dashboard.heroSentence' | transloco: {survived: survived(), total: total()} }}</span>
+            </p>
+            @if (strong(); as strong) {
+                <p class="type-body strong">{{ 'dashboard.heroStrong' | transloco: {count: strong} }}</p>
             }
-        </span>
-    </p>
-    <!-- What the night brought, in words when it brought nothing: a "0" here would read as
-         the pipeline having stopped, and an old count as this morning's would be a lie. -->
-    <p class="type-small text-muted morning" [class.quiet]="quiet()">{{ morning().key | transloco: morning().params }}</p>
-    @if (total() > 0) {
-        <lg-funnel-rail [stages]="stages()" [total]="total()" [compact]="true"/>
-    }
-    <div class="actions">
-        <a class="btn btn-sm btn-primary" routerLink="/shortlist">{{ 'dashboard.openShortlist' | transloco }}</a>
+        } @else {
+            <p class="type-h1 sentence">{{ 'dashboard.nothingFiltered' | transloco }}</p>
+        }
+        <!-- What the night brought, in words when it brought nothing: a "0" here would read as
+             the pipeline having stopped, and an old count as this morning's would be a lie. -->
+        <p class="type-small morning" [class.quiet]="quiet()">{{ morning().key | transloco: morning().params }}</p>
+        <div class="actions">
+            <a class="btn btn-primary" routerLink="/shortlist">
+                {{ 'dashboard.openShortlist' | transloco }}
+                <lg-icon name="chevron-right" [size]="18"/>
+            </a>
+        </div>
     </div>
+    @if (total() > 0) {
+        <lg-sieve class="sieve" [stages]="stages()" [survived]="survived()" [strong]="strong() ?? 0" [still]="runExtracted() === null || quiet()"/>
+    }
 </section>

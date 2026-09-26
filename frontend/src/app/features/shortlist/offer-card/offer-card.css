@@ -53,13 +53,12 @@
     flex: 1;
 }
 
+/* No hover of its own (operator, 2026-09-26): the whole card is the link and the card already
+   answers the pointer with its border, so an underline appearing only over the title made the
+   same one click look like two different targets. The anchor keeps its focus ring — that one is
+   about where the keyboard is, not about where the pointer is. */
 .title a {
-    text-decoration-color: transparent;
-    transition: text-decoration-color var(--lg-hover-duration) var(--lg-hover-ease);
-}
-
-.title a:hover {
-    text-decoration: underline;
+    text-decoration: none;
 }
 
 /* The whole card is the link, and the title anchor stays the only interactive element in
@@ -73,6 +72,17 @@
     position: absolute;
     inset: 0;
     border-radius: inherit;
+}
+
+/* Several lines in the card carry `position: relative`, because a `.sr-only` span is only clipped
+   by an ancestor that is its containing block — the trap in `frontend/CLAUDE.md` that once put 1px
+   spans out beyond the card. That also lifts those lines above the stretched link, and measured at
+   1600px the pointer hit `.offer-facts` at half the card's height and `.offer-lift` at 70 %: over
+   half the card was not the link it looked like (operator, 2026-09-26). They let the pointer
+   through instead. Only the inert shapes are named — a link, a button or an input inside `.main`
+   keeps its own clicks, so a control added here later still works. */
+.offer .main :where(p, span, div, ul, ol, li, time, dl, dt, dd) {
+    pointer-events: none;
 }
 
 /* The first control this card has, and the comment above is the whole specification for it:
@@ -236,8 +246,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .offer,
-    .title a {
+    .offer {
         transition: none;
     }
 }

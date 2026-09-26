@@ -739,4 +739,24 @@ describe('OfferCard', () => {
       expect(width()).toBe('36px');
     });
   });
+
+    // The card is one target (operator, 2026-09-26). Measured in a real browser at 1600px before
+    // the fix: the pointer hit `.offer-facts` at half the card's height and `.offer-lift` at 70 %,
+    // because both carry `position: relative` for their own `.sr-only` spans and that lifted them
+    // over the stretched link. jsdom computes no cascade and does no hit testing, so what is
+    // checked here is that the rule is still in the stylesheet — the same shape `flow-node.spec.ts`
+    // uses for its own CSS invariant, and the live proof is `VerifyViewport`.
+    it('lets the pointer through the card\'s inert lines, so the whole card is the link', () => {
+        const css = readFileSync(resolve(process.cwd(), 'src/app/features/shortlist/offer-card/offer-card.css'), 'utf8');
+
+        const rule = /\.offer \.main :where\(([^)]*)\)\s*\{[^}]*pointer-events:\s*none/.exec(css);
+        expect(rule, 'the pointer-events rule').not.toBeNull();
+        // The shapes that carry text, and nothing that carries a click.
+        for (const tag of ['p', 'span', 'div', 'li']) {
+            expect(rule![1], tag).toContain(tag);
+        }
+        for (const interactive of ['a,', 'button', 'input']) {
+            expect(rule![1], interactive).not.toContain(interactive);
+        }
+    });
 });

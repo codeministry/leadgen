@@ -1,8 +1,10 @@
 import {ComponentFixture, TestBed} from '@angular/core/testing';
 import {provideRouter} from '@angular/router';
-import {page} from 'vitest/browser';
+import {cdp, page} from 'vitest/browser';
+import {CurrentRunView} from '@core/model/current-run';
 import {WorkflowStage, WorkflowView} from '@core/model/workflow';
 import {contrastRatio, Rgb} from '@core/theme/color-math';
+import {runState} from '../run-state';
 import {FLOW_PAN_MARGIN, FlowCanvas} from './flow-canvas';
 
 function stage(id: string, sourceId: string | null = null): WorkflowStage {
@@ -589,5 +591,85 @@ describe.each(['lg-light', 'lg-dark'])('FlowCanvas under %s (ISC-400)', (theme) 
         expect(contrastRatio(rgb(getComputedStyle(edge).stroke), ground), 'edge').toBeGreaterThanOrEqual(3);
         const arrow = host.querySelector<SVGPolylineElement>('marker polyline')!;
         expect(contrastRatio(rgb(getComputedStyle(arrow).fill), ground), 'arrow').toBeGreaterThanOrEqual(3);
+    });
+});
+
+/**
+ * ISC-413: a run in flight, painted on the edges. Reads computed style rather than class names —
+ * a class that exists but resolves to nothing is exactly what this tier is for. The mid-run fixture
+ * puts ARCHIVE in flight, so DEDUPE->FILTER sits behind it, FILTER->ARCHIVE is the one edge entering
+ * it, and ARCHIVE->ENRICH is still ahead — all three already exercised by name in the tests above.
+ */
+/** The typed `CDPSession` carries no members; the provider's own session has `send()`. */
+function setReducedMotion(reduced: boolean): Promise<unknown> {
+    const session = cdp() as unknown as {send(method: string, params: {features: readonly {name: string; value: string}[]}): Promise<unknown>};
+    return session.send('Emulation.setEmulatedMedia', {features: reduced ? [{name: 'prefers-reduced-motion', value: 'reduce'}] : []});
+}
+
+describe('the run in flight, painted on its edges (ISC-413)', () => {
+    afterEach(async () => {
+        await setReducedMotion(false);
+        document.body.replaceChildren();
+    });
+
+    async function mountMidRun(): Promise<HTMLElement> {
+        const {fixture, host} = await mount();
+        const current: CurrentRunView = {
+            id: 1,
+            startedAt: new Date().toISOString(),
+            scoreModel: null,
+            stage: 'ARCHIVE',
+            stagePosition: 7,
+            stageTotal: NODE_COUNT,
+            stageStartedAt: new Date().toISOString(),
+        };
+        fixture.componentRef.setInput('run', runState(WORKFLOW, current));
+        await settle(fixture);
+        return host;
+    }
+
+    function edge(host: HTMLElement, edgeId: string): SVGPathElement {
+        const found = host.querySelector<SVGPathElement>(`path.flow-edge[data-edge="${edgeId}"]`);
+        if (found === null) throw new Error(`no edge ${edgeId}`);
+        return found;
+    }
+
+    it('draws an edge behind the run solid, with no dash pattern', async () => {
+        const host = await mountMidRun();
+        const behind = edge(host, 'stage:DEDUPE->stage:FILTER');
+        expect(getComputedStyle(behind).strokeDasharray).toBe('none');
+    });
+
+    it('draws an edge ahead of the run dashed', async () => {
+        const host = await mountMidRun();
+        const ahead = edge(host, 'stage:ARCHIVE->stage:ENRICH');
+        expect(getComputedStyle(ahead).strokeDasharray).not.toBe('none');
+    });
+
+    it('strokes the edge entering the running stage in the run token, animated, and animates nothing else on the canvas', async () => {
+        const host = await mountMidRun();
+        const root = getComputedStyle(document.documentElement);
+        const entering = edge(host, 'stage:FILTER->stage:ARCHIVE');
+
+        expect(rgb(getComputedStyle(entering).stroke)).toEqual(rgb(root.getPropertyValue('--lg-run')));
+        expect(getComputedStyle(entering).animationName).not.toBe('none');
+        expect(getComputedStyle(entering).animationPlayState).toBe('running');
+
+        const othersAnimated = Array.from(host.querySelectorAll<Element>('*')).filter(
+            (el) => el !== entering && getComputedStyle(el).animationName !== 'none',
+        );
+        expect(othersAnimated).toHaveLength(0);
+    });
+
+    it('stops the marching dash under reduced motion, keeping the run colour unchanged', async () => {
+        await setReducedMotion(true);
+        const host = await mountMidRun();
+        const root = getComputedStyle(document.documentElement);
+        const entering = edge(host, 'stage:FILTER->stage:ARCHIVE');
+
+        // Same token read the same way as the un-reduced case above — the colour is carried by a
+        // rule outside the `@media` block, so reduced motion must not move it off `--lg-run`.
+        expect(getComputedStyle(entering).animationName).toBe('none');
+        expect(rgb(getComputedStyle(entering).stroke)).toEqual(rgb(root.getPropertyValue('--lg-run')));
     });
 });

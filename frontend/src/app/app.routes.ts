@@ -118,10 +118,18 @@ export const routes: Routes = [
       ],
     },
     {
-        path: 'rules',
+        path: 'workflow',
         title: 'title.rules',
-        data: section('rules'),
+        // `measure: 'full'` and `fill` for the same reason the board has them: the content is a
+        // drawing, not a reading column, so every rem the measure withholds is width taken off the
+        // graph, and a screen that ends at the bottom of the window gives the graph the rest of the
+        // height instead of growing the page under it (operator, 2026-09-26). The header row stays
+        // capped above both.
+        data: {measure: 'full', fill: true, ...section('workflow')},
         loadComponent: () => import('@features/rules/rules').then((m) => m.Rules),
     },
+    // The screen was called "Rules" until the graph took it over. The path moved with the name;
+    // this keeps every `?stage=` link that was saved or written down before it working.
+    {path: 'rules', redirectTo: 'workflow'},
     {path: '**', redirectTo: 'dashboard'},
 ];

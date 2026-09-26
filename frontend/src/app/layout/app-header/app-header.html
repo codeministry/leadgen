@@ -63,33 +63,45 @@
         click went out, and the answer was a 409 whose sentence nobody saw. The title carries
         the stage, because a disabled control with no reason is worse than one that refuses.
       -->
-      <!-- The button asks and the dialog starts (ISC-318): a run reads the mailbox and spends
-           the call budget, and this button is on every screen. -->
-      <button
-        #runButton
-        type="button"
-        class="btn btn-primary btn-sm ingest-button"
-        [disabled]="ingest.busy()"
-        [attr.title]="runTitle()"
-        (click)="askToRun(runButton)"
-      >
-        <lg-icon name="refresh" [size]="16"/>
-        <span class="ingest-label">
-            {{ (ingest.busy() ? 'shell.ingestRunning' : 'shell.ingest') | transloco }}
-          </span>
-      </button>
+      <!-- Two things in one place (operator, 2026-09-26): while a pass is going this is not a
+           refused button but the way into it — the run colour, the step it is on, and a link to
+           the workflow's status panel, which holds every fact about the run. The rest of the time
+           it is the button that asks, and the dialog that starts it (ISC-318): a run reads the
+           mailbox and spends the call budget, and this control is on every screen.
+
+           The old disabled state is gone with the banner it stood beside. It was disabled on
+           `busy` rather than `running`, because `running` says only whether *this* browser is
+           waiting on its own request — the same reason a link is right now: a pass someone else
+           started is one this browser should still be able to follow. -->
+      @if (ingest.current(); as run) {
+        <a
+          class="type-small ingest-live"
+          routerLink="/workflow"
+          [queryParams]="{ stage: 'run' }"
+          [attr.aria-label]="runStage()"
+          [title]="runStage()"
+        >
+          <lg-icon name="refresh" [size]="16"/>
+          <span class="ingest-label">{{ 'shell.runLive' | transloco }}</span>
+          @if (run.stagePosition !== null && run.stageTotal !== null) {
+            <span class="type-mono-data">{{ run.stagePosition }}/{{ run.stageTotal }}</span>
+          }
+        </a>
+      } @else {
+        <button
+          #runButton
+          type="button"
+          class="btn btn-primary btn-sm ingest-button"
+          [disabled]="ingest.busy()"
+          [attr.title]="runTitle()"
+          (click)="askToRun(runButton)"
+        >
+          <lg-icon name="refresh" [size]="16"/>
+          <span class="ingest-label">{{ (ingest.busy() ? 'shell.ingestRunning' : 'shell.ingest') | transloco }}</span>
+        </button>
+      }
       <lg-run-confirm (confirmed)="runIngest()"/>
 
-      <!--
-        The stage, beside the button, only while a pass is going. The server's own stage name
-        stays English like every other sentence it writes; what is translated around it is the
-        counting. Hidden below 64rem, where the row is already the tightest thing on screen.
-      -->
-      @if (ingest.current(); as run) {
-        <span class="type-caption text-muted run-stage" role="status">
-          {{ runStage() }}
-        </span>
-      }
 
       <!-- The name belongs on the button, not on the icon inside it: a control whose
            accessible name comes from a nested role="img" is one refactor away from having

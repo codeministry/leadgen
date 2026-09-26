@@ -11,6 +11,8 @@
 
 .flow-canvas-box {
     position: relative;
+    display: flex;
+    flex-direction: column;
     inline-size: 100%;
     block-size: 100%;
     overflow: hidden;
@@ -63,6 +65,14 @@
 
 .flow-canvas-sub-text {
     min-inline-size: 0;
+
+    /* A step below `type-caption`'s 0.75rem. The knockout descriptions are whole sentences
+       ("remote share below the minimum"), and uppercase with letter-spacing makes a sentence
+       about a third wider than it reads — at the caption size the longest of them fills the
+       card edge to edge and looks squeezed. The card keeps the caption's case and spacing,
+       so the sub-nodes still read as one family with the legend. */
+    font-size: 0.6875rem;
+    letter-spacing: 0.01em;
 }
 
 /* A handle is only where an edge is anchored; nothing here is connected by hand, so its dot is
@@ -72,10 +82,87 @@
     display: none;
 }
 
+/* ngx-vflow renders every node's HTML inside an SVG `foreignObject`, which clips to its own box
+   by specification. The running node's ring is drawn outside that box, so all that survived were
+   four corner arcs. Letting the element overflow is what makes the ring continuous; the node's
+   own content is bounded by the card and does not spill. */
+:host ::ng-deep foreignObject {
+    overflow: visible;
+}
+
 .flow-edge {
     fill: none;
     stroke: currentcolor;
     stroke-width: 1.5;
+}
+
+/* The connector under an expanded stage: the sub-rail already runs down that channel, so drawing
+   both put two parallel vertical lines in the same place and the lower one read as an underline
+   beneath the sub-steps. `visibility` rather than `display`: the path keeps its box, so nothing in
+   the layout or in ngx-vflow's own measuring moves when a stage opens. */
+.flow-edge.is-eclipsed {
+    visibility: hidden;
+}
+
+/* ISC-413: an edge ahead of the run — dashed, still in the canvas's own muted `currentColor`. */
+.flow-edge.is-ahead {
+    stroke-dasharray: 6 4;
+}
+
+/* ISC-413: the one edge the run is entering — the run token, marching. The dash pattern and its
+   offset step share the same 10px sum, so the loop has no visible seam. Dashoffset only, never a
+   transform or anything else that would trigger layout. */
+.flow-edge.is-entering {
+    stroke: var(--lg-run);
+    stroke-dasharray: 6 4;
+    animation: flow-edge-march var(--lg-run-march-duration) linear infinite;
+}
+
+@keyframes flow-edge-march {
+    to {
+        stroke-dashoffset: -10;
+    }
+}
+
+/* The dash stops marching; the run token stays, outside this block, so the state a colour-blind
+   reader relies on survives without the motion. */
+@media (prefers-reduced-motion: reduce) {
+    .flow-edge.is-entering {
+        animation: none;
+    }
+}
+
+/* The drawing takes the box and the legend takes the row it needs; `min-block-size: 0` is what
+   stops the graph's own content height from pushing the legend out of the bottom. The control
+   column is anchored in here rather than in the box, so it never lands on the legend's strip. */
+.flow-canvas-draw {
+    position: relative;
+    flex: 1 1 auto;
+    min-block-size: 0;
+}
+
+.flow-canvas-flow {
+    display: block;
+    block-size: 100%;
+}
+
+/* The legend's strip on the canvas surface, ruled off from the drawing. */
+.flow-canvas-legend {
+    flex: none;
+    padding-inline: 0.75rem;
+    border-block-start: 1px solid var(--color-base-300);
+}
+
+/* On the strip the unread entry follows the legend's own entries instead of being pushed to the
+   far edge: the strip is the canvas's width, and an entry alone out at the right read as a
+   control rather than as the last thing the legend names. */
+.flow-canvas-legend ::ng-deep .flow-legend-unread {
+    margin-inline-start: 0;
+}
+
+/* Nothing to rule off when the screen projects no legend (a bare canvas in a test, say). */
+.flow-canvas-legend:empty {
+    display: none;
 }
 
 .flow-canvas-controls {

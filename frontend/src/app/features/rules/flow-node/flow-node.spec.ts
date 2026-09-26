@@ -1,11 +1,15 @@
 import {readFileSync} from 'node:fs';
 import {resolve} from 'node:path';
+import {ChangeDetectionStrategy, Component, computed, signal} from '@angular/core';
 import {ComponentFixture, TestBed} from '@angular/core/testing';
 import {provideRouter} from '@angular/router';
 import {TranslocoService} from '@jsverse/transloco';
+import {vi} from 'vitest';
+import {injectTick, TICK_INTERVAL_MS} from '@core/time/tick';
 import {WorkflowStage} from '@core/model/workflow';
 import de from '../../../../../public/i18n/de.json';
-import {AI_ICON, FAILED_ICON} from '../stage-marks';
+import {StageRunState} from '../run-state';
+import {AI_ICON, DONE_ICON, FAILED_ICON, RUNNING_ICON} from '../stage-marks';
 import {FlowNode} from './flow-node';
 
 function stage(id: string, costClasses: readonly string[], sourceId: string | null = null): WorkflowStage {
@@ -33,6 +37,7 @@ interface NodeInputs {
     readonly selected?: boolean;
     readonly expandable?: boolean;
     readonly expanded?: boolean;
+    readonly state?: StageRunState | null;
 }
 
 function render(inputs: NodeInputs): ComponentFixture<FlowNode> {
@@ -44,6 +49,7 @@ function render(inputs: NodeInputs): ComponentFixture<FlowNode> {
     fixture.componentRef.setInput('selected', inputs.selected ?? false);
     fixture.componentRef.setInput('expandable', inputs.expandable ?? false);
     fixture.componentRef.setInput('expanded', inputs.expanded ?? false);
+    fixture.componentRef.setInput('state', inputs.state ?? null);
     fixture.detectChanges();
     return fixture;
 }
@@ -235,6 +241,144 @@ describe('FlowNode', () => {
             toggle(fixture)?.click();
 
             expect(seen).toEqual(['FILTER']);
+        });
+    });
+
+    describe('run state (ISC-410.2)', () => {
+        function card(fixture: ComponentFixture<FlowNode>): HTMLElement | null {
+            return host(fixture).querySelector('.flow-node');
+        }
+
+        function marks(fixture: ComponentFixture<FlowNode>): {running: boolean; done: boolean} {
+            return {
+                running: host(fixture).querySelector(`[data-icon="${RUNNING_ICON}"]`) !== null,
+                done: host(fixture).querySelector(`[data-icon="${DONE_ICON}"]`) !== null,
+            };
+        }
+
+        it('draws the running node with the outline class and the refresh mark, and neither the done mark nor the pending border', () => {
+            const state: StageRunState = 'running';
+            const fixture = render({stage: FILTER, phaseId: 'sort', state});
+
+            expect(card(fixture)?.classList).toContain('is-running');
+            expect(card(fixture)?.classList).not.toContain('is-pending');
+            expect(marks(fixture)).toEqual({running: true, done: false});
+        });
+
+        it('draws a done node with the muted check and neither the running outline nor the pending border', () => {
+            const state: StageRunState = 'done';
+            const fixture = render({stage: FILTER, phaseId: 'sort', state});
+
+            expect(card(fixture)?.classList).not.toContain('is-running');
+            expect(card(fixture)?.classList).not.toContain('is-pending');
+            expect(marks(fixture)).toEqual({running: false, done: true});
+        });
+
+        it('draws a pending node with the dashed border and no mark at all', () => {
+            const state: StageRunState = 'pending';
+            const fixture = render({stage: FILTER, phaseId: 'sort', state});
+
+            expect(card(fixture)?.classList).toContain('is-pending');
+            expect(card(fixture)?.classList).not.toContain('is-running');
+            expect(marks(fixture)).toEqual({running: false, done: false});
+        });
+
+        it('carries none of the three states without a run', () => {
+            const fixture = render({stage: FILTER, phaseId: 'sort', state: null});
+
+            expect(card(fixture)?.classList).not.toContain('is-running');
+            expect(card(fixture)?.classList).not.toContain('is-pending');
+            expect(marks(fixture)).toEqual({running: false, done: false});
+        });
+
+        /**
+         * Declared, not computed: jsdom does not load component styles, so opacity is read
+         * straight out of flow-node.css, the same way the stack test above reads its tokens.
+         * The pending state dims nothing — DS-APP-32/33 measure text against a surface, never
+         * against a faded version of it.
+         */
+        it('never dims the pending node — no rule in flow-node.css sets opacity', () => {
+            const css = readFileSync(resolve(process.cwd(), 'src/app/features/rules/flow-node/flow-node.css'), 'utf8');
+
+            expect(css).not.toMatch(/opacity\s*:/);
+        });
+    });
+
+    describe('elapsed time (ISC-412)', () => {
+        /**
+         * Wired the same way `rules.ts` feeds the canvas: `elapsed` is computed off the shared
+         * clock and a fixed start instant, recomputed at the clock's own one-second pace rather
+         * than the node's — so "at most one re-render a second" is `injectTick`'s own throttle,
+         * proven here rather than re-implemented against a fake one.
+         */
+        @Component({
+            selector: 'lg-elapsed-host',
+            imports: [FlowNode],
+            template: `<lg-flow-node [stage]="stage" phaseId="sort" [count]="count()" [state]="state()" [elapsed]="elapsed()" />`,
+            changeDetection: ChangeDetectionStrategy.OnPush,
+        })
+        class ElapsedHost {
+            readonly stage = FILTER;
+            readonly count = signal<number | null>(40);
+            readonly state = signal<StageRunState | null>('running');
+            private readonly tick = injectTick();
+            private readonly startedAt = Date.now() - 95_000;
+            readonly elapsed = computed((): number | null =>
+                this.state() === 'running' ? Math.floor((this.tick() - this.startedAt) / 1000) : null,
+            );
+        }
+
+        function renderHost(): ComponentFixture<ElapsedHost> {
+            const fixture = TestBed.createComponent(ElapsedHost);
+            fixture.detectChanges();
+            return fixture;
+        }
+
+        function elapsedSpan(fixture: ComponentFixture<ElapsedHost>): HTMLElement | null {
+            return (fixture.nativeElement as HTMLElement).querySelector('.flow-node-elapsed');
+        }
+
+        function chipSpan(fixture: ComponentFixture<ElapsedHost>): HTMLElement | null {
+            return (fixture.nativeElement as HTMLElement).querySelector('.flow-node-count');
+        }
+
+        beforeEach(() => {
+            vi.useFakeTimers();
+            vi.setSystemTime(0);
+        });
+
+        afterEach(() => {
+            vi.useRealTimers();
+        });
+
+        it('hides the chip and grows the elapsed time at most once a second while the pass lasts, then restores the chip', () => {
+            const fixture = renderHost();
+
+            expect(chipSpan(fixture)).toBeNull();
+            expect(elapsedSpan(fixture)?.textContent?.trim()).toBe('1:35');
+            expect(elapsedSpan(fixture)?.getAttribute('aria-hidden')).toBe('true');
+
+            // Sub-second advances change nothing real: the clock this reads ticks once a second,
+            // and asserting the rendered text stays put is the throttle proven against the DOM.
+            for (let i = 0; i < 3; i++) {
+                vi.advanceTimersByTime(TICK_INTERVAL_MS / 4);
+                fixture.detectChanges();
+                expect(elapsedSpan(fixture)?.textContent?.trim()).toBe('1:35');
+            }
+            // The remaining quarter crosses the one-second boundary: exactly one growth, not more.
+            vi.advanceTimersByTime(TICK_INTERVAL_MS / 4);
+            fixture.detectChanges();
+            expect(elapsedSpan(fixture)?.textContent?.trim()).toBe('1:36');
+
+            // The pass ends: the running node's ticking number is gone and the chip is back,
+            // unchanged, with no leftover element from the running state.
+            fixture.componentInstance.state.set(null);
+            fixture.detectChanges();
+
+            expect(elapsedSpan(fixture)).toBeNull();
+            const chip = chipSpan(fixture);
+            expect(chip?.textContent).toContain('−40');
+            expect(chip?.textContent).toContain('held back');
         });
     });
 });

@@ -33,6 +33,42 @@
   background-color: var(--lg-selected-surface);
 }
 
+/* ISC-410.2: the one node the run is in right now. A thin ring OUTSIDE the card with a gap, so
+   it reads as a marker around the node rather than as a second border on it. An outline never
+   participates in layout at any offset, so a marked node and a plain one occupy the same
+   rectangle and nothing beside it moves as the run advances. */
+.flow-node.is-running::after {
+  content: '';
+  position: absolute;
+  inset: -7px;
+  border: 2px solid var(--lg-run);
+
+  /* Concentric with the card: a ring 5px outside a corner of radius R has radius R + 5, so the
+     two curves stay parallel instead of the ring looking flatter at the corners than the card.
+     An `outline` gets this from the browser and cannot be corrected when it looks wrong; a
+     pseudo-element puts the radius in our hands. */
+  border-radius: calc(var(--radius-field) + 5px);
+  pointer-events: none;
+}
+
+/* The hovered legend entry answers in the drawing (operator, 2026-09-26): the stages that carry
+   the marker take the muted border. What happens to the others is not here — the nodes that are
+   NOT pointed at step back behind `.flow-canvas-node.is-dimmed` in `flow-canvas.css`, because
+   `flow-node.spec.ts` bans every `opacity` rule in this file, and rightly: the pending state must
+   never be drawn by fading a label. A transient hover is a different thing from a run state, and
+   it belongs a level up, on the canvas's own wrapper. */
+.flow-node.is-lit {
+    border-color: var(--lg-muted);
+}
+
+/* ISC-410.2: a stage the run has not reached yet. Dashed and in the muted token, never dimmed —
+   opacity would make a readable label unreadable, and DS-APP-32/33 measure text against a
+   surface, not against a faded version of it. */
+.flow-node.is-pending {
+  border-style: dashed;
+  border-color: var(--lg-muted);
+}
+
 /* A model takes part (ISC-308): a violet edge in `--lg-ai`, over the card's own border, so the
    selection and the AI edge stay legible together. */
 .flow-node.is-ai::before {
@@ -82,11 +118,36 @@
   color: var(--lg-ai);
 }
 
+/* The refresh glyph on the running node, in the same run token as its outline. */
+.flow-node-running {
+  display: inline-flex;
+  color: var(--lg-run);
+}
+
+/* The check on a node the run has passed: muted, because it says "passed through", not "this
+   succeeded" — the row itself carries no verdict. */
+.flow-node-done {
+  display: inline-flex;
+  color: var(--lg-muted);
+}
+
 /* The colour lives on the icon alone, which carries its own accessible name; the triangle's
    shape is what survives without colour. */
 .flow-node-failed {
   display: inline-flex;
   color: var(--color-error);
+}
+
+/* The running node's elapsed time, in the same spot the chip occupies (ISC-412). Plain, not a
+   pill: a running duration is not "what the last run did", so it drops the chip's rounded
+   background rather than borrow it for a fact of a different kind. aria-hidden in the markup —
+   it changes every second, and a screen reader must not announce it. */
+.flow-node-elapsed {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--lg-muted);
 }
 
 /* Neutral, never the signal: a count is what the run did, not a verdict on it. */

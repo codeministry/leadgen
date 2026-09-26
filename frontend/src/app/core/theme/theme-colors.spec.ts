@@ -32,7 +32,7 @@ const TOOLCHAIN_NAMES = ['--border', '--depth', '--noise'];
 const RUNTIME_ALLOWLIST = ['--lg-anchor-x', '--lg-anchor-y'];
 
 /** The seven navigation destinations, in the order the nav lists them. */
-const SECTIONS = ['dashboard', 'shortlist', 'pipeline', 'analytics', 'sources', 'review', 'rules'] as const;
+const SECTIONS = ['dashboard', 'shortlist', 'pipeline', 'analytics', 'sources', 'review', 'workflow'] as const;
 
 interface ThemeBlock {
     name: string;

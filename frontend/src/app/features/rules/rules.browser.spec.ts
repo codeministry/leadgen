@@ -59,7 +59,7 @@ describe('Rules — closing the sheet from the canvas (ISC-403)', () => {
         await page.viewport(1440, 900);
         TestBed.configureTestingModule({
             providers: [
-                provideRouter([{path: 'rules', component: Rules}], withComponentInputBinding()),
+                provideRouter([{path: 'workflow', component: Rules}], withComponentInputBinding()),
                 provideLocationMocks(),
                 provideHttpClient(),
                 provideHttpClientTesting(),
@@ -130,7 +130,7 @@ describe('Rules — closing the sheet from the canvas (ISC-403)', () => {
     }
 
     it('closes on a plain click on the canvas background', async () => {
-        await harness.navigateByUrl('/rules?stage=DEDUPE');
+        await harness.navigateByUrl('/workflow?stage=DEDUPE');
         await settle();
         expect(sheet()).not.toBeNull();
 
@@ -138,12 +138,12 @@ describe('Rules — closing the sheet from the canvas (ISC-403)', () => {
         press(target, x, y, 0, 0);
         await settle();
 
-        expect(TestBed.inject(Location).path()).toBe('/rules');
+        expect(TestBed.inject(Location).path()).toBe('/workflow');
         expect(sheet()).toBeNull();
     });
 
     it('stays open while a 20 px drag pans the canvas', async () => {
-        await harness.navigateByUrl('/rules?stage=DEDUPE');
+        await harness.navigateByUrl('/workflow?stage=DEDUPE');
         await settle();
         const node = (): DOMRect => document.querySelector('lg-flow-canvas lg-flow-node')!.getBoundingClientRect();
         const before = node();
@@ -154,7 +154,7 @@ describe('Rules — closing the sheet from the canvas (ISC-403)', () => {
 
         // The premise: the drag really panned.
         expect(Math.abs(node().left - before.left)).toBeGreaterThan(10);
-        expect(TestBed.inject(Location).path()).toBe('/rules?stage=DEDUPE');
+        expect(TestBed.inject(Location).path()).toBe('/workflow?stage=DEDUPE');
         expect(sheet()).not.toBeNull();
     });
 });
@@ -174,7 +174,7 @@ describe('Rules — canvas or pipe by width (ISC-395, ISC-396)', () => {
         await page.viewport(width, 900);
         TestBed.configureTestingModule({
             providers: [
-                provideRouter([{path: 'rules', component: Rules}], withComponentInputBinding()),
+                provideRouter([{path: 'workflow', component: Rules}], withComponentInputBinding()),
                 provideLocationMocks(),
                 provideHttpClient(),
                 provideHttpClientTesting(),
@@ -206,9 +206,14 @@ describe('Rules — canvas or pipe by width (ISC-395, ISC-396)', () => {
     }
 
     /** Every stage link on the screen in DOM order, the sheet's own content left out. */
+    /**
+     * The stages as one path of links, in run order (ISC-396). The header's unread link is not on
+     * that path — it moved out of the legend and up beside the ruleset badge (operator,
+     * 2026-09-26), and the keys it opens belong to no stage.
+     */
     function path(): string[] {
         return Array.from(rules().querySelectorAll<HTMLAnchorElement>('a[data-stage]'))
-            .filter((a) => a.closest('lg-stage-sheet') === null)
+            .filter((a) => a.closest('lg-stage-sheet') === null && a.closest('lg-page-header') === null)
             .map((a) => a.dataset['stage']!);
     }
 
@@ -223,17 +228,19 @@ describe('Rules — canvas or pipe by width (ISC-395, ISC-396)', () => {
     }
 
     it.each([1440, 720])('draws the canvas and not the pipe at %i px, its links in run order', async (width) => {
-        await mount(width, '/rules?stage=FILTER');
+        await mount(width, '/workflow?stage=FILTER');
 
         expect(rules().querySelector('lg-flow-canvas')).not.toBeNull();
         expect(rules().querySelector('lg-stage-rail')).toBeNull();
-        expect(path()).toEqual(RUN_ORDER);
+        // The canvas draws the stages; "read by nothing" is the header's link, not a stop on the path.
+        expect(path()).toEqual(RUN_ORDER.filter((id) => id !== 'unread'));
+        expect(rules().querySelector('lg-page-header a[data-stage="unread"]')).not.toBeNull();
         expect(current()).toEqual(['FILTER']);
         noSidewaysScroll();
     });
 
     it('hides the edges and the handles from assistive technology at 1440 px', async () => {
-        await mount(1440, '/rules');
+        await mount(1440, '/workflow');
         const edges = Array.from(rules().querySelectorAll('lg-flow-canvas .flow-edge'));
         const handles = Array.from(rules().querySelectorAll('lg-flow-canvas [data-handle]'));
 
@@ -245,7 +252,7 @@ describe('Rules — canvas or pipe by width (ISC-395, ISC-396)', () => {
     });
 
     it('says the fan-in into DEDUPE in words beside the canvas at 1440 px', async () => {
-        await mount(1440, '/rules');
+        await mount(1440, '/workflow');
         const sentence = rules().querySelector('.canvas-area .rules-fan-in');
 
         expect(sentence?.textContent?.trim()).toBe('2 sources, merged at Deduplicate');
@@ -254,7 +261,7 @@ describe('Rules — canvas or pipe by width (ISC-395, ISC-396)', () => {
 
     // ISC-405: a real pointer and real keyboard focus on a node answer in the legend.
     it('highlights a hovered or focused node\'s markers in the legend, fades the rest, and restores it', async () => {
-        await mount(1440, '/rules');
+        await mount(1440, '/workflow');
         const stages = WORKFLOW.phases.flatMap((phase) => phase.stages);
         const legend = (): {active: string[]; faded: HTMLElement[]} => {
             const all = Array.from(rules().querySelectorAll<HTMLElement>('.canvas-area lg-flow-legend [data-marker-id]'));
@@ -292,7 +299,7 @@ describe('Rules — canvas or pipe by width (ISC-395, ISC-396)', () => {
     });
 
     it.each([700, 375, 320])('renders the pipe and never the canvas at %i px', async (width) => {
-        await mount(width, '/rules?stage=DEDUPE');
+        await mount(width, '/workflow?stage=DEDUPE');
 
         expect(document.querySelector('lg-flow-canvas')).toBeNull();
         expect(document.querySelector('vflow')).toBeNull();
@@ -305,7 +312,7 @@ describe('Rules — canvas or pipe by width (ISC-395, ISC-396)', () => {
     });
 
     it.each([375, 320])('opens the sheet across the full width at %i px without scrolling sideways', async (width) => {
-        await mount(width, '/rules?stage=FILTER');
+        await mount(width, '/workflow?stage=FILTER');
         const sheet = document.querySelector('lg-stage-sheet [role="dialog"]')!.getBoundingClientRect();
 
         expect(sheet.left).toBeLessThanOrEqual(0.5);
@@ -355,7 +362,7 @@ describe('Rules — sub-node sections and fullscreen (ISC-406, ISC-407)', () => 
         await page.viewport(1440, 900);
         TestBed.configureTestingModule({
             providers: [
-                provideRouter([{path: 'rules', component: Rules}], withComponentInputBinding()),
+                provideRouter([{path: 'workflow', component: Rules}], withComponentInputBinding()),
                 provideLocationMocks(),
                 provideHttpClient(),
                 provideHttpClientTesting(),
@@ -426,8 +433,58 @@ describe('Rules — sub-node sections and fullscreen (ISC-406, ISC-407)', () => 
         expect(window.scrollY).toBe(0);
     }
 
+    /** Every node sits inside the canvas box — what a fit guarantees and a stale viewport does not. */
+    function expectNodesInsideCanvas(where: string): void {
+        const box = document.querySelector('lg-flow-canvas')!.getBoundingClientRect();
+        const nodes = Array.from(document.querySelectorAll('lg-flow-node, .flow-canvas-sub'), (n) => n.getBoundingClientRect());
+        expect(nodes.length, where).toBeGreaterThan(0);
+        for (const node of nodes) {
+            expect(node.left, where).toBeGreaterThanOrEqual(box.left - 0.5);
+            expect(node.right, where).toBeLessThanOrEqual(box.right + 0.5);
+            expect(node.top, where).toBeGreaterThanOrEqual(box.top - 0.5);
+            expect(node.bottom, where).toBeLessThanOrEqual(box.bottom + 0.5);
+        }
+    }
+
+    // The operator's call (2026-09-26): opening or closing a stage refits, the way the fit control
+    // does. The evidence is that the view MOVED — a stale viewport leaves the nodes that were
+    // already drawn exactly where they were, and the new ones simply extend past the box.
+    it('refits the graph when a stage opens and when it closes', async () => {
+        await open('/workflow');
+        const toggle = (id: string): HTMLButtonElement =>
+            document.querySelector<HTMLButtonElement>(`[data-node="stage:${id}"] button[data-action="expand"]`)!;
+        /** Where a stage's card sits on screen, rounded, so a sub-pixel redraw is not a move. */
+        const at = (id: string): string => {
+            const box = document.querySelector(`[data-node="stage:${id}"]`)!.getBoundingClientRect();
+            return `${Math.round(box.left)},${Math.round(box.top)},${Math.round(box.width)}`;
+        };
+
+        const closed = at('DEDUPE');
+        expectNodesInsideCanvas('closed');
+
+        toggle('FILTER').click();
+        await settle();
+        expect(document.querySelectorAll('[data-node^="knockout:"]').length).toBeGreaterThan(0);
+        const opened = at('DEDUPE');
+        expect(opened, 'the view followed the taller graph').not.toBe(closed);
+        expectNodesInsideCanvas('FILTER open');
+
+        toggle('SCORE').click();
+        await settle();
+        expectNodesInsideCanvas('FILTER and SCORE open');
+        toggle('SCORE').click();
+        await settle();
+
+        // Closing again puts the view back where it started, which is what "refit" means here.
+        toggle('FILTER').click();
+        await settle();
+        expect(document.querySelectorAll('[data-node^="knockout:"]').length).toBe(0);
+        expect(at('DEDUPE'), 'back to the fit it started from').toBe(closed);
+        expectNodesInsideCanvas('FILTER closed again');
+    });
+
     it('opens the parent stage\'s sheet at the knockout, block or prompt a sub-node names, and a reload restores it', async () => {
-        await open('/rules');
+        await open('/workflow');
 
         const cases = [
             {stage: 'FILTER', node: 'knockout:rate'},
@@ -444,7 +501,7 @@ describe('Rules — sub-node sections and fullscreen (ISC-406, ISC-407)', () => 
             expectAtTop(node, icon);
 
             const url = TestBed.inject(Location).path();
-            await open('/rules');
+            await open('/workflow');
             await open(url);
             expectAtTop(node, icon);
         }
@@ -456,42 +513,20 @@ describe('Rules — sub-node sections and fullscreen (ISC-406, ISC-407)', () => 
         expect(params().has('section')).toBe(false);
     });
 
-    describe('fullscreen (ISC-407)', () => {
-        /*
-         * Stubbed: Vitest runs each spec inside an iframe without `allowfullscreen`, where
-         * `requestFullscreen` rejects, so the API is replaced by one that records the element and
-         * fires `fullscreenchange` the way the browser does. The screen's reaction is what is tested.
-         */
-        let current: Element | null = null;
-        const change = (): void => void document.dispatchEvent(new Event('fullscreenchange'));
-
-        beforeEach(() => {
-            current = null;
-            Object.defineProperty(document, 'fullscreenEnabled', {configurable: true, get: () => true});
-            Object.defineProperty(document, 'fullscreenElement', {configurable: true, get: () => current});
-            vi.spyOn(Element.prototype, 'requestFullscreen').mockImplementation(function (this: Element) {
-                // eslint-disable-next-line @typescript-eslint/no-this-alias -- the stub records which element asked, as the browser does
-                current = this;
-                queueMicrotask(change);
-                return Promise.resolve();
-            });
-            vi.spyOn(document, 'exitFullscreen').mockImplementation(() => {
-                current = null;
-                queueMicrotask(change);
-                return Promise.resolve();
-            });
-        });
-
-        afterEach(() => {
-            vi.restoreAllMocks();
-            Reflect.deleteProperty(document, 'fullscreenEnabled');
-            Reflect.deleteProperty(document, 'fullscreenElement');
-        });
-
+    // ISC-407, refined 2026-09-26: the control gives the graph the whole window and takes it back.
+    // The real full screen was dropped on the operator's call — it hides the browser's tabs and
+    // address bar, which is the wrong trade for watching an eleven-minute pass.
+    describe('the whole window (ISC-407)', () => {
         function control(): HTMLButtonElement {
             const found = document.querySelector<HTMLButtonElement>('lg-flow-canvas button[data-action="fullscreen"]');
-            if (found === null) throw new Error('no fullscreen control');
+            if (found === null) throw new Error('no whole-window control');
             return found;
+        }
+
+        /** Whether the stage box currently covers the window. */
+        function filling(): boolean {
+            const box = document.querySelector('.rules-stage')!.getBoundingClientRect();
+            return box.left <= 0.5 && box.top <= 0.5 && box.width >= window.innerWidth - 1 && box.height >= window.innerHeight - 1;
         }
 
         function expectNodesInsideCanvas(): void {
@@ -506,24 +541,21 @@ describe('Rules — sub-node sections and fullscreen (ISC-406, ISC-407)', () => 
             }
         }
 
-        it('puts canvas, legend and sheet into the full screen and back, refitted each way, and leaves ?stage alone', async () => {
-            await open('/rules?stage=FILTER');
-            expect(control().getAttribute('aria-pressed')).toBe('false');
+        it('puts canvas, legend and sheet over the whole window and back, refitted each way, and leaves ?stage alone', async () => {
+            await open('/workflow?stage=FILTER');
             expect((control().getAttribute('aria-label') ?? '').trim()).not.toBe('');
+            expect(filling()).toBe(false);
             const before = document.querySelector('lg-flow-canvas')!.getBoundingClientRect().height;
 
             control().click();
             await settle();
-            const area = current as HTMLElement | null;
-            expect(area).not.toBeNull();
+
+            expect(filling()).toBe(true);
+            expect(document.fullscreenElement, 'no Fullscreen API asked').toBeNull();
+            const area = document.querySelector('.rules-stage')!;
             for (const part of ['lg-flow-canvas', 'lg-flow-legend', 'lg-stage-sheet']) {
-                expect(area!.contains(document.querySelector(part)), part).toBe(true);
+                expect(area.contains(document.querySelector(part)), part).toBe(true);
             }
-            const rect = area!.getBoundingClientRect();
-            expect(rect.left).toBeLessThanOrEqual(0.5);
-            expect(rect.top).toBeLessThanOrEqual(0.5);
-            expect(rect.width).toBeGreaterThanOrEqual(window.innerWidth - 1);
-            expect(rect.height).toBeGreaterThanOrEqual(window.innerHeight - 1);
             expect(document.querySelector('lg-flow-canvas')!.getBoundingClientRect().height).toBeGreaterThan(before);
             const legend = document.querySelector('lg-flow-legend')!.getBoundingClientRect();
             expect(legend.bottom).toBeLessThanOrEqual(window.innerHeight + 0.5);
@@ -531,34 +563,28 @@ describe('Rules — sub-node sections and fullscreen (ISC-406, ISC-407)', () => 
             expect(sheet.top).toBeGreaterThanOrEqual(-0.5);
             expect(sheet.bottom).toBeLessThanOrEqual(window.innerHeight + 0.5);
             expectNodesInsideCanvas();
-            expect(control().getAttribute('aria-pressed')).toBe('true');
             expect(params().get('stage')).toBe('FILTER');
 
             control().click();
             await settle();
-            expect(current).toBeNull();
-            expect(control().getAttribute('aria-pressed')).toBe('false');
+
+            expect(filling()).toBe(false);
             expect(Math.abs(document.querySelector('lg-flow-canvas')!.getBoundingClientRect().height - before)).toBeLessThan(1);
             expectNodesInsideCanvas();
             expect(params().get('stage')).toBe('FILTER');
             expect(document.querySelector('lg-stage-sheet')).not.toBeNull();
         });
 
-        it('leaves the full screen on Escape without closing the sheet', async () => {
-            await open('/rules?stage=FILTER');
+        it('comes back on Escape without closing the sheet', async () => {
+            await open('/workflow?stage=FILTER');
             control().click();
             await settle();
-            expect(current).not.toBeNull();
+            expect(filling()).toBe(true);
 
-            // What the browser does on Escape: the key may reach the page while still in full
-            // screen, and the exit's change event follows.
-            document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true}));
-            current = null;
-            change();
             document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true}));
             await settle();
 
-            expect(control().getAttribute('aria-pressed')).toBe('false');
+            expect(filling()).toBe(false);
             expect(params().get('stage')).toBe('FILTER');
             expect(document.querySelector('lg-stage-sheet')).not.toBeNull();
             expectNodesInsideCanvas();

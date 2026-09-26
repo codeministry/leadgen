@@ -48,6 +48,26 @@
   content: '';
 }
 
+/* ISC-417: the pipe's dash state — solid through the running stop, dashed after it. Only the
+   fill changes, from a plain colour to a gradient standing in for a dash pattern; the boxes
+   above still set the exact rectangle either one paints, so nothing shifts. `.rail-branch`'s own
+   dash rule sits beside its base rule further down, sideways rather than down the page; this one
+   is kept after the lower-specificity selectors above and before the higher ones (the
+   `:first-child`/`:last-child` overrides right below) per `no-descending-specificity`. */
+.stage-row.is-run-pending > .rail-spine,
+.stage-row.is-source.is-run-pending::before,
+.phase-heading.is-run-pending::before,
+.rail-spine-phase.is-run-pending {
+  background-color: transparent;
+  background-image: repeating-linear-gradient(
+      to bottom,
+      color-mix(in oklab, var(--lg-muted) 55%, transparent) 0,
+      color-mix(in oklab, var(--lg-muted) 55%, transparent) 3px,
+      transparent 3px,
+      transparent 6px
+  );
+}
+
 /* The pipe starts at the first badge and ends at the last stage's node. */
 .rail-step:first-child .phase-heading::before {
   inset-block-start: 50%;
@@ -132,6 +152,19 @@
   height: 2px;
 }
 
+/* ISC-417: the source branch's own dash rule, sideways rather than down the page — kept after
+   `.rail-branch`'s two plain rules above, which it outranks, per `no-descending-specificity`. */
+.stage-row.is-source.is-run-pending > .rail-branch {
+  background-color: transparent;
+  background-image: repeating-linear-gradient(
+      to right,
+      color-mix(in oklab, var(--lg-muted) 55%, transparent) 0,
+      color-mix(in oklab, var(--lg-muted) 55%, transparent) 3px,
+      transparent 3px,
+      transparent 6px
+  );
+}
+
 .rail-merge {
   height: 0.75rem;
 }
@@ -163,6 +196,24 @@
 /* A model takes part (ISC-308): the violet edge, beside and never instead of the selection. */
 .stage-row.is-ai > .stage-pill {
   border-inline-start: 3px solid var(--lg-ai);
+}
+
+/* ISC-417: the one stop the run is at right now, the same outline `flow-node.css` draws — offset
+   outward rather than inset, so the pill's own box is unchanged and neither the row's height nor
+   its neighbours move. Kept after every plain and `.is-selected`/`.is-ai` pill rule above, since
+   it outranks them all, per `no-descending-specificity`. */
+.stage-row.is-run-running > .stage-pill {
+  outline: 2px solid var(--lg-run);
+  outline-offset: 2px;
+}
+
+/* The running stop's elapsed time, where the chip sits otherwise (ISC-417) — plain, not a pill,
+   and muted like `flow-node.css`'s: the run colour lives on the outline, not on this text. */
+.stage-elapsed {
+  flex-shrink: 0;
+  color: var(--lg-muted);
+  font-feature-settings: var(--lg-mono-features);
+  white-space: nowrap;
 }
 
 /* The canvas's chip: the count with its verb. */
@@ -213,6 +264,3 @@
 .unread > .stage-row {
   padding-inline-start: 0;
 }
-
-
-

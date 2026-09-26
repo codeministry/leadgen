@@ -263,6 +263,35 @@ describe('OfferDetail', () => {
     return fixture.nativeElement.querySelector('.fetch-again');
   }
 
+  // A merged cluster names every portal that carried the offer; a possible duplicate is exactly
+  // the case where both adverts are worth opening (operator, 2026-09-26).
+  it('makes every portal in a duplicate cluster a link, and leaves one without a URL as text', () => {
+    const base = entry(41, "Some advert text.");
+    const clustered: ShortlistEntry = {
+      ...base,
+      flags: {...base.flags, possibleDuplicate: true},
+      sources: [
+        {portal: 'portal-a', agency: 'Agency A', url: 'https://example.invalid/a'},
+        {portal: 'portal-b', agency: null, url: 'https://example.invalid/b'},
+        {portal: 'portal-c', agency: 'Agency C', url: null},
+      ],
+    };
+    const page = render(clustered).nativeElement as HTMLElement;
+
+    const links = Array.from(page.querySelectorAll<HTMLAnchorElement>('.sources a.source-link'));
+    expect(links.map((a) => a.getAttribute('href'))).toEqual(['https://example.invalid/a', 'https://example.invalid/b']);
+    // A portal opened from here could otherwise reach back through `window.opener`.
+    for (const link of links) {
+      expect(link.getAttribute('rel')).toBe('noopener noreferrer');
+      expect(link.getAttribute('target')).toBe('_blank');
+    }
+    // The third is named, not linked: a dead link is worse than plain text.
+    const items = Array.from(page.querySelectorAll('.sources li'), (li) => li.textContent?.trim() ?? '');
+    expect(items).toHaveLength(3);
+    expect(items[2]).toContain('Agency C');
+    expect(page.querySelectorAll('.sources li a')).toHaveLength(2);
+  });
+
   it('offers to fetch the ad again only where the run would fetch it', () => {
     // ISC-243. The four conditions the server checks, flipped one at a time: a button that
     // appeared on any of the four would offer a request that can only come back refused.

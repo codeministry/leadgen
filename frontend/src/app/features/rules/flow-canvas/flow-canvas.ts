@@ -23,7 +23,9 @@ import {stageCounts} from '../stage-count';
 import {LgIconName} from '@shared/icon/lucide-icons';
 import {RouterLink} from '@angular/router';
 import {failedStageIds, subIcon} from '../stage-marks';
+import {RunState, StageRunState} from '../run-state';
 import {
+    EdgeKind,
     LayoutEdge,
     LayoutNode,
     layoutWorkflow,
@@ -54,6 +56,10 @@ interface StageNodeData {
     readonly width: number;
     readonly height: number;
     readonly handles: readonly FlowHandle[];
+    /** This stage's place against the run in flight, from `run().states`; null without a pass. */
+    readonly state: StageRunState | null;
+    /** Seconds spent in the running stage (ISC-412); null on every node but the running one. */
+    readonly elapsed: number | null;
 }
 
 /**
@@ -99,6 +105,43 @@ const treeBranch: CurveFactory = (params) => {
 
 const sourceHandleOf = (edge: LayoutEdge): string => `${edge.kind}-out`;
 const targetHandleOf = (edge: LayoutEdge): string => `${edge.kind}-in`;
+
+/** Where an edge lies against the run in flight, for the paint the edge template adds later. */
+export type EdgeRunState = 'behind' | 'ahead' | 'entering';
+
+/** What the edge template paints: where the edge stands against the run, and whether it is drawn. */
+export interface EdgePaint {
+    readonly run: EdgeRunState | null;
+    /**
+     * Hidden while its source stage is expanded. The sub-rail runs down the same channel as the
+     * connector to the next stage in the column, so an open stage drew two parallel vertical lines
+     * and the lower one read as an underline under the sub-steps. The edge stays in the layout —
+     * ISC-389 still joins every consecutive pair — and only the paint is withheld.
+     */
+    readonly eclipsed: boolean;
+}
+
+/**
+ * Reads an edge's place against the run off its two endpoints' states, never off `RunState.order`
+ * itself (that stays `runState`'s business). A stage-to-stage edge's target sits at or after its
+ * source in that order by construction, so once both ends carry a state the target's alone tells
+ * the edge apart: `'running'` means this edge is the one entering the active stage, `'done'` means
+ * the edge is already behind the run, `'pending'` that it is still ahead.
+ *
+ * <p>A **sub-edge** has no stage at its far end, so it reads its own stage's state instead: the
+ * side lines of an expanded stage carry what that stage carries. That is not decoration — with the
+ * connector under an open stage eclipsed, the side lines are the run's only trace down it.
+ *
+ * <p>No state at either end it reads — no pass in flight — answers null, the same "no pass, no
+ * mark" rule the nodes follow.
+ */
+function edgeRunState(kind: EdgeKind, source: StageRunState | null, target: StageRunState | null): EdgeRunState | null {
+    const at = kind === 'sub' ? source : target;
+    if (source === null || at === null) return null;
+    if (at === 'running') return 'entering';
+    if (at === 'done') return 'behind';
+    return 'ahead';
+}
 
 /**
  * The anchors each node needs, read off the layout's edges: a node carries a handle only on the
@@ -163,8 +206,13 @@ const WHEEL_ZOOM_STEP = 0.15;
 const PENDING_MS = 250;
 const WHEEL_LINE_PX = 16;
 
-/** Padding around the graph after a fit, as a fraction of the box. */
-const FIT_PADDING = 0.06;
+/**
+ * Padding around the graph after a fit, as a fraction of the box. Raised from 0.06 on the
+ * operator's call (2026-09-26): at 0.06 the graph sat 20px from the top and bottom of the box on a
+ * 1920x900 screen, which reads as the drawing pressing against its own frame — and the control
+ * column in the corner is inside that frame, so the tightest edge was also the busiest one.
+ */
+const FIT_PADDING = 0.12;
 
 /** The clearance a revealed node keeps from the edges of the part of the box it is panned into, in px. */
 const REVEAL_MARGIN = 16;
@@ -198,6 +246,15 @@ export class FlowCanvas {
     readonly workflow = input.required<WorkflowView>();
     /** The recorded run, for the count chips and the failed marker; null before one finished. */
     readonly lastRun = input<LastRunView | null>(null);
+    /** The run in flight, for the node and edge run marks (ISC-410.2); null when no pass is reported. */
+    readonly run = input<RunState | null>(null);
+    /**
+     * How long the running stage has been running, in whole seconds (ISC-412); null when no
+     * stage is running or the elapsed time has not reached this component yet. Reaches only the
+     * node whose own state is `running` — `dataOf` reads `run().running` for that, never this
+     * input's presence alone, since a run with no stage placed yet leaves every state null too.
+     */
+    readonly elapsed = input<number | null>(null);
     /** The rule set, which SCORE's blocks are read from when SCORE is expanded. */
     readonly rules = input<RulesView | null>(null);
     /** The stage id the screen shows, marked on its node. */
@@ -217,12 +274,21 @@ export class FlowCanvas {
     readonly expanded = model<ReadonlySet<string>>(new Set<string>());
 
     /**
-     * Whether the screen holds the canvas in the full screen (ISC-407); null where the browser has
-     * no Fullscreen API, and then the control is not drawn. The screen owns the wrapper that goes
-     * full screen, so the canvas only asks, through `fullscreenToggle`, and refits on each change.
+     * Whether the screen currently gives the canvas box the whole window (ISC-407). The screen owns
+     * the wrapper; the canvas only asks, through `wideToggle`, and refits whenever the answer
+     * changes, because its box just changed by the whole window. No Fullscreen API is involved —
+     * see the master's 2026-09-26 decision for why the real full screen was dropped.
      */
-    readonly fullscreen = input<boolean | null>(null);
-    readonly fullscreenToggle = output();
+    readonly wide = input(false);
+    readonly wideToggle = output();
+
+    /**
+     * The stages the hovered legend entry names (operator, 2026-09-26). Null leaves every node as
+     * it is; a set lights those it holds and dims the rest, so the legend answers in the drawing
+     * the way the drawing already answers in the legend (ISC-405, reversed).
+     */
+    readonly lit = input<ReadonlySet<string> | null>(null);
+
 
     protected readonly zoom = FLOW_ZOOM;
 
@@ -243,6 +309,17 @@ export class FlowCanvas {
     private readonly counts = computed(() => stageCounts(this.workflow(), this.lastRun()));
     private readonly failedIds = computed(() => failedStageIds(this.lastRun()));
 
+    /**
+     * Every layout node's place against the run in flight, keyed by the layout's own node id
+     * (`stage:…` / `ingest:…`) rather than by `WorkflowStage.id`, so a lookup by edge endpoint
+     * needs no second map. A sub-node's entry is always null — it is not a stage `run().states`
+     * ever names.
+     */
+    private readonly nodeStates = computed((): ReadonlyMap<string, StageRunState | null> => {
+        const states = this.run()?.states ?? null;
+        return new Map(this.layout().nodes.map((node) => [node.id, node.kind === 'stage' ? (states?.get(node.stageId) ?? null) : null]));
+    });
+
     readonly nodes = computed((): HtmlTemplateNode<FlowNodeData>[] => {
         const stages = new Map<string, {stage: WorkflowStage; phaseId: string}>();
         for (const phase of this.workflow().phases) {
@@ -250,6 +327,8 @@ export class FlowCanvas {
         }
         const layout = this.layout();
         const handles = handlesOf(layout);
+        const nodeStates = this.nodeStates();
+        const elapsed = this.elapsed();
         return layout.nodes.flatMap((node) => {
             const owner = stages.get(node.stageId);
             if (owner === undefined) return [];
@@ -261,20 +340,28 @@ export class FlowCanvas {
                     width: signal(node.width),
                     height: signal(node.height),
                     draggable: signal(false),
-                    data: signal(this.dataOf(node, owner.stage, owner.phaseId, handles.get(node.id) ?? [])),
+                    data: signal(
+                        this.dataOf(node, owner.stage, owner.phaseId, handles.get(node.id) ?? [], nodeStates.get(node.id) ?? null, elapsed),
+                    ),
                 },
             ];
         });
     });
 
-    readonly edges = computed((): Edge[] =>
-        this.layout().edges.map((edge) => ({
+    readonly edges = computed((): Edge<EdgePaint>[] => {
+        const nodeStates = this.nodeStates();
+        const expanded = this.expanded();
+        return this.layout().edges.map((edge) => ({
             id: edge.id,
             source: edge.source,
             target: edge.target,
             sourceHandle: sourceHandleOf(edge),
             targetHandle: targetHandleOf(edge),
             type: 'template',
+            data: signal<EdgePaint>({
+                run: edgeRunState(edge.kind, nodeStates.get(edge.source) ?? null, nodeStates.get(edge.target) ?? null),
+                eclipsed: edge.kind === 'within' && expanded.has(edge.source.replace(/^stage:/, '')),
+            }),
             ...(edge.kind === 'sub'
                 ? // A file tree: down the indent rail, then one branch right into the sub-node. No arrow —
                   // the branch is a few px long, and every sub-edge shares the one vertical line.
@@ -285,8 +372,8 @@ export class FlowCanvas {
                       // `currentColor` resolves to the canvas's edge token; the library's own default is a hex.
                       markers: signal({end: {type: 'arrow-closed' as const, color: 'currentColor', width: 14, height: 14}}),
                   }),
-        })),
-    );
+        }));
+    });
 
     constructor() {
         // A capture listener rather than a template binding: it has to run before d3-zoom's own
@@ -297,15 +384,21 @@ export class FlowCanvas {
             box.addEventListener('wheel', listener, {capture: true, passive: false});
             onCleanup(() => box.removeEventListener('wheel', listener, {capture: true}));
         });
-        // Fit once the library has measured the nodes, and again whenever the workflow itself
-        // changes. Opening or closing a stage keeps the viewport: the reader just pointed at
-        // that stage, and a refit would move it out from under the pointer — the sub-nodes land
-        // below it, and the fit button is one press away when they run off the box.
-        effect(() => {
+        // Fit once the library has measured the nodes, and again whenever the workflow changes or a
+        // stage opens or closes (operator, 2026-09-26). The earlier rule was the opposite — keep the
+        // viewport, because the reader had just pointed at that stage — and it was wrong in the case
+        // that matters: the sub-nodes land below their stage and ran off the bottom of the box, so
+        // the press that opened them was followed by a press on the fit control every time.
+        //
+        // Two frames, like the size change above: the layout re-runs from `expanded`, and the
+        // library has to have measured the new nodes before a fit means anything.
+        effect((onCleanup) => {
             const vflow = this.vflow();
             if (!vflow.initialized()) return;
             this.workflow();
-            untracked(() => this.fit());
+            this.expanded();
+            let frame = requestAnimationFrame(() => (frame = requestAnimationFrame(() => untracked(() => this.fit()))));
+            onCleanup(() => cancelAnimationFrame(frame));
         });
         // A drag pans through d3-zoom inside the library, past `moveTo`, whose behaviour is not
         // reachable for a `translateExtent`. So every viewport the library publishes is clamped the
@@ -327,14 +420,14 @@ export class FlowCanvas {
                 if (Math.abs(clamped.x - now.x) > 0.5 || Math.abs(clamped.y - now.y) > 0.5) this.moveTo(clamped);
             });
         });
-        // Refit whenever the box enters or leaves the full screen (ISC-407): its size just changed
-        // by the whole window. Two frames on, after the new box has been laid out and measured.
-        let wasFullscreen: boolean | null = null;
+        // Refit on every change of size (ISC-407): the box just changed by the whole window. Two
+        // frames on, after the new box has been laid out and measured.
+        let wasWide: boolean | null = null;
         effect((onCleanup) => {
-            const now = this.fullscreen();
-            const before = wasFullscreen;
-            wasFullscreen = now;
-            if (now === null || before === null || now === before) return;
+            const now = this.wide();
+            const before = wasWide;
+            wasWide = now;
+            if (before === null || now === before) return;
             let frame = requestAnimationFrame(() => (frame = requestAnimationFrame(() => this.fit())));
             onCleanup(() => cancelAnimationFrame(frame));
         });
@@ -550,9 +643,16 @@ export class FlowCanvas {
         this.moveTo({zoom: next, x: cx - ((cx - x) / zoom) * next, y: cy - ((cy - y) / zoom) * next});
     }
 
-    private dataOf(node: LayoutNode, stage: WorkflowStage, phaseId: string, handles: readonly FlowHandle[]): FlowNodeData {
+    private dataOf(
+        node: LayoutNode,
+        stage: WorkflowStage,
+        phaseId: string,
+        handles: readonly FlowHandle[],
+        state: StageRunState | null,
+        elapsed: number | null,
+    ): FlowNodeData {
         const box = {id: node.id, width: node.width, height: node.height, handles};
-        if (node.kind === 'stage') return {...box, kind: 'stage', stage, phaseId};
+        if (node.kind === 'stage') return {...box, kind: 'stage', stage, phaseId, state, elapsed: state === 'running' ? elapsed : null};
         // A sub-node links to its stage's sheet at the section its id names (ISC-406).
         const sub = {...box, kind: 'sub' as const, stageId: stage.id, icon: subIcon(node.id)};
         switch (node.kind) {

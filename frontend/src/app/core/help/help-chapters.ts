@@ -21,7 +21,7 @@ export const HELP_CHAPTERS = [
     'filters-views',
     'pipeline',
     'analytics',
-    'rules',
+    'workflow',
     'sources',
     'app-basics',
     'how-it-works',
@@ -48,11 +48,12 @@ export interface HelpShotSize {
  */
 export const HELP_SHOTS = {
     'run-phases-rail': {width: 1400, height: 678},
-    dashboard: {width: 1400, height: 788},
+    dashboard: {width: 1400, height: 667},
     'shortlist-split': {width: 1400, height: 788},
     'pipeline-board': {width: 1400, height: 788},
     'analytics-overview': {width: 1400, height: 788},
     'rules-stage': {width: 1400, height: 788},
+    'workflow-substeps': {width: 1400, height: 788},
     'sources-panel': {width: 1400, height: 788},
     'offer-why-scored': {width: 1320, height: 1120},
     'offer-ask': {width: 1320, height: 760},
@@ -73,7 +74,7 @@ export const SECTION_CHAPTER: Record<Section, HelpChapter> = {
     pipeline: 'pipeline',
     analytics: 'analytics',
     sources: 'sources',
-    rules: 'rules',
+    workflow: 'workflow',
 };
 
 /**
@@ -86,7 +87,7 @@ export const CHAPTER_DIAGRAMS: Record<HelpChapter, readonly HelpDiagram[]> = {
     shortlist: [],
     pipeline: [],
     analytics: [],
-    rules: [],
+    workflow: [],
     sources: [],
     'offer-detail': [],
     application: [],
@@ -104,7 +105,7 @@ export const CHAPTER_SHOTS: Record<HelpChapter, readonly HelpShot[]> = {
     shortlist: ['shortlist-split'],
     pipeline: ['pipeline-board'],
     analytics: ['analytics-overview'],
-    rules: ['rules-stage'],
+    workflow: ['rules-stage', 'workflow-substeps'],
     sources: ['sources-panel'],
     'offer-detail': ['offer-why-scored', 'offer-ask'],
     application: ['application-panel', 'cover-letter'],
