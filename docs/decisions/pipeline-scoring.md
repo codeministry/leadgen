@@ -461,10 +461,19 @@ they decide it.
   folder behind and none can clean up after itself: a build that died before recording where
   it wrote, a discard that cleared the row and could not delete the directory, and `V27`,
   which cleared seventy-odd rows in one statement because a migration has no disk. It removes
-  a **direct child of the output directory that carries a `meta.json`** and is named by no
-  `package_dir`. That marker is the safety catch: the directory comes from configuration and
-  this runs unattended, so a misconfigured path has to find nothing it recognises rather than
-  a directory full of somebody's files.
+  a **direct child of the output directory whose `meta.json` names this database** and that no
+  `package_dir` names. The file alone was the first catch — a misconfigured path finds nothing
+  it recognises rather than a directory of somebody's files — and it was not enough.
+- **A package folder records which database built it, and only that database may sweep it.**
+  "No row of mine names it" is a question every other database answers with yes for every
+  real package, and the directory is shared far more easily than the database: a demo stack
+  bind-mounts the same `packages/`, a test run reads the same `PACKAGES_DIR` from `.env`.
+  Measured: 76 folders on 2026-09-19, 2 after the dev database's `V27` start, 0 on
+  2026-09-26 — the last two the ones that had been sent. So `V31` draws one id per database
+  (`instance`), every `meta.json` records it, and `PackageOwner` answers "whose is this". The
+  sweep deletes only its own; a discard keeps a folder that names another database even when a
+  row of its own points at it. **A folder from before `V31` names nobody and is never swept** —
+  an unproven owner is not a licence to delete, so those are cleared by hand once.
 - **This is where a send button would arrive**, one convenient afternoon: the folder is
   finished and the contact is right there in `meta.json`. `NothingIsSentTest` reads the
   repository for `Transport.send`, `JavaMailSender`, `MimeMessageHelper`, `setRecipient(`

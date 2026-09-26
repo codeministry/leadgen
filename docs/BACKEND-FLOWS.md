@@ -493,7 +493,8 @@ sent keeps its folder, because the document is the record of what went out.
 
 A folder that ends up referenced by no row, which is what `V27` left behind on the deployed
 instance, is collected by `packaging/OrphanSweep` at the next start (§ 2c), never by the
-worker.
+worker — but only once it names this database. A folder from before `V31` names none and is
+cleared by hand.
 
 ### 2c. Startup, the watcher, the budget
 
@@ -502,7 +503,7 @@ others (no `@Order` anywhere), and none of them fatal:
 
 | Runs on | Class and method | Does |
 |---|---|---|
-| `ApplicationRunner`, before the ready event | `packaging/OrphanSweep.run` | deletes every folder under `packaging.output_dir` that no `offer.package_dir` names |
+| `ApplicationRunner`, before the ready event | `packaging/OrphanSweep.run` | deletes every folder under `packaging.output_dir` whose `meta.json` names this database (`instance`, `V31`) and that no `offer.package_dir` names |
 | `ApplicationReadyEvent` | `analytics/PipelineRunRecorder.abandonOpenRuns` | closes every `pipeline_run` with `finished_at IS NULL` as `ABANDONED`; a process that died mid-run left it `RUNNING`. A run whose stage threw is already `FAILED` and is not touched |
 | `ApplicationReadyEvent` | `manual/ManualInbox.ensure` | creates the `pending/` and inbox directories of the `manual-inbox` source, if one is configured |
 | `ApplicationReadyEvent` | `ingest/ScheduledPass.announce` | logs whether a cron is configured and in which timezone it will fire |

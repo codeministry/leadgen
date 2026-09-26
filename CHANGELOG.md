@@ -78,6 +78,19 @@ may change in any release. See the status note in the README.
 
 ### Fixed
 
+- **The orphan sweep deletes only package folders its own database built.** It used to remove
+  every folder under `packaging.output_dir` that no row of *its* database named, and that
+  directory is shared: a demo stack bind-mounts the same `packages/`, a test run reads the same
+  `PACKAGES_DIR` from `.env`. Each of those saw every real package as an orphan — 76 folders on
+  2026-09-19, none a week later, the last two the ones that had been sent. `V31` now draws one
+  id per database, every `meta.json` records it as `instance`, and the sweep removes only folders
+  naming its own; a discard keeps a folder naming another database even when a row of its own
+  points at it. **Folders built before this release name no database and are never swept** —
+  clear those by hand once.
+- **A package is written where it is read.** The builder and the digest wrote `output_dir`
+  relative to the working directory while the download, the discard and the sweep searched
+  upwards for it, so a `bootRun` started in `backend/` grew a second `packages/` there. Both
+  writers now resolve the path the way every reader does.
 - `enrichment.fetch.max_per_run` is a hard cap: a pass reserves its unit before it waits for a
   window permit, so it no longer overshoots its budget when the window has room (measured: a
   budget of 25 over 30 adverts sent 30). Each retry of a 5xx takes a window permit of its own,

@@ -156,6 +156,7 @@ public class PackagingService {
     private final ApplicationService applications;
     private final ProfileEmbeddings profileEmbeddings;
     private final CoverLetterWriter writer;
+    private final PackageOwner owner;
     private final JdbcClient jdbc;
     private final TransactionTemplate transactions;
     private final JsonMapper json;
@@ -167,6 +168,7 @@ public class PackagingService {
             ApplicationService applications,
             ProfileEmbeddings profileEmbeddings,
             CoverLetterWriter writer,
+            PackageOwner owner,
             DataSource dataSource,
             PlatformTransactionManager transactionManager) {
         this.config = config;
@@ -174,6 +176,7 @@ public class PackagingService {
         this.applications = applications;
         this.profileEmbeddings = profileEmbeddings;
         this.writer = writer;
+        this.owner = owner;
         this.jdbc = JdbcClient.create(dataSource);
         this.transactions = new TransactionTemplate(transactionManager);
         // Named, not discovered. `findAndRegisterModules()` is a ServiceLoader scan, which
@@ -478,7 +481,10 @@ public class PackagingService {
         Prepared prepared = prepare(snapshot, row);
         String language = prepared.language();
 
-        Path folder = Path.of(settings.outputDir()).resolve(folderName(settings.naming(), row));
+        // Resolved the way every reader resolves it — the download, the discard and the sweep all go
+        // through `Directories` — or a process started in `backend/` writes one directory and
+        // reads another, and the download answers 404 for a folder that exists.
+        Path folder = Directories.resolve(settings.outputDir()).resolve(folderName(settings.naming(), row));
         Files.createDirectories(folder);
 
         // The letter is decided before any document is written, because `meta.json` names its
@@ -741,6 +747,9 @@ public class PackagingService {
             Optional<Letter> letter)
             throws IOException {
         Map<String, Object> meta = new LinkedHashMap<>();
+        // First, and the one key something deletes on: which database built this folder. The sweep
+        // removes nothing that does not name its own — see `PackageOwner` for what that cost.
+        meta.put(PackageOwner.KEY, owner.id());
         meta.put("offerId", row.id());
         meta.put("title", row.title());
         meta.put("url", row.url());

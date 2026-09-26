@@ -9,6 +9,7 @@
 package de.codeministry.leadgen.digest;
 
 import de.codeministry.leadgen.config.ConfigRegistry;
+import de.codeministry.leadgen.config.Directories;
 import de.codeministry.leadgen.config.model.MatchingRules;
 import de.codeministry.leadgen.config.model.PipelineConfig;
 import java.io.IOException;
@@ -131,7 +132,12 @@ public class DigestService {
 
     private Path write(PipelineConfig.Digest settings, LocalDate day, String content) {
         try {
-            Path directory = Path.of(settings.outputDir());
+            // Through `Directories`, like every other path the tool reads or writes. A plain
+            // `Path.of` resolved against the working directory, so `bootRun` (started in
+            // `backend/`) grew a second `packages/` there — and because `Directories` prefers a
+            // directory that already exists where the process started, the package writer and
+            // every reader followed it.
+            Path directory = Directories.resolve(settings.outputDir());
             Files.createDirectories(directory);
             Path file = directory.resolve(
                     "digest-%s.%s".formatted(day, "html".equalsIgnoreCase(settings.format()) ? "html" : "txt"));

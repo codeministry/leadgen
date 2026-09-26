@@ -2,7 +2,7 @@
 
 # Data model
 
-The thirteen tables, how they point at each other, and which class writes and reads each one.
+The fourteen tables, how they point at each other, and which class writes and reads each one.
 This is the schema as Flyway builds it, read straight out of
 `backend/src/main/resources/db/migration/`, and it is the document to open when the question
 is *where does this value live* or *who is allowed to change it*. The reasoning behind a
@@ -116,6 +116,9 @@ erDiagram
         date day PK
         int calls
     }
+    instance {
+        uuid id PK
+    }
 ```
 
 How to read it: the diagram shows keys, foreign keys and the columns that hold a state. It
@@ -131,10 +134,11 @@ references. In practice nothing deletes an offer: no `DELETE FROM offer` exists 
 application, so the cascades on `offer_score_reason` and `application` are there for an
 operator's SQL, not for the code.
 
-## 2. Three tables no key points at
+## 2. Four tables no key points at
 
-Three tables are keyed by a value rather than by a row id, and nothing references them. Each
-is a cache or a counter that would work exactly the same if it were emptied.
+Four tables are keyed by a value rather than by a row id, and nothing references them. The
+first three are a cache or a counter that would work exactly the same if it were emptied. The
+fourth, `instance`, is the opposite, and must never be emptied.
 
 **`fetched_page`** (`V5`) is the enrichment fetch cache, keyed by `url`. One row per address
 the tool has fetched, holding the HTTP `status`, the `body` and `fetched_at`. Written and read
@@ -157,6 +161,16 @@ guarded by `calls < :limit`; no row back means the day's allowance is spent and 
 leaves its work due. It lives in the database so that a restart does not hand the ceiling out
 twice, and so the nightly run and a run started by hand share one day. Reasoning in
 [decisions/pipeline-scoring.md](decisions/pipeline-scoring.md).
+
+**`instance`** (`V31`) is exactly one row: an `id` drawn with `gen_random_uuid()` when the
+migration runs, so two databases that apply the same migrations still hold two different ids.
+`packaging/PackagingService` writes it into every `meta.json` as `instance`, and
+`packaging/PackageOwner` is what reads it back — `packaging/OrphanSweep` removes only folders
+naming this id, and a discard keeps a folder naming another. It exists because the package
+directory is shared far more easily than the database: a demo stack bind-mounts the same
+`packages/`, and a test run reads the same `PACKAGES_DIR` from `.env`. A unique index on
+`(true)` holds it to one row. Emptying it, or drawing a new id, disowns every package already
+on disk. Reasoning in [decisions/pipeline-scoring.md](decisions/pipeline-scoring.md).
 
 ## 3. `offer`: one row, twelve owners
 
@@ -367,7 +381,7 @@ with the live `stage` columns on `pipeline_run`, which say what is happening rig
 overwrite themselves. Primary key `(run_id, position)`, cascades from `pipeline_run`.
 
 The three cache and counter tables, `fetched_page`, `content_block_label` and
-`llm_call_budget`, are in § 2.
+`llm_call_budget`, and the `instance` row the package folders are owned by, are in § 2.
 
 ## 5. Status-like columns and their values
 

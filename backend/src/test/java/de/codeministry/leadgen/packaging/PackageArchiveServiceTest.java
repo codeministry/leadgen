@@ -16,6 +16,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -193,6 +194,22 @@ class PackageArchiveServiceTest {
         long id = packaged("Ohne Paket", null, "NEW");
 
         assertThat(packages.discard(List.of(id))).isZero();
+    }
+
+    @Test
+    void keepsAFolderAnotherDatabaseBuiltEvenWhenARowOfOursNamesIt() {
+        // The directory is shared — a demo stack bind-mounts it, a test run reads its path from
+        // `.env` — so a name collision is enough to point one database's row at another's folder.
+        // The row's claim goes; the folder is not this database's to delete.
+        Path folder = PackagesFixture.aPackage(
+                "2026-09-02_acme_fremd", UUID.randomUUID().toString());
+        long id = packaged("Fremder Ordner", folder, "PACKAGED");
+
+        assertThat(packages.discard(List.of(id))).isEqualTo(1);
+
+        assertThat(Files.exists(folder)).isTrue();
+        assertThat(jdbc.queryForObject("SELECT package_dir FROM offer WHERE id = ?", String.class, id))
+                .isNull();
     }
 
     private long packaged(String title, Path folder, String status) {

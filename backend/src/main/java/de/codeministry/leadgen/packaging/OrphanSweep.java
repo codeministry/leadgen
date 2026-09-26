@@ -34,12 +34,16 @@ import org.springframework.stereotype.Component;
  * wrote. A discard that could not delete the directory still cleared the row. And {@code V27}
  * cleared seventy-odd rows in one statement, because a migration has no disk.
  *
- * <p><b>A folder is only removed when it carries a {@code meta.json}.</b> That file is written
- * by {@link PackagingService} for every package and by nothing else, so it is the marker that
- * says "this is ours". It is the safety catch that matters here: the output directory comes
- * from configuration, this runs unattended at every start, and a misconfigured path must find
- * nothing it recognises rather than a directory full of somebody's files. Direct children
- * only, for the same reason {@link PackageArchive#resolve} accepts nothing else.
+ * <p><b>A folder is only removed when its {@code meta.json} names this database.</b> The file
+ * alone was the first safety catch — it keeps a misconfigured path from emptying a directory
+ * of somebody's files — and it was not enough. The output directory is shared far more
+ * easily than a database: a demo stack bind-mounts the same {@code packages/}, a test run
+ * reads the same {@code PACKAGES_DIR} from {@code .env}. Asked only "does a row of mine name
+ * it", every one of those databases answered no for every real package, and deleted it:
+ * 76 folders on 2026-09-19, none left a week later. {@link PackageOwner} is the second catch,
+ * and the one that decides. A folder from before {@code V31}, which names no database, is
+ * never swept; clear those by hand once. Direct children only, for the same reason
+ * {@link PackageArchive#resolve} accepts nothing else.
  *
  * <p>It runs on every start rather than once, and on a healthy instance it reports nothing.
  */
@@ -55,6 +59,7 @@ class OrphanSweep implements ApplicationRunner {
 
     private final ConfigRegistry config;
     private final DataSource dataSource;
+    private final PackageOwner owner;
 
     @Override
     public void run(ApplicationArguments args) {
@@ -94,6 +99,10 @@ class OrphanSweep implements ApplicationRunner {
         try (Stream<Path> children = Files.list(root)) {
             orphans = children.filter(Files::isDirectory)
                     .filter(folder -> Files.isRegularFile(folder.resolve(MARKER)))
+                    // Ours, provably: the folder names this database. A folder another database
+                    // built, or one from before V31 that names none, is never swept. "No row of
+                    // mine names it" alone is what emptied a shared directory twice.
+                    .filter(owner::owns)
                     .filter(folder -> !referenced.contains(folder.getFileName().toString()))
                     .sorted()
                     .toList();

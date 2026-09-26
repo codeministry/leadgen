@@ -39,7 +39,7 @@ The root [`README.md`](../README.md) is the front door and stays shorter than an
 - **[ARCHITECTURE.md](ARCHITECTURE.md)** — the modular monolith, the pipeline stage by
   stage, and the reasoning behind the parts that are not obvious. The single document to
   read if you only read one.
-- **[DATA-MODEL.md](DATA-MODEL.md)** — the thirteen tables as Flyway builds them: one ER
+- **[DATA-MODEL.md](DATA-MODEL.md)** — the fourteen tables as Flyway builds them: one ER
   diagram, `offer` grouped by the stage that owns each column, every other table with its
   writers and readers, and the legal values of every status-like column. Derived from the
   migrations; when the two disagree, the migration wins and this file is fixed.

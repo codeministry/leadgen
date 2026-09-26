@@ -68,13 +68,23 @@ final class PackagesFixture {
     }
 
     /**
-     * A package folder as the packaging stage leaves one: a directory with a {@code meta.json}
-     * in it, which is what marks it as ours.
+     * A package folder as the packaging stage left one before V31: a {@code meta.json} that
+     * names no database. Nothing sweeps it; a discard still removes it when a row of its own
+     * names it.
      */
     static Path aPackage(String name) {
+        return aPackage(name, null);
+    }
+
+    /**
+     * A package folder as the packaging stage leaves one now: its {@code meta.json} names the
+     * database that built it — or none, when {@code instance} is null.
+     */
+    static Path aPackage(String name, String instance) {
         try {
             Path folder = Files.createDirectories(packages().resolve(name));
-            Files.writeString(folder.resolve("meta.json"), "{\"offerId\":0}", StandardCharsets.UTF_8);
+            String meta = instance == null ? "{\"offerId\":0}" : "{\"instance\":\"" + instance + "\",\"offerId\":0}";
+            Files.writeString(folder.resolve("meta.json"), meta, StandardCharsets.UTF_8);
             Files.writeString(
                     folder.resolve("cover_letter.txt"), "Sehr geehrte Damen und Herren", StandardCharsets.UTF_8);
             return folder;

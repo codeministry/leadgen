@@ -83,6 +83,7 @@ public class PackageArchiveService {
 
     private final ConfigRegistry config;
     private final JdbcClient jdbc;
+    private final PackageOwner owner;
 
     /**
      * Whether this offer's application was ever sent: it stands at a state past sending now, or
@@ -156,7 +157,14 @@ public class PackageArchiveService {
         List<Long> cleared = new ArrayList<>();
         for (Discardable row : rows) {
             try {
-                PackageArchive.deleteFolder(PackageArchive.resolve(root, row.packageDir()));
+                Path folder = PackageArchive.resolve(root, row.packageDir());
+                if (owner.foreign(folder)) {
+                    // Same name, another database: a demo stack or a test run shares this
+                    // directory. The folder is not this row's to delete; the reference still goes.
+                    log.warn("Offer {} names a package folder another database built; kept it", row.id());
+                } else {
+                    PackageArchive.deleteFolder(folder);
+                }
             } catch (PackageArchive.Rejected e) {
                 // Already gone, or never where the row says. The reference is the thing that
                 // has to go either way — leaving it would keep a download link that 404s.
