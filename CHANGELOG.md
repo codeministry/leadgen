@@ -11,6 +11,21 @@ may change in any release. See the status note in the README.
 
 ### Added
 
+- **The run status sheet says where a pass stands and what it spent.** It takes its own width
+  (`--lg-run-status-w`, 37rem, just enough to cover the header chip that opened it) instead of the
+  help drawer's 48rem, where a running pass was four lines in a mostly empty panel. While a pass
+  runs it lists every stage as done, running or not reached, with a progress bar in the run hue,
+  the time so far, and an estimate of what is left taken from the previous run's stage timings —
+  labelled as an estimate, and absent without a previous run. After a run it states when it
+  finished and how long it took, and each figure that moved since the run before carries a small,
+  neutral delta. The day's model calls against `llm.budget.max_calls_per_day` stand beside the
+  judge, with a badge once the allowance is spent, which is the question a pass that left scoring
+  undone raises. Asked for only while the sheet shows the run status.
+- **`GET /api/v1/llm/budget`** answers `{used, limit}` for today, read only; `limit` is null when no
+  budget is configured, which is not the same as zero. **`GET /api/v1/ingest/last`** now also
+  carries the run's `startedAt` and a `previous` block with the figures of the run before it,
+  chosen by the same rule as the last run itself.
+
 - The rules screen draws the run as a workflow graph: five phase columns from reading the sources
   to handing over, the sources merging into deduplication, straight edges, each stage a card with
   its cost, model and width markers and a count chip from the last run. The operator pans with the

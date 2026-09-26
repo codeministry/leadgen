@@ -19,6 +19,12 @@
     min-inline-size: 0;
 }
 
+/* The run status holds a column of small facts, not a stage's settings: it takes its own, much
+   narrower width, and the canvas pans a node out from under whatever the sheet measures. */
+:host(.is-run-status) {
+    inline-size: min(var(--lg-run-status-w), 100vw);
+}
+
 /* In the full screen (ISC-407) there is no app header above it: the sheet runs from the top. */
 :host-context(.is-fullscreen) {
     inset-block-start: 0;

@@ -65,6 +65,8 @@ function lastRun(stages: readonly LastRunStage[]): LastRunView {
         review: 0,
         packaged: 0,
         digestWritten: false,
+        startedAt: '2026-09-02T04:00:00Z',
+        previous: null,
         sources: [],
         stages,
     };

@@ -45,6 +45,8 @@ function lastRun(overrides: Partial<LastRunView> = {}): LastRunView {
         review: 13,
         packaged: 7,
         digestWritten: true,
+        startedAt: '2026-09-02T04:00:00Z',
+        previous: null,
         sources: [],
         stages: [stage(0, 'DEDUPE', 200), stage(1, 'FILTER', 9_000), stage(2, 'ARCHIVE', 50)],
         ...overrides,

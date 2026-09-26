@@ -173,6 +173,8 @@ const LAST_RUN: LastRunView = {
     review: 6,
     packaged: 0,
     digestWritten: true,
+    startedAt: '2026-09-02T04:00:00Z',
+    previous: null,
     sources: [{sourceId: 'zeta', documents: 1, extracted: 57, written: 50, announced: null, complete: true}],
     stages: [],
 };
@@ -225,6 +227,8 @@ function answer(
             request.flush(FUNNEL);
         } else if (url === '/api/v1/scoring-models') {
             request.flush({default: null, available: []});
+        } else if (url === '/api/v1/llm/budget') {
+            request.flush({used: 12, limit: 200});
         } else {
             request.flush(null, {status: 204, statusText: 'No Content'});
         }
@@ -262,6 +266,10 @@ describe('Rules', () => {
         }
         fixture.detectChanges();
         const urls = answer(http, workflow, rulesFail, lastRun, currentRun);
+        fixture.detectChanges();
+        // The run status asks for the day's model calls once the sheet is open, which is only
+        // after the first answers have landed; a second round answers what arrived late.
+        urls.push(...answer(http, workflow, rulesFail, lastRun, currentRun));
         fixture.detectChanges();
         return {fixture, urls};
     }
@@ -782,6 +790,16 @@ describe('Rules', () => {
         // What is happening now is the more useful fact; the failure is still in the panel.
         expect(chip.classList).toContain('is-running');
         expect(chip.classList).not.toContain('has-failed');
+    });
+
+    // One panel reads the day's model calls, so only that panel asks for them: a request on every
+    // screen load would reach every visitor for a number almost nobody is looking at.
+    it('asks for the day\'s model calls while the run status is open', () => {
+        expect(render(WORKFLOW, false, 'run').urls).toContain('/api/v1/llm/budget');
+    });
+
+    it('does not ask for the day\'s model calls with the run status closed', () => {
+        expect(render().urls).not.toContain('/api/v1/llm/budget');
     });
 
     it('opens the run status in the sheet, with the last run every fact it holds', () => {

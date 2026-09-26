@@ -88,7 +88,9 @@ class IngestControllerTest {
                         7,
                         true,
                         List.of(new LastRunSource("demo-newsletter", 5, 169, 151, 169)),
-                        List.of())));
+                        List.of(),
+                        null,
+                        null)));
 
         assertThat(mvc.get().uri("/api/v1/ingest/last"))
                 .hasStatusOk()
@@ -123,7 +125,9 @@ class IngestControllerTest {
                         List.of(
                                 new LastRunStage(0, "DEDUPE", t, t.plusSeconds(2), "OK", null),
                                 new LastRunStage(
-                                        1, "ENRICH", t.plusSeconds(2), t.plusSeconds(7), "FAILED", "portal down")))));
+                                        1, "ENRICH", t.plusSeconds(2), t.plusSeconds(7), "FAILED", "portal down")),
+                        t,
+                        null)));
 
         var response =
                 assertThat(mvc.get().uri("/api/v1/ingest/last")).hasStatusOk().bodyJson();

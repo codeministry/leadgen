@@ -723,7 +723,24 @@
       "scoredLabel": "Scored",
       "shortlistedLabel": "Shortlisted",
       "reviewLabel": "For review",
-      "packagedLabel": "Packaged"
+      "packagedLabel": "Packaged",
+      "soFar": "{time} so far",
+      "remaining": "About {time} left, going by the last run",
+      "steps": "Stages",
+      "progress": "{done} of {total} stages done",
+      "previousTook": "What this stage took in the last run",
+      "stepState": {
+        "done": "done",
+        "running": "running",
+        "pending": "not reached yet"
+      },
+      "finishedAt": "Finished {time}",
+      "took": "took {time}",
+      "deltaTitle": "Change since the run before",
+      "deltaNote": "The small figures are the change since the run before.",
+      "budget": "Model calls today: {used} of {limit}",
+      "budgetUnlimited": "Model calls today: {used}, no daily limit",
+      "budgetSpent": "Today's allowance is spent"
     }
   },
   "analytics": {

@@ -105,6 +105,13 @@
      and a chapter row never wraps; the drawer still caps itself at the window. */
   --lg-help-w: 48rem;
 
+  /* The run status in the workflow's sheet (operator, 2026-09-27): a column of small facts,
+     narrower than the help drawer's 48rem, and just wide enough to cover the header's status
+     chip that opened it rather than ending beside it. Measured: the chip's left edge sits 440px
+     from the window's right edge up to 1440px, 538px at 1800px; 37rem covers it up to about
+     1860px. On a wider window the chip stays visible to the sheet's left. */
+  --lg-run-status-w: 37rem;
+
   /* The anchor rail beside the four long screens (spec 007): wide enough for the longest
      section name in German ("Anwendungen", "Schwellenwerte"), narrow enough to leave a
      36rem list and a reading column beside it. */

@@ -102,6 +102,14 @@ public class LlmBudget {
     }
 
     /**
+     * Today's count against the configured ceiling, as one answer. Reads only: nothing here
+     * spends a call, so a screen can ask as often as it likes.
+     */
+    public LlmBudgetView view() {
+        return new LlmBudgetView(used(), limit());
+    }
+
+    /**
      * The configured ceiling, or null when there is none.
      *
      * <p>Null is the absent block and not a zero: a fresh clone has no {@code budget:} at all

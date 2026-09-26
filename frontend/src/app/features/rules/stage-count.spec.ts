@@ -46,6 +46,8 @@ const LAST_RUN: LastRunView = {
     review: 6,
     packaged: 2,
     digestWritten: true,
+    startedAt: '2026-09-02T04:00:00Z',
+    previous: null,
     sources: [
         {...SOURCE, sourceId: 'zeta', extracted: 61},
         {...SOURCE, sourceId: 'alpha', extracted: 40},

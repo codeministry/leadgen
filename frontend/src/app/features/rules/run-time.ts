@@ -19,3 +19,14 @@
 export function formatStartedAt(startedAt: string, locale: string): string {
     return new Intl.DateTimeFormat(locale, {timeStyle: 'short'}).format(new Date(startedAt));
 }
+
+/**
+ * The instant a run finished, as a person places it: a time of day when it was today, and a date
+ * with it otherwise. "Two hours ago" says how stale the numbers are and not when the run was, and
+ * a bare "23:00" under a run from last night would read as tonight.
+ */
+export function formatFinishedAt(finishedAt: string, locale: string, now: Date = new Date()): string {
+    const at = new Date(finishedAt);
+    const sameDay = at.toDateString() === now.toDateString();
+    return new Intl.DateTimeFormat(locale, sameDay ? {timeStyle: 'short'} : {dateStyle: 'short', timeStyle: 'short'}).format(at);
+}

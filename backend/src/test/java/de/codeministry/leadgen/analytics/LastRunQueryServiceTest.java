@@ -194,6 +194,34 @@ class LastRunQueryServiceTest {
     }
 
     @Test
+    void carriesTheRunBeforeItForTheDeltasAndItsOwnStart() {
+        // The run status sheet puts a small delta beside each of the last run's figures and its
+        // duration, so it needs the run before — chosen by the same rule, never an abandoned row.
+        Instant earlier = Instant.now().minus(3, ChronoUnit.HOURS).truncatedTo(ChronoUnit.SECONDS);
+        Instant later = Instant.now().minus(1, ChronoUnit.HOURS).truncatedTo(ChronoUnit.SECONDS);
+        run(earlier, earlier.plusSeconds(240), "COMPLETE", "earlier");
+        run(later.minusSeconds(600), later.minusSeconds(590), "ABANDONED", "gone");
+        run(later, later.plusSeconds(180), "COMPLETE", "later");
+
+        var last = runs.lastRun().orElseThrow();
+
+        assertThat(last.scoreModel()).isEqualTo("later");
+        assertThat(last.startedAt()).isEqualTo(later);
+        assertThat(last.previous()).isNotNull();
+        assertThat(last.previous().startedAt()).isEqualTo(earlier);
+        assertThat(last.previous().finishedAt()).isEqualTo(earlier.plusSeconds(240));
+        assertThat(last.previous().shortlisted()).isEqualTo(7);
+    }
+
+    @Test
+    void hasNoRunBeforeTheOnlyOne() {
+        Instant only = Instant.now().minus(1, ChronoUnit.HOURS);
+        run(only, only.plusSeconds(60), "COMPLETE", "only");
+
+        assertThat(runs.lastRun().orElseThrow().previous()).isNull();
+    }
+
+    @Test
     void picksTheRunThatStartedLastEvenWhenAnOlderOneFinishedAfterIt() {
         // A batched run is finished by the collector, which moves its `finished_at` past
         // runs that started after it. Ordered by that column, this morning's batch would

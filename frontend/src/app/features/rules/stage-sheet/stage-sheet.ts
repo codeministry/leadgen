@@ -20,7 +20,8 @@ import {Icon} from '@shared/icon/icon';
 import {CurrentRunView} from '@core/model/current-run';
 import {LastRunView} from '@core/model/last-run';
 import {RunDetail} from '../run-detail/run-detail';
-import {RUN_STATUS} from '../run-state';
+import {LlmBudgetView} from '@core/model/llm-budget';
+import {RUN_STATUS, RunState} from '../run-state';
 import {StageDetail} from '../stage-detail/stage-detail';
 import {UNREAD_STAGE} from '../stage-rail/stage-rail';
 
@@ -44,6 +45,8 @@ const HIGHLIGHT_MS = 1600;
     templateUrl: './stage-sheet.html',
     styleUrl: './stage-sheet.css',
     changeDetection: ChangeDetectionStrategy.OnPush,
+    // The run status takes its own, narrower width (stage-sheet.css).
+    host: {'[class.is-run-status]': 'stage() === runStatus'},
 })
 export class StageSheet {
     readonly stage = input.required<WorkflowStage | typeof UNREAD_STAGE | typeof RUN_STATUS>();
@@ -52,6 +55,10 @@ export class StageSheet {
     readonly lastRun = input<LastRunView | null>(null);
     readonly elapsed = input<number | null>(null);
     readonly removalLabels = input<ReadonlyMap<string, string>>(new Map());
+    /** Where the pass in flight stands, and how long it has been going; for the run status only. */
+    readonly runState = input<RunState | null>(null);
+    readonly runElapsed = input<number | null>(null);
+    readonly budget = input<LlmBudgetView | null>(null);
 
     /** The sentinel the template branches on, so the string is spelled once. */
     protected readonly runStatus = RUN_STATUS;

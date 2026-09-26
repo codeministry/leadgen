@@ -723,7 +723,24 @@
       "scoredLabel": "Bewertet",
       "shortlistedLabel": "In der Auswahl",
       "reviewLabel": "Zur Prüfung",
-      "packagedLabel": "Gepackt"
+      "packagedLabel": "Gepackt",
+      "soFar": "{time} bisher",
+      "remaining": "Noch etwa {time}, gemessen am letzten Lauf",
+      "steps": "Stufen",
+      "progress": "{done} von {total} Stufen erledigt",
+      "previousTook": "So lange brauchte die Stufe im letzten Lauf",
+      "stepState": {
+        "done": "erledigt",
+        "running": "läuft",
+        "pending": "noch nicht erreicht"
+      },
+      "finishedAt": "Beendet {time}",
+      "took": "Dauer {time}",
+      "deltaTitle": "Veränderung seit dem Lauf davor",
+      "deltaNote": "Die kleinen Zahlen sind die Veränderung seit dem Lauf davor.",
+      "budget": "Modellaufrufe heute: {used} von {limit}",
+      "budgetUnlimited": "Modellaufrufe heute: {used}, ohne Tageslimit",
+      "budgetSpent": "Das Tageskontingent ist aufgebraucht"
     }
   },
   "analytics": {

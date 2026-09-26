@@ -25,7 +25,8 @@
              chip opens (operator, 2026-09-26). The shell — the placement, the focus, Escape, the
              scroll box — is the same for both, which is the point of putting it here. -->
         @if (stage() === runStatus) {
-            <lg-run-detail [current]="current()" [lastRun]="lastRun()" [elapsed]="elapsed()" [removalLabels]="removalLabels()"/>
+            <lg-run-detail [current]="current()" [lastRun]="lastRun()" [elapsed]="elapsed()" [removalLabels]="removalLabels()"
+                          [runState]="runState()" [runElapsed]="runElapsed()" [budget]="budget()"/>
         } @else {
             <lg-stage-detail
                     [stage]="$any(stage())"

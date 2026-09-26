@@ -100,6 +100,27 @@ class LlmBudgetTest {
     }
 
     @Test
+    void reportsTodaysCountAgainstTheCeilingWithoutSpendingAnything() {
+        // What the run status sheet shows: a pass that left scoring undone should say whether
+        // the day was spent. Asking must not cost a call, or the screen would spend the budget.
+        limit("5");
+        budget.take();
+        budget.take();
+
+        assertThat(budget.view()).isEqualTo(new LlmBudgetView(2, 5));
+        assertThat(budget.view()).isEqualTo(new LlmBudgetView(2, 5));
+    }
+
+    @Test
+    void reportsNoCeilingAsNullAndNeverAsZero() {
+        // Zero means "ask nothing today" and null means "no ceiling": opposite answers, so the
+        // screen must be able to tell them apart.
+        withoutBudgetBlock();
+
+        assertThat(budget.view().limit()).isNull();
+    }
+
+    @Test
     void zeroMeansNoneAndNotNoLimit() {
         // The other reading is the expensive one. Somebody writing 0 to mean "off" would get
         // a bill; this way round they get a run that stops and says so on the first day.

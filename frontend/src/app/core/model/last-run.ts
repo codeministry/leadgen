@@ -79,4 +79,28 @@ export interface LastRunView {
     readonly sources: readonly LastRunSource[];
     /** Where the time went, in run order. Empty for a run recorded before the table existed. */
     readonly stages: readonly LastRunStage[];
+    /** When the run began: the whole run's duration is `finishedAt` minus this. */
+    readonly startedAt: string;
+    /** The run before, for the deltas beside each figure; null when this is the only one. */
+    readonly previous: LastRunPrevious | null;
+}
+
+/**
+ * Mirrors `LastRunPrevious`: the run before the last one, as much of it as a comparison needs —
+ * the figures and the two instants, nothing of its sources, stages or removals.
+ */
+export interface LastRunPrevious {
+    readonly startedAt: string;
+    readonly finishedAt: string;
+    readonly status: string;
+    readonly extracted: number;
+    readonly written: number;
+    readonly merged: number;
+    readonly enriched: number;
+    readonly filterConsidered: number;
+    readonly filterPassed: number;
+    readonly scored: number;
+    readonly shortlisted: number;
+    readonly review: number;
+    readonly packaged: number;
 }

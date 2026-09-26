@@ -29,6 +29,11 @@ export const FAILED_ICON: LgIconName = 'triangle-alert';
  */
 export const RUNNING_ICON: LgIconName = 'refresh';
 export const DONE_ICON: LgIconName = 'circle-check';
+/**
+ * A stage the pass has not reached yet, in the run status's list of stages. The graph draws that
+ * state as a dashed border instead; a list has no border to dash, so it gets an empty circle.
+ */
+export const PENDING_ICON: LgIconName = 'circle';
 
 /**
  * One icon per kind of sub-node an expanded stage opens (ISC-406): a knockout, each of SCORE's

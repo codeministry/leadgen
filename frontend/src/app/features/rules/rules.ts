@@ -8,6 +8,8 @@ import {injectTick} from '@core/time/tick';
 import {configEvents} from '@core/store/config.events';
 import {ConfigStore} from '@core/store/config.store';
 import {IngestStore} from '@core/store/ingest.store';
+import {llmBudgetEvents} from '@core/store/llm-budget.events';
+import {LlmBudgetStore} from '@core/store/llm-budget.store';
 import {ShortlistStore} from '@core/store/shortlist.store';
 import {Icon} from '@shared/icon/icon';
 import {PageHeader} from '@shared/page-header/page-header';
@@ -72,6 +74,21 @@ function otherOverlayOpen(): boolean {
 })
 export class Rules implements OnInit {
     private readonly dispatch = injectDispatch(configEvents);
+    private readonly budgetDispatch = injectDispatch(llmBudgetEvents);
+    /** Today's model calls, for the run status (the effect in the constructor asks for it). */
+    protected readonly budget = inject(LlmBudgetStore);
+
+    /**
+     * What the day's model count can have moved with — the stage in flight and the run that
+     * finished last — as one string, null while the run status is closed. A string so the
+     * computed's own equality drops the heartbeat's fresh-but-equal run objects: the effect
+     * that reads this asks for the budget once per stage, not once every few seconds.
+     */
+    private readonly budgetMoment = computed((): string | null =>
+        this.selected() === this.runStatus
+            ? `${this.ingest.current()?.stage ?? ''}|${this.ingest.lastRun()?.finishedAt ?? ''}`
+            : null,
+    );
     protected readonly store = inject(ConfigStore);
     /**
      * `rulesOpened` asks for the last run and the funnel, and a store nobody has created does
@@ -215,6 +232,17 @@ export class Rules implements OnInit {
 
     constructor() {
         /*
+         * The day's model calls, read only while the run status is open (operator, 2026-09-27),
+         * and again whenever the pass moves on or a run lands — the stages that call a model are
+         * what spend it. Not on every heartbeat: the count only moves between stages.
+         */
+        effect(() => {
+            if (this.budgetMoment() !== null) {
+                this.budgetDispatch.requested();
+            }
+        });
+
+        /*
          * The stage change and the end of the pass, said once each. An effect rather than a
          * computed because "has ended" is a transition and not a state: with the run gone there is
          * nothing left to derive it from. No timer of its own — it answers the store's heartbeat,
@@ -351,6 +379,15 @@ export class Rules implements OnInit {
             return null;
         }
         return Math.floor((this.tick() - Date.parse(current.stageStartedAt)) / 1000);
+    });
+
+    /** How long the pass in flight has been going as a whole, in whole seconds; null with none. */
+    protected readonly runElapsedSeconds = computed((): number | null => {
+        const current = this.ingest.current();
+        if (current === null) {
+            return null;
+        }
+        return Math.max(0, Math.floor((this.tick() - Date.parse(current.startedAt)) / 1000));
     });
 
     /**
