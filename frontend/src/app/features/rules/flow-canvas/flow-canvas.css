@@ -96,10 +96,11 @@
     stroke-width: 1.5;
 }
 
-/* The connector under an expanded stage: the sub-rail already runs down that channel, so drawing
-   both put two parallel vertical lines in the same place and the lower one read as an underline
-   beneath the sub-steps. `visibility` rather than `display`: the path keeps its box, so nothing in
-   the layout or in ngx-vflow's own measuring moves when a stage opens. */
+/* The connector under an expanded stage: the channel below the card is full of that stage's
+   sub-steps, so the whole line would run straight through them. `visibility` rather than `display`:
+   the path keeps its box, so nothing in the layout or in ngx-vflow's own measuring moves when a
+   stage opens. What the operator still sees of it is `EdgePaint.stub` — the approach into the next
+   card, drawn as a path of its own so the arrow survives the eclipse. */
 .flow-edge.is-eclipsed {
     visibility: hidden;
 }

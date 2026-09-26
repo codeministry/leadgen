@@ -97,6 +97,21 @@
           [attr.data-source-handle]="ctx.edge.sourceHandle"
           [attr.data-target-handle]="ctx.edge.targetHandle"
         />
+        <!-- The eclipsed connector's visible remainder: the run-up into the next stage, carrying the
+                 arrow the hidden line would have carried. Same classes, so it says the same thing about
+                 the run as the line it stands for. -->
+        @if (paint.stub; as stub) {
+          <svg:path
+            class="flow-edge flow-edge-stub"
+            [class.is-ahead]="paint.run === 'ahead'"
+            [class.is-entering]="paint.run === 'entering'"
+            aria-hidden="true"
+            [attr.d]="stub"
+            [attr.marker-end]="ctx.markerEnd()"
+            [attr.data-edge]="ctx.edge.id + ':stub'"
+            [attr.data-run]="paint.run"
+          />
+        }
       </ng-template>
     </vflow>
 

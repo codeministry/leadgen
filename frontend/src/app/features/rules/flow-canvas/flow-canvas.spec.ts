@@ -151,7 +151,7 @@ describe('FlowCanvas', () => {
      * node's own markup on exactly the sides the layout chose for that edge.
      */
     function expectEdgesOnLayoutSides(host: HTMLElement, expected: ReturnType<typeof layoutWorkflow>) {
-        const paths = Array.from(host.querySelectorAll<SVGPathElement>('g[edge] path.flow-edge'));
+        const paths = Array.from(host.querySelectorAll<SVGPathElement>('g[edge] path.flow-edge:not(.flow-edge-stub)'));
         expect(paths).toHaveLength(expected.edges.length);
         const byId = new Map(paths.map((path) => [path.dataset['edge'] ?? '', path]));
         for (const edge of expected.edges) {
@@ -265,7 +265,7 @@ describe('FlowCanvas', () => {
             }
             expect(host.querySelectorAll('.flow-node-width')).toHaveLength(1);
 
-            const edges = Array.from(host.querySelectorAll<SVGPathElement>('g[edge] path.flow-edge'), (path) => path.dataset['edge'] ?? '');
+            const edges = Array.from(host.querySelectorAll<SVGPathElement>('g[edge] path.flow-edge:not(.flow-edge-stub)'), (path) => path.dataset['edge'] ?? '');
             expect(edges.filter((id) => id.startsWith('stage:ENRICH->'))).toHaveLength(1);
             expect(edges.filter((id) => id.endsWith('->stage:ENRICH'))).toHaveLength(1);
             expect(edges).toHaveLength(layoutWorkflow(WIDE, new Set<string>(), FLOW_NODE_SIZES).edges.length);
@@ -514,7 +514,7 @@ describe('FlowCanvas', () => {
         /** Every drawn edge by id, with the run state and the eclipse the template painted on it. */
         function edgePaint(host: HTMLElement): Map<string, {run: string | null; eclipsed: boolean}> {
             return new Map(
-                Array.from(host.querySelectorAll<SVGPathElement>('g[edge] path.flow-edge'), (path) => [
+                Array.from(host.querySelectorAll<SVGPathElement>('g[edge] path.flow-edge:not(.flow-edge-stub)'), (path) => [
                     path.dataset['edge'] ?? '',
                     {run: path.dataset['run'] ?? null, eclipsed: path.classList.contains('is-eclipsed')},
                 ]),

@@ -119,7 +119,20 @@ export interface EdgePaint {
      * ISC-389 still joins every consecutive pair — and only the paint is withheld.
      */
     readonly eclipsed: boolean;
+    /**
+     * The eclipsed connector's last stretch, drawn on its own so the arrow into the next stage
+     * survives the eclipse (operator, 2026-09-26): withholding the whole line took the arrowhead
+     * with it, and the sub-rail that visually replaces it carries none.
+     *
+     * A path of our own rather than a dash pattern on the hidden one: these connectors turn corners,
+     * so "the last tenth of the line" lands in a bend as often as in the approach. Null unless the
+     * edge is eclipsed.
+     */
+    readonly stub: string | null;
 }
+
+/** How much of the approach into the next stage the stub draws, in the graph's own units. */
+const STUB_LENGTH = 26;
 
 /**
  * Reads an edge's place against the run off its two endpoints' states, never off `RunState.order`
@@ -141,6 +154,21 @@ function edgeRunState(kind: EdgeKind, source: StageRunState | null, target: Stag
     if (at === 'running') return 'entering';
     if (at === 'done') return 'behind';
     return 'ahead';
+}
+
+/**
+ * The last stretch of an eclipsed connector, straight down into the next stage's top edge.
+ *
+ * The layout leaves a gap between a stage's last sub-step and the stage below it, and this is what
+ * is drawn in it: the arrow's own short run-up, in the same column centre the hidden connector
+ * arrives at, so the two read as one line whose middle happens to be behind the sub-steps.
+ */
+function stubPath(target: LayoutNode | null): string | null {
+    if (target === null) {
+        return null;
+    }
+    const x = target.x + target.width / 2;
+    return `M ${x} ${target.y - STUB_LENGTH} L ${x} ${target.y}`;
 }
 
 /**
@@ -351,28 +379,33 @@ export class FlowCanvas {
     readonly edges = computed((): Edge<EdgePaint>[] => {
         const nodeStates = this.nodeStates();
         const expanded = this.expanded();
-        return this.layout().edges.map((edge) => ({
-            id: edge.id,
-            source: edge.source,
-            target: edge.target,
-            sourceHandle: sourceHandleOf(edge),
-            targetHandle: targetHandleOf(edge),
-            type: 'template',
-            data: signal<EdgePaint>({
-                run: edgeRunState(edge.kind, nodeStates.get(edge.source) ?? null, nodeStates.get(edge.target) ?? null),
-                eclipsed: edge.kind === 'within' && expanded.has(edge.source.replace(/^stage:/, '')),
-            }),
-            ...(edge.kind === 'sub'
-                ? // A file tree: down the indent rail, then one branch right into the sub-node. No arrow —
-                  // the branch is a few px long, and every sub-edge shares the one vertical line.
-                  {curve: signal<Curve>(treeBranch), markers: signal({})}
-                : {
-                      // Straight segments with square corners: the operator asked for no rounded lines.
-                      curve: signal<Curve>('step'),
-                      // `currentColor` resolves to the canvas's edge token; the library's own default is a hex.
-                      markers: signal({end: {type: 'arrow-closed' as const, color: 'currentColor', width: 14, height: 14}}),
-                  }),
-        }));
+        const placed = new Map(this.layout().nodes.map((node) => [node.id, node]));
+        return this.layout().edges.map((edge) => {
+            const eclipsed = edge.kind === 'within' && expanded.has(edge.source.replace(/^stage:/, ''));
+            return {
+                id: edge.id,
+                source: edge.source,
+                target: edge.target,
+                sourceHandle: sourceHandleOf(edge),
+                targetHandle: targetHandleOf(edge),
+                type: 'template' as const,
+                data: signal<EdgePaint>({
+                    run: edgeRunState(edge.kind, nodeStates.get(edge.source) ?? null, nodeStates.get(edge.target) ?? null),
+                    eclipsed,
+                    stub: eclipsed ? stubPath(placed.get(edge.target) ?? null) : null,
+                }),
+                ...(edge.kind === 'sub'
+                    ? // A file tree: down the indent rail, then one branch right into the sub-node. No arrow —
+                      // the branch is a few px long, and every sub-edge shares the one vertical line.
+                      {curve: signal<Curve>(treeBranch), markers: signal({})}
+                    : {
+                          // Straight segments with square corners: the operator asked for no rounded lines.
+                          curve: signal<Curve>('step'),
+                          // `currentColor` resolves to the canvas's edge token; the library's own default is a hex.
+                          markers: signal({end: {type: 'arrow-closed' as const, color: 'currentColor', width: 14, height: 14}}),
+                      }),
+            };
+        });
     });
 
     constructor() {

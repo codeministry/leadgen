@@ -125,7 +125,10 @@ may change in any release. See the status note in the README.
   every browser the same way; no runtime code stands between it and Safari. Dimming the stages a
   hovered legend entry does not name went the same way, because an opacity below 1 moves a card as
   surely as a position does, so those stages now step back behind a veil of the canvas ground.
-
+- An expanded stage no longer swallows the arrow into the stage below it. The connector between two
+  stages in a column is still withheld while the upper one is open, because the channel under it is
+  full of that stage's sub-steps, but its last stretch is now drawn on its own in the gap above the
+  next card and carries the arrowhead.
 
 ### Changed
 
