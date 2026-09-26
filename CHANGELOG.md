@@ -18,18 +18,25 @@ may change in any release. See the status note in the README.
   sub-nodes, and reads a stage's settings in a sheet at the window's edge that Escape or a click
   outside closes. The legend answers the hovered card; below 704 px the graph becomes a vertical
   pipe of links (spec `017-rules-flow-graph`). The toolbar also expands or collapses every stage
-  at once and takes the graph, its legend and the sheet to full screen, and panning keeps part of
+  at once and gives the graph, its legend and the sheet the whole window, and panning keeps part of
   the graph in view however far it goes.
 
 - The workflow graph shows the pass in flight, in colour, where it stands: the stage being worked
   carries a ring and its own reserved colour with the seconds it has spent there, every stage
   behind it a check, every stage ahead a dashed outline, and the edge entering the running stage a
-  marching dash. Above the graph a header names since when the pass has been running, which step
-  of how many the server reports, that stage and the model it scores with, and offers a link to the
-  running stage. The pipe below 704 px says the same. A screen reader hears each stage change once
+  marching dash. The pipe below 704 px says the same. A screen reader hears each stage change once
   and the end of the pass once, and every stage says which of running, passed and waiting it
   carries. When the pass ends the last run's counts come back in one step, carrying the run that
   just finished (spec `018-rules-live-run`).
+
+- One place always answers about a run: a Status control in the workflow header opens a side panel
+  with every fact there is about the pass in flight, or about the one that finished last — where it
+  stands and how long it has been there, where the time went stage by stage, what it held back,
+  what it left, what each source brought, which model judged, and whether a digest was written. The
+  control takes the run colour while a pass is going and the error colour when the last one failed,
+  and the app header's run button turns into a link into the same panel instead of refusing to be
+  pressed. The strips that used to say a little of this above the graph and on the dashboard are
+  gone.
 
 - The shortlist card answers four questions at a glance and leaves the rest to the detail:
   whether it fits, why it scored (the strongest lift and penalty as labels, every matched topic),
