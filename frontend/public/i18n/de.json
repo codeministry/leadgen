@@ -596,7 +596,15 @@
     "legend": {
       "title": "Legende",
       "width": "Arbeitet an mehreren Anzeigen zugleich",
-      "widthMark": "×N"
+      "widthMark": "×N",
+      "short": {
+        "free": "Lokal",
+        "model": "Modell",
+        "network": "Netz",
+        "file": "Platte",
+        "failed": "Fehlgeschlagen",
+        "width": "Parallel"
+      }
     },
     "phase": {
       "read": "Lesen",

@@ -596,7 +596,15 @@
     "legend": {
       "title": "Legend",
       "width": "Works on several adverts at once",
-      "widthMark": "×N"
+      "widthMark": "×N",
+      "short": {
+        "free": "Local",
+        "model": "Model",
+        "network": "Network",
+        "file": "Disk",
+        "failed": "Failed",
+        "width": "Parallel"
+      }
     },
     "phase": {
       "read": "Read",

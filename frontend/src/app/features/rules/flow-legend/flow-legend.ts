@@ -11,7 +11,14 @@ interface IconEntry {
     /** The marker's id in `markersOf`'s vocabulary: the cost class, `ai` or `failed`. */
     readonly id: string;
     readonly icon: LgIconName;
+    /** The long sentence, which the entry carries for a screen reader and for the pointer. */
     readonly labelKey: string;
+    /**
+     * The word on screen. The long one ran the legend over two lines and pushed the strip into
+     * the drawing (operator, 2026-09-26): a legend is a key, not a manual, and the sentence is
+     * one hover or one screen reader away.
+     */
+    readonly shortKey: string;
 }
 
 /** The width stack's id in `markersOf`'s vocabulary; its entry is drawn apart from the icons. */
@@ -24,10 +31,17 @@ const WIDTH_MARKER = 'width';
  */
 const ICON_ENTRIES: readonly IconEntry[] = [
     ...Object.entries(COST_ICONS).map(
-        ([costClass, icon]): IconEntry => ({kind: 'cost', id: costClass, icon, labelKey: `rules.cost.${costClass}`}),
+        ([costClass, icon]): IconEntry => ({
+            kind: 'cost',
+            id: costClass,
+            icon,
+            labelKey: `rules.cost.${costClass}`,
+            shortKey: `rules.legend.short.${costClass}`,
+        }),
     ),
-    {kind: 'ai', id: 'ai', icon: AI_ICON, labelKey: 'rules.ai.legend'},
-    {kind: 'failed', id: 'failed', icon: FAILED_ICON, labelKey: 'rules.stageFailed'},
+    // The AI marker's own short word already exists: it is what the node's sparkle is named.
+    {kind: 'ai', id: 'ai', icon: AI_ICON, labelKey: 'rules.ai.legend', shortKey: 'rules.ai.marker'},
+    {kind: 'failed', id: 'failed', icon: FAILED_ICON, labelKey: 'rules.stageFailed', shortKey: 'rules.legend.short.failed'},
 ];
 
 /**
