@@ -1,15 +1,30 @@
-/* The host is whatever box the graph places; the card fills it. */
+/* The host is whatever box the graph places; the card fills it.
+
+   NOTHING IN THIS FILE IS POSITIONED, and nothing in it may be. The card is HTML inside an SVG
+   `foreignObject`, and one positioned descendant — `position: relative` is enough — makes WebKit
+   paint the whole `foreignObject` at the SVG's origin at zoom 1 and repaint it only on a forced
+   invalidation, so the graph shows one card and its edges slide under frozen cards while panning
+   (Safari 26, WebKit 26.6; measured 2026-09-26, no counter-declaration exists). Every overlay here
+   is therefore done another way: the running ring is an `outline`, the AI bar an inset
+   `box-shadow`, the toggle a grid item laid over the card, the hidden state text a 1px inline box.
+   `flow-canvas.browser.spec.ts` fails on the first positioned descendant of a `foreignObject`.
+
+   A grid with one cell: the link and the toggle both take it, so the toggle lies over the card's
+   top end corner without being positioned — later in the DOM, so on top. */
 :host {
-  position: relative;
-  display: block;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
   min-width: 0;
   block-size: 100%;
+}
+
+:host > * {
+  grid-area: 1 / 1;
 }
 
 /* The same bordered surface as a rail row, with the selection in `--color-primary` and never
    in the signal, which means "survived the filter" and nothing else. */
 .flow-node {
-  position: relative;
   box-sizing: border-box;
   block-size: 100%;
   display: flex;
@@ -36,29 +51,33 @@
 /* ISC-410.2: the one node the run is in right now. A thin ring OUTSIDE the card with a gap, so
    it reads as a marker around the node rather than as a second border on it. An outline never
    participates in layout at any offset, so a marked node and a plain one occupy the same
-   rectangle and nothing beside it moves as the run advances. */
-.flow-node.is-running::after {
-  content: '';
-  position: absolute;
-  inset: -7px;
-  border: 2px solid var(--lg-run);
-
-  /* Concentric with the card: a ring 5px outside a corner of radius R has radius R + 5, so the
-     two curves stay parallel instead of the ring looking flatter at the corners than the card.
-     An `outline` gets this from the browser and cannot be corrected when it looks wrong; a
-     pseudo-element puts the radius in our hands. */
-  border-radius: calc(var(--radius-field) + 5px);
-  pointer-events: none;
+   rectangle and nothing beside it moves as the run advances. It was a positioned pseudo-element
+   with its own radius until the WebKit rule at the top of this file; every engine we ship to
+   draws an outline along the border radius, concentric with the card, which is what the
+   pseudo-element was for. */
+.flow-node.is-running {
+  outline: 2px solid var(--lg-run);
+  outline-offset: 5px;
 }
 
 /* The hovered legend entry answers in the drawing (operator, 2026-09-26): the stages that carry
-   the marker take the muted border. What happens to the others is not here — the nodes that are
-   NOT pointed at step back behind `.flow-canvas-node.is-dimmed` in `flow-canvas.css`, because
-   `flow-node.spec.ts` bans every `opacity` rule in this file, and rightly: the pending state must
-   never be drawn by fading a label. A transient hover is a different thing from a run state, and
-   it belongs a level up, on the canvas's own wrapper. */
+   the marker take the muted border, and the others step back behind `.flow-node-veil` below. */
 .flow-node.is-lit {
     border-color: var(--lg-muted);
+}
+
+/* The stages a hovered legend entry does NOT name, drawn at about a third of their strength. A
+   veil of the canvas's own ground (`--color-base-200`, what the SVG is painted on) laid over the
+   card as a grid item in the one cell, exactly like the toggle — not an `opacity`. Any opacity
+   below 1 gives the element its own layer, and WebKit then paints the `foreignObject` at the
+   SVG's origin just as it does for a positioned descendant: every dimmed card gathered in the
+   canvas's top left corner for as long as the pointer rested on the legend (Safari, 2026-09-27).
+   `flow-canvas.browser.spec.ts` fails on the first translucent element in a `foreignObject`.
+   Clicks go through it to the card and the toggle beneath. */
+.flow-node-veil {
+  border-radius: var(--radius-field);
+  background-color: color-mix(in oklab, var(--color-base-200) 65%, transparent);
+  pointer-events: none;
 }
 
 /* ISC-410.2: a stage the run has not reached yet. Dashed and in the muted token, never dimmed —
@@ -69,19 +88,16 @@
   border-color: var(--lg-muted);
 }
 
-/* A model takes part (ISC-308): a violet edge in `--lg-ai`, over the card's own border, so the
-   selection and the AI edge stay legible together. */
-.flow-node.is-ai::before {
-  position: absolute;
-  inset-block: 0;
-  inset-inline-start: 0;
-  width: 3px;
-  border-start-start-radius: var(--radius-field);
-  border-end-start-radius: var(--radius-field);
-  background-color: var(--lg-ai);
-  content: '';
-  pointer-events: none;
+/* A model takes part (ISC-308): a violet edge in `--lg-ai` as the card's own start border, so the
+   selection and the AI edge stay legible together. A border rather than a positioned
+   pseudo-element (the WebKit rule at the top of this file); it follows the corner radius on its
+   own. Declared after every rule that recolours or dashes the border — the hover, the selection,
+   the lit and the pending states — so the start side keeps its colour and stays solid under all of
+   them. */
+.flow-node.is-ai {
+  border-inline-start: 3px solid var(--lg-ai);
 }
+
 
 .flow-node-phase,
 .flow-node-name {
@@ -191,12 +207,30 @@
   padding-inline-end: 1.5rem;
 }
 
+/* The toggle shares the host's one grid cell with the link and is pushed into the top end corner
+   by its own alignment — no `position`, see the top of this file. */
 .flow-node-toggle {
-  position: absolute;
-  inset-block-start: 0.25rem;
-  inset-inline-end: 0.25rem;
+  place-self: start end;
+  margin-block-start: 0.25rem;
+  margin-inline-end: 0.25rem;
 }
 
 .flow-node.is-stacked ~ .flow-node-toggle {
-  inset-inline-end: calc(0.25rem + 6px);
+  margin-inline-end: calc(0.25rem + 6px);
+}
+
+/* ISC-416: the state in words for a screen reader and nobody else. Tailwind's `sr-only` is
+   `position: absolute` and cannot be used in here (top of this file); this is the same hiding
+   without the positioning — a one-pixel inline box with its own size cancelled by its margin,
+   clipped, so it takes no room in the line it sits in. */
+.flow-node-state {
+  display: inline-block;
+  inline-size: 1px;
+  block-size: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  border: 0;
+  white-space: nowrap;
 }

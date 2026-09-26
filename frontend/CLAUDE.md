@@ -126,6 +126,8 @@ Carried over from a sibling Angular project, which is the house style:
   `scrollTo({ top: 0 })` passes `tsc`, works in the browser, and takes down every spec that renders the component with
   `scrollTo is not a function` from inside an effect.
 - **`OfferDetail.relayoutAd` stays: Safari intermittently keeps an unfolded advert's folded height.** — reasoning in `docs/decisions/frontend-design-system.md`.
+- **Position nothing inside an SVG `foreignObject`, and give nothing there an `opacity` below 1, or WebKit paints
+  the card at the SVG's origin; never verify a graph screen in Chrome alone.** — reasoning in `docs/decisions/frontend-design-system.md`.
 - **A bare `href="#id"` resolves against `<base href="/">`, not the page**, so an in-page anchor
   navigates to the dashboard with a hash. In-page links are `[routerLink]="[]"` with `[fragment]`,
   and the click handler scrolls and focuses — `shared/anchor-rail/`.

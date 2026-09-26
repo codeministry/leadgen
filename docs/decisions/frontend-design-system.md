@@ -566,6 +566,29 @@ One line at the edge of the screen after a write or a run, and the decisions tha
   height chain — were all correct in the same Safari, and the same page measured correctly a minute later.
   `OfferDetail.relayoutAd` detaches the box and reads a metric off it after the toggle. It is a workaround on an
   observation, not on a reproduced cause, and it says so.
+- **One positioned element inside an SVG `foreignObject` makes WebKit paint its whole HTML at the
+  SVG's origin at zoom 1.** `position: relative` is enough, `absolute` too, and it is per node.
+  Layout stays right — `getBoundingClientRect` reports the scaled box — while paint and hit-testing
+  ignore every ancestor transform, so the workflow graph showed one card in the corner and its
+  edges. No counter-declaration exists: `overflow`, `contain`, `isolation`, `will-change`,
+  `translateZ(0)`, `backface-visibility` and a fixed size on the root `<svg>` were all measured and
+  all inert, and WebKit repaints the box only on a forced invalidation, so a directive that folded
+  the transforms into the `foreignObject` left the cards frozen under moving edges while panning.
+  The only repair is to position nothing inside the card: the running ring is an `outline`, the AI
+  bar an inset `box-shadow`, the toggle a grid item laid over the card, the hidden state text a
+  one-pixel inline box — Tailwind's `sr-only` is `position: absolute` and is banned in there.
+  `flow-canvas.browser.spec.ts` fails on the first positioned descendant of a `foreignObject`, in
+  the plain, mid-run and expanded states. Never verify a graph screen in Chrome alone.
+- **An `opacity` below 1 inside a `foreignObject` does the same as a position.** It gives the element its
+  own layer, and WebKit then paints the `foreignObject` at the origin exactly as it does for a positioned
+  descendant. Hovering a legend entry dimmed the stages it does not name with `opacity: 0.35` on the node's
+  host, and in Safari every dimmed card gathered in the canvas's top left corner until the pointer left
+  (2026-09-27). Measured in Playwright WebKit by hit-testing the centre of a card's layout box: with the host
+  opacity it hit nothing, with the fix it hit the card; Chromium hit it both times, which is why a
+  Chromium-only suite never saw it. Dimming is therefore a veil of the canvas ground laid over the card as
+  a grid item, and `flow-canvas.browser.spec.ts` fails on the first translucent element in a
+  `foreignObject`. A hit-test at the layout centre (`elementFromPoint`) is the screenshot-free way to see
+  this class of bug in headless WebKit.
 
 ## The stage, the sieve and the tones (2026-09-26)
 

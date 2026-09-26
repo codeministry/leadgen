@@ -44,16 +44,6 @@ export function formatElapsed(totalSeconds: number): string {
     selector: 'lg-flow-node',
     imports: [Icon, RouterLink, TranslocoPipe],
     templateUrl: './flow-node.html',
-    /*
-     * What the hovered legend entry does NOT name steps back, so the stages it does name stand out
-     * (operator, 2026-09-26). A host style and not a rule in `flow-node.css`: that file may carry
-     * no `opacity` at all — `flow-node.spec.ts` greps it, because the pending state must never be
-     * drawn by fading a label — and this is a different thing, held only while a pointer rests on
-     * a legend entry. It keys on `lit`, never on `state`, so the ban it sits beside still holds.
-     * On the node itself rather than the canvas's wrapper, because a method call inside vflow's
-     * projected template never marks that view dirty; the signal input does.
-     */
-    host: {'[style.opacity]': 'lit() === false ? 0.35 : null'},
     styleUrl: './flow-node.css',
     changeDetection: ChangeDetectionStrategy.OnPush,
 })

@@ -479,7 +479,7 @@ describe('Rules', () => {
 
     /** The state word a node carries, or null when it carries none. */
     function nodeState(page: HTMLElement, id: string): string | null {
-        return stageLink(page, 'lg-flow-canvas lg-flow-node', id).querySelector('.sr-only')?.textContent?.trim() ?? null;
+        return stageLink(page, 'lg-flow-canvas lg-flow-node', id).querySelector('.flow-node-state')?.textContent?.trim() ?? null;
     }
 
     /** The count chip a node carries, or null while a running pass has taken its place. */
@@ -682,11 +682,11 @@ describe('Rules', () => {
             expect(el, id).not.toBeNull();
             return el!;
         };
-        // The dim is a host style, not a class: `flow-node.css` carries no opacity rule at all,
-        // which is ISC-410.2's own gate, so the fade lives on the element instead of in that file.
+        // The dim is a veil laid over the card, never an opacity: below 1 an opacity gives the node a
+        // layer, and WebKit then paints its foreignObject in the canvas's corner (flow-node.css).
         const dimmed = (): string[] =>
             Array.from(page.querySelectorAll<HTMLElement>('lg-flow-canvas lg-flow-node'))
-                .filter((n) => n.style.opacity !== '')
+                .filter((n) => n.querySelector('.flow-node-veil') !== null)
                 .map((n) => n.querySelector<HTMLElement>('[data-stage]')?.dataset['stage'] ?? '');
         const nodesBy = (cls: string): string[] =>
             Array.from(page.querySelectorAll<HTMLElement>(`lg-flow-canvas .flow-node.${cls}`), (a) => a.dataset['stage'] ?? '');

@@ -634,6 +634,64 @@ describe('the run in flight, painted on its edges (ISC-413)', () => {
         return found;
     }
 
+    /**
+     * WebKit paints the HTML of a `foreignObject` at the SVG's origin at zoom 1 as soon as one
+     * element inside it is positioned, and repaints it only on a forced invalidation — the graph
+     * showed one card, and the edges slid under frozen cards while panning (Safari 26, WebKit 26.6,
+     * 2026-09-26). No counter-declaration exists; the only repair is to position nothing in there.
+     * Three states, because the offenders came in all three: the card itself, the toggle of an
+     * expanded stage, and the hidden state text of a pass in flight (Tailwind's `sr-only`).
+     */
+    const positioned = (host: HTMLElement): string[] =>
+        Array.from(host.querySelectorAll<Element>('foreignObject *'))
+            .filter((el) => getComputedStyle(el).position !== 'static')
+            .map((el) => `${el.tagName.toLowerCase()}.${el.getAttribute('class') ?? ''} → ${getComputedStyle(el).position}`);
+
+    it('positions nothing inside a foreignObject on the plain canvas', async () => {
+        const {host} = await mount();
+        expect(positioned(host)).toEqual([]);
+    });
+
+    it('positions nothing inside a foreignObject with a pass in flight', async () => {
+        const host = await mountMidRun();
+        expect(positioned(host)).toEqual([]);
+    });
+
+    it('positions nothing inside a foreignObject with a stage expanded', async () => {
+        const {fixture, host} = await mount();
+        fixture.componentInstance.toggle('FILTER');
+        await settle(fixture);
+        expect(positioned(host)).toEqual([]);
+    });
+
+    /**
+     * `opacity` below 1 gives an element its own layer in WebKit exactly as `position` does, and
+     * the card goes to the corner with it. Hovering a legend entry dimmed the stages it does not
+     * name, and every dimmed card gathered at the canvas's top left until the pointer left
+     * (Safari, 2026-09-27). Chromium paints both correctly, which is why this reads the computed
+     * value instead of trusting the picture: the suite runs in Chromium.
+     */
+    const translucent = (host: HTMLElement): string[] =>
+        Array.from(host.querySelectorAll<Element>('foreignObject, foreignObject *'))
+            .filter((el) => Number(getComputedStyle(el).opacity) < 1)
+            .map((el) => `${el.tagName.toLowerCase()}.${el.getAttribute('class') ?? ''} → opacity ${getComputedStyle(el).opacity}`);
+
+    it('dims the stages a hovered legend entry does not name without an opacity or a position', async () => {
+        const {fixture, host} = await mount();
+        fixture.componentRef.setInput('lit', new Set(['FILTER']));
+        await settle(fixture);
+
+        expect(translucent(host)).toEqual([]);
+        expect(positioned(host)).toEqual([]);
+
+        // And the dimming still happens: the veil stands over the stages the entry does not name,
+        // and over none of the ones it does.
+        const veiled = (id: string): boolean =>
+            host.querySelector(`lg-flow-node:has([data-stage="${id}"]) .flow-node-veil`) !== null;
+        expect(veiled('FILTER')).toBe(false);
+        expect(veiled('DEDUPE')).toBe(true);
+    });
+
     it('draws an edge behind the run solid, with no dash pattern', async () => {
         const host = await mountMidRun();
         const behind = edge(host, 'stage:DEDUPE->stage:FILTER');

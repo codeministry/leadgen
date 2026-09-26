@@ -115,6 +115,17 @@ may change in any release. See the status note in the README.
   used to overshoot.
 - `ContentReport.requests` no longer counts an advert whose call the budget refused; no request
   left, and the report counts requests.
+- The workflow graph draws in Safari. WebKit paints the HTML of an SVG `foreignObject` at the
+  graph's origin at zoom 1 as soon as a single element inside it is positioned — which the stage
+  card, its host, its toggle and the hidden state text all were — and repaints it only on a forced
+  invalidation, so the screen showed one card and the edges slid under frozen cards while panning.
+  Nothing inside a card is positioned any more: the running ring is an outline, the AI bar an
+  inset shadow, the toggle a grid overlay, the state text a one-pixel inline box, and a browser
+  test fails on the first positioned descendant of a `foreignObject`. The graph library draws
+  every browser the same way; no runtime code stands between it and Safari. Dimming the stages a
+  hovered legend entry does not name went the same way, because an opacity below 1 moves a card as
+  surely as a position does, so those stages now step back behind a veil of the canvas ground.
+
 
 ### Changed
 
