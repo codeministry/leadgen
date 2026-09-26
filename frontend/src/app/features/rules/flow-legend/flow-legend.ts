@@ -1,5 +1,4 @@
 import {ChangeDetectionStrategy, Component, input} from '@angular/core';
-import {RouterLink} from '@angular/router';
 import {TranslocoPipe} from '@jsverse/transloco';
 import {Icon} from '@shared/icon/icon';
 import {LgIconName} from '@shared/icon/lucide-icons';
@@ -51,7 +50,7 @@ const ICON_ENTRIES: readonly IconEntry[] = [
  */
 @Component({
     selector: 'lg-flow-legend',
-    imports: [Icon, RouterLink, TranslocoPipe],
+    imports: [Icon, TranslocoPipe],
     templateUrl: './flow-legend.html',
     styleUrl: './flow-legend.css',
     changeDetection: ChangeDetectionStrategy.OnPush,
