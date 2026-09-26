@@ -1,8 +1,10 @@
 import {ComponentFixture, TestBed} from '@angular/core/testing';
 import {provideRouter} from '@angular/router';
+import {CurrentRunView} from '@core/model/current-run';
 import {LastRunStage, LastRunView} from '@core/model/last-run';
 import {WorkflowStage, WorkflowView} from '@core/model/workflow';
-import {AI_ICON, COST_ICONS, FAILED_ICON, StageRail} from './stage-rail';
+import {RunState, runState} from '../run-state';
+import {COST_ICONS, StageRail} from './stage-rail';
 
 function stage(id: string, costClasses: readonly string[], sourceId: string | null = null): WorkflowStage {
     return {
@@ -14,6 +16,7 @@ function stage(id: string, costClasses: readonly string[], sourceId: string | nu
         promptId: null,
         settings: [],
         knockouts: null,
+        width: null,
     };
 }
 
@@ -40,6 +43,7 @@ function runStage(position: number, name: string, status: 'OK' | 'FAILED' = 'OK'
         millis: 60_000,
         status,
         note: status === 'FAILED' ? 'boom' : null,
+        width: null,
     };
 }
 
@@ -130,16 +134,17 @@ describe('StageRail', () => {
             expect(new Set(icons.map((svg) => svg?.innerHTML)).size).toBe(5);
         });
 
-        it('draws four decorative arrows, one between each pair of phases and none after the last', () => {
-            const items = Array.from(element(render('DEDUPE')).querySelectorAll('ol.rail-phases > li'));
-            const arrows = items.map((li) => li.querySelectorAll(':scope > .phase-arrow'));
+        it('joins the phases with four hidden spine segments, none after the last', () => {
+            const rail = element(render('DEDUPE'));
+            const items = Array.from(rail.querySelectorAll('ol.rail-phases > li'));
+            const segments = items.map((li) => li.querySelectorAll(':scope > .rail-spine-phase'));
 
-            expect(arrows.map((found) => found.length)).toEqual([1, 1, 1, 1, 0]);
-            for (const found of arrows.slice(0, 4)) {
-                const arrow = found[0];
-                expect(arrow.getAttribute('aria-hidden')).toBe('true');
-                expect(arrow.querySelector('svg')).not.toBeNull();
+            expect(segments.map((found) => found.length)).toEqual([1, 1, 1, 1, 0]);
+            for (const found of segments.slice(0, 4)) {
+                expect(found[0].getAttribute('aria-hidden')).toBe('true');
             }
+            // 008's arrows are gone: the spine draws the order now.
+            expect(rail.querySelector('.phase-arrow')).toBeNull();
         });
 
         it('keeps the entry for unread keys outside the numbered flow', () => {
@@ -230,13 +235,15 @@ describe('StageRail', () => {
         expect(current[0].querySelector('.stage-name')?.textContent?.trim()).toBe('Read by nothing');
     });
 
-    it('shows a count where one is given and nothing where none is', () => {
-        const rail = element(render('DEDUPE', {DEDUPE: 42, FILTER: null}));
+    it('shows a count as the chip the canvas draws, with its verb, and nothing where none is', () => {
+        const rail = element(render('DEDUPE', {'INGEST zeta': 8, FILTER: 12548, SCORE: 12537, ENRICH: null}));
         const count = (id: string) => rail.querySelector(`a[data-stage="${id}"] .stage-count`)?.textContent?.trim() ?? null;
 
-        expect(count('DEDUPE')).toBe('42');
-        expect(count('FILTER')).toBeNull();
-        expect(count('SCORE')).toBeNull();
+        expect(count('INGEST zeta')).toBe('8 read');
+        expect(count('FILTER')).toBe('−12,548 held back');
+        expect(count('SCORE')).toBe('12,537 scored');
+        expect(count('ENRICH')).toBeNull();
+        expect(count('DEDUPE')).toBeNull();
     });
 
     it('never paints the signal and never offers a primary action', () => {
@@ -358,7 +365,9 @@ describe('StageRail marks the AI steps (ISC-308)', () => {
     });
 });
 
-describe('StageRail legend (ISC-310)', () => {
+// The legend moved to lg-flow-legend, one implementation under the canvas and the pipe alike
+// (ISC-395); its entries and the icons-subset check are in flow-legend and rules.spec.ts.
+describe('StageRail markers (ISC-310)', () => {
     beforeEach(() => {
         TestBed.configureTestingModule({providers: [provideRouter([])]});
     });
@@ -374,39 +383,6 @@ describe('StageRail legend (ISC-310)', () => {
         return fixture.nativeElement as HTMLElement;
     }
 
-    const entries = (root: HTMLElement) => Array.from(root.querySelectorAll('.rail-legend li'));
-
-    it('sits after the unread entry under a heading', () => {
-        const root = rail();
-        const legend = root.querySelector('.rail-legend');
-
-        expect(legend).not.toBeNull();
-        expect(legend?.querySelector('h2')?.textContent?.trim()).toBe('Legend');
-        expect(root.querySelector('.unread')?.compareDocumentPosition(legend as Node)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
-    });
-
-    it('has one entry per cost class, the AI marker and the failed marker, each icon beside a label', () => {
-        const root = rail();
-        const expected = [...Object.values(COST_ICONS), AI_ICON, FAILED_ICON];
-
-        expect(entries(root).map((li) => li.querySelector('lg-icon')?.getAttribute('data-icon')).sort()).toEqual(expected.sort());
-        for (const li of entries(root)) {
-            expect(li.querySelector('.legend-label')?.textContent?.trim()).toBeTruthy();
-            // Decorative: the label sits beside it, so the icon is not read twice.
-            expect(li.querySelector('svg')?.getAttribute('aria-hidden')).toBe('true');
-        }
-        expect(root.querySelector('.rail-legend .legend-ai .legend-label')?.textContent?.trim()).toBe('AI step: a model takes part, by prompt or by embeddings');
-    });
-
-    it('leaves no icon in a stage row that the legend lacks', () => {
-        const root = rail();
-        const legend = new Set(entries(root).map((li) => li.querySelector('lg-icon')?.getAttribute('data-icon')));
-        const used = Array.from(root.querySelectorAll('a[data-stage] lg-icon'), (icon) => icon.getAttribute('data-icon'));
-
-        expect(used.length).toBeGreaterThan(0);
-        expect(used.filter((name) => !legend.has(name))).toEqual([]);
-    });
-
     it('draws an icon for every cost class the server sends, so the fallback never reaches a row', () => {
         // WorkflowView.COST_* on the server; a fifth class would draw `ellipsis`, which the legend lacks.
         expect(Object.keys(COST_ICONS).sort()).toEqual(['file', 'free', 'model', 'network']);
@@ -418,5 +394,155 @@ describe('StageRail legend (ISC-310)', () => {
 
         expect(lists.length).toBeGreaterThan(1);
         lists.forEach((list) => expect(list.getAttribute('role')).toBe('list'));
+    });
+});
+
+describe('StageRail is a flow pipe (ISC-395)', () => {
+    beforeEach(() => {
+        TestBed.configureTestingModule({providers: [provideRouter([])]});
+    });
+
+    function rail(selected = 'FILTER'): HTMLElement {
+        const fixture = TestBed.createComponent(StageRail);
+        fixture.componentRef.setInput('workflow', WORKFLOW);
+        fixture.componentRef.setInput('selected', selected);
+        fixture.detectChanges();
+        return fixture.nativeElement as HTMLElement;
+    }
+
+    const ALL = WORKFLOW.phases.flatMap((phase) => phase.stages);
+    const SOURCES = ALL.filter((s) => s.kind === 'ingest');
+    const SPINE_STAGES = ALL.filter((s) => s.kind !== 'ingest');
+
+    it('draws a hidden spine segment on every stage from the merge on', () => {
+        const rows = Array.from(rail().querySelectorAll('ol.rail-phases .stage-row:not(.is-source)'));
+
+        expect(rows.map((row) => row.querySelector('a')?.getAttribute('data-stage'))).toEqual(SPINE_STAGES.map((s) => s.id));
+        for (const row of rows) {
+            const spine = row.querySelector(':scope > .rail-spine');
+            expect(spine).not.toBeNull();
+            expect(spine?.getAttribute('aria-hidden')).toBe('true');
+        }
+    });
+
+    it('brackets the sources, one hidden branch per source, merging before DEDUPE', () => {
+        const root = rail();
+        const bracket = root.querySelector('.rail-sources');
+        const branches = Array.from(bracket?.querySelectorAll(':scope > li > .rail-branch') ?? []);
+
+        expect(bracket).not.toBeNull();
+        expect(branches).toHaveLength(SOURCES.length);
+        expect(branches.every((b) => b.getAttribute('aria-hidden') === 'true')).toBe(true);
+        expect(Array.from(bracket?.querySelectorAll('a') ?? [], (a) => a.getAttribute('data-stage'))).toEqual(SOURCES.map((s) => s.id));
+        const merge = root.querySelector('.rail-merge');
+        expect(merge?.getAttribute('aria-hidden')).toBe('true');
+        const dedupe = root.querySelector('a[data-stage="DEDUPE"]') as Node;
+        expect(merge?.compareDocumentPosition(dedupe)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    });
+
+    it('says the fan-in once in words, visually hidden, for a screen reader', () => {
+        const sentences = Array.from(rail().querySelectorAll('.rail-fan-in'));
+
+        expect(sentences).toHaveLength(1);
+        expect(sentences[0].classList.contains('sr-only')).toBe(true);
+        expect(sentences[0].textContent?.trim()).toBe('2 sources, merged at Deduplicate');
+    });
+
+    it('keeps every link in run order, the unread entry last, with one aria-current', () => {
+        const links = Array.from(rail('SCORE').querySelectorAll('nav a'));
+
+        expect(links.map((a) => a.getAttribute('data-stage'))).toEqual([...ALL.map((s) => s.id), 'unread']);
+        expect(links.filter((a) => a.getAttribute('aria-current') === 'page').map((a) => a.getAttribute('data-stage'))).toEqual(['SCORE']);
+    });
+
+    it('draws every entry as a compact pill, not a full-width row', () => {
+        expect(rail().querySelectorAll('a.stage-pill[data-stage]')).toHaveLength(STAGE_COUNT + 1);
+    });
+});
+
+describe('StageRail draws the running pass (ISC-417)', () => {
+    beforeEach(() => {
+        TestBed.configureTestingModule({providers: [provideRouter([])]});
+    });
+
+    function currentRun(stageId: string, stageStartedAt: string | null): CurrentRunView {
+        return {
+            id: 1,
+            startedAt: '2026-09-24T09:50:00Z',
+            scoreModel: 'gpt-oss:20b',
+            stage: stageId,
+            stagePosition: null,
+            stageTotal: null,
+            stageStartedAt,
+        };
+    }
+
+    // The 13-stage run order of WORKFLOW (the two sources, then DEDUPE through DIGEST): CONTENT
+    // sits sixth, the middle stop, with everything through ENRICH already done and everything
+    // from FIELDS on still pending.
+    const MID_RUN = runState(WORKFLOW, currentRun('CONTENT', '2026-09-24T09:58:25Z'));
+    const DONE = ['INGEST zeta', 'INGEST alpha', 'DEDUPE', 'FILTER', 'ARCHIVE', 'ENRICH'];
+    const PENDING = ['FIELDS', 'SCORE', 'RETRIEVAL', 'OPEN', 'PACKAGE', 'DIGEST'];
+
+    function render(run: RunState | null, elapsed: number | null = null, counts: Record<string, string | number | null> = {}): ComponentFixture<StageRail> {
+        const fixture = TestBed.createComponent(StageRail);
+        fixture.componentRef.setInput('workflow', WORKFLOW);
+        fixture.componentRef.setInput('selected', 'CONTENT');
+        fixture.componentRef.setInput('counts', counts);
+        fixture.componentRef.setInput('run', run);
+        fixture.componentRef.setInput('elapsed', elapsed);
+        fixture.detectChanges();
+        return fixture;
+    }
+
+    function element(fixture: ComponentFixture<StageRail>): HTMLElement {
+        return fixture.nativeElement as HTMLElement;
+    }
+
+    function rowOf(rail: HTMLElement, id: string): Element | null {
+        return rail.querySelector(`[data-stage="${id}"]`)?.closest('.stage-row') ?? null;
+    }
+
+    it('draws the spine solid down to the running stop and dashed below it', () => {
+        const rail = element(render(MID_RUN));
+
+        for (const id of DONE) {
+            expect(rowOf(rail, id)?.classList.contains('is-run-pending')).toBe(false);
+        }
+        expect(rowOf(rail, 'CONTENT')?.classList.contains('is-run-running')).toBe(true);
+        expect(rowOf(rail, 'CONTENT')?.classList.contains('is-run-pending')).toBe(false);
+        for (const id of PENDING) {
+            expect(rowOf(rail, id)?.classList.contains('is-run-pending')).toBe(true);
+        }
+        // A phase the run has not entered yet dashes its own heading, the same line continued;
+        // one it has already entered (even mid-way through, as here) keeps it solid.
+        expect(rail.querySelector('#rail-phase-judge')?.classList.contains('is-run-pending')).toBe(true);
+        expect(rail.querySelector('#rail-phase-understand')?.classList.contains('is-run-pending')).toBe(false);
+    });
+
+    it('carries the running stop in the run colour with its elapsed time, and no chip', () => {
+        const rail = element(render(MID_RUN, 95));
+        const link = rail.querySelector('a[data-stage="CONTENT"]');
+        const elapsed = link?.querySelector('.stage-elapsed');
+
+        expect(link?.closest('.stage-row')?.classList.contains('is-run-running')).toBe(true);
+        expect(elapsed?.textContent?.trim()).toBe('1:35');
+        expect(elapsed?.getAttribute('aria-hidden')).toBe('true');
+        expect(link?.querySelector('.stage-count')).toBeNull();
+    });
+
+    it('hides every last-run chip while a pass is placed, not only the running stop', () => {
+        const rail = element(render(MID_RUN, 95, {FILTER: 12548, SCORE: 12537}));
+
+        expect(rail.querySelector('a[data-stage="FILTER"] .stage-count')).toBeNull();
+        expect(rail.querySelector('a[data-stage="SCORE"] .stage-count')).toBeNull();
+    });
+
+    it('looks exactly as it does today with no run reported', () => {
+        const rail = element(render(null, null, {SCORE: 12537}));
+
+        expect(rail.querySelectorAll('.is-run-pending, .is-run-running')).toHaveLength(0);
+        expect(rail.querySelector('.stage-elapsed')).toBeNull();
+        expect(rail.querySelector('a[data-stage="SCORE"] .stage-count')?.textContent?.trim()).toBe('12,537 scored');
     });
 });

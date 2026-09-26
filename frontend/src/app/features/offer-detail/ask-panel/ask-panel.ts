@@ -1,4 +1,5 @@
-import {ChangeDetectionStrategy, Component, computed, inject, input, signal} from '@angular/core';
+import {ChangeDetectionStrategy, Component, computed, DestroyRef, inject, input, signal} from '@angular/core';
+import {takeUntilDestroyed} from '@angular/core/rxjs-interop';
 import {HttpErrorResponse} from '@angular/common/http';
 import {TranslocoPipe} from '@jsverse/transloco';
 import {ShortlistApi} from '@core/api/shortlist.api';
@@ -30,6 +31,7 @@ import {Icon} from '@shared/icon/icon';
 })
 export class AskPanel {
   private readonly api = inject(ShortlistApi);
+  private readonly destroyRef = inject(DestroyRef);
 
   readonly offerId = input.required<number>();
 
@@ -59,7 +61,10 @@ export class AskPanel {
       return;
     }
     this.pending.set(question);
-    this.api.ask(this.offerId(), question).subscribe({
+    // Torn down with the panel: the offer detail replaces it on every selection, and an answer
+    // arriving after that has no screen to land on. `DestroyRef` passed explicitly, because a
+    // method runs outside the injection context.
+    this.api.ask(this.offerId(), question).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (answer) => {
         this.answers.update((all) => ({...all, [question]: answer}));
         // A question that now has an answer has no refusal: the two are mutually exclusive,

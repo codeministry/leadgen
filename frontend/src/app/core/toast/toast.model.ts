@@ -1,3 +1,5 @@
+import {EventInstance} from '@ngrx/signals/events';
+
 /**
  * One line at the edge of the screen, saying what just happened.
  *
@@ -16,6 +18,23 @@
  */
 export type ToastTone = 'success' | 'warning' | 'info';
 
+/**
+ * The one thing a toast may offer besides a link: a button that dispatches an event.
+ *
+ * <p>It carries the event instance itself rather than a creator, so the stack dispatches
+ * what it was handed and never learns a payload. A toast with an action has no lifetime —
+ * the person decides, and an offer that vanished while they read it is the offer never
+ * made — but the close button and the cap still remove it. The first and so far only
+ * producer is the update store's "a new version is ready", whose action is the reload.
+ * Still never an undo: the event goes to a store that acts under its own rules.
+ */
+export interface ToastAction {
+    /** A catalog key under `toast.`, the button's label. */
+    readonly key: string;
+    /** The event the button dispatches, made when the toast is raised. */
+    readonly event: EventInstance<string, unknown>;
+}
+
 export interface Toast {
     /** Monotonic, the stack's track key and what the timer and the close button name. */
     readonly id: number;
@@ -26,6 +45,8 @@ export interface Toast {
     readonly params?: Readonly<Record<string, unknown>>;
     /** A configured route the toast points at. Navigation only; a toast never writes. */
     readonly link?: string;
+    /** A button that dispatches an event. Exempt from the timer; see `ToastAction`. */
+    readonly action?: ToastAction;
 }
 
 /**
@@ -57,6 +78,12 @@ let nextId = 0;
 export function toast(tone: ToastTone, key: string, params?: Toast['params'], link?: string): Toast {
     nextId += 1;
     return {id: nextId, tone, key, params, link};
+}
+
+/** A fresh toast that offers an action instead of a link, on the same counter. */
+export function actionToast(tone: ToastTone, key: string, action: ToastAction, params?: Toast['params']): Toast {
+    nextId += 1;
+    return {id: nextId, tone, key, params, action};
 }
 
 /**

@@ -15,7 +15,7 @@ No exceptions, and no German creeping back in over time.
 
 The one thing that is *not* repo language but data: the offers this tool reads are
 German, the cover letters it writes are German, and the reference-project pitches in
-the profile are German. That is **content**, it lives in `config/local/` and in i18n
+the profile are German. That is **content**, it lives in `config/` and in i18n
 catalogs, and it is selected by the language of the job ad — never hardcoded.
 
 If you find German anywhere else, translate it in the same change. Do not add a
@@ -36,57 +36,28 @@ Violating one of these is expensive, and most of them fail silently.
   LLM call. Without a language model the tool must still run, only weaker.
 - **A profile topic moves a score and never passes a knockout, and the scorer stores the match.** The
   topic filter reads `offer_score_reason.topic`; it never matches text itself.
-- **Ollama is the provider, and there is no automatic fallback.** Scoring, classification and
-  embeddings run locally and for free. Anthropic is never wired in as a fallback for a failed
-  or slow local call — it is used only when Marcello sets it for that specific run. A silent
-  fallback turns a free pipeline into a billed one without anything in the output to show it.
-- **Pre-1.0 a breaking change is a PATCH; only the runtime moves the MINOR.** SemVer would ask
-  for a minor bump on a broken API or schema; this repository does not, and will not until 1.0.
-  A breaking `/api/sources` response shape shipped as `v0.3.1`, and the dropped `ingest_cursor`
-  table plus changed `remote.accept_unknown` semantics as `v0.3.2`. The minor is kept for a
-  change in how the artifact is built or run: `v0.4.0` ships the jar unpacked with Spring AOT
-  switched on, and carries three breaking changes along with it. The breaking part belongs in
-  the release notes, not in the number.
+- **Ollama is the provider, with no automatic fallback; any other only when set for that run.** — reasoning in `docs/decisions/pipeline-scoring.md`.
+- **Pre-1.0 a breaking change is a PATCH; only how the artifact is built or run moves the MINOR.** — reasoning in `docs/decisions/native-image.md`.
 - **Production maintenance never touches the codebase.** Bulk re-import, rescoring, a
   bulk-archive: these run against the live instance from the terminal or as direct SQL. A
   one-off admin task that leaves a commit behind has been done wrong, because the next
   release then carries a migration nobody asked for.
-- **The database image is `pgvector/pgvector:0.8.6-pg18`, not plain postgres.** Deduplication's
-  two similarity strategies compare vectors, `V22` creates the extension, and an image without
-  it fails that migration with an error naming the extension rather than the image. It is named
-  in `docker-compose.yml` and once for the tests in
-  `backend/src/test/java/de/codeministry/leadgen/Databases.java`, and nowhere else — there is
-  no chart in this repository. The tag is pinned: a floating one swaps the extension binary
-  under a live data directory with nothing in the diff to show for it.
-- **Compose mounts the database volume at `/var/lib/postgresql`, never at `…/data`, and a
-  major bump moves the tag, `PGDATA`, the mount and the data together.** Since Postgres 18 the
-  old target is ignored rather than refused, so the wrong one starts an empty cluster, migrates
-  it green and serves zero offers. No test can see a mount; the runbook is in
-  `docs/DEVELOPMENT.md`.
-- **The vector column is 2000 wide because pgvector will not index a wider one**, and a model
-  that returns more is truncated to the leading 2000 at the seam rather than widening it.
-  Thresholds are measured with `docs/samples/measure_embeddings.ts` before they are changed;
-  the bands are a property of the model and the market, not of the number.
+- **The database image is the pinned `pgvector/pgvector:0.8.6-pg18`, set in `docker-compose.yml` and `Databases.java` and nowhere else.** — reasoning in `docs/decisions/retrieval.md`.
+- **Mount the database volume at `/var/lib/postgresql`, never `…/data`; a major bump moves tag, `PGDATA`, mount and data at once.** — reasoning in `docs/decisions/retrieval.md`.
+- **The vector column is 2000 wide, a wider vector is truncated at the seam, and thresholds move only after measuring with `docs/samples/measure_embeddings.ts`.** — reasoning in `docs/decisions/retrieval.md`.
 - **No CV tailoring.** Fixed PDFs in `config/documents/`, selected by the language
   of the ad and nothing else.
 - **Nothing is ever sent.** Both outputs are rendered files: the digest as text or HTML,
   the application package as a folder. There is no transport, no recipient and no channel
   in the configuration either — modelling one would be an invitation to add the code.
-- **Two configuration layers, the same as Spring's own.** Working defaults ship on the
-  classpath under `backend/src/main/resources/leadgen/` and are part of the jar; the
-  directory in `leadgen.config-dir` overrides them **file by file**. The tool therefore
-  runs on a fresh clone with no configuration at all, and nothing individual is ever baked
-  into the artifact. The startup log names, per file, which layer won.
+- **Two configuration layers: shipped classpath defaults, overridden file by file from `leadgen.config-dir`.** — reasoning in `docs/decisions/configuration.md`.
 - **The mail address never leaves the machine.** Newsletter links are proxied as
   `…/proxy?target=…&email=…`. Unwrap `target`, discard `email`. Raw `.eml` files and
   anything derived from them are gitignored — they carry the address in headers and
   unsubscribe links.
 - **`min_hourly_eur` must not apply before the enrichment stage.** The newsletter carries
   a rate in 0.0 % of offers. Applied earlier, the rule filters either everything or nothing.
-- **A package is built when a person moves an application to `PACKAGED`, never by a run.**
-  The shortlist opens an application at `NEW` and costs one row; the folder is built after
-  that status write commits. So `PACKAGED` is the one transition the endpoint refuses to let
-  anything skip — otherwise a SENT application stands for a document nobody ever made.
+- **A package is built only when a person moves an application to `PACKAGED`, and no transition skips it.** — reasoning in `docs/decisions/manual-status.md`.
 - **Archiving discards the package unless the application was ever sent, and a restore comes
   back at `NEW`.** Both halves keep "PACKAGED" and "there is a folder" the same fact.
 - **Anything reached by a name computed at runtime needs a hint in `LeadGenRuntimeHints`.**
@@ -137,14 +108,14 @@ there**, which is what keeps this file readable.
 | What collapses a duplicate, the six filter stages, the archive axis         | `docs/decisions/pipeline-dedupe-filter.md`  |
 | The fetch that leaves the machine, block labelling, start/duration/deadline | `docs/decisions/pipeline-enrich-content.md` |
 | Rules before model, the weight table, the digest and the package folder     | `docs/decisions/pipeline-scoring.md`        |
-| The working-set predicate, keyset paging, the six sort keys, the filters    | `docs/decisions/read-side.md`               |
+| The working-set predicate, keyset paging, the ten sort keys, the filters    | `docs/decisions/read-side.md`               |
 | The two configuration layers and the startup banner                         | `docs/decisions/configuration.md`           |
 | The three split screens, the shell, the write path                          | `docs/decisions/frontend-split-views.md`    |
 | Both themes, the signal's one meaning, the tiers, the sections, the catalogs | `docs/decisions/frontend-design-system.md`  |
 | The eleven application states and their event log                           | `docs/decisions/manual-status.md`           |
-| Two vector columns, the search that narrows, what a vector may not decide   | `docs/decisions/retrieval.md`               |
+| Vectors, the search that narrows, the pgvector image and its data mount     | `docs/decisions/retrieval.md`               |
 | The sixteen steps this tool was built in, and what each had to prove        | `docs/decisions/order-of-work.md`           |
-| The AOT cache, the native image, and the hints written by hand              | `docs/decisions/native-image.md`            |
+| The AOT cache, the native image, the hints, and pre-1.0 versioning          | `docs/decisions/native-image.md`            |
 
 The conventions and the traps for each half sit beside the code, in `backend/CLAUDE.md` and
 `frontend/CLAUDE.md`. A nested file is loaded when a file in that tree is read, never at
@@ -156,12 +127,9 @@ file that is loaded when somebody could break it: this one if it is repo-wide, `
 why the obvious alternative was not taken — goes into the matching file in `docs/decisions/`.
 Both halves are worth keeping; only one of them has to be in context at all times.
 
-This is not a style preference, it is the correction of a measured failure. This file was
-20,641 characters on 2026-09-01 and 166,477 two weeks later, because every decision landed
-here whole. At that size it is loaded into every session, on every turn, and the rules that
-matter are buried in the reasoning behind them. `WorkingNotesStaySmallTest` holds the split:
-it fails when a file outgrows its budget, when a path named here does not exist, and when a
-document in `docs/decisions/` is not reachable from the table above.
+Measured, not taste: this file went from 20,641 to 166,477 characters in two weeks when
+every decision landed here whole. `WorkingNotesStaySmallTest` holds the split (budget, paths
+exist, every decisions doc reachable from the table above).
 
 ## What already exists
 
@@ -205,7 +173,8 @@ frontend/src/app/features/        dashboard, shortlist (+ offer card, sort menu,
                                   views — decisions/frontend-split-views.md
 frontend/src/app/core/filter-views/  saved views: a name and a query string, in this
                                   browser's localStorage — decisions/frontend-split-views.md
-frontend/tools/build-favicon.sh   renders favicon.ico and favicon-256.png from brand/mark.svg
+frontend/tools/build-favicon.sh   renders the favicon set plus the 192/512 round-plate,
+                                  512 maskable and 180 touch icons from brand/mark.svg
 ```
 
 The two Python scripts are the **reference implementation**. Whatever they do, the Java
@@ -236,8 +205,7 @@ an editor command aimed at the whole repository.
 - **Reformatting an applied migration takes every deployed database down.** Flyway hashes the file's bytes, so
   realigning a column list or moving a `(` to its own line changes the checksum of a migration that ran months ago, and
   the application refuses to start with a mismatch per version rather than with anything naming the commit. Measured:
-  one
-  "Reformat Code" across the repository touched thirteen of sixteen migrations and stopped the microk8s deployment dead.
+  one "Reformat Code" across the repository touched thirteen of sixteen migrations and stopped the microk8s deployment dead.
   The repair is to restore the files, not to repair the database, because the checksum has to match on every environment
   at once.
   `.editorconfig` switches the IntelliJ formatter off for `db/migration/*.sql` for exactly this reason.

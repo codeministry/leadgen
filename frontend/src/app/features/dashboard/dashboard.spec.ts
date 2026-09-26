@@ -2,10 +2,19 @@ import {provideHttpClient} from '@angular/common/http';
 import {HttpTestingController, provideHttpClientTesting} from '@angular/common/http/testing';
 import {ComponentFixture, TestBed} from '@angular/core/testing';
 import {provideRouter} from '@angular/router';
+import {TranslocoService} from '@jsverse/transloco';
 import {LastRunStage, LastRunView} from '@core/model/last-run';
+import de from '../../../../public/i18n/de.json';
 import {Dashboard} from './dashboard';
 
-function stage(position: number, name: string, millis: number, status = 'OK', note: string | null = null): LastRunStage {
+function stage(
+    position: number,
+    name: string,
+    millis: number,
+    status = 'OK',
+    note: string | null = null,
+    width: number | null = null,
+): LastRunStage {
     const startedAt = Date.parse('2026-09-24T04:10:00Z') + position * 60_000;
     return {
         position,
@@ -15,6 +24,7 @@ function stage(position: number, name: string, millis: number, status = 'OK', no
         millis,
         status,
         note,
+        width,
     };
 }
 
@@ -132,6 +142,66 @@ describe('Dashboard', () => {
         expect(stageRows(fixture)[0].textContent).toContain('mailbox unreachable');
     });
 
+    describe('the width a stage ran at', () => {
+        function status(row: HTMLTableRowElement): string {
+            return row.querySelector('.stage-status')?.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+        }
+
+        it('shows the width instead of the dash on an OK row that ran wider than one', () => {
+            const fixture = render(
+                lastRun({stages: [stage(0, 'DEDUPE', 200, 'OK', 'width=4', 4), stage(1, 'FILTER', 9_000)]}),
+            );
+
+            const cell = status(stageRows(fixture)[0]);
+            expect(cell).toBe('4 at once');
+            expect(cell).not.toContain('—');
+        });
+
+        it('puts the width after the slowest badge when both apply', () => {
+            const fixture = render(lastRun({stages: [stage(0, 'DEDUPE', 200), stage(1, 'FILTER', 9_000, 'OK', 'width=4', 4)]}));
+
+            // The flex gap spaces them, so read the order off the children, not the joined text.
+            const parts = Array.from(stageRows(fixture)[1].querySelector('.stage-status')!.children).map((el) =>
+                el.textContent?.trim(),
+            );
+            expect(parts).toEqual(['slowest', '4 at once']);
+        });
+
+        it('changes nothing at width one or without a width', () => {
+            const fixture = render(
+                lastRun({
+                    stages: [stage(0, 'DEDUPE', 200, 'OK', 'width=1', 1), stage(1, 'FILTER', 9_000), stage(2, 'ARCHIVE', 50)],
+                }),
+            );
+
+            const rows = stageRows(fixture);
+            expect(status(rows[0])).toBe('—');
+            expect(status(rows[2])).toBe('—');
+            expect(fixture.nativeElement.textContent).not.toContain('at once');
+        });
+
+        it('keeps a failed row on its reason and never shows a width there', () => {
+            const fixture = render(
+                lastRun({stages: [stage(0, 'DEDUPE', 200, 'FAILED', 'width=4 then the portal went down'), stage(1, 'FILTER', 9_000)]}),
+            );
+
+            const cell = status(stageRows(fixture)[0]);
+            expect(cell).toContain('failed');
+            expect(cell).toContain('width=4 then the portal went down');
+            expect(cell).not.toContain('at once');
+        });
+
+        it('says it in German', () => {
+            const transloco = TestBed.inject(TranslocoService);
+            transloco.setTranslation(de, 'de');
+            transloco.setActiveLang('de');
+            const fixture = render(lastRun({stages: [stage(0, 'DEDUPE', 200, 'OK', 'width=4', 4), stage(1, 'FILTER', 9_000)]}));
+
+            expect(status(stageRows(fixture)[0])).toBe('4 gleichzeitig');
+            transloco.setActiveLang('en');
+        });
+    });
+
     it('draws no stage table for a run recorded before timings existed', () => {
         const fixture = render(lastRun({stages: []}));
 
@@ -189,16 +259,37 @@ describe('Dashboard', () => {
             return fixture;
         }
 
-        it('leads with the survivor count in the signal and one primary button to the shortlist', () => {
+        it('leads with the survivor count inside a sentence and one primary button to the shortlist', () => {
             const fixture = renderRoom(lastRun());
             const figure = fixture.nativeElement.querySelector('lg-dashboard-hero .figure') as HTMLElement;
             expect(figure.textContent?.trim()).toBe('64');
-            expect(figure.classList).toContain('text-signal');
-            expect(fixture.nativeElement.querySelector('lg-dashboard-hero .sentence')?.textContent).toContain('510');
+            expect(fixture.nativeElement.querySelector('lg-dashboard-hero .sentence')?.textContent).toContain('offers out of 510 are worth a look');
+            // The strong matches are the score cell's shortlisted band, a second quieter line.
+            expect(fixture.nativeElement.querySelector('lg-dashboard-hero .strong')?.textContent).toContain('64 of them match strongly');
             const primaries = fixture.nativeElement.querySelectorAll('.btn-primary') as NodeListOf<HTMLAnchorElement>;
             expect(primaries.length).toBe(1);
             expect(primaries[0].getAttribute('href')).toBe('/shortlist');
-            expect(fixture.nativeElement.querySelector('lg-dashboard-hero .chain')?.textContent).toContain('64');
+        });
+
+        it('draws the sieve instead of the number chain, and says why the run read more than the archive holds', () => {
+            const fixture = renderRoom(lastRun());
+            const hero = fixture.nativeElement.querySelector('lg-dashboard-hero') as HTMLElement;
+            expect(hero.querySelector('lg-funnel-rail')).toBeNull();
+            expect(hero.querySelector('lg-sieve svg')?.getAttribute('aria-hidden')).toBe('true');
+            expect(hero.querySelector('lg-sieve .legend')?.textContent).toContain('64 made it through');
+            expect(hero.querySelector('lg-sieve .legend')?.textContent).toContain('446 held back in 5 stages');
+            // 169 read, 151 written: the 18 between them are repeats, said in words.
+            expect(hero.querySelector('.morning')?.textContent).toContain('read 169 listings; 18 of them were repeats.');
+        });
+
+        it('colours the small cells by what their value means', () => {
+            const fixture = renderRoom(lastRun());
+            const tiles = fixture.nativeElement.querySelectorAll('lg-stat-tile .lg-panel') as NodeListOf<HTMLElement>;
+            // Nothing due is good news, in words rather than a large zero.
+            expect(tiles[0].classList).toContain('lg-tone-success');
+            expect(tiles[0].textContent).toContain('All caught up');
+            expect(tiles[1].classList).toContain('lg-tone-success');
+            expect(fixture.nativeElement.querySelector('.bento section.lg-tone-info .cell-label')?.textContent).toContain('Last 14 days');
         });
 
         it('says a quiet night in words and never as a number', () => {

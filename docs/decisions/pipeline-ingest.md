@@ -327,3 +327,11 @@ one-method seam `ExtractionFallback` that `MarkdownExtractor` calls.
   `{{ n }} waiting@if (…) { , … }.` renders with the template's own whitespace inside the
   sentence — "1 waiting for review , 1 already in the pipeline ." on the page. Build the
   sentence in TypeScript.
+
+## Traps moved from backend/CLAUDE.md
+
+- **Several IMAP sources may share a folder only because `selector.from` is in the `SearchTerm`.** The progress flag is
+  one `progress_flag` per connection and the receiver writes it to whatever its *search* returned, before `matches()` sees sender or
+  subject — so without that term the first source flags the others' mail and they read zero documents in silence.
+  `subject_matches` cannot join it (Java regex vs. IMAP SEARCH), and `match_all: true` switches the check off: both mean
+  separate folders. The same point, with the earlier premise, stands near the top of this file.

@@ -2,6 +2,7 @@ import {readdirSync, readFileSync, statSync} from 'node:fs';
 import {join, resolve} from 'node:path';
 import {FALLBACK} from './chart-theme';
 import {deltaEOk, hueDistance, oklabToSrgb, parseHex, parseOklch, polar, toHex} from './color-math';
+import {ResolvedTheme, THEME_SURFACE_HEX} from './theme.model';
 
 /**
  * The colour guard (house rule DS-APP-05): the palette is pinned, and every token a
@@ -31,7 +32,7 @@ const TOOLCHAIN_NAMES = ['--border', '--depth', '--noise'];
 const RUNTIME_ALLOWLIST = ['--lg-anchor-x', '--lg-anchor-y'];
 
 /** The seven navigation destinations, in the order the nav lists them. */
-const SECTIONS = ['dashboard', 'shortlist', 'pipeline', 'analytics', 'sources', 'review', 'rules'] as const;
+const SECTIONS = ['dashboard', 'shortlist', 'pipeline', 'analytics', 'sources', 'review', 'workflow'] as const;
 
 interface ThemeBlock {
     name: string;
@@ -147,6 +148,14 @@ describe('the palette (ISC-222)', () => {
         expect(FALLBACK.stages).toEqual(
             Array.from({length: 7}, (_, i) => hexOf(corrective.get(`--lg-chart-stage-${i + 1}`)!)),
         );
+    });
+
+    it('the surface constants are each theme\'s --color-base-100, value for value (ISC-327)', () => {
+        const hexOf = (value: string) => toHex(oklabToSrgb(parseOklch(value)));
+        for (const theme of themes) {
+            const name = theme.name as ResolvedTheme;
+            expect(THEME_SURFACE_HEX[name], name).toBe(hexOf(theme.values.get('--color-base-100')!));
+        }
     });
 });
 

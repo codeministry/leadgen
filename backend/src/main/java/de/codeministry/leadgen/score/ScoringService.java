@@ -8,6 +8,7 @@
  */
 package de.codeministry.leadgen.score;
 
+import de.codeministry.leadgen.concurrent.BoundedWork;
 import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.config.ConfigSnapshot;
 import de.codeministry.leadgen.config.model.MatchingRules;
@@ -15,7 +16,7 @@ import de.codeministry.leadgen.config.model.PipelineConfig;
 import de.codeministry.leadgen.llm.LlmBudget;
 import java.util.List;
 import java.util.Optional;
-import javax.sql.DataSource;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
@@ -38,6 +39,7 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class ScoringService {
 
     /**
@@ -120,21 +122,6 @@ public class ScoringService {
     private final LlmBudget budget;
     private final JdbcClient jdbc;
 
-    ScoringService(
-            ConfigRegistry config,
-            Judges judges,
-            ScoreBatchService batches,
-            ScoreWriter writer,
-            LlmBudget budget,
-            DataSource dataSource) {
-        this.config = config;
-        this.judges = judges;
-        this.batches = batches;
-        this.writer = writer;
-        this.budget = budget;
-        this.jdbc = JdbcClient.create(dataSource);
-    }
-
     /**
      * Refuses a model nobody configured, before a run does any work. Asked through this
      * service rather than through {@code Judges} directly, so the pipeline keeps one door
@@ -212,7 +199,7 @@ public class ScoringService {
         PipelineConfig.Llm llm = snapshot.application().llm();
         if (!due.isEmpty() && llm != null && llm.batch() && judge.orElse(null) instanceof BatchJudge batchJudge) {
             int submitted = batches.submit(batchJudge, due, scorer, rules);
-            var handedOver = standing(0, 0, submitted);
+            var handedOver = standing(0, 0, submitted, 1);
             log.info(
                     "Scoring: {} due, {} submitted as a batch; standing: {} considered, {} unscored",
                     due.size(),
@@ -222,12 +209,23 @@ public class ScoringService {
             return handedOver;
         }
 
+        // Up to `llm.concurrency` adverts at once. Each body runs on a thread of its own, so
+        // `ScoreWriter.write` opens its own transaction per offer exactly as it does from this
+        // thread; the scorer and the judge hold nothing but their configuration, and a refused
+        // budget writes the deterministic reasons as it always has rather than stopping the run.
+        // Wide only when a judge is asked: without one the loop is rules and one write per offer,
+        // and the width this run reports is the width it actually worked at.
+        int width = llm == null || judge.isEmpty() || due.isEmpty() ? 1 : llm.concurrency();
+        List<Scored> outcomes = BoundedWork.forEach(
+                width,
+                due,
+                candidate -> scoreCandidate(
+                        candidate, scorer, judge, model, rulesetVersion, autoShortlist, review, profileDigest));
+
         int judged = 0;
         int unusable = 0;
 
-        for (ScoreCandidate candidate : due) {
-            Scored outcome = scoreCandidate(
-                    candidate, scorer, judge, model, rulesetVersion, autoShortlist, review, profileDigest);
+        for (Scored outcome : outcomes) {
             if (outcome.judged()) {
                 judged++;
             } else if (outcome.unusable()) {
@@ -235,17 +233,18 @@ public class ScoringService {
             }
         }
 
-        var report = standing(judged, unusable, 0);
+        var report = standing(judged, unusable, 0, width);
         log.info(
                 "Scoring: {} due, {} judged, {} without a usable answer; standing: {} considered, {} unscored, {}"
-                        + " shortlisted, {} for review",
+                        + " shortlisted, {} for review{}",
                 due.size(),
                 judged,
                 unusable,
                 report.considered(),
                 report.unscored(),
                 report.shortlisted(),
-                report.review());
+                report.review(),
+                BoundedWork.atWidth(report.width()));
         return report;
     }
 
@@ -545,7 +544,7 @@ public class ScoringService {
     /**
      * Everything but `scored` is counted from the table, so a quiet run still reports the list.
      */
-    private ScoringReport standing(int judged, int unusable, int submitted) {
+    private ScoringReport standing(int judged, int unusable, int submitted, int width) {
         return jdbc.sql(STANDING)
                 .query((rs, row) -> new ScoringReport(
                         rs.getInt("considered"),
@@ -554,7 +553,8 @@ public class ScoringService {
                         rs.getInt("shortlisted"),
                         rs.getInt("review"),
                         unusable,
-                        submitted))
+                        submitted,
+                        width))
                 .single();
     }
 }

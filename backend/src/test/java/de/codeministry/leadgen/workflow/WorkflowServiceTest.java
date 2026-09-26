@@ -135,7 +135,8 @@ class WorkflowServiceTest {
         assertThat(stage(view, "SCORE").settings()).extracting(Setting::key).contains("llm.api_key", "version");
         assertThat(stage(view, "CONTENT").settings())
                 .extracting(Setting::key)
-                .containsExactly("content.enabled", "content.rules[].kind", "content.rules[].matches");
+                .containsExactly(
+                        "content.enabled", "content.rules[].kind", "content.rules[].matches", "llm.models.content");
         assertThat(stage(view, "OPEN").settings()).isEmpty();
         // The pipeline's own `version` is read by nothing; the rules' is SCORE's.
         assertThat(view.unread())
@@ -202,6 +203,53 @@ class WorkflowServiceTest {
                 .singleElement()
                 .satisfies(knockout -> assertThat(knockout.keys())
                         .contains("hard_filters.remote.min_remote_percent", "hard_filters.remote.accept_unknown"));
+    }
+
+    // --- ISC-386: every stage a width bounds names it, at every width including one, and the key.
+
+    @Test
+    void theModelBoundStagesNameTheWidthTheyWorkAtAndTheKeyThatSetsIt() throws IOException {
+        ConfigFixtures.materialize(configDir);
+        replace(ConfigLoader.PIPELINE_FILE, "concurrency: ${LLM_CONCURRENCY:1}", "concurrency: 4");
+
+        WorkflowView view = service().view();
+
+        for (String id : List.of("DEDUPE", "CONTENT", "FIELDS", "SCORE", "RETRIEVAL")) {
+            assertThat(stage(view, id).width()).as(id).isEqualTo(new StageWidth("llm.concurrency", 4));
+        }
+    }
+
+    @Test
+    void anAbsentWidthIsNamedAsOneAndNotLeftOut() throws IOException {
+        ConfigFixtures.materialize(configDir);
+        replace(ConfigLoader.PIPELINE_FILE, "  concurrency: ${LLM_CONCURRENCY:1}\n", "");
+
+        WorkflowView view = service().view();
+
+        assertThat(stage(view, "CONTENT").width()).isEqualTo(new StageWidth("llm.concurrency", 1));
+    }
+
+    @Test
+    void enrichNamesTheFetchWidthRatherThanTheModelOne() throws IOException {
+        ConfigFixtures.materialize(configDir);
+        replace(ConfigLoader.PIPELINE_FILE, "concurrency: ${FETCH_CONCURRENCY:1}", "concurrency: 3");
+
+        WorkflowView view = service().view();
+
+        assertThat(stage(view, "ENRICH").width()).isEqualTo(new StageWidth("enrichment.fetch.concurrency", 3));
+    }
+
+    @Test
+    void aStageNoWidthBoundsAndEveryIngestEntryNameNone() throws IOException {
+        WorkflowView view = serviceWithTwoSources().view();
+
+        for (String id : List.of("FILTER", "ARCHIVE", "OPEN", "PACKAGE", "DIGEST")) {
+            assertThat(stage(view, id).width()).as(id).isNull();
+        }
+        assertThat(view.phases().getFirst().stages())
+                .filteredOn(stage -> stage.kind().equals(WorkflowView.KIND_INGEST))
+                .isNotEmpty()
+                .allSatisfy(stage -> assertThat(stage.width()).isNull());
     }
 
     // --- helpers ---------------------------------------------------------------------------

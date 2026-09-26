@@ -17,6 +17,7 @@ import java.time.temporal.TemporalAccessor;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -42,6 +43,7 @@ import org.springframework.stereotype.Component;
  */
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class MarkdownExtractor {
 
     /**
@@ -64,10 +66,6 @@ public class MarkdownExtractor {
     private final JsonMapper yaml = JsonMapper.builder(new YAMLFactory()).build();
 
     private final ExtractionFallback fallback;
-
-    public MarkdownExtractor(ExtractionFallback fallback) {
-        this.fallback = fallback;
-    }
 
     /**
      * The blocks alone, for the pipeline, which has nowhere to put anything else.

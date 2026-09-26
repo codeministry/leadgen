@@ -222,13 +222,15 @@ before the stage stops waiting for it.
   `Integer` for the same reason: as a primitive, an absent key bound to zero and a file that
   merely names the block would have stopped every call in the pipeline.
 
-- **`llm.models.scoring` is read by three stages, and `extraction` by a fourth.** The judge,
-  the content classifier and the field extractor share `scoring`; the ingest fallback reads
-  `extraction` and takes `scoring` when it is empty, and the deduplication pass reads
-  `embedding` with no fallback at all, and `writing` drafts the cover letter with no fallback
-  either (§ The application package). A key that looks configured and is not is the same
-  class of lie as an unimplemented auth mode, so the shipped file says which is which — and
-  since spec 005 the list of lies is empty.
+- **Every `llm.models.*` key has a reader, and three of them fall back to `scoring`.** The
+  judge reads `scoring`; the content classifier reads `content`, the field extractor `fields`
+  and the ingest fallback `extraction`, each taking the first scoring choice when its own key
+  is empty; the deduplication pass reads `embedding` with no fallback at all, and `writing`
+  drafts the cover letter with no fallback either (§ The application package). A key that
+  looks configured and is not is the same class of lie as an unimplemented auth mode, so the
+  shipped file says which is which — and since spec 005 the list of lies is empty.
+  `llm/ModelChoice` is the one place that resolves a fallback, so the stage, the startup log,
+  the prompts panel and the answer endpoint cannot name different models for one key.
 - **The judge is built per run**, not once at startup, because the configuration is
   hot-reloadable: a key added to `.env` should start producing scores without a restart.
 - **A run judges what is stale, not everything that ever passed.** Every stage before this
@@ -301,6 +303,125 @@ before the stage stops waiting for it.
   channel — and no schedule of its own either: whatever schedules the run schedules the
   digest, and a cron nothing reads would be one more key that lies. An unscored offer gets
   its own heading rather than being sorted to the bottom of a ranking that does not exist.
+
+## A model per bounded question
+
+`llm.models.content` and `llm.models.fields`, read through `llm/ModelChoice`.
+
+- **The two keys exist after all, and the reversal is the point.** The shipped file used to
+  turn them down: a `models.content` key would mean a second allowlist, a second entry in the
+  run history and a second select in the header. Those three costs belong to a *per-run
+  choice*, which the judge has and these two do not. `content` and `fields` are settings;
+  `content_model` and `fields_model` already record which model answered each advert, and the
+  select beside the run button stays the judge's alone. What the one-key rule bought — one
+  line to fill in — is kept by the fallback: empty means `scoring`.
+- **Why a question wants its own model at all.** The classifier and the extractor ask a
+  bounded question answered in three lines of JSON; they do not need the model that judges
+  role fit. Measured on the deployed instance on 2026-09-24, a run of three minutes spent 30 s
+  in CONTENT and 28 s in FIELDS for a handful of adverts — time a smaller model answers in a
+  fraction of, provided it answers the same. Whether it does is § Measuring a candidate below,
+  never an opinion.
+- **A set key that changes makes its own stage due again; a blank key does not follow
+  `scoring`.** The due query compares `content_model` (`fields_model`) with the model this run
+  asks, but binds that model only when the stage's own key names it; with the key blank the
+  column is compared with itself. Binding the fallback would turn a judge switch — already the
+  most expensive thing an operator does, one re-judge of the standing list — into a
+  re-segmentation and a re-extraction of every advert as well. The comparison is on the
+  trimmed model, so a trailing blank in `.env` does not re-walk the table.
+- **A key is never a cascade.** A stage whose own model does not answer leaves the advert
+  due and asks nobody else, in the same run or later; the repository-wide rule that there is
+  no automatic fallback holds per question. "Empty means `scoring`" is a configuration default,
+  decided once before the run.
+
+## Width
+
+`llm.concurrency`, `enrichment.fetch.concurrency`, and `concurrent/BoundedWork`.
+
+- **The wall clock was the model's, one advert at a time.** Measured on the deployed instance
+  on 2026-09-24: a three-minute run spent 78 s in SCORE for two adverts, 30 s in CONTENT and
+  28 s in FIELDS, and under five seconds in every other stage. Between two requests the
+  endpoint sat idle. A judge switch is the same price at scale — `score_model` is a staleness
+  key, so the standing list is re-judged at roughly forty seconds an advert, which turned an
+  evening's comparison into a night.
+- **Width moves the clock, never the bill.** `LlmBudget.take()` checks and increments in one
+  statement, so the day's ceiling holds under any width: eight workers against five remaining
+  calls make exactly five requests (`ConcurrentStagesTest`). What changes is how soon a day's
+  calls are spent, which is what `max_calls_per_day` is the dial for.
+- **Virtual threads behind a semaphore, not a pool per stage.** The work is waiting on a
+  socket, one request per item, so the width is the only number that matters; a pool would
+  add a second one — its queue depth — that nobody would set. Measured with a stub that
+  answers after 200 ms: eight adverts take at least 1.6 s at width 1 and under 0.8 s at width 4,
+  with the same rows written.
+- **One helper, not six loops.** DEDUPE, ENRICH, CONTENT, FIELDS, SCORE and RETRIEVAL each
+  hand their loop body to `BoundedWork.forEach`. The stop rule and the rethrow rule are the
+  same in every stage, and six copies of them would be six places for a difference to hide.
+  Width 1 is the plain loop on the run's thread, so the code path of today is the code path of
+  a width nobody set.
+- **A throw stops the handing out.** No item starts after one has thrown; those already
+  running finish and keep what they wrote, and once nothing is in flight one failure is
+  rethrown (an `Error` first, else the lowest list index) with the rest attached as
+  suppressed and logged. The throws that reach the helper are systemic — a model's failure is
+  answered empty by the stage's own client — so carrying on would spend a budget unit per
+  remaining advert on a run that is already lost.
+- **A refused budget stops only the stages that stopped before.** FIELDS and the two embedding
+  passes stop handing out work on a refusal, as their sequential loops broke; CONTENT and the
+  synchronous SCORE write their rules-only or unscored row and leave the advert due, as they
+  always did. Above width 1 the embedding batches race for the last call, so which batch wins
+  is no longer the oldest; the next run embeds the rest either way.
+- **Refused above the database connection pool.** A worker holds a connection while it writes
+  its advert back; wider than the pool, the extra workers wait for one and give up after
+  Hikari's 30 s, which reads like a broken database rather than like a number in
+  `pipeline.yaml`. `ConfigLoader.checkWidth` names the key, the width and the pool at load.
+- **The stages still run one after the other.** The measured time sits inside three stages,
+  not between them, and the stage rows are what the dashboard reads — so width is per stage,
+  and `IngestOrderTest` still pins the order. `extraction` and `writing` stay sequential; both
+  are rare per run, and the batch path is already one request for the whole stage.
+- **The width is written on the stage's row.** An `OK` row in `pipeline_stage` carries
+  `width=N` in its note above width 1 and nothing at width 1, so a sequential run writes the
+  rows it always did. The dashboard does not show the note yet.
+
+## Measuring a candidate
+
+`POST /api/v1/offers/{id}/answer` and `docs/samples/measure_routing.ts`.
+
+- **The server asks, the script compares.** The endpoint puts one of the three bounded
+  questions — `blocks`, `fields`, `judge` — to one named model about one advert, with the
+  stage's own prompt builder and the stage's own reader, and returns the answer beside the
+  stored one. Rebuilding the prompts in TypeScript from `GET /api/v1/prompts` was declined:
+  the block list and `describe(offer)` would be a second implementation, and a measured
+  disagreement would then be a fact about the copy rather than about the model.
+- **It writes nothing but the budget counter.** No label cache, no score writer, no stage
+  run: a candidate's answer is something to compare, never something to keep. It is a POST
+  because it spends a call, like `ask`.
+- **Parsed answers, not prose.** `answer` goes through the stage's reader — the same enum
+  check, date window and weight-table clamp the stage applies — so the script compares objects
+  of one shape, and `raw` keeps the unparsed reply beside it, because a smaller model's
+  malformed answer is exactly what a measurement has to see. An unreadable reply becomes the
+  empty shape and counts as a disagreement.
+- **The fields question gets the patterns' reading, not the row's.** The stage hands the
+  model what enrichment's patterns read and then overwrites those columns with its own answer;
+  passing the row as it is now would put the incumbent's answer inside the question, and the
+  candidate's agreement would measure copying. The patterns are therefore run again over the
+  stored page.
+- **The allowlist is every key, wider than the judge's.** A candidate must be named under
+  `scoring`, `scoring_options`, `content`, `fields` or `extraction`, because the name arrives
+  in a request and the endpoint is billed per token. It is wider than `Judges.check` on
+  purpose: once routing is adopted the incumbent of `blocks` or `fields` is named under its
+  own key only, and putting it on the judge list just to measure it would offer it to the
+  rescore.
+- **A judgement under another ruleset is refused.** The weight table bounds the judge's
+  reply, so a stored judgement made under another `version:` differs from any candidate by the
+  table. Refused with a 409 before the budget is touched, like every other refusal that needs
+  no call.
+- **Agreement is built so that saying nothing cannot win it.** Most blocks are the advert, most
+  fields are unstated and most factors give 0 points, so a plain share of equal answers rewards
+  a model that answers the empty shape every time. The script scores recall per block kind,
+  stated apart from silent per field, and per factor only over adverts where either side gave
+  points — and prints an "empty answer" row first, the same formulas over the empty reading,
+  so the floor is read against where silence lands.
+- **Under 20 compared adverts is noise.** The script refuses a smaller sample outright and
+  marks a row `too few` when skips leave it below 20. The floor of 0.8 is a chosen default,
+  not a measured one. A 429 stops the whole run and still prints what was measured.
 
 ## The application package
 
@@ -384,3 +505,23 @@ they decide it.
   behind it, the fields, the matched skills, the reference projects chosen, and every
   portal in the duplicate cluster, so one project advertised three times is one package
   that says so.
+
+## Traps moved from backend/CLAUDE.md
+
+- **`listOfRows()` hands the driver's own types straight on, and a cast is how that becomes a
+  500.** A `jsonb` column arrives as a `PGobject` and a `TEXT[]` as a `PgArray`, so
+  `(String) row.get("content_blocks")` threw a `ClassCastException` for every advert that had
+  been segmented. `PackagingService`'s per-offer catch turned that into a counter,
+  `package_dir` was never written, and the screen said every offer above the threshold had no
+  package — for nine days, with a green suite, because every fixture set `full_text` alone.
+  The `tags` array beside it never threw at all; it simply reached Freemarker as a wrapper
+  around a JDBC array. **Read a row with a `RowMapper` and `rs.getString(...)`**, which is
+  where the driver renders jsonb as text and where the other three readers of that column
+  already are.
+
+## Moved from the root CLAUDE.md
+
+- **Ollama is the provider, and there is no automatic fallback.** Scoring, classification and
+  embeddings run locally and for free. Anthropic is never wired in as a fallback for a failed
+  or slow local call — it is used only when the operator sets it for that specific run. A silent
+  fallback turns a free pipeline into a billed one without anything in the output to show it.

@@ -19,6 +19,7 @@ import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -212,6 +213,10 @@ class OfferQueryServiceTest {
                         .entries())
                 .extracting(entry -> entry.offer().title())
                 .containsExactly("Mittel");
+        assertThat(offers.shortlist(ShortlistQuery.first().withScore(band("discarded")))
+                        .entries())
+                .extracting(entry -> entry.offer().title())
+                .containsExactly("Schwach");
     }
 
     @Test
@@ -529,13 +534,16 @@ class OfferQueryServiceTest {
     }
 
     @ParameterizedTest
-    @EnumSource(value = ShortlistSort.class, names = "FRESH", mode = EnumSource.Mode.EXCLUDE)
+    @EnumSource(
+            value = ShortlistSort.class,
+            names = {"FRESH", "FRESH_OLD"},
+            mode = EnumSource.Mode.EXCLUDE)
     void keepsTheUnstatedAtTheEndOfEverySortAndNeverDropsIt(ShortlistSort sort) {
         // Excluded by name and not by a predicate, so a sort added later is in this test until
-        // somebody deliberately takes it out. FRESH is out because its key is NOT NULL by
-        // construction: there is nothing to fold to the end, and the fixture's "states nothing"
-        // offers are simply the newest rows. `walksNewestFirstAndNeedsNoSentinelToDoIt` covers
-        // it instead.
+        // somebody deliberately takes it out. FRESH and its reverse are out because their key is
+        // NOT NULL by construction: there is nothing to fold to the end, and the fixture's
+        // "states nothing" offers are simply the newest rows.
+        // `walksNewestFirstAndNeedsNoSentinelToDoIt` covers it instead.
 
         // The centrepiece. SQL row comparison yields NULL the moment any element is NULL, so
         // a nullable sort column walked with `NULLS LAST` shows its unstated offers at the
@@ -558,6 +566,31 @@ class OfferQueryServiceTest {
 
         assertThat(walked).containsExactlyInAnyOrderElementsOf(concat(stated, unstated));
         assertThat(walked.subList(walked.size() - 3, walked.size())).containsExactlyInAnyOrderElementsOf(unstated);
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+        "SCORE, SCORE_LOW",
+        "START, START_LATE",
+        "DEADLINE, DEADLINE_LATE",
+        "DURATION, DURATION_SHORT",
+        "FRESH, FRESH_OLD"
+    })
+    void walksEveryReverseAsTheExactMirrorOfItsKey(ShortlistSort forward, ShortlistSort reverse) {
+        // Every offer states every key, and no two share a value, so the tiebreaker never
+        // decides and the reverse has to be the forward walk read backwards, page boundaries
+        // included. What differs between the two is the sentinel, which the test above holds.
+        for (int i = 0; i < 5; i++) {
+            long id = passed("Gespiegelt " + i, 80 - i);
+            starts(id, LocalDate.now().plusDays(10L + i));
+            applyBy(id, LocalDate.now().plusDays(5L + i));
+            durationMonths(id, 3 + i);
+        }
+
+        assertThat(walk(ShortlistQuery.first().withSort(reverse).withLimit(2)))
+                .containsExactlyElementsOf(
+                        walk(ShortlistQuery.first().withSort(forward).withLimit(2))
+                                .reversed());
     }
 
     @Test

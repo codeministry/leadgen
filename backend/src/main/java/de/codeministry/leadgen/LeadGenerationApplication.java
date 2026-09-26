@@ -8,9 +8,10 @@
  */
 package de.codeministry.leadgen;
 
+import de.codeministry.leadgen.config.ConfigProperties;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.ImportRuntimeHints;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
@@ -26,7 +27,10 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  * thing to size and shut down.
  */
 @SpringBootApplication
-@ConfigurationPropertiesScan
+// Named rather than scanned: a `@WebMvcTest` slice filters scanned records out but keeps
+// what the application class imports, so `StatusController` finds the record in the slice
+// without carrying wiring of its own. There is exactly one record to name.
+@EnableConfigurationProperties(ConfigProperties.class)
 // The five YAML defaults and the three templates are reached by a name computed at
 // runtime, so nothing at build time can see them. The class says what that costs.
 @ImportRuntimeHints(LeadGenRuntimeHints.class)

@@ -8,6 +8,8 @@
  */
 package de.codeministry.leadgen.fields;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 /**
  * What one field-extraction pass did.
  *
@@ -25,8 +27,25 @@ package de.codeministry.leadgen.fields;
  *                   like from here.
  * @param rejudged   offers whose score was invalidated because a value actually changed. The
  *                   price of the pass, in language-model calls somebody else pays later.
+ * @param width      the width the stage's bounded loop actually ran at: {@code 1} when it ran
+ *                   sequentially, was skipped, had nothing due or no model to ask. The
+ *                   {@code pipeline_stage} note and the {@code " at width N"} of the log line
+ *                   are both read off this one value. Not part of the JSON a run answers with:
+ *                   a response field is part of the API, and this one is already on the stage
+ *                   row.
  */
-public record FieldsReport(int considered, int extracted, int requests, int stated, int rejudged) {
+public record FieldsReport(
+        int considered,
+        int extracted,
+        int requests,
+        int stated,
+        int rejudged,
+        @JsonIgnore int width) {
+
+    /** At width 1, which is what every caller outside the stage's own run means. */
+    public FieldsReport(int considered, int extracted, int requests, int stated, int rejudged) {
+        this(considered, extracted, requests, stated, rejudged, 1);
+    }
 
     public static FieldsReport skipped() {
         return new FieldsReport(0, 0, 0, 0, 0);

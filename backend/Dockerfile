@@ -7,7 +7,7 @@ COPY backend/build.gradle.kts ./backend/
 # The frontend module is declared in settings.gradle.kts, so its build file has to
 # exist for configuration to succeed — its sources are not needed here.
 COPY frontend/build.gradle.kts ./frontend/
-RUN gradle :backend:dependencies --no-daemon --quiet || true
+RUN gradle :backend:dependencies --no-daemon --quiet
 COPY backend/src ./backend/src
 # `bootJar` runs `processAot` now that the GraalVM plugin is applied: the context is
 # started here, at build time, and what it can decide ahead of the run is generated into

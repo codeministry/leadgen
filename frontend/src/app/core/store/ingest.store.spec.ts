@@ -71,6 +71,7 @@ function lastRun(overrides: Partial<LastRunView> = {}): LastRunView {
                 millis: 2000,
                 status: 'OK',
                 note: null,
+                width: null,
             },
         ],
         ...overrides,

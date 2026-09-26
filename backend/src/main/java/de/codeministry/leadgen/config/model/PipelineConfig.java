@@ -53,7 +53,42 @@ public record PipelineConfig(
             Duration timeout,
             boolean batch,
             @NotNull Models models,
-            @Valid Budget budget) {
+            @Valid Budget budget,
+            @Min(1) Integer concurrency) {
+
+        /**
+         * Every component but the width, which is then absent and reads as {@code 1}. For code
+         * that builds this by hand rather than having the loader bind it — the tests that need a
+         * model block and have nothing to say about concurrency.
+         */
+        public Llm(
+                String provider,
+                String baseUrl,
+                String apiKey,
+                Duration timeout,
+                boolean batch,
+                Models models,
+                Budget budget) {
+            this(provider, baseUrl, apiKey, timeout, batch, models, budget, null);
+        }
+
+        /**
+         * How many adverts the model-bound stages work at once: CONTENT, FIELDS, the
+         * synchronous SCORE, and the embedding batches of DEDUPE and RETRIEVAL.
+         *
+         * <p><b>An Integer, so absent is not zero.</b> Absent means {@code 1}, today's
+         * sequential run, and a configuration written before the key keeps working; the
+         * accessor is what guarantees no reader ever sees the null. {@code @Min(1)} refuses a
+         * zero, which would otherwise mean a stage that never starts. {@code ConfigLoader}
+         * refuses a width above the database connection pool.
+         *
+         * <p>Read from the snapshot a stage starts with, never cached: a reload swaps the
+         * snapshot whole and the next stage picks the new width up without a restart.
+         */
+        @Override
+        public Integer concurrency() {
+            return concurrency == null ? 1 : concurrency;
+        }
 
         /**
          * How long one request to a model may take before it is given up on.
@@ -101,9 +136,19 @@ public record PipelineConfig(
          *                       <code>${PLACEHOLDER}</code> resolved from `.env`, which substitutes text into
          *                       a scalar; a sequence would have to be written out in the file itself, which
          *                       is the one thing no committed file here does.
+         * @param content        the content classifier's model. Empty means {@link #scoring}'s
+         *                       configured default; {@code ModelChoice.content} is the one place that decides.
+         * @param fields         the field extractor's model. Empty means {@link #scoring}'s
+         *                       configured default; {@code ModelChoice.fields} is the one place that decides.
          */
         public record Models(
-                String extraction, String scoring, String writing, String embedding, String scoringOptions) {
+                String extraction,
+                String scoring,
+                String writing,
+                String embedding,
+                String scoringOptions,
+                String content,
+                String fields) {
 
             /**
              * Every model that may be asked to judge, the configured default first.
@@ -231,14 +276,15 @@ public record PipelineConfig(
             @Valid Extract extract) {
 
         /**
-         * @param maxPerRun how many ads one pass is willing to wait for. The limiter
-         *                  refuses rather than waits, so without this a pass fetches one minute's worth
-         *                  and defers the rest — measured: 480 due, 20 fetched, and a backlog that needs
-         *                  one run per twenty offers to clear. Unset means exactly that older behaviour,
-         *                  {@code rateLimitPerMinute}, so a configuration written before this key
-         *                  behaves as it did. The politeness guarantee is untouched either way: the
-         *                  window still allows what it allowed, this only says how long a run is
-         *                  prepared to sit and wait for it.
+         * @param maxPerRun how many ads one pass fetches, at most. A hard cap: the unit is
+         *                  reserved before the pass waits for a permit, so a pass never sends more ads
+         *                  than this, whether the window was full or had room. It also says how long a
+         *                  run is prepared to wait: the limiter refuses rather than waits, so without
+         *                  it a pass fetches one minute's worth and defers the rest — measured: 480
+         *                  due, 20 fetched, and a backlog that needs one run per twenty offers to
+         *                  clear. Unset means {@code rateLimitPerMinute}, so a configuration written
+         *                  before this key behaves as it did. Counted per ad, not per request: the
+         *                  retries of a 5xx take window permits of their own, not budget units.
          */
         public record Fetch(
                 @NotNull Duration timeout,
@@ -246,7 +292,36 @@ public record PipelineConfig(
                 @Min(1) Integer maxPerRun,
                 @NotBlank String userAgent,
                 @NotNull Duration cacheTtl,
-                boolean respectRobotsTxt) {
+                boolean respectRobotsTxt,
+                @Min(1) Integer concurrency) {
+
+            /**
+             * Every component but the width, which is then absent and reads as {@code 1}. For
+             * code that builds this by hand rather than having the loader bind it.
+             */
+            public Fetch(
+                    Duration timeout,
+                    int rateLimitPerMinute,
+                    Integer maxPerRun,
+                    String userAgent,
+                    Duration cacheTtl,
+                    boolean respectRobotsTxt) {
+                this(timeout, rateLimitPerMinute, maxPerRun, userAgent, cacheTtl, respectRobotsTxt, null);
+            }
+
+            /**
+             * How many fetches ENRICH has in flight at once. Absent means {@code 1}, the
+             * sequential pass every version before this ran.
+             *
+             * <p><b>Width, not volume.</b> The rate window and {@link #budget()} still bound
+             * what leaves the machine; this only lets several ads wait on the network inside
+             * that window instead of one after the other. {@code ConfigLoader} refuses a width
+             * above the database connection pool.
+             */
+            @Override
+            public Integer concurrency() {
+                return concurrency == null ? 1 : concurrency;
+            }
 
             /**
              * What one pass may fetch, with the fallback applied once and in one place.

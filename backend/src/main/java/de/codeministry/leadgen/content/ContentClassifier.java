@@ -14,6 +14,7 @@ import de.codeministry.leadgen.llm.Answers;
 import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatModel;
@@ -32,6 +33,7 @@ import org.springframework.ai.chat.model.ChatResponse;
  * makes a signature recognisable as a signature.
  */
 @Slf4j
+@RequiredArgsConstructor
 public class ContentClassifier {
 
     private static final String INSTRUCTIONS = """
@@ -67,12 +69,6 @@ public class ContentClassifier {
     private final ChatModel chatModel;
     private final String model;
     private final ObjectMapper json;
-
-    public ContentClassifier(ChatModel chatModel, String model, ObjectMapper json) {
-        this.chatModel = chatModel;
-        this.model = model;
-        this.json = json;
-    }
 
     public String model() {
         return model;
@@ -137,7 +133,7 @@ public class ContentClassifier {
      * Only the head of each block, because recognising a report dialog does not need its
      * fourth radio label — and the whole ad twice is the cost this stage exists to avoid.
      */
-    static String describe(String title, List<Candidate> blocks) {
+    public static String describe(String title, List<Candidate> blocks) {
         StringBuilder text = new StringBuilder("Advert: ").append(title == null ? "(untitled)" : title);
         text.append("\n\nBlocks:\n");
         for (Candidate block : blocks) {
@@ -154,8 +150,12 @@ public class ContentClassifier {
      * Only indices that were actually asked about, and only kinds the enum knows. A model that
      * invents either is answering about something that is not on the screen, and acting on it
      * would hide a block nobody can point at.
+     *
+     * <p>Public, like {@link #describe}, because {@code answer.AnswerService} asks a candidate
+     * model this same question: one prompt and one reader, so a measured agreement is about the
+     * model and never about a second copy of either.
      */
-    private Map<Integer, Labelled> read(String content, List<Candidate> asked) throws IOException {
+    public Map<Integer, Labelled> read(String content, List<Candidate> asked) throws IOException {
         var indices = asked.stream().map(Candidate::index).collect(Collectors.toSet());
         Map<Integer, Labelled> labels = new HashMap<>();
         JsonNode parsed = json.readTree(Answers.objectIn(content));

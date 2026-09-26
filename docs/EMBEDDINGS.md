@@ -52,7 +52,7 @@ flowchart TB
 
     subgraph sort["2 · Sort"]
         direction LR
-        dedupe["DEDUPE · OfferEmbedder<br/>title + location + 600 chars of the teaser,<br/>one request per 32 offers"] --> emb[("offer.embedding<br/>embedding_model")]
+        dedupe["DEDUPE · OfferEmbedder<br/>title + location + 600 chars of the teaser,<br/>one request per 32 offers,<br/>llm.concurrency of them side by side"] --> emb[("offer.embedding<br/>embedding_model")]
         emb --> similar["SimilarOffers<br/>merge at one threshold, flag at a lower one"]
     end
     subgraph understand["3 · Understand"]
@@ -61,7 +61,7 @@ flowchart TB
     end
     subgraph judge["4 · Judge and index"]
         direction LR
-        score["SCORE<br/>reads no vector"] --> retrieval["RETRIEVAL · RetrievalIndexService<br/>title + location + de-furnitured advert,<br/>one request per 32 offers"]
+        score["SCORE<br/>reads no vector"] --> retrieval["RETRIEVAL · RetrievalIndexService<br/>title + location + de-furnitured advert,<br/>one request per 32 offers,<br/>llm.concurrency of them side by side"]
         retrieval --> remb[("offer.retrieval_embedding<br/>retrieval_embedding_model<br/>retrieval_embedded_at")]
     end
     subgraph hand["5 · Hand over"]
@@ -81,7 +81,7 @@ flowchart TB
     remb -. "ORDER BY distance LIMIT neighbours" .-> read
 
     class similar,similarTo free
-    class dedupe,retrieval,package,semantic,topic,ranking model
+    class dedupe,retrieval,package,semantic,topic,ranking,content,score model
     class emb,remb row
     class sort,understand,judge,hand,read phase
 ```
@@ -151,9 +151,14 @@ across runs, so a key added to `.env` works without a restart and a nightly run 
 a fresh connection pool. The `ollama` and `openai-compatible` provider kinds share the one
 client at two addresses; the `anthropic` kind has no embedding endpoint and is refused by
 name rather than approximated with another vendor's URL. A request carries up to 32 texts and
-counts as **one** call against `llm.budget.max_calls_per_day`, the same as one judge's prompt;
-a refused `take()` breaks the loop and leaves the rest due, so nothing is ever written as
-embedded that was not embedded.
+counts as **one** call against `llm.budget.max_calls_per_day`, the same as one judge's prompt.
+`DEDUPE` and `RETRIEVAL` hand their 32-advert batches to `BoundedWork`, which keeps up to
+`llm.concurrency` of them in flight side by side; at the default of 1 that is the plain loop.
+Each batch writes only its own rows and none reads a vector another one wrote, so the order
+they finish in changes nothing. A refused `take()` stops the stage handing out further batches,
+the ones already in flight finish and keep what they wrote, and the rest stays due, so nothing
+is ever written as embedded that was not embedded. The width moves the clock, not the count:
+the same pass is the same number of requests at any width.
 
 **The width.** Both columns are `vector(2000)`, because 2000 is the widest `vector` pgvector
 will build an HNSW index on, and an index cannot be built on a column of unstated width. A
@@ -314,7 +319,7 @@ flowchart TB
 expression a function of the request, need a fourth cursor kind carrying a float, and could
 not stop a cursor minted under one query text being replayed against another — identical
 bytes, different meaning, silently. A filter narrows the set without redefining the key, so
-the six sorts, the keyset page and the counts run unchanged over the neighbourhood. The
+the ten sorts, the keyset page and the counts run unchanged over the neighbourhood. The
 consequence is visible on the screen and worth knowing: **the first row is not the best
 match**, because there is no such thing here. `retrieval.neighbours` is a *count*, which is
 why this could ship before the retrieval space had a measured threshold — a ranked list
@@ -431,7 +436,7 @@ spent.
 | `semantic=`, `similar=` | `400 RetrievalUnavailable` with a sentence; `SemanticFilter.available()` is false and the browser leaves the control out |
 | the topic filter | the stored alias matches alone, which is a complete answer; empty is never an error here |
 | `PACKAGE` | `ProfileEmbeddings.forLanguage` returns an empty map, every similarity is zero, and `ReferenceRanking` is the lexical rule byte for byte |
-| a spent budget mid-pass | `DEDUPE` and `RETRIEVAL` stop and leave the rest due; a `semantic=` request gets the sentence above; the packager keeps whatever profile vectors were already cached and ranks the rest lexically |
+| a spent budget mid-pass | `DEDUPE` and `RETRIEVAL` hand out no further batch, let the ones in flight finish and leave the rest due; a `semantic=` request gets the sentence above; the packager keeps whatever profile vectors were already cached and ranks the rest lexically |
 
 ## 9. What it costs
 
@@ -442,6 +447,9 @@ kind is refused for embeddings by name.
 
 One request carries up to 32 adverts and counts as one call against
 `llm.budget.max_calls_per_day`, shared with the judge, the classifier and the field extractor.
+The budget counts requests, so `llm.concurrency` shortens a pass without making it dearer; it
+pays off only when the endpoint serves that many requests at once, and an endpoint that answers
+one at a time merely queues the rest into `llm.timeout`.
 The first `DEDUPE` pass after a model is configured, and the first `RETRIEVAL` pass after the
 stage is switched on or the model changes, walk the whole window — a few thousand offers is
 over a hundred requests — and clear over several nights, because both due queries are

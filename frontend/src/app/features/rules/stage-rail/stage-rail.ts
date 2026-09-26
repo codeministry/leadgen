@@ -1,47 +1,23 @@
-import {ChangeDetectionStrategy, Component, computed, input} from '@angular/core';
+import {ChangeDetectionStrategy, Component, computed, inject, input} from '@angular/core';
+import {NgTemplateOutlet} from '@angular/common';
+import {toSignal} from '@angular/core/rxjs-interop';
 import {RouterLink} from '@angular/router';
-import {TranslocoPipe} from '@jsverse/transloco';
+import {TranslocoPipe, TranslocoService} from '@jsverse/transloco';
 import {LastRunView} from '@core/model/last-run';
-import {WorkflowStage, WorkflowView} from '@core/model/workflow';
+import {WorkflowPhase, WorkflowStage, WorkflowView} from '@core/model/workflow';
 import {Icon} from '@shared/icon/icon';
 import {LgIconName} from '@shared/icon/lucide-icons';
 import {isAiStage} from '../ai-stage';
+import {formatElapsed} from '../flow-node/flow-node';
+import {RunState, StageRunState} from '../run-state';
+import {countVerbKey, formatStageCount} from '../stage-count';
+import {AI_ICON, COST_ICONS, FAILED_ICON, costIcon, costLabelKey, failedStageIds, stageLabelKey} from '../stage-marks';
 
 /** The `stage` value of the entry after DIGEST, the keys no stage reads. */
 export const UNREAD_STAGE = 'unread';
 
-/**
- * One icon per cost class, spelled out as a literal map. The meaning travels in the icon's
- * accessible name, never in a colour: `free`, `model`, `network` and `file` are what a stage
- * costs, not how good it is, and the signal colour is reserved for survivors.
- */
-export const COST_ICONS: Readonly<Record<string, LgIconName>> = {
-    free: 'list-checks',
-    model: 'message-circle-question',
-    network: 'external-link',
-    file: 'file-text',
-};
-
-/** The AI marker (ISC-308) and the failed-stage marker, named once for the rail and its legend. */
-export const AI_ICON: LgIconName = 'sparkles';
-export const FAILED_ICON: LgIconName = 'triangle-alert';
-
-/** One legend entry (ISC-310): the icon a stage row draws, the catalog key of its words. */
-interface LegendEntry {
-    readonly kind: 'cost' | 'ai' | 'failed';
-    readonly icon: LgIconName;
-    readonly labelKey: string;
-}
-
-/**
- * Derived from the same constants the rows read, so a new cost class or marker cannot reach
- * a row without reaching the legend too.
- */
-const LEGEND: readonly LegendEntry[] = [
-    ...Object.entries(COST_ICONS).map(([costClass, icon]): LegendEntry => ({kind: 'cost', icon, labelKey: `rules.cost.${costClass}`})),
-    {kind: 'ai', icon: AI_ICON, labelKey: 'rules.ai.legend'},
-    {kind: 'failed', icon: FAILED_ICON, labelKey: 'rules.stageFailed'},
-];
+/** Re-exported for the rail's spec and callers that named them here before the flow graph shared them. */
+export {AI_ICON, COST_ICONS, FAILED_ICON};
 
 /**
  * One icon per phase, beside its heading and therefore decorative: the heading's words carry
@@ -56,10 +32,13 @@ const PHASE_ICONS: Readonly<Record<string, LgIconName>> = {
 };
 
 /**
- * The left half of the rules screen: the pipeline's phases as one numbered flow, top to
- * bottom, with their stages in the order the server sent them, and one entry after the last
- * phase for the keys nothing reads. The order is carried by the `<ol>` and the numbered
- * headings; the arrows between phases only draw it and are hidden from assistive technology.
+ * The workflow as a vertical flow pipe (ISC-395): the phases as numbered headings on one
+ * continuous spine, their stages as compact pills hanging off it in the order the server sent
+ * them, the ingest sources bracketed as parallel branches that merge into the stage after them,
+ * and one entry after the last phase for the keys nothing reads. The order is carried by the DOM
+ * (the `<ol>`, the numbered headings, the links in run order); the spine, the branches and the
+ * merge only draw it and are hidden from assistive technology, which hears the fan-in once as a
+ * sentence instead.
  *
  * Fed entirely through inputs. The selection is the screen's `stage` query parameter, so every
  * entry is a link that writes it — a reload and the back button then keep the selection
@@ -67,7 +46,7 @@ const PHASE_ICONS: Readonly<Record<string, LgIconName>> = {
  */
 @Component({
     selector: 'lg-stage-rail',
-    imports: [Icon, RouterLink, TranslocoPipe],
+    imports: [Icon, NgTemplateOutlet, RouterLink, TranslocoPipe],
     templateUrl: './stage-rail.html',
     styleUrl: './stage-rail.css',
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -90,27 +69,28 @@ export class StageRail {
      */
     readonly lastRun = input<LastRunView | null>(null);
 
+    /**
+     * This pipe's place against a run in flight, from `runState()` (ISC-417); null when no pass
+     * is running, the way `flow-canvas.ts` takes it. The parent binds `[run]="…"`, `rules.ts`
+     * feeds it the same `RunState` it already hands the canvas — one input, read by both views.
+     */
+    readonly run = input<RunState | null>(null);
+    /**
+     * Seconds spent in the running stage, or null. Read only for the stop whose own state is
+     * `running`, exactly as `flow-node.ts` reads it.
+     */
+    readonly elapsed = input<number | null>(null);
+
     protected readonly unread = UNREAD_STAGE;
     protected readonly aiIcon = AI_ICON;
     protected readonly failedIcon = FAILED_ICON;
-    protected readonly legend = LEGEND;
 
     /** Stage ids the recorded run's `stages[]` marks `FAILED` — the same strings as `stage.id`. */
-    protected readonly failedStages = computed((): ReadonlySet<string> => {
-        const run = this.lastRun();
-        if (run === null) {
-            return new Set();
-        }
-        return new Set(run.stages.filter((stage) => stage.status === 'FAILED').map((stage) => stage.stage));
-    });
+    protected readonly failedStages = computed(() => failedStageIds(this.lastRun()));
 
-    /**
-     * An ingest entry is named by its source, which is configuration and not a label; every
-     * other stage by a catalog key, because the server sends a closed id and the browser holds
-     * the words.
-     */
+    /** An ingest entry is named by its source, every other stage by a catalog key. */
     protected labelKey(stage: WorkflowStage): string | null {
-        return stage.kind === 'ingest' ? null : `rules.stage.${stage.id.toLowerCase()}`;
+        return stageLabelKey(stage);
     }
 
     /** A model takes part here; the same predicate the detail pane draws its band from. */
@@ -118,28 +98,98 @@ export class StageRail {
         return isAiStage(stage);
     }
 
-    /**
-     * What the icon says on this row. The model class covers two different calls, a prompt to a
-     * language model and an embedding, so the row names the one it makes; the legend keeps the
-     * general word, because it explains the icon rather than a stage.
-     */
+    /** What the icon says on this row: the call a model stage makes, the class otherwise. */
     protected costLabel(stage: WorkflowStage, costClass: string): string {
-        if (costClass !== 'model') {
-            return `rules.cost.${costClass}`;
-        }
-        return stage.promptId === null ? 'rules.cost.modelEmbed' : 'rules.cost.modelPrompt';
+        return costLabelKey(stage, costClass);
     }
 
     protected costIcon(costClass: string): LgIconName {
-        return COST_ICONS[costClass] ?? 'ellipsis';
+        return costIcon(costClass);
     }
 
     protected phaseIcon(phaseId: string): LgIconName {
         return PHASE_ICONS[phaseId] ?? 'ellipsis';
     }
 
-    protected count(id: string): string | number | null {
-        return this.counts()[id] ?? null;
+    /** Read reactively so a language switch regroups the numbers without a reload. */
+    private readonly transloco = inject(TranslocoService);
+    private readonly lang = toSignal(this.transloco.langChanges$, {initialValue: this.transloco.getActiveLang()});
+
+    /**
+     * The fan-in (ISC-395): how many sources the bracket draws and the stage they merge into —
+     * the first stage after the last source in run order, DEDUPE on the live workflow. Null
+     * without a source or without a stage after them, so the sentence is never half true.
+     */
+    protected readonly fanIn = computed((): {count: number; targetKey: string} | null => {
+        const all = this.workflow().phases.flatMap((phase) => phase.stages);
+        const count = all.filter((stage) => stage.kind === 'ingest').length;
+        const target = all.slice(all.map((stage) => stage.kind).lastIndexOf('ingest') + 1)[0];
+        if (count === 0 || target === undefined) {
+            return null;
+        }
+        // The stage after the last source is never itself a source, so it always has a catalog key.
+        return {count, targetKey: stageLabelKey(target) ?? target.id};
+    });
+
+    protected sources(stages: readonly WorkflowStage[]): WorkflowStage[] {
+        return stages.filter((stage) => stage.kind === 'ingest');
+    }
+
+    protected spineStages(stages: readonly WorkflowStage[]): WorkflowStage[] {
+        return stages.filter((stage) => stage.kind !== 'ingest');
+    }
+
+    /**
+     * This stage's place against the run in flight (ISC-417, ISC-410.1 shared with the canvas):
+     * null with no pass running, and also null for a stage `runState` did not place.
+     */
+    protected stopState(stage: WorkflowStage): StageRunState | null {
+        return this.run()?.states.get(stage.id) ?? null;
+    }
+
+    /**
+     * Whether the connector leading into a phase — its heading, or the short segment that joins
+     * it to the one before — should draw dashed: the run has not reached this phase's first
+     * stage yet. Read off that stage alone; a phase's own stages are contiguous in run order, so
+     * once the run has entered a phase every connector before it is already solid.
+     */
+    protected phaseLeadPending(phase: WorkflowPhase): boolean {
+        const lead = phase.stages[0];
+        return lead !== undefined && this.stopState(lead) === 'pending';
+    }
+
+    /**
+     * The chip the canvas draws for the same count — its verb and the grouped number — or the
+     * bare value for a count that has no verb, or nothing without a count at all. Hidden while a
+     * pass places this stage (ISC-412's rule, shared with `flow-node.ts`): a `RUNNING` row holds
+     * no numbers, and the running stop shows its elapsed time in the same spot instead.
+     */
+    protected chip(stage: WorkflowStage): {key: string | null; count: string} | null {
+        if (this.stopState(stage) !== null) {
+            return null;
+        }
+        const value = this.counts()[stage.id] ?? null;
+        if (value === null) {
+            return null;
+        }
+        const key = countVerbKey(stage);
+        if (key === null || typeof value !== 'number') {
+            return {key: null, count: String(value)};
+        }
+        return {key, count: formatStageCount(stage, value, this.lang())};
+    }
+
+    /**
+     * The running stop's elapsed time, formatted like the canvas node's (ISC-417) — null on
+     * every stop that is not the one running, and also null on it before an `elapsed` value has
+     * reached this component.
+     */
+    protected elapsedLabel(stage: WorkflowStage): string | null {
+        if (this.stopState(stage) !== 'running') {
+            return null;
+        }
+        const elapsed = this.elapsed();
+        return elapsed === null ? null : formatElapsed(elapsed);
     }
 
     protected failed(id: string): boolean {

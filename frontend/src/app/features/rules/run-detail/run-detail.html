@@ -1,0 +1,162 @@
+@if (empty()) {
+    <!-- The two screens say "no run yet" in one sentence, not two: the dashboard's own keys. -->
+    <lg-empty-state
+            icon="funnel"
+            [title]="'dashboard.noRunYet' | transloco"
+            [description]="'dashboard.noRunYetHint' | transloco"
+    />
+} @else {
+    @if (current(); as run) {
+        <header class="detail-head run-head is-running">
+            <p class="type-small run-since">
+                <lg-icon name="refresh" [size]="16"/>
+                {{ 'rules.status.runningSince' | transloco: {time: startedAt()} }}
+            </p>
+            <p class="run-facts">
+                @if (run.stagePosition !== null && run.stageTotal !== null) {
+                    <span class="type-mono-data">{{ 'rules.status.step' | transloco: {position: run.stagePosition, total: run.stageTotal} }}</span>
+                }
+                <span class="type-mono-data text-muted">{{ 'rules.status.runId' | transloco: {id: run.id} }}</span>
+            </p>
+        </header>
+
+        @if (run.stage; as stage) {
+            <section class="detail-section" data-section="at">
+                <!-- The run header's own link pattern: pressing it swaps this sheet for that stage. -->
+                <p class="type-small run-at">
+                    <a class="type-mono-data" routerLink="." queryParamsHandling="merge" [queryParams]="{ stage: stage, section: null }">
+                        {{ 'rules.status.at' | transloco: {stage} }}
+                    </a>
+                    @if (elapsed() !== null) {
+                        <span class="type-mono-data text-muted">{{ elapsed() }} s</span>
+                    }
+                </p>
+            </section>
+        }
+    } @else if (lastRun(); as run) {
+        <header class="detail-head run-head">
+            <p class="type-small run-since">
+                <lg-badge [tone]="statusTone()">{{ run.status }}</lg-badge>
+                <span class="text-muted">{{ run.finishedAt | lgAgo }}</span>
+            </p>
+        </header>
+    }
+
+    <!-- While a pass runs the previous run's numbers stay out of the panel: a running row carries
+         zeros, and under a running head they would claim a pass that found nothing. -->
+    @if (current() !== null && lastRun(); as previous) {
+        <p class="type-caption text-muted run-previous">
+            {{ 'rules.status.previous' | transloco: {time: previous.finishedAt | lgAgo} }}
+        </p>
+    }
+
+    @if (current() === null && lastRun(); as run) {
+        @if (run.stages.length > 0) {
+            <section class="detail-section" data-section="timing">
+                <h3 class="type-caption run-title">{{ 'rules.status.timing' | transloco }}</h3>
+                <div class="table-scroll">
+                    <table class="table table-sm run-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">{{ 'rules.status.stage' | transloco }}</th>
+                                <th scope="col">{{ 'rules.status.duration' | transloco }}</th>
+                                <th scope="col">{{ 'rules.status.state' | transloco }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @for (stage of run.stages; track stage.position) {
+                                <tr [attr.data-stage]="stage.stage">
+                                    <td class="type-mono-data">{{ stage.stage }}</td>
+                                    <td class="type-mono-data" [class.is-slowest]="stage.position === slowest()">{{ duration(stage.millis) }}</td>
+                                    <td>
+                                        <lg-badge [tone]="stageTone(stage)">{{ stage.status }}</lg-badge>
+                                        @if (stage.width !== null && stage.width > 1) {
+                                            <span class="type-caption text-muted">{{ 'rules.status.width' | transloco: {count: stage.width} }}</span>
+                                        }
+                                        @if (stage.status === 'FAILED' && stage.note) {
+                                            <span class="type-caption text-muted run-note">{{ stage.note }}</span>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        }
+
+        @if (removed().length > 0) {
+            <section class="detail-section" data-section="funnel">
+                <!-- This run's own removals, never the shortlist's standing funnel: two funnels on
+                     one screen that disagree is the failure mode, so the heading names the run. -->
+                <h3 class="type-caption run-title">{{ 'rules.status.funnel' | transloco }}</h3>
+                <lg-funnel-rail [stages]="removed()" [total]="run.filterConsidered" [compact]="true"/>
+            </section>
+        }
+
+        <section class="detail-section" data-section="numbers">
+            <h3 class="type-caption run-title">{{ 'rules.status.numbers' | transloco }}</h3>
+            <dl class="pairs">
+                @for (figure of figures(); track figure.key) {
+                    <dt class="type-small">{{ 'rules.status.' + figure.key | transloco }}</dt>
+                    <dd class="type-mono-data">{{ format(figure.value) }}</dd>
+                }
+            </dl>
+            <p class="type-caption text-muted">{{ 'rules.status.mergedNote' | transloco }}</p>
+        </section>
+
+        @if (run.sources.length > 0) {
+            <section class="detail-section" data-section="sources">
+                <h3 class="type-caption run-title">{{ 'rules.status.sources' | transloco }}</h3>
+                <div class="table-scroll">
+                    <table class="table table-sm run-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">{{ 'rules.status.sourceId' | transloco }}</th>
+                                <th scope="col">{{ 'rules.status.documents' | transloco }}</th>
+                                <th scope="col">{{ 'rules.status.extracted' | transloco }}</th>
+                                <th scope="col">{{ 'rules.status.written' | transloco }}</th>
+                                <th scope="col">{{ 'rules.status.announced' | transloco }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @for (source of run.sources; track source.sourceId) {
+                                <tr [attr.data-source]="source.sourceId">
+                                    <td class="type-mono-data">{{ source.sourceId }}</td>
+                                    <td class="type-mono-data">{{ format(source.documents) }}</td>
+                                    <td class="type-mono-data">{{ format(source.extracted) }}</td>
+                                    <td class="type-mono-data">{{ format(source.written) }}</td>
+                                    <td class="type-mono-data">
+                                        <!-- An em dash, never a zero: most sources state no count. -->
+                                        {{ source.announced === null ? '—' : format(source.announced) }}
+                                        @if (!source.complete) {
+                                            <lg-badge tone="warning">{{ 'rules.status.incomplete' | transloco }}</lg-badge>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        }
+
+        <section class="detail-section" data-section="digest">
+            <!-- One line, not a badge: a badge is a state, and whether a file was written is not
+                 one. Only "was one written" is recorded, so no path is promised. -->
+            <p class="type-small text-muted">
+                {{ (run.digestWritten ? 'rules.status.digestWritten' : 'rules.status.digestMissing') | transloco }}
+            </p>
+        </section>
+    }
+
+    <section class="detail-section" data-section="judge">
+        <p class="type-small text-muted">
+            @if (scoreModel(); as model) {
+                {{ 'rules.status.judge' | transloco: {model} }}
+            } @else {
+                {{ 'rules.status.judgeNone' | transloco }}
+            }
+        </p>
+    </section>
+}

@@ -14,15 +14,25 @@
     "dashboard": "Dashboard",
     "shortlist": "Shortlist",
     "pipeline": "Pipeline",
-    "review": "Review",
     "sources": "Sources",
-    "rules": "Rules",
+    "rules": "Workflow",
     "analytics": "Analytics"
+  },
+  "title": {
+    "dashboard": "Dashboard",
+    "analytics": "Analytics",
+    "shortlist": "Shortlist",
+    "offer": "Offer",
+    "pipeline": "Pipeline",
+    "sources": "Sources",
+    "source": "Source",
+    "rules": "Workflow"
   },
   "shell": {
     "connecting": "connecting…",
     "ingest": "Run ingest",
     "ingestRunning": "Reading sources…",
+    "runLive": "Run in progress",
     "scoringModel": "Scoring model",
     "settings": "Settings and version",
     "runStage": "{stage} · step {position} of {total}",
@@ -47,9 +57,12 @@
       "shortlist": "The offers worth a look, and how to narrow them down.",
       "pipeline": "Your applications, from new to won or lost.",
       "analytics": "Where offers drop out and which sources pay off.",
-      "rules": "What counts as a fit, and what rules an offer out.",
+      "workflow": "What counts as a fit, and what rules an offer out.",
       "sources": "Where offers come from and how to add one.",
-      "review": "Checking adverts that were added by hand."
+      "offer-detail": "Reading one offer: the ad, its score, its fields, and asking it.",
+      "application": "Where an application stands, its cover letter and its package.",
+      "filters-views": "Narrowing and ordering the list, and saving what you set.",
+      "app-basics": "Running a pass, the settings, the keyboard and the installed app."
     },
     "loading": "Loading the chapter…",
     "failed": "This chapter could not be loaded.",
@@ -59,14 +72,34 @@
       "shortlist": "Shortlist",
       "pipeline": "Pipeline",
       "analytics": "Analytics",
-      "rules": "Rules",
+      "workflow": "Workflow",
       "sources": "Sources",
-      "review": "Review"
+      "offer-detail": "Offer detail",
+      "application": "Application and cover letter",
+      "filters-views": "Filters, sorting and views",
+      "app-basics": "Header, keyboard and app"
     },
     "diagram": {
       "run-phases": "The five phases of a run, from the mailbox to a scored offer",
       "parts": "How sources, the pipeline, the model, the database and the screens work together",
       "application-states": "The path of an application through its states"
+    },
+    "shot": {
+      "run-phases-rail": "The rules screen lays a run out in its five phases and marks every AI step",
+      "dashboard": "The dashboard after a run: what survived, the last 14 days, the score bands and the hard filter stage by stage",
+      "shortlist-split": "The shortlist with an offer open: the list on the left, the detail with its cover letter on the right",
+      "pipeline-board": "The pipeline board, one lane per group of states",
+      "analytics-overview": "Analytics: the tiles at the top and the offers over time",
+      "rules-stage": "The hard filter selected on the rules screen: what each knockout holds back and the keys it reads",
+      "sources-panel": "A source opened on the sources screen: its recent runs and the block that defines it",
+      "offer-why-scored": "Why an offer scored what it scored: each factor with its points",
+      "offer-ask": "Ask this advert: five questions, answered from the advert alone",
+      "application-panel": "Where this stands: the status, the dates, a note and the history",
+      "cover-letter": "The cover letter as it went out, with who wrote it and when",
+      "filters-panel": "The filter panel open over the list, with the filters that are on as chips",
+      "sort-menu": "The orders, with the direction toggle in front of them",
+      "run-confirm": "Run ingest asks once before a run starts",
+      "settings-panel": "The settings behind the gear: colour theme and language"
     }
   },
   "toast": {
@@ -88,7 +121,11 @@
     "runFailed": "Run failed in stage {stage}",
     "letterSaved": "Cover letter saved, the package carries the edit",
     "letterDrafted": "New cover letter drafted",
-    "letterDraftedTemplate": "The model's draft did not pass, so the template wrote this letter"
+    "letterDraftedTemplate": "The model's draft did not pass, so the template wrote this letter",
+    "update": {
+      "ready": "A new version is ready",
+      "reload": "Reload"
+    }
   },
   "theme": {
     "legend": "Colour theme",
@@ -129,9 +166,9 @@
   "dashboard": {
     "title": "Dashboard",
     "subtitle": "What came in this morning, and how much of it survived.",
-    "survived": "Survived the filter",
     "followUps": "Follow-ups due",
     "followUpsHint": "Recorded by hand, on the pipeline board",
+    "followUpsNone": "All caught up",
     "noRunYet": "No run yet",
     "noRunYetHint": "Run ingest from the header. It reads every enabled source once and reports what each document gave up.",
     "nothingFiltered": "Nothing has been filtered yet. Run ingest, and this counts the archive.",
@@ -148,18 +185,22 @@
     "colAnnounced": "Announced",
     "ofAnnounced": "{extracted} of {announced}",
     "archivedNote": "{count, plural, one {# offer is} other {# offers are}} archived and outside these numbers.",
-    "runningSince": "A run has been going since {time}",
     "stages": "Where the time went",
     "colStage": "Stage",
     "colDuration": "Duration",
     "colStatus": "Status",
     "stageFailed": "failed",
     "slowestStage": "slowest",
+    "stageWidth": "{count} at once",
     "runFailed": "Failed",
     "runFailedIn": "This run stopped in stage {stage}. The counts on this panel are what it had reached.",
-    "heroEyebrow": "Survived the filter",
-    "heroSentence": "of {total} made it through",
-    "heroMorning": "{count, plural, one {1 new offer came in} other {# new offers came in}} on the last run, {when}.",
+    "heroEyebrow": "Worth a look",
+    "heroSentence": "{survived, plural, one {offer out of {total} is worth a look} other {offers out of {total} are worth a look}}",
+    "heroStrong": "{count, plural, one {1 of them matches strongly.} other {# of them match strongly.}}",
+    "heroMorning": "The last run, {when}, read {count, plural, one {1 listing} other {# listings}}{repeats, plural, =0 {.} one {; 1 of them was a repeat.} other {; # of them were repeats.}}",
+    "sieveSurvived": "{count} made it through",
+    "sieveHeldBack": "{count} held back in {stages, plural, one {1 stage} other {# stages}}",
+    "sieveUnit": "1 dot ≈ {count} offers",
     "heroQuiet": "Nothing new overnight ({when}). The shortlist still stands.",
     "heroNoRun": "No run yet. Run ingest from the header and this becomes the morning.",
     "openShortlist": "Open shortlist",
@@ -207,11 +248,8 @@
     "bandAll": "All",
     "bandAbove": "{score}+",
     "bandBetween": "{from}–{to}",
-    "portal": "Portal",
-    "everyPortal": "Every portal",
     "count": "{matched} of {total}",
     "unscored": "{count} unscored",
-    "clearFilters": "Clear filters",
     "noMatchTitle": "Nothing matches these filters",
     "noMatchHint": "Clear them to see the whole shortlist again.",
     "emptyTitle": "No offers yet",
@@ -242,7 +280,11 @@
       "deadline": "Deadline nearest",
       "duration": "Longest duration",
       "fresh": "Newest first",
-      "duration-asc": "Shortest duration"
+      "duration-asc": "Shortest duration",
+      "score-asc": "Lowest score",
+      "start-desc": "Starts latest",
+      "deadline-desc": "Deadline furthest",
+      "fresh-asc": "Oldest first"
     },
     "startWindow": "Start",
     "start": {
@@ -261,7 +303,13 @@
     "anyTopic": "Any topic",
     "stale": "A run has finished since this list was read.",
     "reload": "Reload",
+    "sortReverse": "Reverse the order",
     "sortTrigger": "Sort: {order}",
+    "density": {
+      "legend": "List density",
+      "comfortable": "Comfortable",
+      "compact": "Compact"
+    },
     "sortUnstated": "Offers that state nothing come last in every order.",
     "filters": "Filters",
     "filtersActive": "{count, plural, =0 {Filters} other {Filters, # active}}",
@@ -293,7 +341,6 @@
     "minScore": "From",
     "maxScore": "To",
     "portalsLabel": "Portals",
-    "portalsAll": "Every portal",
     "noPortalsYet": "No portal has been seen yet.",
     "views": {
       "label": "Views",
@@ -310,7 +357,6 @@
     },
     "related": {
       "findText": "Find offers related to “{value}”",
-      "find": "Find related",
       "partial": "{read} of {total} offers have been read for meaning so far. The rest cannot appear here yet."
     },
     "noRelatedTitle": "Nothing related on this list",
@@ -319,15 +365,17 @@
     "countArchivedRelated": "{matched} of {total} archived · closest matches only"
   },
   "offer": {
-    "rateUnknown": "rate unknown",
-    "locationUnknown": "location unknown",
-    "durationUnknown": "duration unknown",
     "notScored": "Not scored. The pipeline ran without a language model, so this is the hard filter's answer only.",
-    "alsoOn": "{count, plural, one {also on # more} other {also on # more}}",
-    "alsoAdvertisedBy": "Also advertised by",
     "incomplete": "incomplete",
-    "remoteUnknown": "remote share unknown",
     "possibleDuplicate": "possible duplicate",
+    "glyph": {
+      "lift": "Lifted most by:",
+      "penalty": "Held back most by:",
+      "topic": "Matched topics:",
+      "otherSources": "{count, plural, one {also advertised by # other source} other {also advertised by # other sources}}",
+      "warning": "Warning:",
+      "cameIn": "Came in"
+    },
     "remoteShare": "{percent} % remote",
     "noAgency": "no agency stated",
     "startsAt": "starts {when}",
@@ -482,7 +530,6 @@
     "note": "Adding a source is a YAML block in sources.yaml, not a deploy. The file is hot-reloaded, so this screen reads and does not edit.",
     "fileLabel": "Configuration file",
     "readsOnly": "reads, never edits",
-    "close": "Close",
     "runsTitle": "Recent runs",
     "runsCaption": "{count, plural, one {# run, newest first} other {# runs, newest first}}",
     "neverRan": "This source has not run yet.",
@@ -504,7 +551,7 @@
     "gone": "This source is no longer in sources.yaml."
   },
   "rules": {
-    "title": "Rules",
+    "title": "Workflow",
     "subtitle": "The hard filter, the scoring weights and the thresholds behind every number on the shortlist.",
     "ruleset": "ruleset {version}",
     "knockouts": "Knockout criteria",
@@ -527,7 +574,8 @@
       "extraction": "Document reader",
       "scoring": "Scoring judge",
       "content": "Content classifier",
-      "fields": "Field extractor"
+      "fields": "Field extractor",
+      "writing": "Cover-letter writer"
     },
     "rail": "Pipeline stages",
     "noRun": "No run yet — the stages carry no counts until one finishes.",
@@ -536,12 +584,28 @@
       "marker": "AI step",
       "band": "AI step: a model takes part here, by prompt or by embeddings.",
       "legend": "AI step: a model takes part, by prompt or by embeddings",
-      "model": "Model: {{model}}"
+      "model": "Model: {{model}}",
+      "origin": {
+        "own": "— this stage's own key",
+        "fallback": "is empty, so the scoring judge answers"
+      }
+    },
+    "width": {
+      "line": "Works on {count, plural, one {one advert} other {up to # adverts}} at once"
     },
     "legend": {
-      "title": "Legend"
+      "title": "Legend",
+      "width": "Works on several adverts at once",
+      "widthMark": "×N",
+      "short": {
+        "free": "Local",
+        "model": "Model",
+        "network": "Network",
+        "file": "Disk",
+        "failed": "Failed",
+        "width": "Parallel"
+      }
     },
-    "detailLabel": "Selected stage",
     "phase": {
       "read": "Read",
       "sort": "Sort",
@@ -562,6 +626,13 @@
       "package": "Package",
       "digest": "Digest"
     },
+    "count": {
+      "read": "{count} read",
+      "filter": "{count} held back",
+      "enrich": "{count} enriched",
+      "score": "{count} scored",
+      "package": "{count} packaged"
+    },
     "cost": {
       "free": "Free, runs locally",
       "model": "Calls a model: a prompt or embeddings",
@@ -580,9 +651,79 @@
       "keyCount": "{count, plural, one {1 key} other {# keys}}",
       "emptyList": "empty",
       "sharedIngest": "The ingest settings every source shares are listed under the first source.",
-      "funnelScope": "The current working list, not the last run: what the filter holds back right now, stage by stage.",
+      "funnelScope": "The current working list, not the last run: what the filter holds back right now, stage by stage. The numbers on the graph count the last run.",
       "noFunnel": "No filter counts yet — the funnel appears once offers have been filtered.",
-      "reads": "reads"
+      "reads": "reads",
+      "workingList": "Working list"
+    },
+    "canvas": {
+      "label": "Workflow graph",
+      "zoomIn": "Zoom in",
+      "zoomOut": "Zoom out",
+      "fit": "Fit the whole workflow",
+      "expandAll": "Expand every step",
+      "collapseAll": "Collapse every step",
+      "fillWindow": "Fill the window",
+      "restore": "Back to the normal size",
+      "topics": "Topics",
+      "width": "{count} at once",
+      "expand": "Open {stage}",
+      "collapse": "Close {stage}"
+    },
+    "sheet": {
+      "title": "Stage settings",
+      "close": "Close stage settings"
+    },
+    "run": {
+      "reached": "The pass has reached {stage}.",
+      "ended": "The pass has ended.",
+      "state": {
+        "running": "Running now",
+        "done": "Passed",
+        "pending": "Not started yet"
+      }
+    },
+    "fanIn": "{count, plural, one {1 source, feeding {stage}} other {# sources, merged at {stage}}}",
+    "status": {
+      "title": "Status",
+      "ariaRunning": "Status: a pass is running, step {position} of {total}",
+      "ariaFinished": "Status: the last run finished at {time}",
+      "ariaFailed": "Status: the last run failed at {time}",
+      "ariaNone": "Status: no run yet",
+      "heading": "Run status",
+      "close": "Close the run status",
+      "runningSince": "Running since {time}",
+      "step": "Step {position} of {total}",
+      "runId": "Run #{id}",
+      "at": "At {stage}",
+      "timing": "Where the time went",
+      "stage": "Stage",
+      "duration": "Duration",
+      "state": "State",
+      "width": "{count} at once",
+      "funnel": "What this run held back",
+      "numbers": "What this run left",
+      "mergedNote": "The standing total inside the deduplication window, not this run's rows.",
+      "sources": "Per source",
+      "sourceId": "Source",
+      "documents": "Documents",
+      "extracted": "Read",
+      "written": "Written",
+      "announced": "Announced",
+      "incomplete": "Short of the announced count",
+      "judge": "Scored with {model}",
+      "judgeNone": "No scoring model is configured.",
+      "digestWritten": "A digest was written.",
+      "digestMissing": "No digest was written.",
+      "previous": "The last run finished {time}; this pass's numbers arrive when it ends.",
+      "extractedLabel": "Read",
+      "writtenLabel": "Written",
+      "mergedLabel": "Merged",
+      "enrichedLabel": "Enriched",
+      "scoredLabel": "Scored",
+      "shortlistedLabel": "Shortlisted",
+      "reviewLabel": "For review",
+      "packagedLabel": "Packaged"
     }
   },
   "analytics": {
@@ -630,7 +771,6 @@
     "colApplications": "Applications",
     "colAnswered": "Answered",
     "colScore": "Score",
-    "colWeek": "Week",
     "scores": "Score distribution",
     "scoresNote": "Where the two thresholds cut the archive. The question is whether the mass sits just under a line somebody chose.",
     "scoresCaption": "How many offers fall in each ten-point band.",
@@ -698,6 +838,9 @@
     "workflowLoad": "The pipeline stages could not be loaded.",
     "bulkArchive": "The selected offers were not archived.",
     "sourceLoad": "The source could not be read.",
-    "summaryLoad": "The dashboard cells did not load."
+    "summaryLoad": "The dashboard cells did not load.",
+    "manualUpload": "The document was not accepted.",
+    "manualConfirm": "The document was not confirmed.",
+    "manualReject": "The document was not deleted."
   }
 }

@@ -1,0 +1,47 @@
+<!-- The drawing is a picture of the legend below it, so it is hidden from a screen reader. A
+     band's `title` is for the pointer: hovering a ring names the stage and what it held back. -->
+<svg class="drawing" viewBox="0 0 200 200" aria-hidden="true" focusable="false" [class.still]="still()">
+    <defs>
+        <linearGradient id="lg-sieve-ring" x1="0" y1="1" x2="1" y2="0">
+            <stop offset="0" class="ring-from"/>
+            <stop offset="1" class="ring-to"/>
+        </linearGradient>
+        <radialGradient id="lg-sieve-halo">
+            <stop offset="0" class="halo-from"/>
+            <stop offset="1" class="halo-to"/>
+        </radialGradient>
+    </defs>
+
+    <circle class="halo" [attr.cx]="centre" [attr.cy]="centre" r="46" fill="url(#lg-sieve-halo)"/>
+
+    @for (band of layout().bands; track band.id; let i = $index) {
+        <g class="orbit" [class.reverse]="i % 2 === 1">
+            <g class="band" [style.animation-delay]="delay(i)">
+                <title>{{ band.label }}: {{ band.removed }}</title>
+                <circle class="track" [attr.cx]="centre" [attr.cy]="centre" [attr.r]="band.outer"/>
+                @for (dot of band.dots; track $index) {
+                    <circle class="held" [attr.cx]="dot.x" [attr.cy]="dot.y" r="1.25"/>
+                }
+            </g>
+        </g>
+    }
+
+    <g class="band core" [style.animation-delay]="delay(layout().bands.length)">
+        <circle class="track" [attr.cx]="centre" [attr.cy]="centre" r="28"/>
+        @for (dot of layout().core; track $index) {
+            <circle class="survivor" [class.strong]="$index < layout().strongDots" [attr.cx]="dot.x" [attr.cy]="dot.y"
+                    [attr.r]="$index < layout().strongDots ? 1.9 : 1.5"/>
+        }
+    </g>
+
+    <path class="brand-ring" [attr.d]="ringPath" stroke="url(#lg-sieve-ring)"/>
+    <circle class="lead" [attr.cx]="lead.x" [attr.cy]="lead.y" r="6.5"/>
+</svg>
+
+<p class="legend type-small">
+    <span class="key"><span class="swatch survivor-swatch"></span>{{ 'dashboard.sieveSurvived' | transloco: {count: survived()} }}</span>
+    <span class="key"><span class="swatch held-swatch"></span>{{ 'dashboard.sieveHeldBack' | transloco: {count: heldBack(), stages: stageCount()} }}</span>
+    @if (layout().unit > 1) {
+        <span class="key unit">{{ 'dashboard.sieveUnit' | transloco: {count: layout().unit} }}</span>
+    }
+</p>

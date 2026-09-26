@@ -63,7 +63,7 @@ class ChatModelsTest {
                 null,
                 null,
                 false,
-                new PipelineConfig.Llm.Models(null, scoring, writing, null, null),
+                new PipelineConfig.Llm.Models(null, scoring, writing, null, null, null, null),
                 null);
     }
 }

@@ -15,6 +15,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -31,14 +32,11 @@ import lombok.extern.slf4j.Slf4j;
  * and the offers would look merely incomplete.
  */
 @Slf4j
+@RequiredArgsConstructor
 public final class RobotsPolicy {
 
     private final Function<URI, String> fetchRobots;
     private final Map<String, List<Rule>> perHost = new ConcurrentHashMap<>();
-
-    public RobotsPolicy(Function<URI, String> fetchRobots) {
-        this.fetchRobots = fetchRobots;
-    }
 
     public boolean allows(URI target, String userAgent) {
         String host = target.getHost();

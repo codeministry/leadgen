@@ -31,6 +31,12 @@
     --lg-edge-w: 3px;
     --lg-panel-pad: 1rem;
     --lg-hero-wash: 6%;
+
+    /* How strongly a tone glows out of its cell's corner (`.lg-tone-wash`). The two custom
+       properties a tone sets default to the neutral tone here, so a reader is never undefined. */
+    --lg-tone-wash: 14%;
+    --lg-tone: var(--lg-muted);
+    --lg-tone-text: var(--color-base-content);
     --lg-stack-gap: 1rem;
 
   /* The shell. The header is the only chrome left: the navigation is a row inside it
@@ -148,6 +154,12 @@
        contributes its own primary — the same mechanism `--score-strong` stands on. */
     --lg-selected-surface: color-mix(in oklab, var(--color-primary) 10%, var(--color-base-100));
     --lg-selected-surface-hover: color-mix(in oklab, var(--color-primary) 14%, var(--color-base-100));
+
+    /* The primary as small text on the selection wash. The bare primary reads 4.35:1 on the light
+       theme's hover wash (measured 2026-09-25, contrast.browser.spec), under the 4.5 text floor;
+       a fifth of the ink pulls it back over in the light theme and lightens it further in the
+       dark one, where the ink is the light colour. For text only: fills and edges keep the primary. */
+    --lg-primary-text: color-mix(in oklab, var(--color-primary) 80%, var(--color-base-content));
 
     /* Tailwind spells this `--font-mono--font-feature-settings`, which stylelint's
        custom-property-pattern rejects for the double dash. One name, ours. */
@@ -322,6 +334,6 @@
     --lg-section: var(--lg-section-review);
 }
 
-[data-section='rules'] {
-    --lg-section: var(--lg-section-rules);
+[data-section='workflow'] {
+    --lg-section: var(--lg-section-workflow);
 }

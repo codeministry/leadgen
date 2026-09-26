@@ -14,15 +14,25 @@
     "dashboard": "Übersicht",
     "shortlist": "Auswahl",
     "pipeline": "Verlauf",
-    "review": "Prüfung",
     "sources": "Quellen",
-    "rules": "Regeln",
+    "rules": "Workflow",
     "analytics": "Auswertung"
+  },
+  "title": {
+    "dashboard": "Übersicht",
+    "analytics": "Auswertung",
+    "shortlist": "Auswahl",
+    "offer": "Angebot",
+    "pipeline": "Verlauf",
+    "sources": "Quellen",
+    "source": "Quelle",
+    "rules": "Workflow"
   },
   "shell": {
     "connecting": "verbinde…",
     "ingest": "Quellen einlesen",
     "ingestRunning": "Lese Quellen…",
+    "runLive": "Lauf läuft",
     "scoringModel": "Bewertungsmodell",
     "settings": "Einstellungen und Version",
     "runStage": "{stage} · Stufe {position} von {total}",
@@ -47,9 +57,12 @@
       "shortlist": "Die Angebote, die sich lohnen, und wie du sie eingrenzt.",
       "pipeline": "Deine Bewerbungen, von neu bis gewonnen oder verloren.",
       "analytics": "Wo Angebote herausfallen und welche Quellen sich lohnen.",
-      "rules": "Was als passend gilt und was ein Angebot ausschließt.",
+      "workflow": "Was als passend gilt und was ein Angebot ausschließt.",
       "sources": "Woher die Angebote kommen und wie du eine Quelle hinzufügst.",
-      "review": "Von Hand hinzugefügte Anzeigen prüfen."
+      "offer-detail": "Ein Angebot lesen: die Anzeige, ihre Bewertung, ihre Felder, und sie befragen.",
+      "application": "Wo eine Bewerbung steht, ihr Anschreiben und ihr Paket.",
+      "filters-views": "Die Liste eingrenzen und ordnen, und das Eingestellte speichern.",
+      "app-basics": "Einen Lauf starten, die Einstellungen, die Tastatur und die installierte App."
     },
     "loading": "Lade das Kapitel…",
     "failed": "Dieses Kapitel konnte nicht geladen werden.",
@@ -59,14 +72,34 @@
       "shortlist": "Shortlist",
       "pipeline": "Pipeline",
       "analytics": "Auswertung",
-      "rules": "Regeln",
+      "workflow": "Workflow",
       "sources": "Quellen",
-      "review": "Prüfung"
+      "offer-detail": "Angebotsdetail",
+      "application": "Bewerbung und Anschreiben",
+      "filters-views": "Filter, Sortierung und Sichten",
+      "app-basics": "Kopfzeile, Tastatur und App"
     },
     "diagram": {
       "run-phases": "Die fünf Phasen eines Laufs, vom Postfach bis zum bewerteten Angebot",
       "parts": "Wie Quellen, Pipeline, Modell, Datenbank und Oberfläche zusammenspielen",
       "application-states": "Der Weg einer Bewerbung durch ihre Zustände"
+    },
+    "shot": {
+      "run-phases-rail": "Der Regeln-Bildschirm zeigt einen Lauf in seinen fünf Phasen und markiert jeden KI-Schritt",
+      "dashboard": "Das Dashboard nach einem Lauf: was durchkam, die letzten 14 Tage, die Bewertungsbänder und der harte Filter Stufe für Stufe",
+      "shortlist-split": "Die Auswahl mit einem geöffneten Angebot: links die Liste, rechts das Detail mit dem Anschreiben",
+      "pipeline-board": "Das Pipeline-Board, eine Spalte je Gruppe von Status",
+      "analytics-overview": "Die Auswertung: die Kacheln oben und die Angebote im Zeitverlauf",
+      "rules-stage": "Der harte Filter auf dem Regeln-Bildschirm: was jedes Ausschlusskriterium zurückhält und welche Schlüssel es liest",
+      "sources-panel": "Eine geöffnete Quelle: ihre letzten Läufe und der Block, der sie festlegt",
+      "offer-why-scored": "Warum ein Angebot seine Punktzahl hat: jeder Faktor mit seinen Punkten",
+      "offer-ask": "Diese Anzeige fragen: fünf Fragen, allein aus der Anzeige beantwortet",
+      "application-panel": "Wie es hier steht: der Status, die Daten, eine Notiz und der Verlauf",
+      "cover-letter": "Das Anschreiben, wie es rausging, mit Verfasser und Datum",
+      "filters-panel": "Das Filterfeld über der Liste, die gesetzten Filter als Chips",
+      "sort-menu": "Die Sortierungen, davor der Schalter für die Richtung",
+      "run-confirm": "Quellen einlesen fragt einmal nach, bevor ein Lauf startet",
+      "settings-panel": "Die Einstellungen hinter dem Zahnrad: Farbschema und Sprache"
     }
   },
   "toast": {
@@ -88,7 +121,11 @@
     "runFailed": "Lauf in Stufe {stage} fehlgeschlagen",
     "letterSaved": "Anschreiben gespeichert, das Paket enthält die Änderung",
     "letterDrafted": "Neues Anschreiben entworfen",
-    "letterDraftedTemplate": "Der Entwurf des Modells kam nicht durch, deshalb stammt dieses Anschreiben aus der Vorlage"
+    "letterDraftedTemplate": "Der Entwurf des Modells kam nicht durch, deshalb stammt dieses Anschreiben aus der Vorlage",
+    "update": {
+      "ready": "Eine neue Version ist bereit",
+      "reload": "Neu laden"
+    }
   },
   "theme": {
     "legend": "Farbschema",
@@ -129,9 +166,9 @@
   "dashboard": {
     "title": "Übersicht",
     "subtitle": "Was heute Morgen hereinkam, und wie viel davon übrig blieb.",
-    "survived": "Durch den Filter",
     "followUps": "Fällige Nachfassungen",
     "followUpsHint": "Von Hand erfasst, auf dem Verlaufsboard",
+    "followUpsNone": "Alles erledigt",
     "noRunYet": "Noch kein Lauf",
     "noRunYetHint": "Starte den Lauf oben im Kopf. Er liest jede aktive Quelle einmal und meldet, was jedes Dokument hergab.",
     "nothingFiltered": "Es wurde noch nichts gefiltert. Lies die Quellen ein, dann zählt das hier das Archiv.",
@@ -148,18 +185,22 @@
     "colAnnounced": "Angekündigt",
     "ofAnnounced": "{extracted} von {announced}",
     "archivedNote": "{count, plural, one {# Angebot ist} other {# Angebote sind}} archiviert und in diesen Zahlen nicht enthalten.",
-    "runningSince": "Ein Lauf läuft seit {time}",
     "stages": "Wo die Zeit blieb",
     "colStage": "Stufe",
     "colDuration": "Dauer",
     "colStatus": "Status",
     "stageFailed": "fehlgeschlagen",
     "slowestStage": "langsamste",
+    "stageWidth": "{count} gleichzeitig",
     "runFailed": "Fehlgeschlagen",
     "runFailedIn": "Dieser Lauf brach in Stufe {stage} ab. Die Zahlen hier sind der Stand bis dahin.",
-    "heroEyebrow": "Durch den Filter",
-    "heroSentence": "von {total} sind durchgekommen",
-    "heroMorning": "{count, plural, one {1 neues Angebot kam} other {# neue Angebote kamen}} beim letzten Lauf herein, {when}.",
+    "heroEyebrow": "Einen Blick wert",
+    "heroSentence": "{survived, plural, one {von {total} Angeboten lohnt einen Blick} other {von {total} Angeboten lohnen einen Blick}}",
+    "heroStrong": "{count, plural, one {Eines davon passt stark.} other {# davon passen stark.}}",
+    "heroMorning": "Der letzte Lauf, {when}, hat {count, plural, one {1 Anzeige} other {# Anzeigen}} gelesen{repeats, plural, =0 {.} one {, 1 davon doppelt.} other {, # davon doppelt.}}",
+    "sieveSurvived": "{count} kamen durch",
+    "sieveHeldBack": "{count} in {stages, plural, one {1 Stufe} other {# Stufen}} aussortiert",
+    "sieveUnit": "1 Punkt ≈ {count} Angebote",
     "heroQuiet": "Nichts Neues über Nacht ({when}). Die Shortlist steht wie sie war.",
     "heroNoRun": "Noch kein Lauf. Starte ihn oben im Kopf, dann wird daraus der Morgen.",
     "openShortlist": "Shortlist öffnen",
@@ -207,11 +248,8 @@
     "bandAll": "Alle",
     "bandAbove": "ab {score}",
     "bandBetween": "{from}–{to}",
-    "portal": "Portal",
-    "everyPortal": "Alle Portale",
     "count": "{matched} von {total}",
     "unscored": "{count} ohne Bewertung",
-    "clearFilters": "Filter zurücksetzen",
     "noMatchTitle": "Nichts passt zu diesen Filtern",
     "noMatchHint": "Setze sie zurück, um wieder die ganze Auswahl zu sehen.",
     "emptyTitle": "Noch keine Angebote",
@@ -242,7 +280,11 @@
       "deadline": "Nächste Frist",
       "duration": "Längste Dauer",
       "fresh": "Neueste zuerst",
-      "duration-asc": "Kürzeste Dauer"
+      "duration-asc": "Kürzeste Dauer",
+      "score-asc": "Niedrigste Punktzahl",
+      "start-desc": "Spätester Start",
+      "deadline-desc": "Späteste Frist",
+      "fresh-asc": "Älteste zuerst"
     },
     "startWindow": "Start",
     "start": {
@@ -261,7 +303,13 @@
     "anyTopic": "Jedes Thema",
     "stale": "Seit dem Laden dieser Liste ist ein Lauf durchgelaufen.",
     "reload": "Neu laden",
+    "sortReverse": "Reihenfolge umkehren",
     "sortTrigger": "Sortierung: {order}",
+    "density": {
+      "legend": "Listendichte",
+      "comfortable": "Komfortabel",
+      "compact": "Kompakt"
+    },
     "sortUnstated": "Angebote ohne Angabe stehen in jeder Ordnung hinten.",
     "filters": "Filter",
     "filtersActive": "{count, plural, =0 {Filter} other {Filter, # aktiv}}",
@@ -293,7 +341,6 @@
     "minScore": "Von",
     "maxScore": "Bis",
     "portalsLabel": "Portale",
-    "portalsAll": "Alle Portale",
     "noPortalsYet": "Es wurde noch kein Portal gesehen.",
     "views": {
       "label": "Sichten",
@@ -310,7 +357,6 @@
     },
     "related": {
       "findText": "Angebote ähnlich zu „{value}“ finden",
-      "find": "Ähnliche finden",
       "partial": "{read} von {total} Angeboten sind bisher inhaltlich erfasst. Die übrigen können hier noch nicht erscheinen."
     },
     "noRelatedTitle": "Nichts Ähnliches auf dieser Liste",
@@ -319,15 +365,17 @@
     "countArchivedRelated": "{matched} von {total} archiviert · nur die ähnlichsten"
   },
   "offer": {
-    "rateUnknown": "Satz unbekannt",
-    "locationUnknown": "Ort unbekannt",
-    "durationUnknown": "Dauer unbekannt",
     "notScored": "Nicht bewertet. Der Lauf fand ohne Sprachmodell statt, das hier ist allein die Antwort des harten Filters.",
-    "alsoOn": "{count, plural, one {auch auf # weiteren} other {auch auf # weiteren}}",
-    "alsoAdvertisedBy": "Ebenfalls ausgeschrieben von",
     "incomplete": "unvollständig",
-    "remoteUnknown": "Remote-Anteil unbekannt",
     "possibleDuplicate": "mögliche Dublette",
+    "glyph": {
+      "lift": "Am stärksten gehoben durch:",
+      "penalty": "Am stärksten gedrückt durch:",
+      "topic": "Passende Themen:",
+      "otherSources": "{count, plural, =1 {auch bei einer weiteren Quelle ausgeschrieben} one {auch bei # weiteren Quelle ausgeschrieben} other {auch bei # weiteren Quellen ausgeschrieben}}",
+      "warning": "Hinweis:",
+      "cameIn": "Eingegangen"
+    },
     "remoteShare": "{percent} % remote",
     "noAgency": "kein Vermittler genannt",
     "startsAt": "Start {when}",
@@ -482,7 +530,6 @@
     "note": "Eine Quelle hinzuzufügen ist ein YAML-Block in sources.yaml, kein Deploy. Die Datei wird im Betrieb neu geladen, dieser Bildschirm liest also nur und ändert nichts.",
     "fileLabel": "Konfigurationsdatei",
     "readsOnly": "liest nur, ändert nichts",
-    "close": "Schließen",
     "runsTitle": "Letzte Läufe",
     "runsCaption": "{count, plural, one {# Lauf, neuester zuerst} other {# Läufe, neuester zuerst}}",
     "neverRan": "Diese Quelle ist noch nicht gelaufen.",
@@ -504,7 +551,7 @@
     "gone": "Diese Quelle steht nicht mehr in sources.yaml."
   },
   "rules": {
-    "title": "Regeln",
+    "title": "Workflow",
     "subtitle": "Der harte Filter, die Gewichte der Bewertung und die Schwellen hinter jeder Zahl in der Auswahl.",
     "ruleset": "Regelsatz {version}",
     "knockouts": "Ausschlusskriterien",
@@ -527,7 +574,8 @@
       "extraction": "Dokumentleser",
       "scoring": "Scoring-Judge",
       "content": "Content-Klassifikator",
-      "fields": "Feld-Extraktor"
+      "fields": "Feld-Extraktor",
+      "writing": "Anschreiben-Verfasser"
     },
     "rail": "Pipeline-Stufen",
     "noRun": "Noch kein Lauf — die Stufen zeigen erst nach dem nächsten Durchlauf Zahlen.",
@@ -536,12 +584,28 @@
       "marker": "KI-Schritt",
       "band": "KI-Schritt: hier arbeitet ein Modell mit, per Prompt oder per Embeddings.",
       "legend": "KI-Schritt: ein Modell arbeitet mit, per Prompt oder per Embeddings",
-      "model": "Modell: {{model}}"
+      "model": "Modell: {{model}}",
+      "origin": {
+        "own": "— der eigene Schlüssel dieses Schritts",
+        "fallback": "ist leer, daher antwortet der Scoring-Judge"
+      }
+    },
+    "width": {
+      "line": "Bearbeitet {count, plural, one {eine Anzeige} other {bis zu # Anzeigen}} gleichzeitig"
     },
     "legend": {
-      "title": "Legende"
+      "title": "Legende",
+      "width": "Arbeitet an mehreren Anzeigen zugleich",
+      "widthMark": "×N",
+      "short": {
+        "free": "Lokal",
+        "model": "Modell",
+        "network": "Netz",
+        "file": "Platte",
+        "failed": "Fehlgeschlagen",
+        "width": "Parallel"
+      }
     },
-    "detailLabel": "Gewählte Stufe",
     "phase": {
       "read": "Lesen",
       "sort": "Sortieren",
@@ -562,6 +626,13 @@
       "package": "Paket",
       "digest": "Digest"
     },
+    "count": {
+      "read": "{count} gelesen",
+      "filter": "{count} aussortiert",
+      "enrich": "{count} angereichert",
+      "score": "{count} bewertet",
+      "package": "{count} gepackt"
+    },
     "cost": {
       "free": "Kostenlos, läuft lokal",
       "model": "Ruft ein Modell auf: Prompt oder Embeddings",
@@ -580,9 +651,79 @@
       "keyCount": "{count, plural, one {1 Schlüssel} other {# Schlüssel}}",
       "emptyList": "leer",
       "sharedIngest": "Die Ingest-Einstellungen, die alle Quellen teilen, stehen bei der ersten Quelle.",
-      "funnelScope": "Die aktuelle Arbeitsliste, nicht der letzte Lauf: was der Filter gerade zurückhält, Stufe für Stufe.",
+      "funnelScope": "Die aktuelle Arbeitsliste, nicht der letzte Lauf: was der Filter gerade zurückhält, Stufe für Stufe. Die Zahlen im Graphen zählen den letzten Lauf.",
       "noFunnel": "Noch keine Filterzahlen — der Trichter erscheint, sobald Angebote gefiltert wurden.",
-      "reads": "liest"
+      "reads": "liest",
+      "workingList": "Arbeitsliste"
+    },
+    "canvas": {
+      "label": "Ablauf als Graph",
+      "zoomIn": "Vergrößern",
+      "zoomOut": "Verkleinern",
+      "fit": "Ganzen Ablauf einpassen",
+      "expandAll": "Alle Schritte aufklappen",
+      "collapseAll": "Alle Schritte zuklappen",
+      "fillWindow": "Fenster ausfüllen",
+      "restore": "Zurück zur normalen Größe",
+      "topics": "Themen",
+      "width": "{count} gleichzeitig",
+      "expand": "{stage} aufklappen",
+      "collapse": "{stage} zuklappen"
+    },
+    "sheet": {
+      "title": "Stufeneinstellungen",
+      "close": "Stufeneinstellungen schließen"
+    },
+    "run": {
+      "reached": "Der Lauf ist bei {stage} angekommen.",
+      "ended": "Der Lauf ist beendet.",
+      "state": {
+        "running": "Läuft gerade",
+        "done": "Durchlaufen",
+        "pending": "Noch nicht gelaufen"
+      }
+    },
+    "fanIn": "{count, plural, one {1 Quelle, weiter zu {stage}} other {# Quellen, zusammengeführt bei {stage}}}",
+    "status": {
+      "title": "Status",
+      "ariaRunning": "Status: Ein Lauf läuft, Schritt {position} von {total}",
+      "ariaFinished": "Status: Der letzte Lauf endete um {time}",
+      "ariaFailed": "Status: Der letzte Lauf ist um {time} fehlgeschlagen",
+      "ariaNone": "Status: Noch kein Lauf",
+      "heading": "Laufstatus",
+      "close": "Laufstatus schließen",
+      "runningSince": "Läuft seit {time}",
+      "step": "Schritt {position} von {total}",
+      "runId": "Lauf #{id}",
+      "at": "Bei {stage}",
+      "timing": "Wo die Zeit blieb",
+      "stage": "Stufe",
+      "duration": "Dauer",
+      "state": "Status",
+      "width": "{count} gleichzeitig",
+      "funnel": "Was dieser Lauf zurückhielt",
+      "numbers": "Was dieser Lauf hinterlassen hat",
+      "mergedNote": "Der laufende Gesamtstand im Dedup-Fenster, nicht die Zeilen dieses Laufs.",
+      "sources": "Je Quelle",
+      "sourceId": "Quelle",
+      "documents": "Dokumente",
+      "extracted": "Gelesen",
+      "written": "Geschrieben",
+      "announced": "Angekündigt",
+      "incomplete": "Unter der angekündigten Zahl",
+      "judge": "Bewertet mit {model}",
+      "judgeNone": "Es ist kein Bewertungsmodell konfiguriert.",
+      "digestWritten": "Ein Digest wurde geschrieben.",
+      "digestMissing": "Es wurde kein Digest geschrieben.",
+      "previous": "Der letzte Lauf endete {time}; die Zahlen dieses Laufs kommen, wenn er endet.",
+      "extractedLabel": "Gelesen",
+      "writtenLabel": "Geschrieben",
+      "mergedLabel": "Zusammengeführt",
+      "enrichedLabel": "Angereichert",
+      "scoredLabel": "Bewertet",
+      "shortlistedLabel": "In der Auswahl",
+      "reviewLabel": "Zur Prüfung",
+      "packagedLabel": "Gepackt"
     }
   },
   "analytics": {
@@ -630,7 +771,6 @@
     "colApplications": "Bewerbungen",
     "colAnswered": "Beantwortet",
     "colScore": "Punkte",
-    "colWeek": "Woche",
     "scores": "Punkteverteilung",
     "scoresNote": "Wo die beiden Schwellen das Archiv schneiden. Die Frage ist, ob die Masse knapp unter einer selbst gesetzten Linie liegt.",
     "scoresCaption": "Wie viele Angebote in jedes Zehnerband fallen.",
@@ -698,6 +838,9 @@
     "workflowLoad": "Die Pipeline-Stufen konnten nicht geladen werden.",
     "bulkArchive": "Die ausgewählten Angebote wurden nicht archiviert.",
     "sourceLoad": "Die Quelle konnte nicht gelesen werden.",
-    "summaryLoad": "Die Kacheln der Übersicht haben nicht geladen."
+    "summaryLoad": "Die Kacheln der Übersicht haben nicht geladen.",
+    "manualUpload": "Das Dokument wurde nicht angenommen.",
+    "manualConfirm": "Das Dokument wurde nicht bestätigt.",
+    "manualReject": "Das Dokument wurde nicht gelöscht."
   }
 }

@@ -9,7 +9,7 @@
 package de.codeministry.leadgen.content;
 
 import java.util.Optional;
-import javax.sql.DataSource;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
@@ -37,6 +37,7 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class BlockLabelStore {
 
     private static final String FIND = """
@@ -66,10 +67,6 @@ public class BlockLabelStore {
         """;
 
     private final JdbcClient jdbc;
-
-    BlockLabelStore(DataSource dataSource) {
-        this.jdbc = JdbcClient.create(dataSource);
-    }
 
     /**
      * What this block was decided to be before, if anything ever was.

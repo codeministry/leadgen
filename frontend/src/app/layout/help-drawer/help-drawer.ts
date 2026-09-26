@@ -16,25 +16,33 @@ import {ActivatedRouteSnapshot, Router} from '@angular/router';
 import {TranslocoPipe, TranslocoService} from '@jsverse/transloco';
 import {
     CHAPTER_DIAGRAMS,
-    chapterForSection,
+    CHAPTER_SHOTS,
+    chapterForRoute,
     HELP_CHAPTERS,
+    HELP_SHOTS,
     HelpChapter,
     HelpDiagram,
+    HelpShot,
+    HelpShotSize,
     isHelpDiagram,
+    isHelpShot,
 } from '@core/help/help-chapters';
+import {ThemeStore} from '@core/theme/theme.store';
 import {Icon} from '@shared/icon/icon';
 import {LgIconName} from '@shared/icon/lucide-icons';
 import {Markdown} from '@shared/markdown/markdown';
 import {HelpDiagramView} from './help-diagram';
 
-/** A chapter cut at its diagram placeholders: runs of text, and the figures between them. */
-export type HelpPart = {kind: 'text'; text: string} | {kind: 'diagram'; id: HelpDiagram};
+/** A chapter cut at its figure placeholders: runs of text, and the figures between them. */
+export type HelpPart =
+    | {kind: 'text'; text: string}
+    | {kind: 'diagram'; id: HelpDiagram}
+    | {kind: 'shot'; id: HelpShot};
 
 /**
  * The icon each chapter wears in the contents. A screen's icon is the one its entry carries in the
- * main navigation (`layout/app-nav/app-nav.ts`) or the settings panel, so a reader recognises the
- * screen. The overview gets a book because it is the one chapter that is not a screen. Review is
- * parked and has no entry anywhere, so it borrows the inbox it reviews.
+ * main navigation (`layout/app-nav/app-nav.ts`), so a reader recognises the screen. The overview
+ * gets a book because it is the one chapter that is not a screen.
  */
 export const CHAPTER_ICONS: Record<HelpChapter, LgIconName> = {
     'how-it-works': 'book-open',
@@ -42,37 +50,51 @@ export const CHAPTER_ICONS: Record<HelpChapter, LgIconName> = {
     shortlist: 'list-checks',
     pipeline: 'columns-3',
     analytics: 'chart-line',
-    rules: 'sliders-horizontal',
+    workflow: 'sliders-horizontal',
     sources: 'database',
-    review: 'inbox',
+    'offer-detail': 'file-text',
+    application: 'send',
+    'filters-views': 'list-filter',
+    'app-basics': 'keyboard',
 };
 
-const PLACEHOLDER = /<!--\s*diagram:\s*([\w-]+)\s*-->/g;
+const PLACEHOLDER = /<!--\s*(diagram|screenshot):\s*([\w-]+)\s*-->/g;
 
 /**
- * Cuts a chapter at its `<!-- diagram: <id> -->` placeholders. A diagram the chapter should
- * carry but does not place is appended after the text, in the listed order, so a text that
- * forgets a placeholder still shows every figure; an unknown id is dropped, so a typo is a
- * missing figure rather than a broken image.
+ * Cuts a chapter at its `<!-- diagram: <id> -->` and `<!-- screenshot: <id> -->` placeholders.
+ * A figure the chapter should carry but does not place is appended after the text, diagrams
+ * first and each kind in its listed order, so a text that forgets a placeholder still shows
+ * every figure; an unknown id is dropped, so a typo is a missing figure rather than a broken
+ * image.
  */
-export function splitChapter(text: string, diagrams: readonly HelpDiagram[]): HelpPart[] {
+export function splitChapter(
+    text: string,
+    diagrams: readonly HelpDiagram[],
+    shots: readonly HelpShot[] = [],
+): HelpPart[] {
     const parts: HelpPart[] = [];
-    const placed = new Set<HelpDiagram>();
+    const placed = new Set<string>();
     let from = 0;
     for (const match of text.matchAll(PLACEHOLDER)) {
         const before = text.slice(from, match.index).trim();
         if (before !== '') parts.push({kind: 'text', text: before});
-        const id = match[1];
-        if (isHelpDiagram(id) && diagrams.includes(id) && !placed.has(id)) {
+        const [, kind, id] = match;
+        if (kind === 'diagram' && isHelpDiagram(id) && diagrams.includes(id) && !placed.has(`d:${id}`)) {
             parts.push({kind: 'diagram', id});
-            placed.add(id);
+            placed.add(`d:${id}`);
+        } else if (kind === 'screenshot' && isHelpShot(id) && shots.includes(id) && !placed.has(`s:${id}`)) {
+            parts.push({kind: 'shot', id});
+            placed.add(`s:${id}`);
         }
         from = match.index + match[0].length;
     }
     const rest = text.slice(from).trim();
     if (rest !== '') parts.push({kind: 'text', text: rest});
     for (const id of diagrams) {
-        if (!placed.has(id)) parts.push({kind: 'diagram', id});
+        if (!placed.has(`d:${id}`)) parts.push({kind: 'diagram', id});
+    }
+    for (const id of shots) {
+        if (!placed.has(`s:${id}`)) parts.push({kind: 'shot', id});
     }
     return parts;
 }
@@ -87,7 +109,8 @@ export function splitChapter(text: string, diagrams: readonly HelpDiagram[]): He
  *
  * <p>The chapter it opens at is read from the route when it opens, not tracked: the drawer is
  * modal, so the route cannot change under it, and the section is inherited down the chain the
- * same way the shell reads it — a detail under the shortlist opens the shortlist's chapter.
+ * same way the shell reads it. An offer open under the shortlist or the pipeline opens the
+ * offer-detail chapter instead.
  *
  * <p>The texts are static files under `public/help/`, fetched when a chapter is shown: they
  * are read rarely, and in the bundle they would be paid for on every load.
@@ -127,13 +150,31 @@ export class HelpDrawer {
     );
 
     protected readonly parts = computed<HelpPart[]>(() =>
-        this.text.hasValue() ? splitChapter(this.text.value(), CHAPTER_DIAGRAMS[this.chapter()]) : [],
+        this.text.hasValue()
+            ? splitChapter(this.text.value(), CHAPTER_DIAGRAMS[this.chapter()], CHAPTER_SHOTS[this.chapter()])
+            : [],
     );
+
+    private readonly theme = inject(ThemeStore);
+
+    /**
+     * The file that shows the app as the reader sees it now: their language, and the theme the
+     * page resolved to, so "system" follows the operating system like the page does.
+     */
+    protected shotSrc(id: HelpShot): string {
+        const theme = this.theme.theme() === 'lg-dark' ? 'dark' : 'light';
+        return `/help/shots/${this.lang()}/${id}-${theme}.webp`;
+    }
+
+    protected shotSize(id: HelpShot): HelpShotSize {
+        return (HELP_SHOTS as Record<HelpShot, HelpShotSize>)[id];
+    }
 
     /** Opens at the current screen's chapter; `trigger` gets focus back when it closes. */
     open(trigger: HTMLElement): void {
         this.trigger = trigger;
-        const chapter = chapterForSection(this.leaf().data['section']);
+        const leaf = this.leaf();
+        const chapter = chapterForRoute(leaf.data['section'], leaf.paramMap.has('id'));
         this.chapter.set(chapter);
         this.here.set(chapter);
         this.view.set('chapter');

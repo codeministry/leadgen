@@ -3,6 +3,8 @@ import {HttpTestingController, provideHttpClientTesting} from '@angular/common/h
 import {ComponentFixture, TestBed} from '@angular/core/testing';
 import {provideRouter} from '@angular/router';
 import en from '../../../../public/i18n/en.json';
+import {Dispatcher} from '@ngrx/signals/events';
+import {ingestEvents} from '@core/store/ingest.events';
 import {AppHeader} from './app-header';
 
 /** The same two methods the help drawer's spec fills in, for the same reason: jsdom has neither. */
@@ -114,6 +116,35 @@ describe('AppHeader', () => {
 
             expect(drawer().hasAttribute('open')).toBe(false);
             expect(document.activeElement).toBe(helpButton());
+        });
+    });
+
+    // The operator's call (2026-09-26): while a pass is going this is not a refused button but the
+    // way into the run — the run colour, the step, and a link to the workflow's status panel.
+    describe('while a pass is running', () => {
+        it('replaces the run button with a link into the workflow status, carrying the step', () => {
+            TestBed.inject(Dispatcher).dispatch(
+                ingestEvents.currentLoaded({
+                    id: 7,
+                    startedAt: '2026-09-26T08:00:00Z',
+                    scoreModel: 'judge',
+                    stage: 'SCORE',
+                    stagePosition: 9,
+                    stageTotal: 15,
+                    stageStartedAt: '2026-09-26T08:04:00Z',
+                }),
+            );
+            fixture.detectChanges();
+            const host = fixture.nativeElement as HTMLElement;
+
+            const live = host.querySelector<HTMLAnchorElement>('a.ingest-live');
+            expect(live, 'the live link').not.toBeNull();
+            expect(live!.getAttribute('href')).toContain('stage=run');
+            expect(live!.textContent).toContain('9/15');
+            // The name says the stage in words; the figure alone would not.
+            expect(live!.getAttribute('aria-label')).toContain('SCORE');
+            // And the button that starts one is gone while one is going.
+            expect(host.querySelector('button.ingest-button')).toBeNull();
         });
     });
 });

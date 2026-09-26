@@ -9,6 +9,131 @@ may change in any release. See the status note in the README.
 
 ## [Unreleased]
 
+### Added
+
+- The rules screen draws the run as a workflow graph: five phase columns from reading the sources
+  to handing over, the sources merging into deduplication, straight edges, each stage a card with
+  its cost, model and width markers and a count chip from the last run. The operator pans with the
+  wheel, zooms with a pinch or Ctrl, fits, opens a stage's knockouts, scoring blocks and prompt as
+  sub-nodes, and reads a stage's settings in a sheet at the window's edge that Escape or a click
+  outside closes. The legend answers the hovered card; below 704 px the graph becomes a vertical
+  pipe of links (spec `017-rules-flow-graph`). The toolbar also expands or collapses every stage
+  at once and gives the graph, its legend and the sheet the whole window, and panning keeps part of
+  the graph in view however far it goes.
+
+- The workflow graph shows the pass in flight, in colour, where it stands: the stage being worked
+  carries a ring and its own reserved colour with the seconds it has spent there, every stage
+  behind it a check, every stage ahead a dashed outline, and the edge entering the running stage a
+  marching dash. The pipe below 704 px says the same. A screen reader hears each stage change once
+  and the end of the pass once, and every stage says which of running, passed and waiting it
+  carries. When the pass ends the last run's counts come back in one step, carrying the run that
+  just finished (spec `018-rules-live-run`).
+
+- One place always answers about a run: a Status control in the workflow header opens a side panel
+  with every fact there is about the pass in flight, or about the one that finished last — where it
+  stands and how long it has been there, where the time went stage by stage, what it held back,
+  what it left, what each source brought, which model judged, and whether a digest was written. The
+  control takes the run colour while a pass is going and the error colour when the last one failed,
+  and the app header's run button turns into a link into the same panel instead of refusing to be
+  pressed. The strips that used to say a little of this above the graph and on the dashboard are
+  gone.
+
+- The shortlist card answers four questions at a glance and leaves the rest to the detail:
+  whether it fits, why it scored (the strongest lift and penalty as labels, every matched topic),
+  where the application stands and when the offer came in. Icons plus values, no badges and no
+  "unknown" placeholders; the card is less than half its former height. A toggle beside the sort
+  menu switches the list between comfortable and compact, remembered in this browser only
+  (spec `016-offer-card-redesign`).
+
+- The help shows the app: every chapter carries a screenshot of its screen, in the reader's
+  language and theme, retaken from the demo stack by `bun run help:shots`. Four chapters are new
+  (offer detail, application and cover letter, filters, sorting and views, header, keyboard and
+  app); opening the help on an open offer lands on the offer-detail chapter, and the overview is
+  now the last chapter. The chapter on the parked review screen is gone until the screen returns
+  (spec `014-help-screenshots`).
+
+- The app is installable, from the browser's own install affordance: a web app manifest, the
+  lead-ring icons rendered from `brand/mark.svg` (192 and 512 on the round plate, a 512 maskable
+  icon on an opaque square plate, a 180 touch icon), a title bar in the surface colour of the
+  active theme, an app shell that opens without a network through Angular's service worker
+  (production builds only; nothing under `/api/` is ever cached), and a toast that offers to
+  reload once a deploy has landed (spec `012-pwa-install`).
+- The model-bound stages work several adverts at once, and each bounded question can have its
+  own model. `llm.concurrency` (`LLM_CONCURRENCY`, default 1) is how many adverts CONTENT,
+  FIELDS and the synchronous SCORE work at once and how many embedding batches DEDUPE and
+  RETRIEVAL have in flight; `enrichment.fetch.concurrency` (`FETCH_CONCURRENCY`, default 1) is
+  how many fetches ENRICH has in flight, inside the same rate window. Both are refused at load
+  above the database connection pool; the budget still counts requests, so a width moves the
+  clock and never the bill, and the model endpoint has to serve that many requests at once.
+  `llm.models.content` (`LLM_MODEL_CONTENT`) and `llm.models.fields` (`LLM_MODEL_FIELDS`) name
+  the classifier's and the field extractor's model; empty means `llm.models.scoring`, so an
+  existing configuration behaves as before. A set key that changes makes its own stage due
+  again, and `score_model` is nulled only for adverts whose answer moved. A wide stage writes
+  `width=N` on its `pipeline_stage` row and its log line; the dashboard does not show the width
+  yet. `POST /api/v1/offers/{id}/answer` asks a configured candidate one of the pipeline's own
+  questions (`blocks`, `fields`, `judge`) and returns its parsed answer beside the stored one,
+  writing nothing but the budget counter; `docs/samples/measure_routing.ts` turns a sample of
+  those into agreement and latency per candidate. A PATCH under the pre-1.0 rule: every new key
+  defaults to today's behaviour (spec `015-workflow-parallel-model-routing`).
+
+### Fixed
+
+- `enrichment.fetch.max_per_run` is a hard cap: a pass reserves its unit before it waits for a
+  window permit, so it no longer overshoots its budget when the window has room (measured: a
+  budget of 25 over 30 adverts sent 30). Each retry of a 5xx takes a window permit of its own,
+  so the rate limit bounds requests rather than adverts. A behaviour change for any pass that
+  used to overshoot.
+- `ContentReport.requests` no longer counts an advert whose call the budget refused; no request
+  left, and the report counts requests.
+
+### Changed
+
+- The shortlist opens newest first rather than by score, so what came in since the last look is
+  on top; a link without `sort` means newest first. The API's default order is unchanged, and
+  the browser now always sends the order it wants.
+- `frontend/nginx.conf` sets a cache policy: `no-cache` on `index.html`, `ngsw.json`, the
+  manifest and the worker scripts, `immutable` on the hashed bundles and fonts, and the
+  manifest's mime type. The deployed chart carries its own copy of that file and needs the same
+  blocks.
+- **The web image runs nginx as a non-root user, on port 8080.** The runtime stage is
+  `nginxinc/nginx-unprivileged`, `frontend/nginx.conf` listens on 8080 and Compose maps the
+  published `WEB_PORT` to it. A deployment that sets the container port itself (the chart's
+  `web.ports.service` and its nginx ConfigMap) has to move to 8080 before it deploys this image,
+  or the web pod never answers its readiness probe. The build stage runs on a pinned Node with the
+  bun that `packageManager` pins copied onto it, because the Angular CLI refuses bun's own Node
+  shim; `BunPinTest` holds the four bun pins to one version and Renovate bumps them together.
+- Compose gives `api` and `web` a healthcheck, `web` waits for a healthy `api` as `api` waits for
+  `postgres`, every service restarts unless stopped, and the api's container port is pinned to
+  8080 whatever `SERVER_PORT` in `.env` says for the host side (spec `013-tech-debt`).
+- `.env.example` is held to the placeholders the shipped files read, in both directions, by
+  `EnvExampleTest`: it gained `RETRIEVAL_TOPIC_FLOOR` and `LEADGEN_CONFIG_MOUNT` and lost a key
+  nothing read. The four newsletter keys stay as operator-config keys while
+  `docs/CONFIGURATION.md` names them.
+- Every `leadgen.*` Spring property binds on the `ConfigProperties` record; no `@Value` is left
+  under `backend/src/main`. `leadgen.version` keeps its `LEADGEN_VERSION` override from the image
+  tag and its literal default, and an empty value still shows as empty rather than refusing to
+  start.
+- Backend boilerplate: `@RequiredArgsConstructor` on every class whose constructor only assigned
+  its fields, the `JdbcClient` Boot configures injected where a constructor built one from a
+  `DataSource` (33 `create` calls → 7), `IngestService` looking a connector up in its injected
+  list and refusing two of one type at startup as before, a Lombok builder assembling
+  `IngestReport` at one site, and one `ModelChoice` in `llm/` answering "the
+  first scoring choice, or none without a model" for the classifier, the field extractor, both
+  judges and the LLM extractor. Nothing reflective, so the AOT and native-image builds are
+  unaffected. No endpoint, field, migration or configuration key changed meaning.
+- The three working-notes files (`CLAUDE.md`, `backend/CLAUDE.md`, `frontend/CLAUDE.md`) sit at
+  or under 85 % of the budget `WorkingNotesStaySmallTest` holds them to; sixteen trap paragraphs
+  moved whole into `docs/decisions/`, each leaving its one-line rule behind. `README.md` and
+  `docs/DEVELOPMENT.md` no longer claim the formatting gate is off; `.dockerignore` and
+  `CLAUDE.md` name `config/`, not a `config/local/` that never existed.
+- Frontend: route titles and the document title resolve through a `TitleStrategy` from the
+  catalogs (German users see German tab titles; `/sources/:id` titles "Source"), the manual
+  store's fallback sentences are catalog keys, and the parity spec fails on a catalog key no
+  source file references (eight dead keys removed). `ShortlistPage` removes its media-query
+  listener on destroy and the ask panel's request ends with the component. `angular.json`
+  declares the `lg` prefix and `experimentalDecorators` is off; `@angular/forms` stays as a
+  required peer of the cdk.
+
 ## [0.5.0] — 2026-09-24
 
 The rules screen becomes the workflow view, the app explains itself in a help drawer, a

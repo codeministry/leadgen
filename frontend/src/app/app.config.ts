@@ -1,10 +1,19 @@
-import {ApplicationConfig, inject, provideAppInitializer, provideBrowserGlobalErrorListeners} from '@angular/core';
+import {
+    ApplicationConfig,
+    inject,
+    isDevMode,
+    provideAppInitializer,
+    provideBrowserGlobalErrorListeners,
+} from '@angular/core';
 import {provideHttpClient, withFetch, withInterceptors} from '@angular/common/http';
-import {provideRouter, withComponentInputBinding} from '@angular/router';
+import {provideRouter, TitleStrategy, withComponentInputBinding} from '@angular/router';
+import {provideServiceWorker} from '@angular/service-worker';
 import {provideOAuthClient} from 'angular-oauth2-oidc';
 import {AuthService} from '@core/auth/auth.service';
 import {bearerInterceptor} from '@core/auth/bearer.interceptor';
+import {CatalogTitleStrategy} from '@core/i18n/title.strategy';
 import {provideI18n} from '@core/i18n/transloco.providers';
+import {UpdateStore} from '@core/pwa/update.store';
 import {provideChartPalette} from '@core/theme/chart-theme';
 import {provideScoreThresholds} from '@core/store/score-thresholds.provider';
 import {routes} from './app.routes';
@@ -39,5 +48,24 @@ export const appConfig: ApplicationConfig = {
         // survive a reload and be shareable as a link, so the query params are the
         // source of truth and bind straight into component inputs.
         provideRouter(routes, withComponentInputBinding()),
+        // Route titles are catalog keys; this puts the screen name and the brand in the tab.
+        {provide: TitleStrategy, useClass: CatalogTitleStrategy},
+        // The shell offline, the data never: the worker caches what `ngsw-config.json` names
+        // and nothing under `/api/`. Keyed on the build mode rather than the hostname, because
+        // the dev server on :4200 must never hold a stale bundle, while the compose stack on
+        // localhost is the production artifact the install is verified against. Registered
+        // once the app is stable, or after 30 s, so it never competes with the first paint.
+        provideServiceWorker('ngsw-worker.js', {
+            enabled: !isDevMode(),
+            registrationStrategy: 'registerWhenStable:30000',
+        }),
+        // Injected for its existence, like `RefreshStore` in `app.ts`: nothing reads the
+        // update store, so unreferenced it would never be constructed and a deploy would go
+        // unannounced. Here rather than in `app.ts` because it needs `SwUpdate`, which only
+        // the provider above supplies — a component spec without it would fail on the store.
+        // Under a disabled worker the store subscribes to nothing.
+        provideAppInitializer(() => {
+            inject(UpdateStore);
+        }),
     ],
 };

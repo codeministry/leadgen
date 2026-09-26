@@ -6,12 +6,19 @@
     <base href="/"/>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
     <meta name="color-scheme" content="light dark"/>
-    <!-- Both icons come from `brand/mark.svg`, the one drawing of the lead ring, via
-       `frontend/tools/build-favicon.sh`, which recolours the ring and the dots by group
-       id and puts the mark on a round plate. Regenerate, never hand-edit. The header
-       draws the same paths inline in `shared/brand-mark/`. -->
+    <!-- The dark surface, so an installed window opens on the app's own colour before the
+       first paint. Keep in step with THEME_SURFACE_HEX in core/theme/theme.model.ts and
+       the two colours in public/manifest.webmanifest. -->
+    <meta name="theme-color" content="#1F222D"/>
+    <link rel="manifest" href="manifest.webmanifest"/>
+    <!-- The favicon, the 180 touch icon and every icon the manifest names come from
+       `brand/mark.svg`, the one drawing of the lead ring, via `frontend/tools/build-favicon.sh`,
+       which recolours the ring and the dots by group id and puts the mark on a round plate
+       (the tab icon, the manifest's `any` icons) or an opaque square one (the touch icon,
+       the manifest's maskable icon). Regenerate, never hand-edit. The header draws the same
+       paths inline in `shared/brand-mark/`. -->
     <link rel="icon" type="image/x-icon" href="favicon.ico" sizes="16x16 32x32 48x48"/>
-    <link rel="apple-touch-icon" href="favicon-256.png"/>
+    <link rel="apple-touch-icon" href="apple-touch-icon.png"/>
     <script>
         // Runs before the stylesheet resolves, so the page never paints in the wrong
         // theme and then corrects itself. "System" is the *absence* of the attribute:
@@ -35,6 +42,29 @@
             } catch (error) {
                 // Private mode or storage disabled. Fall through to the media query.
             }
+
+            // The browser's `theme-color` for the first paint: an installed window's title
+            // bar takes it from the meta tag, and the static value in the head is the dark
+            // surface only. Resolved the way the store resolves it — the attribute if there
+            // is one, the media query if there is none — so the bar matches the page from
+            // the first frame. The store keeps it in step with every change after that.
+            // Keep the two literals in step with THEME_SURFACE_HEX in
+            // core/theme/theme.model.ts; the theme store's spec holds them to it.
+            var surfaces = {'lg-light': '#FFFFFF', 'lg-dark': '#1F222D'};
+            var resolved = document.documentElement.getAttribute('data-theme');
+            if (!resolved) {
+                resolved =
+                    window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+                        ? 'lg-dark'
+                        : 'lg-light';
+            }
+            var meta = document.querySelector('meta[name="theme-color"]');
+            if (!meta) {
+                meta = document.createElement('meta');
+                meta.name = 'theme-color';
+                document.head.appendChild(meta);
+            }
+            meta.content = surfaces[resolved] || surfaces['lg-dark'];
 
             // `lang` for the first paint. Not a flash of the wrong language — nothing is
             // painted yet — but the attribute a screen reader picks its voice from and the

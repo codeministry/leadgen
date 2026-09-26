@@ -110,4 +110,16 @@ describe('AskPanel', () => {
 
         http.expectOne((r) => r.url === '/api/v1/offers/42/ask');
     });
+
+    it('cancels the question in flight when the panel goes away', () => {
+        // The panel lives inside the offer detail, which is replaced on every selection. An
+        // answer arriving after that has no screen to land on.
+        const fixture = render();
+        click(fixture);
+        const request = http.expectOne((r) => r.url === '/api/v1/offers/42/ask');
+
+        fixture.destroy();
+
+        expect(request.cancelled).toBe(true);
+    });
 });

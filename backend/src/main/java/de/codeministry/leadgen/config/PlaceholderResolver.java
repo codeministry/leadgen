@@ -13,6 +13,7 @@ import java.util.Map;
 import java.util.function.UnaryOperator;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -37,15 +38,12 @@ import lombok.extern.slf4j.Slf4j;
  * variable name, so a regex like {@code (\d{1,3})} — braces but no `${` — is never touched.
  */
 @Slf4j
+@RequiredArgsConstructor
 final class PlaceholderResolver {
 
     private static final Pattern PLACEHOLDER = Pattern.compile("\\$\\{([A-Za-z_][A-Za-z0-9_]*)(?::([^}]*))?}");
 
     private final UnaryOperator<String> environment;
-
-    PlaceholderResolver(UnaryOperator<String> environment) {
-        this.environment = environment;
-    }
 
     /**
      * The process environment, with `.env` behind it. A real variable always wins.

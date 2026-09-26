@@ -100,7 +100,7 @@ describe('ShortlistStore', () => {
         // The store injects `ScoringModelStore`, which asks the server which judges it may
         // offer as soon as it exists. Nothing here is about that, but it is a real request and
         // `verify()` counts it.
-        http.expectOne('/api/v1/scoring-models').flush({effective: null, options: []});
+        http.expectOne('/api/v1/scoring-models').flush({available: [], preferred: null});
     });
 
     afterEach(() => http.verify());
@@ -269,5 +269,59 @@ describe('ShortlistStore', () => {
         http.expectOne('/api/v1/offers/2').flush(entry(2));
 
         expect(store.fetchError()).toBeNull();
+    });
+
+    it('keeps a rescore that lands late off the offer the reader moved on to', () => {
+        // The same race as the fetch, one button over: a rescore is a model call and takes
+        // seconds, and the reader may open another offer before it answers. The list row is
+        // still replaced; the detail is not, or the first offer's score would stand under the
+        // second one's title.
+        openList();
+        dispatch.offerRequested(1);
+        http.expectOne('/api/v1/offers/1').flush(entry(1));
+        dispatch.rescoreRequested(1);
+        const rescoring = http.expectOne({method: 'POST', url: '/api/v1/offers/1/score'});
+
+        dispatch.offerRequested(2);
+        http.expectOne('/api/v1/offers/2').flush(entry(2));
+        const rescored = entry(1);
+        rescoring.flush({...rescored, score: {...rescored.score, value: 42}});
+
+        expect(store.selected()?.offer.id).toBe(2);
+        expect(store.selected()?.score.value).toBe(88);
+        expect(store.entries().find((row) => row.offer.id === 1)?.score.value).toBe(42);
+        expect(store.rescoring()).toBeNull();
+    });
+
+    it('keeps a refused rescore that lands late off the offer the reader moved on to', () => {
+        // The refusal names the offer that was asked about, not the one on screen now. Under
+        // the next offer's title it would read as that offer's problem.
+        openList();
+        dispatch.offerRequested(1);
+        http.expectOne('/api/v1/offers/1').flush(entry(1));
+        dispatch.rescoreRequested(1);
+        const rescoring = http.expectOne({method: 'POST', url: '/api/v1/offers/1/score'});
+
+        dispatch.offerRequested(2);
+        http.expectOne('/api/v1/offers/2').flush(entry(2));
+        rescoring.flush('no scoring model is configured', {status: 409, statusText: 'Conflict'});
+
+        expect(store.rescoreError()).toBeNull();
+        expect(store.rescoring()).toBeNull();
+    });
+
+    it('does not carry a refused rescore to the next offer', () => {
+        openList();
+        dispatch.offerRequested(1);
+        http.expectOne('/api/v1/offers/1').flush(entry(1));
+        dispatch.rescoreRequested(1);
+        http.expectOne({method: 'POST', url: '/api/v1/offers/1/score'})
+            .flush('no scoring model is configured', {status: 409, statusText: 'Conflict'});
+        expect(store.rescoreError()).toContain('scoring model');
+
+        dispatch.offerRequested(2);
+        http.expectOne('/api/v1/offers/2').flush(entry(2));
+
+        expect(store.rescoreError()).toBeNull();
     });
 });

@@ -1,0 +1,123 @@
+/* The panel's own layout. The stage detail's `.detail-section`, `.section-title` and `.pairs` are
+   scoped to that component, so nothing of theirs reaches here — this file says the same things in
+   this panel's own words, and says them with more room: a run is a column of small facts, and at
+   the stage detail's density they run together into one grey block (operator, 2026-09-26). */
+:host {
+    display: flex;
+    flex-direction: column;
+    gap: 1.75rem;
+}
+
+.detail-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+    min-width: 0;
+}
+
+/* Quiet headings, the same voice as the sheet's own "Run status" and the canvas's "Legend": a
+   panel this narrow does not need a second heading size shouting inside it. */
+.run-title {
+    margin: 0;
+    color: var(--lg-muted);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.run-head {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+}
+
+/* While a pass runs the head carries the run hue, the way the header strip above the graph does —
+   the one colour that means "being worked right now". */
+.run-head.is-running {
+    padding: 0.625rem 0.75rem;
+    border: 1px solid var(--lg-run);
+    border-radius: var(--radius-field);
+    background-color: color-mix(in oklab, var(--lg-run) 10%, var(--color-base-100));
+}
+
+.run-since,
+.run-facts,
+.run-at {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+    margin: 0;
+}
+
+.run-previous {
+    margin: 0;
+}
+
+/* Label left, figure right, one pair per row with a hairline between: eight figures stacked as a
+   bare definition list read as sixteen unrelated lines, which is what the first draft did. */
+.pairs {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 0;
+    margin: 0;
+}
+
+.pairs dt,
+.pairs dd {
+    margin: 0;
+    padding: 0.375rem 0;
+    border-block-start: 1px solid var(--color-base-200);
+}
+
+.pairs dt {
+    color: var(--lg-muted);
+}
+
+.pairs dd {
+    text-align: end;
+}
+
+.pairs dt:first-of-type,
+.pairs dt:first-of-type + dd {
+    border-block-start: none;
+}
+
+/* The five-column source table is exactly the trap the shortlist column paid for: a pane that
+   scrolls on one axis computes the other to `auto`, so the scroller is checked on itself. */
+.table-scroll {
+    min-width: 0;
+    overflow-x: auto;
+}
+
+.run-table {
+    inline-size: 100%;
+}
+
+.run-table th {
+    color: var(--lg-muted);
+    font-weight: 500;
+}
+
+.run-table :is(th, td) {
+    padding: 0.4375rem 0.5rem;
+}
+
+.run-table :is(th, td):first-child {
+    padding-inline-start: 0;
+}
+
+.run-table :is(th, td):last-child {
+    padding-inline-end: 0;
+    text-align: end;
+}
+
+/* Where the run spent most of its time. The warning's text twin rather than a badge: the number
+   is the finding, and a badge here would claim something about the stage's state. */
+.is-slowest {
+    color: var(--lg-warning-text);
+    font-weight: 600;
+}
+
+.run-note {
+    display: block;
+}

@@ -10,8 +10,11 @@ package de.codeministry.leadgen;
 
 import de.codeministry.leadgen.config.ConfigLoader;
 import de.codeministry.leadgen.config.ConfigProperties;
+import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.config.DotEnv;
 import de.codeministry.leadgen.config.Secrets;
+import de.codeministry.leadgen.config.model.PipelineConfig;
+import de.codeministry.leadgen.llm.ModelChoice;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
@@ -77,17 +80,16 @@ public class ConfigurationBanner {
     /**
      * Where a value won. The label is what the row carries, so it stays short.
      */
+    @RequiredArgsConstructor
     private enum Origin {
         YAML("yaml"),
         DOTENV(".env"),
         PROCESS("env"),
-        RESOLVED("path");
+        RESOLVED("path"),
+        // Which model a stage will ask, worked out by ModelChoice from the keys above.
+        CHOSEN("used");
 
         private final String label;
-
-        Origin(String label) {
-            this.label = label;
-        }
     }
 
     private record Entry(String key, String value, Origin origin) {}
@@ -117,6 +119,7 @@ public class ConfigurationBanner {
 
     private final ConfigurableEnvironment environment;
     private final ConfigProperties properties;
+    private final ConfigRegistry config;
 
     @EventListener(ApplicationReadyEvent.class)
     public void announce() {
@@ -166,8 +169,41 @@ public class ConfigurationBanner {
                 properties.configDirectory().toAbsolutePath()
                         + (Files.isDirectory(properties.configDirectory()) ? "" : "  (missing, defaults apply)"),
                 Origin.RESOLVED));
+        entries.addAll(modelChoices());
 
         return render(entries, dotenv, ignored);
+    }
+
+    /**
+     * One row per model key a stage falls back from: the model it resolves to and the key that
+     * won — its own, or {@code llm.models.scoring} — or {@code none}. Worked out by
+     * {@link ModelChoice}, the same code the stages ask, so the box cannot name one model while
+     * the run uses another. A snapshot that cannot be read yields no rows rather than a failed
+     * start, for the same reason nothing else in here may throw.
+     */
+    private List<Entry> modelChoices() {
+        PipelineConfig.Llm.Models models;
+        try {
+            PipelineConfig.Llm llm = config.snapshot().application().llm();
+            models = llm == null ? null : llm.models();
+        } catch (RuntimeException e) {
+            return List.of();
+        }
+        return List.of(
+                chosen(
+                        "llm.models.extraction",
+                        ModelChoice.extraction(models),
+                        models == null ? null : models.extraction()),
+                chosen("llm.models.content", ModelChoice.content(models), models == null ? null : models.content()),
+                chosen("llm.models.fields", ModelChoice.fields(models), models == null ? null : models.fields()));
+    }
+
+    private static Entry chosen(String key, Optional<String> model, String configured) {
+        return new Entry(
+                key + " → used",
+                model.map(name -> name + "  (from " + ModelChoice.decidedBy(key, configured) + ")")
+                        .orElse("none"),
+                Origin.CHOSEN);
     }
 
     private List<Entry> fromApplicationYaml(DotEnv dotenv) {

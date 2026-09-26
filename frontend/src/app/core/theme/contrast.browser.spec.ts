@@ -22,7 +22,7 @@ const LIGHT_PRIMARY_HEX = FALLBACK.primary;
 const THEMES = ['lg-light', 'lg-dark'] as const;
 type Theme = (typeof THEMES)[number];
 
-const SECTIONS = ['dashboard', 'shortlist', 'pipeline', 'analytics', 'sources', 'review', 'rules'] as const;
+const SECTIONS = ['dashboard', 'shortlist', 'pipeline', 'analytics', 'sources', 'review', 'workflow'] as const;
 
 /** Resolve any CSS colour the browser understands to sRGB, through a 1×1 canvas. */
 export function resolveColour(css: string): Rgb & {alpha: number} {
@@ -297,6 +297,50 @@ describe.each(THEMES)('%s: the AI marker reads (ISC-309)', theme => {
             expect(ratio(token(colour), token('--lg-ai-surface')), `${colour} on --lg-ai-surface`).toBeGreaterThanOrEqual(TEXT_FLOOR);
         }
     });
+
+    it('the band\'s second line and its key read at ≥ 4.5:1 on the band (ISC-386)', () => {
+        // Rendered, not read off a token: the line and its <code> inherit the band's ink, and a
+        // global rule on `code` or on `.type-mono-data` would show up here as a different colour.
+        // The band's own declarations are repeated inline because core/ may not import the
+        // rules screen; `stage-detail.css` sets exactly these two on `.ai-band`.
+        const host = mount(
+            '<p class="type-small" style="background-color: var(--lg-ai-surface); color: var(--color-base-content)">' +
+                '<span class="ai-band-origin"><code class="type-mono-data">llm.models.fields</code> is empty, so the scoring judge answers</span>' +
+                '</p>',
+        );
+        const band = host.firstElementChild!;
+        const surface = painted(computed(band, 'backgroundColor'), token('--color-base-100'));
+        const ground = `rgb(${surface.r}, ${surface.g}, ${surface.b})`;
+        for (const el of [band.querySelector('.ai-band-origin')!, band.querySelector('code')!]) {
+            expect(contrastRatio(painted(computed(el, 'color'), ground), surface), el.tagName).toBeGreaterThanOrEqual(TEXT_FLOOR);
+        }
+        document.body.replaceChildren();
+    });
+});
+
+describe.each(THEMES)('%s: the run marker reads and stays clear of its neighbours (ISC-415)', theme => {
+    beforeEach(() => useTheme(theme));
+    afterEach(() => document.documentElement.removeAttribute('data-theme'));
+
+    it('defines --lg-run', () => {
+        expect(token('--lg-run')).toMatch(/^oklch\(/);
+    });
+
+    it('is at least 3:1 on the node surface and the canvas surface', () => {
+        for (const ground of ['--color-base-100', '--color-base-200']) {
+            expect(ratio(token('--lg-run'), token(ground)), `--lg-run on ${ground}`).toBeGreaterThanOrEqual(OBJECT_FLOOR);
+        }
+    });
+
+    it('resolves to a colour distinct from --lg-signal and --lg-ai, pairwise', () => {
+        const run = resolveColour(token('--lg-run'));
+        const signal = resolveColour(token('--lg-signal'));
+        const ai = resolveColour(token('--lg-ai'));
+        const same = (a: typeof run, b: typeof run) => a.r === b.r && a.g === b.g && a.b === b.b;
+        expect(same(run, signal), 'run vs signal').toBe(false);
+        expect(same(run, ai), 'run vs ai').toBe(false);
+        expect(same(signal, ai), 'signal vs ai').toBe(false);
+    });
 });
 
 describe('the fonts (ISC-234)', () => {
@@ -356,6 +400,24 @@ describe.each(THEMES)('%s: the control room reads (ISC-272)', theme => {
         expect(ratio(computed(note, 'color'), surface), 'note').toBeGreaterThanOrEqual(TEXT_FLOOR);
     });
 
+    it('the stage: figure, sentence, muted lines and held-back dots read on --lg-stage', () => {
+        // The hero stands on `.lg-stage`, a dark surface in both themes, which
+        // re-points the tokens its content reads. Measured on the stage's own colour: the glows
+        // are light over it and never the ground under a text.
+        const host = mount(
+            '<section class="lg-stage"><span class="text-signal">82</span>'
+            + '<span class="type-h1">offers</span>'
+            + '<p class="text-muted">quiet</p><svg><circle style="fill: var(--lg-stage-dot)"/></svg></section>',
+        );
+        const stage = host.firstElementChild!;
+        const surface = computed(stage, 'backgroundColor');
+        const [figure, sentence, note, svg] = Array.from(stage.children);
+        expect(ratio(computed(figure, 'color'), surface), 'figure').toBeGreaterThanOrEqual(TEXT_FLOOR);
+        expect(ratio(computed(sentence, 'color'), surface), 'sentence').toBeGreaterThanOrEqual(TEXT_FLOOR);
+        expect(ratio(computed(note, 'color'), surface), 'muted').toBeGreaterThanOrEqual(TEXT_FLOOR);
+        expect(ratio(getComputedStyle(svg.firstElementChild!).fill, surface), 'held-back dot').toBeGreaterThanOrEqual(OBJECT_FLOOR);
+    });
+
     it('a cell label, a value and the two chart sums are ≥ 4.5:1 on the cell surface', () => {
         const host = mount('<section class="lg-panel"><h2 class="type-caption text-muted">Last 14 days</h2><span class="type-display-m">0</span><span class="type-mono-data text-signal">2</span><span class="type-small text-muted">came in</span></section>');
         const panel = host.firstElementChild!;
@@ -363,5 +425,122 @@ describe.each(THEMES)('%s: the control room reads (ISC-272)', theme => {
         for (const child of Array.from(panel.children)) {
             expect(ratio(computed(child, 'color'), surface), child.className).toBeGreaterThanOrEqual(TEXT_FLOOR);
         }
+    });
+});
+
+describe.each(THEMES)('%s: the shortlist card reads on both of its surfaces (ISC-383)', theme => {
+    beforeEach(() => useTheme(theme));
+    afterEach(() => document.documentElement.removeAttribute('data-theme'));
+
+    // The card is base-100, and the open one is the selection wash over it. The status is
+    // text in the primary's text twin (the bare primary read 4.35:1 on the light hover wash), the flags are text in the warning twin, the facts and the source
+    // are muted; each has to read on both. The icons take their text's colour, except two that
+    // carry their own: the lift's trending-up in success and the topic's tag in the primary.
+    // Those two are objects, not text, so 3:1 is their floor.
+    const grounds = () => {
+        const base = token('--color-base-100');
+        const wash = painted(token('--lg-selected-surface'), base);
+        const hover = painted(token('--lg-selected-surface-hover'), base);
+        return [
+            {label: 'base-100', css: base},
+            {label: 'selected', css: `rgb(${wash.r}, ${wash.g}, ${wash.b})`},
+            {label: 'selected hover', css: `rgb(${hover.r}, ${hover.g}, ${hover.b})`},
+        ];
+    };
+
+    it('the status, the flags and the muted lines are ≥ 4.5:1', () => {
+        for (const ground of grounds()) {
+            for (const colour of ['--lg-primary-text', '--lg-warning-text', '--lg-muted', '--color-base-content']) {
+                expect(ratio(token(colour), ground.css), `${colour} on ${ground.label}`).toBeGreaterThanOrEqual(TEXT_FLOOR);
+            }
+        }
+    });
+
+    it('the lift and topic icons are ≥ 3:1', () => {
+        for (const ground of grounds()) {
+            for (const colour of ['--color-success', '--color-primary']) {
+                expect(ratio(token(colour), ground.css), `${colour} on ${ground.label}`).toBeGreaterThanOrEqual(OBJECT_FLOOR);
+            }
+        }
+    });
+});
+
+describe.each(THEMES)('%s: the rules flow graph reads (ISC-400)', theme => {
+    beforeEach(() => useTheme(theme));
+    afterEach(() => document.documentElement.removeAttribute('data-theme'));
+
+    // Read off the tokens the rules screen's stylesheets name, because core/ may not import the
+    // rules screen: `flow-node.css` (the card in base-100, the selection wash over it, the count
+    // chip in base-200), `flow-canvas.css` (the canvas in base-200, which is also handed to
+    // the graph library as its background and checked rendered in `flow-canvas.browser.spec.ts`, with
+    // edges and arrows in `--lg-muted` through currentColor), `flow-legend.css` (the strip on the
+    // page) and `stage-sheet.css` (a `.lg-panel`, so base-100). The selection is a wash, so it is
+    // composited over the card before anything is measured on it.
+    const opaque = (name: string, over: string): string => {
+        const c = painted(token(name), token(over));
+        return `rgb(${c.r}, ${c.g}, ${c.b})`;
+    };
+    const grounds = () => ({
+        node: token('--color-base-100'),
+        selected: opaque('--lg-selected-surface', '--color-base-100'),
+        chip: token('--color-base-200'),
+        canvas: token('--color-base-200'),
+        sheet: token('--color-base-100'),
+        page: token('--color-base-200'),
+        // The unread chip's count pill. It reads on the warning's text twin, not on
+        // `--color-warning`: near-black on a 62 %-light warm hue turned the figure to mud on
+        // screen (operator, 2026-09-26). The status chip carries its figure as plain text.
+        unreadPill: token('--lg-warning-text'),
+    });
+    type Ground = keyof ReturnType<typeof grounds>;
+
+    const measure = (pairs: [string, Ground][], floor: number): string[] => {
+        const g = grounds();
+        return pairs
+            .map(([colour, ground]) => ({label: `${colour} on ${ground}`, ratio: ratio(token(colour), g[ground])}))
+            .filter(p => p.ratio < floor)
+            .map(p => `${p.label}: ${p.ratio.toFixed(2)}`);
+    };
+
+    it('node phase, name, ×N and chip, the legend and the sheet are ≥ 4.5:1', () => {
+        expect(
+            measure(
+                [
+                    ['--lg-muted', 'node'], // phase line, ×N
+                    ['--lg-muted', 'selected'],
+                    ['--color-base-content', 'node'], // name, sub-row
+                    ['--color-base-content', 'selected'],
+                    ['--color-base-content', 'chip'], // count chip
+                    ['--color-base-content', 'page'], // legend labels
+                    ['--lg-muted', 'page'], // legend title, ×N in the legend
+                    ['--lg-muted', 'sheet'], // sheet heading
+                    ['--color-base-content', 'sheet'], // sheet body
+                    ['--color-base-100', 'unreadPill'], // the unread count, white on the text twin
+                ],
+                TEXT_FLOOR,
+            ),
+        ).toEqual([]);
+    });
+
+    it('cost, AI and failed markers, the selection, edges and arrows are ≥ 3:1', () => {
+        expect(
+            measure(
+                [
+                    ['--lg-muted', 'node'], // cost icons
+                    ['--lg-muted', 'selected'],
+                    ['--lg-ai', 'node'], // AI sparkle and edge
+                    ['--lg-ai', 'selected'],
+                    ['--color-error', 'node'], // failed triangle
+                    ['--color-error', 'selected'],
+                    ['--color-primary', 'canvas'], // the selected node's border against the canvas
+                    ['--color-primary', 'selected'],
+                    ['--lg-muted', 'canvas'], // edges and arrow markers
+                    ['--lg-muted', 'page'], // legend cost icon
+                    ['--lg-ai', 'page'], // legend AI icon
+                    ['--color-error', 'page'], // legend failed icon
+                ],
+                OBJECT_FLOOR,
+            ),
+        ).toEqual([]);
     });
 });

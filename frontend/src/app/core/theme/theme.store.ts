@@ -2,7 +2,14 @@ import {computed, DOCUMENT, effect, inject} from '@angular/core';
 import {signalStore, withComputed, withHooks, withState} from '@ngrx/signals';
 import {Dispatcher, on, withReducer} from '@ngrx/signals/events';
 import {themeEvents} from './theme.events';
-import {DATA_THEME_ATTR, isThemePreference, ResolvedTheme, THEME_STORAGE_KEY, ThemePreference,} from './theme.model';
+import {
+    DATA_THEME_ATTR,
+    isThemePreference,
+    ResolvedTheme,
+    THEME_STORAGE_KEY,
+    THEME_SURFACE_HEX,
+    ThemePreference,
+} from './theme.model';
 import {withAppDevtools} from '@core/store/devtools';
 
 interface ThemeState {
@@ -75,6 +82,7 @@ export const ThemeStore = signalStore(
 
             effect(() => {
                 const preference = store.preference();
+                const theme = store.theme();
                 const root = document.documentElement;
 
                 // The inline script in index.html already did this once before first
@@ -82,14 +90,31 @@ export const ThemeStore = signalStore(
                 if (preference === 'system') {
                     root.removeAttribute(DATA_THEME_ATTR);
                 } else {
-                    root.setAttribute(DATA_THEME_ATTR, store.theme());
+                    root.setAttribute(DATA_THEME_ATTR, theme);
                 }
+
+                // The meta follows the *resolved* theme, not the preference: under `system`
+                // it is the OS switch that recolours an installed window's title bar (ISC-333).
+                themeColorMeta(document).content = THEME_SURFACE_HEX[theme];
 
                 writePreference(view, preference);
             });
         },
     }),
 );
+
+/**
+ * `index.html` ships the tag and the inline script writes it before first paint; a document
+ * without one (a test, a host page that dropped it) gets one rather than a silent no-op.
+ */
+function themeColorMeta(document: Document): HTMLMetaElement {
+    const existing = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+    if (existing) return existing;
+    const meta = document.createElement('meta');
+    meta.name = 'theme-color';
+    document.head.appendChild(meta);
+    return meta;
+}
 
 /** Storage throws in private mode. A colour scheme is not worth failing the boot over. */
 function readPreference(view: Window | null): ThemePreference {

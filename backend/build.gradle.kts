@@ -187,6 +187,27 @@ tasks.withType<Test>().configureEach {
             rootProject.file("frontend/CLAUDE.md"),
         ).withPropertyName("workingNotes")
         .withPathSensitivity(PathSensitivity.RELATIVE)
+    /*
+     * `EnvExampleTest` compares `.env.example` with the placeholders the shipped files read,
+     * Compose and the dev-server proxy among them. None of the three is on the classpath, so
+     * an edit to one alone would otherwise leave the task UP-TO-DATE.
+     */
+    inputs
+        .files(
+            rootProject.file(".env.example"),
+            rootProject.file("docker-compose.yml"),
+            rootProject.file("frontend/proxy.conf.js"),
+        ).withPropertyName("environmentExample")
+        .withPathSensitivity(PathSensitivity.RELATIVE)
+    // `BunPinTest` holds the four bun pins to one version; same reason, same shape.
+    inputs
+        .files(
+            rootProject.file("frontend/package.json"),
+            rootProject.file("frontend/Dockerfile"),
+            rootProject.file(".github/workflows/ci.yml"),
+            rootProject.file(".github/workflows/release.yml"),
+        ).withPropertyName("bunPins")
+        .withPathSensitivity(PathSensitivity.RELATIVE)
     inputs
         .files(rootProject.fileTree("docs") { include("**/*.md") })
         .withPropertyName("documentation")

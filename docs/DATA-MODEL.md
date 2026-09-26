@@ -358,7 +358,7 @@ key `(run_id, stage)`, cascades from `pipeline_run`.
 
 **`pipeline_stage`** (`V14`). Where the time went: one row per timed stage of a run with
 `position`, `stage`, `started_at`, `ended_at`, `status` (`OK` or `FAILED`) and a `note` with
-the failure. Written by `PipelineRunRecorder.record`, or by `recordFailure` when a stage threw,
+the failure or, on an OK row of a model-bound stage, the width it ran at, `width=N`. Written by `PipelineRunRecorder.record`, or by `recordFailure` when a stage threw,
 from the `analytics/StageTiming` list the run collected, after the work and together with the
 run row. Read by `LastRunQueryService` into `analytics/LastRunStage` and
 `LastRunView.stages`, which the dashboard's last-run panel shows with the slowest stage and a

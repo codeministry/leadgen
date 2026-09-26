@@ -104,6 +104,23 @@ to share a name, which meant a stack trace naming it could mean either file.
   stops asking and leaves its work due, so the next run continues where this one stopped and nothing is written as
   answered that was not. **`0` means no calls at all; no ceiling is the `budget:` block being absent**, which is the
   safer way round: somebody writing `0` to mean "off" gets a run that stops and says so, rather than a bill.
+- **`llm.models.content` and `llm.models.fields` are settings, and empty means `llm.models.scoring`.** The content
+  classifier reads `content`, the field extractor `fields`; either one left empty takes the first scoring choice, so
+  one model line is still a working configuration, and the startup log says per key which model was taken. A key that
+  names a model makes its own stage due again the day it changes: every advert that stage answered under another model
+  is asked again on the next run, and `score_model` is nulled only for the adverts whose answer actually moved. A
+  blank key does not follow `scoring` that way — switching the judge re-judges, it does not re-segment. Neither key is
+  a parameter of the run; the select beside the run button stays the judge's alone.
+- **`llm.concurrency` and `enrichment.fetch.concurrency` are widths, and a width moves the clock, never the bill.**
+  `llm.concurrency` is how many adverts CONTENT, FIELDS and the synchronous SCORE work at once, and how many
+  32-advert embedding batches DEDUPE and RETRIEVAL have in flight; `enrichment.fetch.concurrency` is how many fetches
+  ENRICH has in flight. Both default to `1`, the sequential run every version before them did, and both are refused
+  at load above the database connection pool (`spring.datasource.hikari.maximum-pool-size`, 10 unless set), where
+  the extra workers would wait for a connection and fail after 30 s. `llm.budget` still counts requests, so a wider
+  run spends the same calls sooner. The model endpoint has to serve that many requests side by side — one that
+  answers one at a time only queues them, and they run into `llm.timeout` instead of finishing sooner. For the fetch,
+  `rate_limit_per_minute` and `max_per_run` still bound what leaves the machine: every request attempt takes a window
+  permit, a retried 5xx included, and `max_per_run` is a hard cap on the adverts one pass fetches.
 
 - **`content.rules` are an optimisation, not a mechanism, and every pattern is anchored or specific on purpose.** They
   label a block of a fetched advert for free, before anything is asked of a model; a rule that stops matching costs the
@@ -179,11 +196,21 @@ rationale. `*` marks a credential.
 | `LLM_BASE_URL`              | —       | Required even for a hosted provider whose address never changes. A URL in the code is a vendor in the code.                                                                                                                                                                                                                                                                                                               |
 | `LLM_API_KEY` *             | —       | Optional in full. Without it the tool runs and loses the score total and the cover letter; the deterministic reasons are still written. `ollama` needs none.                                                                                                                                                                                                                                                              |
 | `LLM_BATCH`                 | `false` | Half the price, answers minutes later. Only the Messages API batch is implemented; `true` on any other provider is fatal at load rather than quietly synchronous at full price.                                                                                                                                                                                                                                           |
-| `LLM_MODEL_SCORING`         | —       | The judge, and the default of the list below. **Read by three stages**: the scoring judge, the content classifier and the field extractor, plus the extraction fallback whenever `LLM_MODEL_EXTRACTION` is empty. One key rather than a second `models.content`, because they ask a bounded question and answer in a few lines of JSON — and a `models.*` key nothing reads is the kind of lie this file exists to avoid. |
+| `LLM_TIMEOUT`               | `PT120S` | ISO-8601. How long one request to a model may take. |
+| `LLM_CONCURRENCY`           | `1`     | `llm.concurrency`: how many adverts CONTENT, FIELDS and the synchronous SCORE work at once, and how many embedding batches DEDUPE and RETRIEVAL have in flight. Refused above the database connection pool. The endpoint has to serve that many at once; the budget is unchanged, only the clock moves. |
+| `LLM_MODEL_SCORING`         | —       | The judge, and the default of the list below. Also the fallback of every model key left empty: `LLM_MODEL_CONTENT`, `LLM_MODEL_FIELDS` and `LLM_MODEL_EXTRACTION`. Changing it re-judges; it does not make CONTENT or FIELDS due again, even for the stages that fall back to it. |
+| `LLM_MODEL_CONTENT`         | —       | `llm.models.content`: the content classifier, which labels the blocks of an advert no rule and no cached label decided. Empty means `LLM_MODEL_SCORING`. Set and then changed, it makes CONTENT due again for every advert segmented under another model; cached block labels stand, so only blocks nobody has a label for go to the new model. |
+| `LLM_MODEL_FIELDS`          | —       | `llm.models.fields`: the field extractor, which reads start, duration and apply-by out of the advert. Empty means `LLM_MODEL_SCORING`. Set and then changed, it makes FIELDS due again for every advert read under another model. |
 | `LLM_MODEL_SCORING_OPTIONS` | —       | Comma separated. An **allowlist**, checked before the run starts: the chosen model travels as a request parameter to an endpoint billed per token. It governs the judge alone — which classifier reads an advert is not a parameter of the run, because two judges are two scales and comparing them is the point, while a label is a fact about a paragraph and there is nothing to compare.                             |
 | `LLM_MODEL_EXTRACTION`      | —       | Read by the extraction fallback: a source with `fallback: llm` hands it a document the deterministic rules could not read. Empty falls back to `LLM_MODEL_SCORING`, and the startup log says which was taken.                                                                                                                                                                                                             |
 | `LLM_MODEL_EMBEDDING`       | —       | Read by deduplication's two similarity strategies. **No fallback**: a chat model is not an embedding model, so unset means only `exact_fingerprint` runs. Must return at least 2000-dimensional vectors, the width of the `offer.embedding` column and the widest pgvector will index; a wider model is truncated to the leading 2000.                                                                                                                                                                          |
 | `LLM_MODEL_WRITING`         | —       | Drafts the cover letter when an application moves to PACKAGED. The draft is checked against the profile and `cover-letter.yaml` before it is written; unset, failed or rejected, the Freemarker template writes the letter. **No fallback** to `LLM_MODEL_SCORING`. |
+
+### Enrichment
+
+| Key | Default | Note |
+|---|---|---|
+| `FETCH_CONCURRENCY` | `1` | `enrichment.fetch.concurrency`: how many fetches ENRICH has in flight at once. Width, not volume: `rate_limit_per_minute` and `max_per_run` still bound what leaves the machine. Refused above the database connection pool. |
 
 ### Database
 

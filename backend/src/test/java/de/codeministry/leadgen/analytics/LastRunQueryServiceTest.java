@@ -330,6 +330,40 @@ class LastRunQueryServiceTest {
                 Instant.now());
     }
 
+    // --- ISC-387: the width an OK stage ran at is parsed once, here, and a FAILED row has none.
+
+    @Test
+    void readsTheWidthAnOkStageRanAtOutOfItsNote() {
+        Instant startedAt = Instant.now().minus(5, ChronoUnit.MINUTES);
+        long id = run(startedAt, startedAt.plusSeconds(90), "COMPLETE", "claude-haiku-4-5");
+        noted(id, 0, "CONTENT", "OK", "width=4", startedAt);
+        noted(id, 1, "FIELDS", "OK", null, startedAt);
+        noted(id, 2, "SCORE", "FAILED", "width=4", startedAt);
+        noted(id, 3, "RETRIEVAL", "OK", "width=x", startedAt);
+        noted(id, 4, "DEDUPE", "OK", "width=4 and more", startedAt);
+
+        var stages = runs.lastRun().orElseThrow().stages();
+
+        assertThat(stages).extracting(LastRunStage::width).containsExactly(4, null, null, null, null);
+        // The note stays as it was written, whatever was read out of it.
+        assertThat(stages)
+                .extracting(LastRunStage::note)
+                .containsExactly("width=4", null, "width=4", "width=x", "width=4 and more");
+    }
+
+    private void noted(long runId, int position, String stage, String status, String note, Instant startedAt) {
+        jdbc.update(
+                "INSERT INTO pipeline_stage (run_id, position, stage, started_at, ended_at, status, note)"
+                        + " VALUES (?, ?, ?, ?, ?, ?, ?)",
+                runId,
+                position,
+                stage,
+                Timestamp.from(startedAt.plusSeconds(position)),
+                Timestamp.from(startedAt.plusSeconds(position + 1L)),
+                status,
+                note);
+    }
+
     private void timing(long runId, int position, String stage, Instant startedAt, Instant endedAt) {
         jdbc.update(
                 "INSERT INTO pipeline_stage (run_id, position, stage, started_at, ended_at, status, note)"

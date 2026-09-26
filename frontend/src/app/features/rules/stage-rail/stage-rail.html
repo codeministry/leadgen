@@ -2,73 +2,65 @@
     @if (lastRun() === null) {
         <p class="type-small text-muted no-run-note">{{ 'rules.noRun' | transloco }}</p>
     }
-    <!-- One flow, top to bottom: the <ol> and the numbered headings carry the order. -->
+    <!-- One pipe, top to bottom: the <ol>, the numbered headings and the links carry the order;
+         the spine, the branches and the merge only draw it, so they are aria-hidden. -->
     <!-- role="list": WebKit drops list semantics under `list-style: none`. -->
     <ol class="rail-phases" role="list">
         @for (phase of workflow().phases; track phase.id; let step = $index, last = $last) {
+            @let branches = sources(phase.stages);
+            @let nextPhase = workflow().phases[step + 1];
             <li class="rail-step">
                 <div class="rail-phase" role="group" [attr.aria-labelledby]="'rail-phase-' + phase.id">
-                    <h2 class="type-h4 phase-heading" [id]="'rail-phase-' + phase.id">
+                    <h2 class="type-h4 phase-heading" [id]="'rail-phase-' + phase.id" [class.is-run-pending]="phaseLeadPending(phase)">
                         <span class="type-mono-data step-number">{{ step + 1 }}</span>
                         <span class="phase-icon"><lg-icon [name]="phaseIcon(phase.id)" [size]="18"/></span>
                         <span class="phase-title">{{ 'rules.phase.' + phase.id | transloco }}</span>
                     </h2>
-                    <ul class="stages phase-stages" role="list">
-                        @for (stage of phase.stages; track stage.id) {
-                            <li class="stage-row" [class.is-ai]="isAi(stage)">
-                                <a
-                                        class="stage-link"
-                                        [class.is-selected]="stage.id === selected()"
-                                        [attr.data-stage]="stage.id"
-                                        routerLink="."
-                                        [queryParams]="{ stage: stage.id }"
-                                        queryParamsHandling="merge"
-                                        [attr.aria-current]="stage.id === selected() ? 'page' : null"
+                    @if (branches.length > 0) {
+                        <!-- The sources run side by side; each is a short branch into one bracket. -->
+                        <ul class="stages rail-sources" role="list">
+                            @for (stage of branches; track stage.id) {
+                                <li
+                                        class="stage-row is-source"
+                                        [class.is-ai]="isAi(stage)"
+                                        [class.is-run-pending]="stopState(stage) === 'pending'"
+                                        [class.is-run-running]="stopState(stage) === 'running'"
                                 >
-                                    <span class="type-small stage-name">
-                                        @if (labelKey(stage); as key) {
-                                            {{ key | transloco }}
-                                        } @else {
-                                            {{ stage.sourceId }}
-                                        }
-                                    </span>
-                                    <!-- The count first, the icons at the row's end, so the numbers line up in one column. -->
-                                    @let value = count(stage.id);
-                                    @if (value !== null) {
-                                        <span class="type-caption stage-count">{{ value }}</span>
-                                    }
-                                    <span class="stage-icons">
-                                        @if (isAi(stage)) {
-                                            <span class="stage-ai">
-                                                <lg-icon [name]="aiIcon" [attr.data-icon]="aiIcon" [size]="14" [label]="'rules.ai.marker' | transloco"/>
-                                            </span>
-                                        }
-                                        <span class="stage-costs">
-                                            @for (costClass of stage.costClasses; track costClass) {
-                                                <lg-icon
-                                                        [name]="costIcon(costClass)"
-                                                        [attr.data-icon]="costIcon(costClass)"
-                                                        [size]="14"
-                                                        [label]="costLabel(stage, costClass) | transloco"
-                                                />
-                                            }
-                                        </span>
-                                        @if (failed(stage.id)) {
-                                            <span class="stage-failed">
-                                                <lg-icon [name]="failedIcon" [attr.data-icon]="failedIcon" [size]="14" [label]="'rules.stageFailed' | transloco"/>
-                                            </span>
-                                        }
-                                    </span>
-                                </a>
-                            </li>
+                                    <span class="rail-branch" aria-hidden="true"></span>
+                                    <ng-container *ngTemplateOutlet="pill; context: {$implicit: stage}"/>
+                                </li>
+                            }
+                        </ul>
+                        @if (fanIn(); as merge) {
+                            <p class="sr-only rail-fan-in">
+                                {{ 'rules.fanIn' | transloco: { count: merge.count, stage: merge.targetKey | transloco } }}
+                            </p>
                         }
-                    </ul>
+                    }
+                    @let spine = spineStages(phase.stages);
+                    @if (spine.length > 0) {
+                        <ul class="stages phase-stages" role="list">
+                            @for (stage of spine; track stage.id) {
+                                <li
+                                        class="stage-row"
+                                        [class.is-ai]="isAi(stage)"
+                                        [class.is-run-pending]="stopState(stage) === 'pending'"
+                                        [class.is-run-running]="stopState(stage) === 'running'"
+                                >
+                                    <span class="rail-spine" aria-hidden="true"></span>
+                                    <ng-container *ngTemplateOutlet="pill; context: {$implicit: stage}"/>
+                                </li>
+                            }
+                        </ul>
+                    }
                 </div>
                 @if (!last) {
-                    <!-- Draws the order the numbered headings already say; hidden so it is not read twice. -->
-                    <div class="phase-arrow" aria-hidden="true">
-                        <lg-icon name="arrow-down" [size]="18"/>
-                    </div>
+                    <span
+                            class="rail-spine-phase"
+                            [class.rail-merge]="branches.length > 0"
+                            [class.is-run-pending]="nextPhase !== undefined && phaseLeadPending(nextPhase)"
+                            aria-hidden="true"
+                    ></span>
                 }
             </li>
         }
@@ -78,11 +70,11 @@
     <ul class="stages unread" role="list">
         <li class="stage-row">
             <a
-                    class="stage-link"
+                    class="stage-pill"
                     [class.is-selected]="selected() === unread"
                     [attr.data-stage]="unread"
                     routerLink="."
-                    [queryParams]="{ stage: unread }"
+                    [queryParams]="{ stage: unread, section: null }"
                     queryParamsHandling="merge"
                     [attr.aria-current]="selected() === unread ? 'page' : null"
             >
@@ -90,18 +82,55 @@
             </a>
         </li>
     </ul>
-
-    <!-- ISC-310: every icon a stage row can carry, drawn as the row draws it, beside its words.
-         The icons are decorative here because the label sits right next to them. -->
-    <section class="rail-legend" aria-labelledby="rail-legend-title">
-        <h2 class="type-caption text-muted" id="rail-legend-title">{{ 'rules.legend.title' | transloco }}</h2>
-        <ul class="legend-entries">
-            @for (entry of legend; track entry.icon) {
-                <li class="type-caption legend-entry" [class.legend-ai]="entry.kind === 'ai'" [class.legend-failed]="entry.kind === 'failed'">
-                    <lg-icon class="legend-icon" [name]="entry.icon" [attr.data-icon]="entry.icon" [size]="14"/>
-                    <span class="legend-label">{{ entry.labelKey | transloco }}</span>
-                </li>
-            }
-        </ul>
-    </section>
 </nav>
+
+<!-- One pill, drawn the same on a branch and on the spine. -->
+<ng-template #pill let-stage>
+    <a
+            class="stage-pill"
+            [class.is-selected]="stage.id === selected()"
+            [attr.data-stage]="stage.id"
+            routerLink="."
+            [queryParams]="{ stage: stage.id, section: null }"
+            queryParamsHandling="merge"
+            [attr.aria-current]="stage.id === selected() ? 'page' : null"
+    >
+        <span class="type-small stage-name">
+            @if (labelKey(stage); as key) {
+                {{ key | transloco }}
+            } @else {
+                {{ stage.sourceId }}
+            }
+        </span>
+        <!-- The running stop's elapsed time (ISC-417), aria-hidden like the canvas node's — a
+             number changing every second must not be announced. Otherwise the same chip the
+             canvas draws: the count with its verb. -->
+        @if (elapsedLabel(stage); as label) {
+            <span class="type-mono-data stage-elapsed" aria-hidden="true">{{ label }}</span>
+        } @else if (chip(stage); as c) {
+            <span class="type-caption stage-count">{{ c.key === null ? c.count : (c.key | transloco: { count: c.count }) }}</span>
+        }
+        <span class="stage-icons">
+            @if (isAi(stage)) {
+                <span class="stage-ai">
+                    <lg-icon [name]="aiIcon" [attr.data-icon]="aiIcon" [size]="14" [label]="'rules.ai.marker' | transloco"/>
+                </span>
+            }
+            <span class="stage-costs">
+                @for (costClass of stage.costClasses; track costClass) {
+                    <lg-icon
+                            [name]="costIcon(costClass)"
+                            [attr.data-icon]="costIcon(costClass)"
+                            [size]="14"
+                            [label]="costLabel(stage, costClass) | transloco"
+                    />
+                }
+            </span>
+            @if (failed(stage.id)) {
+                <span class="stage-failed">
+                    <lg-icon [name]="failedIcon" [attr.data-icon]="failedIcon" [size]="14" [label]="'rules.stageFailed' | transloco"/>
+                </span>
+            }
+        </span>
+    </a>
+</ng-template>

@@ -10,6 +10,7 @@ package de.codeministry.leadgen.web;
 
 import de.codeministry.leadgen.packaging.CoverLetterService;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
@@ -29,13 +30,10 @@ import org.springframework.web.bind.annotation.*;
  */
 @RestController
 @RequestMapping("/api/v1/offers")
+@RequiredArgsConstructor
 class CoverLetterController {
 
     private final CoverLetterService letters;
-
-    CoverLetterController(CoverLetterService letters) {
-        this.letters = letters;
-    }
 
     @GetMapping("/{id}/cover-letter")
     CoverLetterView read(@PathVariable long id) {

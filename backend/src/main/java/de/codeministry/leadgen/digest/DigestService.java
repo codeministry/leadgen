@@ -19,7 +19,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.List;
-import javax.sql.DataSource;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
@@ -39,6 +39,7 @@ import org.springframework.stereotype.Service;
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class DigestService {
 
     private static final String OFFERS = """
@@ -70,11 +71,6 @@ public class DigestService {
 
     private final ConfigRegistry config;
     private final JdbcClient jdbc;
-
-    DigestService(ConfigRegistry config, DataSource dataSource) {
-        this.config = config;
-        this.jdbc = JdbcClient.create(dataSource);
-    }
 
     /**
      * @return the file written, or empty when the digest is switched off.

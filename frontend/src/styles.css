@@ -130,13 +130,26 @@
     --lg-ai: oklch(48% 0.15 300); /* #6C44A4, the `model` violet of BACKEND-FLOWS, 7.0:1 on white */
     --lg-ai-surface: oklch(94.5% 0.025 300); /* #EFE9FC, the band behind an AI stage, 5.9:1 under --lg-ai */
 
+    /* ISC-415: the running-pass marker. Neighbours in this band are --lg-ai (300°), the
+       workflow section (315°) and --lg-signal/--color-accent (345°), only 45° apart from
+       each other; every hue that clears 25-30° and ΔE-OK ≥ 0.10 from all three sits on the
+       far side of --lg-signal, past 0°, because the near side is --lg-ai itself. Measured
+       against the three: ΔE-OK 0.18/0.16/0.12 and 80°/65°/35° from ai/workflow/signal. */
+    /* A pass in flight: the brand pink pushed to neon. Same hue as `--lg-signal` at 345 and
+       deliberately so — this is the house colour turned up, not a fifth colour. What separates
+       the two is chroma: the signal sits at 0.20 and means "survived the filter", this one is
+       at the in-gamut ceiling for its lightness and means "happening right now". Earlier tries
+       at violet, red and green were each rejected on screen (2026-09-26); the violet drowned in
+       a violet canvas, the red read as an error, the green belonged to no palette here. */
+    --lg-run: oklch(64% 0.26 345); /* #EE1DAF, 3.9:1 on white, 3.1:1 on the node border */
+
     --lg-section-dashboard: oklch(58% 0.098 210); /* #0D8A9A */
     --lg-section-shortlist: oklch(58% 0.098 160); /* #3D8C66, 25° off the teal primary so the marker is not the button */
     --lg-section-pipeline: oklch(58% 0.098 285); /* #7471B2 */
     --lg-section-analytics: oklch(58% 0.098 55); /* #A76A3E */
     --lg-section-sources: oklch(58% 0.098 100); /* #887B2E */
     --lg-section-review: oklch(58% 0.098 255); /* #517CB3 */
-    --lg-section-rules: oklch(58% 0.098 315); /* #9068A2 */
+    --lg-section-workflow: oklch(58% 0.098 315); /* #9068A2 */
 
     --lg-chart-stage-1: oklch(89% 0.01 200); /* #D4DDDD */
     --lg-chart-stage-2: oklch(82% 0.013 200); /* #BBC7C7 */
@@ -145,6 +158,21 @@
     --lg-chart-stage-5: oklch(61% 0.022 200); /* #748788 */
     --lg-chart-stage-6: oklch(53% 0.025 200); /* #5B7071 */
     --lg-chart-stage-7: oklch(45% 0.028 200); /* #435A5B */
+
+    /* The stage: the dashboard hero's own dark surface (2026-09-26), in both themes,
+       because a first read that stands out has to stand out by contrast and not by size alone.
+       Ink, muted and the sieve's dots are measured on it (ink 14.6:1, muted 8.6:1, dot 6.5:1,
+       signal 6.8:1); the two glows are light, never ground under text. The signal on the stage
+       is the night twin of the signal, the same hue lifted so it reads on a dark ground by day
+       too, and it means what the signal means: this survived the filter. */
+    --lg-stage: oklch(25% 0.045 220); /* #012630 */
+    --lg-stage-ink: oklch(97% 0.008 200); /* #EFF7F7 */
+    --lg-stage-muted: oklch(80% 0.035 210); /* #A5C4CA */
+    --lg-stage-dot: oklch(72% 0.045 210); /* #84ADB4 */
+    --lg-stage-glow: oklch(62% 0.105 200); /* #03999F */
+    --lg-stage-glow-2: oklch(52% 0.16 280); /* #5A58C2 */
+    --lg-stage-signal: oklch(76% 0.17 345); /* #FB80CA */
+    --lg-stage-line: oklch(100% 0 0 / 12%);
 }
 
 [data-theme='lg-dark'] {
@@ -158,13 +186,15 @@
     --lg-ai: oklch(78% 0.12 300); /* #C3A5F9, the same violet lifted for the night, 7.6:1 on the surface */
     --lg-ai-surface: oklch(31% 0.06 300); /* #35294A, 6.4:1 under --lg-ai */
 
+    --lg-run: oklch(70% 0.24 345); /* #FE4BC0, the same neon for the night, 5.6:1 on the surface */
+
     --lg-section-dashboard: oklch(70% 0.115 210); /* #22B1C6 */
     --lg-section-shortlist: oklch(70% 0.115 160); /* #55B486, the same 160 as by day */
     --lg-section-pipeline: oklch(70% 0.115 285); /* #9794E3 */
     --lg-section-analytics: oklch(70% 0.115 55); /* #D58A55 */
     --lg-section-sources: oklch(70% 0.115 100); /* #AFA042 */
     --lg-section-review: oklch(70% 0.115 255); /* #6CA1E5 */
-    --lg-section-rules: oklch(70% 0.115 315); /* #B988D0 */
+    --lg-section-workflow: oklch(70% 0.115 315); /* #B988D0 */
 
     /* The ramp runs the other way at night: on a dark ground the first stage has to be the
        darkest, or the smallest slice is the loudest. */
@@ -175,6 +205,16 @@
     --lg-chart-stage-5: oklch(62% 0.032 265); /* #7D869A */
     --lg-chart-stage-6: oklch(69% 0.035 265); /* #919BB2 */
     --lg-chart-stage-7: oklch(76% 0.038 265); /* #A5B1CA */
+
+    /* The stage at night sits darker than the surface around it and lets the glows carry it. */
+    --lg-stage: oklch(17% 0.035 255); /* #05101E */
+    --lg-stage-ink: oklch(97% 0.008 265); /* #F2F5FB */
+    --lg-stage-muted: oklch(80% 0.03 265); /* #B4BED2 */
+    --lg-stage-dot: oklch(68% 0.04 265); /* #8C98B2 */
+    --lg-stage-glow: oklch(60% 0.1 215); /* #1B8FA5 */
+    --lg-stage-glow-2: oklch(52% 0.18 285); /* #6351CA */
+    --lg-stage-signal: oklch(76% 0.17 345); /* #FB80CA */
+    --lg-stage-line: oklch(100% 0 0 / 10%);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -187,13 +227,14 @@
         --lg-code-number: oklch(78% 0.11 235);
         --lg-ai: oklch(78% 0.12 300);
         --lg-ai-surface: oklch(31% 0.06 300);
+        --lg-run: oklch(70% 0.24 345); /* #FE4BC0, the same neon for the night, 5.6:1 on the surface */
         --lg-section-dashboard: oklch(70% 0.115 210);
         --lg-section-shortlist: oklch(70% 0.115 160);
         --lg-section-pipeline: oklch(70% 0.115 285);
         --lg-section-analytics: oklch(70% 0.115 55);
         --lg-section-sources: oklch(70% 0.115 100);
         --lg-section-review: oklch(70% 0.115 255);
-        --lg-section-rules: oklch(70% 0.115 315);
+        --lg-section-workflow: oklch(70% 0.115 315);
         --lg-chart-stage-1: oklch(34% 0.02 265);
         --lg-chart-stage-2: oklch(41% 0.023 265);
         --lg-chart-stage-3: oklch(48% 0.026 265);
@@ -201,6 +242,14 @@
         --lg-chart-stage-5: oklch(62% 0.032 265);
         --lg-chart-stage-6: oklch(69% 0.035 265);
         --lg-chart-stage-7: oklch(76% 0.038 265);
+        --lg-stage: oklch(17% 0.035 255);
+        --lg-stage-ink: oklch(97% 0.008 265);
+        --lg-stage-muted: oklch(80% 0.03 265);
+        --lg-stage-dot: oklch(68% 0.04 265);
+        --lg-stage-glow: oklch(60% 0.1 215);
+        --lg-stage-glow-2: oklch(52% 0.18 285);
+        --lg-stage-signal: oklch(76% 0.17 345);
+        --lg-stage-line: oklch(100% 0 0 / 10%);
     }
 }
 

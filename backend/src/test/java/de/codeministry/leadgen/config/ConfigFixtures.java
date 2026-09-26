@@ -13,8 +13,11 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import org.springframework.mock.env.MockEnvironment;
 
 /**
  * Materializes the shipped defaults as an external configuration directory.
@@ -35,11 +38,106 @@ public final class ConfigFixtures {
             ConfigLoader.PIPELINE_FILE, ConfigLoader.RULES_FILE, ConfigLoader.SOURCES_FILE, ConfigLoader.PROFILE_FILE);
 
     /**
+     * Every {@code ${…}} the shipped defaults name, closed with a value of the fixture's own.
+     *
+     * <p><b>This is the whole of what a test context resolves a placeholder from.</b> The
+     * process environment and the developer's {@code .env} are never consulted: a value from
+     * either decides a test on one machine and nowhere else, and {@code AUTH_MODE=oidc} in
+     * a local file was measured to refuse fifteen MockMvc contexts at startup. The
+     * {@code ${LLM_*}} family was closed by hand in one test before this set existed; every
+     * other placeholder stayed open.
+     *
+     * <p>The values are the ones a fresh clone on CI sees — empty, so the placeholder's own
+     * default applies and a model is never configured — except the three IMAP credentials,
+     * which carry a {@code .invalid} host and a stand-in user and password so that an
+     * operator's {@code config/} with an <i>enabled</i> mailbox still binds in
+     * {@code OperatorConfigTest}. The shipped mailbox is disabled, so on the defaults the
+     * host is never dialled.
+     *
+     * <p>{@code ConfigFixturesTest} holds this list and the files together in both
+     * directions, and {@link #neutralResolver()} refuses a name that is not in it, so a new
+     * placeholder in a shipped file fails the build with a message naming this constant
+     * rather than resolving from whatever the machine has.
+     */
+    public static final Map<String, String> NEUTRAL_PLACEHOLDERS = neutralPlaceholders();
+
+    /**
      * Built once per JVM; see {@link #shippedDefaults()}.
      */
     private static Path shippedDefaults;
 
     private ConfigFixtures() {}
+
+    private static Map<String, String> neutralPlaceholders() {
+        Map<String, String> values = new LinkedHashMap<>();
+        // pipeline.yaml
+        values.put("LLM_PROVIDER", "");
+        values.put("LLM_BASE_URL", "");
+        values.put("LLM_API_KEY", "");
+        values.put("LLM_TIMEOUT", "");
+        values.put("LLM_BATCH", "");
+        values.put("LLM_CONCURRENCY", "");
+        values.put("FETCH_CONCURRENCY", "");
+        values.put("LLM_MODEL_EXTRACTION", "");
+        values.put("LLM_MODEL_CONTENT", "");
+        values.put("LLM_MODEL_FIELDS", "");
+        values.put("LLM_MODEL_SCORING", "");
+        values.put("LLM_MODEL_SCORING_OPTIONS", "");
+        values.put("LLM_MODEL_WRITING", "");
+        values.put("LLM_MODEL_EMBEDDING", "");
+        values.put("PROFILE_PATH", "");
+        values.put("RULES_PATH", "");
+        values.put("RETRIEVAL_ENABLED", "");
+        values.put("RETRIEVAL_TOPIC_FLOOR", "");
+        values.put("PACKAGES_DIR", "");
+        values.put("DIGEST_FORMAT", "");
+        values.put("DIGEST_DIR", "");
+        values.put("AUTH_MODE", "");
+        values.put("OIDC_ISSUER", "");
+        values.put("OIDC_CLIENT_ID", "");
+        // sources.yaml
+        values.put("IMAP_HOST", "imap.invalid");
+        values.put("IMAP_PORT", "");
+        values.put("IMAP_USER", "someone");
+        values.put("IMAP_PASSWORD", "secret");
+        values.put("IMAP_PROGRESS_FLAG", "");
+        values.put("SAMPLE_FEED_URL", "");
+        values.put("INBOX_DIR", "");
+        values.put("MANUAL_INBOX_DIR", "");
+        return Collections.unmodifiableMap(values);
+    }
+
+    /**
+     * The resolver every Spring test context gets, registered by
+     * {@link NeutralDefaultsInitializer}: {@link #NEUTRAL_PLACEHOLDERS} and nothing behind it.
+     *
+     * <p>A name the set does not list is an error rather than an empty string. The
+     * production resolver is deliberately dumb about that and leaves the judgement to
+     * validation; here the judgement is already made — the set is meant to be complete, and
+     * a lenient lookup would hand a new placeholder its default in silence, which is exactly
+     * the state this fixture exists to end.
+     */
+    static PlaceholderResolver neutralResolver() {
+        return new PlaceholderResolver(name -> {
+            if (!NEUTRAL_PLACEHOLDERS.containsKey(name)) {
+                throw new IllegalStateException("${" + name + "} is not closed by ConfigFixtures.NEUTRAL_PLACEHOLDERS"
+                        + " — add it there with a neutral value, so no test resolves it from the machine it runs on");
+            }
+            return NEUTRAL_PLACEHOLDERS.get(name);
+        });
+    }
+
+    /**
+     * {@code yaml} with every {@code ${…}} closed exactly as {@link #neutralResolver()} closes
+     * it: the value in {@link #NEUTRAL_PLACEHOLDERS}, else the placeholder's own default, else
+     * nothing. For a test that writes a {@code pipeline.yaml} of its own and names a few keys:
+     * whatever it did not name — {@code content}, {@code fields}, both concurrencies, and the
+     * next key somebody adds — can no longer be read from the machine it runs on, and a name the
+     * set does not list throws here, as it does in a context.
+     */
+    public static String closePlaceholders(String yaml) {
+        return neutralResolver().resolve(yaml);
+    }
 
     /**
      * The repository root, found by walking up rather than from a relative path.
@@ -106,6 +204,23 @@ public final class ConfigFixtures {
     public static ConfigLoader loaderFor(
             Path directory, jakarta.validation.Validator validator, Map<String, String> env) {
         return new ConfigLoader(
-                new ConfigProperties(directory.toString()), validator, new PlaceholderResolver(env::get));
+                new ConfigProperties(directory.toString()),
+                validator,
+                new PlaceholderResolver(env::get),
+                new MockEnvironment());
+    }
+
+    /**
+     * As above, with the database connection pool the loader holds the widths to set to
+     * {@code connectionPoolSize} rather than left at Hikari's default.
+     */
+    public static ConfigLoader loaderFor(
+            Path directory, jakarta.validation.Validator validator, Map<String, String> env, int connectionPoolSize) {
+        return new ConfigLoader(
+                new ConfigProperties(directory.toString()),
+                validator,
+                new PlaceholderResolver(env::get),
+                new MockEnvironment()
+                        .withProperty(ConfigLoader.CONNECTION_POOL_SIZE_KEY, String.valueOf(connectionPoolSize)));
     }
 }

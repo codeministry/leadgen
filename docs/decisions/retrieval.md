@@ -270,7 +270,7 @@ all. If the judge should see examples, a fixed hand-written block identical for 
 keeps one scale and one staleness key — and is not retrieval.
 
 **Question answering over the whole corpus.** The shortlist already answers most of these
-deterministically: six sort keys, the facet panel, saved views, the archive axis, the bands,
+deterministically: ten sort keys, the facet panel, saved views, the archive axis, the bands,
 the start window, the duration floor. "Which Java offers start in October" is a filter and
 "which agency posts most" is `analytics/`. What is left are questions whose wrong answer is
 expensive and unverifiable, over the one dataset money decisions come from. The honest
@@ -426,3 +426,22 @@ The lasting lesson is not about embeddings. **A configuration key whose effect i
 measured is indistinguishable from a key that does nothing**, and this one had a dated comment
 claiming a measurement behind it. The three settings that all failed at 60 s are the cheapest
 test there was, and it was available at any point.
+
+## Moved from the root CLAUDE.md
+
+- **The database image is `pgvector/pgvector:0.8.6-pg18`, not plain postgres.** Deduplication's
+  two similarity strategies compare vectors, `V22` creates the extension, and an image without
+  it fails that migration with an error naming the extension rather than the image. It is named
+  in `docker-compose.yml` and once for the tests in
+  `backend/src/test/java/de/codeministry/leadgen/Databases.java`, and nowhere else — there is
+  no chart in this repository. The tag is pinned: a floating one swaps the extension binary
+  under a live data directory with nothing in the diff to show for it.
+- **Compose mounts the database volume at `/var/lib/postgresql`, never at `…/data`, and a
+  major bump moves the tag, `PGDATA`, the mount and the data together.** Since Postgres 18 the
+  old target is ignored rather than refused, so the wrong one starts an empty cluster, migrates
+  it green and serves zero offers. No test can see a mount; the runbook is in
+  `docs/DEVELOPMENT.md`.
+- **The vector column is 2000 wide because pgvector will not index a wider one**, and a model
+  that returns more is truncated to the leading 2000 at the seam rather than widening it.
+  Thresholds are measured with `docs/samples/measure_embeddings.ts` before they are changed;
+  the bands are a property of the model and the market, not of the number.

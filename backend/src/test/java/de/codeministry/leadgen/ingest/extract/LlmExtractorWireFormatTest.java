@@ -263,7 +263,7 @@ class LlmExtractorWireFormatTest {
                 "test-key",
                 null,
                 false,
-                new PipelineConfig.Llm.Models(null, "a-model", null, null, null),
+                new PipelineConfig.Llm.Models(null, "a-model", null, null, null, null, null),
                 null);
         var chatModel = new ChatModels().of(llm, "a-model");
         return new LlmExtractor(chatModel.orElseThrow(), "a-model", new ObjectMapper(), TODAY);

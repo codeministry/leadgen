@@ -8,7 +8,7 @@
  */
 package de.codeministry.leadgen.dedupe;
 
-import javax.sql.DataSource;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
@@ -28,6 +28,7 @@ import org.springframework.stereotype.Component;
  */
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class SimilarOffers {
 
     /**
@@ -122,10 +123,6 @@ public class SimilarOffers {
     private static final int FLATTEN_PASSES = 5;
 
     private final JdbcClient jdbc;
-
-    SimilarOffers(DataSource dataSource) {
-        this.jdbc = JdbcClient.create(dataSource);
-    }
 
     /**
      * Attaches every offer that has a near enough older neighbour.

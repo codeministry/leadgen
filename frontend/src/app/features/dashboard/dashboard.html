@@ -2,20 +2,32 @@
         [title]="'dashboard.title' | transloco"
         [subtitle]="'dashboard.subtitle' | transloco"
 />
-<!-- The bento grid (spec 006): the hero cell spans two columns and two rows, four small cells
-     around it answer the next four questions without a click, and everything about the
-     machinery sits in the machine room below, closed unless something went wrong. -->
+<!-- The bento grid (spec 006): one row of two halves, the hero beside the hard filter, and
+     the four small cells side by side under them, answering the next four questions without a
+     click. Everything about the machinery sits in the machine room below, closed unless
+     something went wrong.
+
+     Document order is reading order — hero, the four cells, then the hard filter — and the
+     stylesheet does the placing, so the one column below 48rem needs no reordering. -->
 <div class="bento">
     <lg-dashboard-hero
             class="hero-cell"
             [survived]="survived()"
             [total]="total()"
             [stages]="stages()"
+            [strong]="strong()"
             [runExtracted]="runExtracted()"
+            [runWritten]="runWritten()"
             [finishedAt]="finishedAt()"
     />
-    <section class="lg-panel cell">
-        <h2 class="type-caption text-muted cell-label">{{ 'dashboard.intakeCell' | transloco }}</h2>
+    <!-- The four small cells take colour by what their value means (lg-tone-*): intake is
+         information, the scores are the product's own primary, what is due warns, and the run's
+         health is green, amber or red. Never the signal, never a section. -->
+    <section class="lg-panel cell lg-tone-info lg-tone-wash">
+        <h2 class="type-caption text-muted cell-label">
+            <span class="lg-tone-chip" aria-hidden="true"><lg-icon name="inbox" [size]="16"/></span>
+            {{ 'dashboard.intakeCell' | transloco }}
+        </h2>
         @if (summary.summary(); as data) {
             <lg-intake-spark
                     [days]="data.intake"
@@ -26,62 +38,53 @@
             <p class="type-small text-muted">{{ (summary.error() ?? 'dashboard.cellLoading') | transloco }}</p>
         }
     </section>
-    <section class="lg-panel cell">
-        <h2 class="type-caption text-muted cell-label">{{ 'dashboard.scoresCell' | transloco }}</h2>
+    <section class="lg-panel cell lg-tone-primary lg-tone-wash">
+        <h2 class="type-caption text-muted cell-label">
+            <span class="lg-tone-chip" aria-hidden="true"><lg-icon name="chart-column" [size]="16"/></span>
+            {{ 'dashboard.scoresCell' | transloco }}
+        </h2>
         @if (summary.summary(); as data) {
             <lg-score-bands [bands]="data.scoreBands" [labels]="bandLabels()"/>
         } @else {
             <p class="type-small text-muted">{{ (summary.error() ?? 'dashboard.cellLoading') | transloco }}</p>
         }
     </section>
+    <!-- Nothing due is said in words: a large zero was the loudest shape in the cell. -->
+    @let due = followUpsDue();
     <lg-stat-tile
             class="cell"
+            icon="calendar-clock"
+            [tone]="followUpsTone()"
             [label]="'dashboard.followUps' | transloco"
-            [value]="followUpsDue()"
+            [value]="due === 0 ? ('dashboard.followUpsNone' | transloco) : due"
             [hint]="'dashboard.followUpsHint' | transloco"
     />
     <lg-stat-tile
             class="cell"
+            [icon]="runHealth().icon"
+            [tone]="runHealth().tone"
             [label]="'dashboard.runHealth' | transloco"
             [value]="runHealth().value | transloco: runHealth().params"
             [hint]="runHealth().hint | transloco: runHealth().params"
     />
+    <!-- The hard filter, always in view: the stages in run order with what each removed, and
+         the rail that narrows to what is left. Standing numbers over the archive, not this
+         run's, so it needs no run to mean something and no click to be seen. -->
+    <section class="lg-panel hard-filter">
+        <h2 class="type-h2">{{ 'dashboard.hardFilter' | transloco }}</h2>
+        <p class="type-small text-muted panel-note">{{ 'dashboard.hardFilterNote' | transloco }}</p>
+        @if (total() > 0) {
+            <lg-funnel-rail [stages]="stages()" [total]="total()"/>
+            @if (archived() > 0) {
+                <p class="type-small text-muted panel-note archived">
+                    {{ 'dashboard.archivedNote' | transloco: {count: archived()} }}
+                </p>
+            }
+        } @else {
+            <p class="type-small text-muted">{{ 'dashboard.nothingFiltered' | transloco }}</p>
+        }
+    </section>
 </div>
-<!--
-  Above the machine room and not inside it: a run that is going is about now, and it must
-  not need a click to be noticed. `role="status"` so the stage change is announced rather
-  than only painted. The stage name is the server's and stays English, like every score
-  reason on this screen.
--->
-@if (ingest.current(); as run) {
-    <p class="type-small running-run" role="status">
-        <lg-icon name="refresh" [size]="16"/>
-        {{ 'dashboard.runningSince' | transloco: {time: runStartedAt()} }}
-        @if (runStage(); as stage) {
-            <span class="type-mono-data running-stage">{{ stage }}</span>
-        }
-        @if (run.scoreModel; as model) {
-            <span class="type-mono-data text-muted">{{ model }}</span>
-        }
-    </p>
-}
-<!-- The hard filter, always in view: the stages in run order with what each removed, and
-     the rail that narrows to what is left. Standing numbers over the archive, not this
-     run's, so it needs no run to mean something and no click to be seen. -->
-<section class="lg-panel hard-filter">
-    <h2 class="type-h2">{{ 'dashboard.hardFilter' | transloco }}</h2>
-    <p class="type-small text-muted panel-note">{{ 'dashboard.hardFilterNote' | transloco }}</p>
-    @if (total() > 0) {
-        <lg-funnel-rail [stages]="stages()" [total]="total()"/>
-        @if (archived() > 0) {
-            <p class="type-small text-muted panel-note archived">
-                {{ 'dashboard.archivedNote' | transloco: {count: archived()} }}
-            </p>
-        }
-    } @else {
-        <p class="type-small text-muted">{{ 'dashboard.nothingFiltered' | transloco }}</p>
-    }
-</section>
 <!-- The machine room: the per-source table, the stage timings, the model, the archive
      note. Closed by default, because it is the same content as before one click away; open
      by itself when the run failed or a source came up short, because a failure must never
@@ -229,10 +232,17 @@
                                             @if (stage.note) {
                                                 <span class="type-small text-muted">{{ stage.note }}</span>
                                             }
-                                        } @else if (stage.position === slowestStage()) {
-                                            <lg-badge tone="warning">{{ 'dashboard.slowestStage' | transloco }}</lg-badge>
                                         } @else {
-                                            <span class="type-small text-muted">—</span>
+                                            @if (stage.position === slowestStage()) {
+                                                <lg-badge tone="warning">{{ 'dashboard.slowestStage' | transloco }}</lg-badge>
+                                            }
+                                            <!-- The width a model-bound stage ran at, parsed on the server. Width one
+                                                 is the default and says nothing, so that row keeps its dash. -->
+                                            @if (stage.width !== null && stage.width > 1) {
+                                                <span class="type-small text-muted">{{ 'dashboard.stageWidth' | transloco: {count: stage.width} }}</span>
+                                            } @else if (stage.position !== slowestStage()) {
+                                                <span class="type-small text-muted">—</span>
+                                            }
                                         }
                                     </span>
                                 </td>

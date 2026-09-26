@@ -1,0 +1,87 @@
+<!-- The link and the toggle are siblings: a button inside an <a> is invalid and would navigate. -->
+<a
+        class="flow-node"
+        [class.is-ai]="isAi()"
+        [class.is-selected]="selected()"
+        [class.is-stacked]="stackWidth() !== null"
+        [class.has-toggle]="expandable()"
+        [class.is-running]="state() === 'running'"
+        [class.is-pending]="state() === 'pending'"
+        [class.is-lit]="lit() === true"
+        [attr.data-stage]="stage().id"
+        routerLink="."
+        [queryParams]="{ stage: stage().id, section: null }"
+        queryParamsHandling="merge"
+        [attr.aria-current]="selected() ? 'page' : null"
+>
+    <!-- ISC-416: the state in words. A screen reader skips the outline, the glyph and the dashed
+         border, so the node says which of the three it carries; nothing at all without a pass. -->
+    @if (stateKey(); as key) {
+        <span class="sr-only">{{ key | transloco }}</span>
+    }
+    <span class="type-caption text-muted flow-node-phase">{{ 'rules.phase.' + phaseId() | transloco }}</span>
+    <span class="type-small flow-node-name">
+        @if (labelKey(); as key) {
+            {{ key | transloco }}
+        } @else {
+            {{ stage().sourceId }}
+        }
+    </span>
+    <span class="flow-node-foot">
+        <span class="flow-node-icons">
+            @if (state() === 'running') {
+                <span class="flow-node-running">
+                    <lg-icon [name]="runningIcon" [attr.data-icon]="runningIcon" [size]="14"/>
+                </span>
+            } @else if (state() === 'done') {
+                <span class="flow-node-done">
+                    <lg-icon [name]="doneIcon" [attr.data-icon]="doneIcon" [size]="14"/>
+                </span>
+            }
+            @if (isAi()) {
+                <span class="flow-node-ai">
+                    <lg-icon [name]="aiIcon" [attr.data-icon]="aiIcon" [size]="14" [label]="'rules.ai.marker' | transloco"/>
+                </span>
+            }
+            <span class="flow-node-costs">
+                @for (costClass of stage().costClasses; track costClass) {
+                    <lg-icon
+                            [name]="costIcon(costClass)"
+                            [attr.data-icon]="costIcon(costClass)"
+                            [size]="14"
+                            [label]="costLabel(costClass) | transloco"
+                    />
+                }
+            </span>
+            @if (failed()) {
+                <span class="flow-node-failed">
+                    <lg-icon [name]="failedIcon" [attr.data-icon]="failedIcon" [size]="14" [label]="'rules.stageFailed' | transloco"/>
+                </span>
+            }
+            @if (stackWidth(); as n) {
+                <span class="type-caption flow-node-width" role="img"
+                      [attr.aria-label]="'rules.canvas.width' | transloco: { count: n }">×{{ n }}</span>
+            }
+        </span>
+        @if (elapsedLabel(); as label) {
+            <span class="type-mono-data flow-node-elapsed" aria-hidden="true">{{ label }}</span>
+        } @else if (chip(); as c) {
+            <span class="type-caption flow-node-count">{{ c.key | transloco: { count: c.count } }}</span>
+        }
+    </span>
+</a>
+@if (expandable()) {
+    @let toggleKey = expanded() ? 'rules.canvas.collapse' : 'rules.canvas.expand';
+    @let stageName = labelKey() === null ? (stage().sourceId ?? stage().id) : (labelKey() ?? '' | transloco);
+    <button
+            type="button"
+            class="btn btn-ghost btn-xs btn-square flow-node-toggle"
+            data-action="expand"
+            [attr.aria-expanded]="expanded()"
+            [attr.aria-label]="toggleKey | transloco: { stage: stageName }"
+            [title]="toggleKey | transloco: { stage: stageName }"
+            (click)="toggle($event)"
+    >
+        <lg-icon [name]="expanded() ? 'chevron-up' : 'chevron-down'" [size]="14"/>
+    </button>
+}

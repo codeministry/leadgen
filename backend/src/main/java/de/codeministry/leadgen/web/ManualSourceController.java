@@ -15,6 +15,7 @@ import de.codeministry.leadgen.manual.PendingDocument;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.List;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -31,13 +32,10 @@ import org.springframework.web.multipart.MultipartFile;
  */
 @RestController
 @RequestMapping("/api/v1/sources/manual")
+@RequiredArgsConstructor
 class ManualSourceController {
 
     private final ManualUploadService uploads;
-
-    ManualSourceController(ManualUploadService uploads) {
-        this.uploads = uploads;
-    }
 
     @PostMapping("/documents")
     @ResponseStatus(HttpStatus.CREATED)

@@ -25,6 +25,26 @@ if (typeof HTMLCanvasElement !== 'undefined') {
         null) as unknown as typeof HTMLCanvasElement.prototype.getContext;
 }
 
+/**
+ * jsdom has no `ResizeObserver`, and the graph library behind the rules flow canvas constructs one in a
+ * service and for `view="auto"`. Every spec that renders the rules screen would otherwise
+ * fail with "ResizeObserver is not defined". Nothing is ever observed in jsdom anyway: it
+ * lays nothing out, and the browser tier measures real boxes.
+ */
+if (typeof globalThis.ResizeObserver === 'undefined') {
+    globalThis.ResizeObserver = class {
+        observe(): void {
+            /* jsdom lays nothing out, so there is nothing to observe */
+        }
+        unobserve(): void {
+            /* see observe */
+        }
+        disconnect(): void {
+            /* see observe */
+        }
+    };
+}
+
 beforeEach(() => {
     TestBed.configureTestingModule({
         imports: [

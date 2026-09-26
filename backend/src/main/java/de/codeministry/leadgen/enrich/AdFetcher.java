@@ -57,6 +57,19 @@ public class AdFetcher {
     /**
      * What this fetcher has taken since it was built. One fetcher is one pass, and the budget
      * is the pass's: the window is shared, but how long a pass is prepared to wait is not.
+     *
+     * <p>Shared by the workers of a pass: {@code EnrichmentService.run} hands this one fetcher to
+     * every worker when {@code enrichment.fetch.concurrency} is above one. So it is only read and
+     * written under this fetcher's lock, in {@link #reserve}, {@link #release} and
+     * {@link #counted}, and a budget unit is reserved before a permit is asked for rather than
+     * counted after one was granted: checked afterwards, four workers could each see one unit left
+     * and all four take a permit for it.
+     *
+     * <p>Everything else a pass touches from several workers is immutable (the settings, the
+     * clients, the retry template), a bean that is thread-safe on its own ({@link PageCache},
+     * {@link FetchWindow}), or {@link RobotsPolicy}'s per-host map, a {@code ConcurrentHashMap}
+     * filled by {@code computeIfAbsent}: robots.txt is still read once per host per pass, and a
+     * second worker for the same host waits for that one read.
      */
     private int taken;
 
@@ -98,10 +111,11 @@ public class AdFetcher {
      * as {@link #fetch} stores it, so the night after reads the new answer rather than the old
      * refusal. robots.txt still comes first, and its refusal is still remembered.
      *
-     * <p>The window is asked once rather than waited for: a person is watching this one, and a
-     * full window is an answer about the minute they can act on, not a reason to hold a request
-     * open for sixty seconds. The refusal is {@linkplain FetchResult#deferred deferred}, because
-     * it says nothing about the page.
+     * <p>The window is asked rather than waited for: a person is watching this one, and a full
+     * window is an answer about the minute they can act on, not a reason to hold a request open
+     * for sixty seconds. The refusal is {@linkplain FetchResult#deferred deferred}, because it
+     * says nothing about the page. A retry after a 5xx asks again, and a refusal there ends the
+     * retries with the 5xx the page has already given.
      */
     public FetchResult fetchFresh(String url) {
         return fetch(url, true);
@@ -155,7 +169,15 @@ public class AdFetcher {
             // The retry sits here and nowhere wider. Around `fetch` it would retry past the
             // cache and past the rate limiter, which is to say it would spend tokens the
             // limiter had already refused and ask a portal three times for one offer.
+            //
+            // And each retry is a request, so each one takes a permit of its own. The first
+            // attempt's was taken above; one permit per advert would let a permit buy three
+            // requests, and a pass of 503s send three times what the window allows.
+            int[] attempts = {0};
             ResponseEntity<String> response = retry.execute(() -> {
+                if (attempts[0]++ > 0 && !retryPermit(fresh)) {
+                    throw new WindowSpent();
+                }
                 ResponseEntity<String> answer = exchange(uri);
                 if (answer.getStatusCode().is5xxServerError()) {
                     throw new TransientAnswer(answer.getStatusCode().value());
@@ -170,17 +192,54 @@ public class AdFetcher {
                     ? FetchResult.ok(status, response.getBody(), false)
                     : FetchResult.failed(status, "status " + status);
         } catch (RetryException e) {
-            // Every attempt failed. A server error that survived the retries is still an
-            // answer about the page and is remembered; anything else is a fact about the
-            // moment, and remembering one bad minute for a week is worse than asking again
-            // tomorrow.
-            if (e.getCause() instanceof TransientAnswer transient5xx) {
+            // Every attempt failed, or the window refused the next one. A server error that
+            // survived the retries is still an answer about the page and is remembered;
+            // anything else is a fact about the moment, and remembering one bad minute for a
+            // week is worse than asking again tomorrow. A refused retry sent nothing, so what
+            // counts is the attempt before it: the failure stays the one it was.
+            Throwable last = lastAttempt(e);
+            if (last instanceof TransientAnswer transient5xx) {
                 cache.store(url, transient5xx.status, null);
                 return FetchResult.failed(transient5xx.status, "status " + transient5xx.status);
             }
-            return FetchResult.failed(0, "unreachable: " + rootMessage(e));
+            return FetchResult.failed(0, "unreachable: " + rootMessage(last));
         } catch (RuntimeException e) {
             return FetchResult.failed(0, "unreachable: " + rootMessage(e));
+        }
+    }
+
+    /**
+     * The failure of the last attempt that sent a request. A {@link WindowSpent} sent nothing and
+     * only ever follows an attempt that did, which the template keeps as a suppressed exception.
+     */
+    private static Throwable lastAttempt(RetryException e) {
+        if (!(e.getCause() instanceof WindowSpent)) {
+            return e.getCause();
+        }
+        Throwable[] earlier = e.getSuppressed();
+        return earlier[earlier.length - 1];
+    }
+
+    /**
+     * A permit for a retry. The run waits for it as it waits for its first one; the button asks
+     * once, and a refusal ends the retries with the failure the page has already given.
+     *
+     * <p>Not counted against {@code max_per_run}: the budget is a number of adverts a pass
+     * fetches, and this advert's unit was reserved with its first attempt.
+     */
+    private boolean retryPermit(boolean fresh) {
+        return fresh
+                ? window.tryTake(settings.rateLimitPerMinute())
+                : window.awaitTake(settings.rateLimitPerMinute(), () -> false);
+    }
+
+    /**
+     * A retry the window refused, or whose wait was interrupted. Not retryable, so the template
+     * stops at it; it sent no request and carries no answer of its own.
+     */
+    private static final class WindowSpent extends RuntimeException {
+        private WindowSpent() {
+            super("no permit for a retry", null, false, false);
         }
     }
 
@@ -239,9 +298,23 @@ public class AdFetcher {
      * would have granted anyway; it never takes one it would have refused. Beyond
      * {@code enrichment.fetch.max_per_run} the run gives up and the offer stays due, which
      * is the same outcome as before, one budget later.
+     *
+     * <p>The budget unit is reserved first and the wait comes after, which makes
+     * {@code max_per_run} a hard cap on what one pass sends. It used to be asked only when the
+     * window was full, so a pass ran past it whenever the window happened to have room:
+     * measured, a budget of 25 over 30 adverts at 20 a minute sent 30. The wait therefore never
+     * gives up on its own; it ends with a permit or with an interrupt, and only the interrupt
+     * gives the unit back.
      */
     private boolean awaitToken() {
-        return counted(window.awaitTake(settings.rateLimitPerMinute(), this::spent));
+        if (!reserve()) {
+            return false;
+        }
+        if (window.awaitTake(settings.rateLimitPerMinute(), () -> false)) {
+            return true;
+        }
+        release();
+        return false;
     }
 
     /**
@@ -259,10 +332,20 @@ public class AdFetcher {
     }
 
     /**
-     * Whether this pass has fetched everything it was allowed to.
+     * One unit of this pass's budget, or false once the pass has fetched everything it was
+     * allowed to. Checked and taken under one lock, because the workers of a pass share it.
      */
-    private synchronized boolean spent() {
-        return taken >= settings.budget();
+    private synchronized boolean reserve() {
+        if (taken >= settings.budget()) {
+            return false;
+        }
+        taken++;
+        return true;
+    }
+
+    /** A reserved unit whose wait was interrupted, and which therefore sent nothing. */
+    private synchronized void release() {
+        taken--;
     }
 
     /**

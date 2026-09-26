@@ -26,6 +26,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatModel;
@@ -61,10 +62,15 @@ import org.springframework.stereotype.Component;
  * the model deterministically: a greeting to anybody the advert does not name becomes the
  * neutral one, and a greeting that leaves the named person out, or hides more than a greeting,
  * becomes the configured one for that person.
+ *
+ * <p>Public for one reason: the Rules screen shows every prompt this configuration sends, and
+ * this class owns the writer's. {@link #instructions()} and {@link #exampleUser} are the two
+ * static seams it reads; the constructor and the drafting stay package-private.
  */
 @Slf4j
 @Component
-class CoverLetterWriter {
+@RequiredArgsConstructor
+public class CoverLetterWriter {
 
     /**
      * English, like every instruction in this repository; the letter itself is in the advert's
@@ -154,11 +160,6 @@ class CoverLetterWriter {
     private final LlmBudget budget;
     private final JsonMapper json = JsonMapper.builder().build();
 
-    CoverLetterWriter(ChatModels chatModels, LlmBudget budget) {
-        this.chatModels = chatModels;
-        this.budget = budget;
-    }
-
     /**
      * Everything the model is shown for one letter.
      *
@@ -231,6 +232,44 @@ class CoverLetterWriter {
             return Attempt.MISSED;
         }
         return new Attempt(parse(content, request), false);
+    }
+
+    /** The system prompt as it is sent, for the Rules screen (ISC-326). */
+    public static String instructions() {
+        return INSTRUCTIONS;
+    }
+
+    /**
+     * The user message as the Rules screen shows it: the configuration rendered, the offer as
+     * placeholders, both through {@link #describe} itself so the screen is wrong only when the
+     * code is — the same rule the judge's and the classifier's examples follow.
+     *
+     * <p>What is rendered is what a person would check against {@code skill-profile.yaml} and
+     * {@code cover-letter.yaml}: the skills of every tier, the word limit, the notes, the banned
+     * phrases, the neutral salutation and the example letters. What stands as a placeholder is
+     * what only a real offer has: the advert, who advertised it, the start date and the
+     * projects the ranking chose. A placeholder advert names nobody, so the rendered greeting
+     * line is the neutral one, which is also what an advert that names nobody gets.
+     *
+     * <p>The rules are those of one language, and a letter's language is its advert's. There is
+     * no advert on the screen, so the profile's primary locale stands in, falling back to German
+     * — the same fallback {@code PackagingService} uses for an advert with no text at all.
+     */
+    public static String exampleUser(SkillProfile profile, CoverLetterStyle style) {
+        String language = profile == null || profile.localePrimary() == null ? "de" : profile.localePrimary();
+        return describe(new Request(
+                0L,
+                language,
+                "<the advert as a person reads it: title, description and content>",
+                "<who advertised it, when the source names one>",
+                profile,
+                List.of(new ProjectView(
+                        "<a reference project the ranking chose>",
+                        "<its period>",
+                        "<its pitch, in the letter's language>")),
+                "<the start date, when the advert states one>",
+                style == null ? CoverLetterStyle.Rules.UNCONSTRAINED : style.forLanguage(language),
+                style == null ? List.of() : style.examplesFor(language)));
     }
 
     /** The user message: the advert first, then what may be claimed, then how to write it. */

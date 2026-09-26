@@ -278,10 +278,23 @@ what a model takes part in. The claims and the measurements are in
 - **Two uses, never a third.** The rail marks a stage in the `model` cost class, or an ingest
   source that sends the extraction prompt, with a sparkle icon carrying `--lg-ai` on its edge
   and an accessible name (`rules.ai.marker`); the detail pane repeats the same stage as a head
-  band in the same colour, naming it an AI step (`rules.ai.band`) and, where the last run named
-  a model, which one (`rules.ai.model`). Both read `isAi()` off the same stage, so the two
-  markers can never disagree about which stages are AI steps and which are not.
+  band in the same colour, naming it an AI step (`rules.ai.band`) and, where a model answers,
+  which one (`rules.ai.model`). That model is the configuration's and not the last run's: it
+  comes from `/api/v1/prompts`, per stage, with the `modelKey` that decided it and
+  `modelFallback` when the stage's own key is empty and the scoring judge answers in its place,
+  so the band names the key beside the model either way. Both markers read `isAi()` off the
+  same stage, so they can never disagree about which stages are AI steps and which are not.
   `FILTER` is deterministic and carries neither.
+- **The AI band says only what a model does; a stage's width is a neutral fact in the head and
+  takes no semantic colour, because `ENRICH` has a width and no model.** "Works on up to N
+  adverts at once" beside `llm.concurrency` or `enrichment.fetch.concurrency` sits in the
+  stage head in muted text on every stage a width bounds, one included. Put into the violet band
+  it would claim a model for the fetch; given a hue of its own it would be a third meaning to
+  learn for a number that decides nothing about an offer.
+- **A stage row's width is text in the status cell, never a badge; a badge is a state.** The
+  dashboard's machine room writes "N at once" as small muted text beside an OK stage that ran
+  wider than one, and nothing at one. A badge there would read as a verdict on the stage, the
+  way `OK` and `FAILED` do, when the width is only how the stage was run.
 - **Contrast measured in the browser tier, the same gate as the signal.** `contrast.browser.spec.ts`
   holds the icon to ≥ 3:1 as an object, on the selected row too, and the band's text to ≥ 4.5:1,
   in both themes, headless Chromium — jsdom cannot answer a contrast question, only report the
@@ -310,6 +323,138 @@ what a model takes part in. The claims and the measurements are in
 - **"Run ingest" asks first.** The run starts from the confirm action of its own dialog, so the
   header keeps its one primary button and the dialog has its own; cancel and Escape start
   nothing.
+
+### Screenshots in the help, and four more chapters (spec 014, 2026-09-24)
+
+- **Every chapter shows the screen it describes, in four files.** A raster image cannot follow
+  the theme the way the diagrams' tokens do, and a German reader looking at an English screen
+  translates twice, so each shot exists as `public/help/shots/<en|de>/<id>-<light|dark>.webp` and
+  the drawer builds the path from the active language and the *resolved* theme ("system" follows
+  the operating system like the page). `HELP_SHOTS` states each file's pixel size, which the
+  `<img>` carries as `width`/`height`, so the figure has its height before the file arrives.
+- **The drawer places the image, not the Markdown.** A chapter says `<!-- screenshot: id -->`
+  beside the diagram placeholder, and the drawer renders its own `<img>`. `shared/markdown` also
+  renders adverts, and nothing a text says should be able to point it at a file. A placeholder
+  for a shot the chapter does not list is dropped, and the parity spec fails on it.
+- **Each language is taken from its own demo instance.** The German shots come from the demo,
+  the English ones from a second instance reading `demo/corpus-en/`, the same draw worded in
+  English, because an English help showing German adverts under English labels reads as a
+  broken translation. The instance's applications mirror the German ones, and the detail
+  shots show the offer whose application was sent last, so both languages show one offer.
+- **`bun run help:shots` retakes all of them, from the demo stack only.** The script asks the
+  instance which sources it reads and refuses anything but the demo's, and it refuses a frame
+  that prints one of the instance's model names, which the header, an AI step and a score line
+  all do; a line that names one in the middle of a shot is hidden, not cropped around. Every
+  rectangle starts below the header and has a fixed size, so the four variants of a shot are
+  one size although German runs longer. `help-shots.spec.ts` fails on a missing variant, a file
+  with no entry, a wrong size or more than 160 KB. The files sit under `/help/`, which the
+  service worker fetches lazily; they are never part of the prefetched shell.
+- **Four chapters were added, and the parked review chapter left** until its screen has a route
+  again. An offer open under the shortlist or the pipeline opens the offer-detail chapter; the
+  overview is the last entry of the contents, set apart by a rule.
+
+### Installable (spec 012, 2026-09-24)
+
+- **Angular's own service worker, not the house's hand-written one.** The house rules
+  (FE-PWA-01, -02, -04) ask for a `src/sw.js` stamped at postbuild, two precache halves and a
+  worker unregistered on localhost; they are written for a product used offline in the field.
+  Here only the shell is offline, and `ngsw.json` is generated from the build output by the
+  build that made it, so the precache list cannot drift from the hashed chunk names: drift is
+  impossible rather than avoided. One failed prefetch fails the *version*: windows already open keep
+  the previous one, while a window opened fresh in that state goes to the network until the
+  next good deploy, so offline it gets no shell. The price is that a broken deploy reads as
+  "no update" rather than as a red probe.
+  The departure and its probe stand in the spec's plan, § Stack Decisions.
+- **The shell offline, the data never.** Of the three readings offered — installable only, the
+  shell offline, the shortlist offline — the middle one was chosen: cached data would need an
+  offline story per store and a way to say how old a list is, and it would break the principle
+  that a quiet screen means a quiet market. `ngsw-config.json` therefore holds four asset
+  groups and no data group: `app` (the index, the manifest, the favicon, the PNG icons, the
+  hashed styles and bundles) and `i18n` in `prefetch`; `fonts` and `help` `lazy` with `prefetch`
+  updates, so the first install does not download every diagram before the app paints.
+  `navigationUrls` keeps ngsw's defaults and adds `!/api/**`, because the worker answers every
+  extension-less navigation with the cached index and the package download is a navigation to
+  `/api/v1/offers/<id>/package`; without the entry it came back as the shell. Nothing under
+  `/api/` is ever cached.
+- **Registered in production builds only, and only once the app is stable.**
+  `provideServiceWorker` is keyed on `!isDevMode()`, never on the hostname: the dev server on
+  `:4200` registers nothing, so no developer fights a stale cache, while the compose stack on
+  localhost is the production artifact an install is verified against. The strategy is
+  `registerWhenStable:30000`, so the registration never competes with the first paint.
+- **A toast, not a silent swap and not a forced reload.** A silent swap leaves the operator on
+  the old bundle for a day; a forced reload can land in the middle of a status move. The update
+  store turns the worker's `VERSION_READY` into one `versionReady` per version hash; the toast
+  store raises the one toast with an action, in the info tone and exempt from the timer, and
+  dismisses a standing update toast first, so a newer version replaces the older offer rather
+  than stacking beside it. The action activates the update, bounded at 10 s, then reloads — the
+  reload is what brings the version, the activation only makes it certain — and closing the
+  toast leaves the running version alone. The worker's `unrecoverable` stream reloads at once,
+  because that page is already broken and there is nobody to ask. An open window asks for an
+  update every hour while it is visible.
+- **`theme-color` follows the app theme, not the OS.** The app's default is dark whatever the
+  OS prefers, so a `media`-qualified pair of meta tags would follow the wrong thing. The inline
+  script in `index.html` writes the one meta from the resolved theme before the first paint, and
+  the theme store rewrites it on every switch, the same way it writes `data-theme`. The hex
+  twins live in `THEME_SURFACE_HEX`, held to the stylesheet's `oklch()` values by
+  `theme-colors.spec.ts`; the manifest's `theme_color` and `background_color` are the dark
+  surface from the same table, so an installed window opens on the app's own colour before
+  anything else paints.
+- **Every icon comes from `brand/mark.svg` through `build-favicon.sh`, on one of two plates.**
+  The round plate with transparent corners is the tab icon and the manifest's 192 and 512
+  `any` icons; the opaque square plate is the 512 `maskable` icon and the 180 touch icon,
+  because Android masks a maskable icon into its own shape and iOS rounds a touch icon itself,
+  and either paints white behind a transparent corner. On the square plate the mark sits at
+  11/16 of the width rather than filling the 80 % safe zone: the mark's farthest point is not
+  the ring but the outer signal dot, 1.12 times the half-box from the centre, so at 80 % the
+  mask took 24 px off that dot; at 11/16 its far edge is 197 px against a safe radius of
+  204.8 at 512. `manifest.spec.ts` measures the plate, the corner and the safe zone, and a
+  second run of the script leaves `git diff` empty.
+- **nginx says what may be cached, and the chart says it again.** `Cache-Control: no-cache` on
+  `index.html`, `ngsw.json`, the manifest and both worker scripts: they keep their names across
+  builds, so a cached copy would hold a deploy back until it expired, and `no-cache` keeps them
+  cacheable but revalidated on every request. `immutable` for a year on the hashed bundles and
+  fonts, whose names change with their bytes. The manifest is served as
+  `application/manifest+json`; the image's mime table has no entry for it and served it as
+  `application/octet-stream` (measured with curl before the change). Whether a browser refuses
+  the octet-stream variant was not measured. The deployed chart replaces `nginx.conf` wholesale with its own ConfigMap,
+  because it resolves the API upstream at parse time, so the blocks are written self-contained
+  and copied there by the operator in the same rollout as the image.
+
+### The running pass (spec 018, 2026-09-26)
+
+The workflow graph draws the pass in flight: one node running, everything behind it done,
+everything ahead of it pending. The claims and the measurements are in
+`specs/018-rules-live-run/spec.md`.
+
+- **`--lg-run` is the third reserved colour, and the last one.** `--lg-signal` means "survived the
+  filter", `--lg-ai` means "a model takes part here", and `--lg-run` means one thing only: **this
+  stage is being worked right now.** It may never mean good, bad, selected, new, or finished —
+  a stage the run has already passed carries a muted check and no hue at all, and a failed stage
+  keeps its own marker. Defined once per theme in `styles.css` beside the other two, measured at
+  7.1:1 light and 7.6:1 dark against the node and canvas surfaces and pairwise distinct from both
+  neighbours in both themes (`contrast.browser.spec.ts`). `rg -l "lg-run" frontend/src` names
+  `styles.css`, files under `features/rules` and the contrast spec, which is ISC-415's own gate.
+- **The hue was chosen on screen, against three that were rejected.** Violet collided with
+  `--lg-ai`, red read as a failure, green read as a verdict on the offers; the pink at neon
+  strength (`oklch(64% 0.26 345)` light, `oklch(70% 0.24 345)` dark) is far enough from all three
+  reserved meanings to read as motion rather than as judgement.
+- **Colour is never the only carrier of the three states.** The running node adds a ring outside
+  the card and a refresh glyph, the passed nodes a check, the nodes ahead a dashed border, and
+  every node carries its state as a visually hidden word (`rules.run.state.*`), so a screen
+  reader — which gets none of the drawing — hears the same three states. The screen also says each
+  stage change once in a polite live region, and the end of the pass once, never once per poll.
+- **The one animation on the canvas is the edge entering the running node**, a marching dash,
+  static under `prefers-reduced-motion` with its colour kept. Anything else moving on a diagram
+  that already carries fourteen cards is noise.
+- **The run header sits above the canvas box, not inside it.** Tried as an overlay on the drawing
+  first, so that the full screen would keep it; on screen it read as something stuck to the
+  diagram rather than as the screen's own status, which is how the dashboard says the same thing.
+  The cost is accepted: in full screen the header is outside the full-screen element and is not
+  shown.
+- **The chips and the live encoding never overlap.** During a pass the last run's count chips give
+  way — the running node shows the time spent in its stage instead — and when the pass ends the
+  encoding is held until the reloaded last run has arrived, so the chips come back once, carrying
+  the run that just finished, rather than flashing the previous run's numbers first.
 
 ## The interface language
 
@@ -392,3 +537,64 @@ One line at the edge of the screen after a write or a run, and the decisions tha
   (`shared/badge`, the rescore refusal); the neutral alert was the recommendation, following
   "everything discarded is muted", and the operator chose amber for the contrast, knowing the
   widening (2026-09-23). No icons: the colour and the sentence are enough at three tones.
+
+## Traps moved from frontend/CLAUDE.md
+
+- **A backgrounded tab suspends CSS transitions,** and `getComputedStyle` then returns the
+  transition's *start* value rather than its target. An active nav link read as muted grey
+  while being correct in a real browser. Anything transitioned, animated, or driven by
+  `ResizeObserver`/`IntersectionObserver` must be measured through the Interceptor skill's
+  `Tools/VerifyViewport.ts`, never through a background tab.
+- **The DOM-render screenshot is evidence about layout and colour, not about state or
+  reflow.** It serialises and re-renders, which drops DOM properties that have no attribute (a `<select>`'s selection),
+  some component CSS on SVG children (`fill` on the score ring),
+  and it mis-measures text that wraps inside a flex item — three separate false alarms in
+  one session. Read the accessibility tree for widget state (`interceptor read` prints
+  `combobox … value="SENT"`), and confirm a suspected overlap in a real browser before
+  changing CSS. The Angular dev server sets a CSP that blocks `interceptor eval`, so the
+  geometry cannot be measured through it either.
+- **An author `display` on a popover keeps it open forever, and every API you would ask says it is closed.** What hides
+  a closed popover is the UA rule `[popover]:not(:popover-open) { display: none }`, which carries no `!important`, so a
+  `display: flex` on the panel's own class beats it. The panel then stands open on the page while `:popover-open`
+  reports `false`, `aria-expanded` reports `"false"` and the click still toggles the state correctly. Put `display` on
+  `:popover-open` and nowhere else. Shipped exactly that way once and found by a person looking at the screen: the
+  screenshots showed it open, the probe asked the API, and the screenshot was the one that got explained away as a
+  rendering artifact.
+- **Safari intermittently keeps the folded height of an unfolded advert.** Measured on the page: `max-height: none`,
+  `overflow: visible`, no mask, and the box still exactly 390px, the clamp's own value, with the text running on behind
+  the panels below it. Six isolated variants of the structure — scroll pane, grid, spanning panel, mask, the whole
+  height chain — were all correct in the same Safari, and the same page measured correctly a minute later.
+  `OfferDetail.relayoutAd` detaches the box and reads a metric off it after the toggle. It is a workaround on an
+  observation, not on a reproduced cause, and it says so.
+
+## The stage, the sieve and the tones (2026-09-26)
+
+The control room of spec 006 read well and still read as a log: about forty numerals above the fold, a
+monospace chain of stage totals in the hero repeating the hard-filter panel beside it, and one light surface
+everywhere. The operator asked for an eyecatcher, for marketing reasons, and for more colour and contrast. A
+Designer pass offered seven concepts; the sieve with a narrative headline was taken, the best-match card is the
+runner-up and was not built.
+
+- **`.lg-stage` is a dark surface in both themes, and only the hero stands on it.** The hard filter beside it
+  was a second stage for an afternoon and competed with "worth a look" however far its ground was dimmed; it is the
+  ordinary panel again, lit faintly from its corners by the stage's two glows, related to the hero and never its
+  equal. The stage re-points the tokens its content reads — ink, muted, dividers, the signal and its text twin, and
+  `--score-strong` by name, because an alias resolves where it is declared — so the funnel rail renders on it
+  without knowing. Its colours are `--lg-stage-*` in the three corrective blocks; every text and the held-back dots
+  are measured on `--lg-stage` itself in `contrast.browser.spec.ts`, never on the glows.
+- **The signal on the stage is `--lg-stage-signal`, the night twin of the signal, and it still means one thing.**
+  The hero figure and the sieve's core take it; the files that read it are the hero, the sieve and
+  `primitives.css`, which is where the ISC-224 allowlist grows.
+- **The sieve is the brand mark drawn from the funnel.** Every offer is a dot, a stage's rejections scatter in its
+  ring with the first stage outermost, the survivors fill the core as a sunflower with the strong matches at the
+  centre, and the logo's open ring and its lead frame it. The layout is deterministic (a low-discrepancy sequence
+  seeded by the band), so a screenshot changes only when the numbers do; past 380 dots one dot stands for several
+  offers and the legend says so. It sifts in on first paint and not for a run that brought nothing; the orbit, the
+  aurora and the core's breathing are ambient and slow, and all of it stops under reduced motion.
+- **The headline is a sentence, and it explains the two counts that looked like a miscount.** "64 offers out of 146
+  are worth a look" names the archive; the run line says how many listings the run read and how many of them were
+  repeats (`extracted − written`), which is why a run can read more than the archive holds.
+- **A tone is the colour a cell takes by what its value means**: `lg-tone-info|success|warning|error|primary|neutral`
+  in `primitives.css`, a chip, a corner glow and the value's colour. Never the signal and never a section. Intake is
+  information, the scores are the primary, what is due warns and nothing due is success, said in words; the run's
+  health is green, amber or red.

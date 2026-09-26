@@ -12,7 +12,7 @@ import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.config.model.PipelineConfig;
 import java.time.LocalDate;
 import java.util.concurrent.atomic.AtomicReference;
-import javax.sql.DataSource;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
@@ -35,6 +35,7 @@ import org.springframework.stereotype.Component;
  */
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class LlmBudget {
 
     /**
@@ -61,11 +62,6 @@ public class LlmBudget {
 
     private final ConfigRegistry config;
     private final JdbcClient jdbc;
-
-    LlmBudget(ConfigRegistry config, DataSource dataSource) {
-        this.config = config;
-        this.jdbc = JdbcClient.create(dataSource);
-    }
 
     /**
      * Takes one call from today's allowance.

@@ -14,7 +14,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import javax.sql.DataSource;
+import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 
@@ -32,6 +32,7 @@ import org.springframework.stereotype.Service;
  * What a run did is destroyed by the next one.
  */
 @Service
+@RequiredArgsConstructor
 public class LastRunQueryService {
 
     /**
@@ -127,10 +128,6 @@ public class LastRunQueryService {
         """;
 
     private final JdbcClient jdbc;
-
-    LastRunQueryService(DataSource dataSource) {
-        this.jdbc = JdbcClient.create(dataSource);
-    }
 
     /**
      * Empty when nothing has ever run, which is a state and not an error.

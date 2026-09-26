@@ -11,7 +11,7 @@ package de.codeministry.leadgen.enrich;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;
-import javax.sql.DataSource;
+import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,13 +29,10 @@ import org.springframework.transaction.annotation.Transactional;
  * asking again tomorrow.
  */
 @Component
+@RequiredArgsConstructor
 public class PageCache {
 
     private final JdbcClient jdbc;
-
-    PageCache(DataSource dataSource) {
-        this.jdbc = JdbcClient.create(dataSource);
-    }
 
     public Optional<Entry> find(String url, Duration ttl) {
         return jdbc.sql("SELECT status, body, fetched_at FROM fetched_page WHERE url = ? AND fetched_at >= ?")

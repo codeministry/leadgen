@@ -25,7 +25,7 @@ class LlmExtractorsTest {
     void readsTheKeyThatNamesThisStage() {
         // `llm.models.extraction` shipped with `# not read yet` beside it for three
         // releases. This is the assertion that makes the comment removable.
-        assertThat(LlmExtractors.modelFor(new Models("a-reader", "a-judge", null, null, null)))
+        assertThat(LlmExtractors.modelFor(new Models("a-reader", "a-judge", null, null, null, null, null)))
                 .isEqualTo("a-reader");
     }
 
@@ -33,9 +33,9 @@ class LlmExtractorsTest {
     void fallsBackToTheScoringModelRatherThanAskingForASecondEntry() {
         // Most installations run one model, and there would be nothing to write in the
         // second line — the same argument that made an API key optional for Ollama.
-        assertThat(LlmExtractors.modelFor(new Models(null, "a-judge", null, null, null)))
+        assertThat(LlmExtractors.modelFor(new Models(null, "a-judge", null, null, null, null, null)))
                 .isEqualTo("a-judge");
-        assertThat(LlmExtractors.modelFor(new Models("  ", "a-judge", null, null, null)))
+        assertThat(LlmExtractors.modelFor(new Models("  ", "a-judge", null, null, null, null, null)))
                 .isEqualTo("a-judge");
     }
 
@@ -43,7 +43,7 @@ class LlmExtractorsTest {
     void namesNothingOnAFreshClone() {
         // No model at all is a working state: the tool runs, and a pasted advert stays where
         // it is instead of entering as an offer with no title.
-        assertThat(LlmExtractors.modelFor(new Models(null, null, null, null, null)))
+        assertThat(LlmExtractors.modelFor(new Models(null, null, null, null, null, null, null)))
                 .isNull();
         assertThat(LlmExtractors.modelFor(null)).isNull();
     }
@@ -52,7 +52,7 @@ class LlmExtractorsTest {
     void takesTheFirstScoringChoiceAndNotAnAlternative() {
         // `scoring_options` exists so two judges can be compared, and the first entry is the
         // configured default. A document is not something there is anything to compare about.
-        assertThat(LlmExtractors.modelFor(new Models(null, "a-judge", null, null, "another-judge")))
+        assertThat(LlmExtractors.modelFor(new Models(null, "a-judge", null, null, "another-judge", null, null)))
                 .isEqualTo("a-judge");
     }
 }

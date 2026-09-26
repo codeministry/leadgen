@@ -114,10 +114,17 @@ public class ChatModels {
      * the same reason there is no fallback from a local provider to a hosted one.
      */
     public Optional<ChatModel> writing(PipelineConfig.Llm llm) {
-        if (llm == null || llm.models() == null || blank(llm.models().writing())) {
-            return Optional.empty();
-        }
-        return of(llm, llm.models().writing());
+        String model = llm == null ? null : writingModelFor(llm.models());
+        return model == null ? Optional.empty() : of(llm, model);
+    }
+
+    /**
+     * {@code llm.models.writing} when it names one, and nothing otherwise — the choice
+     * {@link #writing} makes, with no fallback, as one static so the Rules screen names the same
+     * model the run would use. A second copy of the choice would disagree with it exactly once.
+     */
+    public static String writingModelFor(PipelineConfig.Llm.Models models) {
+        return models == null || blank(models.writing()) ? null : models.writing();
     }
 
     /**

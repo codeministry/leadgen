@@ -15,7 +15,7 @@ import de.codeministry.leadgen.config.model.PipelineConfig;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.*;
-import javax.sql.DataSource;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
@@ -33,6 +33,7 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class PackageArchiveService {
 
     /**
@@ -82,11 +83,6 @@ public class PackageArchiveService {
 
     private final ConfigRegistry config;
     private final JdbcClient jdbc;
-
-    PackageArchiveService(ConfigRegistry config, DataSource dataSource) {
-        this.config = config;
-        this.jdbc = JdbcClient.create(dataSource);
-    }
 
     /**
      * Whether this offer's application was ever sent: it stands at a state past sending now, or

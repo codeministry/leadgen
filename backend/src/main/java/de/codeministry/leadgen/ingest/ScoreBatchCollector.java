@@ -56,6 +56,7 @@ class ScoreBatchCollector {
      * logged by the framework and is then simply run again next time, which turns a
      * misconfigured provider into a wall of identical traces every five minutes.
      */
+    // Names the same key as `ConfigProperties.scoreBatchPollInterval`; an annotation attribute cannot read a bean.
     @Scheduled(fixedDelayString = "${leadgen.score-batch-poll-interval:PT5M}")
     void poll() {
         try {
