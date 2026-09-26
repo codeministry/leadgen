@@ -29,7 +29,7 @@
     >
       <span class="type-small line">{{ toast.key | transloco: toast.params }}</span>
       @if (toast.link; as link) {
-        <a [class]="linkClass[toast.tone]" [routerLink]="link">{{ 'toast.open' | transloco }}</a>
+        <a [class]="linkClass[toast.tone]" [routerLink]="link" [queryParams]="toast.query ?? null">{{ 'toast.open' | transloco }}</a>
       }
       <!-- The action wears the link's class: it is the one thing this toast offers, and the
            filled button in the tone is what "the one thing offered" looks like here. -->

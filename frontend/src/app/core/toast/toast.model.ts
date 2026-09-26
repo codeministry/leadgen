@@ -45,6 +45,11 @@ export interface Toast {
     readonly params?: Readonly<Record<string, unknown>>;
     /** A configured route the toast points at. Navigation only; a toast never writes. */
     readonly link?: string;
+    /**
+     * Query parameters for `link`, kept apart from it: a `?` inside a `routerLink` string is
+     * encoded into the path, so `/workflow?stage=run` would name a route that does not exist.
+     */
+    readonly query?: Readonly<Record<string, string>>;
     /** A button that dispatches an event. Exempt from the timer; see `ToastAction`. */
     readonly action?: ToastAction;
 }
@@ -75,9 +80,15 @@ export const TOAST_CAP = 3;
 let nextId = 0;
 
 /** A fresh toast with the next id. The counter is process-wide, which is all uniqueness needs. */
-export function toast(tone: ToastTone, key: string, params?: Toast['params'], link?: string): Toast {
+export function toast(
+    tone: ToastTone,
+    key: string,
+    params?: Toast['params'],
+    link?: string,
+    query?: Toast['query'],
+): Toast {
     nextId += 1;
-    return {id: nextId, tone, key, params, link};
+    return {id: nextId, tone, key, params, link, query};
 }
 
 /** A fresh toast that offers an action instead of a link, on the same counter. */

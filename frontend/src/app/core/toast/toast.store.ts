@@ -8,6 +8,7 @@ import {refreshEvents} from '@core/refresh/refresh.events';
 import {applicationEvents} from '@core/store/applications.events';
 import {coverLetterEvents} from '@core/store/cover-letter.events';
 import {ingestEvents} from '@core/store/ingest.events';
+import {RUN_STATUS} from '@core/model/workflow';
 import {manualEvents} from '@core/store/manual.events';
 import {shortlistEvents} from '@core/store/shortlist.events';
 import {updateEvents} from '@core/pwa/update.events';
@@ -169,12 +170,20 @@ export const ToastStore = signalStore(
              * stream itself rather than through state, because the order in which a reducer
              * and a handler see one event is not something to depend on. The null between two
              * runs is what lets a new id through; the same id on every beat is one toast.
+             *
+             * "Open" goes to the run status on the workflow screen (operator, 2026-09-27): the
+             * one place that shows where a pass stands while it runs, stage by stage. The
+             * dashboard it used to open only has something to say once the run is over.
              */
             events.on(ingestEvents.currentLoaded).pipe(
                 map(({payload}) => payload?.id ?? null),
                 distinctUntilChanged(),
                 filter((id): id is number => id !== null),
-                map(() => toastEvents.raised(toast('info', 'toast.runStarted', undefined, '/dashboard'))),
+                map(() =>
+                    toastEvents.raised(
+                        toast('info', 'toast.runStarted', undefined, '/workflow', {stage: RUN_STATUS}),
+                    ),
+                ),
             ),
             /*
              * A run ending, from two paths that both fire for the operator's own run: the

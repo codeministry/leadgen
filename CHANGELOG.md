@@ -20,7 +20,9 @@ may change in any release. See the status note in the README.
   finished and how long it took, and each figure that moved since the run before carries a small,
   neutral delta. The day's model calls against `llm.budget.max_calls_per_day` stand beside the
   judge, with a badge once the allowance is spent, which is the question a pass that left scoring
-  undone raises. Asked for only while the sheet shows the run status.
+  undone raises. Asked for only while the sheet shows the run status. The toast that announces a
+  starting run now opens this sheet on the workflow screen, not the dashboard, which has nothing
+  to say about a pass until it has ended.
 - **`GET /api/v1/llm/budget`** answers `{used, limit}` for today, read only; `limit` is null when no
   budget is configured, which is not the same as zero. **`GET /api/v1/ingest/last`** now also
   carries the run's `startedAt` and a `previous` block with the figures of the run before it,

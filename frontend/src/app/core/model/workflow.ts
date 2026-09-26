@@ -77,3 +77,12 @@ export interface WorkflowView {
     /** Every key present in a file that no stage reads. Shown, never dropped. */
     readonly unread: readonly WorkflowSetting[];
 }
+
+/**
+ * The `?stage=` value that opens the run status instead of a stage (operator, 2026-09-26). A
+ * sentinel beside `UNREAD_STAGE` rather than a second query parameter: one screen, one sheet, one
+ * thing in the URL that says what is open, and a link to the status is as shareable as a link to a
+ * stage. No stage the server names can collide with it — the names are `DEDUPE`, `FILTER`,
+ * `INGEST <source>` and the rest, all upper case and none of them a bare verb.
+ */
+export const RUN_STATUS = 'run';

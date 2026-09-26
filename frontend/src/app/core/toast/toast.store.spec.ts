@@ -155,7 +155,12 @@ describe('ToastStore', () => {
             ingest.currentLoaded(run(7));
             ingest.currentLoaded(run(7));
             expect(store.toasts().length).toBe(1);
-            expect(store.toasts()[0]).toMatchObject({key: 'toast.runStarted', tone: 'info', link: '/dashboard'});
+            expect(store.toasts()[0]).toMatchObject({
+                key: 'toast.runStarted',
+                tone: 'info',
+                link: '/workflow',
+                query: {stage: 'run'},
+            });
 
             ingest.currentLoaded(null);
             ingest.currentLoaded(run(8));
