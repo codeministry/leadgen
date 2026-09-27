@@ -124,7 +124,8 @@ prints its agreement with the stored answers beside an empty-answer baseline; th
 [decisions/pipeline-scoring.md](decisions/pipeline-scoring.md#measuring-a-candidate).
 
 `screenshots/` holds what the root README renders; the light and dark ones are chosen per
-screen there, not by theme.
+screen there, not by theme. `bun run docs:shots` in `frontend/` retakes all of them from the English
+demo stack, and refuses any instance whose sources are not the demo's.
 
 ## Conventions in the guides
 
