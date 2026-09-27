@@ -162,9 +162,16 @@
     animation: lg-chat-sweep-busy calc(var(--lg-pulse-duration) / 2) linear infinite;
   }
 
-  /* The glow: a soft halo in the AI colour, the button lifting off the bar rather than filling. */
+  /* The glow: a soft halo in the AI colour, the button lifting off the bar rather than filling.
+     DaisyUI's soft hover floods the button with the solid primary and flips its ink; here the
+     ground only deepens a step in the same tint and the ink stays the primary, so the halo and
+     the edge carry the hover (operator, 2026-09-27). */
   .lg-chat-open:hover,
   .lg-chat-open:focus-visible {
+    --btn-bg: color-mix(in oklab, var(--color-primary) 14%, var(--color-base-100));
+    --btn-border: transparent;
+
+    color: var(--color-primary);
     box-shadow:
       0 0 0 3px color-mix(in oklch, var(--lg-ai) 16%, transparent),
       0 4px 16px color-mix(in oklch, var(--lg-ai) 28%, transparent);
