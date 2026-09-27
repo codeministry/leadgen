@@ -194,9 +194,12 @@ describe('the tokens (ISC-223)', () => {
         const missing: string[] = [];
         for (const file of cssFilesUnder(APP)) {
             const text = readFileSync(file, 'utf8');
+            // A property the same stylesheet registers with `@property` has its `initial-value` there:
+            // a component-local animated angle, defined where it is read and nowhere else.
+            const registered = new Set([...text.matchAll(/@property\s+(--[\w-]+)/g)].map((m) => m[1]));
             for (const m of text.matchAll(/var\(\s*(--[\w-]+)/g)) {
                 const name = m[1];
-                if (defined.has(name) || isToolchainName(name) || RUNTIME_ALLOWLIST.includes(name)) continue;
+                if (defined.has(name) || registered.has(name) || isToolchainName(name) || RUNTIME_ALLOWLIST.includes(name)) continue;
                 missing.push(`${file.slice(FRONTEND.length + 1)}: ${name}`);
             }
         }

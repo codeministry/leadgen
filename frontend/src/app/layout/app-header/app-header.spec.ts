@@ -139,6 +139,29 @@ describe('AppHeader', () => {
                 expect(el('.lg-chat-busy')).toBeNull();
             });
 
+            // Operator, 2026-09-27: the button draws itself in and turns now and then while the chat
+            // is shut; open, the drawer is what moves, and the mark stands.
+            it('is ambient while the chat is shut and still while it is open', async () => {
+                answerCapability(true);
+                expect(mark().getAttribute('data-motion')).toBe('ambient');
+
+                const router = TestBed.inject(Router);
+                router.resetConfig([{path: 'offers', component: Blank}]);
+                await router.navigateByUrl('/offers?chat=new');
+                fixture.detectChanges();
+                expect(mark().getAttribute('data-motion')).toBe('still');
+            });
+
+            it('shows the shortcut as a chip hidden from assistive tech, the name unchanged', () => {
+                vi.spyOn(navigator, 'platform', 'get').mockReturnValue('MacIntel');
+                answerCapability(true);
+                const chip = el('.lg-chat-open .lg-chat-kbd');
+                expect(chip.textContent?.trim()).toBe('⌘K');
+                expect(chip.getAttribute('aria-hidden')).toBe('true');
+                expect(el('.lg-chat-open').getAttribute('aria-label')).toBe(en.chat.open);
+                vi.restoreAllMocks();
+            });
+
             it('works while a turn streams with the drawer shut, and rests again once it ends', async () => {
                 answerCapability(true);
                 const router = TestBed.inject(Router);

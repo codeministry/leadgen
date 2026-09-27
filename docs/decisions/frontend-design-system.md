@@ -546,6 +546,18 @@ mask, with one input choosing one of four frames that the host carries as `data-
   panel, the plate, the header, the button's soft fill and the bar's frost in both themes
   (`contrast.browser.spec.ts`, lowest 4.23); the plate and every answer's text box kept their
   size against a baseline measured before the swap.
+- **One ambient host: the header's chat button (operator, 2026-09-27).** A second input,
+  `motion`, is `still` everywhere by default; the header passes `ambient` while the drawer is
+  shut. At `rest` the ring then draws itself in once and, at the end of every
+  `--lg-mark-idle-period` (24 s), turns once counter-clockwise with the arc closing toward 330°,
+  the lead swelling and the core drawing in. The button's 1px gradient edge (primary through
+  `--lg-ai`) sweeps round in step, runs steadily while a turn streams behind the shut drawer, and
+  hover or keyboard focus plays the turn at once with a halo in the AI colour; `⌘K`/`Ctrl K`
+  sits in the button as a chip, symbols only, `aria-hidden`. Every period is a token in
+  `motion.css`, the edge and the halo exist only from 48rem, and none of it runs under reduced
+  motion. The period is long on purpose: a mark that moves every few seconds competes with the
+  page under it. A host turns the mark through `--lg-living-mark-turn`, so `shared/` never names
+  the button.
 
 ## The interface language
 

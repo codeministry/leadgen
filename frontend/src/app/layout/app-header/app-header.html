@@ -35,8 +35,17 @@
           [attr.aria-keyshortcuts]="shortcutKeys()"
           (click)="toggleChat()"
         >
-          <lg-living-mark [frame]="chatBusy() ? 'working' : 'rest'" [size]="18"/>
+          <lg-living-mark
+            [frame]="chatBusy() ? 'working' : 'rest'"
+            [motion]="chat.view() === 'closed' ? 'ambient' : 'still'"
+            [size]="18"
+          />
           <span class="lg-chat-open-label">{{ 'chat.openShort' | transloco }}</span>
+          <!-- The shortcut, shown where a keyboard is likely. Symbols only, so no catalog key; the
+               button's `aria-keyshortcuts` is what announces it, so the chip is hidden from AT. -->
+          @if (shortcutChip(); as keys) {
+            <kbd class="kbd kbd-xs lg-chat-kbd" aria-hidden="true">{{ keys }}</kbd>
+          }
         </button>
       }
       <!-- The version is the honest health check, and the failure is the half that has to

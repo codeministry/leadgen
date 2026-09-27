@@ -193,6 +193,13 @@ may change in any release. See the status note in the README.
   busy dots are gone; nothing moves under reduced motion, and no label or catalog key changed
   (spec `021-chat-living-mark`).
 
+- **The header's chat button comes alive.** The mark draws itself in when the page loads and turns
+  once every 24 seconds while the chat is shut; hover and keyboard focus play the turn at once. From
+  48rem the button has a gradient edge in the brand and AI colours that sweeps with the turn and runs
+  while an answer is written behind a shut drawer, a soft halo on hover, and the shortcut as a
+  `⌘K`/`Ctrl K` chip. The period is `--lg-mark-idle-period` in `motion.css`; nothing moves under
+  reduced motion.
+
 - **Run ingest and the model select live on the workflow screen.** Both left the header at every
   width and sit above the status chips, with the same confirmation before a run starts; the header
   keeps navigation, the chat, settings and help.

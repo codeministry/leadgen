@@ -71,6 +71,9 @@ export class AppHeader {
         return this.transloco.translate('chat.openShortcut', {keys: isMac() ? '⌘K' : 'Ctrl+K'});
     });
 
+    /** The chip inside the button: the shortcut in symbols on a fine pointer, nothing on a coarse one. */
+    protected readonly shortcutChip = computed(() => (finePointer() ? (isMac() ? '⌘K' : 'Ctrl K') : null));
+
     constructor() {
         // Asked once per page: absent, the header draws nothing and nothing else of the chat is asked.
         if (this.chat.present() === null) this.chatDispatch.capabilityRequested();

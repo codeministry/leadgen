@@ -289,3 +289,92 @@ describe('LivingMark in motion (ISC-466)', () => {
         expect(arc()).toBeCloseTo(270, 0);
     });
 });
+
+describe('LivingMark, ambient at rest (the header chat button)', () => {
+    const SIZE = 64;
+
+    afterEach(async () => {
+        await setReducedMotion(false);
+        document.body.querySelectorAll(':scope > lg-living-mark').forEach((el) => el.remove());
+    });
+
+    async function mountAmbient(frame: LivingMarkFrame = 'rest'): Promise<HTMLElement> {
+        const fixture = TestBed.createComponent(LivingMark);
+        fixture.componentRef.setInput('size', SIZE);
+        fixture.componentRef.setInput('frame', frame);
+        fixture.componentRef.setInput('motion', 'ambient');
+        const host = fixture.nativeElement as HTMLElement;
+        document.body.appendChild(host);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        return host;
+    }
+
+    /** The idle layer on a part: the infinite one, whatever name the compiler gave its keyframes. */
+    function idle(host: HTMLElement, part: string): Animation {
+        const found = host
+            .getAnimations({subtree: true})
+            .find((a) => ((a.effect as KeyframeEffect).target as Element).classList.contains(part) && (a.effect as KeyframeEffect).getTiming().iterations === Infinity);
+        if (!found) throw new Error(`no idle animation on .${part}`);
+        return found;
+    }
+
+    it('writes the motion on its host, and still is the default', async () => {
+        const fixture = TestBed.createComponent(LivingMark);
+        fixture.detectChanges();
+        expect((fixture.nativeElement as HTMLElement).getAttribute('data-motion')).toBe('still');
+        expect((await mountAmbient()).getAttribute('data-motion')).toBe('ambient');
+    });
+
+    it('draws itself in, then turns the whole mark once at the end of every idle period', async () => {
+        const host = await mountAmbient();
+        const parts = new Set(animatedParts(host));
+        expect(parts).toEqual(new Set(['body', 'ring', 'dot lead', 'dot core']));
+
+        const period = millis('--lg-mark-idle-period');
+        const turn = idle(host, 'body');
+        expect((turn.effect as KeyframeEffect).getComputedTiming().duration).toBe(period);
+        const ring = host.querySelector('.ring') as SVGPathElement;
+        const arc = () => parseFloat(getComputedStyle(ring).strokeDasharray.split(/[ ,]+/)[0]);
+        const arcIdle = idle(host, 'ring');
+        // The intro layer wins while it plays; take it out so the idle layer is what is read.
+        host.getAnimations({subtree: true}).filter((a) => (a.effect as KeyframeEffect).getTiming().iterations !== Infinity).forEach((a) => a.finish());
+
+        // Most of the period the mark is the brand mark, standing.
+        park(arcIdle, period / 2);
+        expect(arc()).toBeCloseTo(270, 0);
+        park(arcIdle, period * 0.98);
+        expect(arc()).toBeCloseTo(330, 0);
+
+        const body = host.querySelector('.body') as SVGGElement;
+        park(turn, period / 2);
+        expect(getComputedStyle(body).transform).toMatch(/^(none|matrix\(1, 0, 0, 1, 0, 0\))$/);
+        park(turn, period * 0.98);
+        expect(getComputedStyle(body).transform).not.toMatch(/^(none|matrix\(1, 0, 0, 1, 0, 0\))$/);
+    });
+
+    it('keeps ambient to rest: a working mark moves only its flow dots', async () => {
+        const host = await mountAmbient('working');
+        await new Promise((resolve) => setTimeout(resolve, millis('--lg-reveal-duration') + 50));
+        expect(animatedParts(host)).toEqual(['dot flow flow-1', 'dot flow flow-2', 'dot flow flow-3']);
+    });
+
+    it('stands still under prefers-reduced-motion, and a host\'s turn does not play', async () => {
+        await setReducedMotion(true);
+        const host = await mountAmbient();
+        host.style.setProperty('--lg-living-mark-turn', '-360deg');
+        expect(animatedParts(host)).toEqual([]);
+        expect(getComputedStyle(host.querySelector('.mark') as Element).transform).toBe('none');
+    });
+
+    it('turns by the angle its host sets, and back when the host takes it away', async () => {
+        const host = await mountAmbient();
+        const mark = host.querySelector('.mark') as SVGSVGElement;
+        host.style.setProperty('--lg-living-mark-turn', '-90deg');
+        await new Promise((resolve) => setTimeout(resolve, millis('--lg-mark-turn-duration') + 100));
+        // rotate(-90deg) is matrix(0, -1, 1, 0, 0, 0), up to float noise.
+        const [a, b] = getComputedStyle(mark).transform.match(/-?[\d.e-]+/g)!.map(Number);
+        expect(a).toBeCloseTo(0, 3);
+        expect(b).toBeCloseTo(-1, 3);
+    });
+});

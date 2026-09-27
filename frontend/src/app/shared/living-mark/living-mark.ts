@@ -4,6 +4,13 @@ import {ChangeDetectionStrategy, Component, input} from '@angular/core';
 export type LivingMarkFrame = 'rest' | 'working' | 'speaking' | 'halted';
 
 /**
+ * Whether the mark moves on its own at rest. `still` everywhere by default; `ambient` is for a
+ * host that stands alone on every screen, the header's chat button: the ring draws itself once,
+ * then turns once every idle period (`--lg-mark-idle-period`).
+ */
+export type LivingMarkMotion = 'still' | 'ambient';
+
+/**
  * The lead ring brought to life: the brand mark of `shared/brand-mark` drawn a second time,
  * with four frames a host picks by one input (spec 021, ISC-464).
  *
@@ -19,10 +26,12 @@ export type LivingMarkFrame = 'rest' | 'working' | 'speaking' | 'halted';
     templateUrl: './living-mark.html',
     styleUrl: './living-mark.css',
     changeDetection: ChangeDetectionStrategy.OnPush,
-    host: {'[attr.data-frame]': 'frame()'},
+    host: {'[attr.data-frame]': 'frame()', '[attr.data-motion]': 'motion()'},
 })
 export class LivingMark {
     readonly frame = input<LivingMarkFrame>('rest');
+    /** Only the `rest` frame has an ambient motion; the other three keep their own. */
+    readonly motion = input<LivingMarkMotion>('still');
     /** Edge length in px. The viewBox is square, so one number sizes both axes. */
     readonly size = input(20);
 }

@@ -115,6 +115,10 @@
   --lg-chat-thread-w: 41rem;
   --lg-chat-rail-w: 15rem;
 
+  /* The living mark's turn, which a host raises on its own element (the header's chat button on
+     hover and focus) and the mark rotates by; nothing turns it here. */
+  --lg-living-mark-turn: 0deg;
+
   /* The frosted head and composer shelf: the drawer's own ground, partly see-through, so the
      thread reads as scrolling underneath rather than being cut by a rule. */
   --lg-chat-frost: color-mix(in oklab, var(--color-base-100) 82%, transparent);
