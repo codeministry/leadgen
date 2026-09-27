@@ -85,6 +85,9 @@ public final class ConfigFixtures {
         values.put("LLM_MODEL_SCORING_OPTIONS", "");
         values.put("LLM_MODEL_WRITING", "");
         values.put("LLM_MODEL_EMBEDDING", "");
+        values.put("LLM_MODEL_CHAT", "");
+        values.put("CHAT_MAX_CALLS_PER_DAY", "");
+        values.put("CHAT_MAX_TOOL_ROUNDS", "");
         values.put("PROFILE_PATH", "");
         values.put("RULES_PATH", "");
         values.put("RETRIEVAL_ENABLED", "");

@@ -1,0 +1,60 @@
+<div class="lg-chat-composer">
+  <div class="lg-chat-field">
+    @if (pinned(); as id) {
+      <span class="type-caption lg-chat-pin">
+        <lg-icon name="pin" [size]="14"/>
+        <span class="lg-chat-pin-text">{{ 'chat.pinned' | transloco: { id: id } }}</span>
+        <button
+          type="button"
+          class="btn btn-ghost btn-xs btn-square lg-chat-unpin"
+          [attr.aria-label]="'chat.unpin' | transloco"
+          [attr.title]="'chat.unpin' | transloco"
+          (click)="unpin()"
+        >
+          <lg-icon name="x" [size]="12"/>
+        </button>
+      </span>
+    }
+    <label class="sr-only" for="lg-chat-input">{{ 'chat.inputLabel' | transloco }}</label>
+    <!-- `enterkeyhint` labels the software keyboard's return key "send", which is what it does. -->
+    <textarea
+      #input
+      id="lg-chat-input"
+      class="lg-chat-input"
+      rows="1"
+      enterkeyhint="send"
+      [attr.maxlength]="maxLength"
+      [attr.aria-describedby]="count() === null ? null : 'lg-chat-count'"
+      [placeholder]="'chat.placeholder' | transloco"
+      [value]="draft()"
+      [disabled]="closed()"
+      (input)="onInput($event)"
+      (keydown)="onKey($event)"
+    ></textarea>
+    <div class="lg-chat-field-foot">
+      <span class="type-small text-muted lg-chat-hint">{{ 'chat.hint' | transloco }}</span>
+      <!-- Near the server's limit only; `maxlength` stops the typing, this says why. -->
+      @if (count(); as length) {
+        <span id="lg-chat-count" class="type-caption lg-chat-count" [class.text-muted]="length < maxLength">{{ length }} / {{ maxLength }}</span>
+      }
+      <!-- The drawer's one filled action, and while a turn streams the same button is stop: its
+           name and glyph change, its place does not (ISC-439). -->
+      <button
+        type="button"
+        class="btn btn-primary btn-sm btn-circle lg-chat-send"
+        [disabled]="!streamingHere() && !canSend()"
+        [attr.aria-label]="actionKey() | transloco"
+        [attr.title]="actionKey() | transloco"
+        (click)="act()"
+      >
+        @if (streamingHere()) {
+          <span class="lg-chat-stop-glyph" aria-hidden="true"></span>
+        } @else {
+          <lg-icon name="arrow-up" [size]="16"/>
+        }
+      </button>
+    </div>
+  </div>
+  <p class="type-caption text-muted lg-chat-disclaimer">{{ 'chat.disclaimer' | transloco }}</p>
+  <p class="sr-only" aria-live="polite">{{ announcement() }}</p>
+</div>

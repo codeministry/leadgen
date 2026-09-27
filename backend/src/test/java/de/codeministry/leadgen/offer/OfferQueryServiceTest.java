@@ -13,6 +13,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import de.codeministry.leadgen.Databases;
 import de.codeministry.leadgen.config.ConfigFixtures;
+import de.codeministry.leadgen.llm.LlmBudget;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -57,6 +58,9 @@ class OfferQueryServiceTest {
     private OfferQueryService offers;
 
     @Autowired
+    private LlmBudget llmBudget;
+
+    @Autowired
     private JdbcTemplate jdbc;
 
     private long sourceId;
@@ -69,9 +73,11 @@ class OfferQueryServiceTest {
             passed("Java Entwickler " + i, 90 - i);
         }
 
-        var first = offers.shortlist(ShortlistQuery.first().withLimit(3));
-        var second = offers.shortlist(ShortlistQuery.first().withLimit(3).withCursor(first.nextCursor()));
-        var third = offers.shortlist(ShortlistQuery.first().withLimit(3).withCursor(second.nextCursor()));
+        var first = offers.shortlist(ShortlistQuery.first().withLimit(3), llmBudget::take);
+        var second =
+                offers.shortlist(ShortlistQuery.first().withLimit(3).withCursor(first.nextCursor()), llmBudget::take);
+        var third =
+                offers.shortlist(ShortlistQuery.first().withLimit(3).withCursor(second.nextCursor()), llmBudget::take);
 
         assertThat(first.entries()).hasSize(3);
         assertThat(second.entries()).hasSize(3);
@@ -90,8 +96,9 @@ class OfferQueryServiceTest {
             passed("Gleichstand " + i, 80);
         }
 
-        var first = offers.shortlist(ShortlistQuery.first().withLimit(2));
-        var second = offers.shortlist(ShortlistQuery.first().withLimit(2).withCursor(first.nextCursor()));
+        var first = offers.shortlist(ShortlistQuery.first().withLimit(2), llmBudget::take);
+        var second =
+                offers.shortlist(ShortlistQuery.first().withLimit(2).withCursor(first.nextCursor()), llmBudget::take);
 
         assertThat(ids(first)).doesNotContainAnyElementsOf(ids(second));
         assertThat(second.entries()).hasSize(2);
@@ -108,8 +115,9 @@ class OfferQueryServiceTest {
         }
         jdbc.update("UPDATE offer SET ingested_at = timestamptz '2026-09-02 08:00:00.123456+02'");
 
-        var first = offers.shortlist(ShortlistQuery.first().withLimit(2));
-        var second = offers.shortlist(ShortlistQuery.first().withLimit(2).withCursor(first.nextCursor()));
+        var first = offers.shortlist(ShortlistQuery.first().withLimit(2), llmBudget::take);
+        var second =
+                offers.shortlist(ShortlistQuery.first().withLimit(2).withCursor(first.nextCursor()), llmBudget::take);
 
         assertThat(first.entries()).hasSize(2);
         assertThat(second.entries()).hasSize(2);
@@ -123,7 +131,8 @@ class OfferQueryServiceTest {
         rejected("Java Entwickler in Zürich");
 
         var page = offers.shortlist(
-                new ShortlistQuery("angular", null, null, false, null, null, null, null, false, false, null, 0));
+                new ShortlistQuery("angular", null, null, false, null, null, null, null, false, false, null, 0),
+                llmBudget::take);
 
         assertThat(page.matched()).isEqualTo(1);
         assertThat(page.total()).isEqualTo(2);
@@ -137,7 +146,7 @@ class OfferQueryServiceTest {
         passed("Java Entwickler", null);
         passed("Angular Entwickler", null);
 
-        var page = offers.shortlist(ShortlistQuery.first().withLimit(1));
+        var page = offers.shortlist(ShortlistQuery.first().withLimit(1), llmBudget::take);
 
         assertThat(page.entries()).hasSize(1);
         assertThat(page.unscored()).isEqualTo(2);
@@ -150,7 +159,8 @@ class OfferQueryServiceTest {
         passed("Anderer Entwickler", 60);
 
         var page = offers.shortlist(
-                new ShortlistQuery("kubernetes", null, null, false, null, null, null, null, false, false, null, 0));
+                new ShortlistQuery("kubernetes", null, null, false, null, null, null, null, false, false, null, 0),
+                llmBudget::take);
 
         assertThat(page.entries()).extracting(entry -> entry.offer().id()).containsExactly(tagged);
     }
@@ -163,7 +173,7 @@ class OfferQueryServiceTest {
         segment(segmented, block("CONTENT", "Ablösung eines Kernbankensystems in Kubernetes."));
         passed("Anderer Entwickler", 60);
 
-        var page = offers.shortlist(search("kernbankensystem"));
+        var page = offers.shortlist(search("kernbankensystem"), llmBudget::take);
 
         assertThat(page.entries()).extracting(entry -> entry.offer().id()).containsExactly(segmented);
     }
@@ -179,8 +189,9 @@ class OfferQueryServiceTest {
                 block("CONTENT", "Ablösung eines Monolithen."),
                 block("AGENCY", "Acme Consulting GmbH, Amtsgericht Köln HRB 12345."));
 
-        assertThat(offers.shortlist(search("amtsgericht")).entries()).isEmpty();
-        assertThat(offers.shortlist(search("monolithen")).entries())
+        assertThat(offers.shortlist(search("amtsgericht"), llmBudget::take).entries())
+                .isEmpty();
+        assertThat(offers.shortlist(search("monolithen"), llmBudget::take).entries())
                 .extracting(entry -> entry.offer().id())
                 .containsExactly(segmented);
     }
@@ -192,7 +203,7 @@ class OfferQueryServiceTest {
         long fetched = passed("Entwickler", 70);
         jdbc.update("UPDATE offer SET full_text = ? WHERE id = ?", "Migration nach Kubernetes.", fetched);
 
-        assertThat(offers.shortlist(search("kubernetes")).entries())
+        assertThat(offers.shortlist(search("kubernetes"), llmBudget::take).entries())
                 .extracting(entry -> entry.offer().id())
                 .containsExactly(fetched);
     }
@@ -205,15 +216,15 @@ class OfferQueryServiceTest {
         passed("Mittel", 55);
         passed("Schwach", 10);
 
-        assertThat(offers.shortlist(ShortlistQuery.first().withScore(band("shortlist")))
+        assertThat(offers.shortlist(ShortlistQuery.first().withScore(band("shortlist")), llmBudget::take)
                         .entries())
                 .extracting(entry -> entry.offer().title())
                 .containsExactly("Stark");
-        assertThat(offers.shortlist(ShortlistQuery.first().withScore(band("review")))
+        assertThat(offers.shortlist(ShortlistQuery.first().withScore(band("review")), llmBudget::take)
                         .entries())
                 .extracting(entry -> entry.offer().title())
                 .containsExactly("Mittel");
-        assertThat(offers.shortlist(ShortlistQuery.first().withScore(band("discarded")))
+        assertThat(offers.shortlist(ShortlistQuery.first().withScore(band("discarded")), llmBudget::take)
                         .entries())
                 .extracting(entry -> entry.offer().title())
                 .containsExactly("Schwach");
@@ -226,10 +237,10 @@ class OfferQueryServiceTest {
         long primary = passed("Senior Java Entwickler", 88);
         duplicateOf(primary, "portal-c", "Zweite Agentur");
 
-        var page = offers.shortlist(ShortlistQuery.first().withLimit(1));
+        var page = offers.shortlist(ShortlistQuery.first().withLimit(1), llmBudget::take);
 
         assertThat(page.portals()).contains("portal-c");
-        assertThat(offers.shortlist(ShortlistQuery.first().withPortals(List.of("portal-c")))
+        assertThat(offers.shortlist(ShortlistQuery.first().withPortals(List.of("portal-c")), llmBudget::take)
                         .entries())
                 .extracting(entry -> entry.offer().id())
                 .containsExactly(primary);
@@ -243,7 +254,7 @@ class OfferQueryServiceTest {
      * The unfiltered first page, which is what every case here was written against.
      */
     private List<ShortlistEntry> shortlist() {
-        return offers.shortlist(ShortlistQuery.first()).entries();
+        return offers.shortlist(ShortlistQuery.first(), llmBudget::take).entries();
     }
 
     @BeforeEach
@@ -355,9 +366,10 @@ class OfferQueryServiceTest {
         long archived = passed("Archiviert", 90);
         jdbc.update("UPDATE offer SET archived_at = now(), archive_source = 'AGE' WHERE id = ?", archived);
 
-        var list = offers.shortlist(ShortlistQuery.first());
+        var list = offers.shortlist(ShortlistQuery.first(), llmBudget::take);
         var archive = offers.shortlist(
-                new ShortlistQuery(null, null, null, true, null, null, null, null, false, false, null, 0));
+                new ShortlistQuery(null, null, null, true, null, null, null, null, false, false, null, 0),
+                llmBudget::take);
 
         assertThat(ids(list)).containsExactly(working);
         assertThat(list.matched()).isEqualTo(1);
@@ -381,9 +393,12 @@ class OfferQueryServiceTest {
             RETURNING id
             """, Long.class, sourceId);
 
-        assertThat(offers.shortlist(ShortlistQuery.first()).portals()).containsExactly("portal-a");
-        assertThat(offers.shortlist(new ShortlistQuery(
-                                null, null, null, true, null, null, null, null, false, false, null, 0))
+        assertThat(offers.shortlist(ShortlistQuery.first(), llmBudget::take).portals())
+                .containsExactly("portal-a");
+        assertThat(offers.shortlist(
+                                new ShortlistQuery(
+                                        null, null, null, true, null, null, null, null, false, false, null, 0),
+                                llmBudget::take)
                         .portals())
                 .containsExactly("portal-c");
         assertThat(archived).isPositive();
@@ -406,7 +421,8 @@ class OfferQueryServiceTest {
         assertThat(funnel.total()).isEqualTo(1);
         // The invariant worth checking whenever either number looks wrong.
         assertThat(funnel.survived())
-                .isEqualTo(offers.shortlist(ShortlistQuery.first()).total());
+                .isEqualTo(offers.shortlist(ShortlistQuery.first(), llmBudget::take)
+                        .total());
     }
 
     @Test
@@ -439,8 +455,9 @@ class OfferQueryServiceTest {
         starts(soon, LocalDate.now().plusDays(3));
         starts(later, LocalDate.now().plusDays(300));
 
-        assertThat(ids(offers.shortlist(ShortlistQuery.first()))).containsExactly(later, soon);
-        assertThat(ids(offers.shortlist(ShortlistQuery.first().withSort(ShortlistSort.START))))
+        assertThat(ids(offers.shortlist(ShortlistQuery.first(), llmBudget::take)))
+                .containsExactly(later, soon);
+        assertThat(ids(offers.shortlist(ShortlistQuery.first().withSort(ShortlistSort.START), llmBudget::take)))
                 .containsExactly(soon, later);
     }
 
@@ -458,8 +475,8 @@ class OfferQueryServiceTest {
         }
 
         var query = ShortlistQuery.first().withSort(ShortlistSort.START).withLimit(2);
-        var first = offers.shortlist(query);
-        var second = offers.shortlist(query.withCursor(first.nextCursor()));
+        var first = offers.shortlist(query, llmBudget::take);
+        var second = offers.shortlist(query.withCursor(first.nextCursor()), llmBudget::take);
 
         assertThat(first.entries()).hasSize(2);
         assertThat(second.entries()).hasSize(2);
@@ -600,12 +617,15 @@ class OfferQueryServiceTest {
         for (int i = 0; i < 4; i++) {
             passed("Java Entwickler " + i, 90 - i);
         }
-        String cursor = offers.shortlist(ShortlistQuery.first().withLimit(2)).nextCursor();
+        String cursor = offers.shortlist(ShortlistQuery.first().withLimit(2), llmBudget::take)
+                .nextCursor();
 
-        assertThatThrownBy(() -> offers.shortlist(ShortlistQuery.first()
-                        .withSort(ShortlistSort.START)
-                        .withLimit(2)
-                        .withCursor(cursor)))
+        assertThatThrownBy(() -> offers.shortlist(
+                        ShortlistQuery.first()
+                                .withSort(ShortlistSort.START)
+                                .withLimit(2)
+                                .withCursor(cursor),
+                        llmBudget::take))
                 .isInstanceOf(BadShortlistRequest.class)
                 .hasMessageContaining("sort=score")
                 .hasMessageContaining("sort=start");
@@ -615,9 +635,10 @@ class OfferQueryServiceTest {
     void treatsACursorFromTheOldThreePartFormAsABadRequest() {
         // A link somebody shared yesterday carries one. It used to be an
         // ArrayIndexOutOfBoundsException, which is a 500.
-        assertThatThrownBy(() -> offers.shortlist(ShortlistQuery.first().withCursor("88|1756800000123456|4211")))
+        assertThatThrownBy(() -> offers.shortlist(
+                        ShortlistQuery.first().withCursor("88|1756800000123456|4211"), llmBudget::take))
                 .isInstanceOf(BadShortlistRequest.class);
-        assertThatThrownBy(() -> offers.shortlist(ShortlistQuery.first().withCursor("score|x|y|z")))
+        assertThatThrownBy(() -> offers.shortlist(ShortlistQuery.first().withCursor("score|x|y|z"), llmBudget::take))
                 .isInstanceOf(BadShortlistRequest.class);
     }
 
@@ -631,23 +652,29 @@ class OfferQueryServiceTest {
         starts(passed("Irgendwann", 50), LocalDate.now().plusDays(90));
         passed("Kein Datum", 50);
 
-        int whole = offers.shortlist(ShortlistQuery.first()).matched();
+        int whole = offers.shortlist(ShortlistQuery.first(), llmBudget::take).matched();
         int sum = 0;
         for (StartWindow window : List.of(StartWindow.NOW, StartWindow.SOON, StartWindow.LATER, StartWindow.UNKNOWN)) {
-            sum += offers.shortlist(inWindow(window)).matched();
+            sum += offers.shortlist(inWindow(window), llmBudget::take).matched();
         }
 
         assertThat(sum).isEqualTo(whole);
-        assertThat(offers.shortlist(inWindow(StartWindow.UNKNOWN)).matched()).isEqualTo(1);
-        assertThat(offers.shortlist(inWindow(StartWindow.NOW)).matched()).isEqualTo(1);
+        assertThat(offers.shortlist(inWindow(StartWindow.UNKNOWN), llmBudget::take)
+                        .matched())
+                .isEqualTo(1);
+        assertThat(offers.shortlist(inWindow(StartWindow.NOW), llmBudget::take).matched())
+                .isEqualTo(1);
     }
 
     @Test
     void keepsTheBoundaryDayInsideTheNearWindow() {
         starts(passed("Genau dreißig Tage", 50), LocalDate.now().plusDays(30));
 
-        assertThat(offers.shortlist(inWindow(StartWindow.SOON)).matched()).isEqualTo(1);
-        assertThat(offers.shortlist(inWindow(StartWindow.LATER)).matched()).isZero();
+        assertThat(offers.shortlist(inWindow(StartWindow.SOON), llmBudget::take).matched())
+                .isEqualTo(1);
+        assertThat(offers.shortlist(inWindow(StartWindow.LATER), llmBudget::take)
+                        .matched())
+                .isZero();
     }
 
     @Test
@@ -660,7 +687,8 @@ class OfferQueryServiceTest {
         passed("Keine Dauer genannt", 50);
 
         var page = offers.shortlist(
-                new ShortlistQuery(null, null, null, false, null, null, null, 6, false, false, null, 0));
+                new ShortlistQuery(null, null, null, false, null, null, null, 6, false, false, null, 0),
+                llmBudget::take);
 
         assertThat(page.matched()).isEqualTo(1);
         assertThat(page.entries().getFirst().offer().durationMonths()).isEqualTo(12);
@@ -675,7 +703,8 @@ class OfferQueryServiceTest {
         long unstated = passed("Keine Frist genannt", 50);
 
         var page = offers.shortlist(
-                new ShortlistQuery(null, null, null, false, null, null, null, null, true, false, null, 0));
+                new ShortlistQuery(null, null, null, false, null, null, null, null, true, false, null, 0),
+                llmBudget::take);
 
         assertThat(page.matched()).isEqualTo(2);
         assertThat(ids(page)).contains(unstated);
@@ -693,7 +722,8 @@ class OfferQueryServiceTest {
         passed("Auch nur auf A", 60);
         jdbc.update("UPDATE offer SET portal = 'portal-b' WHERE id = ?", onA);
 
-        var page = offers.shortlist(ShortlistQuery.first().withPortals(List.of("portal-b", "portal-c")));
+        var page =
+                offers.shortlist(ShortlistQuery.first().withPortals(List.of("portal-b", "portal-c")), llmBudget::take);
 
         assertThat(ids(page)).containsExactlyInAnyOrder(onA, viaC);
         assertThat(page.matched()).isEqualTo(2);
@@ -705,7 +735,7 @@ class OfferQueryServiceTest {
         duplicateOf(primary, "portal-c", "Zweite Agentur");
         passed("Woanders", 70);
 
-        assertThat(ids(offers.shortlist(ShortlistQuery.first().withPortals(List.of("portal-c")))))
+        assertThat(ids(offers.shortlist(ShortlistQuery.first().withPortals(List.of("portal-c")), llmBudget::take)))
                 .containsExactly(primary);
     }
 
@@ -718,7 +748,8 @@ class OfferQueryServiceTest {
         passed("Mittel", 55);
         long unjudged = bare("Nie bewertet");
 
-        var page = offers.shortlist(ShortlistQuery.first().withScore(new ScoreFilter(null, 60, null, null)));
+        var page = offers.shortlist(
+                ShortlistQuery.first().withScore(new ScoreFilter(null, 60, null, null)), llmBudget::take);
 
         assertThat(ids(page)).containsExactly(strong).doesNotContain(unjudged);
         assertThat(page.matched()).isEqualTo(1);
@@ -731,7 +762,8 @@ class OfferQueryServiceTest {
         passed("Darüber", 81);
         passed("Darunter", 39);
 
-        assertThat(ids(offers.shortlist(ShortlistQuery.first().withScore(new ScoreFilter(null, 40, 80, null)))))
+        assertThat(ids(offers.shortlist(
+                        ShortlistQuery.first().withScore(new ScoreFilter(null, 40, 80, null)), llmBudget::take)))
                 .containsExactlyInAnyOrder(low, high);
     }
 
@@ -745,15 +777,17 @@ class OfferQueryServiceTest {
         long first = bare("Nie bewertet");
         long second = bare("Auch nie bewertet");
 
-        int unscored = offers.shortlist(ShortlistQuery.first()).unscored();
+        int unscored = offers.shortlist(ShortlistQuery.first(), llmBudget::take).unscored();
         var page = offers.shortlist(
-                ShortlistQuery.first().withScore(new ScoreFilter(null, null, null, ScoreState.UNSCORED)));
+                ShortlistQuery.first().withScore(new ScoreFilter(null, null, null, ScoreState.UNSCORED)),
+                llmBudget::take);
 
         assertThat(unscored).isEqualTo(2);
         assertThat(ids(page)).containsExactlyInAnyOrder(first, second);
         assertThat(page.matched()).isEqualTo(unscored);
         assertThat(ids(offers.shortlist(
-                        ShortlistQuery.first().withScore(new ScoreFilter(null, null, null, ScoreState.SCORED)))))
+                        ShortlistQuery.first().withScore(new ScoreFilter(null, null, null, ScoreState.SCORED)),
+                        llmBudget::take)))
                 .doesNotContain(first, second);
     }
 
@@ -768,14 +802,14 @@ class OfferQueryServiceTest {
         }
 
         var query = ShortlistQuery.first().withLimit(2);
-        var first = offers.shortlist(query);
-        var second = offers.shortlist(query.withCursor(first.nextCursor()));
+        var first = offers.shortlist(query, llmBudget::take);
+        var second = offers.shortlist(query.withCursor(first.nextCursor()), llmBudget::take);
 
         assertThat(second.matched()).isEqualTo(first.matched()).isEqualTo(5);
         assertThat(second.total()).isEqualTo(first.total());
 
         // And a filter moves the match without moving what it was narrowed from.
-        var narrowed = offers.shortlist(inWindow(StartWindow.LATER));
+        var narrowed = offers.shortlist(inWindow(StartWindow.LATER), llmBudget::take);
         assertThat(narrowed.matched()).isZero();
         assertThat(narrowed.total()).isEqualTo(first.total());
         assertThat(narrowed.portals()).isEqualTo(first.portals());
@@ -802,8 +836,8 @@ class OfferQueryServiceTest {
         var query = ShortlistQuery.first().withLimit(2).withTopic("Wanted topic");
 
         assertThat(walk(query)).containsExactlyInAnyOrder(shortlisted, review, discarded, unscored);
-        assertThat(offers.shortlist(query).matched()).isEqualTo(4);
-        assertThat(ids(offers.shortlist(ShortlistQuery.first().withTopic("Nobody's topic"))))
+        assertThat(offers.shortlist(query, llmBudget::take).matched()).isEqualTo(4);
+        assertThat(ids(offers.shortlist(ShortlistQuery.first().withTopic("Nobody's topic"), llmBudget::take)))
                 .isEmpty();
     }
 
@@ -842,7 +876,7 @@ class OfferQueryServiceTest {
         var all = new ArrayList<Long>();
         String cursor = null;
         for (int guard = 0; guard < 20; guard++) {
-            var page = offers.shortlist(query.withCursor(cursor));
+            var page = offers.shortlist(query.withCursor(cursor), llmBudget::take);
             all.addAll(ids(page));
             cursor = page.nextCursor();
             if (cursor == null) {
@@ -876,7 +910,7 @@ class OfferQueryServiceTest {
         long suspected = passed("Java Entwickler Senior", 84);
         jdbc.update("UPDATE offer SET possible_duplicate_of_id = ? WHERE id = ?", older, suspected);
 
-        var all = offers.shortlist(ShortlistQuery.first());
+        var all = offers.shortlist(ShortlistQuery.first(), llmBudget::take);
         assertThat(all.entries()).hasSize(2);
         assertThat(all.entries().stream()
                         .filter(entry -> entry.flags().possibleDuplicate())
@@ -884,7 +918,8 @@ class OfferQueryServiceTest {
                 .containsExactly(suspected);
 
         var only = offers.shortlist(
-                new ShortlistQuery(null, null, null, false, null, null, null, null, false, true, null, 0));
+                new ShortlistQuery(null, null, null, false, null, null, null, null, false, true, null, 0),
+                llmBudget::take);
         assertThat(only.entries()).hasSize(1);
         assertThat(only.entries().getFirst().offer().id()).isEqualTo(suspected);
         // Still a working-list offer: the filter narrows what is shown and changes nothing

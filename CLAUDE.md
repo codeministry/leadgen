@@ -116,6 +116,7 @@ there**, which is what keeps this file readable.
 | Vectors, the search that narrows, the pgvector image and its data mount     | `docs/decisions/retrieval.md`               |
 | The sixteen steps this tool was built in, and what each had to prove        | `docs/decisions/order-of-work.md`           |
 | The AOT cache, the native image, the hints, and pre-1.0 versioning          | `docs/decisions/native-image.md`            |
+| The chat: grounding, tools, budget, the drawer                              | `docs/decisions/chat.md`                    |
 
 The conventions and the traps for each half sit beside the code, in `backend/CLAUDE.md` and
 `frontend/CLAUDE.md`. A nested file is loaded when a file in that tree is read, never at
@@ -148,7 +149,7 @@ docs/samples/simulate_filter.py   simulation of the hard filters
 docs/decisions/*.md               the reasoning per stage, moved out of this file
 docs/ADDING-A-SOURCE.md           the worked example, then every sources.yaml key
 docs/WRITING-RULES.md             every matching-rules.yaml key and what reads it
-docs/DATA-MODEL.md                the 14 tables, their keys, who writes each column
+docs/DATA-MODEL.md                the 18 tables, their keys, who writes each column
 docs/BACKEND-FLOWS.md             the run as a sequence, the async tails, the write paths
 backend/CLAUDE.md                 backend conventions and the traps of that tree
 frontend/CLAUDE.md                frontend conventions and the traps of that tree
@@ -159,6 +160,8 @@ backend/…/fields/                 start, duration and deadline, read out of th
                                   decisions/pipeline-enrich-content.md
 backend/…/llm/                    ChatModels and Answers, shared by the judge and the
                                   classifier
+backend/…/chat/                   the chat: the turn, its ledger and citation filter, the
+                                  masker, its own budget, five read-only tools — decisions/chat.md
 frontend/src/styles.css           both DaisyUI themes, the fonts, the @theme block —
                                   the only file allowed to hold a colour literal
 frontend/src/styles/tokens.css    semantic aliases, layout constants, the type scale
@@ -169,7 +172,7 @@ frontend/src/app/shared/          icon, brand mark, score, funnel rail, badge, s
                                   empty state, page header, the day pipe
 frontend/src/app/features/        dashboard, shortlist (+ offer card, sort menu, facet
                                   panel, saved views), offer detail, pipeline, review,
-                                  sources, rules. Shortlist, pipeline and review are split
+                                  sources, rules, chat. Shortlist, pipeline and review are split
                                   views — decisions/frontend-split-views.md
 frontend/src/app/core/filter-views/  saved views: a name and a query string, in this
                                   browser's localStorage — decisions/frontend-split-views.md

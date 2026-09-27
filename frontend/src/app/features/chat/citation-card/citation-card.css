@@ -1,0 +1,41 @@
+/* In the top layer, where the UA's `inset: 0; margin: auto` would centre it on the window. */
+.lg-chat-cite-card {
+  position: fixed;
+  inset: auto;
+  top: var(--lg-anchor-y, 0);
+  left: min(var(--lg-anchor-x, 0), calc(100vw - 20rem - 0.5rem));
+  width: max-content;
+  max-width: min(20rem, calc(100vw - 1rem));
+  margin: 0;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid var(--color-base-300);
+  border-radius: var(--radius-box);
+  background-color: var(--color-base-100);
+  color: var(--color-base-content);
+  box-shadow: 0 8px 24px var(--lg-float-shadow);
+}
+
+/* `display` here and nowhere else, or the UA rule that hides a closed popover loses. */
+.lg-chat-cite-card:popover-open {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.lg-chat-cite-card-title {
+  display: flex;
+  gap: 0.375rem;
+  align-items: center;
+  margin: 0;
+  font-weight: 600;
+}
+
+.lg-chat-cite-card-warn {
+  color: var(--lg-warning-text);
+}
+
+.lg-chat-cite-card-meta,
+.lg-chat-cite-card-reason {
+  margin: 0;
+  color: var(--lg-muted);
+}

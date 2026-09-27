@@ -1,0 +1,279 @@
+/* Every class is prefixed `lg-chat-`: daisyUI owns `chat`, `chat-bubble`, `drawer` and `modal`,
+   the `.status` / `.label` trap again.
+
+   The host adds no box, so the drawer's docked frame is the shell's flex item. */
+:host {
+  display: contents;
+}
+
+.lg-chat-panel {
+  display: grid;
+  grid-template-rows: var(--lg-header-h) minmax(0, 1fr);
+  height: 100%;
+  min-height: 0;
+}
+
+/* Frosted, over a thread that scrolls beneath it. The drawer belongs to no section, so there is
+   no section edge anywhere in it. */
+.lg-chat-head {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  gap: 0.25rem;
+  align-items: center;
+  padding-inline: var(--lg-gutter);
+  border-bottom: 1px solid var(--color-base-300);
+  background-color: var(--lg-chat-frost);
+  backdrop-filter: blur(12px);
+}
+
+.lg-chat-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0 0 0 0.25rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lg-chat-title:focus {
+  outline: none;
+}
+
+/* The label of "New chat" is visible where there is room for it; the name stays either way. */
+@media (width < 80rem) {
+  .lg-chat-new {
+    width: 2rem;
+    padding: 0;
+  }
+
+  .lg-chat-new-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
+/* A finger's target where the pointer is one, keyed on the pointer and never on the width. */
+@media (pointer: coarse) {
+  .lg-chat-head .btn {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+  }
+}
+
+.lg-chat-main {
+  display: flex;
+  min-height: 0;
+}
+
+/* The one surface step inside the drawer. */
+.lg-chat-rail {
+  flex: none;
+  width: 15rem;
+  padding-block: 0.5rem;
+  overflow-y: auto;
+  border-inline-end: 1px solid var(--color-base-300);
+  background-color: var(--color-base-200);
+}
+
+.lg-chat-list {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-y: auto;
+}
+
+.lg-chat-list-top {
+  padding: 0.75rem var(--lg-gutter);
+}
+
+.lg-chat-list-new {
+  width: 100%;
+}
+
+.lg-chat-rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lg-chat-rows-empty {
+  margin: 0;
+  padding: 0.5rem var(--lg-gutter);
+}
+
+.lg-chat-row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.5rem var(--lg-gutter);
+  border: 0;
+  background: none;
+  color: inherit;
+  text-align: start;
+  cursor: pointer;
+  transition: background-color var(--lg-hover-duration) var(--lg-hover-ease);
+}
+
+.lg-chat-row:hover {
+  background-color: var(--color-base-300);
+}
+
+/* The open conversation: the app's "you are here" — a ground and a primary edge, never the signal. */
+.lg-chat-row[aria-current='true'] {
+  background-color: var(--lg-selected-surface);
+  box-shadow: inset 2px 0 0 var(--color-primary);
+}
+
+.lg-chat-row:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
+.lg-chat-row-title {
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lg-chat-column {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.lg-chat-thread {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 1.5rem;
+  min-height: 0;
+  padding: 1.25rem var(--lg-gutter);
+  overflow-y: auto;
+}
+
+.lg-chat-turn {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.lg-chat-question {
+  align-self: flex-end;
+  max-width: 85%;
+  margin: 0;
+  padding: 0.625rem 0.875rem;
+  border-radius: var(--radius-box) var(--radius-box) 0.25rem;
+  background-color: var(--color-base-200);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* No bubble: the answer is prose on the drawer's own ground, led by the assistant's mark. */
+.lg-chat-answer {
+  display: flex;
+  gap: 0.625rem;
+  align-items: flex-start;
+}
+
+/* "A model speaks here": the AI colour's recorded third use (the assistant glyph). */
+.lg-chat-glyph {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 999px;
+  background-color: var(--lg-ai-surface);
+  color: var(--lg-ai);
+}
+
+.lg-chat-answer-raw {
+  min-width: 0;
+  margin: 0.125rem 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.lg-chat-intro {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  align-items: center;
+  margin-block: auto;
+  text-align: center;
+}
+
+.lg-chat-intro-title,
+.lg-chat-intro-body {
+  margin: 0;
+}
+
+.lg-chat-intro-body {
+  max-width: 28rem;
+}
+
+/* Neutral, not the AI violet: the four AI marks are the glyph, the running step, the caret and
+   the header's busy dot, and this plate is none of them. */
+.lg-chat-plate {
+  display: grid;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 999px;
+  background-color: var(--lg-selected-surface);
+  color: var(--color-primary);
+}
+
+.lg-chat-suggestions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(14rem, 100%), 1fr));
+  gap: 0.5rem;
+  width: 100%;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Not in the tier system on purpose: neither the drawer's one primary nor a grey plain button. */
+.lg-chat-suggestion {
+  display: flex;
+  gap: 0.625rem;
+  align-items: flex-start;
+  width: 100%;
+  height: 100%;
+  min-height: 3.25rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--color-base-300);
+  border-radius: var(--radius-box);
+  background-color: var(--color-base-100);
+  color: inherit;
+  font-weight: 500;
+  text-align: start;
+  cursor: pointer;
+  transition: background-color var(--lg-hover-duration) var(--lg-hover-ease);
+}
+
+.lg-chat-suggestion:hover {
+  background-color: var(--color-base-200);
+}
+
+.lg-chat-suggestion:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lg-chat-row,
+  .lg-chat-suggestion {
+    transition: none;
+  }
+}

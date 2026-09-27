@@ -1,0 +1,88 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+:host:empty {
+  display: none;
+}
+
+.lg-chat-steps-summary {
+  display: inline-flex;
+  gap: 0.375rem;
+  align-items: center;
+  padding-block: 0.125rem;
+  color: var(--lg-muted);
+  cursor: pointer;
+  list-style: none;
+}
+
+.lg-chat-steps-summary::-webkit-details-marker {
+  display: none;
+}
+
+.lg-chat-steps-summary:focus-visible {
+  border-radius: var(--radius-field);
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.lg-chat-steps-list {
+  margin: 0.25rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lg-chat-step {
+  position: relative;
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  min-width: 0;
+  margin: 0;
+  padding: 0.25rem 0.5rem;
+  color: var(--lg-muted);
+}
+
+.lg-chat-step-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lg-chat-step-meta {
+  flex: none;
+}
+
+/* The running call: one of the four AI marks — the band, and a ring turning on it. */
+.lg-chat-step-running {
+  border-radius: var(--radius-field);
+  background-color: var(--lg-ai-surface);
+  color: var(--color-base-content);
+}
+
+.lg-chat-step-ring {
+  flex: none;
+  width: 0.875rem;
+  height: 0.875rem;
+  border: 2px solid var(--lg-ai);
+  border-inline-end-color: transparent;
+  border-radius: var(--radius-full, 9999px);
+  animation: lg-chat-spin var(--lg-chat-spin-duration) linear infinite;
+}
+
+@keyframes lg-chat-spin {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lg-chat-step-ring {
+    border-inline-end-color: var(--lg-ai);
+    animation: none;
+  }
+}

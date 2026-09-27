@@ -4,7 +4,6 @@ import {
     ChangeDetectionStrategy,
     Component,
     computed,
-    DestroyRef,
     ElementRef,
     inject,
     Injector,
@@ -31,6 +30,7 @@ import {ThemeStore} from '@core/theme/theme.store';
 import {Icon} from '@shared/icon/icon';
 import {LgIconName} from '@shared/icon/lucide-icons';
 import {Markdown} from '@shared/markdown/markdown';
+import {SideDrawer} from '@shared/side-drawer/side-drawer';
 import {HelpDiagramView} from './help-diagram';
 
 /** A chapter cut at its figure placeholders: runs of text, and the figures between them. */
@@ -55,6 +55,7 @@ export const CHAPTER_ICONS: Record<HelpChapter, LgIconName> = {
     'offer-detail': 'file-text',
     application: 'send',
     'filters-views': 'list-filter',
+    chat: 'sparkles',
     'app-basics': 'keyboard',
 };
 
@@ -117,7 +118,7 @@ export function splitChapter(
  */
 @Component({
     selector: 'lg-help-drawer',
-    imports: [HelpDiagramView, Icon, Markdown, TranslocoPipe],
+    imports: [HelpDiagramView, Icon, Markdown, SideDrawer, TranslocoPipe],
     templateUrl: './help-drawer.html',
     styleUrl: './help-drawer.css',
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -125,8 +126,6 @@ export function splitChapter(
 export class HelpDrawer {
     private readonly router = inject(Router);
     private readonly transloco = inject(TranslocoService);
-    private readonly destroyRef = inject(DestroyRef);
-
     private readonly injector = inject(Injector);
 
     protected readonly chapters = HELP_CHAPTERS;
@@ -140,9 +139,9 @@ export class HelpDrawer {
 
     private readonly lang = toSignal(this.transloco.langChanges$, {initialValue: this.transloco.getActiveLang()});
 
-    private readonly dialog = viewChild.required<ElementRef<HTMLDialogElement>>('dialog');
+    private readonly drawer = viewChild.required(SideDrawer);
     private readonly closeButton = viewChild.required<ElementRef<HTMLButtonElement>>('closeButton');
-    private trigger: HTMLElement | null = null;
+    private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
 
     /** Nothing is fetched while the drawer is shut, or while it shows the contents. */
     protected readonly text = httpResource.text(() =>
@@ -170,54 +169,31 @@ export class HelpDrawer {
         return (HELP_SHOTS as Record<HelpShot, HelpShotSize>)[id];
     }
 
-    /** Opens at the current screen's chapter; `trigger` gets focus back when it closes. */
+    /**
+     * Opens at the current screen's chapter; `trigger` gets focus back when it closes. The frame —
+     * the modal dialog, Escape, the backdrop, focus back — is `shared/side-drawer`'s.
+     */
     open(trigger: HTMLElement): void {
-        this.trigger = trigger;
         const leaf = this.leaf();
         const chapter = chapterForRoute(leaf.data['section'], leaf.paramMap.has('id'));
         this.chapter.set(chapter);
         this.here.set(chapter);
         this.view.set('chapter');
         this.isOpen.set(true);
-        this.dialog().nativeElement.showModal?.();
+        this.drawer().open(trigger);
         // The browser would focus the first focusable itself; said here so it is also true in
         // an environment that only knows the attribute.
         this.closeButton().nativeElement.focus();
     }
 
+    /** Escape, the backdrop and the close button all end here. */
     protected close(): void {
-        this.dialog().nativeElement.close?.();
+        this.drawer().close();
     }
 
-    /** Escape arrives as `cancel` and then `close`; one path, the same in a browser and in jsdom. */
-    protected onCancel(event: Event): void {
-        event.preventDefault();
-        this.close();
-    }
-
-    /**
-     * The backdrop closes the drawer. The panel fills the dialog, so the only click that lands on
-     * the dialog element itself is the backdrop's.
-     *
-     * <p>Listened for here rather than bound in the template: the template linter reads a
-     * `(click)` on a `<dialog>` as a control without a key handler, and the keyboard's way to the
-     * same place is Escape, which the dialog already turns into `cancel`.
-     */
-    constructor() {
-        afterNextRender(() => {
-            const dialog = this.dialog().nativeElement;
-            const onClick = (event: MouseEvent) => {
-                if (event.target === dialog) this.close();
-            };
-            dialog.addEventListener('click', onClick);
-            this.destroyRef.onDestroy(() => dialog.removeEventListener('click', onClick));
-        });
-    }
-
+    /** The primitive has handed focus back; the chapter stops loading. */
     protected onClose(): void {
         this.isOpen.set(false);
-        this.trigger?.focus();
-        this.trigger = null;
     }
 
     /** A row of the contents: that chapter, with focus on its heading so a reader starts there. */
@@ -234,7 +210,7 @@ export class HelpDrawer {
     }
 
     private focusAfterRender(selector: string): void {
-        afterNextRender(() => this.dialog().nativeElement.querySelector<HTMLElement>(selector)?.focus(), {
+        afterNextRender(() => this.host.nativeElement.querySelector<HTMLElement>(selector)?.focus(), {
             injector: this.injector,
         });
     }

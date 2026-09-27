@@ -1,6 +1,7 @@
 import {ChangeDetectionStrategy, Component, inject} from '@angular/core';
 import {RefreshStore} from '@core/refresh/refresh.store';
 import {IngestStore} from '@core/store/ingest.store';
+import {ChatPanel} from '@features/chat/chat-panel/chat-panel';
 import {AppShell} from '@layout/app-shell/app-shell';
 
 /**
@@ -10,7 +11,7 @@ import {AppShell} from '@layout/app-shell/app-shell';
  */
 @Component({
     selector: 'lg-root',
-    imports: [AppShell],
+    imports: [AppShell, ChatPanel],
     templateUrl: './app.html',
     changeDetection: ChangeDetectionStrategy.OnPush,
 })

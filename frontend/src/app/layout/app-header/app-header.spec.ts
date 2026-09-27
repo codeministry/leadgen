@@ -1,7 +1,9 @@
 import {provideHttpClient} from '@angular/common/http';
 import {HttpTestingController, provideHttpClientTesting} from '@angular/common/http/testing';
 import {ComponentFixture, TestBed} from '@angular/core/testing';
-import {provideRouter} from '@angular/router';
+import {Component} from '@angular/core';
+import {provideRouter, Router} from '@angular/router';
+import {routes} from '../../app.routes';
 import en from '../../../../public/i18n/en.json';
 import {AppHeader} from './app-header';
 
@@ -21,6 +23,12 @@ function polyfillDialog(): void {
         };
     }
 }
+
+@Component({template: ''})
+class Blank {}
+
+/** The app's own top-level paths, read off its route table rather than restated. */
+const PATHS = routes.map((r) => r.path ?? '').filter((p) => p !== '' && p !== '**');
 
 describe('AppHeader', () => {
     let fixture: ComponentFixture<AppHeader>;
@@ -75,6 +83,40 @@ describe('AppHeader', () => {
 
             expect(drawer().hasAttribute('open')).toBe(false);
             expect(document.activeElement).toBe(helpButton());
+        });
+    });
+
+    describe('the chat entry (ISC-422, ISC-432)', () => {
+        const chatRequests = () => http.match((r) => r.url.startsWith('/api/v1/chat') && r.url !== '/api/v1/chat/capability');
+        const answerCapability = (present: boolean) => {
+            http.expectOne('/api/v1/chat/capability').flush({present});
+            fixture.detectChanges();
+        };
+
+        it('asks for the capability once, and with a chat model draws a named button', () => {
+            answerCapability(true);
+            const button = el('.lg-chat-open');
+            expect(button).not.toBeNull();
+            expect(button.getAttribute('aria-label')).toBe(en.chat.open);
+            // First in the operations cluster, so arriving late moves nothing to its right.
+            expect(el('.ops').firstElementChild).toBe(button);
+        });
+
+        it('without a chat model draws no button, and no chat request leaves on any route', async () => {
+            answerCapability(false);
+            expect(el('.lg-chat-open')).toBeNull();
+
+            // Every top-level path the app routes, visited in turn with the header on screen.
+            const router = TestBed.inject(Router);
+            router.resetConfig(PATHS.map((path) => ({path, component: Blank})));
+            for (const path of PATHS) {
+                await router.navigateByUrl(`/${path}`);
+                fixture.detectChanges();
+            }
+            expect(el('.lg-chat-open')).toBeNull();
+            // Counted at the HTTP seam: every request to `/api/v1/chat` but the capability
+            // call itself, which `answerCapability` already took out of the queue.
+            expect(chatRequests().length).toBe(0);
         });
     });
 });

@@ -56,7 +56,7 @@
     background-color: var(--color-base-200);
 }
 
-/* Settings and help, held together and pushed right. Run ingest and the model choice
+/* The chat, settings and help, held together and pushed right. Run ingest and the model choice
    are not here any more — they moved to the workflow screen (operator, 2026-09-27).
    The auto margin sits on the group rather than on its first member, which is what makes
    the narrow widths need no fallback: a member dropping out changes nothing. */
@@ -70,6 +70,72 @@
 
 .api-state {
     white-space: nowrap;
+}
+
+/* The chat's entry. A little extra room after it, so the soft button and the ghost squares beside
+   it do not read as one group. */
+.lg-chat-open {
+  position: relative;
+  flex: none;
+  margin-inline-end: 0.25rem;
+  white-space: nowrap;
+}
+
+/* A turn still being written with the drawer shut: the AI colour's recorded use for the busy dot,
+   never the run colour, which means an ingest pass. */
+.lg-chat-busy {
+  position: absolute;
+  top: -0.125rem;
+  right: -0.125rem;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  background-color: var(--lg-ai);
+  animation: lg-chat-busy var(--lg-pulse-duration) ease-in-out infinite alternate;
+}
+
+@keyframes lg-chat-busy {
+  to {
+    opacity: 0.35;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lg-chat-busy {
+    animation: none;
+  }
+}
+
+/* Below 48rem the same button is an icon-only ghost square, its name unchanged, and its hit
+   area grows to 44px without growing the header. */
+@media (width < 48rem) {
+  .lg-chat-open {
+    width: 2rem;
+    padding: 0;
+    border-color: transparent;
+    background-color: transparent;
+    box-shadow: none;
+    color: var(--color-base-content);
+  }
+
+  .lg-chat-open:hover {
+    background-color: var(--color-base-200);
+  }
+
+  .lg-chat-open::after {
+    position: absolute;
+    inset: -0.375rem;
+    content: '';
+  }
+
+  .lg-chat-open-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
 }
 
 /* A ghost button has no ground at rest, so its ink sits about 10px inside the row's edge,
@@ -110,7 +176,7 @@
   border: 1px solid var(--color-base-300);
   border-radius: var(--radius-box);
   background-color: var(--color-base-100);
-  box-shadow: 0 8px 24px rgb(0 0 0 / 18%);
+  box-shadow: 0 8px 24px var(--lg-float-shadow);
 }
 
 .settings-panel:popover-open {

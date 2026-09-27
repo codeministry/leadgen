@@ -75,6 +75,9 @@ same as one judge's prompt. Collecting a finished batch is the one exception and
 counted — those answers are already bought, and refusing to collect them would strand them.
 The reasoning is in `docs/decisions/pipeline-scoring.md`.
 
+**The chat model never asks `LlmBudget`**: the chat is not a stage, and each of its model calls
+takes `ChatBudget.take()` against `chat.max_calls_per_day` instead — reasoning in `docs/decisions/chat.md`.
+
 ## Traps that have already cost money
 
 - **Read a row with a `RowMapper` and `rs.getString(...)`, never by casting a `listOfRows()` value.** — reasoning in `docs/decisions/pipeline-scoring.md`.

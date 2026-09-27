@@ -86,6 +86,12 @@ import {
   MessageSquareText,
   Minimize2,
   Tags,
+  PanelLeft,
+  Pin,
+  SquarePen,
+  Briefcase,
+  RotateCcw,
+  ShieldQuestionMark,
 } from 'lucide';
 
 /** Lucide 1.x hands out a flat `[tag, attributes][]`; there are no nested children. */
@@ -190,6 +196,14 @@ export const LG_ICONS = {
     'message-square-text': MessageSquareText,
     'minimize-2': Minimize2,
     tags: Tags,
+    // The chat drawer (spec 019): the conversations toggle, a new conversation, the pinned offer.
+    'panel-left': PanelLeft,
+    pin: Pin,
+    'square-pen': SquarePen,
+    // The chat answer (spec 019): an offer source, regenerate (never `refresh`, the run's glyph), an unverified id.
+    briefcase: Briefcase,
+    'rotate-ccw': RotateCcw,
+    'shield-question': ShieldQuestionMark,
 } as const satisfies Record<string, IconNode>;
 
 export type LgIconName = keyof typeof LG_ICONS;

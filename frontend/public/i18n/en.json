@@ -49,7 +49,8 @@
       "offer-detail": "Reading one offer: the ad, its score, its fields, and asking it.",
       "application": "Where an application stands, its cover letter and its package.",
       "filters-views": "Narrowing and ordering the list, and saving what you set.",
-      "app-basics": "Running a pass, the settings, the keyboard and the installed app."
+      "app-basics": "Running a pass, the settings, the keyboard and the installed app.",
+      "chat": "Asking about offers, applications and your profile, and what its links mean."
     },
     "loading": "Loading the chapter…",
     "failed": "This chapter could not be loaded.",
@@ -64,7 +65,8 @@
       "offer-detail": "Offer detail",
       "application": "Application and cover letter",
       "filters-views": "Filters, sorting and views",
-      "app-basics": "Header, keyboard and app"
+      "app-basics": "Header, keyboard and app",
+      "chat": "The chat"
     },
     "diagram": {
       "run-phases": "The five phases of a run, from the mailbox to a scored offer",
@@ -857,6 +859,85 @@
     "summaryLoad": "The dashboard cells did not load.",
     "manualUpload": "The document was not accepted.",
     "manualConfirm": "The document was not confirmed.",
-    "manualReject": "The document was not deleted."
+    "manualReject": "The document was not deleted.",
+    "chatStream": "The answer stopped before it was finished.",
+    "chatModel": "The answer stopped: {message}",
+    "chatBudget": "The chat has used its calls for today.",
+    "chatRounds": "The answer used all the searches one question may run.",
+    "chatList": "The conversations could not be loaded.",
+    "chatLoad": "The conversation could not be loaded.",
+    "chatDelete": "The conversation could not be deleted.",
+    "chatCreate": "The conversation could not be started."
+  },
+  "chat": {
+    "open": "Ask the corpus",
+    "openShort": "Ask",
+    "busyLabel": "an answer is being written",
+    "askAboutOffer": "Ask about this offer",
+    "new": "New chat",
+    "newConversation": "New conversation",
+    "close": "Close the chat",
+    "history": "Conversations",
+    "historyEmpty": "No conversations yet.",
+    "listLoading": "Loading the conversations…",
+    "loading": "Loading the conversation…",
+    "empty": {
+      "title": "Ask the corpus",
+      "body": "Offers, your applications and your profile. Every answer links to the rows it read."
+    },
+    "suggest": {
+      "spring": "Which remote Spring projects came in last month?",
+      "kafka": "How many of last week's offers asked for Kafka?",
+      "wrote": "What did I write for projects like my latest application?",
+      "references": "Which reference projects fit today's shortlist?",
+      "pinned": {
+        "fit": "How well does this offer fit my profile?",
+        "similar": "Which similar offers did I apply to?",
+        "wrote": "What did I write for offers like this?",
+        "lack": "What does this offer ask that I lack?"
+      }
+    },
+    "missing": {
+      "title": "This conversation no longer exists",
+      "action": "Start a new one"
+    },
+    "thinking": "Thinking…",
+    "placeholder": "Ask about offers, applications or your profile…",
+    "inputLabel": "Your question",
+    "hint": "Enter to send · Shift+Enter for a new line",
+    "send": "Send",
+    "pinned": "Offer {id}",
+    "unpin": "Remove the pinned offer",
+    "disclaimer": "Answers can be wrong. Unverified ids are marked.",
+    "announce": {
+      "done": "Answer ready, {count, plural, =0 {no sources} one {1 source} other {# sources}}"
+    },
+    "stop": "Stop",
+    "minibar": {
+      "expand": "Back to the chat"
+    },
+    "answer": {
+      "copy": "Copy the answer with its sources",
+      "copied": "Copied",
+      "regenerate": "Write this answer again",
+      "unverified": "unverified"
+    },
+    "steps": {
+      "summary": "Used {tools, plural, one {1 tool} other {# tools}} · {rows, plural, one {1 row} other {# rows}}",
+      "rows": "{count, plural, one {1 row} other {# rows}}",
+      "running": "running"
+    },
+    "sources": {
+      "title": "Sources",
+      "offer": "Offer",
+      "application": "Application",
+      "archived": "Archived",
+      "more": "Show all {count}"
+    },
+    "cite": {
+      "label": "Source {n}: {title}",
+      "unverifiedTitle": "{id} could not be checked",
+      "unverifiedReason": "No search in this turn returned this id, or it lies outside the working set and the archive, so it is not a link."
+    }
   }
 }

@@ -1,0 +1,69 @@
+/* The host adds no box: docked, the panel itself is the shell's flex item. Every class is
+   prefixed `lg-side-drawer`: daisyUI owns `drawer` and `modal`. */
+:host {
+  display: contents;
+}
+
+/* The width is the consumer's `width` input, bound on the frame — the help's 48rem, the chat's
+   stepped `--lg-chat-w` — and never wider than the window. */
+.lg-side-drawer {
+  box-sizing: border-box;
+  max-width: 100vw;
+  padding: 0;
+  border: 0;
+  border-inline-start: 1px solid var(--color-base-300);
+  background-color: var(--color-base-100);
+  color: var(--color-base-content);
+}
+
+/* The modal frame is placed against the viewport, the top layer's containing block: the full
+   height, the inline end. No `display` here — see the template. */
+.lg-side-drawer-modal {
+  position: fixed;
+  inset-block: 0;
+  inset-inline: auto 0;
+  height: 100dvh;
+  max-height: 100dvh;
+  margin: 0;
+}
+
+/* As wide as the window, an edge at the window's edge is a 1px sliver of nothing. */
+@media (width < 48rem) {
+  .lg-side-drawer {
+    border-inline-start: 0;
+  }
+}
+
+.lg-side-drawer-modal::backdrop {
+  background-color: var(--lg-backdrop);
+}
+
+/* The docked frame is a column of the shell under its sticky header: it stays in view while
+   the page beside it scrolls, and the header's bottom border runs on across its top. */
+.lg-side-drawer-docked {
+  position: sticky;
+  top: var(--lg-header-h);
+  flex: none;
+  align-self: flex-start;
+  height: calc(100dvh - var(--lg-header-h));
+  outline: none;
+}
+
+/* The reveal token, the slower family: a drawer is a thing a reader is meant to see arrive. */
+.lg-side-drawer-modal[open],
+.lg-side-drawer-docked {
+  animation: lg-side-drawer-slide var(--lg-reveal-duration) var(--lg-reveal-ease);
+}
+
+@keyframes lg-side-drawer-slide {
+  from {
+    transform: translateX(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lg-side-drawer-modal[open],
+  .lg-side-drawer-docked {
+    animation: none;
+  }
+}

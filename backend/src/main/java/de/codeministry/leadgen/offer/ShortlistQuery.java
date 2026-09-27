@@ -8,6 +8,7 @@
  */
 package de.codeministry.leadgen.offer;
 
+import java.time.Instant;
 import java.util.List;
 
 /**
@@ -60,6 +61,14 @@ import java.util.List;
  *                     nothing itself, so the filter and the score cannot disagree about an alias.
  * @param cursor       the last row of the previous page, or null for the first.
  * @param limit        how many rows to return.
+ * @param cameAfter    only offers that came in at or after this instant, or null for no lower
+ *                     bound. <b>Not a screen filter:</b> {@code OfferController} never binds it and the
+ *                     shortlist has no date control. The chat's offer search carries it so that "this
+ *                     month's Kafka offers" is counted and ordered by this same SQL — windowing one
+ *                     capped page after the fact would drop rows beyond the page and miscount {@code
+ *                     matched}.
+ * @param cameBefore   only offers that came in before this instant, exclusive, or null for no
+ *                     upper bound.
  */
 public record ShortlistQuery(
         String q,
@@ -74,7 +83,45 @@ public record ShortlistQuery(
         boolean possibleDuplicates,
         String topic,
         String cursor,
-        int limit) {
+        int limit,
+        Instant cameAfter,
+        Instant cameBefore) {
+
+    /**
+     * Everything but the came-in window, which is what the screen and every caller written
+     * before the chat pass.
+     */
+    public ShortlistQuery(
+            String q,
+            ScoreFilter score,
+            List<String> portals,
+            boolean archived,
+            ShortlistSort sort,
+            StartWindow startWindow,
+            RelatedFilter related,
+            Integer minMonths,
+            boolean deadlineOpen,
+            boolean possibleDuplicates,
+            String topic,
+            String cursor,
+            int limit) {
+        this(
+                q,
+                score,
+                portals,
+                archived,
+                sort,
+                startWindow,
+                related,
+                minMonths,
+                deadlineOpen,
+                possibleDuplicates,
+                topic,
+                cursor,
+                limit,
+                null,
+                null);
+    }
 
     /**
      * Fifty is a screenful and a bit, which is what the list loads as you scroll.
@@ -166,7 +213,9 @@ public record ShortlistQuery(
                 possibleDuplicates,
                 name,
                 cursor,
-                limit);
+                limit,
+                cameAfter,
+                cameBefore);
     }
 
     public ShortlistQuery withCursor(String next) {
@@ -183,7 +232,9 @@ public record ShortlistQuery(
                 possibleDuplicates,
                 topic,
                 next,
-                limit);
+                limit,
+                cameAfter,
+                cameBefore);
     }
 
     public ShortlistQuery withLimit(int rows) {
@@ -200,7 +251,9 @@ public record ShortlistQuery(
                 possibleDuplicates,
                 topic,
                 cursor,
-                rows);
+                rows,
+                cameAfter,
+                cameBefore);
     }
 
     public ShortlistQuery withSort(ShortlistSort order) {
@@ -217,7 +270,9 @@ public record ShortlistQuery(
                 possibleDuplicates,
                 topic,
                 cursor,
-                limit);
+                limit,
+                cameAfter,
+                cameBefore);
     }
 
     public ShortlistQuery withScore(ScoreFilter filter) {
@@ -234,7 +289,9 @@ public record ShortlistQuery(
                 possibleDuplicates,
                 topic,
                 cursor,
-                limit);
+                limit,
+                cameAfter,
+                cameBefore);
     }
 
     public ShortlistQuery withRelated(RelatedFilter filter) {
@@ -251,7 +308,29 @@ public record ShortlistQuery(
                 possibleDuplicates,
                 topic,
                 cursor,
-                limit);
+                limit,
+                cameAfter,
+                cameBefore);
+    }
+
+    /** The same query over the offers that came in inside {@code [after, before)}; either end may be open. */
+    public ShortlistQuery withCameIn(Instant after, Instant before) {
+        return new ShortlistQuery(
+                q,
+                score,
+                portals,
+                archived,
+                sort,
+                startWindow,
+                related,
+                minMonths,
+                deadlineOpen,
+                possibleDuplicates,
+                topic,
+                cursor,
+                limit,
+                after,
+                before);
     }
 
     public ShortlistQuery withPortals(List<String> names) {
@@ -268,6 +347,8 @@ public record ShortlistQuery(
                 possibleDuplicates,
                 topic,
                 cursor,
-                limit);
+                limit,
+                cameAfter,
+                cameBefore);
     }
 }

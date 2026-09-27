@@ -11,6 +11,26 @@ may change in any release. See the status note in the README.
 
 ### Added
 
+- **Ask the corpus in a chat.** An Ask button in the header opens a chat on every screen: a question
+  in plain words about the offers, your applications and your profile, answered as the model writes
+  it. Every offer or application the answer names is a numbered link to a row a search of that very
+  turn returned; an id no search returned stays plain text marked unverified, with a card that says
+  why. Numbers come from the same queries the dashboard and the analytics screen run. The searches
+  it ran are shown as steps, the rows it relied on as sources; stop, regenerate and copy work on an
+  answer, and hovering a citation previews the row. From 48rem the chat is a panel docked beside the
+  page, which stays usable, so following a source keeps it open; below 48rem a full-screen sheet that
+  folds into a bar above the bottom navigation. Opened from an offer, a conversation starts with that
+  offer pinned. Conversations are kept, listed newest first and deletable one by one, and the open one
+  is part of the address (`?chat=`). The chat only reads: its five tools reach read services, and
+  every tool result is masked before the model sees it. New keys: `llm.models.chat`
+  (`LLM_MODEL_CHAT`, empty means `scoring`; with neither set the chat is absent and nothing else
+  changes), and a `chat:` block with `max_calls_per_day` (`CHAT_MAX_CALLS_PER_DAY`, 200) and
+  `max_tool_rounds` (`CHAT_MAX_TOOL_ROUNDS`, 6) — the chat's own ceiling beside `llm.budget`, never
+  through it. New tables `chat_conversation`, `chat_turn`, `chat_tool_call` (`V32`),
+  `chat_call_budget` (`V33`) and the column `chat_turn.citations` (`V34`); the endpoints live under
+  `/api/v1/chat`. New dependencies `dompurify` and `eventsource-parser`, pinned. A help chapter
+  explains it in both languages (spec `019-corpus-chat`).
+
 - **The run status sheet says where a pass stands and what it spent.** It takes its own width
   (`--lg-run-status-w`, 37rem, just enough to cover the header chip that opened it) instead of the
   help drawer's 48rem, where a running pass was four lines in a mostly empty panel. While a pass
@@ -134,7 +154,7 @@ may change in any release. See the status note in the README.
 
 - **Run ingest and the model select live on the workflow screen.** Both left the header at every
   width and sit above the status chips, with the same confirmation before a run starts; the header
-  keeps navigation, settings and help.
+  keeps navigation, the chat, settings and help.
 
 - The shortlist opens newest first rather than by score, so what came in since the last look is
   on top; a link without `sort` means newest first. The API's default order is unchanged, and

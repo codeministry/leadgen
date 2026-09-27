@@ -66,6 +66,14 @@ public final class ModelChoice {
     }
 
     /**
+     * The chat's model: {@code llm.models.chat}, or the configured judge when that key is empty.
+     * Empty when neither names a model, which is what makes the chat absent (ISC-421).
+     */
+    public static Optional<String> chat(PipelineConfig.Llm.Models models) {
+        return ownOrScoring(models, models == null ? null : models.chat());
+    }
+
+    /**
      * The key the startup log names beside the model: the stage's own when it holds a value,
      * {@code llm.models.scoring} when the fallback answered. Decided from the configured value
      * and not by comparing model names, which would name the wrong key the day both hold the

@@ -2,14 +2,14 @@
 
 # Data model
 
-The fourteen tables, how they point at each other, and which class writes and reads each one.
+The eighteen tables, how they point at each other, and which class writes and reads each one.
 This is the schema as Flyway builds it, read straight out of
 `backend/src/main/resources/db/migration/`, and it is the document to open when the question
 is *where does this value live* or *who is allowed to change it*. The reasoning behind a
 column belongs to the decision records; each section links the one that carries it.
 
 > [!NOTE]
-> Derived from `V1` to `V29`. When this document and a migration disagree, the migration wins,
+> Derived from `V1` to `V34`. When this document and a migration disagree, the migration wins,
 > and the fix is here. There is no ORM: every write is a plain SQL statement in the service
 > that owns it, so "who writes this" has one answer per column and it is worth writing down.
 
@@ -217,7 +217,7 @@ scoring again.
 | `published_on` | `date` | `V1` | what the advert says about itself |
 | `fingerprint` | `text` | `V1` | normalised title plus portal; the dedupe key |
 | `duplicate_of_id` | `bigint` | `V1` | → `offer.id`; set means "hidden behind that primary" |
-| `status` | `text` | `V1` | the filter verdict, see § 5 |
+| `status` | `text` | `V1` | the filter verdict, see § 6 |
 | `ingested_at` | `timestamptz` | `V1` | when this application wrote the row |
 | `tags` | `text[]` | `V2` | the aggregator's search tags |
 | `filter_stage` | `text` | `V4` | the `FilterStage` that rejected it, else null |
@@ -232,7 +232,7 @@ scoring again.
 | `enriched_at` | `timestamptz` | `V5` | set with a null `enrichment_note` means complete |
 | `enrichment_note` | `text` | `V5` | why the fetch left the row incomplete |
 | `score_value` | `integer` | `V6` | null when no model judged it |
-| `score_band` | `text` | `V6` | see § 5 |
+| `score_band` | `text` | `V6` | see § 6 |
 | `score_model` | `text` | `V6` | who judged; null makes the row due |
 | `ruleset_version` | `text` | `V6` | the weights the score was computed under |
 | `scored_at` | `timestamptz` | `V6` | |
@@ -242,7 +242,7 @@ scoring again.
 | `score_batch_id` | `bigint` | `V10` | → `score_batch.id` while an answer is in flight |
 | `received_at` | `timestamptz` | `V12` | when the mail arrived; null for a file |
 | `archived_at` | `timestamptz` | `V13` | |
-| `archive_source` | `text` | `V13` | `AGE`, `MANUAL` or `RESTORED`, see § 5 |
+| `archive_source` | `text` | `V13` | `AGE`, `MANUAL` or `RESTORED`, see § 6 |
 | `content_blocks` | `jsonb` | `V17` | a list of `ContentBlock` |
 | `content_at` | `timestamptz` | `V17` | |
 | `content_model` | `text` | `V17` | |
@@ -383,7 +383,88 @@ overwrite themselves. Primary key `(run_id, position)`, cascades from `pipeline_
 The three cache and counter tables, `fetched_page`, `content_block_label` and
 `llm_call_budget`, and the `instance` row the package folders are owned by, are in § 2.
 
-## 5. Status-like columns and their values
+## 5. The chat's four tables
+
+Four tables that the chat writes alone and no pipeline stage reads (`ChatIsolationTest` fails on
+a pipeline source naming one of them). Dropping all four loses the stored conversations and
+nothing else; the rollback is in [decisions/chat.md](decisions/chat.md), with the reasoning
+behind every column below.
+
+```mermaid
+erDiagram
+    chat_conversation ||--o{ chat_turn : "conversation_id"
+    chat_turn ||--o{ chat_tool_call : "turn_id"
+    chat_turn o|--o{ chat_turn : "replaces_turn_id"
+    offer |o--o{ chat_conversation : "pinned_offer_id"
+    chat_conversation {
+        bigint id PK
+        text title
+        bigint pinned_offer_id FK
+        timestamptz updated_at
+    }
+    chat_turn {
+        bigint id PK
+        bigint conversation_id FK
+        int ordinal
+        text state
+        bigint replaces_turn_id FK
+        jsonb citations
+    }
+    chat_tool_call {
+        bigint id PK
+        bigint turn_id FK
+        int ordinal
+        text tool
+        jsonb returned_ids
+    }
+    chat_call_budget {
+        date day PK
+        int calls
+    }
+```
+
+Every write is a statement in `chat/ConversationRepository`, except the budget's, which is
+`chat/ChatBudget`'s.
+
+**`chat_conversation`** (`V32`). One row per conversation. `create` inserts it with an empty
+`title` and, when the drawer was opened from an offer's detail, `pinned_offer_id`; nothing else
+writes the pin, and `ON DELETE SET NULL` lets an offer go without taking the conversation along.
+`startTurn` sets `title` from the first question, once, and moves `updated_at` on every turn, which
+is what the list is ordered by (`chat_conversation_updated`, newest first). `delete` removes the
+row, and its turns and their tool calls cascade. Read by `list` and `find` for the drawer.
+
+**`chat_turn`** (`V32`, `V34`). One row per question asked, including every regenerated one.
+`startTurn` writes `conversation_id`, the next `ordinal` in the conversation (unique with it),
+`question`, `model` — the chat model the turn was sent to — and, on a regenerate,
+`replaces_turn_id`, the turn this one answers again; both stay. `answer_md` starts empty and
+`append` concatenates each piece of text as it leaves for the browser, citations already resolved
+to `[n](cite:offer/ID)` or `⟨unverified:ID⟩`, so a stopped or failed turn keeps exactly what the
+reader saw. `state` starts at `STREAMING`; `finish` sets it to `DONE`, `STOPPED` or `INCOMPLETE`
+with `finished_at` and `citations`, the `[{n, kind, id}]` list that numbers the answer's sources.
+Read by `find` for the thread, by `history` for the model's context — which leaves out a replaced
+answer, so the model does not read its own earlier attempt as settled — and by `question` when a
+turn is regenerated; `history` orders a regenerated answer by the ordinal of the first turn of its
+replacement chain, so it goes back to the model where its question was first asked. When `finish`
+is rejected, `incomplete` ends the row by `state = 'INCOMPLETE'` and `finished_at` alone, in a
+transaction of its own. A process that dies mid-turn leaves the row at `STREAMING` until the next start, when `ChatTurnService.sweep` marks it `INCOMPLETE`;
+and the drawer shows the text it had.
+
+**`chat_tool_call`** (`V32`). One row per tool the model called in a turn: `ordinal`, the `tool`
+name, the `label` the screen shows for the step, the `arguments` as the model sent them,
+`returned_ids` as `[{kind, id}]` — the ledger the grounding check held every citation against —
+and `duration_ms`. A NUL in `label` or `arguments` (which `TEXT` and `JSONB` both refuse) is
+dropped before the insert. Written only by `finish`, in the same transaction as the turn's final state,
+from the turn's `TurnLedger`; a running turn's steps travel as events and reach this table when it
+ends. Read by `find`, which folds a finished turn's steps into "used N tools". Cascades from
+`chat_turn`.
+
+**`chat_call_budget`** (`V33`). The chat's twin of `llm_call_budget`: one row per calendar day
+with a `calls` counter, taken by `ChatBudget.take()` before every model call of a turn with the
+same guarded upsert, against `chat.max_calls_per_day`. A table of its own because
+`llm_call_budget` is keyed by the day alone and a shared counter would let questions starve the
+nightly run. No key points at it, and emptying it hands the day's allowance out again.
+
+## 6. Status-like columns and their values
 
 Every state in the schema is a `TEXT` column, and with one exception nothing in the database
 constrains it: the legal values are whatever the writing class writes. The table is the list
@@ -415,19 +496,19 @@ reason, by}`, and is the one column read as a structure. Read it with `rs.getStr
 parse; the driver hands `jsonb` over as a `PGobject`, and the cast that went wrong is in
 `backend/CLAUDE.md`.
 
-## 6. Keeping this honest
+## 7. Keeping this honest
 
 > [!IMPORTANT]
 > A migration that adds, drops or re-purposes a column changes this file in the same change.
 > `WorkingNotesStaySmallTest` cannot see a column, so the check is the reviewer's, and the
 > command below is what makes it a two-minute one.
 
-The writer and reader map in § 3 and § 4 is regenerated from the SQL text blocks in the
+The writer and reader map in § 3, § 4 and § 5 is regenerated from the SQL text blocks in the
 services. It misses a statement assembled from strings and a CTE's alias, so the output is a
 checklist to walk, not an answer:
 
 ```bash
-rg -n -o -i -e "(FROM|INTO|UPDATE|JOIN|DELETE FROM)\s+(offer_score_reason|offer|source_run|source|score_batch|pipeline_run_stage|pipeline_run|pipeline_stage|application_event|application|fetched_page|content_block_label|llm_call_budget)\b" \
+rg -n -o -i -e "(FROM|INTO|UPDATE|JOIN|DELETE FROM)\s+(offer_score_reason|offer|source_run|source|score_batch|pipeline_run_stage|pipeline_run|pipeline_stage|application_event|application|fetched_page|content_block_label|llm_call_budget|chat_conversation|chat_turn|chat_tool_call|chat_call_budget)\b" \
    backend/src/main/java -g '*.java' | sort | uniq -c
 ```
 

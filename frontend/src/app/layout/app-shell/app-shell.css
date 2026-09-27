@@ -8,10 +8,14 @@
     background-color: var(--color-base-200);
 }
 
+/* `clip` rather than `hidden`: a docked drawer slides in from beyond the inline end, and for
+   those 520ms it would otherwise widen the document and scroll the page sideways. `clip` makes
+   no scroll container, so the drawer's `position: sticky` still resolves against the window. */
 .body {
     display: flex;
     flex: 1;
     min-height: 0;
+    overflow-x: clip;
 }
 
 /* The header is the horizontal anchor of every screen, so it stays put while the page

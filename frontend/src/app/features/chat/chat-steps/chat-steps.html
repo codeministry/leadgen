@@ -1,0 +1,31 @@
+@if (done().length > 0) {
+  <details class="lg-chat-steps-done">
+    <summary class="type-small lg-chat-steps-summary">
+      <lg-icon name="circle-check" [size]="14"/>
+      <span>{{ 'chat.steps.summary' | transloco: {tools: done().length, rows: rows()} }}</span>
+    </summary>
+    <ol class="lg-chat-steps-list">
+      @for (step of done(); track step.ordinal) {
+        <li class="type-small lg-chat-step">
+          <lg-icon name="circle-check" [size]="14"/>
+          <span class="lg-chat-step-label">{{ step.label }}</span>
+          <span class="type-mono-data lg-chat-step-meta">
+            @if (step.count !== null) {
+              {{ 'chat.steps.rows' | transloco: {count: step.count} }}
+            }
+            @if (seconds(step.durationMs); as s) {
+              · {{ s }} s
+            }
+          </span>
+        </li>
+      }
+    </ol>
+  </details>
+}
+@for (step of running(); track step.ordinal) {
+  <p class="type-small lg-chat-step lg-chat-step-running">
+    <span class="lg-chat-step-ring" aria-hidden="true"></span>
+    <span class="lg-chat-step-label">{{ step.label }}</span>
+    <span class="sr-only">{{ 'chat.steps.running' | transloco }}</span>
+  </p>
+}

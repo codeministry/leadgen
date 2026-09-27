@@ -49,7 +49,8 @@
       "offer-detail": "Ein Angebot lesen: die Anzeige, ihre Bewertung, ihre Felder, und sie befragen.",
       "application": "Wo eine Bewerbung steht, ihr Anschreiben und ihr Paket.",
       "filters-views": "Die Liste eingrenzen und ordnen, und das Eingestellte speichern.",
-      "app-basics": "Einen Lauf starten, die Einstellungen, die Tastatur und die installierte App."
+      "app-basics": "Einen Lauf starten, die Einstellungen, die Tastatur und die installierte App.",
+      "chat": "Nach Angeboten, Bewerbungen und deinem Profil fragen, und was die Links bedeuten."
     },
     "loading": "Lade das Kapitel…",
     "failed": "Dieses Kapitel konnte nicht geladen werden.",
@@ -64,7 +65,8 @@
       "offer-detail": "Angebotsdetail",
       "application": "Bewerbung und Anschreiben",
       "filters-views": "Filter, Sortierung und Sichten",
-      "app-basics": "Kopfzeile, Tastatur und App"
+      "app-basics": "Kopfzeile, Tastatur und App",
+      "chat": "Der Chat"
     },
     "diagram": {
       "run-phases": "Die fünf Phasen eines Laufs, vom Postfach bis zum bewerteten Angebot",
@@ -857,6 +859,85 @@
     "summaryLoad": "Die Kacheln der Übersicht haben nicht geladen.",
     "manualUpload": "Das Dokument wurde nicht angenommen.",
     "manualConfirm": "Das Dokument wurde nicht bestätigt.",
-    "manualReject": "Das Dokument wurde nicht gelöscht."
+    "manualReject": "Das Dokument wurde nicht gelöscht.",
+    "chatStream": "Die Antwort brach ab, bevor sie fertig war.",
+    "chatModel": "Die Antwort brach ab: {message}",
+    "chatBudget": "Der Chat hat seine Aufrufe für heute verbraucht.",
+    "chatRounds": "Die Antwort hat alle Suchen verbraucht, die eine Frage auslösen darf.",
+    "chatList": "Die Unterhaltungen konnten nicht geladen werden.",
+    "chatLoad": "Die Unterhaltung konnte nicht geladen werden.",
+    "chatDelete": "Die Unterhaltung konnte nicht gelöscht werden.",
+    "chatCreate": "Die Unterhaltung konnte nicht begonnen werden."
+  },
+  "chat": {
+    "open": "Den Bestand fragen",
+    "openShort": "Fragen",
+    "busyLabel": "eine Antwort wird geschrieben",
+    "askAboutOffer": "Zu diesem Angebot fragen",
+    "new": "Neuer Chat",
+    "newConversation": "Neues Gespräch",
+    "close": "Chat schließen",
+    "history": "Gespräche",
+    "historyEmpty": "Noch keine Gespräche.",
+    "listLoading": "Gespräche werden geladen …",
+    "loading": "Gespräch wird geladen …",
+    "empty": {
+      "title": "Den Bestand fragen",
+      "body": "Angebote, deine Bewerbungen und dein Profil. Jede Antwort verlinkt die Zeilen, die sie gelesen hat."
+    },
+    "suggest": {
+      "spring": "Welche Remote-Projekte mit Spring kamen letzten Monat herein?",
+      "kafka": "Wie viele Angebote der letzten Woche wollten Kafka?",
+      "wrote": "Was habe ich für Projekte wie meine letzte Bewerbung geschrieben?",
+      "references": "Welche Referenzprojekte passen zur heutigen Shortlist?",
+      "pinned": {
+        "fit": "Wie gut passt dieses Angebot zu meinem Profil?",
+        "similar": "Auf welche ähnlichen Angebote habe ich mich beworben?",
+        "wrote": "Was habe ich für Angebote wie dieses geschrieben?",
+        "lack": "Was verlangt dieses Angebot, das mir fehlt?"
+      }
+    },
+    "missing": {
+      "title": "Dieses Gespräch gibt es nicht mehr",
+      "action": "Ein neues beginnen"
+    },
+    "thinking": "Denkt nach …",
+    "placeholder": "Frag nach Angeboten, Bewerbungen oder deinem Profil …",
+    "inputLabel": "Deine Frage",
+    "hint": "Enter sendet · Shift+Enter für eine neue Zeile",
+    "send": "Senden",
+    "pinned": "Angebot {id}",
+    "unpin": "Angeheftetes Angebot entfernen",
+    "disclaimer": "Antworten können falsch sein. Ungeprüfte IDs sind markiert.",
+    "announce": {
+      "done": "Antwort fertig, {count, plural, =0 {keine Quellen} one {1 Quelle} other {# Quellen}}"
+    },
+    "stop": "Stoppen",
+    "minibar": {
+      "expand": "Zurück zum Chat"
+    },
+    "answer": {
+      "copy": "Antwort mit Quellen kopieren",
+      "copied": "Kopiert",
+      "regenerate": "Diese Antwort neu schreiben",
+      "unverified": "ungeprüft"
+    },
+    "steps": {
+      "summary": "{tools, plural, one {1 Werkzeug} other {# Werkzeuge}} genutzt · {rows, plural, one {1 Zeile} other {# Zeilen}}",
+      "rows": "{count, plural, one {1 Zeile} other {# Zeilen}}",
+      "running": "läuft"
+    },
+    "sources": {
+      "title": "Quellen",
+      "offer": "Angebot",
+      "application": "Bewerbung",
+      "archived": "Archiviert",
+      "more": "Alle {count} zeigen"
+    },
+    "cite": {
+      "label": "Quelle {n}: {title}",
+      "unverifiedTitle": "{id} ließ sich nicht prüfen",
+      "unverifiedReason": "Keine Suche in diesem Schritt hat diese Id geliefert, oder sie liegt außerhalb von Arbeitsbestand und Archiv, darum ist sie kein Link."
+    }
   }
 }

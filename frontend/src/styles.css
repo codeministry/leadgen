@@ -173,6 +173,11 @@
     --lg-stage-glow-2: oklch(52% 0.16 280); /* #5A58C2 */
     --lg-stage-signal: oklch(76% 0.17 345); /* #FB80CA */
     --lg-stage-line: oklch(100% 0 0 / 12%);
+
+    /* Fix 3F-8: what lifts a floating surface (menus, popovers, the citation card) off the page,
+       and what dims the page behind a modal drawer. Stronger at night, where a light shadow vanishes. */
+    --lg-float-shadow: oklch(0% 0 0 / 18%);
+    --lg-backdrop: oklch(0% 0 0 / 40%);
 }
 
 [data-theme='lg-dark'] {
@@ -215,6 +220,9 @@
     --lg-stage-glow-2: oklch(52% 0.18 285); /* #6351CA */
     --lg-stage-signal: oklch(76% 0.17 345); /* #FB80CA */
     --lg-stage-line: oklch(100% 0 0 / 10%);
+
+    --lg-float-shadow: oklch(0% 0 0 / 45%);
+    --lg-backdrop: oklch(0% 0 0 / 60%);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -250,6 +258,8 @@
         --lg-stage-glow-2: oklch(52% 0.18 285);
         --lg-stage-signal: oklch(76% 0.17 345);
         --lg-stage-line: oklch(100% 0 0 / 10%);
+        --lg-float-shadow: oklch(0% 0 0 / 45%);
+        --lg-backdrop: oklch(0% 0 0 / 60%);
     }
 }
 

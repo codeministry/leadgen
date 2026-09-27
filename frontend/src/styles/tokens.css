@@ -105,6 +105,29 @@
      and a chapter row never wraps; the drawer still caps itself at the window. */
   --lg-help-w: 48rem;
 
+  /* The chat drawer (spec 019), stepped by breakpoint below: the whole window on a phone, where it
+     is a sheet; 36rem docked beside the page from 48rem, about 68 characters of answer and 280px
+     left for the page at 820; 56rem from 80rem, where the conversation rail docks inside it.
+     Not the help's 48rem: at 720px that would leave the page 100px beside it. */
+  --lg-chat-w: 100vw;
+
+  /* The frosted head and composer shelf: the drawer's own ground, partly see-through, so the
+     thread reads as scrolling underneath rather than being cut by a rule. */
+  --lg-chat-frost: color-mix(in oklab, var(--color-base-100) 82%, transparent);
+
+  /* The streaming caret's blink, a typing cursor's rhythm: two steps, no fade. Solid under
+     reduced motion. */
+  --lg-caret-duration: 1060ms;
+
+  /* One turn of the running tool step's ring. Still under reduced motion. */
+  --lg-chat-spin-duration: 900ms;
+
+  /* A citation, as a pill and as its source card's number: the primary on the selected ground,
+     never the signal, because a cited offer may be archived. An unverified id's line. */
+  --lg-chat-cite-ink: var(--lg-primary-text);
+  --lg-chat-cite-ground: var(--lg-selected-surface);
+  --lg-chat-unverified-ink: var(--lg-warning-text);
+
   /* The run status in the workflow's sheet (operator, 2026-09-27): a column of small facts,
      narrower than the help drawer's 48rem, and just wide enough to cover the header's status
      chip that opened it rather than ending beside it. Measured: the chip's left edge sits 440px
@@ -171,6 +194,19 @@
     /* Tailwind spells this `--font-mono--font-feature-settings`, which stylelint's
        custom-property-pattern rejects for the double dash. One name, ours. */
     --lg-mono-features: 'tnum' 1;
+}
+
+/* The chat drawer's two docked steps; below 48rem it keeps the full window. */
+@media (width >= 48rem) {
+  :root {
+    --lg-chat-w: 36rem;
+  }
+}
+
+@media (width >= 80rem) {
+  :root {
+    --lg-chat-w: 56rem;
+  }
 }
 
 /* 38px of air above the first thing on a phone is a lot, and the fixed bottom bar already

@@ -1,0 +1,66 @@
+/* Every class is prefixed `lg-chat-`: daisyUI owns `chat`, `drawer` and `modal`. */
+
+/* Fixed to the window, directly on the bottom navigation's top edge; `bottom` is that bar's
+   measured height, bound on the element. The navigation's own layer, 20: under the sticky
+   header and the toasts, over the page. `position: fixed` is also what contains the
+   `.sr-only` spans below, so they stay clipped inside the bar. */
+.lg-chat-minibar {
+  position: fixed;
+  inset-inline: 0;
+  z-index: 20;
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 3rem;
+  padding: 0.5rem var(--lg-gutter);
+  border: 0;
+  border-top: 1px solid var(--color-base-300);
+  background-color: var(--lg-chat-frost);
+  backdrop-filter: blur(12px);
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.lg-chat-minibar:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
+.lg-chat-minibar-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The header's busy dot in its second place: a model is still writing, nothing else. */
+.lg-chat-minibar-busy {
+  flex: none;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  background-color: var(--lg-ai);
+  animation: lg-chat-minibar-busy var(--lg-pulse-duration) ease-in-out infinite alternate;
+}
+
+@keyframes lg-chat-minibar-busy {
+  to {
+    opacity: 0.35;
+  }
+}
+
+.lg-chat-minibar-expand {
+  flex: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lg-chat-minibar-busy {
+    animation: none;
+  }
+}

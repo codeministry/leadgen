@@ -10,6 +10,14 @@
              is worse than one that says it does not exist. One word for the whole capability,
              "related", and deliberately not "similar" — the list already badges possible
              duplicates, and those two mean different things. -->
+        <!-- A new conversation with this offer pinned as its context (ISC-432). The only place a
+             pin comes from: the header's button never pins. Absent without a chat model. -->
+        @if (chat.present()) {
+            <button type="button" class="btn btn-sm btn-soft btn-primary lg-chat-ask-offer" (click)="askAboutOffer(entry.offer.id)">
+                <lg-icon name="sparkles" [size]="16"/>
+                {{ 'chat.askAboutOffer' | transloco }}
+            </button>
+        }
         @if (canFindRelated()) {
             <button type="button" class="btn btn-sm btn-soft btn-primary" (click)="findRelated(entry.offer.id)">
                 <lg-icon name="scan-search" [size]="16"/>

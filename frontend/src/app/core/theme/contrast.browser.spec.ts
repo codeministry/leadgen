@@ -544,3 +544,56 @@ describe.each(THEMES)('%s: the rules flow graph reads (ISC-400)', theme => {
         ).toEqual([]);
     });
 });
+
+describe.each(THEMES)('%s: the chat reads (ISC-435)', theme => {
+    beforeEach(() => useTheme(theme));
+    afterEach(() => document.documentElement.removeAttribute('data-theme'));
+
+    /** The drawer's grounds: the thread, the question bubble, and the frosted head composited over the thread. */
+    function grounds(): [string, string][] {
+        const frost = painted(token('--lg-chat-frost'), token('--color-base-100'));
+        return [
+            ['--color-base-100', token('--color-base-100')],
+            ['--color-base-200', token('--color-base-200')],
+            ['--lg-chat-frost', `rgb(${frost.r} ${frost.g} ${frost.b})`],
+        ];
+    }
+
+    it('the answer, the question, the meta lines and the head are ≥ 4.5:1 on every chat ground', () => {
+        const failures: string[] = [];
+        for (const [label, ground] of grounds()) {
+            for (const colour of ['--color-base-content', '--lg-muted', '--lg-chat-unverified-ink', '--lg-primary-text']) {
+                const r = ratio(token(colour), ground);
+                if (r < TEXT_FLOOR) failures.push(`${colour} on ${label}: ${r.toFixed(2)}`);
+            }
+        }
+        expect(failures).toEqual([]);
+    });
+
+    it('a citation pill, a source number and a hovered pill are ≥ 4.5:1', () => {
+        expect(ratio(token('--lg-chat-cite-ink'), token('--lg-chat-cite-ground'))).toBeGreaterThanOrEqual(TEXT_FLOOR);
+        expect(ratio(token('--lg-chat-cite-ink'), token('--lg-selected-surface-hover'))).toBeGreaterThanOrEqual(TEXT_FLOOR);
+    });
+
+    it('a running step reads on its band, in the ink and in the muted line', () => {
+        for (const colour of ['--color-base-content', '--lg-muted']) {
+            expect(ratio(token(colour), token('--lg-ai-surface')), `${colour} on --lg-ai-surface`).toBeGreaterThanOrEqual(TEXT_FLOOR);
+        }
+    });
+
+    it('the four AI marks, the unverified glyph and the focus ring are ≥ 3:1 where they are drawn', () => {
+        const failures: string[] = [];
+        const marks: [string, string][] = [
+            ['--lg-ai', '--color-base-100'], // the caret, and the header's busy dot
+            ['--lg-ai', '--lg-ai-surface'], // the glyph on its plate, the running step's ring on its band
+            ['--lg-chat-unverified-ink', '--color-base-100'],
+            ['--color-primary', '--color-base-100'], // the focus outline on a pill, a card, a summary
+            ['--color-primary', '--lg-chat-cite-ground'],
+        ];
+        for (const [colour, ground] of marks) {
+            const r = ratio(token(colour), token(ground));
+            if (r < OBJECT_FLOOR) failures.push(`${colour} on ${ground}: ${r.toFixed(2)}`);
+        }
+        expect(failures).toEqual([]);
+    });
+});

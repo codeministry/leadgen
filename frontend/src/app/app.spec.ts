@@ -29,6 +29,8 @@ describe('App', () => {
         httpMock.expectNone('/api/v1/scoring-models');
         httpMock.expectOne('/api/v1/ingest/last').flush(null);
         httpMock.expectOne('/api/v1/ingest/current').flush(null);
+        // The header asks once whether a chat model is configured (spec 019); absent is the shipped answer.
+        httpMock.expectOne('/api/v1/chat/capability').flush({present: false});
         await fixture.whenStable();
         fixture.detectChanges();
 

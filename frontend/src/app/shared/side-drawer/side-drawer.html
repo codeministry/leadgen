@@ -1,0 +1,31 @@
+<!-- The content is projected once and stamped into the current frame. No `display` on the
+     dialog itself, only on what fills it: an author `display` on the dialog beats the UA's
+     `dialog:not([open]) { display: none }` and it would stand open while every API says shut. -->
+<ng-template #content><ng-content/></ng-template>
+
+@if (docked()) {
+  @if (isOpen()) {
+    <aside
+      class="lg-side-drawer lg-side-drawer-docked"
+      [class]="frameClass()"
+      [style.width]="frameWidth()"
+      tabindex="-1"
+      [attr.aria-labelledby]="labelledBy()"
+      (keydown.escape)="onEscape($event)"
+    >
+      <ng-container [ngTemplateOutlet]="content"/>
+    </aside>
+  }
+} @else {
+  <dialog
+    #dialog
+    class="lg-side-drawer lg-side-drawer-modal"
+    [class]="frameClass()"
+    [style.width]="frameWidth()"
+    [attr.aria-labelledby]="labelledBy()"
+    (cancel)="onCancel($event)"
+    (close)="finish()"
+  >
+    <ng-container [ngTemplateOutlet]="content"/>
+  </dialog>
+}

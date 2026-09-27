@@ -175,6 +175,20 @@ describe('the tokens (ISC-223)', () => {
         expect([...blocks.get('light')!.keys()].sort()).toEqual([...blocks.get('dark')!.keys()].sort());
     });
 
+    // Fix 3F-8: `color-no-hex` misses rgb() and every other colour function, so this is their gate.
+    it('no component stylesheet and no token file holds a colour literal; a mask\'s alpha ramp is not paint', () => {
+        const literal = /#[0-9a-f]{3,8}\b|\b(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\(/i;
+        const found: string[] = [];
+        for (const file of [...cssFilesUnder(APP), ...TOKEN_FILES.map((f) => resolve(FRONTEND, f))]) {
+            const text = readFileSync(file, 'utf8').replace(/\/\*[\s\S]*?\*\//g, (c) => c.replace(/[^\n]/g, ' '));
+            for (const [i, line] of text.split('\n').entries()) {
+                if (/^\s*(?:-webkit-)?mask(?:-image)?\s*:/.test(line)) continue;
+                if (literal.test(line)) found.push(`${file.slice(FRONTEND.length + 1)}:${i + 1}: ${line.trim()}`);
+            }
+        }
+        expect(found).toEqual([]);
+    });
+
     it('every var(--x) a component reads is defined, and a fallback does not count', () => {
         const defined = definedNames();
         const missing: string[] = [];

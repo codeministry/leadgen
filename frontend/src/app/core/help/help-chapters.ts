@@ -23,6 +23,7 @@ export const HELP_CHAPTERS = [
     'analytics',
     'workflow',
     'sources',
+    'chat',
     'app-basics',
     'how-it-works',
 ] as const;
@@ -92,6 +93,7 @@ export const CHAPTER_DIAGRAMS: Record<HelpChapter, readonly HelpDiagram[]> = {
     'offer-detail': [],
     application: [],
     'filters-views': [],
+    chat: [],
     'app-basics': [],
 };
 
@@ -110,6 +112,7 @@ export const CHAPTER_SHOTS: Record<HelpChapter, readonly HelpShot[]> = {
     'offer-detail': ['offer-why-scored', 'offer-ask'],
     application: ['application-panel', 'cover-letter'],
     'filters-views': ['filters-panel', 'sort-menu'],
+    chat: [],
     'app-basics': ['run-confirm', 'settings-panel'],
 };
 

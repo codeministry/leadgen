@@ -14,6 +14,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import de.codeministry.leadgen.Databases;
 import de.codeministry.leadgen.config.ConfigFixtures;
 import de.codeministry.leadgen.ingest.extract.TitleNormalizer;
+import de.codeministry.leadgen.llm.LlmBudget;
 import de.codeministry.leadgen.offer.OfferQueryService;
 import de.codeministry.leadgen.offer.RelatedFilter;
 import de.codeministry.leadgen.offer.ShortlistQuery;
@@ -60,6 +61,9 @@ class SemanticSearchWithoutRetrievalTest {
     private OfferQueryService offers;
 
     @Autowired
+    private LlmBudget llmBudget;
+
+    @Autowired
     private SemanticFilter filter;
 
     @Autowired
@@ -86,8 +90,8 @@ class SemanticSearchWithoutRetrievalTest {
         offer("Senior Java Entwickler (m/w/d)");
         offer("Angular Entwickler (m/w/d)");
 
-        assertThatThrownBy(() ->
-                        offers.shortlist(ShortlistQuery.first().withRelated(new RelatedFilter("kubernetes", null))))
+        assertThatThrownBy(() -> offers.shortlist(
+                        ShortlistQuery.first().withRelated(new RelatedFilter("kubernetes", null)), llmBudget::take))
                 .isInstanceOf(SemanticFilter.RetrievalUnavailable.class)
                 .hasMessageContaining("does not search by meaning");
     }
@@ -96,7 +100,8 @@ class SemanticSearchWithoutRetrievalTest {
     void refusesAnAnchorTheSameWay() {
         long offer = offer("Senior Java Entwickler (m/w/d)");
 
-        assertThatThrownBy(() -> offers.shortlist(ShortlistQuery.first().withRelated(new RelatedFilter(null, offer))))
+        assertThatThrownBy(() -> offers.shortlist(
+                        ShortlistQuery.first().withRelated(new RelatedFilter(null, offer)), llmBudget::take))
                 .isInstanceOf(SemanticFilter.RetrievalUnavailable.class);
     }
 
@@ -108,7 +113,8 @@ class SemanticSearchWithoutRetrievalTest {
 
         assertThat(filter.available()).isFalse();
         assertThat(filter.coverage()).isNull();
-        assertThat(offers.shortlist(ShortlistQuery.first()).related()).isNull();
+        assertThat(offers.shortlist(ShortlistQuery.first(), llmBudget::take).related())
+                .isNull();
     }
 
     @Test
@@ -123,7 +129,7 @@ class SemanticSearchWithoutRetrievalTest {
                         + " VALUES (?, 'interest_fit', 'interest: Wanted topic', 12, 0, 'Wanted topic', 0)",
                 named);
 
-        var page = offers.shortlist(ShortlistQuery.first().withTopic("Wanted topic"));
+        var page = offers.shortlist(ShortlistQuery.first().withTopic("Wanted topic"), llmBudget::take);
 
         assertThat(page.entries()).extracting(entry -> entry.offer().id()).containsExactly(named);
         assertThat(page.matched()).isEqualTo(1);
@@ -136,7 +142,7 @@ class SemanticSearchWithoutRetrievalTest {
         offer("Senior Java Entwickler (m/w/d)");
         offer("Angular Entwickler (m/w/d)");
 
-        var page = offers.shortlist(ShortlistQuery.first());
+        var page = offers.shortlist(ShortlistQuery.first(), llmBudget::take);
 
         assertThat(page.entries()).hasSize(2);
         assertThat(page.matched()).isEqualTo(2);

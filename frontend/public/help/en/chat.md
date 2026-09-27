@@ -1,0 +1,15 @@
+The **Ask** button at the start of the header opens a chat on every screen. Ask in plain words about your offers, your applications and your profile: which remote projects came in last month, what you wrote for projects like this one, how many of last week's offers asked for a particular skill. The answer appears as the model writes it.
+
+**What it answers from.** The chat searches the working list and the archive by filters and by meaning, reads the same figures the dashboard and the analytics screen show, and opens an application with its history and cover letter, or your profile as it is in force. While it works, each search shows as a step; when the answer is done, the steps fold into one line that says how many it used.
+
+**Links and unverified ids.** Every offer or application the answer speaks about is a numbered pill that links to it, and the sources below the answer carry the same numbers. A link appears only for a row that one of this answer's own searches returned and that is still on the list or in the archive. Anything else the model names stays plain text with a dashed underline and a shield with a question mark: treat that claim as unchecked. Hover over a pill or focus it to preview the row's title, source and date without leaving the page; the same card on an unverified id says why it is not a link.
+
+**Stop, regenerate, copy.** While an answer is still coming, the send button turns into **Stop**: the answer so far is kept and marked stopped, and you can ask the next question at once. Regenerate asks the last question again and keeps the earlier answer in the conversation. Copy puts the answer on the clipboard with its sources as a list of links. Enter sends, Shift+Enter starts a new line.
+
+**It stays open beside a source.** On a wide window the chat is a panel beside the page, and the page stays usable: following a source opens the offer next to the conversation. On a phone the chat fills the screen; following a source folds it into a bar above the bottom navigation that names the conversation and shows when an answer is still coming, and a tap brings it back. Escape or the close button closes it. **Ask about this offer** in an offer's detail starts a conversation with that offer pinned; the chip's cross removes the pin.
+
+**Conversations are kept.** Earlier conversations are listed newest first and reopen where they stood; the open one survives a reload and a change of screen. Delete one you no longer need from the list.
+
+**It only reads.** The chat never starts a run, moves an application, archives an offer or writes a letter, and your mailbox address never reaches the model. It has its own daily allowance beside the run's, so questions never use up what the nightly run needs; when it is spent, an answer ends with that reason. Without a chat model configured there is no **Ask** button at all, and everything else works as before.
+
+**Tip:** ask for a count rather than a list when you want a number. A search returns one page, and the chat takes its figures from the same count the screens show.

@@ -73,6 +73,10 @@ llm:
     # the width of `offer.embedding` and the widest pgvector will index; a wider model is
     # truncated to it and says so once at startup.
     embedding: ${LLM_MODEL_EMBEDDING}
+    # The chat in the app's drawer. Empty means `scoring`, like `content` and `fields`; the
+    # model has to call tools, which not every model a judge runs on does well. With neither
+    # key set the chat is absent and the header draws no button.
+    chat: ${LLM_MODEL_CHAT}
   budget:
     # Every request that leaves for a model counts once, whatever it carries: a judge's
     # prompt, a classifier's, a field extraction, a document with no frontmatter, and an
@@ -85,6 +89,17 @@ llm:
     # stopped. `0` means no calls at all; **no ceiling is this block being absent**, not a
     # zero.
     max_calls_per_day: 300
+
+# The chat's own ceilings, beside `llm.budget` and never through it: a long afternoon of
+# questions must not starve the nightly run, and the nightly run must not silence the chat.
+# 0 means no calls. Unlike `llm.budget`, absent is NOT no ceiling: a key left out — or this
+# whole block missing from an override — is the shipped 200 calls and 6 rounds, because the
+# chat is on wherever a scoring model exists and an unbounded tool loop never ends.
+chat:
+  max_calls_per_day: ${CHAT_MAX_CALLS_PER_DAY:200}
+  # A turn may call tools at most this often before it has to answer; the turn then ends
+  # with its reason rather than with an answer the model never finished.
+  max_tool_rounds: ${CHAT_MAX_TOOL_ROUNDS:6}
 
 # File names, resolved against the configuration directory — never a path with the
 # directory baked in: inside the container that directory is /config, not

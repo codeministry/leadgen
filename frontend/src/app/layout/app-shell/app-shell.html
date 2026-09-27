@@ -6,6 +6,10 @@
                 <router-outlet/>
             </div>
         </main>
+        <!-- The shell's second column: the chat panel docks here from 48rem and the page reflows
+             into what is left (spec 019). Projected rather than imported, because layout/ sits
+             below features/ and the panel is a feature; the root component fills the slot. -->
+        <ng-content select="[lgShellAside]"/>
     </div>
     <!-- Once, and here: outside the measure because it is fixed to the window's corner, and
          in the shell rather than in a screen because a toast outlives the screen that

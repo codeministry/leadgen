@@ -19,6 +19,7 @@ import de.codeministry.leadgen.ask.AdvertAskService;
 import de.codeministry.leadgen.ask.AdvertQuestion;
 import de.codeministry.leadgen.enrich.EnrichmentService;
 import de.codeministry.leadgen.enrich.OfferRefetch;
+import de.codeministry.leadgen.llm.LlmBudget;
 import de.codeministry.leadgen.offer.*;
 import de.codeministry.leadgen.retrieval.SemanticFilter;
 import de.codeministry.leadgen.score.Judges;
@@ -48,6 +49,9 @@ class OfferController {
     private final AdvertAskService asks;
     private final AnswerService answers;
     private final OfferRefetch refetch;
+
+    /** Pays a topic's embedding on the screen's list; the chat's tool pays its own. */
+    private final LlmBudget llmBudget;
 
     /**
      * One page of the shortlist, filtered.
@@ -90,20 +94,22 @@ class OfferController {
         // edge with a sentence and never reaches a statement. `ScoreFilter` is built here for
         // the same reason one step further on — it refuses two spellings of the score axis
         // before anything has been read.
-        return offers.shortlist(new ShortlistQuery(
-                q,
-                new ScoreFilter(band, minScore, maxScore, ScoreState.of(scoreState)),
-                portal,
-                archived,
-                ShortlistSort.of(sort),
-                StartWindow.of(startWindow),
-                new RelatedFilter(semantic, similar),
-                minMonths,
-                deadlineOpen,
-                possibleDuplicates,
-                topic,
-                cursor,
-                limit));
+        return offers.shortlist(
+                new ShortlistQuery(
+                        q,
+                        new ScoreFilter(band, minScore, maxScore, ScoreState.of(scoreState)),
+                        portal,
+                        archived,
+                        ShortlistSort.of(sort),
+                        StartWindow.of(startWindow),
+                        new RelatedFilter(semantic, similar),
+                        minMonths,
+                        deadlineOpen,
+                        possibleDuplicates,
+                        topic,
+                        cursor,
+                        limit),
+                llmBudget::take);
     }
 
     /**

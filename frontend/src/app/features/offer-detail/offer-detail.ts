@@ -20,6 +20,8 @@ import {ContentBlock, Offer} from '@core/model/offer';
 import {ScoreReason} from '@core/model/score';
 import {ShortlistEntry} from '@core/model/shortlist-entry';
 import {applicationEvents} from '@core/store/applications.events';
+import {chatEvents} from '@core/store/chat.events';
+import {ChatStore} from '@core/store/chat.store';
 import {ApplicationsStore} from '@core/store/applications.store';
 import {coverLetterEvents} from '@core/store/cover-letter.events';
 import {CoverLetterStore} from '@core/store/cover-letter.store';
@@ -120,6 +122,8 @@ export class OfferDetail implements OnInit {
     protected readonly applications = inject(ApplicationsStore);
     protected readonly coverLetters = inject(CoverLetterStore);
     private readonly coverLetterDispatch = injectDispatch(coverLetterEvents);
+    protected readonly chat = inject(ChatStore);
+    private readonly chatDispatch = injectDispatch(chatEvents);
 
     /** Bound from the route parameter by `withComponentInputBinding()`. */
     readonly id = input.required<string>();
@@ -160,6 +164,11 @@ export class OfferDetail implements OnInit {
    * from it. Empty means a fresh clone, where the panel is absent rather than disabled.
    */
   protected readonly canAsk = computed(() => this.scoringModels.available().length > 0);
+
+  /** A new conversation with this offer as its pinned context; the drawer opens beside the detail. */
+  protected askAboutOffer(id: number): void {
+    this.chatDispatch.newRequested({pinnedOfferId: id});
+  }
 
   /**
    * Narrow the list to this offer's neighbourhood, without leaving the offer.

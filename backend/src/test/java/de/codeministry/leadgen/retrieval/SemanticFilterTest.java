@@ -14,6 +14,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import de.codeministry.leadgen.Databases;
 import de.codeministry.leadgen.config.ConfigFixtures;
 import de.codeministry.leadgen.ingest.extract.TitleNormalizer;
+import de.codeministry.leadgen.llm.LlmBudget;
 import de.codeministry.leadgen.llm.Vectors;
 import de.codeministry.leadgen.offer.OfferQueryService;
 import de.codeministry.leadgen.offer.RelatedFilter;
@@ -63,6 +64,9 @@ class SemanticFilterTest {
     private OfferQueryService offers;
 
     @Autowired
+    private LlmBudget llmBudget;
+
+    @Autowired
     private SemanticFilter filter;
 
     /** The topic phrase's vector, decided by the test rather than by a model. */
@@ -90,7 +94,10 @@ class SemanticFilterTest {
 
     @Test
     void findsAParaphraseWithinTheTopicFloorBesideTheStoredAliasMatches() {
-        org.mockito.Mockito.when(queries.vectorFor("Wanted topic", "test-embed"))
+        org.mockito.Mockito.when(queries.vectorFor(
+                        org.mockito.ArgumentMatchers.eq("Wanted topic"),
+                        org.mockito.ArgumentMatchers.eq("test-embed"),
+                        org.mockito.ArgumentMatchers.any()))
                 .thenReturn(java.util.Optional.of(Vectors.literal(direction(0))));
         long named = offer("Nennt den Alias", 40, direction(900));
         jdbc.update(
@@ -100,7 +107,7 @@ class SemanticFilterTest {
         long paraphrase = offer("Umschreibt das Thema", 20, direction(1));
         long unrelated = offer("Etwas anderes", 90, direction(900));
 
-        var page = offers.shortlist(ShortlistQuery.first().withTopic("Wanted topic"));
+        var page = offers.shortlist(ShortlistQuery.first().withTopic("Wanted topic"), llmBudget::take);
 
         assertThat(ids(page)).containsExactlyInAnyOrder(named, paraphrase);
         assertThat(ids(page)).doesNotContain(unrelated);
@@ -109,7 +116,10 @@ class SemanticFilterTest {
     @Test
     void answersATopicWithItsAliasMatchesAloneWhenThePhraseCannotBeEmbedded() {
         // A spent budget or an unreachable model: the paraphrase half is absent, the rest stands.
-        org.mockito.Mockito.when(queries.vectorFor("Wanted topic", "test-embed"))
+        org.mockito.Mockito.when(queries.vectorFor(
+                        org.mockito.ArgumentMatchers.eq("Wanted topic"),
+                        org.mockito.ArgumentMatchers.eq("test-embed"),
+                        org.mockito.ArgumentMatchers.any()))
                 .thenReturn(java.util.Optional.empty());
         long named = offer("Nennt den Alias", 40, direction(900));
         jdbc.update(
@@ -118,7 +128,7 @@ class SemanticFilterTest {
                 named);
         offer("Umschreibt das Thema", 20, direction(1));
 
-        assertThat(ids(offers.shortlist(ShortlistQuery.first().withTopic("Wanted topic"))))
+        assertThat(ids(offers.shortlist(ShortlistQuery.first().withTopic("Wanted topic"), llmBudget::take)))
                 .containsExactly(named);
     }
 
@@ -131,7 +141,7 @@ class SemanticFilterTest {
         long near = offer("Nah", 10, direction(1));
         long far = offer("Fern", 90, direction(900));
 
-        var page = offers.shortlist(related(anchor));
+        var page = offers.shortlist(related(anchor), llmBudget::take);
 
         assertThat(ids(page)).containsExactly(anchor, near);
         assertThat(ids(page)).doesNotContain(far);
@@ -148,7 +158,7 @@ class SemanticFilterTest {
         long anchor = offer("Anker", 50, direction(0));
         offer("Nah", 10, direction(1));
 
-        assertThat(ids(offers.shortlist(related(anchor)))).contains(anchor);
+        assertThat(ids(offers.shortlist(related(anchor), llmBudget::take))).contains(anchor);
     }
 
     @Test
@@ -160,7 +170,7 @@ class SemanticFilterTest {
 
         // Six offers, all indexed, and the page could hold fifty: what bounds this is
         // `retrieval.neighbours` and nothing else.
-        assertThat(offers.shortlist(related(anchor)).entries()).hasSize(NEIGHBOURS);
+        assertThat(offers.shortlist(related(anchor), llmBudget::take).entries()).hasSize(NEIGHBOURS);
     }
 
     @Test
@@ -171,8 +181,8 @@ class SemanticFilterTest {
         long anchor = offer("Anker", 50, direction(0));
         long unindexed = offer("Ohne Vektor", 99, null);
 
-        assertThat(ids(offers.shortlist(related(anchor)))).containsExactly(anchor);
-        assertThat(ids(offers.shortlist(related(anchor)))).doesNotContain(unindexed);
+        assertThat(ids(offers.shortlist(related(anchor), llmBudget::take))).containsExactly(anchor);
+        assertThat(ids(offers.shortlist(related(anchor), llmBudget::take))).doesNotContain(unindexed);
     }
 
     @Test
@@ -183,7 +193,7 @@ class SemanticFilterTest {
         long other = offer("Anderes Modell", 60, direction(1));
         jdbc.update("UPDATE offer SET retrieval_embedding_model = 'a-different-model' WHERE id = ?", other);
 
-        assertThat(ids(offers.shortlist(related(anchor)))).containsExactly(anchor);
+        assertThat(ids(offers.shortlist(related(anchor), llmBudget::take))).containsExactly(anchor);
     }
 
     @Test
@@ -196,7 +206,7 @@ class SemanticFilterTest {
         offer("Fern", 30, direction(500));
         offer("Weiter weg", 20, direction(900));
 
-        var page = offers.shortlist(related(anchor));
+        var page = offers.shortlist(related(anchor), llmBudget::take);
 
         assertThat(page.matched()).isEqualTo(2);
         assertThat(page.total()).isEqualTo(4);
@@ -212,8 +222,8 @@ class SemanticFilterTest {
         }
 
         // A neighbourhood of two, walked one row at a time.
-        var first = offers.shortlist(related(anchor).withLimit(1));
-        var second = offers.shortlist(related(anchor).withLimit(1).withCursor(first.nextCursor()));
+        var first = offers.shortlist(related(anchor).withLimit(1), llmBudget::take);
+        var second = offers.shortlist(related(anchor).withLimit(1).withCursor(first.nextCursor()), llmBudget::take);
 
         assertThat(first.entries()).hasSize(1);
         assertThat(second.entries()).hasSize(1);
@@ -229,7 +239,8 @@ class SemanticFilterTest {
         offer("Nah", 40, direction(1));
 
         for (ShortlistSort sort : ShortlistSort.values()) {
-            assertThat(offers.shortlist(related(anchor).withSort(sort)).entries())
+            assertThat(offers.shortlist(related(anchor).withSort(sort), llmBudget::take)
+                            .entries())
                     .describedAs("sort=%s", sort.key())
                     .hasSize(2);
         }
@@ -239,8 +250,10 @@ class SemanticFilterTest {
     void namesTheAnchorSoTheChipCanSaySoWithoutASecondRequest() {
         long anchor = offer("Senior Java Entwickler (m/w/d)", 50, direction(0));
 
-        assertThat(offers.shortlist(related(anchor)).relatedTo()).isEqualTo("Senior Java Entwickler (m/w/d)");
-        assertThat(offers.shortlist(ShortlistQuery.first()).relatedTo()).isNull();
+        assertThat(offers.shortlist(related(anchor), llmBudget::take).relatedTo())
+                .isEqualTo("Senior Java Entwickler (m/w/d)");
+        assertThat(offers.shortlist(ShortlistQuery.first(), llmBudget::take).relatedTo())
+                .isNull();
     }
 
     @Test
@@ -267,7 +280,7 @@ class SemanticFilterTest {
         offer("Irgendwas", 40, direction(1));
         offer("Irgendwas anderes", 30, direction(2));
 
-        assertThatThrownBy(() -> offers.shortlist(related(unindexed)))
+        assertThatThrownBy(() -> offers.shortlist(related(unindexed), llmBudget::take))
                 .isInstanceOf(SemanticFilter.RetrievalUnavailable.class)
                 .hasMessageContaining("has not been read for meaning yet");
     }

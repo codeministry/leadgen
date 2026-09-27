@@ -17,6 +17,7 @@ import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.BooleanSupplier;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.embedding.EmbeddingRequest;
@@ -81,6 +82,16 @@ public class QueryEmbedder {
      * nothing makes the count beside it a lie.
      */
     public Optional<String> vectorFor(String phrase, String model) {
+        return vectorFor(phrase, model, budget::take);
+    }
+
+    /**
+     * The same, asking {@code take} rather than {@code llm.budget} before a request. The chat's
+     * semantic search passes its own ceiling here: a question typed into the drawer is not a stage
+     * of a run and must neither spend nor be refused by the pipeline's day (ISC-433). The cache is
+     * shared either way, since a vector does not care who paid for it.
+     */
+    public Optional<String> vectorFor(String phrase, String model, BooleanSupplier take) {
         String key = model + '\0' + phrase.strip().toLowerCase(Locale.ROOT);
         synchronized (this) {
             float[] cached = remembered.get(key);
@@ -94,8 +105,8 @@ public class QueryEmbedder {
         if (embeddings.isEmpty()) {
             return Optional.empty();
         }
-        if (!budget.take()) {
-            log.info("Search: the day's llm.budget is spent, so '{}' cannot be embedded", phrase);
+        if (!take.getAsBoolean()) {
+            log.info("Search: the day's budget is spent, so '{}' cannot be embedded", phrase);
             return Optional.empty();
         }
 
