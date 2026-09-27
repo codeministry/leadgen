@@ -803,7 +803,7 @@ own (four running, eight waiting, 503 past that), so the servlet thread is hande
 the stream is open. The tool loop is driven here rather than by Spring AI, because each step of it
 carries a rule: the chat's own budget before every model request, the round bound before every
 tool round, the masker on every tool result, the ledger on every returned id. The reasoning is in
-[decisions/chat.md](decisions/chat.md); the four tables in [DATA-MODEL.md § 5](DATA-MODEL.md#5-the-chats-four-tables).
+[decisions/chat.md](decisions/chat.md); the five tables in [DATA-MODEL.md § 5](DATA-MODEL.md#5-the-chats-five-tables).
 
 ```mermaid
 %%{init: {"themeVariables": {"actorBkg":"#dbe4ee","actorBorder":"#4a6d8c","actorTextColor":"#1f2937","noteBkgColor":"#fff3c4","noteBorderColor":"#a4781b","noteTextColor":"#1f2937","labelBoxBkgColor":"#eef1f5","labelBoxBorderColor":"#9aa3ad","labelTextColor":"#1f2937"}}}%%

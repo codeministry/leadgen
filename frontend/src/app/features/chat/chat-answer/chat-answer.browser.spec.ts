@@ -6,7 +6,7 @@ import {of} from 'rxjs';
 import {userEvent} from 'vitest/browser';
 import {ChatApi} from '@core/api/chat.api';
 import {replayTurn} from '@core/api/chat-stub';
-import {ChatEvent, ChatSource, ConversationView} from '@core/model/chat';
+import {ChatEvent, ChatSource, ChatStatisticsSource, ConversationView} from '@core/model/chat';
 import {chatEvents} from '@core/store/chat.events';
 import {ChatStore} from '@core/store/chat.store';
 import {ChatAnswer} from './chat-answer';
@@ -242,5 +242,113 @@ describe('the chat answer in a browser', () => {
             await tick(0);
             expect(open()).toBe(false);
         });
+    });
+});
+
+/** A `statistics` source: its numbers come from the tool's result, never from the answer's text. */
+const STATISTICS: ChatStatisticsSource = {
+    kind: 'STATISTICS',
+    ordinal: 1,
+    from: '2026-09-01',
+    to: '2026-09-30',
+    compareFrom: '2026-08-01',
+    compareTo: '2026-08-31',
+    rows: [
+        {label: 'Offers received in the window, all portals together', value: 42, compareValue: 30, delta: 12},
+        {label: 'Shortlisted after the hard filter and the scorer', value: 7, compareValue: 9, delta: -2},
+        {label: 'Applications open', value: 3, compareValue: null, delta: null},
+    ],
+    series: [
+        {day: '2026-09-01', count: 1},
+        {day: '2026-09-02', count: 4},
+        {day: '2026-09-03', count: 2},
+        {day: '2026-09-04', count: 6},
+        {day: '2026-09-05', count: 3},
+    ],
+};
+
+@Component({
+    selector: 'lg-phone-column',
+    imports: [ChatAnswer],
+    // The answer column of the 390 sheet: 390 less the 15px gutter on each side.
+    template: `
+      <div style="width: 360px">
+        <lg-chat-answer answer="Intake was 99, and 1 made the shortlist." [sources]="sources" state="DONE" [turnId]="41" [last]="true"/>
+      </div>
+    `,
+})
+class PhoneColumn {
+    readonly sources = [OFFER_12, STATISTICS];
+}
+
+/**
+ * The statistics card (ISC-460): a stubbed turn whose `STATISTICS` source carries rows and a series
+ * while its text states other digits. The card shows the source's numbers, draws the series, links
+ * the window to `/analytics`, and at the 390 column only its own wrapper scrolls sideways.
+ */
+describe('the statistics card in a browser (ISC-460)', () => {
+    let fixture: ComponentFixture<PhoneColumn>;
+
+    beforeEach(async () => {
+        TestBed.configureTestingModule({
+            providers: [provideRouter([{path: 'dashboard', component: Blank}, {path: 'analytics', component: Blank}])],
+        });
+        await TestBed.inject(Router).navigateByUrl('/dashboard?chat=5');
+        fixture = TestBed.createComponent(PhoneColumn);
+        document.body.appendChild(fixture.nativeElement);
+        fixture.detectChanges();
+        await fixture.whenStable();
+    });
+
+    afterEach(() => (fixture.nativeElement as HTMLElement).remove());
+
+    const card = () => (fixture.nativeElement as HTMLElement).querySelector('lg-chat-statistics-card') as HTMLElement;
+
+    it('shows the numbers of the source, not the digits of the text', () => {
+        const cells = [...card().querySelectorAll('tbody tr')].map((row) => [...row.querySelectorAll('th, td')].map((c) => c.textContent?.trim()));
+        expect(cells[0].slice(1)).toEqual(['42', '30', expect.stringContaining('+12')]);
+        expect(cells[1].slice(1)).toEqual(['7', '9', expect.stringContaining('−2')]);
+        expect(cells[2][1]).toBe('3');
+        expect(card().textContent).not.toContain('99');
+        // The offer is still a source card; the statistics are not one of them.
+        expect((fixture.nativeElement as HTMLElement).querySelectorAll('.lg-chat-source')).toHaveLength(1);
+    });
+
+    it('marks a difference with a sign and an arrow in the ink of its row, never a good or bad colour', () => {
+        const rows = [...card().querySelectorAll('tbody tr')];
+        const up = rows[0].querySelector('.lg-chat-stats-delta') as HTMLElement;
+        const down = rows[1].querySelector('.lg-chat-stats-delta') as HTMLElement;
+        expect(up.dataset['direction']).toBe('up');
+        expect(down.dataset['direction']).toBe('down');
+        expect(up.querySelector('lg-icon svg')).not.toBeNull();
+        expect(down.querySelector('lg-icon svg')).not.toBeNull();
+        const ink = getComputedStyle(rows[0].querySelector('.lg-chat-stats-value') as HTMLElement).color;
+        expect(getComputedStyle(up).color).toBe(ink);
+        expect(getComputedStyle(down).color).toBe(ink);
+    });
+
+    it('draws the series as a sparkline in currentColor, hidden from assistive tech', () => {
+        const svg = card().querySelector('svg.lg-chat-stats-spark') as SVGSVGElement;
+        expect(svg.getAttribute('aria-hidden')).toBe('true');
+        const line = svg.querySelector('polyline') as SVGPolylineElement;
+        expect(line.getAttribute('points')?.trim().split(/\s+/)).toHaveLength(STATISTICS.series.length);
+        expect(line.getAttribute('stroke')).toBe('currentColor');
+    });
+
+    it('links the window it answered to /analytics', () => {
+        const link = card().querySelector('a.lg-chat-stats-link') as HTMLAnchorElement;
+        const url = new URL(link.href);
+        expect(url.pathname).toBe('/analytics');
+        expect(url.searchParams.get('from')).toBe('2026-09-01');
+        expect(url.searchParams.get('to')).toBe('2026-09-30');
+    });
+
+    it('at the 390 column only its own wrapper scrolls sideways', () => {
+        const column = (fixture.nativeElement as HTMLElement).firstElementChild as HTMLElement;
+        const scroller = card().querySelector('.lg-chat-stats-scroll') as HTMLElement;
+        expect(getComputedStyle(scroller).overflowX).toBe('auto');
+        expect(card().getBoundingClientRect().width).toBeLessThanOrEqual(360);
+        expect(column.scrollWidth).toBeLessThanOrEqual(column.clientWidth);
+        expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(document.documentElement.clientWidth);
     });
 });

@@ -118,6 +118,9 @@ class ChatToolsReadOnlyTest {
     @Autowired
     private JdbcTemplate jdbc;
 
+    @Autowired
+    private ConversationRepository conversations;
+
     @AfterAll
     static void stop() {
         MODEL.close();
@@ -209,6 +212,46 @@ class ChatToolsReadOnlyTest {
                 .containsExactly("search_offers", "search_by_meaning", "statistics", "application", "profile");
         assertThat(before).containsKeys("offer", "application", "application_event", "source", "llm_call_budget");
 
+        assertThat(nonChatTables()).isEqualTo(before);
+    }
+
+    /**
+     * ISC-454: a pinned offer, a pinned view and a pinned window change what the tools read, never
+     * what they write — every non-chat table is the same after the turn as before it.
+     */
+    @Test
+    void aTurnWithEveryKindOfPinWritesNothingOutsideTheChatsTables() {
+        long source =
+                jdbc.queryForObject("INSERT INTO source (name, kind) VALUES ('pin', 'file') RETURNING id", Long.class);
+        long offer = jdbc.queryForObject("""
+                INSERT INTO offer (source_id, external_id, title, description, url, fingerprint, status,
+                                   filter_stage, score_value, portal, ingested_at)
+                VALUES (?, 'pin-1', 'Kafka Developer abroad', 'Event streaming.', 'https://example.invalid/pin',
+                        'pin-1', 'REJECTED', 'ABROAD', 80, 'portal-a', now())
+                RETURNING id
+                """, Long.class, source);
+        long conversation = conversations.create(
+                null,
+                List.of(
+                        new ChatContextItem(ChatContextKind.OFFER, offer, null, null, null),
+                        new ChatContextItem(ChatContextKind.SHORTLIST_VIEW, null, "q=kafka&sort=fresh", null, null),
+                        new ChatContextItem(
+                                ChatContextKind.ANALYTICS_WINDOW,
+                                null,
+                                null,
+                                java.time.LocalDate.now().minusDays(7),
+                                java.time.LocalDate.now())));
+        MODEL.enqueue(ModelStub.toolCalls(
+                "search_offers", "{\"text\":\"java\"}",
+                "statistics", "{\"from\":\"2020-01-01\"}"));
+        MODEL.enqueue(ModelStub.text(Duration.ofMillis(5), "Read ", "the pins."));
+        Map<String, String> before = nonChatTables();
+
+        List<TurnStream.Event> events = TurnStream.ask(port, conversation, "What about the pins?");
+
+        assertThat(TurnStream.names(events).getLast()).isEqualTo("done");
+        assertThat(jdbc.queryForList("SELECT tool FROM chat_tool_call ORDER BY ordinal", String.class))
+                .containsExactly("pinned_offer", "search_offers", "statistics");
         assertThat(nonChatTables()).isEqualTo(before);
     }
 

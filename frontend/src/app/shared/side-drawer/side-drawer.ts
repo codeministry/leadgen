@@ -42,7 +42,12 @@ export class SideDrawer {
     readonly dock = input(false);
     /** The id of the heading that names the drawer. */
     readonly labelledBy = input.required<string>();
-    /** The consumer's width, a length or a `var()`; capped at the window either way. */
+    /**
+     * The consumer's width, a length or a `var()`; capped at the window either way. It may change
+     * while the drawer is open — the chat's folds with its conversation rail (ISC-445) — and the
+     * frame follows at once, with no transition: a consumer whose content leaves at once, as the
+     * rail does, would be squeezed for the length of one.
+     */
     readonly width = input.required<string>();
     /** A class of the consumer's own on the frame, for its specs and its stylesheet's reach. */
     readonly frameClass = input('');

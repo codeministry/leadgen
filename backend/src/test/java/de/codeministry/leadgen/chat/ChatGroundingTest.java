@@ -60,6 +60,9 @@ class ChatGroundingTest {
     @Autowired
     private JdbcTemplate jdbc;
 
+    @Autowired
+    private ConversationRepository conversations;
+
     private long sourceId;
 
     @AfterAll
@@ -116,6 +119,41 @@ class ChatGroundingTest {
         assertThat(sources).contains("\"id\":" + returned).doesNotContain("\"id\":" + neverReturned);
         assertThat(jdbc.queryForObject("SELECT answer_md FROM chat_turn", String.class))
                 .isEqualTo(answer);
+    }
+
+    /**
+     * ISC-454: pins widen what the tools read and nothing else. A knocked-out offer pinned second
+     * (so the old single-pin mirror does not reach it) is a link, because the turn's pinned lookup
+     * returned it; an offer outside the pinned view that no tool returned stays unverified although
+     * it is on the working list; a knocked-out offer nobody pinned stays unverified; the offer the
+     * view-bound search returned is a link.
+     */
+    @Test
+    void aPinIsCitableAndNothingOutsideWhatAToolReturnedIs() {
+        long pinnedFirst = offer("Kotlin Developer", "PASSED");
+        long pinnedKnockedOut = offer("Java Developer abroad", "REJECTED");
+        long inView = offer("Java Developer", "PASSED");
+        long outsideView = offer("Gardener", "PASSED");
+        long unpinnedKnockedOut = offer("Gardener abroad", "REJECTED");
+        long conversation = conversations.create(
+                null,
+                List.of(
+                        new ChatContextItem(ChatContextKind.OFFER, pinnedFirst, null, null, null),
+                        new ChatContextItem(ChatContextKind.OFFER, pinnedKnockedOut, null, null, null),
+                        new ChatContextItem(ChatContextKind.SHORTLIST_VIEW, null, "q=java", null, null)));
+        // The model asks for gardeners; the pinned view answers with the Java offer instead.
+        MODEL.enqueue(ModelStub.toolCalls("search_offers", "{\"text\":\"gardener\"}"));
+        MODEL.enqueue(ModelStub.text(
+                Duration.ofMillis(5),
+                "Pinned [[offer:" + pinnedKnockedOut + "]], outside [[offer:" + outsideView + "]], unpinned [[offer:"
+                        + unpinnedKnockedOut + "]], returned [[offer:" + inView + "]]."));
+
+        String answer = TurnStream.text(TurnStream.ask(port, conversation, "Which ones?"));
+
+        assertThat(answer).contains("(cite:offer/" + pinnedKnockedOut + ")");
+        assertThat(answer).contains("(cite:offer/" + inView + ")");
+        assertThat(answer).contains("⟨unverified:" + outsideView + "⟩", "⟨unverified:" + unpinnedKnockedOut + "⟩");
+        assertThat(answer).doesNotContain("cite:offer/" + outsideView, "cite:offer/" + unpinnedKnockedOut);
     }
 
     private long offer(String title, String status) {

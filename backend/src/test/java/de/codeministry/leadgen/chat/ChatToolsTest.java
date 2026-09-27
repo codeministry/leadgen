@@ -341,7 +341,7 @@ class ChatToolsTest {
         JsonNode summary = get("/api/v1/analytics/summary");
         var last = mvc.get().uri("/api/v1/ingest/last").exchange();
 
-        var whole = statistics.statistics(null, null);
+        var whole = statistics.statistics(null, null, null, null);
         assertThat(tree(whole.funnel())).isEqualTo(analytics.get("funnel"));
         assertThat(tree(whole.intake())).isEqualTo(analytics.get("intake").get("byIngestedAt"));
         assertThat(tree(whole.runs())).isEqualTo(analytics.get("runs").get("days"));
@@ -363,7 +363,7 @@ class ChatToolsTest {
 
         LocalDate to = LocalDate.parse(analytics.get("to").asText());
         LocalDate from = to.minusDays(6);
-        var week = statistics.statistics(from.toString(), to.toString());
+        var week = statistics.statistics(from.toString(), to.toString(), null, null);
         List<JsonNode> expected = new ArrayList<>();
         analytics.get("intake").get("byIngestedAt").forEach(day -> {
             LocalDate on = LocalDate.parse(day.get("day").asText());
@@ -375,6 +375,183 @@ class ChatToolsTest {
         assertThat(tree(week.intake())).isEqualTo(JSON.valueToTree(expected));
         assertThat(week.from()).isEqualTo(from);
         assertThat(week.to()).isEqualTo(to);
+    }
+
+    /**
+     * ISC-458: the statistics tool carries the analytics screen's market section (portals, tags,
+     * locations, reach), its stage mix and its scales, each equal to {@code GET /api/v1/analytics};
+     * inside a window the stage mix loses the days outside it, the way the screen's daily series do,
+     * and the states stay whole.
+     */
+    @Test
+    void answersTheMarketTheStageMixAndTheScalesOfTheAnalyticsScreen() throws Exception {
+        jdbc.update("""
+            UPDATE offer SET ingested_at = now() - make_interval(days => (id % 9)::int),
+                             tags = CASE id % 3 WHEN 0 THEN ARRAY['java', 'spring']
+                                                WHEN 1 THEN ARRAY['java'] ELSE ARRAY['kotlin'] END,
+                             location = CASE WHEN id % 2 = 0 THEN 'Köln' ELSE 'Remote' END,
+                             score_model = CASE WHEN score_value IS NULL THEN NULL ELSE 'judge-a' END,
+                             ruleset_version = CASE WHEN score_value IS NULL THEN NULL
+                                                    WHEN id % 4 = 0 THEN 'rules-1' ELSE 'rules-2' END,
+                             scored_at = CASE WHEN score_value IS NULL THEN NULL
+                                              ELSE now() - make_interval(hours => id::int) END
+            """);
+        // Knockouts spread over twelve days, so the stage mix has days inside a week and outside it.
+        jdbc.update("""
+            INSERT INTO offer (source_id, external_id, title, url, fingerprint, status, filter_stage,
+                               portal, location, tags, ingested_at)
+            SELECT ?, 'knocked-' || g, 'Knocked out ' || g, 'https://example.invalid/k' || g, 'knocked-' || g,
+                   'REJECTED', CASE WHEN g % 2 = 0 THEN 'ABROAD' ELSE 'OUT_OF_REACH' END,
+                   'portal-' || substr('abc', g % 3 + 1, 1), 'Zürich', ARRAY['java'],
+                   now() - make_interval(days => g)
+              FROM generate_series(0, 11) AS g
+            """, sourceId);
+
+        JsonNode analytics = get("/api/v1/analytics");
+        JsonNode market = analytics.get("market");
+        // Guards the guard: every compared list holds something, so no comparison is vacuous.
+        for (String part : List.of("portals", "tags", "locations", "stageMix")) {
+            assertThat(market.get(part)).as(part).isNotEmpty();
+        }
+        assertThat(analytics.get("scales")).hasSizeGreaterThanOrEqualTo(2);
+
+        var whole = statistics.statistics(null, null, null, null);
+        assertThat(tree(whole.market().portals())).isEqualTo(market.get("portals"));
+        assertThat(tree(whole.market().tags())).isEqualTo(market.get("tags"));
+        assertThat(tree(whole.market().locations())).isEqualTo(market.get("locations"));
+        assertThat(tree(whole.market().reach())).isEqualTo(market.get("reach"));
+        assertThat(tree(whole.market().stageMix())).isEqualTo(market.get("stageMix"));
+        assertThat(tree(whole.scales())).isEqualTo(analytics.get("scales"));
+
+        LocalDate to = LocalDate.parse(analytics.get("to").asText());
+        LocalDate from = to.minusDays(4);
+        var window = statistics.statistics(from.toString(), to.toString(), null, null);
+        List<JsonNode> stages = new ArrayList<>();
+        market.get("stageMix").forEach(day -> {
+            LocalDate on = LocalDate.parse(day.get("day").asText());
+            if (!on.isBefore(from) && !on.isAfter(to)) {
+                stages.add(day);
+            }
+        });
+        assertThat(stages).isNotEmpty().hasSizeLessThan(market.get("stageMix").size());
+        assertThat(tree(window.market().stageMix())).isEqualTo(JSON.valueToTree(stages));
+        assertThat(tree(window.market().portals())).isEqualTo(market.get("portals"));
+        assertThat(tree(window.market().tags())).isEqualTo(market.get("tags"));
+        assertThat(tree(window.market().locations())).isEqualTo(market.get("locations"));
+        assertThat(tree(window.market().reach())).isEqualTo(market.get("reach"));
+        assertThat(tree(window.scales())).isEqualTo(analytics.get("scales"));
+    }
+
+    /**
+     * ISC-459: with a comparison window the statistics tool returns both windows' numbers, each
+     * equal to {@code GET /api/v1/analytics} cut to its own window, and the differences computed on
+     * the server, each equal to the endpoint's two numbers subtracted. The corpus spans three months,
+     * so both thirty-day windows hold days and the two totals differ.
+     */
+    @Test
+    void comparesTwoWindowsWithTheScreensOwnNumbersAndTheirDifferences() throws Exception {
+        jdbc.update("""
+            UPDATE offer SET ingested_at = now() - make_interval(days => ((id * 7) % 90)::int),
+                             score_band = CASE WHEN score_value >= 70 THEN 'SHORTLISTED'
+                                               WHEN score_value >= 50 THEN 'REVIEW'
+                                               WHEN score_value IS NULL THEN NULL ELSE 'DISCARDED' END
+            """);
+        jdbc.update("""
+            INSERT INTO offer (source_id, external_id, title, url, fingerprint, status, filter_stage,
+                               portal, ingested_at)
+            SELECT ?, 'gone-' || g, 'Knocked out ' || g, 'https://example.invalid/g' || g, 'gone-' || g,
+                   'REJECTED', CASE WHEN g % 2 = 0 THEN 'ABROAD' ELSE 'OUT_OF_REACH' END, 'portal-a',
+                   now() - make_interval(days => (g * 5) % 90)
+              FROM generate_series(0, 23) AS g
+            """, sourceId);
+
+        JsonNode analytics = get("/api/v1/analytics");
+        LocalDate to = LocalDate.parse(analytics.get("to").asText());
+        LocalDate from = to.minusDays(29);
+        LocalDate compareTo = from.minusDays(1);
+        LocalDate compareFrom = compareTo.minusDays(29);
+
+        var result =
+                statistics.statistics(from.toString(), to.toString(), compareFrom.toString(), compareTo.toString());
+        var comparison = result.comparison();
+        assertThat(comparison).as("the comparison block").isNotNull();
+        assertThat(comparison.from()).isEqualTo(compareFrom);
+        assertThat(comparison.to()).isEqualTo(compareTo);
+        assertThat(comparison.comparison()).isNull();
+
+        // Each window's series and totals, against the endpoint cut to that window.
+        JsonNode main = expectedTotals(analytics, from, to);
+        JsonNode other = expectedTotals(analytics, compareFrom, compareTo);
+        assertThat(main.get("primaries").asInt()).isPositive();
+        assertThat(other.get("primaries").asInt()).isPositive();
+        assertThat(main).isNotEqualTo(other);
+        assertThat(tree(result.intake())).isEqualTo(days(analytics.get("intake").get("byIngestedAt"), from, to));
+        assertThat(tree(comparison.intake()))
+                .isEqualTo(days(analytics.get("intake").get("byIngestedAt"), compareFrom, compareTo));
+        assertThat(tree(result.runs())).isEqualTo(days(analytics.get("runs").get("days"), from, to));
+        assertThat(tree(comparison.runs())).isEqualTo(days(analytics.get("runs").get("days"), compareFrom, compareTo));
+        assertThat(tree(result.market().stageMix()))
+                .isEqualTo(days(analytics.get("market").get("stageMix"), from, to));
+        assertThat(tree(comparison.market().stageMix()))
+                .isEqualTo(days(analytics.get("market").get("stageMix"), compareFrom, compareTo));
+        assertThat(tree(result.totals())).isEqualTo(main);
+        assertThat(tree(comparison.totals())).isEqualTo(other);
+        // The states are whole in both blocks, the screen's own.
+        assertThat(tree(comparison.funnel())).isEqualTo(analytics.get("funnel"));
+        assertThat(tree(comparison.applications()))
+                .isEqualTo(analytics.get("applications").get("byStatus"));
+
+        // Each difference is the endpoint's two numbers subtracted, this window minus the other.
+        var differences = JSON.createObjectNode();
+        main.properties()
+                .forEach(entry -> differences.put(
+                        entry.getKey(),
+                        entry.getValue().asInt() - other.get(entry.getKey()).asInt()));
+        assertThat(tree(result.differences())).isEqualTo(differences);
+        assertThat(comparison.differences()).isNull();
+
+        // Without a comparison window there is no second block and nothing to subtract.
+        var alone = statistics.statistics(from.toString(), to.toString(), null, null);
+        assertThat(alone.comparison()).isNull();
+        assertThat(alone.differences()).isNull();
+        assertThat(tree(alone.totals())).isEqualTo(main);
+    }
+
+    /** The endpoint's days of one series inside a window, as the endpoint wrote them. */
+    private static JsonNode days(JsonNode series, LocalDate from, LocalDate to) {
+        List<JsonNode> kept = new ArrayList<>();
+        series.forEach(day -> {
+            LocalDate on = LocalDate.parse(day.get("day").asText());
+            if (!on.isBefore(from) && !on.isAfter(to)) {
+                kept.add(day);
+            }
+        });
+        return JSON.valueToTree(kept);
+    }
+
+    /** The window's totals, summed here from the endpoint's own days. */
+    private static JsonNode expectedTotals(JsonNode analytics, LocalDate from, LocalDate to) {
+        var totals = JSON.createObjectNode();
+        JsonNode intake = days(analytics.get("intake").get("byIngestedAt"), from, to);
+        for (String field :
+                List.of("primaries", "duplicates", "passed", "shortlisted", "review", "discarded", "unscored")) {
+            int sum = 0;
+            for (JsonNode day : intake) {
+                sum += day.get(field).asInt();
+            }
+            totals.put(field, sum);
+        }
+        int runs = 0;
+        for (JsonNode day : days(analytics.get("runs").get("days"), from, to)) {
+            runs += day.get("runs").asInt();
+        }
+        totals.put("runs", runs);
+        int knockouts = 0;
+        for (JsonNode day : days(analytics.get("market").get("stageMix"), from, to)) {
+            knockouts += day.get("removed").asInt();
+        }
+        totals.put("knockouts", knockouts);
+        return totals;
     }
 
     /**

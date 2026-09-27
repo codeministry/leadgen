@@ -3,7 +3,18 @@ import {inject, Injectable, Injector} from '@angular/core';
 import {createParser, EventSourceMessage} from 'eventsource-parser';
 import {Observable} from 'rxjs';
 import {AuthService} from '@core/auth/auth.service';
-import {ChatCapability, ChatEvent, ChatEventMap, ConversationSummary, ConversationView} from '@core/model/chat';
+import {
+    ChatCapability,
+    ChatContextItem,
+    ChatEvent,
+    ChatEventMap,
+    ChatFollowUp,
+    ChatSuggestion,
+    ConversationSummary,
+    ConversationView,
+    formatChatCtx,
+    SuggestionsFor,
+} from '@core/model/chat';
 
 const BASE = '/api/v1/chat';
 
@@ -34,9 +45,13 @@ export class ChatApi {
         return this.http.get<ChatCapability>(`${BASE}/capability`);
     }
 
-    /** Newest first; the server orders, the browser does not re-sort. */
-    list(): Observable<readonly ConversationSummary[]> {
-        return this.http.get<readonly ConversationSummary[]>(`${BASE}/conversations`);
+    /**
+     * Newest first; the server orders, the browser does not re-sort. `q` narrows by the words of
+     * titles and questions (ISC-450); a blank one is no search and is not sent.
+     */
+    list(q?: string): Observable<readonly ConversationSummary[]> {
+        const query = q?.trim() ?? '';
+        return this.http.get<readonly ConversationSummary[]>(`${BASE}/conversations`, query === '' ? {} : {params: {q: query}});
     }
 
     /** 404 for an id that no longer exists, which the store turns into its missing state. */
@@ -44,8 +59,34 @@ export class ChatApi {
         return this.http.get<ConversationView>(`${BASE}/conversations/${id}`);
     }
 
-    create(pinnedOfferId: number | null): Observable<ConversationView> {
-        return this.http.post<ConversationView>(`${BASE}/conversations`, pinnedOfferId === null ? {} : {pinnedOfferId});
+    /** A conversation stored with the pins it is asked under (ISC-446); none sends an empty body. */
+    create(context: readonly ChatContextItem[] = []): Observable<ConversationView> {
+        return this.http.post<ConversationView>(`${BASE}/conversations`, context.length === 0 ? {} : {context});
+    }
+
+    /** Names a conversation; an empty title clears the name back to the derived one (ISC-449). */
+    rename(id: number, title: string): Observable<ConversationView> {
+        return this.http.patch<ConversationView>(`${BASE}/conversations/${id}`, {title});
+    }
+
+    /** Replaces the conversation's pins as a whole (ISC-451). */
+    setContext(id: number, context: readonly ChatContextItem[]): Observable<ConversationView> {
+        return this.http.put<ConversationView>(`${BASE}/conversations/${id}/context`, {context});
+    }
+
+    /**
+     * Up to four questions the data suggests (ISC-455): for a stored conversation, or for pins not
+     * stored yet, passed as the `?chatCtx` string the URL carries.
+     */
+    suggestions(forWhat: SuggestionsFor): Observable<readonly ChatSuggestion[]> {
+        const params: Record<string, string> =
+            'conversationId' in forWhat ? {conversation: String(forWhat.conversationId)} : contextParam(forWhat.context);
+        return this.http.get<readonly ChatSuggestion[]>(`${BASE}/suggestions`, {params});
+    }
+
+    /** Two or three questions to ask next, for a finished turn; none for any other (ISC-457). */
+    followups(conversationId: number, turnId: number): Observable<readonly ChatFollowUp[]> {
+        return this.http.get<readonly ChatFollowUp[]>(`${BASE}/conversations/${conversationId}/turns/${turnId}/followups`);
     }
 
     delete(id: number): Observable<void> {
@@ -137,6 +178,12 @@ async function refusal(response: Response): Promise<string | null> {
         // Not JSON: the body is the sentence.
     }
     return text;
+}
+
+/** `?context=` for pins not stored yet, in the URL's own `chatCtx` form; no pins, no parameter. */
+function contextParam(context: readonly ChatContextItem[]): Record<string, string> {
+    const value = formatChatCtx(context);
+    return value === null ? {} : {context: value};
 }
 
 /** One parsed wire event, or null for a name outside the contract. Bad JSON throws: the stream is broken. */

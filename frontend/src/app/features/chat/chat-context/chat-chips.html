@@ -1,0 +1,47 @@
+<ng-template #chipTemplate let-chip>
+  <li class="type-caption lg-chat-chip">
+    <lg-icon class="lg-chat-chip-kind" [name]="chip.icon" [size]="14"/>
+    <span class="lg-chat-chip-text">{{ chip.key | transloco: chip.params }}</span>
+    @if (removable()) {
+      <button
+        type="button"
+        class="btn btn-ghost btn-xs btn-square lg-chat-chip-remove"
+        [attr.aria-label]="'chat.context.remove' | transloco: { chip: (chip.key | transloco: chip.params) }"
+        [attr.title]="'chat.context.remove' | transloco: { chip: (chip.key | transloco: chip.params) }"
+        (click)="removed.emit(chip.item)"
+      >
+        <lg-icon name="x" [size]="12"/>
+      </button>
+    }
+  </li>
+</ng-template>
+
+@if (chips().length > 0) {
+  <ul class="lg-chat-chips" [attr.aria-label]="'chat.context.label' | transloco">
+    @for (chip of shown(); track chip.token) {
+      <ng-container *ngTemplateOutlet="chipTemplate; context: { $implicit: chip }"/>
+    }
+    @if (hidden() > 0) {
+      <li>
+        <button
+          type="button"
+          class="type-caption lg-chat-chip lg-chat-chip-more"
+          [attr.popovertarget]="popoverId"
+          [attr.aria-label]="'chat.context.more' | transloco: { count: hidden() }"
+        >
+          +{{ hidden() }}
+        </button>
+      </li>
+    }
+  </ul>
+  <!-- Every pin, not only the hidden ones: the popover is the whole list with its own ✕ each. -->
+  @if (hidden() > 0) {
+    <div class="lg-chat-chips-popover" popover [id]="popoverId">
+      <ul class="lg-chat-chips lg-chat-chips-all" [attr.aria-label]="'chat.context.label' | transloco">
+        @for (chip of chips(); track chip.token) {
+          <ng-container *ngTemplateOutlet="chipTemplate; context: { $implicit: chip }"/>
+        }
+      </ul>
+    </div>
+  }
+}

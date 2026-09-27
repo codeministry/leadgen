@@ -39,28 +39,12 @@
   white-space: nowrap;
 }
 
-/* The header's busy dot in its second place: a model is still writing, nothing else. */
-.lg-chat-minibar-busy {
-  flex: none;
-  width: 0.5rem;
-  height: 0.5rem;
-  border-radius: 999px;
-  background-color: var(--lg-ai);
-  animation: lg-chat-minibar-busy var(--lg-pulse-duration) ease-in-out infinite alternate;
-}
-
-@keyframes lg-chat-minibar-busy {
-  to {
-    opacity: 0.35;
-  }
+/* The living mark in the busy dot's old place (spec 021): the header button's working frame, its
+   flow dots on the AI colour — a model is still writing, nothing else. The ring stays primary. */
+.lg-chat-minibar lg-living-mark[data-frame='working'] {
+  color: var(--lg-ai);
 }
 
 .lg-chat-minibar-expand {
   flex: none;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .lg-chat-minibar-busy {
-    animation: none;
-  }
 }

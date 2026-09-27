@@ -31,6 +31,32 @@ may change in any release. See the status note in the README.
   `/api/v1/chat`. New dependencies `dompurify` and `eventsource-parser`, pinned. A help chapter
   explains it in both languages (spec `019-corpus-chat`).
 
+- **The chat knows what it is asked about, and suggests what to ask.** A conversation is asked under
+  pins, one chip each: offers (**Ask about this offer**, at most ten), a shortlist view or an
+  analytics window (**Use this view** on either screen). Several offers are pinned at once with
+  **Ask about N offers** in the shortlist's selection bar, one at a time by typing `@` and a title in
+  the composer; a pinned view or window is applied by the server as fixed filters on the chat's
+  searches and statistics, never left to the model. The empty chat offers up to four questions
+  found by rule in your data — the last run's new offers, deadlines coming up, applications without a
+  reply, a rising tag, the pinned offer, the shortlist, open applications — and phrased by the chat's
+  model on its own day, with a catalog fallback and a guard that drops any phrasing whose numbers
+  differ; a finished answer offers two or three follow-ups from the rows it read. `statistics` also
+  answers the market, the stage mix and the scales in use, and compares two windows with the
+  differences computed on the server; its numbers become a table and a sparkline under the answer,
+  with a link to the analytics screen. The history groups by day, and each conversation can be
+  renamed, deleted from a ⋯ menu with a confirmation, and found by a search that ignores case and
+  accents. ⌘K (Ctrl+K) opens the chat from any screen, and **Jump to latest** returns to a streaming
+  answer. New keys `chat.suggestions.new_offers_min`, `deadline_days`, `no_reply_days`,
+  `tag_window_days`, `tag_rise_percent` and `tag_rise_min_offers` (`CHAT_SUGGEST_*`: 1, 7, 14, 7, 30,
+  5). New endpoints under `/api/v1/chat`: `PATCH conversations/{id}`, `?q=` on the list,
+  `PUT conversations/{id}/context`, `GET suggestions` and `GET …/turns/{turnId}/followups`; a
+  `DELETE` now stops a streaming turn first. `V35` adds `chat_conversation.custom_title` and
+  `search_text` (filled for existing conversations), the table `chat_context` (each existing pin
+  copied in as its first chip) and `chat_tool_call.data`; expand only, `pinned_offer_id` stays. A
+  rollback to the previous image needs the four statements in `docs/decisions/chat.md` § The schema
+  and loses custom titles, every pin beyond the first offer and the stored statistics series, never
+  a conversation. The help chapter covers it in both languages (spec `020-chat-handling-and-context`).
+
 - **The run status sheet says where a pass stands and what it spent.** It takes its own width
   (`--lg-run-status-w`, 37rem, just enough to cover the header chip that opened it) instead of the
   help drawer's 48rem, where a running pass was four lines in a mostly empty panel. While a pass
@@ -115,6 +141,14 @@ may change in any release. See the status note in the README.
 
 ### Fixed
 
+- **Four chat bugs.** The chat closed on every change of screen; `?chat`
+  is now sticky across navigation, and a close stays closed. Its thread widened when the navigation
+  rail folded, because the drawer's width followed a fixed step instead of the rail; the split views
+  now switch on a container query of the main column. A pin was lost on the first suggestion, because
+  the store dropped `pinnedOfferId` on every route to a conversation id; the pins now live in the URL
+  (`chatCtx`) and on the conversation. And the mobile sheet overflowed the screen sideways (spec
+  `020-chat-handling-and-context`).
+
 - **The orphan sweep deletes only package folders its own database built.** It used to remove
   every folder under `packaging.output_dir` that no row of *its* database named, and that
   directory is shared: a demo stack bind-mounts the same `packages/`, a test run reads the same
@@ -151,6 +185,13 @@ may change in any release. See the status note in the README.
   next card and carries the arrowhead.
 
 ### Changed
+
+- **The chat has a living mark.** The assistant's glyph beside each answer, the empty chat's plate,
+  the header's chat button and the mobile bar now show the brand's lead ring in one of four frames:
+  at rest, working (dots flow into the ring while a tool runs), speaking (the arc sweeps while the
+  answer streams) and halted (a turn that was stopped or ended incomplete). The sparkle and the two
+  busy dots are gone; nothing moves under reduced motion, and no label or catalog key changed
+  (spec `021-chat-living-mark`).
 
 - **Run ingest and the model select live on the workflow screen.** Both left the header at every
   width and sit above the status chips, with the same confirmation before a run starts; the header

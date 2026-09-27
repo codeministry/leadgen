@@ -13,6 +13,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import de.codeministry.leadgen.chat.tools.ApplicationTool;
 import de.codeministry.leadgen.chat.tools.OfferSearchTool;
+import de.codeministry.leadgen.chat.tools.PinnedContext;
 import de.codeministry.leadgen.chat.tools.PinnedOfferLookup;
 import de.codeministry.leadgen.chat.tools.PinnedOfferResult;
 import de.codeministry.leadgen.chat.tools.ProfileTool;
@@ -35,9 +36,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
@@ -239,6 +243,39 @@ public class ChatTurnService {
     }
 
     /**
+     * Stops every running turn of a conversation and waits, at most {@code wait}, for each to end:
+     * its model call cancelled — which closes that connection — and its terminal state written. A
+     * delete asks this first, so the rows it removes are no longer being written under it.
+     *
+     * @return false when a turn was still running once the wait was over
+     */
+    public boolean stopAll(long conversationId, Duration wait) {
+        List<CompletableFuture<Void>> ending = new ArrayList<>();
+        for (Turn turn : running.values()) {
+            if (turn.conversationId == conversationId) {
+                turn.stop();
+                ending.add(turn.over);
+            }
+        }
+        if (ending.isEmpty()) {
+            return true;
+        }
+        try {
+            CompletableFuture.allOf(ending.toArray(CompletableFuture[]::new))
+                    .get(wait.toMillis(), TimeUnit.MILLISECONDS);
+            return true;
+        } catch (TimeoutException e) {
+            return false;
+        } catch (ExecutionException e) {
+            // Never completed exceptionally: `over` is completed with null in a finally.
+            return true;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return false;
+        }
+    }
+
+    /**
      * Ends the turns a previous process left at {@code STREAMING}: they were running when it died,
      * and nothing else will ever finish them. Runs once the application is ready — but the web
      * server takes requests before that event, so a turn this process already started can be
@@ -298,6 +335,7 @@ public class ChatTurnService {
         } finally {
             if (turn != null) {
                 running.remove(turn.id);
+                turn.over.complete(null);
             }
         }
     }
@@ -318,11 +356,14 @@ public class ChatTurnService {
         private final TurnLedger ledger = new TurnLedger();
         private final CitationFilter filter;
 
+        /** Completed once the turn has ended and left {@link #running}, whichever way it ended. */
+        private final CompletableFuture<Void> over = new CompletableFuture<>();
+
         /** When this turn is out of time; see {@code timeout}. */
         private final long deadline = System.nanoTime() + timeout().toNanos();
 
-        /** The offer the pinned lookup returned in this turn, if it returned one. */
-        private Long pinnedReturned;
+        /** The conversation's pins, read when the turn runs and handed to every tool call (ISC-452). */
+        private PinnedContext pins = PinnedContext.NONE;
 
         /** Text the reader has and the row does not yet; see {@link #FLUSH_INTERVAL}. */
         private final StringBuilder unsaved = new StringBuilder();
@@ -356,13 +397,11 @@ public class ChatTurnService {
         }
 
         /**
-         * The repository's reachability, plus the offer this turn's pinned lookup returned. That
-         * lookup reads an offer whatever its status, because the reader pinned it; its own citation
-         * must not render unverified because it was filtered out or is a duplicate.
+         * The repository's reachability. The pinned offers the lookup returned are the filter's own
+         * exception ({@link CitationFilter#pinned}), handed over once the lookup has run.
          */
         private boolean reachable(ChatSourceKind kind, Long rowId) {
-            return (kind == ChatSourceKind.OFFER && rowId.equals(pinnedReturned))
-                    || conversations.reachable(kind, rowId);
+            return conversations.reachable(kind, rowId);
         }
 
         /** What is left of this turn's time; zero or less once it is out. */
@@ -382,7 +421,12 @@ public class ChatTurnService {
             }
             ChatOptions options = options(model);
             List<Message> messages = messages();
-            conversations.pinnedOffer(conversationId).ifPresent(offer -> pinned(offer, messages));
+            pins = pins(
+                    conversations.context(conversationId),
+                    conversations.pinnedOffer(conversationId).orElse(null));
+            if (!pins.offers().isEmpty()) {
+                pinned(pins.offers(), messages);
+            }
             ChatBudget.Rounds rounds = budget.rounds();
             while (true) {
                 if (stopped) {
@@ -486,21 +530,31 @@ public class ChatTurnService {
         }
 
         /**
-         * The conversation's pinned offer, looked up before the model is first asked and recorded
-         * exactly like a tool call — a step, a {@code chat_tool_call} row, its id in the ledger, the
-         * result masked — then handed to the model as the answer to a call it did not have to make.
-         * Without it "Ask about this offer" asks about nothing: the pin was stored and never read.
+         * The conversation's pinned offers — every one of them (ISC-453) — looked up before the model
+         * is first asked and recorded exactly like a tool call — a step, a {@code chat_tool_call}
+         * row, their ids in the ledger, the result masked — then handed to the model as the answer to
+         * a call it did not have to make. Without it "Ask about this offer" asks about nothing: the
+         * pin was stored and never read.
          */
-        private void pinned(long offerId, List<Message> messages) {
+        private void pinned(List<Long> offerIds, List<Message> messages) {
             AssistantMessage.ToolCall lookup = new AssistantMessage.ToolCall(
-                    "pinned-offer", "function", PinnedOfferLookup.NAME, "{\"offerId\":" + offerId + "}");
+                    "pinned-offer",
+                    "function",
+                    PinnedOfferLookup.NAME,
+                    "{\"offerIds\":"
+                            + offerIds.stream()
+                                    .map(String::valueOf)
+                                    .collect(java.util.stream.Collectors.joining(",", "[", "]"))
+                            + "}");
             String result = call(
                     lookup.name(),
                     lookup.arguments(),
-                    () -> RESULTS.convert(pinnedOffer.lookup(offerId), PinnedOfferResult.class));
-            if (returned(result).contains(new TurnLedger.Ref(ChatSourceKind.OFFER, offerId))) {
-                pinnedReturned = offerId;
-            }
+                    () -> RESULTS.convert(pinnedOffer.lookup(offerIds), PinnedOfferResult.class));
+            // ISC-454: the exception covers each pin the lookup actually returned, and nothing else.
+            filter.pinned(returned(result).stream()
+                    .filter(ref -> ref.kind() == ChatSourceKind.OFFER && offerIds.contains(ref.id()))
+                    .map(TurnLedger.Ref::id)
+                    .toList());
             messages.add(AssistantMessage.builder()
                     .content("")
                     .toolCalls(List.of(lookup))
@@ -516,7 +570,7 @@ public class ChatTurnService {
             save();
             List<TurnLedger.Citation> citations = ledger.citations();
             // Resolved before the row is ended, so a failure here still leaves it to `broke`.
-            List<ChatSource> sources = conversations.sources(citations);
+            List<ChatSourceItem> sources = sources(citations);
             conversations.finish(id, state, ledger.calls(), citations);
             ended = true;
             sink.accept(new ChatSources(sources));
@@ -530,22 +584,33 @@ public class ChatTurnService {
             sink.accept(new ChatStep(ordinal, name, label, ChatStepState.RUNNING, null, null));
             long started = System.nanoTime();
             String result;
+            StatisticsSource data = null;
             try {
-                result = masker.mask(invoke.get());
+                String raw = invoke.get();
+                // Read from the tool's own JSON before the model sees a digit of it; the card an
+                // answer draws never depends on what the model then writes (ISC-460).
+                if (StatisticsTool.NAME.equals(name)) {
+                    data = StatisticsSource.of(ordinal, raw);
+                }
+                result = masker.mask(raw);
             } catch (RuntimeException e) {
                 log.info("Chat tool {} failed in turn {}: {}", name, id, e.toString());
                 result = masker.mask(error(e.getMessage() == null ? e.toString() : e.getMessage()));
             }
             long duration = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started);
             List<TurnLedger.Ref> returned = returned(result);
-            ledger.record(name, label, arguments, returned, duration);
+            ledger.record(name, label, arguments, returned, duration, data);
             sink.accept(new ChatStep(ordinal, name, label, ChatStepState.DONE, returned.size(), duration));
             return result;
         }
 
         private String invoke(AssistantMessage.ToolCall call) {
             ToolCallback tool = tools.get(call.name());
-            return tool == null ? error("there is no tool called " + call.name()) : tool.call(call.arguments());
+            // ISC-452: every call carries the conversation's pins; a pinned view or window wins
+            // over the model's arguments inside the tool, where the model cannot argue with it.
+            return tool == null
+                    ? error("there is no tool called " + call.name())
+                    : tool.call(call.arguments(), pins.toolContext());
         }
 
         private void text(String delta) {
@@ -617,13 +682,20 @@ public class ChatTurnService {
             save();
             List<TurnLedger.Citation> citations = ledger.citations();
             // Resolved before the row is ended, so a failure here still leaves it to `unstored`.
-            List<ChatSource> sources = conversations.sources(citations);
+            List<ChatSourceItem> sources = sources(citations);
             conversations.finish(id, ChatTurnState.INCOMPLETE, ledger.calls(), citations);
             ended = true;
-            if (!citations.isEmpty()) {
+            if (!sources.isEmpty()) {
                 sink.accept(new ChatSources(sources));
             }
             sink.accept(new ChatError(reason, message));
+        }
+
+        /** The cited rows in citation order, then the turn's statistics calls in call order. */
+        private List<ChatSourceItem> sources(List<TurnLedger.Citation> citations) {
+            List<ChatSourceItem> sources = new ArrayList<>(conversations.sources(citations));
+            sources.addAll(ledger.statistics());
+            return List.copyOf(sources);
         }
 
         /**
@@ -709,6 +781,27 @@ public class ChatTurnService {
             }
             return tooling.toolCallbacks(toolList).build();
         }
+    }
+
+    /** A conversation's context as the tools read it: the offers, the views, the first window. */
+    static PinnedContext pins(List<ChatContextItem> context, Long legacyPin) {
+        List<Long> offers = new ArrayList<>();
+        List<String> views = new ArrayList<>();
+        ChatContextItem window = null;
+        for (ChatContextItem item : context) {
+            switch (item.kind()) {
+                case OFFER -> offers.add(item.offerId());
+                case SHORTLIST_VIEW -> views.add(item.query());
+                case ANALYTICS_WINDOW -> window = window == null ? item : window;
+            }
+        }
+        // A conversation pinned before chat_context existed carries its pin only in
+        // pinned_offer_id; it is still read, so an old "Ask about this offer" keeps its offer.
+        if (offers.isEmpty() && legacyPin != null) {
+            offers.add(legacyPin);
+        }
+        return new PinnedContext(
+                offers, views, window == null ? null : window.from(), window == null ? null : window.to());
     }
 
     /** The ids a tool result names: its offers, an application and the offer it belongs to. */

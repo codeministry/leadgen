@@ -22,4 +22,5 @@ import java.time.LocalDate;
  * @param archived whether the offer is archived — an archived row is a valid source, and says so.
  */
 public record ChatSource(
-        int n, ChatSourceKind kind, long id, String title, String source, LocalDate date, boolean archived) {}
+        int n, ChatSourceKind kind, long id, String title, String source, LocalDate date, boolean archived)
+        implements ChatSourceItem {}

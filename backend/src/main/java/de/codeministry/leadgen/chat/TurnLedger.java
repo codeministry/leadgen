@@ -46,8 +46,16 @@ public class TurnLedger {
      * @param arguments  the arguments as JSON.
      * @param returned   the rows it returned.
      * @param durationMs how long it took.
+     * @param data       what a {@code statistics} call returned, as its source; null for every other call.
      */
-    public record Call(int ordinal, String tool, String label, String arguments, List<Ref> returned, long durationMs) {}
+    public record Call(
+            int ordinal,
+            String tool,
+            String label,
+            String arguments,
+            List<Ref> returned,
+            long durationMs,
+            StatisticsSource data) {}
 
     /**
      * A row the answer cited, with the number its links carry.
@@ -63,11 +71,22 @@ public class TurnLedger {
     private final Map<Ref, Integer> cited = new LinkedHashMap<>();
 
     /** Records a finished tool call and the rows it returned; the ordinal is the next one. */
-    public synchronized Call record(String tool, String label, String arguments, List<Ref> rows, long durationMs) {
-        Call call = new Call(calls.size() + 1, tool, label, arguments, List.copyOf(rows), durationMs);
+    public Call record(String tool, String label, String arguments, List<Ref> rows, long durationMs) {
+        return record(tool, label, arguments, rows, durationMs, null);
+    }
+
+    /** Records a finished tool call with what a {@code statistics} call returned, null for any other. */
+    public synchronized Call record(
+            String tool, String label, String arguments, List<Ref> rows, long durationMs, StatisticsSource data) {
+        Call call = new Call(calls.size() + 1, tool, label, arguments, List.copyOf(rows), durationMs, data);
         calls.add(call);
         returned.addAll(call.returned());
         return call;
+    }
+
+    /** The {@code statistics} calls' sources in call order; what follows the cited rows in {@link ChatSources}. */
+    public synchronized List<StatisticsSource> statistics() {
+        return calls.stream().map(Call::data).filter(java.util.Objects::nonNull).toList();
     }
 
     /** The calls in the order they were recorded. */

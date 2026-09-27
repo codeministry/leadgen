@@ -351,7 +351,9 @@
     "noRelatedTitle": "Nichts Ähnliches auf dieser Liste",
     "noRelatedHint": "Die Ähnlichkeitssuche und diese Filter haben keine gemeinsamen Angebote. Entferne einen davon oder die Ähnlichkeitssuche.",
     "countRelated": "{matched} von {total} · nur die ähnlichsten",
-    "countArchivedRelated": "{matched} von {total} archiviert · nur die ähnlichsten"
+    "countArchivedRelated": "{matched} von {total} archiviert · nur die ähnlichsten",
+    "select": "Auswählen",
+    "selectDone": "Fertig"
   },
   "offer": {
     "notScored": "Nicht bewertet. Der Lauf fand ohne Sprachmodell statt, das hier ist allein die Antwort des harten Filters.",
@@ -867,11 +869,15 @@
     "chatList": "Die Unterhaltungen konnten nicht geladen werden.",
     "chatLoad": "Die Unterhaltung konnte nicht geladen werden.",
     "chatDelete": "Die Unterhaltung konnte nicht gelöscht werden.",
-    "chatCreate": "Die Unterhaltung konnte nicht begonnen werden."
+    "chatCreate": "Die Unterhaltung konnte nicht begonnen werden.",
+    "chatRename": "Die Unterhaltung konnte nicht umbenannt werden.",
+    "chatContext": "Die Pins konnten nicht gespeichert werden."
   },
   "chat": {
     "open": "Den Bestand fragen",
     "openShort": "Fragen",
+    "openShortcut": "Fragen · {{keys}}",
+    "jumpToLatest": "Zum Neuesten springen",
     "busyLabel": "eine Antwort wird geschrieben",
     "askAboutOffer": "Zu diesem Angebot fragen",
     "new": "Neuer Chat",
@@ -886,16 +892,8 @@
       "body": "Angebote, deine Bewerbungen und dein Profil. Jede Antwort verlinkt die Zeilen, die sie gelesen hat."
     },
     "suggest": {
-      "spring": "Welche Remote-Projekte mit Spring kamen letzten Monat herein?",
-      "kafka": "Wie viele Angebote der letzten Woche wollten Kafka?",
-      "wrote": "Was habe ich für Projekte wie meine letzte Bewerbung geschrieben?",
-      "references": "Welche Referenzprojekte passen zur heutigen Shortlist?",
-      "pinned": {
-        "fit": "Wie gut passt dieses Angebot zu meinem Profil?",
-        "similar": "Auf welche ähnlichen Angebote habe ich mich beworben?",
-        "wrote": "Was habe ich für Angebote wie dieses geschrieben?",
-        "lack": "Was verlangt dieses Angebot, das mir fehlt?"
-      }
+      "title": "Vorgeschlagene Fragen",
+      "loading": "Suche Fragen in deinen Daten…"
     },
     "missing": {
       "title": "Dieses Gespräch gibt es nicht mehr",
@@ -904,10 +902,18 @@
     "thinking": "Denkt nach …",
     "placeholder": "Frag nach Angeboten, Bewerbungen oder deinem Profil …",
     "inputLabel": "Deine Frage",
-    "hint": "Enter sendet · Shift+Enter für eine neue Zeile",
+    "hint": "Enter sendet · Shift+Enter für eine neue Zeile · @ pinnt ein Angebot",
     "send": "Senden",
-    "pinned": "Angebot {id}",
-    "unpin": "Angeheftetes Angebot entfernen",
+    "context": {
+      "label": "Gefragt zu",
+      "offer": "Angebot {id}",
+      "remove": "{chip} entfernen",
+      "view": "Shortlist · {count, plural, one {# Filter} other {# Filter}}",
+      "window": "Zeitraum · {from}–{to}",
+      "more": "Alle anzeigen, {count, plural, one {# weiterer Pin} other {# weitere Pins}}",
+      "limit": "Eine Unterhaltung hält höchstens {max} Angebote.",
+      "count": "{count} von {max} Angeboten"
+    },
     "disclaimer": "Antworten können falsch sein. Ungeprüfte IDs sind markiert.",
     "announce": {
       "done": "Antwort fertig, {count, plural, =0 {keine Quellen} one {1 Quelle} other {# Quellen}}"
@@ -938,6 +944,49 @@
       "label": "Quelle {n}: {title}",
       "unverifiedTitle": "{id} ließ sich nicht prüfen",
       "unverifiedReason": "Keine Suche in diesem Schritt hat diese Id geliefert, oder sie liegt außerhalb von Arbeitsbestand und Archiv, darum ist sie kein Link."
+    },
+    "actions": "Aktionen für {title}",
+    "group": {
+      "today": "Heute",
+      "yesterday": "Gestern",
+      "week": "Diese Woche",
+      "month": "Diesen Monat",
+      "older": "Älter"
+    },
+    "search": {
+      "label": "Unterhaltungen durchsuchen",
+      "clear": "Suche leeren",
+      "clearAction": "Suche leeren",
+      "none": "Keine Unterhaltung enthält „{query}“."
+    },
+    "rename": {
+      "action": "Umbenennen",
+      "label": "Titel der Unterhaltung",
+      "placeholder": "Nach der ersten Frage benannt"
+    },
+    "delete": {
+      "action": "Löschen",
+      "title": "Diese Unterhaltung löschen?",
+      "body": "„{title}“ wird mit allen Antworten gelöscht.",
+      "streaming": "Die Antwort wird noch geschrieben. Löschen bricht sie ab.",
+      "confirm": "Löschen"
+    },
+    "useView": "Diese Ansicht verwenden",
+    "followups": {
+      "title": "Als Nächstes fragen"
+    },
+    "statistics": {
+      "window": "Statistik · {from} – {to}",
+      "metric": "Kennzahl",
+      "value": "Wert",
+      "compare": "{from} – {to}",
+      "delta": "Veränderung",
+      "link": "In Analytics öffnen"
+    },
+    "askPicked": "{count, plural, one {Nach # Angebot fragen} other {Nach # Angeboten fragen}}",
+    "mention": {
+      "label": "Angebote zu @{query}",
+      "none": "Kein Angebot passt zu „{query}“"
     }
   }
 }

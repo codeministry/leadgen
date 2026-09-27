@@ -41,7 +41,7 @@
 
   /* The shell. The header is the only chrome left: the navigation is a row inside it
      above 48rem and a fixed bottom bar below, so neither has a width to name. */
-    --lg-header-h: 3.5rem;
+    --lg-header-h: 4rem;
 
   /* The application's outer bound: the widest content edge that exists. The split views
      cap themselves here and the header row does too, so on the shortlist the chrome's
@@ -107,9 +107,13 @@
 
   /* The chat drawer (spec 019), stepped by breakpoint below: the whole window on a phone, where it
      is a sheet; 36rem docked beside the page from 48rem, about 68 characters of answer and 280px
-     left for the page at 820; 56rem from 80rem, where the conversation rail docks inside it.
-     Not the help's 48rem: at 720px that would leave the page 100px beside it. */
+     left for the page at 820. From 80rem it is the thread plus the conversation rail docked inside
+     it, and the thread alone while the rail is folded (ISC-445): the panel hands the folded width to
+     the drawer, so the thread's box, and the answer's line length, never move, and the rail's width
+     goes back to the page. Not the help's 48rem: at 720px that would leave the page 100px beside it. */
   --lg-chat-w: 100vw;
+  --lg-chat-thread-w: 41rem;
+  --lg-chat-rail-w: 15rem;
 
   /* The frosted head and composer shelf: the drawer's own ground, partly see-through, so the
      thread reads as scrolling underneath rather than being cut by a rule. */
@@ -205,7 +209,7 @@
 
 @media (width >= 80rem) {
   :root {
-    --lg-chat-w: 56rem;
+    --lg-chat-w: calc(var(--lg-chat-thread-w) + var(--lg-chat-rail-w));
   }
 }
 

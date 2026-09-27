@@ -1,6 +1,6 @@
 import {type} from '@ngrx/signals';
 import {eventGroup} from '@ngrx/signals/events';
-import {ChatEvent, ConversationSummary, ConversationView} from '@core/model/chat';
+import {ChatContextItem, ChatEvent, ConversationSummary, ConversationView} from '@core/model/chat';
 
 /**
  * The chat drawer's events.
@@ -13,12 +13,27 @@ import {ChatEvent, ConversationSummary, ConversationView} from '@core/model/chat
 export const chatEvents = eventGroup({
     source: 'Chat',
     events: {
-        /** `?chat` as the URL now holds it: an id, `new`, `list`, or `null` when absent. */
-        routed: type<string | null>(),
+        /**
+         * `?chat` as the URL now holds it — an id, `new`, `list`, or `null` when absent — and
+         * `?chatCtx` beside it, the pins the conversation is asked under (ISC-446).
+         */
+        routed: type<{chat: string | null; ctx: string | null}>(),
 
         openRequested: type<number>(),
         /** A fresh conversation, optionally with the offer the drawer was opened from pinned. */
         newRequested: type<{pinnedOfferId: number | null}>(),
+        /**
+         * A screen's "Use this view" or "Ask about this offer" (ISC-451): into the open conversation
+         * when there is one — stored, or `new` still gathering pins — and into a new one otherwise.
+         * Several at once for "Ask about N offers" (ISC-453): one replacement, not one per offer, and
+         * all of them refused together when the offers would pass the limit.
+         */
+        contextPinned: type<ChatContextItem | readonly ChatContextItem[]>(),
+        /** A chip's ✕: out of the URL, and out of the stored conversation when there is one. */
+        contextRemoved: type<ChatContextItem>(),
+        /** The server's answer to `PUT …/context`: the context it now stores. */
+        contextStored: type<ConversationView>(),
+        contextFailed: type<string>(),
         listRequested: type<void>(),
         /** The list read without moving the drawer: the 80rem rail shows it beside an open conversation. */
         conversationsRequested: type<void>(),
@@ -40,6 +55,16 @@ export const chatEvents = eventGroup({
         deleteRequested: type<number>(),
         deleted: type<number>(),
         deleteFailed: type<string>(),
+
+        /** A new title; an empty one clears the name back to the derived one (ISC-449). */
+        renameRequested: type<{id: number; title: string}>(),
+        renamed: type<ConversationView>(),
+        renameFailed: type<string>(),
+
+        /** What the search field holds now (ISC-450); the read waits for the typing to pause. */
+        searchChanged: type<string>(),
+        /** The words a list read is actually sent with, so an empty result names what was asked. */
+        listQueried: type<string>(),
 
         /** A question for the open conversation, or for a new one created on the way. */
         asked: type<string>(),

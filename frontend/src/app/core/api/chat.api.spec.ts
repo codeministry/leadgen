@@ -3,7 +3,7 @@ import {HttpTestingController, provideHttpClientTesting} from '@angular/common/h
 import {TestBed} from '@angular/core/testing';
 import {firstValueFrom, toArray} from 'rxjs';
 import {AuthService} from '@core/auth/auth.service';
-import {ChatEvent} from '@core/model/chat';
+import {ChatEvent, ConversationView, formatChatCtx, parseChatCtx} from '@core/model/chat';
 import {ChatApi} from './chat.api';
 
 const BASE = '/api/v1/chat';
@@ -53,12 +53,12 @@ describe('ChatApi', () => {
         api.get(4).subscribe();
         http.expectOne({method: 'GET', url: `${BASE}/conversations/4`}).flush({});
 
-        api.create(2291).subscribe();
+        api.create([{kind: 'OFFER', offerId: 2291}]).subscribe();
         const create = http.expectOne({method: 'POST', url: `${BASE}/conversations`});
-        expect(create.request.body).toEqual({pinnedOfferId: 2291});
+        expect(create.request.body).toEqual({context: [{kind: 'OFFER', offerId: 2291}]});
         create.flush({});
 
-        api.create(null).subscribe();
+        api.create([]).subscribe();
         const bare = http.expectOne({method: 'POST', url: `${BASE}/conversations`});
         expect(bare.request.body).toEqual({});
         bare.flush({});
@@ -68,6 +68,66 @@ describe('ChatApi', () => {
 
         api.stop(4, 9).subscribe();
         http.expectOne({method: 'POST', url: `${BASE}/conversations/4/turns/9/stop`}).flush(null);
+    });
+
+    it('speaks the contracts of spec 020: rename, search, context, suggestions, follow-ups (ISC-449)', () => {
+        const renamed: ConversationView[] = [];
+        api.rename(4, 'Kafka offers').subscribe((c) => renamed.push(c));
+        const rename = http.expectOne({method: 'PATCH', url: `${BASE}/conversations/4`});
+        expect(rename.request.body).toEqual({title: 'Kafka offers'});
+        rename.flush({id: 4, title: 'Kafka offers', pinnedOfferId: null, turns: [], updatedAt: '2026-09-27T08:00:00Z'});
+        expect(renamed.map((c) => c.title)).toEqual(['Kafka offers']);
+
+        api.list('  kafka remote ').subscribe();
+        const search = http.expectOne((r) => r.method === 'GET' && r.url === `${BASE}/conversations`);
+        expect(search.request.params.get('q')).toBe('kafka remote');
+        search.flush([{id: 4, title: 'Kafka', updatedAt: '2026-09-27T08:00:00Z', lastActivityAt: '2026-09-27T09:00:00Z'}]);
+
+        api.list('   ').subscribe();
+        const blank = http.expectOne((r) => r.method === 'GET' && r.url === `${BASE}/conversations`);
+        expect(blank.request.params.has('q')).toBe(false);
+        blank.flush([]);
+
+        api.setContext(4, [{kind: 'OFFER', offerId: 2291}]).subscribe();
+        const context = http.expectOne({method: 'PUT', url: `${BASE}/conversations/4/context`});
+        expect(context.request.body).toEqual({context: [{kind: 'OFFER', offerId: 2291}]});
+        context.flush({});
+
+        api.suggestions({conversationId: 4}).subscribe();
+        const stored = http.expectOne((r) => r.method === 'GET' && r.url === `${BASE}/suggestions`);
+        expect(stored.request.params.get('conversation')).toBe('4');
+        expect(stored.request.params.has('context')).toBe(false);
+        stored.flush([]);
+
+        api.suggestions({context: [{kind: 'OFFER', offerId: 2291}, {kind: 'OFFER', offerId: 7}]}).subscribe();
+        const unstored = http.expectOne((r) => r.method === 'GET' && r.url === `${BASE}/suggestions`);
+        expect(unstored.request.params.get('context')).toBe('o:2291,o:7');
+        expect(unstored.request.params.has('conversation')).toBe(false);
+        unstored.flush([{trigger: 'NEW_THIS_WEEK', text: 'What came in this week?', count: 12}]);
+
+        api.suggestions({context: []}).subscribe();
+        const bare = http.expectOne((r) => r.method === 'GET' && r.url === `${BASE}/suggestions`);
+        expect(bare.request.params.keys()).toEqual([]);
+        bare.flush([]);
+
+        api.followups(4, 9).subscribe();
+        http.expectOne({method: 'GET', url: `${BASE}/conversations/4/turns/9/followups`}).flush([{text: 'And remote only?'}]);
+    });
+
+    it('turns `?chatCtx` into pins and back, skipping what it cannot read (ISC-446, ISC-451)', () => {
+        const pins = [
+            {kind: 'OFFER', offerId: 2291},
+            {kind: 'SHORTLIST_VIEW', query: 'q=kafka&band=above'},
+            {kind: 'ANALYTICS_WINDOW', from: '2026-09-01', to: '2026-09-27'},
+            {kind: 'OFFER', offerId: 7},
+        ] as const;
+        expect(parseChatCtx('o:2291')).toEqual([{kind: 'OFFER', offerId: 2291}]);
+        expect(parseChatCtx('o:2291,v:q%3Dkafka%26band%3Dabove,w:2026-09-01..2026-09-27,o:7')).toEqual(pins);
+        expect(parseChatCtx(formatChatCtx(pins))).toEqual(pins);
+        expect(parseChatCtx('o:0,o:abc,w:2026-09-01,v:%E0%A4%A,')).toEqual([]);
+        expect(parseChatCtx(null)).toEqual([]);
+        expect(formatChatCtx([{kind: 'OFFER', offerId: 2291}])).toBe('o:2291');
+        expect(formatChatCtx([])).toBeNull();
     });
 
     it('reads a turn from a POST stream, one event cut across two chunks', async () => {

@@ -19,7 +19,7 @@ import java.util.List;
  * @param answer         the answer as it was streamed, citations resolved as in {@link ChatText}.
  * @param state          where it stands.
  * @param steps          the tool calls it made, done.
- * @param sources        the rows it cited.
+ * @param sources        the rows it cited, then its statistics calls, as {@link ChatSources} sent them.
  * @param replacesTurnId the turn a regenerate replaced, or null.
  * @param model          which model answered.
  * @param createdAt      when it started.
@@ -30,7 +30,7 @@ public record TurnView(
         String answer,
         ChatTurnState state,
         List<ChatStep> steps,
-        List<ChatSource> sources,
+        List<ChatSourceItem> sources,
         Long replacesTurnId,
         String model,
         Instant createdAt) {}

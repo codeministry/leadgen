@@ -459,11 +459,18 @@ public final class WorkflowCatalog {
             pipeline("packaging.documents[].by"),
             pipeline("packaging.documents[].generated"),
             pipeline("packaging.documents[].format"),
-            // Read by the chat (F47), which answers a question in the drawer and is no stage of a
-            // run: nothing a run does to an offer depends on these three.
+            // Read by the chat (F47, F48), which answers a question in the drawer and is no stage of
+            // a run: nothing a run does to an offer depends on these, the suggestion thresholds
+            // included.
             pipeline("llm.models.chat"),
             pipeline("chat.max_calls_per_day"),
             pipeline("chat.max_tool_rounds"),
+            pipeline("chat.suggestions.new_offers_min"),
+            pipeline("chat.suggestions.deadline_days"),
+            pipeline("chat.suggestions.no_reply_days"),
+            pipeline("chat.suggestions.tag_window_days"),
+            pipeline("chat.suggestions.tag_rise_percent"),
+            pipeline("chat.suggestions.tag_rise_min_offers"),
             // skill-profile.yaml
             profile("version"),
             profile("core[].since"),

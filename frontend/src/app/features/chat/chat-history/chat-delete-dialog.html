@@ -1,0 +1,26 @@
+<dialog
+  #dialog
+  class="modal lg-chat-delete"
+  aria-labelledby="lg-chat-delete-title"
+  aria-describedby="lg-chat-delete-body"
+  (cancel)="cancel()"
+>
+  <div class="modal-box" role="document">
+    <h2 class="type-h3" id="lg-chat-delete-title">{{ 'chat.delete.title' | transloco }}</h2>
+    <p class="type-small lg-chat-delete-body" id="lg-chat-delete-body">
+      {{ 'chat.delete.body' | transloco: {title: pending()?.title || ('chat.new' | transloco)} }}
+      @if (streaming()) {
+        {{ 'chat.delete.streaming' | transloco }}
+      }
+    </p>
+    <div class="modal-action">
+      <!-- `autofocus` on Cancel, stated rather than left to the first focusable descendant. -->
+      <button type="button" class="btn btn-sm btn-ghost lg-chat-delete-cancel" autofocus (click)="cancel()">
+        {{ 'common.cancel' | transloco }}
+      </button>
+      <button type="button" class="btn btn-sm btn-primary lg-chat-delete-confirm" (click)="confirm()">
+        {{ 'chat.delete.confirm' | transloco }}
+      </button>
+    </div>
+  </div>
+</dialog>

@@ -1,6 +1,6 @@
 <lg-side-drawer
   labelledBy="lg-chat-title"
-  width="var(--lg-chat-w)"
+  [width]="width()"
   frameClass="lg-chat-drawer"
   [dock]="true"
   (dismissed)="close()"
@@ -19,7 +19,7 @@
       >
         <lg-icon name="panel-left" [size]="18"/>
       </button>
-      <h2 id="lg-chat-title" class="type-h4 lg-chat-title" tabindex="-1">
+      <h2 id="lg-chat-title" class="type-h4 lg-chat-title" tabindex="-1" [class.sr-only]="renamingHead()">
         <!-- The drawer's accessible name, so never blank: an untitled conversation reads as a new one. -->
         @if (!listView() && store.conversation(); as conversation) {
           {{ conversation.title || ('chat.new' | transloco) }}
@@ -27,6 +27,40 @@
           {{ titleKey() | transloco }}
         }
       </h2>
+      <!-- Rename and delete for the open conversation (ISC-448, ISC-449): the same "⋯" as a row's. -->
+      @if (headConversation(); as conversation) {
+        @if (renamingHead()) {
+          <input
+            type="text"
+            class="input input-sm type-h4 lg-chat-title-input"
+            [maxLength]="titleMax"
+            [value]="conversation.title"
+            [placeholder]="derivedTitle()"
+            [attr.aria-label]="'chat.rename.label' | transloco"
+            (keydown)="headRenameKey($event)"
+            (blur)="commitHeadRename($event)"
+          />
+        }
+        <button
+          type="button"
+          id="lg-chat-head-more"
+          class="btn btn-ghost btn-sm btn-square lg-chat-head-more"
+          popovertarget="lg-chat-head-menu"
+          [attr.aria-label]="'chat.actions' | transloco: {title: conversation.title || ('chat.new' | transloco)}"
+          [attr.title]="'chat.actions' | transloco: {title: conversation.title || ('chat.new' | transloco)}"
+          (click)="placeHeadMenu($event)"
+        >
+          <lg-icon name="ellipsis" [size]="18"/>
+        </button>
+        <div popover id="lg-chat-head-menu" class="lg-chat-menu">
+          <button type="button" class="lg-chat-menu-item lg-chat-rename-action" (click)="startHeadRename()">
+            {{ 'chat.rename.action' | transloco }}
+          </button>
+          <button type="button" class="lg-chat-menu-item lg-chat-delete-action" (click)="askDeleteOpen(conversation.id, conversation.title)">
+            {{ 'chat.delete.action' | transloco }}
+          </button>
+        </div>
+      }
       <button
         type="button"
         class="btn btn-ghost btn-sm lg-chat-new"
@@ -51,7 +85,7 @@
     <div class="lg-chat-main">
       @if (rail()) {
         <nav class="lg-chat-rail" [attr.aria-label]="'chat.history' | transloco">
-          <ng-container [ngTemplateOutlet]="rows"/>
+          <lg-chat-history (deleteAsked)="deleteDialog.ask($event)"/>
         </nav>
       }
 
@@ -63,13 +97,19 @@
               {{ 'chat.newConversation' | transloco }}
             </button>
           </div>
-          <ng-container [ngTemplateOutlet]="rows"/>
+          <lg-chat-history (deleteAsked)="deleteDialog.ask($event)"/>
         </nav>
       } @else {
         <div class="lg-chat-column">
           <!-- The thread: turns render into the `turns` slot, each answer into its `answer` slot.
                No aria-live here — the composer's one polite region speaks a finished answer. -->
-          <section class="lg-chat-thread" data-slot="turns" [attr.aria-busy]="store.streaming()">
+          <section
+            class="lg-chat-thread"
+            data-slot="turns"
+            tabindex="-1"
+            [attr.aria-busy]="store.streaming()"
+            (scroll)="onThreadScroll()"
+          >
             @if (store.view() === 'missing') {
               <div class="lg-chat-intro">
                 <h3 class="type-h3 lg-chat-intro-title">{{ 'chat.missing.title' | transloco }}</h3>
@@ -81,23 +121,34 @@
               <p class="type-small text-muted">{{ 'chat.loading' | transloco }}</p>
             } @else if (empty()) {
               <div class="lg-chat-intro">
-                <span class="lg-chat-plate" aria-hidden="true"><lg-icon name="sparkles" [size]="22"/></span>
+                <span class="lg-chat-plate" aria-hidden="true"><lg-living-mark frame="rest" [size]="26"/></span>
                 <h3 class="type-display-m lg-chat-intro-title">{{ 'chat.empty.title' | transloco }}</h3>
                 <p class="type-small text-muted lg-chat-intro-body">{{ 'chat.empty.body' | transloco }}</p>
-                <ul class="lg-chat-suggestions">
-                  @for (suggestion of suggestions(); track suggestion.key) {
-                    <li>
-                      <button
-                        type="button"
-                        class="type-small lg-chat-suggestion"
-                        (click)="ask(suggestion.key)"
-                      >
-                        <lg-icon [name]="suggestion.icon" [size]="16"/>
-                        <span>{{ suggestion.key | transloco }}</span>
-                      </button>
-                    </li>
+                <!-- What the data suggests (ISC-456): skeleton rows of the final height while the server answers. -->
+                @if (suggestions(); as shown) {
+                  @if (shown.length > 0) {
+                    <ul class="lg-chat-suggestions" [attr.aria-label]="'chat.suggest.title' | transloco">
+                      @for (suggestion of shown; track $index) {
+                        <li>
+                          <button
+                            type="button"
+                            class="type-small lg-chat-suggestion lg-chat-suggestion-row"
+                            (click)="ask(suggestion.text)"
+                          >
+                            <lg-icon [name]="triggerIcon(suggestion.trigger)" [size]="16"/>
+                            <span class="lg-chat-suggestion-text">{{ suggestion.text }}</span>
+                          </button>
+                        </li>
+                      }
+                    </ul>
                   }
-                </ul>
+                } @else {
+                  <ul class="lg-chat-suggestions" aria-busy="true" [attr.aria-label]="'chat.suggest.loading' | transloco">
+                    @for (row of skeletonRows; track row) {
+                      <li class="lg-chat-suggestion-row lg-chat-suggestion-skeleton skeleton" aria-hidden="true"></li>
+                    }
+                  </ul>
+                }
               </div>
             } @else {
               @for (turn of store.turns(); track turn.id; let last = $last) {
@@ -111,6 +162,17 @@
               }
             }
           </section>
+          <!-- "Jump to latest" (ISC-462): a zero-height slot between the thread and what sits below it, so
+               the pill floats centred over the thread's foot and never over the chip row or composer.
+               Neutral — never the AI accent. Only while a turn streams and the reader scrolled up. -->
+          <div class="lg-chat-jump-slot">
+            @if (showJump()) {
+              <button type="button" class="btn btn-sm btn-primary lg-chat-jump" (click)="jumpToLatest()">
+                <lg-icon name="arrow-down" [size]="16"/>
+                {{ 'chat.jumpToLatest' | transloco }}
+              </button>
+            }
+          </div>
           <!-- A missing conversation takes no question: its one action is to start a new one. -->
           @if (store.view() !== 'missing') {
             <lg-chat-composer/>
@@ -118,6 +180,8 @@
         </div>
       }
     </div>
+    <!-- The one delete confirmation, for the rows and the head alike: one dialog in the top layer. -->
+    <lg-chat-delete-dialog #deleteDialog/>
   </div>
 </lg-side-drawer>
 
@@ -125,34 +189,12 @@
   <lg-chat-minibar [name]="store.conversation()?.title || ('chat.new' | transloco)"[streaming]="store.streaming()" (expanded)="expand()"/>
 }
 
-<ng-template #rows>
-  @if (store.conversations().length === 0) {
-    <p class="type-small text-muted lg-chat-rows-empty">
-      {{ (store.listLoading() ? 'chat.listLoading' : 'chat.historyEmpty') | transloco }}
-    </p>
-  }
-  <ul class="lg-chat-rows">
-    @for (conversation of store.conversations(); track conversation.id) {
-      <li>
-        <button
-          type="button"
-          class="lg-chat-row"
-          [attr.aria-current]="conversation.id === store.openId() ? 'true' : null"
-          (click)="openConversation(conversation.id)"
-        >
-          <span class="type-small lg-chat-row-title">{{ conversation.title || ('chat.new' | transloco) }}</span>
-        </button>
-      </li>
-    }
-  </ul>
-</ng-template>
-
 <!-- One turn: the question, then the answer `chat-answer` renders — steps, Markdown, sources, actions. -->
 <ng-template #turnView let-turn let-turnId="turnId" let-last="last">
   <article class="lg-chat-turn">
     <p class="type-body lg-chat-question">{{ turn.question }}</p>
     <div class="lg-chat-answer" data-slot="answer">
-      <span class="lg-chat-glyph" aria-hidden="true"><lg-icon name="sparkles" [size]="14"/></span>
+      <span class="lg-chat-glyph" aria-hidden="true"><lg-living-mark [frame]="frameOf(turn)" [size]="20"/></span>
       <lg-chat-answer
         [answer]="turn.answer"
         [steps]="turn.steps"
@@ -162,6 +204,7 @@
         [failure]="turn.failure ?? null"
         [failureParams]="turn.failureParams ?? null"
         [last]="last"
+        [conversationId]="store.conversation()?.id ?? null"
       />
     </div>
   </article>

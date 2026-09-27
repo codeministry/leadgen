@@ -12,7 +12,7 @@
 <header class="header">
   <div class="header-row">
     <a routerLink="/dashboard" class="brand-link">
-      <lg-brand-mark class="compact" [size]="26"/>
+      <lg-brand-mark class="compact" [size]="30"/>
     </a>
 
     <lg-app-nav/>
@@ -21,22 +21,22 @@
       <!-- The chat (spec 019): first in the cluster, so a capability answer arriving late shifts
            nothing to its right, and absent — not disabled — without a chat model (ISC-422). From
            48rem the soft tier with the word "Ask"; below it the stylesheet turns the same button
-           into a ghost square, one element so focus always has one place to come back to. -->
+           into a ghost square, one element so focus always has one place to come back to. Its icon
+           is the living mark (spec 021): the brand's ring at rest, working while a turn is written
+           behind a shut drawer; the busy state is spoken by the name alone. -->
       @if (chat.present()) {
         <button
           type="button"
-          class="btn btn-soft btn-primary btn-sm lg-chat-open"
+          class="btn btn-soft btn-primary lg-chat-open"
           aria-haspopup="dialog"
           [attr.aria-expanded]="chat.view() !== 'closed'"
           [attr.aria-label]="chatLabel()"
-          [attr.title]="'chat.open' | transloco"
+          [attr.title]="chatTitle()"
+          [attr.aria-keyshortcuts]="shortcutKeys()"
           (click)="toggleChat()"
         >
-          <lg-icon name="sparkles" [size]="16"/>
+          <lg-living-mark [frame]="chatBusy() ? 'working' : 'rest'" [size]="18"/>
           <span class="lg-chat-open-label">{{ 'chat.openShort' | transloco }}</span>
-          @if (chatBusy()) {
-            <span class="lg-chat-busy" aria-hidden="true"></span>
-          }
         </button>
       }
       <!-- The version is the honest health check, and the failure is the half that has to
@@ -59,14 +59,14 @@
            the panel's own toggle event. -->
       <button
         type="button"
-        class="btn btn-ghost btn-sm btn-square settings-button"
+        class="btn btn-ghost btn-square settings-button"
         popovertarget="app-settings"
         aria-controls="app-settings"
         [attr.aria-expanded]="settingsOpen()"
         [attr.aria-label]="'shell.settings' | transloco"
         [attr.title]="'shell.settings' | transloco"
       >
-        <lg-icon name="settings" [size]="18"/>
+        <lg-icon name="settings" [size]="20"/>
       </button>
 
       <!--
@@ -103,13 +103,13 @@
       <button
         #helpButton
         type="button"
-        class="btn btn-ghost btn-sm btn-square help-button"
+        class="btn btn-ghost btn-square help-button"
         aria-haspopup="dialog"
         [attr.aria-label]="'shell.help' | transloco"
         [attr.title]="'shell.help' | transloco"
         (click)="help.open(helpButton)"
       >
-        <lg-icon name="circle-help" [size]="18"/>
+        <lg-icon name="circle-help" [size]="20"/>
       </button>
       <lg-help-drawer #help/>
     </div>

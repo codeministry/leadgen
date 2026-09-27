@@ -444,7 +444,35 @@ public record PipelineConfig(
      *                       200 ({@code ChatBudget.DEFAULT_CALLS_PER_DAY}), not no ceiling; {@code 0} is none.
      * @param maxToolRounds  how often one turn may call tools before it has to answer; absent is the
      *                       shipped default of 6 ({@code ChatBudget.DEFAULT_TOOL_ROUNDS}), never no bound.
+     * @param suggestions    the lines the empty chat's suggestion triggers read; absent is every
+     *                       shipped default ({@code SuggestionThresholds}).
      */
     public record Chat(
-            @Min(0) Integer maxCallsPerDay, @Min(1) Integer maxToolRounds) {}
+            @Min(0) Integer maxCallsPerDay,
+            @Min(1) Integer maxToolRounds,
+            @Valid Suggestions suggestions) {
+
+        /** The ceilings alone, for code that has nothing to say about suggestions. */
+        public Chat(Integer maxCallsPerDay, Integer maxToolRounds) {
+            this(maxCallsPerDay, maxToolRounds, null);
+        }
+    }
+
+    /**
+     * Each suggestion trigger's line (ISC-455). Absent means the shipped default, never "off".
+     *
+     * @param newOffersMin     the last run wrote at least this many offers
+     * @param deadlineDays     an open deadline within this many days from today
+     * @param noReplyDays      a sent application without a reply for at least this many days
+     * @param tagWindowDays    the length of the window a tag is compared over, against the one before
+     * @param tagRisePercent   how far above the window before a tag has to be
+     * @param tagRiseMinOffers how many offers the current window needs before a rise counts
+     */
+    public record Suggestions(
+            @Min(1) Integer newOffersMin,
+            @Min(0) Integer deadlineDays,
+            @Min(1) Integer noReplyDays,
+            @Min(1) Integer tagWindowDays,
+            @Min(0) Integer tagRisePercent,
+            @Min(1) Integer tagRiseMinOffers) {}
 }

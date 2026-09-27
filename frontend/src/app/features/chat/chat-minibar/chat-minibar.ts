@@ -1,6 +1,7 @@
 import {afterNextRender, ChangeDetectionStrategy, Component, DestroyRef, inject, input, output, signal} from '@angular/core';
 import {TranslocoPipe} from '@jsverse/transloco';
 import {Icon} from '@shared/icon/icon';
+import {LivingMark} from '@shared/living-mark/living-mark';
 
 /** The navigation's fixed bottom bar below 48rem, the edge this bar stands on. */
 const BOTTOM_NAV = '.topnav';
@@ -9,9 +10,10 @@ const BOTTOM_NAV = '.topnav';
  * The chat sheet folded into a bar (ISC-441): below 48rem, following a source opens the page it
  * names and leaves the conversation one tap away, directly above the bottom navigation.
  *
- * <p>**It names the conversation and marks a turn still being written**, with the header's busy
- * dot in its second place: the same `--lg-ai`, the same meaning, static under reduced motion.
- * The whole bar is the one button that expands the sheet again.
+ * <p>**It names the conversation and marks a turn still being written** with the living mark in
+ * its working frame, the header button's own while the drawer is shut: the same ring, the same
+ * `--lg-ai` on its flow dots, the same meaning. The whole bar is the one button that expands the
+ * sheet again.
  *
  * <p>**It stands on the navigation's measured height**, not on a copied constant: that bar's
  * height comes from its labels, its padding and the safe-area inset, and a guessed offset either
@@ -22,7 +24,7 @@ const BOTTOM_NAV = '.topnav';
  */
 @Component({
     selector: 'lg-chat-minibar',
-    imports: [Icon, TranslocoPipe],
+    imports: [Icon, LivingMark, TranslocoPipe],
     templateUrl: './chat-minibar.html',
     styleUrl: './chat-minibar.css',
     changeDetection: ChangeDetectionStrategy.OnPush,

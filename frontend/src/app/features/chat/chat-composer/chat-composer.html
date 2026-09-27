@@ -1,19 +1,48 @@
 <div class="lg-chat-composer">
   <div class="lg-chat-field">
-    @if (pinned(); as id) {
-      <span class="type-caption lg-chat-pin">
-        <lg-icon name="pin" [size]="14"/>
-        <span class="lg-chat-pin-text">{{ 'chat.pinned' | transloco: { id: id } }}</span>
-        <button
-          type="button"
-          class="btn btn-ghost btn-xs btn-square lg-chat-unpin"
-          [attr.aria-label]="'chat.unpin' | transloco"
-          [attr.title]="'chat.unpin' | transloco"
-          (click)="unpin()"
-        >
-          <lg-icon name="x" [size]="12"/>
-        </button>
-      </span>
+    <!-- The pins the next question is asked under, inside the frame from before the first question
+         to the end of the conversation (ISC-446, ISC-451). Neutral: never the signal, never the AI colour. -->
+    <lg-chat-chips [items]="store.contextItems()" [removable]="removable()" (removed)="unpin($event)"/>
+    <!-- The ten-offer limit (ISC-453): its reason, visible text, when a pin was refused; otherwise,
+         from eight on, how close the conversation is to it. -->
+    @if (store.contextRefused()) {
+      <p class="type-small lg-chat-context-refused" role="alert">{{ 'chat.context.limit' | transloco: { max: maxOffers } }}</p>
+    } @else if (showCount()) {
+      <p class="type-caption text-muted lg-chat-context-count">{{ 'chat.context.count' | transloco: { count: offerCount(), max: maxOffers } }}</p>
+    }
+    <!-- The `@` search's listbox, opening upward over the thread (ISC-453): the textarea is its
+         combobox. A row takes the press on `mousedown` so the field keeps the focus. -->
+    @if (mention(); as open) {
+      <div class="lg-chat-mention">
+        <ul id="lg-chat-mention-list" role="listbox" class="lg-chat-mention-list" [attr.aria-label]="'chat.mention.label' | transloco: { query: open.query }">
+          @for (entry of found() ?? []; track entry.offer.id; let index = $index) {
+            <li
+              role="option"
+              class="lg-chat-mention-option"
+              [id]="optionId(entry)"
+              [attr.aria-selected]="index === active()"
+              (mousedown)="$event.preventDefault()"
+              tabindex="-1"
+              (click)="pick(entry)"
+              (keydown.enter)="pick(entry)"
+            >
+              <span class="type-body lg-chat-mention-title">{{ entry.offer.title }}</span>
+              <span class="type-small text-muted lg-chat-mention-meta">
+                {{ entry.offer.agency ?? entry.offer.portal }}
+                @if (entry.offer.publishedOn; as day) {
+                  · <span class="font-mono">{{ day | lgDay }}</span>
+                }
+              </span>
+            </li>
+          }
+        </ul>
+        @if (found()?.length === 0) {
+          <p class="type-small text-muted lg-chat-mention-note">{{ 'chat.mention.none' | transloco: { query: open.query } }}</p>
+        }
+        @if (offerCount() >= maxOffers) {
+          <p class="type-small lg-chat-mention-note lg-chat-mention-limit">{{ 'chat.context.limit' | transloco: { max: maxOffers } }}</p>
+        }
+      </div>
     }
     <label class="sr-only" for="lg-chat-input">{{ 'chat.inputLabel' | transloco }}</label>
     <!-- `enterkeyhint` labels the software keyboard's return key "send", which is what it does. -->
@@ -23,6 +52,11 @@
       class="lg-chat-input"
       rows="1"
       enterkeyhint="send"
+      role="combobox"
+      aria-autocomplete="list"
+      aria-controls="lg-chat-mention-list"
+      [attr.aria-expanded]="mentionOpen()"
+      [attr.aria-activedescendant]="activeId()"
       [attr.maxlength]="maxLength"
       [attr.aria-describedby]="count() === null ? null : 'lg-chat-count'"
       [placeholder]="'chat.placeholder' | transloco"
@@ -30,6 +64,7 @@
       [disabled]="closed()"
       (input)="onInput($event)"
       (keydown)="onKey($event)"
+      (blur)="closeMention()"
     ></textarea>
     <div class="lg-chat-field-foot">
       <span class="type-small text-muted lg-chat-hint">{{ 'chat.hint' | transloco }}</span>

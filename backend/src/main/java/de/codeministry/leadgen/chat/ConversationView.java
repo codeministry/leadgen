@@ -15,9 +15,18 @@ import java.util.List;
  * A whole conversation, as the drawer opens it.
  *
  * @param id            the conversation.
- * @param title         the first question, shortened.
- * @param pinnedOfferId the offer it was started from, or null; set only by "Ask about this offer".
+ * @param title         the name it was renamed to, else the first question, shortened.
+ * @param pinnedOfferId the first offer of {@code context}, or null; kept for one release, the context list
+ *                      replaces it.
+ * @param context       what the conversation is about, in the order its chips are shown; empty for
+ *                      everything.
  * @param turns         oldest first.
  * @param updatedAt     when the last turn started.
  */
-public record ConversationView(long id, String title, Long pinnedOfferId, List<TurnView> turns, Instant updatedAt) {}
+public record ConversationView(
+        long id,
+        String title,
+        Long pinnedOfferId,
+        List<ChatContextItem> context,
+        List<TurnView> turns,
+        Instant updatedAt) {}

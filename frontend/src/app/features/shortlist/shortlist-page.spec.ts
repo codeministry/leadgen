@@ -536,8 +536,9 @@ describe('ShortlistPage', () => {
         Object.defineProperty(window, 'matchMedia', {
             configurable: true,
             writable: true,
+            // The width only: a coarse pointer would hide the cards' checkboxes behind "Select" (ISC-453).
             value: (query: string) => ({
-                matches,
+                matches: matches && !query.includes('pointer'),
                 media: query,
                 addEventListener: () => undefined,
                 removeEventListener: () => undefined,
@@ -1024,8 +1025,9 @@ describe('ShortlistPage density against the URL (ISC-381)', () => {
     Object.defineProperty(window, 'matchMedia', {
       configurable: true,
       writable: true,
+      // The width only: a coarse pointer would hide the cards' checkboxes behind "Select" (ISC-453).
       value: (query: string) => ({
-        matches: true,
+        matches: !query.includes('pointer'),
         media: query,
         addEventListener: () => undefined,
         removeEventListener: () => undefined,

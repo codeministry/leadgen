@@ -11,5 +11,7 @@ package de.codeministry.leadgen.chat;
 /** What a source row is. */
 public enum ChatSourceKind {
     OFFER,
-    APPLICATION
+    APPLICATION,
+    /** The numbers of one {@code statistics} call; never cited in the text, see {@link StatisticsSource}. */
+    STATISTICS
 }

@@ -44,6 +44,16 @@
     flex: 1;
     min-width: 0;
   padding: var(--lg-content-gap) var(--lg-gutter) var(--lg-gutter);
+
+  /* The page's own box, and what the three split views break on (ISC-472). The viewport
+     stopped being the page's width the day the chat docked beside it: at 1440 with the panel
+     open the page is 600px, and a split keyed on the window kept two columns in it and cut the
+     reading column to a sliver. A container query measures the content box, so the gutters
+     are already off it. `inline-size` contains the inline axis only — the page still grows
+     with its content — and neither it nor the style containment it brings makes a containing
+     block for `position: fixed` or a scroll container for `position: sticky`. */
+  container-type: inline-size;
+  container-name: page;
 }
 
 /* Centred, and that is a reversal: the measure used to be left-aligned because the nav rail

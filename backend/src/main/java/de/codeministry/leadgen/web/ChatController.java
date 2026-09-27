@@ -10,17 +10,28 @@ package de.codeministry.leadgen.web;
 
 import de.codeministry.leadgen.chat.ChatCapability;
 import de.codeministry.leadgen.chat.ChatCapabilityView;
+import de.codeministry.leadgen.chat.ChatContextItem;
+import de.codeministry.leadgen.chat.ChatContextKind;
 import de.codeministry.leadgen.chat.ChatEvent;
 import de.codeministry.leadgen.chat.ChatTurnService;
 import de.codeministry.leadgen.chat.ConversationRepository;
 import de.codeministry.leadgen.chat.ConversationSummary;
 import de.codeministry.leadgen.chat.ConversationView;
+import de.codeministry.leadgen.chat.NewContext;
 import de.codeministry.leadgen.chat.NewConversation;
 import de.codeministry.leadgen.chat.NewTurn;
+import de.codeministry.leadgen.chat.RenameConversation;
+import de.codeministry.leadgen.chat.suggest.FollowUp;
+import de.codeministry.leadgen.chat.suggest.FollowUps;
+import de.codeministry.leadgen.chat.suggest.Suggestion;
+import de.codeministry.leadgen.chat.suggest.SuggestionScope;
+import de.codeministry.leadgen.chat.suggest.SuggestionService;
 import de.codeministry.leadgen.config.ConfigProperties;
 import jakarta.annotation.PreDestroy;
 import jakarta.validation.Valid;
 import java.io.IOException;
+import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
@@ -30,9 +41,12 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.CacheControl;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -73,9 +87,14 @@ class ChatController {
      */
     static final long NO_CONTAINER_TIMEOUT = -1L;
 
+    /** How long a delete waits for the turns it stopped to end before it deletes under them. */
+    static final Duration STOP_BEFORE_DELETE = Duration.ofSeconds(5);
+
     private final ConversationRepository conversations;
     private final ChatCapability capability;
     private final ChatTurnService turns;
+    private final SuggestionService suggestions;
+    private final FollowUps followUps;
 
     /**
      * {@code leadgen.chat.*}: the turn timeout {@link ChatTurnService} stops a turn at, read here
@@ -92,10 +111,101 @@ class ChatController {
         return capability.view();
     }
 
-    /** Newest first. */
+    /**
+     * Newest first. A blank {@code q} is no search, so a cleared search field asks for the whole
+     * list; otherwise only the conversations holding every word of it, ignoring case and accents.
+     */
     @GetMapping("/conversations")
-    List<ConversationSummary> conversations() {
-        return conversations.list();
+    List<ConversationSummary> conversations(@RequestParam(required = false) String q) {
+        return q == null || q.isBlank() ? conversations.list() : conversations.search(q);
+    }
+
+    /**
+     * Renames a conversation: stored trimmed, a name over 120 characters is cut rather than refused,
+     * and an empty one clears the name so the derived title shows again.
+     */
+    @PatchMapping("/conversations/{id}")
+    ConversationView rename(@PathVariable long id, @RequestBody RenameConversation body) {
+        if (!conversations.rename(id, body.title())) {
+            throw notFound(id);
+        }
+        return conversations.find(id).orElseThrow(() -> notFound(id));
+    }
+
+    /**
+     * Replaces the conversation's whole context list with the body's, in its order (ISC-451). An
+     * empty list unpins everything; an item missing what its kind needs is a 400, an offer that does
+     * not exist a 404 like the pin on create.
+     */
+    @PutMapping("/conversations/{id}/context")
+    ConversationView context(@PathVariable long id, @RequestBody NewContext body) {
+        boolean found;
+        try {
+            found = conversations.replaceContext(id, body.context());
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage());
+        } catch (DataIntegrityViolationException e) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "an offer of the context does not exist");
+        }
+        if (!found) {
+            throw notFound(id);
+        }
+        return conversations.find(id).orElseThrow(() -> notFound(id));
+    }
+
+    /**
+     * Up to four questions the data suggests, for a conversation or for a context not yet stored
+     * (ISC-455, ISC-456), in the language {@code Accept-Language} ranks first of German and English.
+     * A stored conversation is read for its pins; {@code ?context=} is the URL's {@code chatCtx}
+     * form, of which the offer pins ({@code o:<id>}) are read and every other entry is skipped, as
+     * the frontend does.
+     */
+    @GetMapping("/suggestions")
+    List<Suggestion> suggestions(
+            @RequestParam(required = false) Long conversation,
+            @RequestParam(required = false) String context,
+            @RequestHeader(value = HttpHeaders.ACCEPT_LANGUAGE, required = false) String acceptLanguage) {
+        SuggestionScope scope;
+        if (conversation != null) {
+            ConversationView view = conversations.find(conversation).orElseThrow(() -> notFound(conversation));
+            scope = new SuggestionScope(view.pinnedOfferId(), view.context());
+        } else {
+            scope = scopeOf(context);
+        }
+        return suggestions.suggestions(scope, SuggestionService.language(acceptLanguage));
+    }
+
+    /**
+     * Two or three follow-up questions under a finished turn, none under any other (ISC-457); 404 for
+     * a turn the conversation does not hold.
+     */
+    @GetMapping("/conversations/{id}/turns/{turnId}/followups")
+    List<FollowUp> followUps(
+            @PathVariable long id,
+            @PathVariable long turnId,
+            @RequestHeader(value = HttpHeaders.ACCEPT_LANGUAGE, required = false) String acceptLanguage) {
+        return followUps
+                .of(id, turnId, SuggestionService.language(acceptLanguage))
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "no turn " + turnId + " in conversation " + id));
+    }
+
+    /** An offer pin of the {@code chatCtx} form. */
+    private static final Pattern OFFER_PIN = Pattern.compile("o:(\\d{1,18})");
+
+    /** The pins a {@code ?context=} names; the first offer is also the scope's pinned offer. */
+    static SuggestionScope scopeOf(String context) {
+        if (context == null || context.isBlank()) {
+            return SuggestionScope.NONE;
+        }
+        List<ChatContextItem> items = new ArrayList<>();
+        for (String entry : context.split(",")) {
+            Matcher pin = OFFER_PIN.matcher(entry.strip());
+            if (pin.matches()) {
+                items.add(new ChatContextItem(ChatContextKind.OFFER, Long.parseLong(pin.group(1)), null, null, null));
+            }
+        }
+        return new SuggestionScope(items.isEmpty() ? null : items.getFirst().offerId(), items);
     }
 
     /** 404 for an id that does not exist, which the drawer renders as an empty state. */
@@ -109,19 +219,29 @@ class ChatController {
     ConversationView create(@RequestBody NewConversation body) {
         long id;
         try {
-            id = conversations.create(body.pinnedOfferId());
+            id = conversations.create(body.pinnedOfferId(), body.context());
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage());
         } catch (DataIntegrityViolationException e) {
-            // The pin's foreign key is the one constraint a well-formed body can break. Asking the
+            // An offer's foreign key is the one constraint a well-formed body can break. Asking the
             // insert rather than checking first leaves no window for the offer to vanish in between.
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "no offer " + body.pinnedOfferId());
+            Long pin = body.pin();
+            throw new ResponseStatusException(
+                    HttpStatus.NOT_FOUND, pin != null ? "no offer " + pin : "an offer of the context does not exist");
         }
         return conversations.find(id).orElseThrow(() -> notFound(id));
     }
 
-    /** Takes its turns and their tool calls with it. */
+    /**
+     * Takes its turns and their tool calls with it. A turn still streaming in it is stopped first,
+     * the same stop as {@code …/stop}, and waited for, so its model connection is closed and its
+     * last write done before the rows go. A turn that outlasts {@link #STOP_BEFORE_DELETE} is
+     * deleted under anyway and ends as a turn whose conversation vanished.
+     */
     @DeleteMapping("/conversations/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     void delete(@PathVariable long id) {
+        turns.stopAll(id, STOP_BEFORE_DELETE);
         if (!conversations.delete(id)) {
             throw notFound(id);
         }

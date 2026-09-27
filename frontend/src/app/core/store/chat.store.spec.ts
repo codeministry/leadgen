@@ -101,6 +101,9 @@ describe('ChatStore', () => {
 
     it('keeps the last opened id once `?chat` goes away, and reopens it', async () => {
         await open(4);
+        // Closed by the chat itself: a link without `?chat` no longer takes it away (ISC-444).
+        dispatch.closeRequested();
+        await vi.waitFor(() => expect(router.url).toBe('/offers'));
         await router.navigateByUrl('/pipeline');
 
         expect(store.view()).toBe('closed');
@@ -147,7 +150,7 @@ describe('ChatStore', () => {
             [1, 'DONE', 14],
             [2, 'DONE', 27],
         ]);
-        expect(live.sources.map((s) => s.id)).toEqual([2291, 2304]);
+        expect(live.sources.map((s) => (s.kind === 'STATISTICS' ? null : s.id))).toEqual([2291, 2304]);
         expect(store.streaming()).toBe(false);
         expect(store.liveTurn()).toBe(live);
 
@@ -162,15 +165,15 @@ describe('ChatStore', () => {
     it('creates the conversation on the first question under `?chat=new`, pinned, and swaps the URL to its id', async () => {
         await router.navigateByUrl('/offers');
         dispatch.newRequested({pinnedOfferId: 2291});
-        await vi.waitFor(() => expect(router.url).toBe('/offers?chat=new'));
+        await vi.waitFor(() => expect(router.url).toBe('/offers?chat=new&chatCtx=o:2291'));
         vi.spyOn(api, 'ask').mockReturnValue(replayTurn(RECORDED_TURN));
 
         dispatch.asked('Is this one worth it?');
         const create = http.expectOne({method: 'POST', url: BASE});
-        expect(create.request.body).toEqual({pinnedOfferId: 2291});
+        expect(create.request.body).toEqual({context: [{kind: 'OFFER', offerId: 2291}]});
         create.flush(conversation(12, {pinnedOfferId: 2291}));
 
-        await vi.waitFor(() => expect(router.url).toBe('/offers?chat=12'));
+        await vi.waitFor(() => expect(router.url).toBe('/offers?chat=12&chatCtx=o:2291'));
         await vi.waitFor(() => expect(store.live()?.state).toBe('DONE'));
         // The id it moved to is the conversation already held: no second read.
         expect(store.openId()).toBe(12);
@@ -488,14 +491,17 @@ describe('ChatStore', () => {
         expect(store.live()?.replacesTurnId).toBe(3);
     });
 
-    it('deletes one conversation and leaves the open one for the list when it was that one', async () => {
+    it('deletes one conversation and lands on a new one when it was the open one (ISC-448)', async () => {
         await open(4);
+        dispatch.listLoaded([
+            {id: 4, title: 'd', updatedAt: '2026-09-27T09:00:00Z', lastActivityAt: '2026-09-27T09:00:00Z'},
+            {id: 2, title: 'b', updatedAt: '2026-09-20T09:00:00Z', lastActivityAt: '2026-09-20T09:00:00Z'},
+        ]);
 
         dispatch.deleteRequested(4);
         http.expectOne({method: 'DELETE', url: `${BASE}/4`}).flush(null);
 
-        await vi.waitFor(() => expect(router.url).toBe('/offers?chat=list'));
-        http.expectOne(BASE).flush([{id: 2, title: 'b', updatedAt: '2026-09-20T09:00:00Z'}]);
+        await vi.waitFor(() => expect(router.url).toBe('/offers?chat=new'));
         expect(store.conversations().map((c) => c.id)).toEqual([2]);
         expect(store.lastId()).toBeNull();
     });
@@ -513,8 +519,7 @@ describe('ChatStore', () => {
         dispatch.deleteRequested(4);
         http.expectOne({method: 'POST', url: `${BASE}/4/turns/5/stop`}).flush(null);
         http.expectOne({method: 'DELETE', url: `${BASE}/4`}).flush(null);
-        await vi.waitFor(() => expect(router.url).toBe('/offers?chat=list'));
-        http.expectOne(BASE).flush([]);
+        await vi.waitFor(() => expect(router.url).toBe('/offers?chat=new'));
         expect(store.live()).toBeNull();
 
         events.next({event: 'done', data: {state: 'STOPPED'}});

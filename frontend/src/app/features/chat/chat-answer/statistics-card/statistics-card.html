@@ -1,0 +1,68 @@
+<figure class="lg-chat-stats">
+  <figcaption class="lg-chat-stats-head">
+    <span class="type-caption text-muted">
+      {{ 'chat.statistics.window' | transloco: {from: source().from, to: source().to} }}
+    </span>
+    @if (spark(); as line) {
+      <!-- The table below is the accessible form of these numbers; the line is only their shape. -->
+      <svg
+        class="lg-chat-stats-spark"
+        aria-hidden="true"
+        focusable="false"
+        [attr.viewBox]="'0 0 ' + sparkW + ' ' + sparkH"
+        [attr.width]="sparkW"
+        [attr.height]="sparkH"
+      >
+        <polyline [attr.points]="line.points" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
+        <circle [attr.cx]="line.lastX" [attr.cy]="line.lastY" r="1.5" fill="currentColor"/>
+      </svg>
+    }
+  </figcaption>
+
+  <div class="lg-chat-stats-scroll">
+    <table class="lg-chat-stats-table">
+      <thead>
+        <tr>
+          <th scope="col" class="type-caption">{{ 'chat.statistics.metric' | transloco }}</th>
+          <th scope="col" class="type-caption lg-chat-stats-num">{{ 'chat.statistics.value' | transloco }}</th>
+          @if (compared()) {
+            <th scope="col" class="type-caption lg-chat-stats-num">
+              {{ 'chat.statistics.compare' | transloco: {from: source().compareFrom, to: source().compareTo} }}
+            </th>
+            <th scope="col" class="type-caption lg-chat-stats-num">{{ 'chat.statistics.delta' | transloco }}</th>
+          }
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of source().rows; track row.label) {
+          <tr>
+            <th scope="row" class="type-small lg-chat-stats-label">{{ row.label }}</th>
+            <td class="type-mono-data lg-chat-stats-num lg-chat-stats-value">{{ number(row.value) }}</td>
+            @if (compared()) {
+              <td class="type-mono-data lg-chat-stats-num">{{ number(row.compareValue) }}</td>
+              <td class="type-mono-data lg-chat-stats-num">
+                @if (delta(row.delta); as d) {
+                  <span class="lg-chat-stats-delta" [attr.data-direction]="d.direction">
+                    @if (d.direction === 'up') {
+                      <lg-icon name="arrow-up" [size]="12"/>
+                    } @else if (d.direction === 'down') {
+                      <lg-icon name="arrow-down" [size]="12"/>
+                    }
+                    {{ d.text }}
+                  </span>
+                } @else {
+                  —
+                }
+              </td>
+            }
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+
+  <a class="type-small lg-chat-stats-link" routerLink="/analytics" [queryParams]="query()">
+    <lg-icon name="chart-line" [size]="14"/>
+    {{ 'chat.statistics.link' | transloco }}
+  </a>
+</figure>

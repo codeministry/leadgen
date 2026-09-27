@@ -5,7 +5,8 @@
 }
 
 /* The width is the consumer's `width` input, bound on the frame — the help's 48rem, the chat's
-   stepped `--lg-chat-w` — and never wider than the window. */
+   stepped `--lg-chat-w`, or its thread alone while its rail is folded — and never wider than the
+   window. */
 .lg-side-drawer {
   box-sizing: border-box;
   max-width: 100vw;

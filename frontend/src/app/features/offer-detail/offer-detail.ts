@@ -167,7 +167,7 @@ export class OfferDetail implements OnInit {
 
   /** A new conversation with this offer as its pinned context; the drawer opens beside the detail. */
   protected askAboutOffer(id: number): void {
-    this.chatDispatch.newRequested({pinnedOfferId: id});
+    this.chatDispatch.contextPinned({kind: 'OFFER', offerId: id});
   }
 
   /**

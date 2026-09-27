@@ -17,12 +17,17 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.node.TextNode;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.text.Normalizer;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -41,16 +46,39 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class ConversationRepository {
 
-    private static final String LIST = """
-            SELECT id, title, updated_at
+    // A renamed conversation shows its own name. custom_title is NULL until a rename, and an
+    // emptied rename stores NULL again, so the derived title is the fallback wherever it is read.
+    private static final String SUMMARIES = """
+            SELECT id, coalesce(custom_title, title) AS title, updated_at
               FROM chat_conversation
-             ORDER BY updated_at DESC, id DESC
+            """;
+
+    private static final String NEWEST_FIRST = " ORDER BY updated_at DESC, id DESC";
+
+    // What the search matches: the name the conversation shows and every question asked in it,
+    // through the same normaliser as the query. The derived title is the first question, so a
+    // renamed conversation still finds by it.
+    private static final String SEARCHABLE = """
+            SELECT concat_ws(' ',
+                             nullif(coalesce(c.custom_title, c.title), ''),
+                             (SELECT string_agg(t.question, ' ' ORDER BY t.ordinal)
+                                FROM chat_turn t
+                               WHERE t.conversation_id = c.id))
+              FROM chat_conversation c
+             WHERE c.id = :id
             """;
 
     private static final String CONVERSATION = """
-            SELECT id, title, pinned_offer_id, updated_at
+            SELECT id, coalesce(custom_title, title) AS title, updated_at
               FROM chat_conversation
              WHERE id = :id
+            """;
+
+    private static final String CONTEXT = """
+            SELECT conversation_id, kind, offer_id, query, window_from, window_to
+              FROM chat_context
+             WHERE conversation_id IN (:ids)
+             ORDER BY conversation_id, ordinal
             """;
 
     private static final String TURNS = """
@@ -66,6 +94,14 @@ public class ConversationRepository {
               FROM chat_tool_call c
               JOIN chat_turn t ON t.id = c.turn_id
              WHERE t.conversation_id = :id
+             ORDER BY c.turn_id, c.ordinal
+            """;
+
+    private static final String STATISTICS = """
+            SELECT c.turn_id, c.data::text AS data
+              FROM chat_tool_call c
+              JOIN chat_turn t ON t.id = c.turn_id
+             WHERE t.conversation_id = :id AND c.data IS NOT NULL
              ORDER BY c.turn_id, c.ordinal
             """;
 
@@ -141,9 +177,19 @@ public class ConversationRepository {
     /** Long enough to tell two conversations apart in the list, short enough for one line of it. */
     static final int TITLE_LENGTH = 80;
 
+    /** The longest name a rename stores; a longer one is cut, not refused. */
+    static final int CUSTOM_TITLE_LENGTH = 120;
+
     private static final ObjectMapper JSON = new ObjectMapper();
 
     private static final TypeReference<List<TurnLedger.Citation>> CITATIONS = new TypeReference<>() {};
+
+    /**
+     * The most offers one conversation pins (ISC-453). Every pin is read in full at the start of
+     * every turn and shares the lookup's advert budget, so past ten each advert is too short to
+     * answer from; the eleventh is refused with this number rather than dropped without a word.
+     */
+    public static final int MAX_PINNED_OFFERS = 10;
 
     private final JdbcClient jdbc;
 
@@ -152,20 +198,118 @@ public class ConversationRepository {
      * @return the new conversation's id. Its title stays empty until the first question names it.
      */
     public long create(Long pinnedOfferId) {
-        return jdbc.sql("INSERT INTO chat_conversation (title, pinned_offer_id) VALUES ('', :pin) RETURNING id")
-                .param("pin", pinnedOfferId)
-                .query(Long.class)
-                .single();
+        return create(pinnedOfferId, null);
     }
 
-    /** Newest first: the conversation whose last turn started most recently leads. */
+    /**
+     * A new conversation with its context. {@code pinnedOfferId}, still accepted for one release, is
+     * the first chip; the list holding the same offer again keeps it at that first place.
+     *
+     * @return the new conversation's id. Its title stays empty until the first question names it.
+     * @throws IllegalArgumentException when an item lacks what its kind needs
+     * @throws org.springframework.dao.DataIntegrityViolationException when a pinned offer does not
+     *     exist
+     */
+    @Transactional
+    public long create(Long pinnedOfferId, List<ChatContextItem> context) {
+        List<ChatContextItem> items = new ArrayList<>(context == null ? List.of() : context);
+        if (pinnedOfferId != null) {
+            items.addFirst(new ChatContextItem(ChatContextKind.OFFER, pinnedOfferId, null, null, null));
+        }
+        List<ChatContextItem> chips = chips(items);
+        long id = jdbc.sql("INSERT INTO chat_conversation (title) VALUES ('') RETURNING id")
+                .query(Long.class)
+                .single();
+        writeContext(id, chips);
+        return id;
+    }
+
+    /**
+     * Replaces a conversation's whole context: every row deleted and the list inserted in its order,
+     * in one transaction, so a reader sees the old list or the new one and never half of each.
+     *
+     * @return false when no conversation has this id
+     * @throws IllegalArgumentException when an item lacks what its kind needs
+     * @throws org.springframework.dao.DataIntegrityViolationException when a pinned offer does not
+     *     exist
+     */
+    @Transactional
+    public boolean replaceContext(long id, List<ChatContextItem> context) {
+        List<ChatContextItem> chips = chips(context == null ? List.of() : context);
+        // The row lock orders two replacements of the same conversation one after the other; without
+        // it both would delete, and the second insert would collide on the ordinals of the first.
+        boolean found = jdbc.sql("SELECT id FROM chat_conversation WHERE id = :id FOR UPDATE")
+                .param("id", id)
+                .query(Long.class)
+                .optional()
+                .isPresent();
+        if (!found) {
+            return false;
+        }
+        jdbc.sql("DELETE FROM chat_context WHERE conversation_id = :id")
+                .param("id", id)
+                .update();
+        writeContext(id, chips);
+        return true;
+    }
+
+    /**
+     * Newest first: the conversation whose last turn started most recently leads. Its last activity
+     * is that same start, {@code updated_at}.
+     */
     public List<ConversationSummary> list() {
-        return jdbc.sql(LIST)
-                .query((rs, index) -> new ConversationSummary(
-                        rs.getLong("id"),
-                        rs.getString("title"),
-                        rs.getTimestamp("updated_at").toInstant()))
-                .list();
+        return withContext(jdbc.sql(SUMMARIES + NEWEST_FIRST)
+                .query(ConversationRepository::summary)
+                .list());
+    }
+
+    /**
+     * The conversations whose name or any question holds every word of {@code q}, newest first.
+     * Case and accents are ignored on both sides: the query goes through {@link #searchable}, the
+     * stored {@code search_text} went through it on its last write. Each word is a substring match,
+     * with {@code %} and {@code _} in it taken literally. A query without a word is the whole list.
+     */
+    public List<ConversationSummary> search(String q) {
+        List<String> words = Arrays.stream(searchable(q).split("\\s+"))
+                .filter(word -> !word.isEmpty())
+                .distinct()
+                .toList();
+        if (words.isEmpty()) {
+            return list();
+        }
+        StringBuilder where = new StringBuilder();
+        Map<String, Object> params = new LinkedHashMap<>();
+        for (int i = 0; i < words.size(); i++) {
+            where.append(i == 0 ? " WHERE " : " AND ")
+                    .append("search_text LIKE :word")
+                    .append(i)
+                    .append(" ESCAPE '\\'");
+            params.put("word" + i, "%" + literal(words.get(i)) + "%");
+        }
+        return withContext(jdbc.sql(SUMMARIES + where + NEWEST_FIRST)
+                .params(params)
+                .query(ConversationRepository::summary)
+                .list());
+    }
+
+    /**
+     * Names a conversation, or clears its name when {@code title} is null or blank so the derived
+     * title shows again. Stored trimmed and cut to {@value #CUSTOM_TITLE_LENGTH} characters. A
+     * rename is no activity: the conversation keeps its place in the list.
+     *
+     * @return false when no conversation has this id
+     */
+    @Transactional
+    public boolean rename(long id, String title) {
+        boolean found = jdbc.sql("UPDATE chat_conversation SET custom_title = :title WHERE id = :id")
+                        .param("title", customTitle(title))
+                        .param("id", id)
+                        .update()
+                > 0;
+        if (found) {
+            reindex(id);
+        }
+        return found;
     }
 
     /**
@@ -181,7 +325,6 @@ public class ConversationRepository {
                 .query((rs, index) -> new Header(
                         rs.getLong("id"),
                         rs.getString("title"),
-                        (Long) rs.getObject("pinned_offer_id"),
                         rs.getTimestamp("updated_at").toInstant()))
                 .optional();
         if (header.isEmpty()) {
@@ -195,11 +338,18 @@ public class ConversationRepository {
         // One lookup for every turn's citations together — two queries, not two per turn.
         Map<TurnLedger.Ref, Row> rows =
                 rows(stored.stream().flatMap(turn -> turn.citations().stream()).toList());
+        Map<Long, List<StatisticsSource>> statistics = statistics(id);
         List<TurnView> turns = stored.stream()
-                .map(turn -> turn.view(steps.getOrDefault(turn.id(), List.of()), sources(turn.citations(), rows)))
+                .map(turn -> {
+                    // The same order the live `sources` event had: cited rows, then statistics calls.
+                    List<ChatSourceItem> sources = new ArrayList<>(sources(turn.citations(), rows));
+                    sources.addAll(statistics.getOrDefault(turn.id(), List.of()));
+                    return turn.view(steps.getOrDefault(turn.id(), List.of()), List.copyOf(sources));
+                })
                 .toList();
         Header h = header.get();
-        return Optional.of(new ConversationView(h.id(), h.title(), h.pinnedOfferId(), turns, h.updatedAt()));
+        List<ChatContextItem> context = contexts(List.of(id)).getOrDefault(id, List.of());
+        return Optional.of(new ConversationView(h.id(), h.title(), firstOffer(context), context, turns, h.updatedAt()));
     }
 
     /** Whether a conversation of this id exists, asked before a turn is started on it. */
@@ -236,13 +386,23 @@ public class ConversationRepository {
                 .param("conversation", conversationId)
                 .param("title", title(question))
                 .update();
-        return jdbc.sql(START_TURN)
+        long turnId = jdbc.sql(START_TURN)
                 .param("conversation", conversationId)
                 .param("question", question)
                 .param("model", model)
                 .param("replaces", replaces)
                 .query(Long.class)
                 .single();
+        reindex(conversationId);
+        return turnId;
+    }
+
+    /**
+     * The conversation's whole context in its order — what a turn hands its tools (ISC-452) and
+     * what its pinned lookup reads (ISC-453). Empty for a conversation without one.
+     */
+    public List<ChatContextItem> context(long conversationId) {
+        return contexts(List.of(conversationId)).getOrDefault(conversationId, List.of());
     }
 
     /** The offer the conversation was started from, if it was and the offer still exists. */
@@ -345,10 +505,12 @@ public class ConversationRepository {
                 .update();
         for (TurnLedger.Call call : calls) {
             jdbc.sql("""
-                            INSERT INTO chat_tool_call (turn_id, ordinal, tool, label, arguments, returned_ids, duration_ms)
+                            INSERT INTO chat_tool_call (turn_id, ordinal, tool, label, arguments, returned_ids,
+                                                        duration_ms, data)
                             VALUES (:turn, :ordinal, :tool, :label, CAST(:arguments AS jsonb),
-                                    CAST(:returned AS jsonb), :duration)
+                                    CAST(:returned AS jsonb), :duration, CAST(:data AS jsonb))
                             """)
+                    .param("data", call.data() == null ? null : json(call.data()))
                     .param("turn", turnId)
                     .param("ordinal", call.ordinal())
                     .param("tool", withoutNul(call.tool()))
@@ -449,6 +611,20 @@ public class ConversationRepository {
         return byTurn;
     }
 
+    /** Each turn's statistics sources, in call order, as {@code chat_tool_call.data} stored them. */
+    private Map<Long, List<StatisticsSource>> statistics(long conversationId) {
+        Map<Long, List<StatisticsSource>> byTurn = new HashMap<>();
+        jdbc.sql(STATISTICS).param("id", conversationId).query((ResultSet rs) -> {
+            try {
+                byTurn.computeIfAbsent(rs.getLong("turn_id"), turn -> new ArrayList<>())
+                        .add(JSON.readValue(rs.getString("data"), StatisticsSource.class));
+            } catch (JsonProcessingException e) {
+                throw new IllegalStateException("chat_tool_call.data of turn " + rs.getLong("turn_id"), e);
+            }
+        });
+        return byTurn;
+    }
+
     private static StoredTurn stored(ResultSet rs, int index) throws SQLException {
         return new StoredTurn(
                 rs.getLong("id"),
@@ -474,6 +650,53 @@ public class ConversationRepository {
                 rs.getString("source_name"),
                 rs.getTimestamp("at").toInstant().atZone(ZoneId.systemDefault()).toLocalDate(),
                 rs.getBoolean("archived"));
+    }
+
+    /** Rewrites what the search matches from the conversation as it now stands. */
+    private void reindex(long id) {
+        String text = jdbc.sql(SEARCHABLE).param("id", id).query(String.class).single();
+        jdbc.sql("UPDATE chat_conversation SET search_text = :text WHERE id = :id")
+                .param("text", searchable(text))
+                .param("id", id)
+                .update();
+    }
+
+    /**
+     * Lower-cased, and every accent dropped: decomposed (NFD) so an accent is a mark of its own,
+     * then the marks removed. "Köln", "KOLN" and "koln" all become "koln".
+     */
+    static String searchable(String text) {
+        if (text == null) {
+            return "";
+        }
+        return Normalizer.normalize(text.toLowerCase(Locale.ROOT), Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "");
+    }
+
+    /** A word matched as it is typed: the escape character, {@code %} and {@code _} escaped for LIKE. */
+    private static String literal(String word) {
+        return word.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
+    }
+
+    /** A rename as stored: trimmed, at most {@value #CUSTOM_TITLE_LENGTH} characters, null when empty. */
+    static String customTitle(String title) {
+        if (title == null) {
+            return null;
+        }
+        String name = title.strip();
+        if (name.length() > CUSTOM_TITLE_LENGTH) {
+            int end = CUSTOM_TITLE_LENGTH;
+            if (Character.isHighSurrogate(name.charAt(end - 1))) {
+                end--;
+            }
+            name = name.substring(0, end).strip();
+        }
+        return name.isEmpty() ? null : name;
+    }
+
+    private static ConversationSummary summary(ResultSet rs, int index) throws SQLException {
+        Instant updatedAt = rs.getTimestamp("updated_at").toInstant();
+        return new ConversationSummary(rs.getLong("id"), rs.getString("title"), updatedAt, updatedAt, List.of());
     }
 
     /** The first question, on one line and cut at a word, as the conversation's name. */
@@ -545,9 +768,120 @@ public class ConversationRepository {
         return text == null ? null : text.replace("\0", "");
     }
 
+    /** The summaries again, each with its context, read in one query for the whole list. */
+    private List<ConversationSummary> withContext(List<ConversationSummary> summaries) {
+        Map<Long, List<ChatContextItem>> contexts =
+                contexts(summaries.stream().map(ConversationSummary::id).toList());
+        return summaries.stream()
+                .map(s -> new ConversationSummary(
+                        s.id(), s.title(), s.updatedAt(), s.lastActivityAt(), contexts.getOrDefault(s.id(), List.of())))
+                .toList();
+    }
+
+    /** The context of each conversation, in ordinal order; a conversation without one is absent. */
+    private Map<Long, List<ChatContextItem>> contexts(List<Long> conversations) {
+        Map<Long, List<ChatContextItem>> byConversation = new HashMap<>();
+        if (conversations.isEmpty()) {
+            return byConversation;
+        }
+        jdbc.sql(CONTEXT).param("ids", conversations).query((ResultSet rs) -> {
+            byConversation
+                    .computeIfAbsent(rs.getLong("conversation_id"), c -> new ArrayList<>())
+                    .add(new ChatContextItem(
+                            ChatContextKind.valueOf(rs.getString("kind")),
+                            (Long) rs.getObject("offer_id"),
+                            rs.getString("query"),
+                            rs.getObject("window_from", LocalDate.class),
+                            rs.getObject("window_to", LocalDate.class)));
+        });
+        return byConversation;
+    }
+
+    /**
+     * Inserts the chips at ordinals 1..n and mirrors the first offer into {@code pinned_offer_id},
+     * which the turn still reads for one release.
+     */
+    private void writeContext(long id, List<ChatContextItem> chips) {
+        for (int i = 0; i < chips.size(); i++) {
+            ChatContextItem chip = chips.get(i);
+            jdbc.sql("""
+                            INSERT INTO chat_context (conversation_id, kind, offer_id, query, window_from, window_to, ordinal)
+                            VALUES (:conversation, :kind, :offer, :query, :from, :to, :ordinal)
+                            """)
+                    .param("conversation", id)
+                    .param("kind", chip.kind().name())
+                    .param("offer", chip.offerId())
+                    .param("query", chip.query())
+                    .param("from", chip.from())
+                    .param("to", chip.to())
+                    .param("ordinal", i + 1)
+                    .update();
+        }
+        jdbc.sql("UPDATE chat_conversation SET pinned_offer_id = :pin WHERE id = :id")
+                .param("pin", firstOffer(chips))
+                .param("id", id)
+                .update();
+    }
+
+    /**
+     * The list as it is stored: each item cut down to its own kind's fields, an empty query for a
+     * shortlist view without one, and the same offer only at its first place — one chip, not two.
+     *
+     * @throws IllegalArgumentException for an item without a kind, an offer without an id, or a
+     *     window without both days in order
+     */
+    static List<ChatContextItem> chips(List<ChatContextItem> items) {
+        List<ChatContextItem> chips = new ArrayList<>();
+        java.util.Set<Long> offers = new java.util.HashSet<>();
+        for (ChatContextItem item : items) {
+            if (item == null || item.kind() == null) {
+                throw new IllegalArgumentException("a context item needs a kind");
+            }
+            switch (item.kind()) {
+                case OFFER -> {
+                    if (item.offerId() == null) {
+                        throw new IllegalArgumentException("an OFFER context item needs an offerId");
+                    }
+                    if (offers.add(item.offerId())) {
+                        if (offers.size() > MAX_PINNED_OFFERS) {
+                            throw new IllegalArgumentException("a conversation holds at most " + MAX_PINNED_OFFERS
+                                    + " pinned offers; remove one before pinning another");
+                        }
+                        chips.add(new ChatContextItem(ChatContextKind.OFFER, item.offerId(), null, null, null));
+                    }
+                }
+                case SHORTLIST_VIEW ->
+                    chips.add(new ChatContextItem(
+                            ChatContextKind.SHORTLIST_VIEW,
+                            null,
+                            item.query() == null ? "" : item.query(),
+                            null,
+                            null));
+                case ANALYTICS_WINDOW -> {
+                    if (item.from() == null || item.to() == null || item.from().isAfter(item.to())) {
+                        throw new IllegalArgumentException(
+                                "an ANALYTICS_WINDOW context item needs from and to, from not after to");
+                    }
+                    chips.add(
+                            new ChatContextItem(ChatContextKind.ANALYTICS_WINDOW, null, null, item.from(), item.to()));
+                }
+            }
+        }
+        return chips;
+    }
+
+    /** The first pinned offer of a context, or null; what {@code pinnedOfferId} still reports. */
+    private static Long firstOffer(List<ChatContextItem> context) {
+        return context.stream()
+                .filter(item -> item.kind() == ChatContextKind.OFFER)
+                .map(ChatContextItem::offerId)
+                .findFirst()
+                .orElse(null);
+    }
+
     private record Row(String title, String source, LocalDate date, boolean archived) {}
 
-    private record Header(long id, String title, Long pinnedOfferId, java.time.Instant updatedAt) {}
+    private record Header(long id, String title, java.time.Instant updatedAt) {}
 
     /** A turn as read, before its sources are joined in with every other turn's. */
     private record StoredTurn(
@@ -560,7 +894,7 @@ public class ConversationRepository {
             java.time.Instant createdAt,
             List<TurnLedger.Citation> citations) {
 
-        TurnView view(List<ChatStep> steps, List<ChatSource> sources) {
+        TurnView view(List<ChatStep> steps, List<ChatSourceItem> sources) {
             return new TurnView(id, question, answer, state, steps, sources, replaces, model, createdAt);
         }
     }

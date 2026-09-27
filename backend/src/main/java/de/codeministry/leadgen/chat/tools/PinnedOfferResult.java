@@ -11,14 +11,10 @@ package de.codeministry.leadgen.chat.tools;
 import java.util.List;
 
 /**
- * The pinned offer as the turn hands it to the model: the search's shape for one offer, and its
- * advert.
+ * What the pinned lookup hands the model: every pinned offer in the search's shape, in the order
+ * they were pinned, and each one's advert beside it.
  *
- * <p>{@code offers} is a list of one rather than a single field so the turn's ledger reads its id
- * the way it reads every search's, from {@code offers[].id}.
- *
- * @param offers      the offer, as the offer search returns it
- * @param advert      the advert without the portal's furniture, cut at {@link PinnedOfferLookup#ADVERT_CHARS}
- * @param advertCut   whether it was cut
+ * @param offers  the pinned offers that still exist; the turn's ledger records each id
+ * @param adverts one advert per offer, in the same order
  */
-public record PinnedOfferResult(List<OfferHit> offers, String advert, boolean advertCut) {}
+public record PinnedOfferResult(List<OfferHit> offers, List<PinnedAdvert> adverts) {}

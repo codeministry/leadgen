@@ -240,6 +240,13 @@ says what it became and why.
   layout's rem is 15px while a media query resolves against the initial 16px whatever the root says. `72rem` is
   therefore 1152px, and `--lg-list-w: 36rem` is 540px. Comparing the two numbers as if they were the same unit is how a
   breakpoint gets picked for a column width it does not actually produce.
+- **The split answers to the page's own box, not the window (spec 020, ISC-472).** With the chat docked the page is the
+  window minus the panel, and a window-wide media query kept two columns beside a 56rem panel, clipping the detail to a
+  sliver. The shell's main column is a container (`container-name: page`), and the three split rules are
+  `@container page (width < 73.8rem)`: a container query measures the content box, the window minus two 1.5rem
+  gutters, in the root's 15px rem, so 1107px reproduces the old 1152px window split exactly. With the chat closed
+  nothing moved (two columns at 1152, one at 1151). The shortlist's `bothColumns`, which drives the auto-select and the
+  list's paging root, reads the split's rendered track count as well, and the anchor rail collapses on the same box.
 - **The selection is a route, never local state.** The URL is what a deep link, the back button and a click all agree
   on, and a second copy in a signal disagrees with it the first time one of the three is used. Read from
   `route.snapshot.firstChild` with `NavigationEnd`

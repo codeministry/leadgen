@@ -92,6 +92,15 @@ public class CitationFilter {
     }
 
     /**
+     * The offers the turn's pinned lookup returned (ISC-454). Each is citable whatever its status —
+     * knocked out, a duplicate, archived — because the reader pinned it; the ledger still has to hold
+     * it, so a pin the lookup did not return is no exception, and no other row is one either.
+     */
+    public void pinned(java.util.Collection<Long> offerIds) {
+        offerIds.forEach(offer -> reachability.put(new TurnLedger.Ref(ChatSourceKind.OFFER, offer), true));
+    }
+
+    /**
      * Feeds the next chunk.
      *
      * @return the text that may be shown now — possibly empty while a marker is still open.

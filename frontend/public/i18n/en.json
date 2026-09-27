@@ -351,7 +351,9 @@
     "noRelatedTitle": "Nothing related on this list",
     "noRelatedHint": "The related search and these filters have no offers in common. Remove one, or clear the related search.",
     "countRelated": "{matched} of {total} · closest matches only",
-    "countArchivedRelated": "{matched} of {total} archived · closest matches only"
+    "countArchivedRelated": "{matched} of {total} archived · closest matches only",
+    "select": "Select",
+    "selectDone": "Done"
   },
   "offer": {
     "notScored": "Not scored. The pipeline ran without a language model, so this is the hard filter's answer only.",
@@ -867,11 +869,15 @@
     "chatList": "The conversations could not be loaded.",
     "chatLoad": "The conversation could not be loaded.",
     "chatDelete": "The conversation could not be deleted.",
-    "chatCreate": "The conversation could not be started."
+    "chatCreate": "The conversation could not be started.",
+    "chatRename": "The conversation could not be renamed.",
+    "chatContext": "The pins could not be stored."
   },
   "chat": {
     "open": "Ask the corpus",
     "openShort": "Ask",
+    "openShortcut": "Ask · {{keys}}",
+    "jumpToLatest": "Jump to latest",
     "busyLabel": "an answer is being written",
     "askAboutOffer": "Ask about this offer",
     "new": "New chat",
@@ -886,16 +892,8 @@
       "body": "Offers, your applications and your profile. Every answer links to the rows it read."
     },
     "suggest": {
-      "spring": "Which remote Spring projects came in last month?",
-      "kafka": "How many of last week's offers asked for Kafka?",
-      "wrote": "What did I write for projects like my latest application?",
-      "references": "Which reference projects fit today's shortlist?",
-      "pinned": {
-        "fit": "How well does this offer fit my profile?",
-        "similar": "Which similar offers did I apply to?",
-        "wrote": "What did I write for offers like this?",
-        "lack": "What does this offer ask that I lack?"
-      }
+      "title": "Suggested questions",
+      "loading": "Looking for questions in your data…"
     },
     "missing": {
       "title": "This conversation no longer exists",
@@ -904,10 +902,18 @@
     "thinking": "Thinking…",
     "placeholder": "Ask about offers, applications or your profile…",
     "inputLabel": "Your question",
-    "hint": "Enter to send · Shift+Enter for a new line",
+    "hint": "Enter to send · Shift+Enter for a new line · @ to pin an offer",
     "send": "Send",
-    "pinned": "Offer {id}",
-    "unpin": "Remove the pinned offer",
+    "context": {
+      "label": "Asked under",
+      "offer": "Offer {id}",
+      "remove": "Remove {chip}",
+      "view": "Shortlist · {count, plural, one {# filter} other {# filters}}",
+      "window": "Window · {from}–{to}",
+      "more": "Show all {count, plural, one {# more pin} other {# more pins}}",
+      "limit": "A conversation holds at most {max} offers.",
+      "count": "{count} of {max} offers"
+    },
     "disclaimer": "Answers can be wrong. Unverified ids are marked.",
     "announce": {
       "done": "Answer ready, {count, plural, =0 {no sources} one {1 source} other {# sources}}"
@@ -938,6 +944,49 @@
       "label": "Source {n}: {title}",
       "unverifiedTitle": "{id} could not be checked",
       "unverifiedReason": "No search in this turn returned this id, or it lies outside the working set and the archive, so it is not a link."
+    },
+    "actions": "Actions for {title}",
+    "group": {
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "week": "This week",
+      "month": "This month",
+      "older": "Older"
+    },
+    "search": {
+      "label": "Search conversations",
+      "clear": "Clear the search",
+      "clearAction": "Clear search",
+      "none": "No conversation contains “{query}”."
+    },
+    "rename": {
+      "action": "Rename",
+      "label": "Conversation title",
+      "placeholder": "Named after its first question"
+    },
+    "delete": {
+      "action": "Delete",
+      "title": "Delete this conversation?",
+      "body": "“{title}” and all its answers are deleted.",
+      "streaming": "Its answer is still being written. Deleting stops it.",
+      "confirm": "Delete"
+    },
+    "useView": "Use this view",
+    "followups": {
+      "title": "Ask next"
+    },
+    "statistics": {
+      "window": "Statistics · {from} – {to}",
+      "metric": "Metric",
+      "value": "Value",
+      "compare": "{from} – {to}",
+      "delta": "Change",
+      "link": "Open in Analytics"
+    },
+    "askPicked": "{count, plural, one {Ask about # offer} other {Ask about # offers}}",
+    "mention": {
+      "label": "Offers matching @{query}",
+      "none": "No offer matches “{query}”"
     }
   }
 }

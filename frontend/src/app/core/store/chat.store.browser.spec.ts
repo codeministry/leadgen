@@ -4,7 +4,11 @@ import {HttpTestingController, provideHttpClientTesting} from '@angular/common/h
 import {TestBed} from '@angular/core/testing';
 import {provideRouter, Router, withComponentInputBinding} from '@angular/router';
 import {RouterTestingHarness} from '@angular/router/testing';
-import {ConversationView} from '@core/model/chat';
+import {Dispatcher} from '@ngrx/signals/events';
+import {Subject} from 'rxjs';
+import {ChatApi} from '@core/api/chat.api';
+import {ChatEvent, ConversationView} from '@core/model/chat';
+import {chatEvents} from './chat.events';
 import {ChatStore} from './chat.store';
 
 @Component({template: '<p>offers</p>'})
@@ -113,5 +117,68 @@ describe('ChatStore against a real router (ISC-431)', () => {
         expect(store.view()).toBe('missing');
         expect(store.error()).toBeNull();
         expect(store.conversation()).toBeNull();
+    });
+});
+
+/** The pin `?chatCtx` holds, as the router reads it. */
+function chatCtx(router: Router): string | null {
+    return router.routerState.snapshot.root.queryParamMap.get('chatCtx');
+}
+
+// The chip itself is asserted in `chat-drawer.browser.spec.ts`: `core/` may not import a feature, not even in a spec.
+describe('a pinned offer through every step (ISC-446)', () => {
+    afterEach(() => TestBed.inject(HttpTestingController).verify());
+
+    it('keeps the pin through a suggestion, the create, a reload and a change of screen', async () => {
+        const first = await boot('/offers');
+        vi.spyOn(TestBed.inject(ChatApi), 'ask').mockReturnValue(new Subject<ChatEvent>());
+
+        // "Ask about this offer": the pin is in the URL before any question is asked.
+        TestBed.inject(Dispatcher).dispatch(chatEvents.newRequested({pinnedOfferId: 2291}));
+        await first.harness.fixture.whenStable();
+        expect(first.router.url).toContain('chat=new');
+        expect(chatCtx(first.router)).toBe('o:2291');
+        expect(first.store.pinnedOfferId()).toBe(2291);
+
+        // Picking a suggestion is a question like any other; the create carries the pin.
+        TestBed.inject(Dispatcher).dispatch(chatEvents.asked('Does this offer fit my profile?'));
+        const create = first.http.expectOne((r) => r.method === 'POST' && r.url === BASE);
+        expect(create.request.body).toEqual({context: [{kind: 'OFFER', offerId: 2291}]});
+        expect(chatCtx(first.router)).toBe('o:2291');
+        expect(first.store.pinnedOfferId()).toBe(2291);
+
+        create.flush({...STORED, id: 12, title: '', turns: [], pinnedOfferId: 2291});
+        await first.harness.fixture.whenStable();
+        expect(first.router.url).toContain('chat=12');
+        expect(chatCtx(first.router)).toBe('o:2291');
+        expect(first.store.pinnedOfferId()).toBe(2291);
+
+        // A reload: nothing but the URL survives.
+        const reloaded = await boot('/offers?chat=12&chatCtx=o:2291');
+        reloaded.http.expectOne(`${BASE}/12`).flush({...STORED, id: 12, pinnedOfferId: 2291});
+        expect(reloaded.store.pinnedOfferId()).toBe(2291);
+
+        // A change of screen the chat did not start: `chat` and `chatCtx` come back together (ISC-444).
+        await reloaded.harness.navigateByUrl('/pipeline');
+        await reloaded.harness.fixture.whenStable();
+        expect(reloaded.router.url).toContain('/pipeline');
+        expect(reloaded.router.url).toContain('chat=12');
+        expect(chatCtx(reloaded.router)).toBe('o:2291');
+        expect(reloaded.store.pinnedOfferId()).toBe(2291);
+    });
+
+    it('takes the pin from the stored conversation when the URL carries none', async () => {
+        const {store, http} = await boot('/offers?chat=12');
+        http.expectOne(`${BASE}/12`).flush({...STORED, id: 12, pinnedOfferId: 2291});
+        expect(store.pinnedOfferId()).toBe(2291);
+    });
+
+    it('drops the pin with the chat on close', async () => {
+        const {store, router, harness} = await boot('/offers?chat=new&chatCtx=o:2291');
+        expect(store.pinnedOfferId()).toBe(2291);
+        TestBed.inject(Dispatcher).dispatch(chatEvents.closeRequested());
+        await harness.fixture.whenStable();
+        expect(router.url).toBe('/offers');
+        expect(store.pinnedOfferId()).toBeNull();
     });
 });

@@ -9,6 +9,7 @@
 package de.codeministry.leadgen;
 
 import de.codeministry.leadgen.chat.ChatCapabilityView;
+import de.codeministry.leadgen.chat.ChatContextItem;
 import de.codeministry.leadgen.chat.ChatDone;
 import de.codeministry.leadgen.chat.ChatError;
 import de.codeministry.leadgen.chat.ChatSource;
@@ -18,13 +19,23 @@ import de.codeministry.leadgen.chat.ChatText;
 import de.codeministry.leadgen.chat.ChatTurnStarted;
 import de.codeministry.leadgen.chat.ConversationSummary;
 import de.codeministry.leadgen.chat.ConversationView;
+import de.codeministry.leadgen.chat.NewContext;
 import de.codeministry.leadgen.chat.NewConversation;
 import de.codeministry.leadgen.chat.NewTurn;
 import de.codeministry.leadgen.chat.PastTurn;
+import de.codeministry.leadgen.chat.RenameConversation;
+import de.codeministry.leadgen.chat.StatisticsSource;
 import de.codeministry.leadgen.chat.TurnLedger;
 import de.codeministry.leadgen.chat.TurnView;
+import de.codeministry.leadgen.chat.suggest.FollowUp;
+import de.codeministry.leadgen.chat.suggest.Suggestion;
+import de.codeministry.leadgen.chat.suggest.SuggestionCandidate;
+import de.codeministry.leadgen.chat.suggest.SuggestionScope;
+import de.codeministry.leadgen.chat.suggest.SuggestionThresholds;
 import de.codeministry.leadgen.chat.tools.ApplicationTool;
 import de.codeministry.leadgen.chat.tools.OfferSearchTool;
+import de.codeministry.leadgen.chat.tools.PinnedAdvert;
+import de.codeministry.leadgen.chat.tools.PinnedContext;
 import de.codeministry.leadgen.chat.tools.PinnedOfferResult;
 import de.codeministry.leadgen.chat.tools.ProfileTool;
 import de.codeministry.leadgen.chat.tools.SemanticSearchTool;
@@ -75,8 +86,11 @@ public class LeadGenRuntimeHints implements RuntimeHintsRegistrar {
         // a list here would be a second inventory to keep in step with the directory.
         hints.resources().registerPattern("leadgen/*.yaml");
         hints.resources().registerPattern("leadgen/templates/*.ftl");
-        // The chat's system prompt, read by name when a turn starts (ISC-437).
+        // The chat's system prompt, read by name when a turn starts (ISC-437), and the suggestion
+        // prompt, read by name when the empty chat or a finished answer asks for questions (ISC-456).
         hints.resources().registerPattern("leadgen/*.st");
+        // The suggestion catalog, one file per language, the name computed from Accept-Language.
+        hints.resources().registerPattern("leadgen/i18n/*.properties");
         registerChatTools(hints);
         registerChatRecords(hints);
     }
@@ -96,6 +110,7 @@ public class LeadGenRuntimeHints implements RuntimeHintsRegistrar {
         bindings.registerReflectionHints(
                 hints.reflection(),
                 ChatCapabilityView.class,
+                ChatContextItem.class,
                 ChatDone.class,
                 ChatError.class,
                 ChatSource.class,
@@ -105,14 +120,27 @@ public class LeadGenRuntimeHints implements RuntimeHintsRegistrar {
                 ChatTurnStarted.class,
                 ConversationSummary.class,
                 ConversationView.class,
+                NewContext.class,
+                FollowUp.class,
+                Suggestion.class,
+                SuggestionCandidate.class,
+                SuggestionScope.class,
+                SuggestionThresholds.class,
                 NewConversation.class,
                 NewTurn.class,
                 PastTurn.class,
+                RenameConversation.class,
+                StatisticsSource.class,
+                StatisticsSource.Row.class,
+                StatisticsSource.SeriesDay.class,
                 TurnView.class,
                 TurnLedger.Call.class,
                 TurnLedger.Citation.class,
                 TurnLedger.Ref.class,
-                PinnedOfferResult.class);
+                PinnedOfferResult.class,
+                PinnedAdvert.class,
+                // Never serialised; hinted because the guard binds every public chat record.
+                PinnedContext.class);
     }
 
     /**

@@ -19,6 +19,9 @@ import {debounceTime, filter, map, Subject} from 'rxjs';
 import {injectDispatch} from '@ngrx/signals/events';
 import {TranslocoPipe} from '@jsverse/transloco';
 import {shortlistEvents} from '@core/store/shortlist.events';
+import {chatEvents} from '@core/store/chat.events';
+import {ChatStore} from '@core/store/chat.store';
+import {ChatContextItem, MAX_PINNED_OFFERS, viewQuery, withPins} from '@core/model/chat';
 import {ConfigStore} from '@core/store/config.store';
 import {ShortlistStore} from '@core/store/shortlist.store';
 import {applicationEvents} from '@core/store/applications.events';
@@ -379,22 +382,65 @@ export class ShortlistPage {
      * so auto-selecting there would answer "show me the shortlist" with a single offer and
      * the reader would have to press back to reach the list they asked for.
      *
-     * <p>`matchMedia` and not a measured width: it is a media query and not a rendering-
-     * lifecycle API, so it answers correctly in a backgrounded tab, unlike a
-     * `ResizeObserver`. Guarded because jsdom has neither it nor `addEventListener` on the
-     * result, and a specs run must not depend on either.
+     * <p>Two halves since the split became a container query on the page's own box (ISC-472).
+     * The window has to be wide enough — `matchMedia`, which is not a rendering-lifecycle API
+     * and so answers in a backgrounded tab too — and the page box has to be, which only the
+     * rendered grid knows: with the chat docked the page is the window minus the panel. That
+     * half reads the grid the stylesheet produced rather than repeating its number, so the
+     * breakpoint is still stated once. Guarded because jsdom has neither `matchMedia` nor
+     * `addEventListener` on the result, and lays nothing out, so a specs run must not depend
+     * on either.
      */
     private static readonly BOTH_COLUMNS = '(width >= 72rem)';
 
+  private readonly host: ElementRef<HTMLElement> = inject(ElementRef);
+
+  /** The window allows two columns. */
+  private readonly wideWindow = signal(false);
+
+  /**
+   * The page's own box does not: the split rendered one track. Only ever set from a grid the
+   * browser laid out, so it stays `false` wherever nothing is laid out.
+   */
+  private readonly narrowPage = signal(false);
+
   /** Read by the template as well: the sentinel's root depends on it. */
-  protected readonly bothColumns = signal(false);
+  protected readonly bothColumns = computed(() => this.wideWindow() && !this.narrowPage());
+
+  /**
+   * One track in the split's resolved `grid-template-columns` is the single-column layout. A
+   * browser resolves the value to lengths (`540px 548px`); an empty string is a document that
+   * computed no grid at all, which says nothing either way.
+   */
+  private readSplit(): void {
+    const split = this.host.nativeElement.querySelector('.split');
+    const view = this.document.defaultView;
+    if (split === null || view === null) {
+      return;
+    }
+    const tracks = view.getComputedStyle(split).gridTemplateColumns.trim();
+    this.narrowPage.set(tracks !== '' && tracks.split(/\s+/).length === 1);
+  }
 
     constructor() {
+        this.watchNav();
       const view = this.document.defaultView;
+      // `getComputedStyle` forces the style and layout it needs, container queries included,
+      // so the first read is right even in a tab that is not rendering; the observer then
+      // follows the page box as the chat opens, closes or the window is resized.
+      afterNextRender(() => this.readSplit());
+      if (typeof view?.ResizeObserver === 'function') {
+        const observer = new view.ResizeObserver(() => this.readSplit());
+        observer.observe(this.host.nativeElement);
+        this.destroyRef.onDestroy(() => observer.disconnect());
+      }
         if (typeof view?.matchMedia === 'function') {
             const query = view.matchMedia(ShortlistPage.BOTH_COLUMNS);
-            this.bothColumns.set(query.matches);
-            const onChange = (event: MediaQueryListEvent) => this.bothColumns.set(event.matches);
+            this.wideWindow.set(query.matches);
+            const onChange = (event: MediaQueryListEvent) => {
+              this.wideWindow.set(event.matches);
+              this.readSplit();
+            };
             query.addEventListener?.('change', onChange);
             // The page is rebuilt on every visit to the route; a listener left on the query
             // would keep each dead instance reachable and writing a signal nobody reads.
@@ -550,6 +596,68 @@ export class ShortlistPage {
     this.navigated();
     return this.router.url.split('?')[1] ?? '';
   });
+
+  protected readonly chat = inject(ChatStore);
+  private readonly chatDispatch = injectDispatch(chatEvents);
+
+  /**
+   * "Use this view" (ISC-451): the query as it stands, the chat's own parameters left out, pinned
+   * into the open conversation or a new one. The server applies it as the list's own filters.
+   */
+  protected useView(): void {
+    this.chatDispatch.contextPinned({kind: 'SHORTLIST_VIEW', query: viewQuery(this.currentQuery().split('#')[0])});
+  }
+
+  /**
+   * Whether the pointer is coarse: a touch screen has no hover to reveal the cards' checkboxes, so
+   * they wait behind "Select" there (ISC-453). Read once — a device does not change its pointer
+   * mid-triage — and guarded, because `matchMedia` is absent in the test environment.
+   */
+  protected readonly coarse = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
+  /** "Select" pressed on a coarse pointer; a fine one always shows the checkboxes. */
+  protected readonly selecting = signal(false);
+  protected readonly pickable = computed(() => !this.archived() && (!this.coarse || this.selecting()));
+  /** "Ask about N offers" refused because the conversation would pass ten offers (ISC-453). */
+  protected readonly askRefused = signal(false);
+  protected readonly maxOffers = MAX_PINNED_OFFERS;
+  /**
+   * The bottom navigation's measured height below 48rem: the selection bar docks on it, in the
+   * minibar's slot (design.md § Viewport-übergreifend). Measured like the minibar's, never copied.
+   */
+  protected readonly navOffset = signal(0);
+  private watchNav(): void {
+    afterNextRender(() => {
+      const nav = this.document.querySelector<HTMLElement>('.topnav');
+      if (nav === null) return;
+      const measure = () => this.navOffset.set(nav.getBoundingClientRect().height);
+      measure();
+      if (typeof ResizeObserver !== 'function') return;
+      const observer = new ResizeObserver(measure);
+      observer.observe(nav);
+      this.destroyRef.onDestroy(() => observer.disconnect());
+    }, {injector: this.injector});
+  }
+
+  protected toggleSelecting(): void {
+    if (this.selecting()) this.clearPicks();
+    this.selecting.update((on) => !on);
+  }
+
+  /**
+   * "Ask about N offers" (ISC-453): every picked offer pinned in one go — one replacement of the open
+   * conversation's context, or a new conversation holding them all. Refused here, with its reason,
+   * when the pins would pass ten offers; the selection stays, so fewer can be asked about.
+   */
+  protected askAboutPicked(): void {
+    const pins = this.store.picked().map((offerId): ChatContextItem => ({kind: 'OFFER', offerId}));
+    const open = this.chat.view() === 'conversation' || this.chat.view() === 'new';
+    if (withPins(open ? this.chat.contextItems() : [], pins) === null) {
+      this.askRefused.set(true);
+      return;
+    }
+    this.askRefused.set(false);
+    this.chatDispatch.contextPinned(pins);
+  }
 
   /**
    * A saved view, applied.
@@ -817,6 +925,7 @@ export class ShortlistPage {
   }
 
   protected clearPicks(): void {
+    this.askRefused.set(false);
     this.dispatch.picksCleared();
   }
 

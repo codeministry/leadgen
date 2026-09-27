@@ -11,7 +11,9 @@ package de.codeministry.leadgen.chat.tools;
 import de.codeministry.leadgen.analytics.AnalyticsSummary;
 import de.codeministry.leadgen.analytics.ApplicationAnalytics;
 import de.codeministry.leadgen.analytics.IntakeSeries;
+import de.codeministry.leadgen.analytics.MarketView;
 import de.codeministry.leadgen.analytics.RunSeries;
+import de.codeministry.leadgen.analytics.ScaleInUse;
 import de.codeministry.leadgen.analytics.ScoreDistribution;
 import de.codeministry.leadgen.offer.FunnelView;
 import java.time.LocalDate;
@@ -21,8 +23,8 @@ import java.util.List;
  * The numbers the dashboard and the analytics screen show, as the statistics tool hands them to
  * the model: the screens' own records, never recomputed.
  *
- * <p><b>Which numbers the window narrows.</b> Only the two daily series, {@code intake} and
- * {@code runs}, and only by leaving days out. Everything else is a state rather than a history —
+ * <p><b>Which numbers the window narrows.</b> Only the three daily series, {@code intake},
+ * {@code runs} and the market's {@code stageMix}, and only by leaving days out. Everything else is a state rather than a history —
  * the funnel, the score histogram, the applications by status — and the screens show it whole, so
  * the tool does too; a windowed funnel would be a number no screen shows. {@code from} and {@code
  * to} are the window actually applied, which is the asked-for one clipped to the days the
@@ -42,6 +44,15 @@ import java.util.List;
  * @param scoreBands    the dashboard's four score bands
  * @param lastRunHealth the dashboard's line on the last run: when, which stage failed, mismatches
  * @param lastRun       the last recorded run's counters, or null when none was ever recorded
+ * @param market        the analytics screen's market section: portals, tags, locations and reach whole,
+ *                      and its stage mix, a daily series, narrowed to the window like the other two
+ * @param scales        the ruleset and judge combinations the scores were produced under
+ * @param totals        the window's three daily series added up
+ * @param comparison    the same numbers for the comparison window, when one was asked for; its own
+ *                      {@code comparison} and {@code differences} are null
+ * @param differences   {@code totals} minus the comparison's totals, field by field, computed here so
+ *                      the model quotes a difference instead of working one out; null without a
+ *                      comparison window
  */
 public record StatisticsResult(
         String zone,
@@ -55,4 +66,9 @@ public record StatisticsResult(
         ApplicationAnalytics.ResponseMetrics responses,
         AnalyticsSummary.ScoreBands scoreBands,
         AnalyticsSummary.RunHealth lastRunHealth,
-        LastRunNumbers lastRun) {}
+        LastRunNumbers lastRun,
+        MarketView market,
+        List<ScaleInUse> scales,
+        WindowTotals totals,
+        StatisticsResult comparison,
+        WindowTotals differences) {}

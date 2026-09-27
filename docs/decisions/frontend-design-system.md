@@ -204,6 +204,8 @@ it now. The claims and the measurements are in `specs/006-dashboard-control-room
   `core/`, so their day and band shapes are local types in `spark-day.ts`. The signal allowlist
   grows by the two components' five files and by the hero template, to sixteen; ISC-268 holds the
   count now, and ISC-224's ten is history.
+  *Spec 021 adds `living-mark.css` as the seventeenth reader: the mark's dots rest on the signal,
+  exactly as `shared/brand-mark`'s do.*
 - **The machine room is a `<details>`.** The per-source table, the stage timings, the model name
   and the archive note sit under the grid, closed unless the last run failed or a source
   mismatched. Closed, its summary line carries a preview — when, how many sources, how many new,
@@ -474,6 +476,9 @@ measurements are in `specs/019-corpus-chat/spec.md`.
   folds to muted text; a finished answer loses the caret. ISC-309's `rg -l "lg-ai"` gate widened
   to `features/chat` and `layout/app-header`, and `contrast.browser.spec.ts` holds the violet to
   ≥ 3:1 as an object on every ground the chat puts it on, in both themes.
+  *Amended by spec 021: the glyph, the header's busy dot and the bar's streaming mark are now the
+  living mark, and the violet reaches it only on its dots while it works or speaks — see § The living
+  mark below.*
 - **Nothing else in the chat takes a reserved colour.** Citations and source cards take the
   primary (`--lg-primary-text` on `--lg-selected-surface`), never the signal, because a cited
   offer may be archived or below the line and the signal would call it a survivor. Source cards
@@ -512,6 +517,35 @@ measurements are in `specs/019-corpus-chat/spec.md`.
   input set smaller than 16px.
 - **A finished answer is announced once.** A polite live region says one sentence when the stream
   ends and nothing per token; a screen reader that heard every chunk would hear nothing else.
+
+### The living mark (spec 021, 2026-09-27)
+
+The chat's figure is the brand mark brought to life, not a mascot: the lead ring is already the
+product's one figure (the favicon, the header, the dashboard's sieve), so a second character would
+have been a second identity. `shared/living-mark` is the brand mark's **second drawing, after the
+sieve**: the same ring and lead as `brand/mark.svg` and `shared/brand-mark`, inlined, never a CSS
+mask, with one input choosing one of four frames that the host carries as `data-frame`.
+
+- **Four frames, one word each.** `rest` is the brand mark as it stands. `working` lets three dots
+  flow through the ring's opening into its centre while a tool runs. `speaking` sweeps the arc
+  toward closing the ring while the answer streams. `halted` holds the arc open with a hollow core,
+  for a turn that ended incomplete or was stopped. `rest` and `halted` never move; under reduced
+  motion none of them does, and the four stills stay distinguishable.
+- **The ring is the brand, the motion is the model.** The ring's stroke is `--color-primary` in
+  every frame; the dots are `currentColor`, which the mark's own `:host` sets to the signal, so
+  `rest` looks like the brand mark wherever it is placed. The hosts raise `color: var(--lg-ai)`
+  on the `working` and `speaking` frames in their own stylesheets. That is the AI colour's whole
+  path onto the mark: never the ring, never `shared/`, so ISC-309's `rg -l "lg-ai"` file set did
+  not widen. The signal allowlist grew by one file, `living-mark.css`, to seventeen.
+- **It replaced three things and added none.** The answer glyph's sparkle and its
+  `--lg-ai-surface` disc, the header's busy dot and the mobile bar's streaming dot are all the mark
+  now; the header button carries it at `rest` as its icon and in `working` while a turn streams
+  with the drawer shut. The empty chat's plate shows it at `rest`. No catalog key was added: every
+  accessible name stayed where it was, and the mark itself is `aria-hidden`.
+- **Measured, not eyeballed.** The ring, both dot colours and the hollow core hold ≥ 3:1 on the
+  panel, the plate, the header, the button's soft fill and the bar's frost in both themes
+  (`contrast.browser.spec.ts`, lowest 4.23); the plate and every answer's text box kept their
+  size against a baseline measured before the swap.
 
 ## The interface language
 

@@ -14,7 +14,11 @@
 }
 
 @if (!streaming()) {
-  <lg-chat-sources [sources]="sources()"/>
+  <!-- Drawn from the tool's own result, never from digits in the text above (ISC-460). -->
+  @for (stat of statistics(); track stat.ordinal) {
+    <lg-chat-statistics-card [source]="stat"/>
+  }
+  <lg-chat-sources [sources]="rows()"/>
 }
 
 @if (finished()) {
@@ -40,6 +44,23 @@
       </button>
     }
   </div>
+}
+
+@if (followUps().length > 0) {
+  <!-- Removed from the DOM, not hidden, once the next question is sent (ISC-457). -->
+  <section class="lg-chat-followups" [attr.aria-label]="'chat.followups.title' | transloco">
+    <h4 class="type-caption text-muted lg-chat-followups-title">{{ 'chat.followups.title' | transloco }}</h4>
+    <ul class="lg-chat-followups-list">
+      @for (followUp of followUps(); track $index) {
+        <li>
+          <button type="button" class="btn btn-ghost btn-sm lg-chat-followup" (click)="askFollowUp(followUp.text)">
+            <lg-icon name="corner-down-right" [size]="14"/>
+            <span>{{ followUp.text }}</span>
+          </button>
+        </li>
+      }
+    </ul>
+  </section>
 }
 
 <lg-citation-card/>

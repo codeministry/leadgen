@@ -25,7 +25,6 @@ import de.codeministry.leadgen.retrieval.SemanticFilter;
 import de.codeministry.leadgen.score.Judges;
 import de.codeministry.leadgen.score.ScoringService;
 import jakarta.validation.Valid;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
@@ -64,52 +63,11 @@ class OfferController {
      * twice — and the query string still drives them, so the link still works.
      */
     @GetMapping
-    ShortlistPage shortlist(
-            @RequestParam(required = false) String q,
-            @RequestParam(required = false) String band,
-            @RequestParam(required = false) Integer minScore,
-            @RequestParam(required = false) Integer maxScore,
-            @RequestParam(required = false) String scoreState,
-            // Repeatable, and it keeps the singular name it had: `?portal=a` binds to a
-            // one-element list, so every link and every bookmark written before the filter
-            // took more than one still means what it meant.
-            @RequestParam(required = false) List<String> portal,
-            @RequestParam(required = false, defaultValue = "false") boolean archived,
-            @RequestParam(required = false) String sort,
-            @RequestParam(required = false) String startWindow,
-            // The relatedness axis, two spellings of one narrowing: words to be near, or an
-            // offer to be near. `RelatedFilter` refuses both at once, the way `ScoreFilter`
-            // refuses a band and a range. `similar` costs no model call, because the offer's
-            // vector is already in the table.
-            @RequestParam(required = false) String semantic,
-            @RequestParam(required = false) Long similar,
-            @RequestParam(required = false) Integer minMonths,
-            @RequestParam(required = false, defaultValue = "false") boolean deadlineOpen,
-            @RequestParam(required = false, defaultValue = "false") boolean possibleDuplicates,
-            @RequestParam(required = false) String topic,
-            @RequestParam(required = false) String cursor,
-            @RequestParam(required = false, defaultValue = "0") int limit) {
-        // Resolved here and not inside the query, because this is where a string stops being
-        // a string: the enums are the allowlist, so a name nobody defined is refused at the
-        // edge with a sentence and never reaches a statement. `ScoreFilter` is built here for
-        // the same reason one step further on — it refuses two spellings of the score axis
-        // before anything has been read.
-        return offers.shortlist(
-                new ShortlistQuery(
-                        q,
-                        new ScoreFilter(band, minScore, maxScore, ScoreState.of(scoreState)),
-                        portal,
-                        archived,
-                        ShortlistSort.of(sort),
-                        StartWindow.of(startWindow),
-                        new RelatedFilter(semantic, similar),
-                        minMonths,
-                        deadlineOpen,
-                        possibleDuplicates,
-                        topic,
-                        cursor,
-                        limit),
-                llmBudget::take);
+    ShortlistPage shortlist(ShortlistParams params) {
+        // Bound onto a record rather than read as seventeen @RequestParams, so the chat's pinned
+        // view (ISC-452) binds a stored query string onto the same constructor and resolves it with
+        // the same `query()` — one binding, not a second parser that agrees until it does not.
+        return offers.shortlist(params.query(), llmBudget::take);
     }
 
     /**

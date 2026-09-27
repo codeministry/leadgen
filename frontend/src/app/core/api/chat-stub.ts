@@ -1,6 +1,19 @@
 import {Observable} from 'rxjs';
 
-import type {ChatEvent} from '../model/chat';
+import type {ChatEvent, ChatFollowUp, ChatSuggestion} from '../model/chat';
+
+/**
+ * What `GET /suggestions` answers for an empty chat once the server does (ISC-455): at most four,
+ * each with the trigger that raised it. Neutral content, like the recorded turn below.
+ */
+export const RECORDED_SUGGESTIONS: readonly ChatSuggestion[] = [
+    {trigger: 'NEW_THIS_WEEK', text: 'What came in this week?', count: 12},
+    {trigger: 'DEADLINE_SOON', text: 'Which offers close before Friday?', count: 3},
+    {trigger: 'NO_ANSWER', text: 'Which applications have had no answer for two weeks?', count: 2},
+];
+
+/** What `GET …/followups` answers under a finished turn (ISC-457): two or three questions. */
+export const RECORDED_FOLLOWUPS: readonly ChatFollowUp[] = [{text: 'Only the remote ones?'}, {text: 'Which of them pay the most?'}];
 
 /**
  * A turn recorded once and replayed, for specs and for building the drawer before the server

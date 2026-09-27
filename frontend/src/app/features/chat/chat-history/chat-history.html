@@ -1,0 +1,98 @@
+<!-- Search (ISC-450): sticky at the top, narrowed on the server. 16px at least, or iOS zooms on focus. -->
+<search class="lg-chat-search">
+  <label class="input lg-chat-search-field">
+    <lg-icon name="search" [size]="16"/>
+    <input
+      type="search"
+      class="lg-chat-search-input"
+      [value]="store.query()"
+      [attr.aria-label]="'chat.search.label' | transloco"
+      [placeholder]="'chat.search.label' | transloco"
+      (input)="search($event)"
+    />
+    @if (store.query() !== '') {
+      <button
+        type="button"
+        class="btn btn-ghost btn-sm btn-square lg-chat-search-clear"
+        [attr.aria-label]="'chat.search.clear' | transloco"
+        [attr.title]="'chat.search.clear' | transloco"
+        (click)="clearSearch()"
+      >
+        <lg-icon name="circle-x" [size]="16"/>
+      </button>
+    }
+  </label>
+</search>
+
+<div class="lg-chat-groups" [attr.aria-busy]="store.listLoading()">
+  @if (noMatch()) {
+    <p class="type-small text-muted lg-chat-no-match">
+      {{ 'chat.search.none' | transloco: {query: store.resultQuery()} }}
+    </p>
+    <button type="button" class="btn btn-ghost btn-sm lg-chat-clear-search" (click)="clearSearch()">
+      {{ 'chat.search.clearAction' | transloco }}
+    </button>
+  } @else if (empty()) {
+    <p class="type-small text-muted lg-chat-rows-empty">
+      {{ (store.listLoading() ? 'chat.listLoading' : 'chat.historyEmpty') | transloco }}
+    </p>
+  }
+
+  @for (group of groups(); track group.key) {
+    <section class="lg-chat-group" [attr.aria-labelledby]="uid + '-' + group.key">
+      <h3 class="type-caption lg-chat-group-heading" [id]="uid + '-' + group.key">{{ 'chat.group.' + group.key | transloco }}</h3>
+      <ul class="lg-chat-rows">
+        @for (conversation of group.rows; track conversation.id) {
+          <li class="lg-chat-item">
+            @if (editing() === conversation.id) {
+              <input
+                type="text"
+                class="input input-sm lg-chat-rename"
+                [maxLength]="titleMax"
+                [value]="conversation.title"
+                [placeholder]="'chat.rename.placeholder' | transloco"
+                [attr.aria-label]="'chat.rename.label' | transloco"
+                (keydown)="renameKey($event, conversation)"
+                (blur)="commit($event, conversation)"
+              />
+            } @else {
+              <button
+                type="button"
+                class="lg-chat-row"
+                [attr.data-id]="conversation.id"
+                [attr.aria-current]="conversation.id === store.openId() ? 'true' : null"
+                (click)="open(conversation.id)"
+              >
+                <span class="type-small lg-chat-row-title">{{ conversation.title || ('chat.new' | transloco) }}</span>
+                <time class="type-mono-data text-muted lg-chat-row-time" [attr.datetime]="activity(conversation)">
+                  {{ timeOf(conversation, group.key) }}
+                </time>
+              </button>
+            }
+            <!-- One "⋯" per row, a native popover (not role="menu"): shown always on a coarse
+                 pointer, on hover or focus-within on a fine one. Keyed on the pointer, never the width. -->
+            <button
+              type="button"
+              class="btn btn-ghost btn-sm btn-square lg-chat-more"
+              [id]="moreId(conversation.id)"
+              [attr.popovertarget]="menuId(conversation.id)"
+              [attr.aria-label]="'chat.actions' | transloco: {title: conversation.title || ('chat.new' | transloco)}"
+              [attr.title]="'chat.actions' | transloco: {title: conversation.title || ('chat.new' | transloco)}"
+              (click)="place($event, conversation.id)"
+            >
+              <lg-icon name="ellipsis" [size]="16"/>
+            </button>
+            <div popover class="lg-chat-menu" [id]="menuId(conversation.id)">
+              <button type="button" class="lg-chat-menu-item lg-chat-rename-action" (click)="startRename(conversation.id)">
+                {{ 'chat.rename.action' | transloco }}
+              </button>
+              <button type="button" class="lg-chat-menu-item lg-chat-delete-action" (click)="askDelete(conversation)">
+                {{ 'chat.delete.action' | transloco }}
+              </button>
+            </div>
+          </li>
+        }
+      </ul>
+    </section>
+  }
+</div>

@@ -1,3 +1,5 @@
+import {provideHttpClient} from '@angular/common/http';
+import {HttpTestingController, provideHttpClientTesting} from '@angular/common/http/testing';
 import {Component} from '@angular/core';
 import {ComponentFixture, TestBed} from '@angular/core/testing';
 import {provideRouter, Router} from '@angular/router';
@@ -343,5 +345,84 @@ describe('ChatAnswer rendering cost (fix 3F-9)', () => {
         fixture.detectChanges();
         expect(calls).toBe(1);
         expect(shown()).toContain('stored');
+    });
+});
+
+/**
+ * Two or three questions to ask next beneath a finished answer (ISC-457), fetched from the server
+ * for that turn; none under a stopped, an incomplete or a streaming one, and gone once the next
+ * question is sent — which is when this turn stops being the last.
+ */
+describe('ChatAnswer follow-ups (ISC-457)', () => {
+    const FOLLOWUPS = '/api/v1/chat/conversations/5/turns/41/followups';
+    let fixture: ComponentFixture<ChatAnswer>;
+    let http: HttpTestingController;
+
+    beforeEach(async () => {
+        TestBed.configureTestingModule({
+            providers: [provideRouter([{path: 'dashboard', component: Blank}]), provideHttpClient(), provideHttpClientTesting()],
+        });
+        http = TestBed.inject(HttpTestingController);
+        await TestBed.inject(Router).navigateByUrl('/dashboard?chat=5');
+        fixture = TestBed.createComponent(ChatAnswer);
+        document.body.appendChild(fixture.nativeElement);
+    });
+
+    afterEach(() => (fixture.nativeElement as HTMLElement).remove());
+
+    async function render(state: ChatTurnState): Promise<void> {
+        fixture.componentRef.setInput('answer', 'Two fit.');
+        fixture.componentRef.setInput('state', state);
+        fixture.componentRef.setInput('conversationId', 5);
+        fixture.componentRef.setInput('turnId', 41);
+        fixture.componentRef.setInput('last', true);
+        await settle();
+    }
+
+    async function settle(): Promise<void> {
+        fixture.detectChanges();
+        await fixture.whenStable();
+    }
+
+    const followups = () => [...(fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('button.lg-chat-followup')];
+
+    it('shows two or three beneath a finished answer, each asking its sentence', async () => {
+        await render('DONE');
+        http.expectOne(FOLLOWUPS).flush([{text: 'Only the remote ones?'}, {text: 'Which pay the most?'}, {text: 'Any in Cologne?'}, {text: 'A fourth?'}]);
+        await settle();
+
+        expect(followups().map((b) => b.textContent?.trim())).toEqual(['Only the remote ones?', 'Which pay the most?', 'Any in Cologne?']);
+        // Below the actions, never inside the answer's Markdown.
+        expect((fixture.nativeElement as HTMLElement).querySelector('.lg-chat-md .lg-chat-followup')).toBeNull();
+
+        const asked: string[] = [];
+        const subscription = TestBed.inject(Events)
+            .on(chatEvents.asked)
+            .subscribe((event) => asked.push(event.payload));
+        followups()[1].click();
+        subscription.unsubscribe();
+        expect(asked).toEqual(['Which pay the most?']);
+    });
+
+    for (const state of ['STOPPED', 'INCOMPLETE', 'STREAMING'] as const) {
+        it('asks for none and shows none under a turn that is ' + state, async () => {
+            await render(state);
+            http.expectNone(FOLLOWUPS);
+            expect(followups()).toHaveLength(0);
+        });
+    }
+
+    it('is gone once the next question is sent', async () => {
+        await render('DONE');
+        http.expectOne(FOLLOWUPS).flush([{text: 'Only the remote ones?'}, {text: 'Which pay the most?'}]);
+        await settle();
+        expect(followups()).toHaveLength(2);
+
+        // The next question makes the live turn the last one.
+        fixture.componentRef.setInput('last', false);
+        await settle();
+
+        expect(followups()).toHaveLength(0);
+        http.expectNone(FOLLOWUPS);
     });
 });

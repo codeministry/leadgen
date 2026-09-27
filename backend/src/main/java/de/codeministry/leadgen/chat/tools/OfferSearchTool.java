@@ -14,6 +14,7 @@ import de.codeministry.leadgen.offer.RelatedFilter;
 import de.codeministry.leadgen.offer.ScoreFilter;
 import de.codeministry.leadgen.offer.ScoreState;
 import de.codeministry.leadgen.offer.ShortlistEntry;
+import de.codeministry.leadgen.offer.ShortlistParams;
 import de.codeministry.leadgen.offer.ShortlistQuery;
 import de.codeministry.leadgen.offer.ShortlistSort;
 import de.codeministry.leadgen.offer.StartWindow;
@@ -22,6 +23,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.ai.chat.model.ToolContext;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.stereotype.Component;
@@ -85,8 +87,16 @@ public class OfferSearchTool {
                     + " shortlist's own order, and says how many matched in all. Returns at most "
                     + PAGE
                     + " offers; 'matched' is the full count. Every filter is optional: leave out"
-                    + " whatever the question does not ask for. Cite an offer by its id.")
+                    + " whatever the question does not ask for. Cite an offer by its id. When the"
+                    + " conversation has pinned shortlist views, the pinned view's filters replace"
+                    + " every other argument; 'view' picks which one.")
     public OfferSearchResult searchOffers(
+            @ToolParam(
+                            required = false,
+                            description = "Which pinned shortlist view to list, 1 for the first; only when the"
+                                    + " conversation has pinned views.")
+                    Integer view,
+            ToolContext toolContext,
             @ToolParam(
                             required = false,
                             description = "Words to find in the title, the tags or the advert text, e.g. 'kafka'.")
@@ -138,6 +148,39 @@ public class OfferSearchTool {
                                     + " itself is excluded, so August is cameAfter '2026-08-01' and"
                                     + " cameBefore '2026-09-01'.")
                     String cameBefore) {
+        List<String> views = PinnedContext.of(toolContext).views();
+        if (!views.isEmpty()) {
+            return search(pinnedView(views, view));
+        }
+        return searchOffers(
+                text,
+                band,
+                minScore,
+                maxScore,
+                portals,
+                startWindow,
+                minMonths,
+                deadlineOpen,
+                topic,
+                sort,
+                cameAfter,
+                cameBefore);
+    }
+
+    /** The search without pins: the model's arguments are the filters. */
+    public OfferSearchResult searchOffers(
+            String text,
+            String band,
+            Integer minScore,
+            Integer maxScore,
+            List<String> portals,
+            String startWindow,
+            Integer minMonths,
+            Boolean deadlineOpen,
+            String topic,
+            String sort,
+            String cameAfter,
+            String cameBefore) {
         var query = new ShortlistQuery(
                         text,
                         new ScoreFilter(band, minScore, maxScore, ScoreState.ANY),
@@ -153,6 +196,38 @@ public class OfferSearchTool {
                         null,
                         PAGE)
                 .withCameIn(startOf(cameAfter, "cameAfter"), startOf(cameBefore, "cameBefore"));
+        return search(query);
+    }
+
+    /**
+     * A pinned view as the query the screen runs for it (ISC-452): its query string bound by the
+     * endpoint's own {@link ShortlistParams}, so every filter, the archive side and the sort are the
+     * screen's and none of the model's arguments survive. Only the page is the tool's — no cursor,
+     * and {@link #PAGE} rows — so the ids are the screen's first page, in its order.
+     */
+    static ShortlistQuery pinnedView(List<String> views, Integer view) {
+        int index = view == null ? 1 : view;
+        if (index < 1 || index > views.size()) {
+            throw new IllegalArgumentException("view must be 1 to " + views.size() + ", the pinned shortlist views");
+        }
+        ShortlistQuery screen = ShortlistParams.parse(views.get(index - 1)).query();
+        return new ShortlistQuery(
+                screen.q(),
+                screen.score(),
+                screen.portals(),
+                screen.archived(),
+                screen.sort(),
+                screen.startWindow(),
+                screen.related(),
+                screen.minMonths(),
+                screen.deadlineOpen(),
+                screen.possibleDuplicates(),
+                screen.topic(),
+                null,
+                PAGE);
+    }
+
+    private OfferSearchResult search(ShortlistQuery query) {
         // ISC-433: a topic's paraphrase half embeds the topic's name, paid from the chat's day.
         var page = offers.shortlist(query, budget::take);
         return new OfferSearchResult(

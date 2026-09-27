@@ -124,7 +124,7 @@ describe('OfferDetail', () => {
       await fixture.whenStable();
 
       expect(TestBed.inject(ChatStore).pinnedOfferId()).toBe(12);
-      expect(TestBed.inject(Router).url).toBe('/?chat=new');
+      expect(TestBed.inject(Router).url).toBe('/?chat=new&chatCtx=o:12');
     });
   });
 

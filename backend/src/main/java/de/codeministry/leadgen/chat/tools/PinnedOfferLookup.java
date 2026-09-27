@@ -18,7 +18,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 /**
- * The offer a conversation was started from, read at the start of each of its turns.
+ * The offers pinned to a conversation, read at the start of each of its turns.
  *
  * <p><b>Not a tool the model can call</b>, and deliberately without {@code @Tool}: the turn runs it
  * before the model is asked, so the offer is in front of the model whether or not it would have
@@ -52,14 +52,33 @@ public class PinnedOfferLookup {
 
     private final OfferQueryService offers;
 
-    /** @throws IllegalArgumentException when the offer no longer exists; the turn hands that to the model */
-    public PinnedOfferResult lookup(long offerId) {
-        ShortlistEntry entry = offers.find(offerId)
-                .orElseThrow(() -> new IllegalArgumentException("offer " + offerId + " no longer exists"));
-        String advert = advert(entry);
-        boolean cut = advert.length() > ADVERT_CHARS;
-        return new PinnedOfferResult(
-                List.of(OfferSearchTool.hit(entry)), cut ? advert.substring(0, ADVERT_CHARS) : advert, cut);
+    /**
+     * Every pinned offer of the conversation, in the order they were pinned (ISC-453) — each read
+     * whatever its status, because the reader pinned it.
+     *
+     * <p>The advert budget is shared: ten pinned offers get a tenth of {@link #ADVERT_CHARS} each,
+     * so ten pins cost the model's context what one did, and each advert says whether it was cut.
+     *
+     * @throws IllegalArgumentException when none of the offers exists any more; the turn hands that
+     *     to the model
+     */
+    public PinnedOfferResult lookup(List<Long> offerIds) {
+        List<ShortlistEntry> entries = offerIds.stream()
+                .map(offers::find)
+                .flatMap(java.util.Optional::stream)
+                .toList();
+        if (entries.isEmpty()) {
+            throw new IllegalArgumentException("the pinned offers " + offerIds + " no longer exist");
+        }
+        int share = ADVERT_CHARS / entries.size();
+        List<PinnedAdvert> adverts = entries.stream()
+                .map(entry -> {
+                    String advert = advert(entry);
+                    boolean cut = advert.length() > share;
+                    return new PinnedAdvert(entry.offer().id(), cut ? advert.substring(0, share) : advert, cut);
+                })
+                .toList();
+        return new PinnedOfferResult(entries.stream().map(OfferSearchTool::hit).toList(), adverts);
     }
 
     /**

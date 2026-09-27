@@ -2,14 +2,14 @@
 
 # Data model
 
-The eighteen tables, how they point at each other, and which class writes and reads each one.
+The nineteen tables, how they point at each other, and which class writes and reads each one.
 This is the schema as Flyway builds it, read straight out of
 `backend/src/main/resources/db/migration/`, and it is the document to open when the question
 is *where does this value live* or *who is allowed to change it*. The reasoning behind a
 column belongs to the decision records; each section links the one that carries it.
 
 > [!NOTE]
-> Derived from `V1` to `V34`. When this document and a migration disagree, the migration wins,
+> Derived from `V1` to `V35`. When this document and a migration disagree, the migration wins,
 > and the fix is here. There is no ORM: every write is a plain SQL statement in the service
 > that owns it, so "who writes this" has one answer per column and it is worth writing down.
 
@@ -383,10 +383,10 @@ overwrite themselves. Primary key `(run_id, position)`, cascades from `pipeline_
 The three cache and counter tables, `fetched_page`, `content_block_label` and
 `llm_call_budget`, and the `instance` row the package folders are owned by, are in § 2.
 
-## 5. The chat's four tables
+## 5. The chat's five tables
 
-Four tables that the chat writes alone and no pipeline stage reads (`ChatIsolationTest` fails on
-a pipeline source naming one of them). Dropping all four loses the stored conversations and
+Five tables that the chat writes alone and no pipeline stage reads (`ChatIsolationTest` fails on
+a pipeline source naming one of them). Dropping all five loses the stored conversations and
 nothing else; the rollback is in [decisions/chat.md](decisions/chat.md), with the reasoning
 behind every column below.
 
@@ -395,12 +395,26 @@ erDiagram
     chat_conversation ||--o{ chat_turn : "conversation_id"
     chat_turn ||--o{ chat_tool_call : "turn_id"
     chat_turn o|--o{ chat_turn : "replaces_turn_id"
+    chat_conversation ||--o{ chat_context : "conversation_id"
     offer |o--o{ chat_conversation : "pinned_offer_id"
+    offer |o--o{ chat_context : "offer_id"
     chat_conversation {
         bigint id PK
         text title
+        text custom_title
+        text search_text
         bigint pinned_offer_id FK
         timestamptz updated_at
+    }
+    chat_context {
+        bigint id PK
+        bigint conversation_id FK
+        text kind
+        bigint offer_id FK
+        text query
+        date window_from
+        date window_to
+        int ordinal
     }
     chat_turn {
         bigint id PK
@@ -416,6 +430,7 @@ erDiagram
         int ordinal
         text tool
         jsonb returned_ids
+        jsonb data
     }
     chat_call_budget {
         date day PK
@@ -432,6 +447,13 @@ writes the pin, and `ON DELETE SET NULL` lets an offer go without taking the con
 `startTurn` sets `title` from the first question, once, and moves `updated_at` on every turn, which
 is what the list is ordered by (`chat_conversation_updated`, newest first). `delete` removes the
 row, and its turns and their tool calls cascade. Read by `list` and `find` for the drawer.
+`V35` adds two columns. `custom_title` is written by `rename` alone: trimmed, cut past 120
+characters, `NULL` when emptied, so `list`, `search` and `find` show `coalesce(custom_title, title)`.
+`search_text` is the title and every question, lower-cased and without diacritics; `reindex` rewrites
+it after `create`, `startTurn` and `rename`, the migration filled it once with `translate()`, and
+`search` matches it with one `LIKE` per word of the normalised query. Since `V35`, `pinned_offer_id`
+is the first offer of `chat_context`, mirrored by `create` and `replaceContext`, and still read by
+`pinnedOffer` for the turn's pinned lookup; a later release drops it.
 
 **`chat_turn`** (`V32`, `V34`). One row per question asked, including every regenerated one.
 `startTurn` writes `conversation_id`, the next `ordinal` in the conversation (unique with it),
@@ -452,11 +474,23 @@ and the drawer shows the text it had.
 **`chat_tool_call`** (`V32`). One row per tool the model called in a turn: `ordinal`, the `tool`
 name, the `label` the screen shows for the step, the `arguments` as the model sent them,
 `returned_ids` as `[{kind, id}]` — the ledger the grounding check held every citation against —
-and `duration_ms`. A NUL in `label` or `arguments` (which `TEXT` and `JSONB` both refuse) is
+and `duration_ms`. `data` (`V35`) is what a `statistics` call returned, cut to a few headline
+numbers and the intake per day, so a reloaded answer draws the same table and sparkline; `NULL` for
+every other tool. A NUL in `label` or `arguments` (which `TEXT` and `JSONB` both refuse) is
 dropped before the insert. Written only by `finish`, in the same transaction as the turn's final state,
 from the turn's `TurnLedger`; a running turn's steps travel as events and reach this table when it
 ends. Read by `find`, which folds a finished turn's steps into "used N tools". Cascades from
 `chat_turn`.
+
+**`chat_context`** (`V35`). What a conversation is asked under, one row per chip at `ordinal` 1..n:
+`kind` `OFFER` with `offer_id`, `SHORTLIST_VIEW` with `query` (the shortlist's query string, empty for
+the unfiltered list) or `ANALYTICS_WINDOW` with `window_from` and `window_to`; three `CHECK`s keep
+the other kinds' columns `NULL`, and `chat_context_offer` makes the same offer one chip. Written by
+`create` and by `replaceContext` (`PUT …/context`), which deletes the list and inserts the new one,
+at most ten `OFFER` rows, a limit the repository holds. `V35` copied every existing
+`pinned_offer_id` in as ordinal 1. Read by `find` for the chips and by the suggestion triggers for
+the pinned offer. Cascades from `chat_conversation`, and from `offer`: a removed offer takes its
+chip and nothing else.
 
 **`chat_call_budget`** (`V33`). The chat's twin of `llm_call_budget`: one row per calendar day
 with a `calls` counter, taken by `ChatBudget.take()` before every model call of a turn with the
@@ -485,6 +519,7 @@ the transitions.
 | `content_block_label.kind` and the `kind` inside `offer.content_blocks` | `CONTENT`, `CHROME`, `FORM`, `TAXONOMY`, `AGENCY`, `LEGAL` | `content/ContentKind` | |
 | `content_block_label.decided_by` and the `by` inside `offer.content_blocks` | `RULE`, `CACHE`, `MODEL` | `content/Decider` | |
 | `source.kind` | `file`, `imap` | each connector's `type()` | |
+| `chat_context.kind` | `OFFER`, `SHORTLIST_VIEW`, `ANALYTICS_WINDOW` | `chat/ChatContextKind`, an enum, and a `CHECK` in `V35` with one per kind for its columns | not a state machine: a chip is replaced, never moved |
 
 Two values a reader will look for and not find as columns: `ScoreState` (`ANY`, `SCORED`,
 `UNSCORED`) and `StartWindow` (`ANY`, `NOW`, `SOON`, `LATER`, `UNKNOWN`) in the `offer`
@@ -508,7 +543,7 @@ services. It misses a statement assembled from strings and a CTE's alias, so the
 checklist to walk, not an answer:
 
 ```bash
-rg -n -o -i -e "(FROM|INTO|UPDATE|JOIN|DELETE FROM)\s+(offer_score_reason|offer|source_run|source|score_batch|pipeline_run_stage|pipeline_run|pipeline_stage|application_event|application|fetched_page|content_block_label|llm_call_budget|chat_conversation|chat_turn|chat_tool_call|chat_call_budget)\b" \
+rg -n -o -i -e "(FROM|INTO|UPDATE|JOIN|DELETE FROM)\s+(offer_score_reason|offer|source_run|source|score_batch|pipeline_run_stage|pipeline_run|pipeline_stage|application_event|application|fetched_page|content_block_label|llm_call_budget|chat_conversation|chat_turn|chat_tool_call|chat_context|chat_call_budget)\b" \
    backend/src/main/java -g '*.java' | sort | uniq -c
 ```
 

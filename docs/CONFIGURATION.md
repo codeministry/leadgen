@@ -120,6 +120,15 @@ to share a name, which meant a stack trace naming it could mean either file.
   and 6 rounds. The chat is on wherever a scoring model exists, so an override that predates the
   block must not leave it unmetered or its tool loop unbounded. The reasoning is in
   [decisions/chat.md](decisions/chat.md).
+- **`chat.suggestions.*` decides which questions the empty chat offers, and none of it spends a call.**
+  Six thresholds, each a rule over the numbers a screen already shows: `new_offers_min`, `deadline_days`,
+  `no_reply_days`, and the tag rise as `tag_window_days`, `tag_rise_percent` and `tag_rise_min_offers`.
+  A trigger whose line is not met offers nothing, and the two evergreen questions are always there.
+  Like the ceilings they ship as placeholders with a default, and a key left out of an override is its
+  default; they are read per request from the live configuration, so a reload moves the next set.
+  Phrasing the sentences is one call on the chat's own day, never `llm.budget`, and without a chat
+  model the catalog's sentences show as they are. The reasoning is in
+  [decisions/chat.md](decisions/chat.md) § Suggestions.
 - **`llm.concurrency` and `enrichment.fetch.concurrency` are widths, and a width moves the clock, never the bill.**
   `llm.concurrency` is how many adverts CONTENT, FIELDS and the synchronous SCORE work at once, and how many
   32-advert embedding batches DEDUPE and RETRIEVAL have in flight; `enrichment.fetch.concurrency` is how many fetches
@@ -217,6 +226,12 @@ rationale. `*` marks a credential.
 | `LLM_MODEL_CHAT`            | —       | `llm.models.chat`: the chat in the drawer every screen opens. Empty means `LLM_MODEL_SCORING`, and the startup log says which key decided. The model has to call tools, which not every judge does well. With neither key set the chat is absent: the header draws no button and no chat request leaves the browser. |
 | `CHAT_MAX_CALLS_PER_DAY`    | `200`   | `chat.max_calls_per_day`: the chat's own daily ceiling on model requests, counted in `chat_call_budget` beside `llm.budget` and never through it, so questions cannot starve the nightly run nor a spent night silence the chat. `0` means no calls. Left out of a `pipeline.yaml` override — the key or the whole `chat:` block — it is `200`, not no ceiling (changed from "absent = no ceiling": the chat is on by default wherever a scoring model exists). A spent day ends a turn with its reason. |
 | `CHAT_MAX_TOOL_ROUNDS`      | `6`     | `chat.max_tool_rounds`: how many rounds of tool calls one chat turn may take before it has to answer. Past it the turn ends with its reason and keeps what it had said, rather than showing an answer the model never finished. Left out of an override it is `6`; there is no unbounded setting, because a model that keeps asking for tools would loop for ever. |
+| `CHAT_SUGGEST_NEW_OFFERS_MIN` | `1` | `chat.suggestions.new_offers_min`: the empty chat suggests the last run's new offers once that run wrote at least this many. |
+| `CHAT_SUGGEST_DEADLINE_DAYS` | `7` | `chat.suggestions.deadline_days`: suggests the open offers whose apply-by date falls within this many days from today. |
+| `CHAT_SUGGEST_NO_REPLY_DAYS` | `14` | `chat.suggestions.no_reply_days`: suggests the sent applications that have had no reply for at least this many days. |
+| `CHAT_SUGGEST_TAG_WINDOW_DAYS` | `7` | `chat.suggestions.tag_window_days`: the window a tag's rise is measured over, against the same number of days before it. |
+| `CHAT_SUGGEST_TAG_RISE_PERCENT` | `30` | `chat.suggestions.tag_rise_percent`: a tag counts as rising from this percentage over the window before. |
+| `CHAT_SUGGEST_TAG_RISE_MIN_OFFERS` | `5` | `chat.suggestions.tag_rise_min_offers`: and only across at least this many offers in the current window, so two offers after one is not a trend. |
 
 ### Enrichment
 

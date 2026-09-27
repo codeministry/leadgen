@@ -88,6 +88,12 @@ public final class ConfigFixtures {
         values.put("LLM_MODEL_CHAT", "");
         values.put("CHAT_MAX_CALLS_PER_DAY", "");
         values.put("CHAT_MAX_TOOL_ROUNDS", "");
+        values.put("CHAT_SUGGEST_NEW_OFFERS_MIN", "");
+        values.put("CHAT_SUGGEST_DEADLINE_DAYS", "");
+        values.put("CHAT_SUGGEST_NO_REPLY_DAYS", "");
+        values.put("CHAT_SUGGEST_TAG_WINDOW_DAYS", "");
+        values.put("CHAT_SUGGEST_TAG_RISE_PERCENT", "");
+        values.put("CHAT_SUGGEST_TAG_RISE_MIN_OFFERS", "");
         values.put("PROFILE_PATH", "");
         values.put("RULES_PATH", "");
         values.put("RETRIEVAL_ENABLED", "");

@@ -210,6 +210,303 @@ class ChatConversationTest {
                 .isEqualTo(404);
     }
 
+    /**
+     * ISC-446, the server half: the offer a conversation is created with is stored on it, and the
+     * conversation hands it back when it is opened again — which is what a reload does.
+     */
+    @Test
+    void aCreateWithAPinStoresItAndTheReloadReturnsIt() {
+        long offer = offer(freshSource(), "Pinned Java Developer");
+
+        var created = mvc.post()
+                .uri("/api/v1/chat/conversations")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"pinnedOfferId\":" + offer + "}")
+                .exchange();
+
+        assertThat(created).hasStatus(201);
+        assertThat(created).bodyJson().extractingPath("$.pinnedOfferId").isEqualTo((int) offer);
+        long id = jdbc.queryForObject("SELECT max(id) FROM chat_conversation", Long.class);
+        assertThat(jdbc.queryForObject("SELECT pinned_offer_id FROM chat_conversation WHERE id = ?", Long.class, id))
+                .isEqualTo(offer);
+        assertThat(mvc.get().uri("/api/v1/chat/conversations/{id}", id))
+                .hasStatusOk()
+                .bodyJson()
+                .extractingPath("$.pinnedOfferId")
+                .isEqualTo((int) offer);
+    }
+
+    /**
+     * ISC-446 and the seam of ISC-449: a create that names its offer in the context list pins it the
+     * same as {@code pinnedOfferId} does, which is still accepted for one release.
+     */
+    @Test
+    void aCreateWithAnOfferInItsContextStoresThePin() {
+        long offer = offer(freshSource(), "Context Java Developer");
+
+        var created = mvc.post()
+                .uri("/api/v1/chat/conversations")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"context\":[{\"kind\":\"OFFER\",\"offerId\":" + offer + "}]}")
+                .exchange();
+
+        assertThat(created).hasStatus(201);
+        assertThat(created).bodyJson().extractingPath("$.pinnedOfferId").isEqualTo((int) offer);
+    }
+
+    /**
+     * ISC-451, the server half: a conversation created with a shortlist view, an analytics window
+     * and an offer keeps them in that order and with their kinds; a PUT replaces the whole list, and
+     * the reload and the conversation list both read the replacement back. The first offer of the
+     * list is still the {@code pinnedOfferId} of the view, for one release.
+     */
+    @Test
+    void aContextIsStoredOnCreateReplacedByAPutAndReadBackInOrder() {
+        long source = freshSource();
+        long first = offer(source, "Context Kotlin Developer");
+        long second = offer(source, "Context Angular Developer");
+
+        var created = mvc.post()
+                .uri("/api/v1/chat/conversations")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"context\":[{\"kind\":\"SHORTLIST_VIEW\",\"query\":\"tag=java&sort=score\"},"
+                        + "{\"kind\":\"ANALYTICS_WINDOW\",\"from\":\"2026-09-01\",\"to\":\"2026-09-27\"},"
+                        + "{\"kind\":\"OFFER\",\"offerId\":" + first + "}]}")
+                .exchange();
+
+        assertThat(created).hasStatus(201);
+        var body = assertThat(created).bodyJson();
+        body.extractingPath("$.context.length()").isEqualTo(3);
+        body.extractingPath("$.context[0].kind").isEqualTo("SHORTLIST_VIEW");
+        body.extractingPath("$.context[0].query").isEqualTo("tag=java&sort=score");
+        body.extractingPath("$.context[1].kind").isEqualTo("ANALYTICS_WINDOW");
+        body.extractingPath("$.context[1].from").isEqualTo("2026-09-01");
+        body.extractingPath("$.context[1].to").isEqualTo("2026-09-27");
+        body.extractingPath("$.context[2].kind").isEqualTo("OFFER");
+        body.extractingPath("$.context[2].offerId").isEqualTo((int) first);
+        body.extractingPath("$.pinnedOfferId").isEqualTo((int) first);
+        long id = jdbc.queryForObject("SELECT max(id) FROM chat_conversation", Long.class);
+        assertThat(jdbc.queryForList(
+                        "SELECT kind FROM chat_context WHERE conversation_id = ? ORDER BY ordinal", String.class, id))
+                .containsExactly("SHORTLIST_VIEW", "ANALYTICS_WINDOW", "OFFER");
+
+        // Replaced whole: the view goes, the second offer leads, the window moves behind it.
+        var replaced = mvc.put()
+                .uri("/api/v1/chat/conversations/{id}/context", id)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"context\":[{\"kind\":\"OFFER\",\"offerId\":" + second + "},"
+                        + "{\"kind\":\"ANALYTICS_WINDOW\",\"from\":\"2026-08-01\",\"to\":\"2026-08-31\"},"
+                        + "{\"kind\":\"OFFER\",\"offerId\":" + first + "}]}")
+                .exchange();
+
+        assertThat(replaced).hasStatusOk();
+        for (var result : List.of(
+                replaced, mvc.get().uri("/api/v1/chat/conversations/{id}", id).exchange())) {
+            var view = assertThat(result).bodyJson();
+            view.extractingPath("$.context.length()").isEqualTo(3);
+            view.extractingPath("$.context[0].kind").isEqualTo("OFFER");
+            view.extractingPath("$.context[0].offerId").isEqualTo((int) second);
+            view.extractingPath("$.context[1].kind").isEqualTo("ANALYTICS_WINDOW");
+            view.extractingPath("$.context[1].from").isEqualTo("2026-08-01");
+            view.extractingPath("$.context[1].to").isEqualTo("2026-08-31");
+            view.extractingPath("$.context[2].offerId").isEqualTo((int) first);
+            view.extractingPath("$.pinnedOfferId").isEqualTo((int) second);
+        }
+        var listed = assertThat(mvc.get().uri("/api/v1/chat/conversations")).bodyJson();
+        listed.extractingPath("$[0].id").isEqualTo((int) id);
+        listed.extractingPath("$[0].context.length()").isEqualTo(3);
+        listed.extractingPath("$[0].context[0].offerId").isEqualTo((int) second);
+        listed.extractingPath("$[0].context[1].kind").isEqualTo("ANALYTICS_WINDOW");
+        assertThat(jdbc.queryForList(
+                        "SELECT ordinal FROM chat_context WHERE conversation_id = ? ORDER BY ordinal",
+                        Integer.class,
+                        id))
+                .containsExactly(1, 2, 3);
+
+        // An empty list unpins everything.
+        var cleared = mvc.put()
+                .uri("/api/v1/chat/conversations/{id}/context", id)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"context\":[]}")
+                .exchange();
+        assertThat(cleared).hasStatusOk();
+        assertThat(cleared).bodyJson().extractingPath("$.context.length()").isEqualTo(0);
+        assertThat(cleared).bodyJson().extractingPath("$.pinnedOfferId").isNull();
+    }
+
+    /** A context put on a conversation that does not exist is its 404; one naming a missing offer is the offer's. */
+    @Test
+    void aContextPutOnAnUnknownConversationOrOfferIsNotFound() {
+        long id = create();
+
+        assertThat(mvc.put()
+                        .uri("/api/v1/chat/conversations/987654321/context")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"context\":[]}"))
+                .hasStatus(404);
+        assertThat(mvc.put()
+                        .uri("/api/v1/chat/conversations/{id}/context", id)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"context\":[{\"kind\":\"OFFER\",\"offerId\":987654321}]}"))
+                .hasStatus(404);
+        assertThat(mvc.put()
+                        .uri("/api/v1/chat/conversations/{id}/context", id)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"context\":[{\"kind\":\"ANALYTICS_WINDOW\",\"from\":\"2026-09-27\"}]}"))
+                .hasStatus(400);
+    }
+
+    /**
+     * ISC-449, the seam: a row of the list carries its last activity, and the title it shows is the
+     * one the conversation was renamed to when it was, the derived one otherwise.
+     */
+    @Test
+    void theListShowsTheEffectiveTitleAndTheLastActivity() {
+        long renamed = create();
+        long derived = create();
+        jdbc.update("UPDATE chat_conversation SET title = 'Derived', custom_title = 'Mine' WHERE id = ?", renamed);
+        jdbc.update("UPDATE chat_conversation SET title = 'Derived only' WHERE id = ?", derived);
+        String updatedAt = jdbc.queryForObject(
+                "SELECT to_char(updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI') FROM chat_conversation"
+                        + " WHERE id = ?",
+                String.class,
+                renamed);
+
+        var list = assertThat(mvc.get().uri("/api/v1/chat/conversations"))
+                .hasStatusOk()
+                .bodyJson();
+        list.extractingPath("$[*].title").isEqualTo(List.of("Derived only", "Mine"));
+        list.extractingPath("$[1].lastActivityAt").asString().startsWith(updatedAt);
+        assertThat(mvc.get().uri("/api/v1/chat/conversations/{id}", renamed))
+                .hasStatusOk()
+                .bodyJson()
+                .extractingPath("$.title")
+                .isEqualTo("Mine");
+    }
+
+    /**
+     * ISC-448, the server half: deleting a conversation whose turn is streaming stops that turn
+     * first. The stop is what closes the model's connection, and the turn ends {@code STOPPED} —
+     * its terminal write lands before the rows go, which is only possible if the delete waited for
+     * it. Without the stop the turn streams all twenty chunks into rows that no longer exist.
+     */
+    @Test
+    void deletingAConversationStopsItsStreamingTurnFirst() {
+        String[] parts = new String[20];
+        for (int i = 0; i < parts.length; i++) {
+            parts[i] = "c" + i + " ";
+        }
+        MODEL.enqueue(ModelStub.text(java.time.Duration.ofMillis(100), parts));
+        long conversation = create();
+        int[] texts = new int[1];
+        int[] deleteStatus = new int[1];
+        int[] textsAtDelete = new int[1];
+        java.time.Instant[] deletedAt = new java.time.Instant[1];
+
+        List<TurnStream.Event> events = TurnStream.post(
+                port, "/api/v1/chat/conversations/" + conversation + "/turns", "{\"question\":\"Twenty?\"}", event -> {
+                    if (event.name().equals("text") && ++texts[0] == 3) {
+                        deleteStatus[0] = deleteStatus(conversation);
+                        deletedAt[0] = java.time.Instant.now();
+                        textsAtDelete[0] = texts[0];
+                    }
+                });
+
+        assertThat(deleteStatus[0]).isEqualTo(204);
+        assertThat(texts[0]).as("text events after the delete").isEqualTo(textsAtDelete[0]);
+        assertThat(events.getLast().name()).isEqualTo("done");
+        assertThat(TurnStream.JsonText.field(events.getLast().data(), "state")).isEqualTo("STOPPED");
+        java.time.Instant deadline = deletedAt[0].plus(java.time.Duration.ofSeconds(1));
+        while (MODEL.brokenAt() == null && java.time.Instant.now().isBefore(deadline)) {
+            Thread.onSpinWait();
+        }
+        assertThat(MODEL.brokenAt()).as("the stub saw its connection closed").isNotNull();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM chat_turn", Integer.class))
+                .isZero();
+        assertThat(mvc.get().uri("/api/v1/chat/conversations/{id}", conversation))
+                .hasStatus(404);
+    }
+
+    /**
+     * ISC-449, the server half: a rename is stored trimmed and at most 120 characters, an emptied
+     * one clears the name so the derived title shows again, and each is what a reload reads.
+     */
+    @Test
+    void aRenameIsTrimmedCappedAndAnEmptyOneBringsTheDerivedTitleBack() {
+        long id = create();
+        jdbc.update("UPDATE chat_conversation SET title = 'Derived' WHERE id = ?", id);
+
+        assertThat(rename(id, "   Padded name  "))
+                .hasStatusOk()
+                .bodyJson()
+                .extractingPath("$.title")
+                .isEqualTo("Padded name");
+        assertReloadedTitle(id, "Padded name");
+        assertThat(jdbc.queryForObject("SELECT custom_title FROM chat_conversation WHERE id = ?", String.class, id))
+                .isEqualTo("Padded name");
+
+        String long200 = "x".repeat(200);
+        assertThat(rename(id, long200))
+                .hasStatusOk()
+                .bodyJson()
+                .extractingPath("$.title")
+                .isEqualTo("x".repeat(120));
+        assertReloadedTitle(id, "x".repeat(120));
+
+        assertThat(rename(id, ""))
+                .hasStatusOk()
+                .bodyJson()
+                .extractingPath("$.title")
+                .isEqualTo("Derived");
+        assertReloadedTitle(id, "Derived");
+        assertThat(jdbc.queryForObject("SELECT custom_title FROM chat_conversation WHERE id = ?", String.class, id))
+                .isNull();
+
+        assertThat(rename(999_999, "Nobody")).hasStatus(404);
+    }
+
+    private org.springframework.test.web.servlet.assertj.MvcTestResult rename(long id, String title) {
+        return mvc.patch()
+                .uri("/api/v1/chat/conversations/{id}", id)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"title\":\"" + title + "\"}")
+                .exchange();
+    }
+
+    private void assertReloadedTitle(long id, String expected) {
+        assertThat(mvc.get().uri("/api/v1/chat/conversations/{id}", id))
+                .hasStatusOk()
+                .bodyJson()
+                .extractingPath("$.title")
+                .isEqualTo(expected);
+    }
+
+    /** A real HTTP delete, so it can run while the turn's stream is being read on this thread. */
+    private int deleteStatus(long conversation) {
+        try (var client = java.net.http.HttpClient.newHttpClient()) {
+            return client.send(
+                            java.net.http.HttpRequest.newBuilder(java.net.URI.create(
+                                            "http://localhost:" + port + "/api/v1/chat/conversations/" + conversation))
+                                    .DELETE()
+                                    .build(),
+                            java.net.http.HttpResponse.BodyHandlers.discarding())
+                    .statusCode();
+        } catch (java.io.IOException e) {
+            throw new java.io.UncheckedIOException(e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException(e);
+        }
+    }
+
+    /** One source with nothing under it: every offer and application before it is gone. */
+    private long freshSource() {
+        jdbc.update("DELETE FROM application");
+        jdbc.update("DELETE FROM offer");
+        jdbc.update("DELETE FROM source");
+        return jdbc.queryForObject("INSERT INTO source (name, kind) VALUES ('test', 'file') RETURNING id", Long.class);
+    }
+
     /** A pin on an offer that does not exist is the offer's 404, not the foreign key's 500. */
     @Test
     void aPinOnAnOfferThatDoesNotExistIsNotFound() {

@@ -20,6 +20,7 @@ import de.codeministry.leadgen.analytics.AnalyticsView;
 import de.codeministry.leadgen.analytics.ApplicationAnalytics;
 import de.codeministry.leadgen.analytics.IntakeSeries;
 import de.codeministry.leadgen.analytics.LastRunQueryService;
+import de.codeministry.leadgen.analytics.MarketView;
 import de.codeministry.leadgen.analytics.RunSeries;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -58,7 +59,7 @@ class StatisticsToolTest {
                         null,
                         null,
                         new IntakeSeries(List.of(), List.of(), List.of(), 0, 0, 0),
-                        null,
+                        new MarketView(List.of(), List.of(), List.of(), new MarketView.Reach(0, 0, 0), List.of()),
                         null,
                         mock(ApplicationAnalytics.class),
                         runs,
@@ -71,7 +72,7 @@ class StatisticsToolTest {
     @Test
     void withoutAWindowEveryRunDayIsKept() {
         StatisticsResult[] result = new StatisticsResult[1];
-        assertThat(catchThrowable(() -> result[0] = tool.statistics(null, null)))
+        assertThat(catchThrowable(() -> result[0] = tool.statistics(null, null, null, null)))
                 .as("statistics over runs without intake")
                 .isNull();
         assertThat(result[0].intake()).isEmpty();
@@ -83,7 +84,7 @@ class StatisticsToolTest {
     @Test
     void anAskedWindowStillNarrowsTheRunDays() {
         StatisticsResult[] result = new StatisticsResult[1];
-        assertThat(catchThrowable(() -> result[0] = tool.statistics("2026-09-22", null)))
+        assertThat(catchThrowable(() -> result[0] = tool.statistics("2026-09-22", null, null, null)))
                 .as("statistics over runs without intake, from a day")
                 .isNull();
         assertThat(result[0].runs()).extracting(RunSeries.Day::day).containsExactly(MONDAY.plusDays(2));

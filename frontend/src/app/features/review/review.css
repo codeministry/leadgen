@@ -103,7 +103,9 @@
     display: none;
 }
 
-@media (width < 72rem) {
+/* The shortlist's breakpoint on the page's own box — see its stylesheet for the number — so
+   the docked chat collapses this split as well (ISC-472). */
+@container page (width < 73.8rem) {
     .split {
         grid-template-columns: minmax(0, 1fr);
     }

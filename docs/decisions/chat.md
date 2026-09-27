@@ -357,22 +357,147 @@ full-screen modal sheet there, and following a source collapses it into a bar ab
 navigation that names the conversation, marks a streaming turn, and expands back on a tap — with
 `?chat` still in the URL, so "a change of screen keeps it open" holds literally on every width.
 
+## The living mark: four frames of one turn
+
+The assistant's glyph beside each answer is the brand's living mark, and its frame is a pure
+function of the turn (`turnFrame` in the chat panel), so a stored turn reloads in the frame it
+ended in:
+
+- **`working`** while any of the turn's tool steps is running. A running step wins over streaming,
+  because a model that calls a tool is not speaking yet.
+- **`speaking`** while the turn streams with no step running.
+- **`rest`** once the turn is `DONE`.
+- **`halted`** for `INCOMPLETE` and `STOPPED`. An ended turn wins over a step it left running, so a
+  turn cut mid-call never sits at `working` for ever.
+
+The header button and the mobile bar show the same mark, `working` while a turn streams out of
+sight. How it is drawn and where the AI colour goes on it is in
+[frontend-design-system.md](frontend-design-system.md) § The living mark.
+
+## Context pins: fixed tool arguments, never prompt text
+
+A conversation is asked under a list of pins, `chat_context` (`V35`), one chip each: an `OFFER`, a
+`SHORTLIST_VIEW` (the shortlist's query string as the URL carries it) or an `ANALYTICS_WINDOW`
+(`from`, `to`). **Use this view** on the shortlist and on analytics adds the screen's own view or
+window; **Ask about this offer** adds the offer. At most ten offer pins per conversation, held by
+the repository rather than a constraint, so the refusal can say why. Before the first question
+the pins live in the URL as `chatCtx` beside the sticky `chat` parameter, so a change of screen
+neither closes the chat nor drops a pin; the first question stores them with the conversation,
+and `PUT …/conversations/{id}/context` replaces the whole list afterwards. Stored, not store-only:
+the reducer that set `pinnedOfferId: null` on every route to an id is what lost a pin on the first
+suggestion, and a pin the URL and the table carry has no reducer to lose it in.
+
+**A pin is an argument the server fixes on the tool call, not a sentence in the prompt.** "Only look
+at the view with these filters" in the system prompt is a request a model can ignore, paraphrase or
+half-apply, and nobody sees which it did; a filter the server writes over the model's own arguments
+cannot be argued with, and the ids the tool returns are then the shortlist endpoint's ids for that
+view, in the same order. The turn reads the conversation's context and hands it to every tool
+call: a pinned view is bound by the same `ShortlistParams` record and `query()` the shortlist
+endpoint uses and replaces the model's filter arguments on `search_offers` (with several views the
+model picks one by number), and a pinned window replaces the window `statistics` answers for while
+the model's comparison window stays its own. Pinned offers are looked up by the turn itself, all of
+them, before the model is asked, and the ledger's exception (ISC-429) covers each offer that lookup
+returned and nothing else. A pin never makes a row citable that no tool returned, and never lets a
+tool write. A conversation holds at most ten pinned offers: the eleventh is refused with its reason
+on create and on replace, and the composer and the shortlist's "Ask about N offers" refuse it
+before it is sent. A conversation from before V35 whose only pin is `pinned_offer_id` still has it
+looked up.
+
+## Suggestions: rules find, a model phrases
+
+The empty chat offers up to four questions, the finished answer two or three more. **Rules find
+them; the model only phrases them.** Each trigger in `chat/suggest/` reads the read service behind
+a screen — the last run's new offers, deadlines within `chat.suggestions.deadline_days`, sent
+applications without a reply for `no_reply_days`, a tag that rose by `tag_rise_percent` over the
+window before across at least `tag_rise_min_offers` offers, the pinned offer, the shortlist, open
+applications — so a suggested count is the count that screen shows. A trigger whose line is not
+met offers nothing; the last two are evergreen, so an empty corpus still gets a floor the data
+supports. Asking a model to *find* good questions would cost a call per open, invent numbers, and
+leave nothing to test; a rule is free, deterministic and holds without a model at all.
+
+`Phrasing` then hands the catalog's sentences (`leadgen/i18n/chat-suggest_{en,de}.properties`,
+chosen by `Accept-Language`) to the chat's model with `chat-suggest.st`, paid from `ChatBudget` —
+the chat's day, never `llm.budget`. A refused take, a missing model or a failed call answers the
+catalog's own sentences, so the chat is never empty because a model was not there. The result is
+cached per data snapshot (the latest `pipeline_run` and `application_event` ids), plus model,
+language and sentences, so reopening the chat is a map lookup and a new run or a status change is
+a new key; the map clears past 256 entries, because an old snapshot is never asked for again.
+
+**The number guard.** A phrased sentence whose digits differ from the catalog's is dropped for the
+catalog's, and so is one longer than 300 characters. A model may change the words and never a
+count or an id, which is what keeps every id a follow-up names inside its turn's ledger.
+
+**Follow-ups have their own endpoint**, `GET …/turns/{turnId}/followups`, rather than riding the
+turn's stream. They are derived from the turn's stored `chat_tool_call.returned_ids`, and those
+rows are written by `finish`, in the transaction that ends the turn: during the stream there is no
+ledger to read. A separate request also keeps the stream's event contract as it was, gives a
+reloaded turn its follow-ups without a replay, and lets a phrasing call never delay `done`. A
+stopped, incomplete or streaming turn gets none; its tool calls are not a finished answer's.
+
+## The comparison window: differences are the server's
+
+`statistics` takes an optional second window, `compareFrom` and `compareTo`, and returns the same
+numbers for it under `comparison` plus `differences`: `totals` minus the comparison's totals, field
+by field, subtracted in `WindowTotals`. The system prompt tells the model to quote them and never
+work out a difference, change or percentage itself. Arithmetic is where a local model fails
+quietly — a transposed digit reads as plausibly as the right one — and a difference the server
+computed is one the grounding can hold the answer to, like every other number from the tool.
+
+The result also carries the analytics screen's market section and its stage mix, and the scales the
+scores were produced under, narrowed to the window like the rest. What one call returned, cut to a
+few headline numbers and the intake per day, is stored on the call as `chat_tool_call.data` and
+becomes a `STATISTICS` source: the answer draws its table and sparkline from those numbers, never
+from digits in the model's text, and the source links to `/analytics` with the window it answered.
+A table that disagreed with the prose would then be the prose's error, visible as such.
+
+## History: renamed, searched, deleted mid-answer
+
+The list groups by last activity (today, yesterday, this week, this month, older), and each row's
+⋯ menu renames or deletes. A rename is stored trimmed in `custom_title`, cut past 120 characters
+rather than refused; an empty one is `NULL`, so the derived title comes back. A delete stops a turn
+still streaming in the conversation first — the same stop as the button, waited for — so its model
+connection is closed and its last write done before the rows go; the dialog says an answer is
+still being written.
+
+**Search matches `search_text`, not `unaccent`.** `GET …/conversations?q=` finds the conversations
+holding every word, ignoring case and accents. `unaccent` would need `CREATE EXTENSION` on every
+deployed database, which is a superuser step outside the migrations this application runs. Instead the
+repository keeps `search_text` — the title and every question, lower-cased and stripped of
+diacritics by a Java NFD normaliser — rewritten whenever the conversation changes, and the query
+goes through the same normaliser before a `LIKE` per word. `V35` fills the column for the
+conversations that predate it with `translate()` over the Latin accents, which is what that
+normaliser leaves of them.
+
 ## The schema
 
 `V32__chat.sql` adds `chat_conversation`, `chat_turn` and `chat_tool_call`; `V33` adds
-`chat_call_budget`; `V34` adds `chat_turn.citations`. Expand only: no existing table is touched and
-no applied migration edited. A conversation's pin is `ON DELETE SET NULL`, so an offer that goes
+`chat_call_budget`; `V34` adds `chat_turn.citations`; `V35` adds `chat_conversation.custom_title`
+and `search_text`, `chat_context` (the existing pin copied in as each conversation's first chip)
+and `chat_tool_call.data`. Expand only: no existing table is touched and no applied migration
+edited. `pinned_offer_id` stays and is still read for one release; dropping it is a later
+release's migration. A conversation's pin is `ON DELETE SET NULL`, so an offer that goes
 never takes a conversation with it; turns and tool calls cascade from their conversation, which is
 what "deletable one by one" deletes. Who writes each column is in
-[DATA-MODEL.md § 5](../DATA-MODEL.md#5-the-chats-four-tables); a turn as a sequence in
+[DATA-MODEL.md § 5](../DATA-MODEL.md#5-the-chats-five-tables); a turn as a sequence in
 [BACKEND-FLOWS.md § 5](../BACKEND-FLOWS.md#5-a-chat-turn).
 
 Rollback is the previous image plus the statements Flyway will not run on its own, and it loses
 every stored conversation and nothing else:
 
 ```sql
-DROP TABLE chat_tool_call, chat_turn, chat_conversation, chat_call_budget;
-DELETE FROM flyway_schema_history WHERE version IN ('32', '33', '34');
+DROP TABLE chat_context, chat_tool_call, chat_turn, chat_conversation, chat_call_budget;
+DELETE FROM flyway_schema_history WHERE version IN ('32', '33', '34', '35');
+```
+
+Rolling back `V35` alone keeps every conversation and turn, and loses every custom title, every
+pin beyond the first offer (which still sits in `pinned_offer_id`) and the stored statistics
+series:
+
+```sql
+DROP TABLE chat_context;
+ALTER TABLE chat_conversation DROP COLUMN custom_title, DROP COLUMN search_text;
+ALTER TABLE chat_tool_call DROP COLUMN data;
+DELETE FROM flyway_schema_history WHERE version = '35';
 ```
 
 How long conversations are kept is not decided: they are deletable one by one, and a retention rule

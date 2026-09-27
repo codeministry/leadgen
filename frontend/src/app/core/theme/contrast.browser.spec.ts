@@ -584,8 +584,8 @@ describe.each(THEMES)('%s: the chat reads (ISC-435)', theme => {
     it('the four AI marks, the unverified glyph and the focus ring are ≥ 3:1 where they are drawn', () => {
         const failures: string[] = [];
         const marks: [string, string][] = [
-            ['--lg-ai', '--color-base-100'], // the caret, and the header's busy dot
-            ['--lg-ai', '--lg-ai-surface'], // the glyph on its plate, the running step's ring on its band
+            ['--lg-ai', '--color-base-100'], // the caret, and the working mark's AI dots on the header
+            ['--lg-ai', '--lg-ai-surface'], // the running step's ring on its band
             ['--lg-chat-unverified-ink', '--color-base-100'],
             ['--color-primary', '--color-base-100'], // the focus outline on a pill, a card, a summary
             ['--color-primary', '--lg-chat-cite-ground'],
@@ -593,6 +593,53 @@ describe.each(THEMES)('%s: the chat reads (ISC-435)', theme => {
         for (const [colour, ground] of marks) {
             const r = ratio(token(colour), token(ground));
             if (r < OBJECT_FLOOR) failures.push(`${colour} on ${ground}: ${r.toFixed(2)}`);
+        }
+        expect(failures).toEqual([]);
+    });
+});
+
+describe.each(THEMES)('%s: the living mark reads on every ground it stands on (ISC-467)', theme => {
+    beforeEach(() => useTheme(theme));
+    afterEach(() => {
+        document.documentElement.removeAttribute('data-theme');
+        document.body.replaceChildren();
+    });
+
+    const opaque = (c: Rgb): string => `rgb(${c.r}, ${c.g}, ${c.b})`;
+
+    /**
+     * The five grounds of `design.md` § Contrast grounds, read off the tokens the host
+     * stylesheets name, because core/ may not import the chat or the header. The header's
+     * soft fill is the one rendered ground: DaisyUI's `btn-soft` is a wash, so it is read from
+     * a real button and composited over the header's own base-100.
+     */
+    function grounds(): [string, string][] {
+        const base = token('--color-base-100');
+        const button = mount('<button type="button" class="btn btn-soft btn-primary btn-sm">Ask</button>').firstElementChild!;
+        const soft = painted(computed(button, 'backgroundColor'), base);
+        return [
+            ['panel (--color-base-100)', base], // chat-panel.css: the thread, where the answer glyph stands
+            ['plate (--lg-selected-surface)', opaque(painted(token('--lg-selected-surface'), base))], // chat-panel.css `.lg-chat-plate`
+            ['header (--color-base-100)', base], // app-header.css `.header`, which follows the page theme
+            ['chat button soft fill', opaque(soft)], // app-header.html `.lg-chat-open`, from 48rem
+            ['minibar frost over base-100', opaque(painted(token('--lg-chat-frost'), base))], // chat-minibar.css over a panel
+            ['minibar frost over base-200', opaque(painted(token('--lg-chat-frost'), token('--color-base-200')))], // over the shell's page
+        ];
+    }
+
+    it('the ring, the signal dots, the AI dots and the hollow core are ≥ 3:1 on all five', () => {
+        const marks: [string, string][] = [
+            ['ring', '--color-primary'],
+            ['signal dots', '--lg-signal'],
+            ['AI dots', '--lg-ai'],
+            ['hollow core', '--color-primary'], // `halted`: stroked in the ring's own primary
+        ];
+        const failures: string[] = [];
+        for (const [groundLabel, ground] of grounds()) {
+            for (const [mark, colour] of marks) {
+                const r = ratio(token(colour), ground);
+                if (r < OBJECT_FLOOR) failures.push(`${mark} (${colour}) on ${groundLabel}: ${r.toFixed(2)}`);
+            }
         }
         expect(failures).toEqual([]);
     });

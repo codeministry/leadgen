@@ -100,6 +100,21 @@ chat:
   # A turn may call tools at most this often before it has to answer; the turn then ends
   # with its reason rather than with an answer the model never finished.
   max_tool_rounds: ${CHAT_MAX_TOOL_ROUNDS:6}
+  # When the empty chat offers a question: each trigger's line, read by rule from the screens'
+  # own read services, before any model phrases it. Starting defaults, not yet measured on a
+  # corpus. A trigger whose number stays below its line offers nothing.
+  suggestions:
+    # The last run wrote at least this many offers.
+    new_offers_min: ${CHAT_SUGGEST_NEW_OFFERS_MIN:1}
+    # An open offer's deadline falls within this many days from today.
+    deadline_days: ${CHAT_SUGGEST_DEADLINE_DAYS:7}
+    # A sent application has had no reply for at least this many days.
+    no_reply_days: ${CHAT_SUGGEST_NO_REPLY_DAYS:14}
+    # A tag rose by at least this percentage over the window before, across at least
+    # tag_rise_min_offers offers in the current window of tag_window_days days.
+    tag_window_days: ${CHAT_SUGGEST_TAG_WINDOW_DAYS:7}
+    tag_rise_percent: ${CHAT_SUGGEST_TAG_RISE_PERCENT:30}
+    tag_rise_min_offers: ${CHAT_SUGGEST_TAG_RISE_MIN_OFFERS:5}
 
 # File names, resolved against the configuration directory — never a path with the
 # directory baked in: inside the container that directory is /config, not

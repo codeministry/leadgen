@@ -81,36 +81,18 @@
   white-space: nowrap;
 }
 
-/* A turn still being written with the drawer shut: the AI colour's recorded use for the busy dot,
-   never the run colour, which means an ingest pass. */
-.lg-chat-busy {
-  position: absolute;
-  top: -0.125rem;
-  right: -0.125rem;
-  width: 0.5rem;
-  height: 0.5rem;
-  border-radius: 999px;
-  background-color: var(--lg-ai);
-  animation: lg-chat-busy var(--lg-pulse-duration) ease-in-out infinite alternate;
-}
-
-@keyframes lg-chat-busy {
-  to {
-    opacity: 0.35;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .lg-chat-busy {
-    animation: none;
-  }
+/* The living mark in the icon slot (spec 021): at rest it is the brand mark, dots on the signal.
+   While a turn is written behind a shut drawer its flow dots take the AI colour, the recorded use
+   that replaced the busy dot; the ring stays primary, and the rest frame keeps the signal. */
+.lg-chat-open lg-living-mark[data-frame='working'] {
+  color: var(--lg-ai);
 }
 
 /* Below 48rem the same button is an icon-only ghost square, its name unchanged, and its hit
    area grows to 44px without growing the header. */
 @media (width < 48rem) {
   .lg-chat-open {
-    width: 2rem;
+    width: 2.5rem;
     padding: 0;
     border-color: transparent;
     background-color: transparent;

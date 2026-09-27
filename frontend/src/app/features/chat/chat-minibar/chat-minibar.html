@@ -2,7 +2,7 @@
   <span class="sr-only">{{ 'chat.minibar.expand' | transloco }}:</span>
   <span class="type-small lg-chat-minibar-title">{{ name() || ('chat.new' | transloco) }}</span>
   @if (streaming()) {
-    <span class="lg-chat-minibar-busy" aria-hidden="true"></span>
+    <lg-living-mark frame="working" [size]="16"/>
     <span class="sr-only">{{ 'chat.busyLabel' | transloco }}</span>
   }
   <lg-icon class="text-muted lg-chat-minibar-expand" name="chevron-up" [size]="18"/>

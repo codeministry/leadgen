@@ -41,6 +41,7 @@ import {
   ListFilter,
   MapPin,
   MessageCircleQuestionMark,
+  MessageSquarePlus,
   Monitor,
   Package,
   Puzzle,
@@ -92,6 +93,8 @@ import {
   Briefcase,
   RotateCcw,
   ShieldQuestionMark,
+  MailQuestionMark,
+  CornerDownRight,
 } from 'lucide';
 
 /** Lucide 1.x hands out a flat `[tag, attributes][]`; there are no nested children. */
@@ -152,6 +155,7 @@ export const LG_ICONS = {
     'map-pin': MapPin,
     puzzle: Puzzle,
     'message-circle-question': MessageCircleQuestionMark,
+    'message-square-plus': MessageSquarePlus,
     monitor: Monitor,
     package: Package,
     moon: Moon,
@@ -204,6 +208,9 @@ export const LG_ICONS = {
     briefcase: Briefcase,
     'rotate-ccw': RotateCcw,
     'shield-question': ShieldQuestionMark,
+    // Spec 020: a suggestion raised by an unanswered application, and a follow-up under a finished answer.
+    'mail-question': MailQuestionMark,
+    'corner-down-right': CornerDownRight,
 } as const satisfies Record<string, IconNode>;
 
 export type LgIconName = keyof typeof LG_ICONS;

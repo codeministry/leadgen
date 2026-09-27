@@ -9,12 +9,16 @@
 package de.codeministry.leadgen.chat.tools;
 
 import de.codeministry.leadgen.analytics.AnalyticsQueryService;
+import de.codeministry.leadgen.analytics.AnalyticsSummary;
 import de.codeministry.leadgen.analytics.AnalyticsSummaryQueryService;
+import de.codeministry.leadgen.analytics.AnalyticsView;
 import de.codeministry.leadgen.analytics.LastRunQueryService;
+import de.codeministry.leadgen.analytics.MarketView;
 import java.time.LocalDate;
 import java.util.function.Function;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
+import org.springframework.ai.chat.model.ToolContext;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.stereotype.Component;
@@ -29,7 +33,7 @@ import org.springframework.stereotype.Component;
  * {@code count(*)} here would agree until the day one of the two was changed, and the chat exists
  * to not be that second opinion. {@code ChatToolsTest} holds it against the endpoints over HTTP.
  *
- * <p>The window only drops days from the two daily series, which is what the screen does when
+ * <p>The window only drops days from the three daily series (intake, runs, stage mix), which is what the screen does when
  * it zooms; the reasoning is on {@link StatisticsResult}.
  *
  * <p>It never returns an offer's text, a source's configuration, a model name, or anything read
@@ -42,20 +46,44 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class StatisticsTool {
 
+    /** The name the model calls it by; the turn recognises its result by it. */
+    public static final String NAME = "statistics";
+
     private final AnalyticsQueryService analytics;
     private final AnalyticsSummaryQueryService summary;
     private final LastRunQueryService lastRun;
 
     @Tool(
-            name = "statistics",
+            name = NAME,
             description = "Returns the numbers the dashboard and analytics screens show: the filter funnel,"
                     + " offers that came in per day, pipeline runs per day, the score histogram and bands,"
-                    + " applications per status with reply times, and the last run. 'from' and 'to' narrow"
+                    + " applications per status with reply times, the last run, the market (portals, tags,"
+                    + " locations, reach), the knockouts per day and stage, and the scoring scales in use. 'from' and 'to' narrow"
                     + " only the per-day series; the result says which days were covered. Quote these"
-                    + " numbers; never add them up into totals the result does not state.")
+                    + " numbers; never add them up into totals the result does not state. 'totals' adds up"
+                    + " the window's days. With 'compareFrom' and 'compareTo' the result also carries"
+                    + " 'comparison', the same numbers for that second window, and 'differences', this"
+                    + " window's totals minus the comparison's; quote those, never subtract yourself."
+                    + " A window pinned to the conversation replaces 'from' and 'to'.")
     public StatisticsResult statistics(
             @ToolParam(required = false, description = "First day to include, as YYYY-MM-DD.") String from,
-            @ToolParam(required = false, description = "Last day to include, as YYYY-MM-DD.") String to) {
+            @ToolParam(required = false, description = "Last day to include, as YYYY-MM-DD.") String to,
+            @ToolParam(required = false, description = "First day of a window to compare with, as YYYY-MM-DD.")
+                    String compareFrom,
+            @ToolParam(required = false, description = "Last day of a window to compare with, as YYYY-MM-DD.")
+                    String compareTo,
+            ToolContext toolContext) {
+        // ISC-452: a pinned analytics window is the screen's window and wins over the one asked for;
+        // the comparison stays the model's, because comparing is the question, not the scope.
+        PinnedContext pins = PinnedContext.of(toolContext);
+        if (pins.hasWindow()) {
+            return statistics(pins.windowFrom().toString(), pins.windowTo().toString(), compareFrom, compareTo);
+        }
+        return statistics(from, to, compareFrom, compareTo);
+    }
+
+    /** The numbers for a window the caller names, without pins. */
+    public StatisticsResult statistics(String from, String to, String compareFrom, String compareTo) {
         var view = analytics.analytics();
         var dashboard = summary.summary();
         var runDays = view.runs().days();
@@ -65,21 +93,57 @@ public class StatisticsTool {
                 view.from(), runDays.isEmpty() ? null : runDays.getFirst().day());
         LocalDate spanTo =
                 latest(view.to(), runDays.isEmpty() ? null : runDays.getLast().day());
-        LocalDate first = latest(spanFrom, day(from, "from"));
-        LocalDate last = earliest(spanTo, day(to, "to"));
+        var last = lastRun.lastRun().map(LastRunNumbers::of).orElse(null);
+        StatisticsResult window = window(
+                view, dashboard, last, latest(spanFrom, day(from, "from")), earliest(spanTo, day(to, "to")), null);
+        if (compareFrom == null && compareTo == null) {
+            return window;
+        }
+        // The comparison window is clipped to the same span and cut from the same records, so each
+        // of its numbers is the screen's for that window too; one read serves both.
+        StatisticsResult comparison = window(
+                view,
+                dashboard,
+                last,
+                latest(spanFrom, day(compareFrom, "compareFrom")),
+                earliest(spanTo, day(compareTo, "compareTo")),
+                null);
+        return window(view, dashboard, last, window.from(), window.to(), comparison);
+    }
+
+    /** One window's result, and with a comparison the differences between the two. */
+    private StatisticsResult window(
+            AnalyticsView view,
+            AnalyticsSummary dashboard,
+            LastRunNumbers lastRunNumbers,
+            LocalDate first,
+            LocalDate last,
+            StatisticsResult comparison) {
+        var market = view.market();
+        var intake = within(view.intake().byIngestedAt().stream(), d -> d.day(), first, last);
+        var runs = within(view.runs().days().stream(), d -> d.day(), first, last);
+        var stageMix = within(market.stageMix().stream(), d -> d.day(), first, last);
+        WindowTotals totals = WindowTotals.of(intake, runs, stageMix);
         return new StatisticsResult(
                 view.zone(),
                 first,
                 last,
                 view.funnel(),
-                within(view.intake().byIngestedAt().stream(), d -> d.day(), first, last),
-                within(runDays.stream(), d -> d.day(), first, last),
+                intake,
+                runs,
                 view.scores(),
                 view.applications().byStatus(),
                 view.applications().response(),
                 dashboard.scoreBands(),
                 dashboard.lastRun(),
-                lastRun.lastRun().map(LastRunNumbers::of).orElse(null));
+                lastRunNumbers,
+                // The screen's own market record, rebuilt only to drop the stage-mix days outside the
+                // window; portals, tags, locations and reach are states and pass through whole.
+                new MarketView(market.portals(), market.tags(), market.locations(), market.reach(), stageMix),
+                view.scales(),
+                totals,
+                comparison,
+                comparison == null ? null : totals.minus(comparison.totals()));
     }
 
     private static <T> java.util.List<T> within(
