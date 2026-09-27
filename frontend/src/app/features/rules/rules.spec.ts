@@ -437,11 +437,25 @@ describe('Rules', () => {
         expect(sentences[0].textContent?.trim()).toBe('2 sources, merged at Deduplicate');
     });
 
-    it('carries no anchor rail and offers no primary action', () => {
+    // Run ingest moved here from the app header (operator, 2026-09-27), in the soft tier: the screen
+    // still offers no filled primary, and the only filled one it holds is the confirmation's Start,
+    // inside its closed dialog.
+    it('carries no anchor rail and offers no filled primary action', () => {
         const page = element(render().fixture);
+        const filled = [...page.querySelectorAll('.btn-primary:not(.btn-soft)')].filter((button) => button.closest('dialog') === null);
 
         expect(page.querySelector('lg-anchor-rail')).toBeNull();
-        expect(page.querySelector('.btn-primary')).toBeNull();
+        expect(filled).toEqual([]);
+        expect(page.querySelectorAll('.btn-soft.btn-primary')).toHaveLength(1);
+    });
+
+    it('puts Run ingest directly above the status chips, inside the title row', () => {
+        const page = element(render().fixture);
+        const control = page.querySelector('lg-page-header lg-run-control');
+        const facts = page.querySelector('lg-page-header .rules-facts');
+
+        expect(control?.querySelector('button.ingest-button')).not.toBeNull();
+        expect(control?.nextElementSibling).toBe(facts);
     });
 
     // ISC-414 retired (operator, 2026-09-26): the strip above the graph is gone, and the status

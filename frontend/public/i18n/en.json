@@ -30,21 +30,8 @@
   },
   "shell": {
     "connecting": "connecting…",
-    "ingest": "Run ingest",
-    "ingestRunning": "Reading sources…",
-    "runLive": "Run in progress",
-    "scoringModel": "Scoring model",
     "settings": "Settings and version",
-    "runStage": "{stage} · step {position} of {total}",
-    "runStageUnknown": "starting…",
-    "runSince": "A run has been going since {time}",
-    "runSinceStage": "A run has been going since {time} — {stage}",
-    "help": "Help",
-    "confirmRun": {
-      "title": "Start a run now?",
-      "body": "A run reads the mailbox, calls the configured models and spends part of the call budget.",
-      "start": "Start run"
-    }
+    "help": "Help"
   },
   "help": {
     "title": "Help",
@@ -741,6 +728,18 @@
       "budget": "Model calls today: {used} of {limit}",
       "budgetUnlimited": "Model calls today: {used}, no daily limit",
       "budgetSpent": "Today's allowance is spent"
+    },
+    "runControl": {
+      "model": "Scoring model",
+      "start": "Run ingest",
+      "running": "Reading sources…",
+      "since": "A run has been going since {time}",
+      "sinceStage": "A run has been going since {time} — {stage}",
+      "confirm": {
+        "title": "Start a run now?",
+        "body": "A run reads the mailbox, calls the configured models and spends part of the call budget.",
+        "start": "Start run"
+      }
     }
   },
   "analytics": {

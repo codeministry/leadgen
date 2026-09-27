@@ -1,8 +1,8 @@
-The header carries what is the same on every screen: the navigation, the run, the settings and this help.
+The header carries what is the same on every screen: the navigation, the settings and this help.
 
 <!-- screenshot: run-confirm -->
 
-**Run ingest** starts a run by hand, after asking once, because a run reads the mailbox, calls the configured models and spends part of the call budget. While a run is going the button waits, and the stage it has reached shows beside it. Where more than one scoring model is configured, a select before the button picks the one the next run judges with; your choice is remembered in this browser. It picks only the judge: the models that tell an advert from its furniture and read its dates stay as configured.
+**Run ingest** and the model choice are not in the header: they live on the **Workflow** screen, at the top right, directly above the Status chip. **Run ingest** starts a run by hand, after asking once, because a run reads the mailbox, calls the configured models and spends part of the call budget. While a run is going the button waits and its tooltip names the stage it has reached; the Status chip below it shows the step and opens the run. Where more than one scoring model is configured, a select before the button picks the one the next run judges with; your choice is remembered in this browser. It picks only the judge: the models that tell an advert from its furniture and read its dates stay as configured.
 
 <!-- screenshot: settings-panel -->
 

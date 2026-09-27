@@ -4,19 +4,17 @@ import {TranslocoPipe} from '@jsverse/transloco';
 /**
  * The question before a run (spec 010, ISC-318).
  *
- * <p>A run reads the mailbox, calls the models and spends the call budget, and the button that
- * starts one sits in the header on every screen, one misplaced click from the settings gear.
- * So the button only asks; the run is started by `confirmed`, and cancel, Escape and the
- * backdrop start nothing.
+ * <p>A run reads the mailbox, calls the models and spends the call budget, so the button that
+ * starts one — on the workflow screen, beside the stage links, since 2026-09-27 — only asks; the
+ * run is started by `confirmed`, and cancel, Escape and the backdrop start nothing.
  *
- * <p>A component of its own rather than a `<dialog>` inside the header's template: the
- * dialog's Start is a primary of its own, and the header already has its one — the run
- * button. Split this way, each template keeps the single filled button the tier guard holds
- * it to, with no allowance written for it.
+ * <p>A component of its own rather than a `<dialog>` inside the run control's template: the
+ * dialog's Start is the one filled primary of its own area, and keeping it in its own template
+ * lets the tier guard hold every template to at most one, with no allowance written for it.
  *
  * <p>Optional-called like every dialog in the app: jsdom implements `HTMLDialogElement`
  * without `showModal` and `close`, and an unguarded call takes down every spec that renders
- * the header.
+ * the workflow screen.
  */
 @Component({
     selector: 'lg-run-confirm',

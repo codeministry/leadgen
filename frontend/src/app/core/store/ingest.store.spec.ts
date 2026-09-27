@@ -7,6 +7,7 @@ import {LastRunView} from '@core/model/last-run';
 import {refreshEvents} from '@core/refresh/refresh.events';
 import {ingestEvents} from './ingest.events';
 import {IngestStore} from './ingest.store';
+import {ScoringModelStore} from './scoring-model.store';
 
 /** A run this browser started, carrying the one thing a recorded run cannot: the document. */
 function report(): IngestReport {
@@ -95,9 +96,11 @@ describe('IngestStore', () => {
         http = TestBed.inject(HttpTestingController);
         dispatch = TestBed.runInInjectionContext(() => injectDispatch(ingestEvents));
       refresh = TestBed.runInInjectionContext(() => injectDispatch(refreshEvents));
-        // Not this store's request: its event handlers inject `ScoringModelStore`, which loads
-        // its own list the moment it is created. Answered here so `verify` speaks only about
-        // the requests this spec is actually about.
+        // Not this store's request: the run control creates `ScoringModelStore`, which loads its
+        // own list the moment it is created, and a run reads its choice. This store resolves it
+        // only at the click (fix 2F-5), so it is created here as the run control would. Answered
+        // here so `verify` speaks only about the requests this spec is actually about.
+        TestBed.inject(ScoringModelStore);
         http
             .expectOne('/api/v1/scoring-models')
             .flush({available: ['claude-haiku-4-5'], preferred: 'claude-haiku-4-5'});

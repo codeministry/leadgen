@@ -1,0 +1,27 @@
+/* The select and the button on one line, right-aligned above the status chips. They wrap rather
+   than push the page sideways: the select is capped and may shrink, and at a phone's width it
+   takes a line of its own above the button. */
+:host {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    min-width: 0;
+    max-width: 100%;
+}
+
+/* Capped rather than sized to its content: a model name is arbitrary text from `.env`, and one
+   long enough would push the button off a narrow screen. `min-width: 0` is what actually lets it
+   shrink — a flex item does not go below its content width without it. */
+.run-model {
+    flex: 0 1 auto;
+    width: auto;
+    min-width: 0;
+    max-width: 16rem;
+}
+
+.ingest-button {
+    flex: none;
+    white-space: nowrap;
+}

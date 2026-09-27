@@ -30,21 +30,8 @@
   },
   "shell": {
     "connecting": "verbinde…",
-    "ingest": "Quellen einlesen",
-    "ingestRunning": "Lese Quellen…",
-    "runLive": "Lauf läuft",
-    "scoringModel": "Bewertungsmodell",
     "settings": "Einstellungen und Version",
-    "runStage": "{stage} · Stufe {position} von {total}",
-    "runStageUnknown": "startet…",
-    "runSince": "Ein Lauf läuft seit {time}",
-    "runSinceStage": "Ein Lauf läuft seit {time} — {stage}",
-    "help": "Hilfe",
-    "confirmRun": {
-      "title": "Jetzt einen Lauf starten?",
-      "body": "Ein Lauf liest das Postfach, ruft die konfigurierten Modelle auf und verbraucht einen Teil des Aufrufbudgets.",
-      "start": "Lauf starten"
-    }
+    "help": "Hilfe"
   },
   "help": {
     "title": "Hilfe",
@@ -741,6 +728,18 @@
       "budget": "Modellaufrufe heute: {used} von {limit}",
       "budgetUnlimited": "Modellaufrufe heute: {used}, ohne Tageslimit",
       "budgetSpent": "Das Tageskontingent ist aufgebraucht"
+    },
+    "runControl": {
+      "model": "Bewertungsmodell",
+      "start": "Quellen einlesen",
+      "running": "Lese Quellen…",
+      "since": "Ein Lauf läuft seit {time}",
+      "sinceStage": "Ein Lauf läuft seit {time} — {stage}",
+      "confirm": {
+        "title": "Jetzt einen Lauf starten?",
+        "body": "Ein Lauf liest das Postfach, ruft die konfigurierten Modelle auf und verbraucht einen Teil des Aufrufbudgets.",
+        "start": "Lauf starten"
+      }
     }
   },
   "analytics": {

@@ -1,0 +1,38 @@
+<!--
+  One model is not a choice and no model at all means nothing is configured to judge, so the
+  select appears only when there is something to pick. The list comes from
+  `/api/v1/scoring-models`, never from a constant here: a second copy disagrees with the
+  configuration the first time a model is added, and the server refuses what it does not know.
+
+  The selection is bound per option rather than with `[value]` on the select, the same trap
+  `shared/status-picker` documents: `[value]` depends on the options existing when it is written,
+  and losing that race leaves the first one showing while the run uses another.
+-->
+@if (models.selectable()) {
+    <label class="sr-only" for="scoring-model">{{ 'rules.runControl.model' | transloco }}</label>
+    <select
+            id="scoring-model"
+            class="select select-sm type-mono-data run-model"
+            [disabled]="ingest.busy()"
+            (change)="chooseModel($event)"
+    >
+        @for (model of models.available(); track model) {
+            <option [value]="model" [selected]="model === models.effective()">{{ model }}</option>
+        }
+    </select>
+}
+
+<!-- The soft tier, not the filled one: the workflow screen offers no filled primary (ISC-419), and
+     the one filled button this control owns is the dialog's Start, which is a primary of its own. -->
+<button
+        #runButton
+        type="button"
+        class="btn btn-soft btn-primary btn-sm ingest-button"
+        [disabled]="ingest.busy()"
+        [attr.title]="runTitle()"
+        (click)="askToRun(runButton)"
+>
+    <lg-icon name="refresh" [size]="16"/>
+    <span>{{ (ingest.busy() ? 'rules.runControl.running' : 'rules.runControl.start') | transloco }}</span>
+</button>
+<lg-run-confirm (confirmed)="runIngest()"/>

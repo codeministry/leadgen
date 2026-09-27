@@ -1,5 +1,7 @@
 Workflow shows the hard filter, the scoring weights and the thresholds behind every number on the shortlist. The run is drawn as a workflow graph in five phase columns, **Read**, **Sort**, **Understand**, **Judge** and **Hand over**: every source reads its adverts on its own, all of them merge into **Deduplicate**, and straight edges lead from there, stage by stage, to the hand-over.
 
+**Starting a run.** At the top right, directly above the Status chip, sits **Run ingest**, and before it, where more than one scoring model is configured, the select that picks the judge for the next run. The button asks once before anything starts, because a run reads the mailbox, calls the configured models and spends part of the call budget; cancel or Escape starts nothing. While a pass is going the button waits and its tooltip names the stage; the Status chip below it shows the step and opens the run in the sheet.
+
 <!-- screenshot: rules-stage -->
 
 Each stage is a card. It names its phase and the stage, and its markers say what the stage costs: whether it runs locally for free, asks a language model or computes embeddings, leaves the machine or writes to disk. Every **AI step** where a model takes part carries its own marker, a stage that failed in the last run carries a warning, and a stage that works on several adverts at once shows how many as **×N**. The chip at the bottom of a card is what the last run left there, as a number with its verb: read, held back, enriched, scored, packaged. A stage the last run never reached, or one that keeps no count, has no chip rather than a zero.
@@ -16,4 +18,4 @@ Click a card or one of its sub-nodes and the stage's settings open in a sheet at
 
 The legend at the foot of the graph's own box explains every marker, and the link to the keys no stage reads sits beside it. Hover over a card, or move the focus to it, and the legend highlights the markers that card carries and fades the rest. On a narrow window, below about 704 pixels, the graph gives way to a vertical pipe: the same stages as a list of links in run order, with the same counts and the same legend beneath.
 
-The screen is read-only: it shows the configuration as it stands, and changes are made in the configuration itself. **Tip:** keys listed under **Read by nothing** are present in the configuration but used by no stage, which usually means a typo.
+Apart from starting a run, the screen is read-only: it shows the configuration as it stands, and changes are made in the configuration itself. **Tip:** keys listed under **Read by nothing** are present in the configuration but used by no stage, which usually means a typo.

@@ -22,21 +22,28 @@ describe('App', () => {
         fixture.detectChanges();
 
       httpMock.expectOne('/api/v1/status').flush({application: 'lead-generation', version: '0.5.0'});
-        // The header asks for the models it may offer at the same time. Answered with one,
-        // which is the shipped state: a single model is not a choice, so the select stays
-        // hidden and only the run button is there.
-        httpMock
-            .expectOne('/api/v1/scoring-models')
-            .flush({available: ['claude-haiku-4-5'], preferred: 'claude-haiku-4-5'});
-        // The ingest store asks what ran last as soon as it exists, which is here: the run
-        // button lives in the header, so the store is created with the shell rather than with
-        // the dashboard. 204 is the shipped answer on a database nobody has run against.
-        httpMock.expectOne('/api/v1/ingest/last').flush(null, {status: 204, statusText: 'No Content'});
-      httpMock.expectOne('/api/v1/ingest/current').flush(null, {status: 204, statusText: 'No Content'});
+        // Run ingest and the model choice left the header for the workflow screen (operator,
+        // 2026-09-27), so the shell does not create the scoring-model store: the model list is
+        // not asked for here. The ingest store is created at the root (fix 2F-5), so its
+        // heartbeat and its last run are asked once on every screen. `verify()` holds that too.
+        httpMock.expectNone('/api/v1/scoring-models');
+        httpMock.expectOne('/api/v1/ingest/last').flush(null);
+        httpMock.expectOne('/api/v1/ingest/current').flush(null);
         await fixture.whenStable();
         fixture.detectChanges();
 
       expect(fixture.nativeElement.textContent).toContain('lead-generation 0.5.0');
         httpMock.verify();
+    });
+
+    // Fix 2F-5: the run control moved to the workflow screen, and with it the only injector of
+    // `IngestStore` outside the dashboard — so on every other screen the heartbeat, the
+    // run-ended refresh and the run toast never started.
+    it('starts the run heartbeat on a screen without a run control', async () => {
+        const fixture = TestBed.createComponent(App);
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(httpMock.match('/api/v1/ingest/current')).toHaveLength(1);
     });
 });

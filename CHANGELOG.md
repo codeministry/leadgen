@@ -132,6 +132,10 @@ may change in any release. See the status note in the README.
 
 ### Changed
 
+- **Run ingest and the model select live on the workflow screen.** Both left the header at every
+  width and sit above the status chips, with the same confirmation before a run starts; the header
+  keeps navigation, settings and help.
+
 - The shortlist opens newest first rather than by score, so what came in since the last look is
   on top; a link without `sort` means newest first. The API's default order is unchanged, and
   the browser now always sends the order it wants.

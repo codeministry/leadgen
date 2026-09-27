@@ -1,4 +1,4 @@
-import {computed, inject} from '@angular/core';
+import {computed, inject, Injector} from '@angular/core';
 import {signalStore, withComputed, withHooks, withState} from '@ngrx/signals';
 import {Dispatcher, Events, on, withEventHandlers, withReducer} from '@ngrx/signals/events';
 import {catchError, exhaustMap, map, of, switchMap, timer} from 'rxjs';
@@ -98,12 +98,15 @@ export const IngestStore = signalStore(
         // Read here rather than carried on the event: the choice belongs to the moment the
         // request leaves, and a header that had to hand it over would be the second place
         // that knows which models exist.
-        const models = inject(ScoringModelStore);
+        // Resolved at the click rather than here: this store is created at the root on every
+        // screen (fix 2F-5), and an eager `inject` would load the model list everywhere although
+        // only the run control, which creates the model store itself, ever starts a run.
+        const injector = inject(Injector);
 
         return [
             events.on(ingestEvents.requested).pipe(
                 exhaustMap(() =>
-                    api.run(models.effective()).pipe(
+                    api.run(injector.get(ScoringModelStore).effective()).pipe(
                         map((report) => ingestEvents.finished(report)),
                       // The server's own sentence when it wrote one, the catalog key when it
                       // did not. `exhaustMap` above stops a second click from *this* browser,

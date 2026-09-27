@@ -6,6 +6,11 @@
          pair of equal chips on a shared centre line. The unread one warns when it holds keys,
          and says how many, because a leftover key is exactly what nobody goes looking for. -->
     @let unreadCount = store.workflow()?.unread?.length ?? 0;
+    <!-- Run ingest and the model choice, directly above the status chip that follows the run they
+         start (operator, 2026-09-27). They left the app header, where they sat on every screen,
+         because starting a run is a pipeline action. The column keeps both rows right-aligned. -->
+    <div class="rules-head">
+    <lg-run-control/>
     <div class="rules-facts">
         <!-- First in the row (operator, 2026-09-26): the same chip shape as the two facts beside
              it, because it opens the same sheet the unread one does and one mechanism should not
@@ -56,6 +61,7 @@
                 {{ 'rules.ruleset' | transloco: {version: rules.version} }}
             </span>
         }
+    </div>
     </div>
 </lg-page-header>
 
