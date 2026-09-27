@@ -10,10 +10,13 @@ package de.codeministry.leadgen.fields;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.*;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.BDDMockito.given;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
+import de.codeministry.leadgen.config.ConfigRegistry;
+import de.codeministry.leadgen.config.ConfigSnapshot;
 import de.codeministry.leadgen.config.model.PipelineConfig;
 import de.codeministry.leadgen.llm.ChatModels;
 import de.codeministry.leadgen.offer.ShortlistSort;
@@ -23,9 +26,13 @@ import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.mockito.Mockito;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 
 /**
  * What the field extractor sends and what it does with what comes back, at the byte level.
@@ -167,7 +174,9 @@ class FieldExtractorWireFormatTest {
                 Arguments.of("-3", "\"01.10.2026\""),
                 // The sort keys use this exact day as their "not stated" sentinel, so a stored
                 // one would sort among the offers that said nothing.
-                Arguments.of("1200", "\"" + ShortlistSort.UNSTATED_DAY + "\""));
+                Arguments.of("1200", "\"" + ShortlistSort.UNSTATED_DAY + "\""),
+                // And this one for the two descending day sorts.
+                Arguments.of("1201", "\"" + ShortlistSort.UNSTATED_EARLY_DAY + "\""));
     }
 
     @Test
@@ -207,6 +216,35 @@ class FieldExtractorWireFormatTest {
         assertThat(extractor().extract(OFFER)).isEmpty();
     }
 
+    @Test
+    @ExtendWith(OutputCaptureExtension.class)
+    void fallsBackToTheScoringModelWhenItsOwnKeyIsEmptyAndSaysSo(CapturedOutput output) {
+        // `llm.models.content` set, `fields` empty, `scoring` set: the extractor built for the
+        // run sends the scoring model — not the content one beside it — and the log names
+        // `llm.models.scoring` as the key that decided.
+        answers("{}");
+        var llm = new PipelineConfig.Llm(
+                ChatModels.OPENAI_COMPATIBLE,
+                MODEL.baseUrl(),
+                "test-key",
+                null,
+                false,
+                new PipelineConfig.Llm.Models(null, "a-judge", null, null, null, "a-small-model", null),
+                null);
+        var registry = Mockito.mock(ConfigRegistry.class);
+        var snapshot = Mockito.mock(ConfigSnapshot.class);
+        var pipeline = Mockito.mock(PipelineConfig.class);
+        given(registry.snapshot()).willReturn(snapshot);
+        given(snapshot.application()).willReturn(pipeline);
+        given(pipeline.llm()).willReturn(llm);
+
+        new FieldExtractors(registry, new ChatModels()).current().orElseThrow().extract(OFFER);
+
+        MODEL.verify(postRequestedFor(urlPathEqualTo("/chat/completions"))
+                .withRequestBody(matchingJsonPath("$.model", equalTo("a-judge"))));
+        assertThat(output).contains("Start, duration and apply-by are read by 'a-judge', from llm.models.scoring");
+    }
+
     private static FieldExtractor extractor() {
         var llm = new PipelineConfig.Llm(
                 ChatModels.OPENAI_COMPATIBLE,
@@ -214,7 +252,7 @@ class FieldExtractorWireFormatTest {
                 "test-key",
                 null,
                 false,
-                new PipelineConfig.Llm.Models(null, "a-model", null, null, null),
+                new PipelineConfig.Llm.Models(null, "a-model", null, null, null, null, null),
                 null);
         Optional<org.springframework.ai.chat.model.ChatModel> chatModel = new ChatModels().of(llm, "a-model");
         return new FieldExtractor(chatModel.orElseThrow(), "a-model", new ObjectMapper());

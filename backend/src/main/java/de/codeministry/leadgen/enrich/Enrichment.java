@@ -34,6 +34,11 @@ public record Enrichment(
         return new Enrichment(null, null, null, null, null, null, null, note);
     }
 
+    /** The same fields, marked incomplete for the given reason. */
+    public Enrichment withNote(String note) {
+        return new Enrichment(rateEur, duration, workload, remotePercent, startsOn, contact, fullText, note);
+    }
+
     public boolean complete() {
         return note == null;
     }

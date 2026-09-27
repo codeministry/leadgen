@@ -14,7 +14,7 @@ import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
-import javax.sql.DataSource;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -40,6 +40,7 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class ArchiveService {
 
     /**
@@ -167,12 +168,6 @@ public class ArchiveService {
     private final ConfigRegistry config;
     private final JdbcClient jdbc;
     private final ApplicationEventPublisher events;
-
-    ArchiveService(ConfigRegistry config, DataSource dataSource, ApplicationEventPublisher events) {
-        this.config = config;
-        this.jdbc = JdbcClient.create(dataSource);
-        this.events = events;
-    }
 
     /**
      * Takes one offer off the working list, or puts it back.

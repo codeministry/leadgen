@@ -13,7 +13,7 @@ import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
-import javax.sql.DataSource;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -31,6 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class ApplicationService {
 
     private static final String SELECT = """
@@ -105,11 +106,6 @@ public class ApplicationService {
 
     private final JdbcClient jdbc;
     private final ApplicationEventPublisher events;
-
-    ApplicationService(DataSource dataSource, ApplicationEventPublisher events) {
-        this.jdbc = JdbcClient.create(dataSource);
-        this.events = events;
-    }
 
     public List<ApplicationView> board() {
         return jdbc.sql(BOARD).query(ApplicationService::view).list();

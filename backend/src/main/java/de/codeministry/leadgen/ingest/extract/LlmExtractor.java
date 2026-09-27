@@ -16,6 +16,7 @@ import java.time.Clock;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.*;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatModel;
@@ -45,6 +46,7 @@ import org.springframework.ai.chat.model.ChatResponse;
  * </ul>
  */
 @Slf4j
+@RequiredArgsConstructor
 public class LlmExtractor {
 
     /**
@@ -121,13 +123,6 @@ public class LlmExtractor {
     private final String model;
     private final ObjectMapper json;
     private final Clock clock;
-
-    public LlmExtractor(ChatModel chatModel, String model, ObjectMapper json, Clock clock) {
-        this.chatModel = chatModel;
-        this.model = model;
-        this.json = json;
-        this.clock = clock;
-    }
 
     public String model() {
         return model;

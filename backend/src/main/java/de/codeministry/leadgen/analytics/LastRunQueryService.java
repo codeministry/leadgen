@@ -14,7 +14,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import javax.sql.DataSource;
+import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 
@@ -32,6 +32,7 @@ import org.springframework.stereotype.Service;
  * What a run did is destroyed by the next one.
  */
 @Service
+@RequiredArgsConstructor
 public class LastRunQueryService {
 
     /**
@@ -58,7 +59,7 @@ public class LastRunQueryService {
         FROM pipeline_run
                 WHERE finished_at IS NOT NULL AND status <> 'ABANDONED'
         ORDER BY started_at DESC, id DESC
-        LIMIT 1
+        LIMIT 2
         """;
 
     /**
@@ -128,10 +129,6 @@ public class LastRunQueryService {
 
     private final JdbcClient jdbc;
 
-    LastRunQueryService(DataSource dataSource) {
-        this.jdbc = JdbcClient.create(dataSource);
-    }
-
     /**
      * Empty when nothing has ever run, which is a state and not an error.
      */
@@ -140,7 +137,9 @@ public class LastRunQueryService {
         // inside the row mapper would hold this ResultSet open while borrowing a second
         // connection for each one — it works until the pool is the size it is in a
         // container, and then it deadlocks under exactly the load nobody tests with.
-        Optional<Row> row = jdbc.sql(LAST_RUN)
+        // Two rows: the last run, and the one before it for the deltas beside each figure. One
+        // query rather than two, so both are chosen by exactly the same rule.
+        List<Row> rows = jdbc.sql(LAST_RUN)
                 .query((rs, index) -> new Row(
                         rs.getLong("id"),
                         // getTimestamp().toInstant(), never getObject(.., Instant.class):
@@ -162,9 +161,14 @@ public class LastRunQueryService {
                         rs.getInt("review"),
                         rs.getInt("packaged"),
                         rs.getBoolean("digest_written")))
-                .optional();
+                .list();
+        if (rows.isEmpty()) {
+            return Optional.empty();
+        }
+        Row run = rows.getFirst();
+        LastRunPrevious previous = rows.size() < 2 ? null : previousOf(rows.get(1));
 
-        return row.map(run -> new LastRunView(
+        return Optional.of(new LastRunView(
                 run.finishedAt(),
                 run.status(),
                 run.scoreModel(),
@@ -181,7 +185,27 @@ public class LastRunQueryService {
                 run.packaged(),
                 run.digestWritten(),
                 sourcesSince(run.startedAt()),
-                stagesOf(run.id())));
+                stagesOf(run.id()),
+                run.startedAt().toInstant(),
+                previous));
+    }
+
+    /** The run before, reduced to what a delta needs. */
+    private static LastRunPrevious previousOf(Row run) {
+        return new LastRunPrevious(
+                run.startedAt().toInstant(),
+                run.finishedAt(),
+                run.status(),
+                run.extracted(),
+                run.written(),
+                run.merged(),
+                run.enriched(),
+                run.filterConsidered(),
+                run.filterPassed(),
+                run.scored(),
+                run.shortlisted(),
+                run.review(),
+                run.packaged());
     }
 
     /**

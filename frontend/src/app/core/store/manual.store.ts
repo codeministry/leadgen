@@ -79,7 +79,7 @@ export const ManualStore = signalStore(
                         // The server states the reason — a wrong extension, a file too large — and it
                         // is the only useful thing to show. A generic message would hide it.
                         catchError((error: { error?: unknown }) =>
-                            of(manualEvents.failed(serverMessage(error, 'The document was not accepted.'))),
+                            of(manualEvents.failed(serverMessage(error, 'error.manualUpload'))),
                         ),
                     ),
                 ),
@@ -89,7 +89,7 @@ export const ManualStore = signalStore(
                     api.confirm(payload.name, payload.fields).pipe(
                         map(() => manualEvents.settled({name: payload.name, outcome: 'confirmed'})),
                         catchError((error: { error?: unknown }) =>
-                            of(manualEvents.failed(serverMessage(error, 'The document was not confirmed.'))),
+                            of(manualEvents.failed(serverMessage(error, 'error.manualConfirm'))),
                         ),
                     ),
                 ),
@@ -98,7 +98,7 @@ export const ManualStore = signalStore(
                 concatMap(({payload}) =>
                     api.reject(payload).pipe(
                         map(() => manualEvents.settled({name: payload, outcome: 'rejected'})),
-                        catchError(() => of(manualEvents.failed('The document was not deleted.'))),
+                        catchError(() => of(manualEvents.failed('error.manualReject'))),
                     ),
                 ),
             ),

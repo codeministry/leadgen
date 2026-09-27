@@ -20,6 +20,12 @@
       "groupName": "frontend (minor and patch)"
     },
     {
+      "description": "The bun version is pinned in four places — packageManager, the two workflows and the image's COPY --from — and BunPinTest holds them equal, so the tag and the packageManager bump have to arrive in one pull request.",
+      "matchPackageNames": ["oven/bun", "bun"],
+      "matchManagers": ["dockerfile", "npm"],
+      "groupName": "bun"
+    },
+    {
       "description": "Angular ships its packages in lockstep; a partial bump does not build.",
       "matchPackageNames": ["/^@angular//", "/^@angular-devkit//", "/^@ngrx//"],
       "groupName": "angular"

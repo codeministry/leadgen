@@ -14,6 +14,7 @@ import de.codeministry.leadgen.config.ConfigSnapshot;
 import de.codeministry.leadgen.config.ConfigSource;
 import de.codeministry.leadgen.config.Secrets;
 import de.codeministry.leadgen.config.YamlMask;
+import de.codeministry.leadgen.config.model.PipelineConfig;
 import de.codeministry.leadgen.config.model.SourcesConfig;
 import de.codeministry.leadgen.workflow.WorkflowCatalog.KnockoutEntry;
 import de.codeministry.leadgen.workflow.WorkflowCatalog.PhaseEntry;
@@ -151,7 +152,8 @@ public class WorkflowService {
                         entry.costClasses(),
                         entry.promptId(),
                         ordered(entry, byStage),
-                        entry.id().equals(WorkflowCatalog.FILTER) ? knockouts() : null));
+                        entry.id().equals(WorkflowCatalog.FILTER) ? knockouts() : null,
+                        widthOf(entry.id(), snapshot.application())));
             }
             phases.add(new Phase(phase.id(), stages));
         }
@@ -171,6 +173,21 @@ public class WorkflowService {
                     .forEach(f -> out.add(f.setting()));
         }
         return out;
+    }
+
+    /**
+     * The width a stage works at, resolved through the configuration model's own accessors so an
+     * absent key reads as the default the run uses, never as a missing value. Null for a stage no
+     * width bounds.
+     */
+    private static StageWidth widthOf(String stageId, PipelineConfig pipeline) {
+        return WorkflowCatalog.widthKeyOf(stageId)
+                .map(key -> new StageWidth(
+                        key,
+                        key.equals(WorkflowCatalog.FETCH_CONCURRENCY)
+                                ? pipeline.enrichment().fetch().concurrency()
+                                : pipeline.llm().concurrency()))
+                .orElse(null);
     }
 
     /**

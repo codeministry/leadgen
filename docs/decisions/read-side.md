@@ -62,7 +62,7 @@ screen reads one of these, and none of them writes.
   Two catalog keys rather than one sentence with an optional tail, because "· model null" is worse than a sentence that
   does not mention one.
 
-- **Sorting is six keys, and the order *is* the cursor.** `ShortlistSort` owns one SQL
+- **Sorting is ten keys, and the order *is* the cursor.** `ShortlistSort` owns one SQL
   expression per key and derives both the `ORDER BY` and the page clause from it, so the two
   cannot disagree. An enum and never a validated string: the type is the allowlist, so
   nothing a caller sends reaches a statement — the same argument that keeps the band
@@ -89,19 +89,28 @@ screen reads one of these, and none of them writes.
   keeping it three wide keeps one shape for the clause, the `ORDER BY` and the cursor instead
   of a special case in all three. It is excluded by name from the `@EnumSource` guard above —
   by name, so a nullable key added later is still in that test by default.
-- **One direction per key, fixed, and no `dir` parameter.** A row comparison is a legal
-  keyset walk only while the whole tuple moves one way, so the direction belongs to the
-  tuple — which means **under an ascending key the tiebreaker is oldest-ingested first**.
-  Direction and sentinel are also one decision: `coalesce(duration_months, -1)` puts "not
-  stated" last under DESC and *first* under ASC, so a direction parameter would change two
-  things while naming one. A reverse is a named key of its own, and **`duration-asc` is the
-  only one that earned it**: `minMonths` is a floor with no matching ceiling, so "which of
-  these fills a gap" is the question no other control can ask. Lowest score first answers
-  nothing a shortlist asks — the band filter says "show me the weak ones" far more precisely —
-  and latest start is what `startWindow=later` already partitions, inside which you still want
-  soonest first. That is also why the browser offers no direction toggle: over the wire a
-  direction is not a modifier, so a toggle would work on one of six orders and be a control
-  that lies at rest.
+- **One direction per key, fixed, and no `dir` parameter — so every reverse is a key of its own.**
+  A row comparison is a legal keyset walk only while the whole tuple moves one way, so the
+  direction belongs to the tuple — which means **under an ascending key the tiebreaker is
+  oldest-ingested first**. Direction and sentinel are also one decision:
+  `coalesce(duration_months, -1)` puts "not stated" last under DESC and *first* under ASC, so a
+  direction parameter would change two things while naming one. `duration-asc` was the first
+  reverse and for a while the only one, on the argument that no other reverse answered a
+  question a shortlist asks. That was overturned on 2026-09-24 (the operator's call): every
+  order now has its reverse — `score-asc`, `start-desc`, `deadline-desc`, `fresh-asc` — and the
+  browser offers one toggle beside the sort trigger that picks the other key of the pair. The
+  argument against a toggle was that it would work on one order of six and lie at rest; with a
+  reverse for every order it works on all of them. The descending day sorts fold "not stated"
+  to `DATE '1900-01-01'` (below `FieldExtractor`'s earliest day, and after 1582 so
+  `java.sql.Date` binds the same day), `score-asc` to 9999; V30 adds the two date indexes,
+  and `fresh-asc` reads the V20 index backwards. `walksEveryReverseAsTheExactMirrorOfItsKey`
+  pins each pair.
+- **The screen opens newest first; the API's default stays the score.** What came in since the
+  last look is what a morning visit is for (the operator's call, 2026-09-24), so the shortlist's
+  own default is `fresh` and a link without `sort` means newest first. The API keeps `score` as
+  its default, because the MCP server and any other caller rely on it, which is why the
+  browser sends `sort` on every request instead of leaving the default out as it does for the
+  other filters.
 - **The cursor names its sort, and a mismatch is a 400.** Without the name, a cursor minted
   under `score` with a leading 88 replayed under `start` reads as epoch day 88 and returns
   an arbitrary slice with no error anywhere. The filters need no such guard: they narrow the
@@ -212,6 +221,16 @@ screen reads one of these, and none of them writes.
   to render: a prompt is a fact about the configuration, not about whether anybody can currently
   be asked it. `PromptView` lives in `web/` because it needs the two stages that own the
   prompts, and the configuration model deliberately depends on no stage.
+- **Which model, which key, how wide (spec 015).** Each `PromptView` carries its own `model`,
+  the `modelKey` that decided it and `modelFallback`. The key is the stage's own `llm.models.*`,
+  or `llm.models.scoring` when an extraction, content or fields key is empty and the scoring
+  model answers in its place, which is the one case `modelFallback` is true; the judge and the
+  writer never fall back. The key is decided from the configured value, never by comparing model
+  names, which would name the wrong key the day both hold the same model; with no model at all,
+  `model` and `modelKey` are null. `/api/v1/workflow` gives a stage `width` (the `key` and the
+  resolved `value`) on every stage a width bounds, one included, and null elsewhere. The last
+  run's stage row carries `width`, read out of its `width=N` note once on the server and null on
+  a failed row, so the browser never parses `note`.
 - **The enum writes its stage descriptions as sentence fragments**, because that is how they
   read in a log line. The read side capitalises them; a chart label is not a log line.
 
@@ -295,3 +314,18 @@ configuration file.
   `finishedAt`, failed stage and source-mismatch count, from the same `LastRunQueryService` the
   last-run endpoint reads. The analytics screen's payload carries every run, tag and portal, and
   a dashboard that paid for that on every open was the wrong trade (spec 006).
+
+## Traps moved from backend/CLAUDE.md
+
+- **Masking a YAML document before parsing it breaks the parse, and silently.** The mask is
+  `********`; a plain scalar beginning with `*` is a YAML *alias*, so a masked file stops
+  composing and every block lookup after it comes back empty — no exception, just nothing
+  found. `SourceDetailService` therefore cuts the block out of the file's own bytes first and
+  masks what it is about to show. Found only by the fixture that writes a literal password into
+  a `sources.yaml`; the shipped file is all `${PLACEHOLDER}`s and can never reproduce it.
+- **SnakeYAML's `getEndMark()` is not the node's last line.** It points at the first token of
+  whatever follows, which in a sequence of blocks is the next item — measured on the shipped
+  `sources.yaml`, the newsletter block reported its end on the line reading
+  `- id: sample-portal-feed`, swallowing the comment that belongs to that one. Checking for
+  column zero does not save it, because that token begins at the dash's column. Bound a block
+  by the *next* item's start mark instead.

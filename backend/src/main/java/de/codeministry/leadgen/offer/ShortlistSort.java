@@ -12,6 +12,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
 
 /**
  * How the shortlist is ordered, and therefore how its cursor is read.
@@ -32,10 +33,11 @@ import java.util.stream.Collectors;
  * negated key expression, which is unreadable in a diff and needs an index of its own.
  *
  * <p>Which is why there is no {@code dir} parameter and never was: <b>a reverse is a named key
- * of its own.</b> {@link #DURATION_SHORT} is that, and it is the only one. "Lowest score
- * first" answers no question a shortlist asks — the band filter says "show me the weak ones"
- * far more precisely — and "latest start" is what {@code startWindow=later} already partitions,
- * inside which you still want soonest first.
+ * of its own.</b> Every key has one, and the reverse is not the same column with a flipped
+ * operator: its sentinel flips too (see below), so a direction parameter would change two
+ * things while naming one. {@link #DURATION_SHORT} was the first and for a while the only one;
+ * the other four followed on 2026-09-24, because the screen offers the reverse of every order
+ * as one toggle, and a toggle that worked on one order of five would lie at rest.
  *
  * <h2>The sentinel, and why not NULLS LAST</h2>
  *
@@ -54,6 +56,7 @@ import java.util.stream.Collectors;
  * design exists to protect. What stays on {@link Key} is how the value binds back, because
  * that follows the column's type and never its direction.
  */
+@RequiredArgsConstructor
 public enum ShortlistSort {
 
     /**
@@ -85,6 +88,28 @@ public enum ShortlistSort {
     DURATION_SHORT("duration-asc", "o.duration_months", Direction.ASC, Key.NUMBER, Unstated.HIGH),
 
     /**
+     * Lowest first: the reverse of {@link #SCORE}. An unscored offer is still last, which is
+     * why its sentinel is {@link #UNSTATED_HIGH} and not the {@code -1} the forward key uses.
+     */
+    SCORE_LOW("score-asc", "o.score_value", Direction.ASC, Key.NUMBER, Unstated.HIGH),
+
+    /**
+     * Latest first: the reverse of {@link #START}, with "not stated" still last.
+     */
+    START_LATE("start-desc", "o.starts_on", Direction.DESC, Key.DAY, Unstated.EARLY_DAY),
+
+    /**
+     * Furthest first: the reverse of {@link #DEADLINE}, with "not stated" still last.
+     */
+    DEADLINE_LATE("deadline-desc", "o.apply_by", Direction.DESC, Key.DAY, Unstated.EARLY_DAY),
+
+    /**
+     * Oldest first: the reverse of {@link #FRESH}. Nothing to fold to the end, like the forward
+     * key, and the forward key's index answers it scanned backwards.
+     */
+    FRESH_OLD("fresh-asc", "o.ingested_at", Direction.ASC, Key.INSTANT, Unstated.NONE),
+
+    /**
      * Newest first: what has come in since the last look.
      *
      * <p>The only key with nothing to fold to the end — {@code ingested_at} is written by the
@@ -101,14 +126,6 @@ public enum ShortlistSort {
     private final Direction direction;
     private final Key kind;
     private final Unstated unstated;
-
-    ShortlistSort(String key, String column, Direction direction, Key kind, Unstated unstated) {
-        this.key = key;
-        this.column = column;
-        this.direction = direction;
-        this.kind = kind;
-        this.unstated = unstated;
-    }
 
     /**
      * The name this sort travels under, in the query string and in a cursor.
@@ -192,6 +209,7 @@ public enum ShortlistSort {
         return " AND (%s, o.ingested_at, o.id) %s (:cKey, :cAt, :cId)\n".formatted(expression(), direction.comparison);
     }
 
+    @RequiredArgsConstructor
     private enum Direction {
 
         /**
@@ -205,10 +223,6 @@ public enum ShortlistSort {
         DESC("<");
 
         private final String comparison;
-
-        Direction(String comparison) {
-            this.comparison = comparison;
-        }
     }
 
     /**
@@ -221,6 +235,7 @@ public enum ShortlistSort {
      * initialises without touching it — a sentinel read from a field declared further down
      * would be zero at exactly this moment.
      */
+    @RequiredArgsConstructor
     private enum Unstated {
 
         /**
@@ -240,6 +255,13 @@ public enum ShortlistSort {
         LATE_DAY("DATE '" + UNSTATED_DAY + "'", LocalDate.parse(UNSTATED_DAY).toEpochDay()),
 
         /**
+         * Earlier than any day an advert states, so it sorts last under DESC.
+         */
+        EARLY_DAY(
+                "DATE '" + UNSTATED_EARLY_DAY + "'",
+                LocalDate.parse(UNSTATED_EARLY_DAY).toEpochDay()),
+
+        /**
          * The column is non-null, so there is nothing to fold to the end and no literal to
          * wrap it in.
          */
@@ -247,11 +269,6 @@ public enum ShortlistSort {
 
         private final String literal;
         private final long carried;
-
-        Unstated(String literal, long carried) {
-            this.literal = literal;
-            this.carried = carried;
-        }
     }
 
     /**
@@ -311,13 +328,20 @@ public enum ShortlistSort {
     public static final String UNSTATED_DAY = "9999-12-31";
 
     /**
+     * The same for the two descending day sorts: before every day {@code FieldExtractor} will
+     * store, so a stored one never sorts among the offers that stated nothing. 1900 and not
+     * year 1, because {@code java.sql.Date} reads a day before 1582 in the Julian calendar and
+     * the cursor would then bind a different day than the {@code coalesce} folds to.
+     */
+    public static final String UNSTATED_EARLY_DAY = "1900-01-01";
+
+    /**
      * Below every real score and every real month count, so it sorts last under DESC.
      */
     static final int UNSTATED_LOW = -1;
 
     /**
-     * Above every month count that can be stored, so it sorts last under ASC. A score never
-     * needs it: no sort reads {@code score_value} upwards.
+     * Above every month count that can be stored and every score, so it sorts last under ASC.
      */
     static final int UNSTATED_HIGH = 9999;
 }

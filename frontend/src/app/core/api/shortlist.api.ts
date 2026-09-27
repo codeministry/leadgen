@@ -51,9 +51,10 @@ export class ShortlistApi {
         if (filters.archived) {
             params = params.set('archived', 'true');
         }
-      // Each behind a not-the-default guard, like the four above: a parameter that means
-      // the default is a second way to say the same thing, and it puts noise in every link.
-      if (filters.sort !== '' && filters.sort !== 'score') {
+      // Always sent, unlike the rest: the screen opens newest first while the API's own default
+      // stays `score`, which the other callers of the endpoint rely on, so leaving the order out
+      // would silently mean a different one.
+      if (filters.sort !== '') {
         params = params.set('sort', filters.sort);
       }
       if (filters.startWindow !== '' && filters.startWindow !== 'any') {

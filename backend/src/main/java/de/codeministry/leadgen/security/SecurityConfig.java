@@ -8,6 +8,7 @@
  */
 package de.codeministry.leadgen.security;
 
+import de.codeministry.leadgen.config.ConfigProperties;
 import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.config.model.PipelineConfig;
 import java.net.InetAddress;
@@ -16,7 +17,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.web.server.autoconfigure.ServerProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -105,11 +106,16 @@ public class SecurityConfig {
             HttpSecurity http,
             ConfigRegistry config,
             JwtDecoder decoder,
-            @Value("${server.address:}") String address,
-            @Value("${leadgen.security.allow-open-bind:false}") boolean allowOpenBind)
+            ServerProperties server,
+            ConfigProperties leadgen)
             throws Exception {
         PipelineConfig.Security security = config.snapshot().application().security();
-        refuseOpenBind(security.auth(), address, allowOpenBind);
+        // An unset `server.address` is null here, which `refuseOpenBind` reads as every interface.
+        InetAddress bind = server.getAddress();
+        refuseOpenBind(
+                security.auth(),
+                bind == null ? "" : bind.getHostAddress(),
+                leadgen.security().allowOpenBind());
         // CodeQL flags this line as "Disabled Spring CSRF protection", High. The reasoning
         // for keeping it is here rather than only in the dismissal, because a dismissal
         // lives in a web UI and this decision has to survive the next reader of this file.

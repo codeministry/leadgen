@@ -7,7 +7,9 @@ import {Toast} from './toast.model';
  * the other stores' answer events — `archived`, `updated`, `finished` — and maps them,
  * so no screen ever dispatches a toast for its own action. The only one of these a
  * component dispatches is `dismissed`, from the close button; `held` and `released` come
- * from the pointer and the focus, and the rest from the store's own timer.
+ * from the pointer and the focus, and the rest from the store's own timer. A toast's
+ * `action` is not an event here either: the stack dispatches the instance the toast
+ * carries, whichever store's event that is, and closes the toast with `dismissed`.
  */
 export const toastEvents = eventGroup({
     source: 'Toast',

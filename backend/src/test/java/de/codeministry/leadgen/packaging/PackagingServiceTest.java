@@ -70,6 +70,9 @@ class PackagingServiceTest {
     private PackagingService packaging;
 
     @Autowired
+    private PackageOwner owner;
+
+    @Autowired
     private CoverLetterService coverLetters;
 
     @Autowired
@@ -492,6 +495,10 @@ class PackagingServiceTest {
         packaging.run();
 
         JsonNode meta = JSON.readTree(read(folderOf(id).resolve("meta.json")));
+        // Which database built it: the one key the sweep deletes on, and the reason a demo stack
+        // sharing this directory can no longer empty it.
+        assertThat(meta.path("instance").asText()).isEqualTo(owner.id());
+        assertThat(owner.owns(folderOf(id))).isTrue();
         assertThat(meta.path("score").asInt()).isEqualTo(88);
         assertThat(meta.path("band").asText()).isEqualTo("SHORTLISTED");
         assertThat(meta.path("language").asText()).isEqualTo("de");

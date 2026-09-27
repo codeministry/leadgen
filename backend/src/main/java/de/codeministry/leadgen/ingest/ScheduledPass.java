@@ -8,9 +8,9 @@
  */
 package de.codeministry.leadgen.ingest;
 
+import de.codeministry.leadgen.config.ConfigProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -51,9 +51,7 @@ class ScheduledPass {
     private static final String DISABLED = "-";
 
     private final IngestService ingest;
-
-    @Value("${leadgen.ingest-cron:-}")
-    private String cron;
+    private final ConfigProperties config;
 
     /**
      * Said once, at startup, because a schedule that is off looks exactly like a schedule
@@ -62,6 +60,7 @@ class ScheduledPass {
      */
     @EventListener(ApplicationReadyEvent.class)
     void announce() {
+        String cron = config.ingestCron();
         if (DISABLED.equals(cron)) {
             log.info("No scheduled ingest: leadgen.ingest-cron is '{}'. A run starts when somebody asks for one", cron);
         } else {
@@ -77,6 +76,7 @@ class ScheduledPass {
      * <p>A pass already running is not an error and not a queue. {@link IngestService} says
      * why: a second pass is the same work done twice, contending for the same rows.
      */
+    // Names the same key as `ConfigProperties.ingestCron`; an annotation attribute cannot read a bean.
     @Scheduled(cron = "${leadgen.ingest-cron:-}")
     void run() {
         try {

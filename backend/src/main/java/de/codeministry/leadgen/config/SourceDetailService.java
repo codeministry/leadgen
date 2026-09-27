@@ -12,7 +12,7 @@ import de.codeministry.leadgen.config.model.SourcesConfig;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
-import javax.sql.DataSource;
+import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 
@@ -41,6 +41,7 @@ import org.springframework.stereotype.Service;
  * parameter that reaches the filesystem is the shape of every directory traversal.
  */
 @Service
+@RequiredArgsConstructor
 public class SourceDetailService {
 
     /**
@@ -81,12 +82,6 @@ public class SourceDetailService {
     private final ConfigRegistry config;
     private final ConfigProperties properties;
     private final JdbcClient jdbc;
-
-    SourceDetailService(ConfigRegistry config, ConfigProperties properties, DataSource dataSource) {
-        this.config = config;
-        this.properties = properties;
-        this.jdbc = JdbcClient.create(dataSource);
-    }
 
     public Optional<SourceDetail> detail(String id, int runs) {
         Optional<SourcesConfig.Source> configured = config.snapshot().sources().sources().stream()

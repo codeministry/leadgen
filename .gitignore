@@ -54,6 +54,10 @@ docs/samples/cover-letters/
 # Build
 target/
 build/
+# The IDE Java build output — bin/main, bin/test, bin/aot — written by the Eclipse-based
+# compiler the IntelliJ and VS Code Java tooling uses. Unanchored, because every Gradle
+# subproject gets its own; no tracked path in this repository contains a bin/ segment.
+bin/
 node_modules/
 dist/
 .gradle/

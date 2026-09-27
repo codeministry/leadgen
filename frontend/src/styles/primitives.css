@@ -34,6 +34,143 @@
 }
 
 @layer components {
+    /* The stage (2026-09-26): the dashboard hero's dark surface, in both themes, so the first
+       read stands out by contrast before anything is read. Lit by two glows that drift slowly,
+       over a faint dot grid that fades out towards the start of the reading line.
+
+       The stage is a local dark theme: it re-points the tokens its content reads — ink, muted,
+       dividers, the signal and its text twin — at the stage's own, so a shared component inside
+       it (the funnel rail) renders for the dark ground without knowing it is on one. Custom
+       properties that alias another (`--score-strong`) resolve where they are declared, which is
+       why each is re-pointed here by name. Every text on it is measured against `--lg-stage`
+       itself (contrast.browser.spec.ts): the glows are light and never ground. */
+    .lg-stage {
+        --lg-muted: var(--lg-stage-muted);
+        --lg-signal: var(--lg-stage-signal);
+        --lg-signal-text: var(--lg-stage-signal);
+        --score-strong: var(--lg-stage-signal);
+        --color-accent: var(--lg-stage-signal);
+        --color-base-content: var(--lg-stage-ink);
+        --color-base-200: var(--lg-stage);
+        --color-base-300: var(--lg-stage-line);
+
+        position: relative;
+        min-width: 0;
+        padding: 1.5rem;
+        overflow: hidden;
+        isolation: isolate;
+        border: 1px solid var(--lg-stage-line);
+        border-radius: var(--radius-box);
+        background-color: var(--lg-stage);
+        color: var(--lg-stage-ink);
+        box-shadow: 0 24px 48px -28px color-mix(in oklab, var(--lg-stage-glow-2) 55%, transparent);
+    }
+
+    /* The two glows, on a layer larger than the stage so their drift never shows an edge. */
+    .lg-stage::before {
+        position: absolute;
+        z-index: -2;
+        inset: -30%;
+        background-image:
+            radial-gradient(38% 42% at 78% 30%, color-mix(in oklab, var(--lg-stage-glow) 60%, transparent), transparent 70%),
+            radial-gradient(34% 40% at 22% 88%, color-mix(in oklab, var(--lg-stage-glow-2) 55%, transparent), transparent 72%);
+        content: '';
+        animation: lg-aurora var(--lg-aurora-duration) ease-in-out infinite alternate;
+    }
+
+    /* The dot grid: engineering paper under the marketing light. */
+    .lg-stage::after {
+        position: absolute;
+        z-index: -1;
+        inset: 0;
+        background-image: radial-gradient(circle, var(--lg-stage-line) 1px, transparent 1.5px);
+        background-size: 1.125rem 1.125rem;
+        content: '';
+        mask-image: linear-gradient(100deg, transparent 25%, black 80%);
+    }
+
+    @keyframes lg-aurora {
+        from {
+            transform: translate3d(-4%, 3%, 0) rotate(0deg);
+        }
+
+        to {
+            transform: translate3d(5%, -4%, 0) rotate(8deg);
+        }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .lg-stage::before {
+            animation: none;
+        }
+    }
+}
+
+@layer components {
+    /* A tone: the colour a cell takes by what its value means (2026-09-26). Four semantic
+       tones from the theme plus the primary, never the signal and never a section: the
+       signal means "survived the filter", a section means "you are here", and a tone means
+       "this is healthy, due, failed, information". `--lg-tone` is the object colour (chip,
+       wash, chart marks), `--lg-tone-text` its twin for a value set in it, which is the
+       warning's darker text twin by day and the fill itself everywhere else.
+
+       Spelled out one class per tone, because Tailwind emits only class names it finds as
+       literals and a component picks these through a lookup map, never by concatenation. */
+    .lg-tone-neutral {
+        --lg-tone: var(--lg-muted);
+        --lg-tone-text: var(--color-base-content);
+    }
+
+    .lg-tone-primary {
+        --lg-tone: var(--color-primary);
+        --lg-tone-text: var(--color-primary);
+    }
+
+    .lg-tone-info {
+        --lg-tone: var(--color-info);
+        --lg-tone-text: var(--color-info);
+    }
+
+    .lg-tone-success {
+        --lg-tone: var(--color-success);
+        --lg-tone-text: var(--color-success);
+    }
+
+    .lg-tone-warning {
+        --lg-tone: var(--color-warning);
+        --lg-tone-text: var(--lg-warning-text);
+    }
+
+    .lg-tone-error {
+        --lg-tone: var(--color-error);
+        --lg-tone-text: var(--color-error);
+    }
+
+    /* The tone as light: a glow out of the top right corner of the panel, over the panel's own
+       surface, so text keeps its measured ground everywhere but the corner it fades out of. */
+    .lg-tone-wash {
+        background-image: radial-gradient(
+            120% 90% at 100% 0%,
+            color-mix(in oklab, var(--lg-tone) var(--lg-tone-wash), transparent),
+            transparent 62%
+        );
+    }
+
+    /* The tone as an object: a rounded square with the cell's icon in it. Decorative, the
+       label beside it carries the meaning. */
+    .lg-tone-chip {
+        display: inline-grid;
+        flex: none;
+        place-items: center;
+        width: 1.75rem;
+        height: 1.75rem;
+        border-radius: var(--radius-field);
+        background-color: color-mix(in oklab, var(--lg-tone) 16%, transparent);
+        color: var(--lg-tone);
+    }
+}
+
+@layer components {
     /* Where an in-page anchor lands (spec 007): the heading the rail's link names, offset by the
        sticky header plus the panel's own padding and edge, so the panel's top edge comes to rest
        under the header rather than the heading's baseline. `tabindex="-1"` on the same heading

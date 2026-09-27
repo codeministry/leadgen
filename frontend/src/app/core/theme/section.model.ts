@@ -8,7 +8,7 @@
  * (spec 003, ISC-230).
  */
 // `review` is parked (2026-09-24); its colour token stays in `tokens.css`, its screen under `features/review/`.
-export const SECTIONS = ['dashboard', 'shortlist', 'pipeline', 'analytics', 'sources', 'rules'] as const;
+export const SECTIONS = ['dashboard', 'shortlist', 'pipeline', 'analytics', 'sources', 'workflow'] as const;
 
 export type Section = (typeof SECTIONS)[number];
 

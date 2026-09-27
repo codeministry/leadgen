@@ -18,6 +18,7 @@ Then open <http://localhost:4200> and press **Run ingest** once.
 |---|---|
 | `generate-corpus.ts` | Writes `corpus/`. Seeded, so re-running it produces the same corpus. |
 | `corpus/*.eml` | Five newsletter mails carrying ~170 invented offers. |
+| `corpus-en/*.eml` | The same mails with the adverts worded in English, for the English help screenshots. |
 | `sources.yaml` | One `file` source over `corpus/`, plus the manual inbox. No mailbox, no credentials. |
 | `skill-profile.yaml` | An invented freelancer, so the filter has something to filter against. |
 | `matching-rules.yaml` | The shipped rules with the two lists filled in that ship empty. |
@@ -64,3 +65,19 @@ absurd `max_age_days` to compensate; to get mails dated to today instead:
 bun demo/generate-corpus.ts          # newest mail is today, same draw
 bun demo/generate-corpus.ts --seed 7 # a different draw, still reproducible
 ```
+
+## The English corpus
+
+`corpus-en/` is the same draw with the adverts worded in English; the newsletter around them
+stays the German portal mail it imitates, and place names stay as portals write them, because
+the reach and abroad rules match those spellings. It exists so the English help does not show
+German adverts under English labels. `--until` keeps its days in step with `corpus/`:
+
+```bash
+bun demo/generate-corpus.ts --lang en --until 2026-09-02
+POSTGRES_PORT=15434 SERVER_PORT=18081 WEB_PORT=14201 docker compose -p leadgen-demo-en \
+  -f docker-compose.yml -f docker-compose.demo.yml -f docker-compose.demo-en.yml up --build
+```
+
+Its own compose project keeps its own database beside the German demo. The contract rule in
+`matching-rules.yaml` lists the English contract wordings beside the German ones for it.

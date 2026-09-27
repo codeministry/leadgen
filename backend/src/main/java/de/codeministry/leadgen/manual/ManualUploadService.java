@@ -23,7 +23,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import javax.sql.DataSource;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
@@ -42,6 +42,7 @@ import org.springframework.stereotype.Service;
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class ManualUploadService {
 
     /**
@@ -63,13 +64,6 @@ public class ManualUploadService {
     private final JsonMapper yaml = JsonMapper.builder(
                     new YAMLFactory().disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER))
             .build();
-
-    ManualUploadService(ManualInbox inbox, MarkdownExtractor markdown, OfferMapper mapper, DataSource dataSource) {
-        this.inbox = inbox;
-        this.markdown = markdown;
-        this.mapper = mapper;
-        this.jdbc = JdbcClient.create(dataSource);
-    }
 
     /**
      * Thrown when there is no enabled `manual-inbox` source to write into.

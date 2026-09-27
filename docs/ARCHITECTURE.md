@@ -470,8 +470,9 @@ The second block on each prompt is the *shape* an offer arrives in, produced by 
 would be a second description of that method and would drift from it silently.
 
 Nothing here needs an API key, and none is shown: a prompt is a fact about the configuration,
-not about whether anybody can currently be asked it. Both prompts name the same model, and the
-screen saying so twice is the point — `llm.models.scoring` is read by two stages.
+not about whether anybody can currently be asked it. Each prompt names the model its own key
+resolves to — `llm.models.content` and `llm.models.fields` fall back to `llm.models.scoring` when
+empty — so the panel is where a routing decision can be checked.
 
 ## Manual status capture
 

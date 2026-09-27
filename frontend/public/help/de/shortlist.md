@@ -1,5 +1,8 @@
-In der Auswahl liest du die Angebote: alles, was den harten Filter passiert hat, sortiert nach Punktzahl. Wählst du links ein Angebot, öffnen sich rechts die Details mit der Anzeige selbst, **Warum diese Punktzahl**, den gelesenen Feldern und, sobald es eines gibt, dem Bewerbungspaket.
+In der Auswahl liest du die Angebote: alles, was den harten Filter passiert hat, die neuesten zuerst. Wählst du links
+ein Angebot, öffnen sich rechts seine Details; das Kapitel **Angebotsdetail** geht sie durch.
 
-Eingrenzen kannst du mit der Suche, den **Filtern** (Punktebereich, Portal, Start, Dauer, Thema, offene Frist) und der Sortierung. Eine Kombination, die du oft brauchst, legst du mit **Diese Sicht speichern** ab, und **Ähnliche finden** sucht Angebote, die dasselbe mit anderen Worten meinen. Mehrere Angebote kannst du markieren und auf einmal archivieren; im **Archiv** siehst du, was die Arbeitsliste verlassen hat, und holst es jederzeit zurück.
+<!-- screenshot: shortlist-split -->
 
-**Tipp:** Ein Angebot, das zum sortierten Feld nichts sagt, steht immer hinten. Bei „Frühester Start“ landen unbekannte Starttermine also am Ende, statt zu verschwinden.
+Über der Liste stehen die Suche, die Bewertungsbänder, **Filter**, die Sortierung, **Sichten** und **Archiv**. Was jedes davon tut und wie sie zusammenspielen, steht im Kapitel **Filter, Sortierung und Sichten**. Jede Karte zeigt die Punktzahl, den Titel, rechts den Stand deiner Bewerbung, eine Zeile Fakten, beginnend damit, wann das Angebot hereinkam, was die Punktzahl gehoben und was sie gedrückt hat, und wo es ausgeschrieben war. Die zwei Knöpfe neben der Sortierung schalten die Liste zwischen **komfortabel** und **kompakt** (zwei Zeilen pro Karte) um; die Wahl bleibt in diesem Browser. Durch die Liste wanderst du mit **j** und **k** oder den Pfeiltasten, und **a** archiviert das geöffnete Angebot.
+
+**Tipp:** Die Liste ist die Arbeitsmenge, nicht alles, was hereinkam. Ein Angebot, das du archiviert hast, ist unter **Archiv** einen Klick entfernt und nie verloren.

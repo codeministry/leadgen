@@ -1,3 +1,20 @@
+/* One title width for every screen, the one the reading screens have: a title row as wide as a
+   1900px monitor puts the screen's name and its badges a third of a metre apart, and the eye has
+   to travel that gap on every screen that happens to be full-bleed. So the row keeps the shell's
+   measure even where the content under it does not — the board's lanes and the workflow graph
+   still take the whole window (operator, 2026-09-26). Centred, because that is where `.measure`
+   puts every other title. */
+:host(.is-page-title) {
+    display: block;
+
+    /* The explicit `100%` is load-bearing on a screen the shell bounds to the window: there the
+       measure is a flex column, and an auto inline margin on a flex item turns off the stretch, so
+       the row collapsed to the width of its own words (measured 719px inside 1875). */
+    inline-size: 100%;
+    max-inline-size: var(--lg-measure);
+    margin-inline: auto;
+}
+
 /* The section's accent under the screen's own title: a short bar in `--lg-section`, which
    the shell resolves from the route. Only the `h1` variant carries it — an `h2` or `h3`
    header sits inside a screen that already said where it is — and it is decoration, so it

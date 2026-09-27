@@ -10,8 +10,11 @@ package de.codeministry.leadgen.web;
 
 import de.codeministry.leadgen.config.*;
 import de.codeministry.leadgen.ingest.extract.LlmExtractors;
+import de.codeministry.leadgen.llm.ChatModels;
+import de.codeministry.leadgen.llm.ModelChoice;
 import de.codeministry.leadgen.score.Judges;
 import java.util.List;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
@@ -22,19 +25,13 @@ import org.springframework.web.bind.annotation.*;
  */
 @RestController
 @RequestMapping("/api/v1")
+@RequiredArgsConstructor
 class ConfigController {
 
     private final SourceQueryService sources;
     private final SourceDetailService details;
     private final ConfigRegistry config;
     private final Judges judges;
-
-    ConfigController(SourceQueryService sources, SourceDetailService details, ConfigRegistry config, Judges judges) {
-        this.sources = sources;
-        this.details = details;
-        this.config = config;
-        this.judges = judges;
-    }
 
     /**
      * The file that defines the sources, and the sources.
@@ -101,13 +98,19 @@ class ConfigController {
         var snapshot = config.snapshot();
         var choices = judges.choices();
         var llm = snapshot.application().llm();
+        var models = llm == null ? null : llm.models();
         return PromptView.all(
                 snapshot.rules(),
                 snapshot.profile(),
+                snapshot.coverLetter(),
                 choices.isEmpty() ? null : choices.getFirst(),
-                // The stage's own choice, asked rather than reproduced: a copy of it here
+                // Each stage's own choice, asked rather than reproduced: a copy of it here
                 // would name one model on the screen while the run used the other.
-                LlmExtractors.modelFor(llm == null ? null : llm.models()));
+                LlmExtractors.modelFor(models),
+                ModelChoice.content(models).orElse(null),
+                ModelChoice.fields(models).orElse(null),
+                ChatModels.writingModelFor(models),
+                models);
     }
 
     /**

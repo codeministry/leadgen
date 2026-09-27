@@ -10,6 +10,7 @@ package de.codeministry.leadgen.web;
 
 import de.codeministry.leadgen.analytics.AnalyticsSummary;
 import de.codeministry.leadgen.analytics.AnalyticsSummaryQueryService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -25,13 +26,10 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping("/api/v1/analytics/summary")
+@RequiredArgsConstructor
 class AnalyticsSummaryController {
 
     private final AnalyticsSummaryQueryService summary;
-
-    AnalyticsSummaryController(AnalyticsSummaryQueryService summary) {
-        this.summary = summary;
-    }
 
     @GetMapping
     AnalyticsSummary summary() {

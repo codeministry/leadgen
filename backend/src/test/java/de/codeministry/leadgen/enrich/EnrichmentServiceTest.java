@@ -161,8 +161,29 @@ class EnrichmentServiceTest {
                 .isEqualTo(LocalDate.of(2026, 10, 1));
         assertThat(jdbc.queryForObject("SELECT full_text FROM offer WHERE id = ?", String.class, id))
                 .contains("Logistikunternehmen");
+        // ISC-325. The rule captures the text in front of "Telefon"; what is stored is the
+        // person in it and not the sentence tail around her.
+        assertThat(jdbc.queryForObject("SELECT contact FROM offer WHERE id = ?", String.class, id))
+                .isEqualTo("Frau Meier");
         assertThat(jdbc.queryForObject("SELECT enrichment_note FROM offer WHERE id = ?", String.class, id))
                 .isNull();
+    }
+
+    @Test
+    void namesAPageWhoseAdTextRulesMatchedNothing() {
+        // ISC-321, the nightly half: the run and the button share one path, so one note.
+        stubFor(get(urlPathEqualTo("/projekt/teaser")).willReturn(aResponse().withBody("""
+            <html><body><div class="teaser">Stundensatz 95 EUR/h. Details nach Login.</div></body></html>
+            """)));
+        long id = passedOffer("/projekt/teaser");
+
+        var report = enrichment.run();
+
+        assertThat(report.incomplete()).isEqualTo(1);
+        assertThat(jdbc.queryForObject("SELECT enrichment_note FROM offer WHERE id = ?", String.class, id))
+                .isEqualTo(EnrichmentService.NO_AD_TEXT);
+        assertThat(jdbc.queryForObject("SELECT rate_eur FROM offer WHERE id = ?", BigDecimal.class, id))
+                .isEqualByComparingTo("95");
     }
 
     @Test

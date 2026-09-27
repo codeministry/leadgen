@@ -12,6 +12,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import de.codeministry.leadgen.filter.TextFold;
 import de.codeministry.leadgen.llm.Answers;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatModel;
@@ -42,6 +43,7 @@ import org.springframework.ai.chat.model.ChatModel;
  * inventing a sentence.
  */
 @Slf4j
+@RequiredArgsConstructor
 class AdvertAsker {
 
     /**
@@ -74,12 +76,6 @@ class AdvertAsker {
     private final ChatModel chatModel;
     private final String model;
     private final ObjectMapper json;
-
-    AdvertAsker(ChatModel chatModel, String model, ObjectMapper json) {
-        this.chatModel = chatModel;
-        this.model = model;
-        this.json = json;
-    }
 
     /**
      * What the advert says, or that it says nothing.

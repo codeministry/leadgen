@@ -52,6 +52,8 @@ function lastRun(overrides: Partial<LastRunView> = {}): LastRunView {
         review: 13,
         packaged: 7,
         digestWritten: true,
+        startedAt: '2026-09-02T04:00:00Z',
+        previous: null,
         sources: [
             {
                 sourceId: 'demo-newsletter',
@@ -71,6 +73,7 @@ function lastRun(overrides: Partial<LastRunView> = {}): LastRunView {
                 millis: 2000,
                 status: 'OK',
                 note: null,
+                width: null,
             },
         ],
         ...overrides,

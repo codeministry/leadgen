@@ -56,13 +56,16 @@
     container-name: detail;
 }
 
-/* The lanes divide the pane at every width, and the 14rem minimum is what makes the pane
-   scroll sideways instead of the lanes collapsing. They used to be pinned to 15rem below the
-   split's breakpoint, which made the board scroll at widths where five stretched lanes still
-   fit — the one screen that takes the whole window would then not use it. */
+/* The lanes divide the pane at every width, and the 18rem minimum is what makes the pane
+   scroll sideways instead of the lanes collapsing. It was 14rem, which left a title about
+   110px beside the grip and the score ring once an offer was open beside the board, so German
+   compounds ran past the card's edge; the operator's call (2026-09-24) was wider cards and a
+   board that scrolls sooner. They used to be pinned to 15rem below the split's breakpoint,
+   which made the board scroll at widths where five stretched lanes still fit — the one screen
+   that takes the whole window would then not use it. */
 .board {
     display: grid;
-    grid-template-columns: repeat(5, minmax(14rem, 1fr));
+    grid-template-columns: repeat(5, minmax(18rem, 1fr));
     gap: 0.75rem;
     padding-bottom: 0.5rem;
 }
@@ -273,8 +276,12 @@
     gap: 0.625rem;
 }
 
+/* The lanes are wide enough for the titles the market writes (see `.board`); this is the net
+   under that, for a word longer than any lane, which would otherwise run past the card's edge.
+   It breaks only a word that does not fit, so ordinary titles wrap between words as before. */
 .card-title {
     min-width: 0;
+    overflow-wrap: anywhere;
 }
 
 .card-meta {

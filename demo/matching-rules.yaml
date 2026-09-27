@@ -75,7 +75,8 @@ hard_filters:
 
   contract:
     allowed: [freiberuflich, Freelance, Dienstvertrag, Werkvertrag]
-    rejected: [Festanstellung, Arbeitnehmerüberlassung, ANÜ, Personalvermittlung, Praktikum, Werkstudent]
+    rejected: [Festanstellung, Arbeitnehmerüberlassung, ANÜ, Personalvermittlung, Praktikum, Werkstudent,
+              permanent position, temporary agency work, temp staffing]
 
   language:
     preferred: de

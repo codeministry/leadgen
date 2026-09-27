@@ -90,7 +90,7 @@ export interface ShortlistFilters {
   readonly topic: string;
   /**
    * Words to find offers near. **Narrows and never reorders**: the list stays in whichever of
-   * the six orders is selected, so the first row is not the best match — there is no such
+   * the ten orders is selected, so the first row is not the best match — there is no such
    * thing here. The server refuses this together with `similarTo`, and this screen never
    * produces the pair.
    */

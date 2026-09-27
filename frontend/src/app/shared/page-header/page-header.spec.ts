@@ -24,4 +24,18 @@ describe('PageHeader', () => {
       expect(fixture.nativeElement.querySelector(tag)?.textContent).toContain('demo-newsletter');
     }
   });
+
+  it('gives the title the whole row when stacked, and only then', () => {
+    // The offer detail's actions wrap under its title anyway; without the full row the
+    // title broke after a few words beside the space they left.
+    const fixture = TestBed.createComponent(PageHeader);
+    fixture.componentRef.setInput('title', 'A long offer title');
+    fixture.detectChanges();
+    const titleBlock = (): HTMLElement => fixture.nativeElement.querySelector('h1').parentElement;
+    expect(titleBlock().classList).not.toContain('basis-full');
+
+    fixture.componentRef.setInput('stacked', true);
+    fixture.detectChanges();
+    expect(titleBlock().classList).toContain('basis-full');
+  });
 });

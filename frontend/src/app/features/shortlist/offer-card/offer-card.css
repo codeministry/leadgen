@@ -53,13 +53,12 @@
     flex: 1;
 }
 
+/* No hover of its own (operator, 2026-09-26): the whole card is the link and the card already
+   answers the pointer with its border, so an underline appearing only over the title made the
+   same one click look like two different targets. The anchor keeps its focus ring — that one is
+   about where the keyboard is, not about where the pointer is. */
 .title a {
-    text-decoration-color: transparent;
-    transition: text-decoration-color var(--lg-hover-duration) var(--lg-hover-ease);
-}
-
-.title a:hover {
-    text-decoration: underline;
+    text-decoration: none;
 }
 
 /* The whole card is the link, and the title anchor stays the only interactive element in
@@ -67,12 +66,23 @@
    template accessibility rules, and it would be a second way to reach the same route.
    Two costs that come with it — text in the card can no longer be selected with the mouse,
    and any control added here later needs `position: relative; z-index: 1` or it is
-   unclickable. Today the badges and the "also advertised by" line are inert. */
+   unclickable. Today the status, the facts, the reasons and the source line are inert. */
 .title a::after {
     content: '';
     position: absolute;
     inset: 0;
     border-radius: inherit;
+}
+
+/* Several lines in the card carry `position: relative`, because a `.sr-only` span is only clipped
+   by an ancestor that is its containing block — the trap in `frontend/CLAUDE.md` that once put 1px
+   spans out beyond the card. That also lifts those lines above the stretched link, and measured at
+   1600px the pointer hit `.offer-facts` at half the card's height and `.offer-lift` at 70 %: over
+   half the card was not the link it looked like (operator, 2026-09-26). They let the pointer
+   through instead. Only the inert shapes are named — a link, a button or an input inside `.main`
+   keeps its own clicks, so a control added here later still works. */
+.offer .main :where(p, span, div, ul, ol, li, time, dl, dt, dd) {
+    pointer-events: none;
 }
 
 /* The first control this card has, and the comment above is the whole specification for it:
@@ -86,7 +96,7 @@
 .pick {
   /* `flex-start` and not the flex default: stretched, the box would centre itself down a
      card that is four rows tall and stop reading as one row with the score and the title.
-     The score is a fixed 56px square, so pinning both to the top is what puts the ring, the
+     The score is a fixed 44px square, so pinning both to the top is what puts the ring, the
      title's first line and the checkbox on one line.
 
      Three placements were measured before this one. As a *left* column it cost the body
@@ -121,74 +131,157 @@
     outline-offset: 2px;
 }
 
-.meta {
+/* The bands under the title. Every class here is prefixed `offer-`: daisyUI ships `card`,
+   `status`, `label`, `badge` and `list` among others, and each of those has already laid a
+   piece of this card out wrong once without a word of warning. */
+.offer-facts,
+.offer-source {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.375rem;
+
+    /* No separator glyph between the items: each opens with its icon, and the wider column gap
+       is what reads as the break. 0.375rem was right beside a middle dot; beside an icon it ran
+       the previous value into the next icon. */
+    gap: 0.125rem 0.75rem;
     margin-top: 0.25rem;
 }
 
-.unknown {
-    font-style: italic;
-}
-
-.reasons {
+/* One line and no more, as a flex row: the topics and the penalty keep their own width up to
+   a cap, and the lift, last, takes what is left. Each item clamps itself with Tailwind's
+   `truncate` in the template (and `min-w-0` on the row and the lift), because a hand-written
+   clamp is exactly what the build prefixer has dropped before. */
+.offer-why {
     display: flex;
-    flex-wrap: wrap;
-    gap: 0.125rem 1rem;
-    margin-top: 0.5rem;
+    gap: 0.75rem;
+    margin-top: 0.25rem;
 }
 
-/* A grid rather than a flex row: the points column is `auto`, the label takes the rest and
-   may shrink to it (`min-width: 0` on the cell), and the clamped label below keeps its two
-   lines. As a flex row the legacy `-webkit-box` reported its full unwrapped width as its
-   minimum, which made a row 900px wide at 320px. */
-.reason {
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
-    align-items: baseline;
-    column-gap: 0.375rem;
-
-    /* A notch under `type-small`: six lines of reasons per card, and this is where the
-       height went once the third line was clamped away (measured 2026-09-24). */
-    line-height: 1.35;
-    max-width: 100%;
+.offer-topics,
+.offer-penalty {
+    flex: 0 1 auto;
+    max-width: 40%;
 }
 
-.points {
+.offer-lift {
+    flex: 1 1 0;
+}
+
+.offer-not-scored {
+    margin-top: 0.25rem;
+}
+
+/* Every icon on the card: a Lucide stroke in `currentColor`, so it takes the tone of the text it
+   opens (muted in the facts and the source line, the primary's text twin in the status) unless
+   a rule below gives it its own. `lg-icon` is an inline-flex box with no line height; `middle`
+   sets its centre on the text's x-height centre, which is what reads as centred beside the
+   mono digits and the small text alike. Inline rather than a flex row of its own, so the
+   compact line's `truncate` can still put its ellipsis inside the last fact. */
+.offer-icon {
+    vertical-align: middle;
+    margin-inline-end: 0.25rem;
+}
+
+.offer-lift .offer-icon {
     color: var(--color-success);
 }
 
-.penalty .points {
+.offer-penalty .offer-icon,
+.offer-flag {
     color: var(--lg-warning-text);
 }
 
-.also {
-    margin-top: 0.375rem;
+.offer-topics .offer-icon {
+    color: var(--color-primary);
 }
 
-.badges {
+/* The status column: text in the primary's text twin (`--lg-primary-text`: the bare primary reads
+   4.35:1 on the light hover wash, under the text floor), right-aligned against the checkbox so every card's
+   status sits on one vertical edge. Pinned to the top like the checkbox beside it, on the
+   title's first line; never wraps, never shrinks. Inert — it lies under the stretched link. */
+.offer-state {
+    align-self: flex-start;
+    flex: none;
+    white-space: nowrap;
+    text-align: end;
+    color: var(--lg-primary-text);
+    font-weight: 600;
+
+    /* The title's line box (`type-h4`: 1rem at 1.35), so the status centres on its first line. */
+    line-height: 1.35rem;
+}
+
+/* Compact: two lines, the title row and `.offer-brief`. Tighter padding and gap, the 36px ring
+   (sized by the template), and the title clipped to one line by Tailwind's `truncate` in the
+   template. Nothing here touches the stretched link, the focus ring or the `.pick` lift: those
+   rules read the same markup in both densities. */
+.offer.is-compact {
+    gap: 0.625rem;
+    padding-block: 0.375rem;
+}
+
+/* One line and no more, as a flex row like `.offer-why`: the facts give way first up to a cap,
+   the lift takes what is left, and the warning triangle never shrinks. Each item truncates with Tailwind's
+   `truncate` in the template. */
+.offer-brief {
     display: flex;
-    flex-wrap: wrap;
-    gap: 0.25rem 0.375rem;
-    margin-top: 0.5rem;
+    align-items: baseline;
+    gap: 0.75rem;
+    margin-top: 0.125rem;
+}
+
+.offer-brief-facts {
+    flex: 0 1 auto;
+    max-width: 60%;
+}
+
+/* The facts come in as inline spans here rather than as flex items, so `truncate` can put its
+   ellipsis on the last one that fits; the gap the comfortable line gets from flex is a margin,
+   the same 0.75rem. */
+.offer-brief-facts > * + * {
+    margin-inline-start: 0.75rem;
+}
+
+.offer-brief .offer-flag {
+    flex: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .offer,
-    .title a {
+    .offer {
         transition: none;
     }
 }
 
-/* A reason is a summary and the detail column carries the whole sentence, so a card shows
-   at most two lines of each: the third line of a long skill list was the single largest
-   cost in a card's height (measured 2026-09-24: three reasons at three lines each were
-   131px of a 379px card). The clamp itself is Tailwind's `line-clamp-2` in the template,
-   because the `-webkit-box-orient` a hand-written clamp needs is exactly the declaration
-   the build prefixer drops as obsolete — written here it rendered one line, not two. Not
-   `.label`: daisyUI ships a component under that name that sets `white-space: nowrap`, the
-   trap `.status` sprang in the header, sprung again here on 2026-09-24. */
-.reason .reason-label {
-    min-width: 0;
+/* The facts are one line in both densities, cut once at its end. Wrapping them was where the
+   comfortable card's height went (measured 2026-09-25 on the demo shortlist: 45.8px of a 149.5px
+   mean). As flex items each fact was squeezed on its own, so every one of them ended in an
+   ellipsis; as inline runs of a block that does not wrap, the line reads left to right and one
+   ellipsis says the rest is in the detail. The came-in date is first, so it is never the cut. */
+.offer-facts {
+    display: block;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.offer-facts .offer-fact + .offer-fact {
+    margin-inline-start: 0.75rem;
+}
+
+/* Every line on this card that clips itself is also the containing block for what it clips.
+
+   `sr-only` is `position: absolute`, so its containing block is the nearest positioned
+   ancestor — `.offer`, which is `position: relative` for the stretched link. A clipping
+   ancestor does not clip a box whose containing block sits outside it, so each screen-reader
+   span kept its static position on the un-clipped `white-space: nowrap` line and stuck out
+   to the right of the card: invisible (it is 1px wide), but part of the list's scrollable
+   overflow all the same. Measured on the demo shortlist: the pane scrolled 912px inside a
+   540px column, and the whole list could be dragged sideways. `position: relative` here puts
+   the containing block back on the box that does the clipping, and the pane's scrollWidth
+   equals its clientWidth again. */
+.offer-facts,
+.offer-brief-facts,
+.offer-topics,
+.offer-penalty,
+.offer-lift {
+    position: relative;
 }

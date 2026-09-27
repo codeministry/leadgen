@@ -29,6 +29,7 @@ import java.time.Instant;
 import java.util.*;
 import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 
 /**
@@ -60,18 +61,36 @@ public class ConfigLoader {
     private final Validator validator;
     private final PlaceholderResolver placeholders;
     private final JsonMapper mapper;
+    private final int connectionPoolSize;
 
-    // Two constructors, so the one Spring uses has to say so. The other exists for tests,
-    // which supply their own environment instead of the process's.
-    @org.springframework.beans.factory.annotation.Autowired
-    ConfigLoader(ConfigProperties properties, Validator validator) {
-        this(properties, validator, PlaceholderResolver.fromSystemEnvironment());
-    }
+    /**
+     * The Spring key that sizes the database connection pool. {@code application.yaml} sets
+     * none, so the running pool is Hikari's own default, {@link #DEFAULT_CONNECTION_POOL_SIZE}.
+     */
+    static final String CONNECTION_POOL_SIZE_KEY = "spring.datasource.hikari.maximum-pool-size";
 
-    ConfigLoader(ConfigProperties properties, Validator validator, PlaceholderResolver placeholders) {
+    /**
+     * Hikari's {@code maximumPoolSize} when nothing sets it. A copy of the library's value
+     * rather than a read of it: the loader runs before the pool exists and must not wait for
+     * one, and a test context without a datasource still loads the configuration.
+     */
+    static final int DEFAULT_CONNECTION_POOL_SIZE = 10;
+
+    // One constructor, and the resolver arrives through it: in a running application it is
+    // the bean in PlaceholderResolverConfiguration, the process environment with `.env`
+    // behind it; a test hands in its own and never resolves from the machine it runs on.
+    // The Spring environment is read for one key only, the pool size the widths are held to —
+    // not a `@Value`, see backend/CLAUDE.md.
+    ConfigLoader(
+            ConfigProperties properties,
+            Validator validator,
+            PlaceholderResolver placeholders,
+            Environment environment) {
         this.properties = properties;
         this.validator = validator;
         this.placeholders = placeholders;
+        this.connectionPoolSize =
+                environment.getProperty(CONNECTION_POOL_SIZE_KEY, Integer.class, DEFAULT_CONNECTION_POOL_SIZE);
         this.mapper = JsonMapper.builder(new YAMLFactory())
                 .addModule(new JavaTimeModule())
                 .propertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE)
@@ -355,6 +374,14 @@ public class ConfigLoader {
                             .formatted(llm.provider(), PipelineConfig.Llm.BATCHING_PROVIDER));
         }
 
+        // A worker holds a connection while it writes its advert back. Wider than the pool, the
+        // extra workers wait for one and give up after Hikari's 30 s, which reads like a broken
+        // database rather than like a number in pipeline.yaml.
+        if (llm != null) {
+            checkWidth("llm.concurrency", llm.concurrency(), problems);
+        }
+        checkWidth("enrichment.fetch.concurrency", pipeline.enrichment().fetch().concurrency(), problems);
+
         // Inverted, this does not fail: `Score.band` tests the shortlist bound first, so a
         // `review` above `auto_shortlist` deletes the REVIEW band outright and builds an
         // application package for every offer above the lower of the two. Found live, with
@@ -434,6 +461,14 @@ public class ConfigLoader {
         if (!problems.isEmpty()) {
             problems.sort(Comparator.naturalOrder());
             throw new ConfigValidationException(dir.toString(), problems);
+        }
+    }
+
+    private void checkWidth(String key, int width, List<String> problems) {
+        if (width > connectionPoolSize) {
+            problems.add(
+                    "%s is %d and the database has a connection pool of %d (%s); a width above the pool leaves the extra workers waiting for a connection until they fail after 30 s — lower it, or raise the pool"
+                            .formatted(key, width, connectionPoolSize, CONNECTION_POOL_SIZE_KEY));
         }
     }
 

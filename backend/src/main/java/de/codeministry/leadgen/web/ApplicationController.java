@@ -15,6 +15,7 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
@@ -25,13 +26,10 @@ import org.springframework.web.bind.annotation.*;
  */
 @RestController
 @RequestMapping("/api/v1/applications")
+@RequiredArgsConstructor
 class ApplicationController {
 
     private final ApplicationService applications;
-
-    ApplicationController(ApplicationService applications) {
-        this.applications = applications;
-    }
 
     @GetMapping
     List<ApplicationView> board() {

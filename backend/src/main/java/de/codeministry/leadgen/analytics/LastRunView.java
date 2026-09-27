@@ -56,6 +56,11 @@ import java.util.Map;
  * @param sources    what each source contributed, ordered by name.
  * @param stages     where the time went, in the order the stages ran. Empty for a run recorded
  *                   before {@code V14} and for one whose recorder could not write.
+ * @param startedAt  when the run began, so the whole run's duration is one subtraction. For a
+ *                   batched run that includes the minutes its scores spent in the queue, which is
+ *                   the honest answer to "how long did it take".
+ * @param previous   the run before this one, for the deltas beside each figure; null when this
+ *                   is the only run the database remembers.
  */
 public record LastRunView(
         Instant finishedAt,
@@ -74,4 +79,6 @@ public record LastRunView(
         int packaged,
         boolean digestWritten,
         List<LastRunSource> sources,
-        List<LastRunStage> stages) {}
+        List<LastRunStage> stages,
+        Instant startedAt,
+        LastRunPrevious previous) {}

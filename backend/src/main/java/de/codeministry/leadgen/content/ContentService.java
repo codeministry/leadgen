@@ -10,9 +10,12 @@ package de.codeministry.leadgen.content;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import de.codeministry.leadgen.concurrent.BoundedWork;
 import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.config.model.PipelineConfig;
 import de.codeministry.leadgen.llm.LlmBudget;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -53,16 +56,28 @@ public class ContentService {
      * due, with no migration and nothing to remember.
      */
     private static final String DUE = """
-        SELECT id, portal, title, full_text FROM offer
+        SELECT id, portal, title, full_text, content_blocks FROM offer
         WHERE status = 'PASSED' AND archived_at IS NULL AND full_text IS NOT NULL
           AND content_at IS NULL
         ORDER BY id
         """;
 
+    /**
+     * {@link #DUE}, plus everything segmented without a model, plus — when {@code content} holds
+     * a key of its own — everything segmented under a different one. The parameter is the model
+     * this run's classifier asks, trimmed, so a key that merely spells the same model with a
+     * trailing blank does not re-walk the table; it is null when the scoring fallback answered,
+     * and {@code COALESCE} then compares the column with itself. A changed {@code scoring} moves
+     * the judge, not this stage: binding the fallback would make every advert due here too.
+     *
+     * <p>A switched key re-walks blocks, not requests: rule and cache hits answer as before, and
+     * only the blocks nobody has a label for go to the new model.
+     */
     private static final String DUE_WITH_A_MODEL = """
-        SELECT id, portal, title, full_text FROM offer
+        SELECT id, portal, title, full_text, content_blocks FROM offer
         WHERE status = 'PASSED' AND archived_at IS NULL AND full_text IS NOT NULL
-          AND (content_at IS NULL OR content_model IS NULL)
+          AND (content_at IS NULL OR content_model IS NULL
+               OR content_model IS DISTINCT FROM COALESCE(?::text, content_model))
         ORDER BY id
         """;
 
@@ -83,8 +98,9 @@ public class ContentService {
      *
      * <p>Nulling {@code score_model} is what makes scoring read this. It is the mechanism
      * already documented as self-healing rather than a fourth staleness criterion invented
-     * for the scoring stage — and it fires only when something was actually taken out, so an
-     * advert that is all advert costs no re-judge.
+     * for the scoring stage — and it fires only when what scoring reads actually moved: an
+     * advert that is all advert costs no re-judge, and neither does a re-segmentation under a
+     * switched key that keeps the same blocks as the one before it.
      */
     private static final String RECORD = """
             UPDATE offer
@@ -117,6 +133,13 @@ public class ContentService {
         this.jdbc = JdbcClient.create(dataSource);
     }
 
+    /**
+     * Segments every due advert, up to {@code llm.concurrency} of them at once.
+     *
+     * <p>The label cache is consulted per advert when that advert starts, so above width 1 a block
+     * that several adverts of one portal share, and that no run has labelled yet, may be asked
+     * for up to {@code width} times in one run before the first answer is remembered.
+     */
     public ContentReport run() {
         PipelineConfig.Content settings = config.snapshot().application().content();
         if (settings == null || !settings.enabled()) {
@@ -128,10 +151,21 @@ public class ContentService {
         Optional<ContentClassifier> classifier = classifiers.current();
         String model = classifier.map(ContentClassifier::model).orElse(null);
 
-        List<Due> due = jdbc.sql(classifier.isPresent() ? DUE_WITH_A_MODEL : DUE)
-                .query((rs, row) -> new Due(
-                        rs.getLong("id"), rs.getString("portal"), rs.getString("title"), rs.getString("full_text")))
-                .list();
+        List<Due> due = classifier.isPresent()
+                ? jdbc.sql(DUE_WITH_A_MODEL)
+                        .param(pinned(model))
+                        .query(ContentService::due)
+                        .list()
+                : jdbc.sql(DUE).query(ContentService::due).list();
+
+        // Up to `llm.concurrency` adverts at once. Each body writes only its own row, the label
+        // cache is a table whose upsert settles two adverts sharing a block, and the classifier
+        // holds nothing but its model — so the counters fold over the returned passes instead
+        // of being bumped from several threads.
+        // Only a run that asks a model runs wide: without one the loop waits on nothing but the
+        // database, and the width a run reports is the width it actually worked at.
+        int width = classifier.isPresent() && !due.isEmpty() ? width() : 1;
+        List<Pass> passes = BoundedWork.forEach(width, due, offer -> process(offer, rules, classifier, model));
 
         int segmented = 0;
         int total = 0;
@@ -139,8 +173,7 @@ public class ContentService {
         int requests = 0;
         int undecided = 0;
 
-        for (Due offer : due) {
-            Pass pass = process(offer, rules, classifier, model);
+        for (Pass pass : passes) {
             total += pass.blocks().size();
             fromCache += pass.fromCache();
             undecided += pass.undecided();
@@ -152,16 +185,17 @@ public class ContentService {
             }
         }
 
-        var report = new ContentReport(due.size(), segmented, total, fromCache, requests, undecided);
+        var report = new ContentReport(due.size(), segmented, total, fromCache, requests, undecided, width);
         log.info(
                 "Content: {} due, {} segmented, {} blocks, {} already decided, {} asked a model,"
-                        + " {} nobody had a label for",
+                        + " {} nobody had a label for{}",
                 report.considered(),
                 report.segmented(),
                 report.blocks(),
                 report.fromCache(),
                 report.requests(),
-                report.undecided());
+                report.undecided(),
+                BoundedWork.atWidth(report.width()));
         return report;
     }
 
@@ -190,11 +224,14 @@ public class ContentService {
         Optional<ContentClassifier> classifier = classifiers.current();
         String model = classifier.map(ContentClassifier::model).orElse(null);
 
-        Optional<Due> due = jdbc.sql(classifier.isPresent() ? DUE_WITH_A_MODEL_BY_ID : DUE_BY_ID)
-                .param(id)
-                .query((rs, row) -> new Due(
-                        rs.getLong("id"), rs.getString("portal"), rs.getString("title"), rs.getString("full_text")))
-                .optional();
+        // The same predicate as the night, bound the same way: the model first, then the id.
+        Optional<Due> due = classifier.isPresent()
+                ? jdbc.sql(DUE_WITH_A_MODEL_BY_ID)
+                        .param(pinned(model))
+                        .param(id)
+                        .query(ContentService::due)
+                        .optional()
+                : jdbc.sql(DUE_BY_ID).param(id).query(ContentService::due).optional();
         if (due.isEmpty()) {
             return ContentReport.skipped();
         }
@@ -209,6 +246,23 @@ public class ContentService {
                 pass.undecided());
     }
 
+    /** How many adverts this run works at once; {@code 1} without a model block. */
+    private int width() {
+        PipelineConfig.Llm llm = config.snapshot().application().llm();
+        return llm == null ? 1 : llm.concurrency();
+    }
+
+    /**
+     * The model a switched key is compared against: the one this run asks, but only when
+     * {@code llm.models.content} named it. Decided from the configured value, the way
+     * {@code ModelChoice.decidedBy} decides it, and not by comparing model names.
+     */
+    private String pinned(String asked) {
+        PipelineConfig.Llm llm = config.snapshot().application().llm();
+        String own = llm == null || llm.models() == null ? null : llm.models().content();
+        return own != null && !own.isBlank() ? asked : null;
+    }
+
     /**
      * One offer, segmented and recorded. Shared by {@link #run()} and {@link #runFor(long)} so
      * the button and the night walk the identical path, and a change to either cannot drift
@@ -221,7 +275,7 @@ public class ContentService {
      */
     private Pass process(Due offer, ContentRules rules, Optional<ContentClassifier> classifier, String model) {
         Pass pass = segment(offer, rules, classifier);
-        record(offer.id(), pass, pass.settled() ? model : null);
+        record(offer, pass, pass.settled() ? model : null);
         return pass;
     }
 
@@ -278,7 +332,8 @@ public class ContentService {
         if (!budget.take()) {
             // Exactly what an unanswering model leaves behind: the rules' and the cache's
             // labels stand, the offer stays due, and the next run finishes the advert.
-            return new Pass(blocks, fromCache, true, false);
+            // Not counted as asked: no request left, and the report counts requests.
+            return new Pass(blocks, fromCache, false, false);
         }
         Optional<Map<Integer, ContentClassifier.Labelled>> answered =
                 classifier.get().classify(offer.title(), unknown);
@@ -314,14 +369,44 @@ public class ContentService {
         return new Pass(blocks, fromCache, true, true);
     }
 
-    private void record(long id, Pass pass, String model) {
-        // Only when something was actually taken out. An advert that is all advert reads the
-        // same either way, and re-judging it would be a language-model call bought for a
-        // score that cannot move.
-        boolean changed = pass.blocks().stream().anyMatch(block -> !block.isContent());
+    private void record(Due offer, Pass pass, String model) {
+        boolean changed = moved(offer.previousBlocks(), pass.blocks());
         jdbc.sql(RECORD)
-                .params(write(pass.blocks()), pass.settled(), model, pass.undecided(), changed, id)
+                .params(write(pass.blocks()), pass.settled(), model, pass.undecided(), changed, offer.id())
                 .update();
+    }
+
+    /**
+     * Whether what scoring reads moved: the blocks kept as the advert, compared by text.
+     *
+     * <p>Never segmented before, the comparison is against the whole page, so the answer is
+     * "something was taken out" — an advert that is all advert reads the same either way, and
+     * re-judging it would be a language-model call bought for a score that cannot move.
+     * Segmented before — a refetch, or a switched {@code content} key — it is against the blocks
+     * the row already had, so a new model that agrees with the old reading costs no re-judge. A
+     * block's reason and decider are not compared: scoring reads neither.
+     */
+    private static boolean moved(List<ContentBlock> previous, List<ContentBlock> current) {
+        if (previous.isEmpty()) {
+            return current.stream().anyMatch(block -> !block.isContent());
+        }
+        return !kept(previous).equals(kept(current));
+    }
+
+    private static List<String> kept(List<ContentBlock> blocks) {
+        return blocks.stream()
+                .filter(ContentBlock::isContent)
+                .map(ContentBlock::text)
+                .toList();
+    }
+
+    private static Due due(ResultSet rs, int row) throws SQLException {
+        return new Due(
+                rs.getLong("id"),
+                rs.getString("portal"),
+                rs.getString("title"),
+                rs.getString("full_text"),
+                ContentText.parse(rs.getString("content_blocks")));
     }
 
     /**
@@ -338,7 +423,11 @@ public class ContentService {
         }
     }
 
-    private record Due(long id, String portal, String title, String fullText) {}
+    /**
+     * @param previousBlocks what the row held before this pass, empty when it was never
+     *                       segmented — the reference {@link #moved} compares against
+     */
+    private record Due(long id, String portal, String title, String fullText, List<ContentBlock> previousBlocks) {}
 
     /**
      * @param asked   whether a model was actually called, so the report counts requests and

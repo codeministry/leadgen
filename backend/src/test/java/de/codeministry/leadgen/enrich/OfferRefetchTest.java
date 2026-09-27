@@ -29,6 +29,7 @@ import java.nio.file.Path;
 import java.sql.Timestamp;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.junit.jupiter.api.AfterAll;
@@ -122,6 +123,14 @@ class OfferRefetchTest {
             Stundensatz 95 EUR/h, Laufzeit 12 Monate, 4 Tage / Woche,
             80 % remote, Start ab 01.10.2026.
           </article>
+        </body></html>
+        """;
+
+    /** Read fine, and the rate is on it, but nothing the `full_text` selector would take. */
+    private static final String PAGE_WITHOUT_AD_TEXT = """
+        <html><body>
+          <h1>Senior Java Entwickler (m/w/d)</h1>
+          <div class="teaser">Stundensatz 95 EUR/h. Details nach Login.</div>
         </body></html>
         """;
 
@@ -342,6 +351,41 @@ class OfferRefetchTest {
     }
 
     @Test
+    void derivesNothingAndAsksNobodyWhenItsStoreWasANoOp() {
+        // ISC-323, the anti-claim. The other side of the race: this press's page answers, and
+        // the other press's text lands while it does, so the store (ISC-294) writes zero rows.
+        // Nothing this press could derive would be derived from anything it stored, and the
+        // press that stored the text is the one that segments, extracts and scores it. So the
+        // row stays exactly as the other press left it — no stamp reset, no block, no field, no
+        // score — and the model is asked nothing. The answer is still 200 with the entry, as the
+        // failed half of the race answers: the fetch reached the page, and the ad is here.
+        String path = "/projekt/raced-and-read";
+        long id = unfetchedOffer(path);
+        jdbc.update("""
+            UPDATE offer
+            SET content_at = now() - interval '1 day', content_model = 'test-model',
+                fields_at = now() - interval '1 day', fields_model = 'test-model',
+                scored_at = now() - interval '1 day', score_model = 'test-model'
+            WHERE id = ?
+            """, id);
+        stubFor(get(urlEqualTo(path)).willReturn(aResponse().withBody(AD_HTML).withTransformers(WhileAnswering.NAME)));
+        AtomicReference<String> asTheOtherPressLeftIt = new AtomicReference<>();
+        whileAnswering = () -> {
+            jdbc.update("UPDATE offer SET full_text = 'Vom anderen Klick.', enrichment_note = NULL WHERE id = ?", id);
+            asTheOtherPressLeftIt.set(rowOf(id));
+        };
+
+        MvcTestResult result = mvc.post().uri("/api/v1/offers/{id}/fetch", id).exchange();
+
+        assertThat(result).hasStatusOk();
+        verify(1, getRequestedFor(urlEqualTo(path)));
+        // The whole row, so a reset or a re-derivation is caught whichever column it touches.
+        assertThat(rowOf(id)).isEqualTo(asTheOtherPressLeftIt.get());
+        MODEL.verify(0, postRequestedFor(urlPathEqualTo("/chat/completions")));
+        assertThat(result).bodyJson().extractingPath("$.offer.fullText").isEqualTo("Vom anderen Klick.");
+    }
+
+    @Test
     void keepsTheOfferAndRecordsTheNewReasonWhenThePortalAnswers500() {
         // ISC-247, the server-error half. Retried and still 500: an outcome, not an error. The
         // offer stays, the night's reason is replaced by the new one, and the answer is the
@@ -406,6 +450,33 @@ class OfferRefetchTest {
                 .isEqualTo("PASSED");
         assertThat(jdbc.queryForObject("SELECT enrichment_note FROM offer WHERE id = ?", String.class, id))
                 .startsWith("unreachable");
+    }
+
+    @Test
+    void namesAPageThatWasReadButYieldedNoAdText() {
+        // ISC-321. The page answers and the patterns find the rate on it, but the full_text
+        // selector matches nothing. Recorded without a note, the card has no reason to show
+        // beside its button and the toast ends in an empty one; the note has to say that the
+        // page was read and still gave no advert.
+        String path = "/projekt/no-article";
+        long id = unfetchedOffer(path);
+        stubFor(get(urlEqualTo(path)).willReturn(aResponse().withBody(PAGE_WITHOUT_AD_TEXT)));
+
+        MvcTestResult result = mvc.post().uri("/api/v1/offers/{id}/fetch", id).exchange();
+
+        assertThat(result).hasStatusOk();
+        assertThat(jdbc.queryForObject("SELECT enrichment_note FROM offer WHERE id = ?", String.class, id))
+                .isEqualTo(EnrichmentService.NO_AD_TEXT);
+        // What the page did yield is kept: the note says what is missing, not that nothing came.
+        assertThat(jdbc.queryForObject("SELECT rate_eur FROM offer WHERE id = ?", Integer.class, id))
+                .isEqualTo(95);
+        // The refetch toast's reason is this field of the answer.
+        assertThat(result)
+                .bodyJson()
+                .extractingPath("$.offer.enrichmentNote")
+                .asString()
+                .isEqualTo(EnrichmentService.NO_AD_TEXT);
+        assertThat(result).bodyJson().extractingPath("$.offer.fullText").isNull();
     }
 
     @Test
@@ -533,14 +604,20 @@ class OfferRefetchTest {
             text = set(text, "llm", "timeout", "PT5S");
             text = set(text, "llm", "batch", "false");
             text = set(text, "models", "extraction", "''");
+            text = set(text, "models", "content", "''");
+            text = set(text, "models", "fields", "''");
             text = set(text, "models", "scoring", "test-model");
             text = set(text, "models", "scoring_options", "''");
             text = set(text, "models", "writing", "''");
             text = set(text, "models", "embedding", "''");
             text = set(text, "fetch", "timeout", "PT" + FETCH_TIMEOUT_MILLIS / 1000 + "S");
-            // Every one named, or the resolver fills the rest from whoever's `.env` this runs on.
-            if (text.contains("${LLM_")) {
-                throw new IllegalStateException("an ${LLM_*} placeholder is still open in the test pipeline.yaml");
+            text = set(text, "llm", "concurrency", "1");
+            text = set(text, "fetch", "concurrency", "1");
+            // Every one named or closed, or the resolver fills the rest from whoever's `.env`
+            // this runs on — including a key added after this fixture was written.
+            text = ConfigFixtures.closePlaceholders(text);
+            if (text.contains("${")) {
+                throw new IllegalStateException("a placeholder is still open in the test pipeline.yaml");
             }
             Files.writeString(pipeline, text, StandardCharsets.UTF_8);
             return dir;

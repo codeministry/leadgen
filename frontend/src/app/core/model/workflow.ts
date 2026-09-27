@@ -51,6 +51,17 @@ export interface WorkflowStage {
     readonly settings: readonly WorkflowSetting[];
     /** The hard filters in `FilterStage` order on the stage that applies them; null elsewhere. */
     readonly knockouts: readonly WorkflowKnockout[] | null;
+    /**
+     * How many adverts the stage works on at once and the key that sets it — stated at every
+     * width, one included. Null on a stage no width bounds and on every ingest entry.
+     */
+    readonly width: WorkflowStageWidth | null;
+}
+
+/** `llm.concurrency` or `enrichment.fetch.concurrency`, with the value the run resolves. */
+export interface WorkflowStageWidth {
+    readonly key: string;
+    readonly value: number;
 }
 
 /** One phase of a run: `read`, `sort`, `understand`, `judge` or `hand`. */
@@ -66,3 +77,12 @@ export interface WorkflowView {
     /** Every key present in a file that no stage reads. Shown, never dropped. */
     readonly unread: readonly WorkflowSetting[];
 }
+
+/**
+ * The `?stage=` value that opens the run status instead of a stage (operator, 2026-09-26). A
+ * sentinel beside `UNREAD_STAGE` rather than a second query parameter: one screen, one sheet, one
+ * thing in the URL that says what is open, and a link to the status is as shareable as a link to a
+ * stage. No stage the server names can collide with it — the names are `DEDUPE`, `FILTER`,
+ * `INGEST <source>` and the rest, all upper case and none of them a bare verb.
+ */
+export const RUN_STATUS = 'run';

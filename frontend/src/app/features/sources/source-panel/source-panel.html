@@ -18,10 +18,6 @@
         <lg-icon name="ban" [size]="14"/>
         {{ 'sources.readsOnly' | transloco }}
       </span>
-      <a class="btn btn-sm btn-ghost close" routerLink="/sources">
-        <lg-icon name="x" [size]="16"/>
-        {{ 'sources.close' | transloco }}
-      </a>
     </div>
 
     <div class="panel-grid">
@@ -174,12 +170,6 @@
         }
       </section>
     </div>
-
-    <!-- Twice, so a keyboard user leaving a long block does not have to tab back up through
-         it to get out. -->
-    <a class="btn btn-sm btn-ghost close-bottom" routerLink="/sources">
-      {{ 'sources.close' | transloco }}
-    </a>
   } @else {
     <p class="type-small text-muted">{{ 'common.loading' | transloco }}</p>
   }

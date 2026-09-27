@@ -14,6 +14,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.never;
 
+import de.codeministry.leadgen.answer.AnswerService;
 import de.codeministry.leadgen.archive.ArchiveRequest;
 import de.codeministry.leadgen.archive.ArchiveResult;
 import de.codeministry.leadgen.archive.ArchiveService;
@@ -55,6 +56,9 @@ class OfferControllerTest {
 
     @MockitoBean
     private AdvertAskService asks;
+
+    @MockitoBean
+    private AnswerService answers;
 
     @MockitoBean
     private OfferRefetch refetch;

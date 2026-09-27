@@ -8,20 +8,38 @@
  */
 package de.codeministry.leadgen.fields;
 
+import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
+import static com.github.tomakehurst.wiremock.client.WireMock.matchingJsonPath;
+import static com.github.tomakehurst.wiremock.client.WireMock.post;
+import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
+import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 
+import com.github.tomakehurst.wiremock.WireMockServer;
+import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import de.codeministry.leadgen.Databases;
 import de.codeministry.leadgen.config.ConfigFixtures;
+import de.codeministry.leadgen.config.ConfigRegistry;
+import de.codeministry.leadgen.config.ConfigSnapshot;
+import de.codeministry.leadgen.config.model.PipelineConfig;
+import de.codeministry.leadgen.llm.ChatModels;
+import de.codeministry.leadgen.llm.LlmBudget;
+import de.codeministry.leadgen.llm.ModelChoice;
 import java.time.LocalDate;
 import java.util.Optional;
+import javax.sql.DataSource;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -51,11 +69,31 @@ class FieldsServiceTest {
                 "leadgen.config-dir", () -> ConfigFixtures.shippedDefaults().toString());
     }
 
+    /**
+     * One endpoint for every model, because the configuration has one {@code base_url}: "another
+     * model" is another model name on it. Started in a static initialiser for the reason
+     * {@code FieldExtractorWireFormatTest} gives.
+     */
+    private static final WireMockServer MODEL;
+
+    static {
+        MODEL = new WireMockServer(WireMockConfiguration.options().dynamicPort());
+        MODEL.start();
+    }
+
     @Autowired
     private FieldsService fields;
 
     @Autowired
     private JdbcTemplate jdbc;
+
+    @Autowired
+    private ConfigRegistry config;
+
+    @Autowired
+    private DataSource dataSource;
+
+    private static final String SCORING = "model-scoring";
 
     @MockitoBean
     private FieldExtractors extractors;
@@ -65,8 +103,14 @@ class FieldsServiceTest {
 
     private long sourceId;
 
+    @AfterAll
+    static void stop() {
+        MODEL.stop();
+    }
+
     @BeforeEach
     void reset() {
+        MODEL.resetAll();
         jdbc.update("DELETE FROM offer_score_reason");
         jdbc.update("DELETE FROM application_event");
         jdbc.update("DELETE FROM application");
@@ -200,6 +244,168 @@ class FieldsServiceTest {
         assertThat(fields.runFor(id)).isFalse();
         assertThat(jdbc.queryForObject("SELECT fields_at FROM offer WHERE id = ?", Object.class, id))
                 .isNull();
+    }
+
+    /** ISC-369: a switched key, an identical answer — due again, re-stamped, the score stands. */
+    @Test
+    void aSwitchedFieldsKeyMakesTheOfferDueAgainAndKeepsTheScoreWhenNothingMoved() {
+        long id = passed("Java Entwickler", null, null);
+        var answer = new ExtractedFields("ab 01.10.2026", LocalDate.of(2026, 10, 1), "6 Monate", 6, null, null);
+        answers(answer);
+        assertThat(keyed("a-model", SCORING).run().extracted()).isEqualTo(1);
+        scored(id);
+
+        // The same key again: nothing is due.
+        assertThat(keyed("a-model", SCORING).run().considered()).isZero();
+
+        var report = keyed("b-model", SCORING).run();
+
+        assertThat(report.considered()).isEqualTo(1);
+        assertThat(report.rejudged()).isZero();
+        assertThat(fieldsModelOf(id)).isEqualTo("b-model");
+        assertThat(scoreModelOf(id)).isEqualTo("a-judge");
+        // And under the new key it is settled.
+        assertThat(keyed("b-model", SCORING).run().considered()).isZero();
+    }
+
+    /** ISC-369: a switched key whose answer moved a value scoring reads makes scoring read again. */
+    @Test
+    void aSwitchedFieldsKeyWhoseAnswerMovedAValueMakesScoringReadAgain() {
+        long id = passed("Java Entwickler", null, null);
+        answers(new ExtractedFields("ab 01.10.2026", LocalDate.of(2026, 10, 1), "6 Monate", 6, null, null));
+        keyed("a-model", SCORING).run();
+        scored(id);
+
+        answers(new ExtractedFields("ab 01.11.2026", LocalDate.of(2026, 11, 1), "6 Monate", 6, null, null));
+        var report = keyed("b-model", SCORING).run();
+
+        assertThat(report.considered()).isEqualTo(1);
+        assertThat(report.rejudged()).isEqualTo(1);
+        assertThat(fieldsModelOf(id)).isEqualTo("b-model");
+        assertThat(scoreModelOf(id)).isNull();
+    }
+
+    @Test
+    void theButtonReadsTheSameSwitchedKeyPredicateAsTheNight() {
+        long id = passed("Java Entwickler", null, null);
+        answers(ExtractedFields.none());
+        keyed("a-model", SCORING).run();
+
+        assertThat(keyed("a-model", SCORING).runFor(id)).isFalse();
+
+        assertThat(keyed("b-model", SCORING).runFor(id)).isTrue();
+        assertThat(fieldsModelOf(id)).isEqualTo("b-model");
+    }
+
+    /**
+     * ISC-369, the blank-key half. With {@code fields} empty the extractor asks the scoring
+     * model, but the stage has no key of its own to switch: a changed {@code scoring} moves the
+     * judge and must not re-read every advert, at night or from the button.
+     */
+    @Test
+    void aSwitchedScoringKeyLeavesAnAdvertReadUnderTheFallbackAlone() {
+        long id = passed("Java Entwickler", null, null);
+        answers(ExtractedFields.none());
+        assertThat(keyed(null, "scoring-a").run().considered()).isEqualTo(1);
+        assertThat(fieldsModelOf(id)).isEqualTo("scoring-a");
+
+        assertThat(keyed(null, "scoring-b").run().considered()).isZero();
+        assertThat(keyed(null, "scoring-b").runFor(id)).isFalse();
+        assertThat(fieldsModelOf(id)).isEqualTo("scoring-a");
+    }
+
+    /**
+     * The service as the context builds it, except that the configuration names {@code fields}
+     * and {@code scoring} as given, and the mocked extractor asks the model {@link ModelChoice}
+     * picks from them — the one the real {@link FieldExtractors} would build.
+     */
+    private FieldsService keyed(String fieldsKey, String scoringKey) {
+        var models = new PipelineConfig.Llm.Models(null, scoringKey, null, null, null, null, fieldsKey);
+        var llm = new PipelineConfig.Llm(
+                ChatModels.OPENAI_COMPATIBLE, MODEL.baseUrl(), "test-key", null, false, models, null);
+        var registry = Mockito.mock(ConfigRegistry.class);
+        var snapshot = Mockito.mock(ConfigSnapshot.class);
+        var pipeline = Mockito.mock(PipelineConfig.class);
+        given(registry.snapshot()).willReturn(snapshot);
+        given(snapshot.application()).willReturn(pipeline);
+        given(pipeline.llm()).willReturn(llm);
+        given(pipeline.fields()).willReturn(config.snapshot().application().fields());
+        given(extractor.model()).willReturn(ModelChoice.fields(models).orElseThrow());
+        return new FieldsService(
+                registry,
+                extractors,
+                new LlmBudget(registry, JdbcClient.create(dataSource)),
+                JdbcClient.create(dataSource));
+    }
+
+    /**
+     * ISC-370. The fields model does not answer; the scoring model, on the same endpoint, would.
+     * The real {@link FieldExtractors} builds the extractor here, against WireMock, so the
+     * property pinned is the whole route: no second model is asked, and the offer stays due.
+     */
+    @Test
+    void neverAsksTheScoringModelWhenTheFieldsModelDoesNotAnswer() {
+        long id = passed("Java Entwickler", null, null);
+        var real = new FieldExtractors(registryWith("model-fields"), new ChatModels());
+        given(extractors.current()).willAnswer(invocation -> real.current());
+        MODEL.stubFor(post(urlPathEqualTo("/chat/completions"))
+                .withRequestBody(matchingJsonPath("$.model", equalTo("model-fields")))
+                .willReturn(aResponse().withStatus(503).withBody("{}")));
+        MODEL.stubFor(post(urlPathEqualTo("/chat/completions"))
+                .withRequestBody(matchingJsonPath("$.model", equalTo("model-scoring")))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("""
+                        {"id":"chat-1","object":"chat.completion","created":1,"model":"model-scoring",
+                         "choices":[{"index":0,"finish_reason":"stop",
+                                     "message":{"role":"assistant","content":"{}"}}]}
+                        """)));
+
+        var report = fields.run();
+
+        assertThat(report.requests()).isEqualTo(1);
+        assertThat(report.extracted()).isZero();
+        MODEL.verify(
+                1,
+                postRequestedFor(urlPathEqualTo("/chat/completions"))
+                        .withRequestBody(matchingJsonPath("$.model", equalTo("model-fields"))));
+        MODEL.verify(
+                0,
+                postRequestedFor(urlPathEqualTo("/chat/completions"))
+                        .withRequestBody(matchingJsonPath("$.model", equalTo("model-scoring"))));
+        assertThat(jdbc.queryForObject("SELECT fields_at FROM offer WHERE id = ?", Object.class, id))
+                .isNull();
+        assertThat(fieldsModelOf(id)).isNull();
+
+        // Still due, and the next run asks the fields model again — still nobody else.
+        assertThat(fields.run().considered()).isEqualTo(1);
+        MODEL.verify(
+                0,
+                postRequestedFor(urlPathEqualTo("/chat/completions"))
+                        .withRequestBody(matchingJsonPath("$.model", equalTo("model-scoring"))));
+    }
+
+    private static ConfigRegistry registryWith(String fieldsModel) {
+        var llm = new PipelineConfig.Llm(
+                ChatModels.OPENAI_COMPATIBLE,
+                MODEL.baseUrl(),
+                "test-key",
+                null,
+                false,
+                new PipelineConfig.Llm.Models(null, "model-scoring", null, null, null, null, fieldsModel),
+                null);
+        var registry = Mockito.mock(ConfigRegistry.class);
+        var snapshot = Mockito.mock(ConfigSnapshot.class);
+        var pipeline = Mockito.mock(PipelineConfig.class);
+        given(registry.snapshot()).willReturn(snapshot);
+        given(snapshot.application()).willReturn(pipeline);
+        given(pipeline.llm()).willReturn(llm);
+        return registry;
+    }
+
+    private String fieldsModelOf(long id) {
+        return jdbc.queryForObject("SELECT fields_model FROM offer WHERE id = ?", String.class, id);
     }
 
     private void answers(ExtractedFields answer) {

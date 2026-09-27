@@ -8,9 +8,16 @@
     height: 3.5rem;
 }
 
+/* The day's slot: the fortnight's grid, faint enough never to be read as a bar. */
+.slot {
+    fill: color-mix(in oklab, var(--color-base-content) 6%, transparent);
+}
+
+/* In the tone of the cell it stands in (the dashboard's intake cell is information), the
+   neutral tone anywhere else. */
 .extracted {
-    fill: var(--color-primary);
-    opacity: 0.55;
+    fill: var(--lg-tone);
+    opacity: 0.6;
 }
 
 /* The signal, and it means what it means everywhere: these survived the filter. */

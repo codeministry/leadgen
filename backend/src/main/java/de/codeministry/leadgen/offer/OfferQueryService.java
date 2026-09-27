@@ -18,7 +18,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.*;
-import javax.sql.DataSource;
+import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 
@@ -29,6 +29,7 @@ import org.springframework.stereotype.Service;
  * owns a narrow slice of the `offer` row; this owns the whole row as a person reads it.
  */
 @Service
+@RequiredArgsConstructor
 public class OfferQueryService {
 
     /**
@@ -98,12 +99,6 @@ public class OfferQueryService {
     private final JdbcClient jdbc;
     private final ConfigRegistry config;
     private final SemanticFilter semantic;
-
-    OfferQueryService(DataSource dataSource, ConfigRegistry config, SemanticFilter semantic) {
-        this.jdbc = JdbcClient.create(dataSource);
-        this.config = config;
-        this.semantic = semantic;
-    }
 
     /**
      * One page of the shortlist, filtered in SQL.
@@ -183,11 +178,11 @@ public class OfferQueryService {
         // an arm because they read one column, and FRESH needed one of its own.
         long key =
                 switch (sort) {
-                    case SCORE -> sort.carried(last.scoreValue());
-                    case START -> sort.carried(last.offer().startsOn());
-                    case DEADLINE -> sort.carried(last.offer().applyBy());
+                    case SCORE, SCORE_LOW -> sort.carried(last.scoreValue());
+                    case START, START_LATE -> sort.carried(last.offer().startsOn());
+                    case DEADLINE, DEADLINE_LATE -> sort.carried(last.offer().applyBy());
                     case DURATION, DURATION_SHORT -> sort.carried(last.offer().durationMonths());
-                    case FRESH -> sort.carried(last.ingestedAt());
+                    case FRESH, FRESH_OLD -> sort.carried(last.ingestedAt());
                 };
         return new Cursor(sort, key, last.ingestedAt(), last.id()).encoded();
     }
@@ -290,6 +285,11 @@ public class OfferQueryService {
             sql.append(" AND o.score_value >= :reviewAt AND o.score_value < :shortlistAt\n");
             params.put("reviewAt", thresholds.review());
             params.put("shortlistAt", thresholds.autoShortlist());
+        } else if ("discarded".equals(score.band())) {
+            // Below the review line, which is what `Score` calls DISCARDED. An offer nobody
+            // judged has no score to be below anything, so it is left out as in the other two.
+            sql.append(" AND o.score_value IS NOT NULL AND o.score_value < :reviewAt\n");
+            params.put("reviewAt", thresholds.review());
         }
         if (score.min() != null) {
             // `NULL >= 60` already drops an unjudged offer; the IS NOT NULL is written because
@@ -421,7 +421,7 @@ public class OfferQueryService {
         var stages = new ArrayList<FunnelView.Stage>();
         for (var stage : de.codeministry.leadgen.filter.FilterStage.values()) {
             stages.add(new FunnelView.Stage(
-                    stage.name().toLowerCase().replace('_', '-'),
+                    stage.id(),
                     // The enum writes its description as a sentence fragment, because that
                     // is how it reads in a log line. On a chart it is a label.
                     capitalize(stage.description()),

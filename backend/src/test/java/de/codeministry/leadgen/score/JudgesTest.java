@@ -23,7 +23,7 @@ import org.mockito.Mockito;
 class JudgesTest {
 
     private static final PipelineConfig.Llm.Models SCORING =
-            new PipelineConfig.Llm.Models(null, "some-model", null, null, null);
+            new PipelineConfig.Llm.Models(null, "some-model", null, null, null, null, null);
 
     @Test
     void picksTheWireFormatTheProviderNames() {
@@ -84,7 +84,7 @@ class JudgesTest {
                         "key",
                         null,
                         false,
-                        new PipelineConfig.Llm.Models(null, null, null, null, null),
+                        new PipelineConfig.Llm.Models(null, null, null, null, null, null, null),
                         null)))
                 .isEmpty();
     }

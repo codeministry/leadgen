@@ -23,6 +23,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.embedding.EmbeddingRequest;
 import org.springframework.stereotype.Component;
@@ -49,6 +50,7 @@ import org.springframework.stereotype.Component;
  */
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class ProfileEmbeddings {
 
     private final ConfigRegistry config;
@@ -57,12 +59,6 @@ public class ProfileEmbeddings {
 
     /** Keyed by model and text digest, so an edited pitch invalidates only itself. */
     private final Map<String, float[]> remembered = new ConcurrentHashMap<>();
-
-    ProfileEmbeddings(ConfigRegistry config, EmbeddingModels models, LlmBudget budget) {
-        this.config = config;
-        this.models = models;
-        this.budget = budget;
-    }
 
     /**
      * A vector per reference project, in the language the letter will be written in.

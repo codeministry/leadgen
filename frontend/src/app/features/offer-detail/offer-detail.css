@@ -136,6 +136,22 @@
     color: var(--lg-muted);
 }
 
+/* A portal in the cluster, opened in its own tab. Muted like the list around it until it is
+   pointed at, so the block still reads as one line of provenance rather than a row of buttons. */
+.source-link {
+    display: inline-flex;
+    gap: 0.25rem;
+    align-items: baseline;
+    color: inherit;
+    text-decoration: none;
+}
+
+.source-link:hover,
+.source-link:focus-visible {
+    color: var(--color-base-content);
+    text-decoration: underline;
+}
+
 .letter {
     padding: 0.875rem 1rem;
     margin-bottom: 1rem;

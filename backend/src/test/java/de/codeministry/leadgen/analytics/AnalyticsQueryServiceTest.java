@@ -14,7 +14,10 @@ import static org.assertj.core.api.Assertions.within;
 import de.codeministry.leadgen.Databases;
 import de.codeministry.leadgen.application.ApplicationStatus;
 import de.codeministry.leadgen.config.ConfigFixtures;
+import de.codeministry.leadgen.offer.FunnelView;
+import de.codeministry.leadgen.workflow.WorkflowCatalog;
 import java.time.LocalDate;
+import java.util.Locale;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -379,6 +382,35 @@ class AnalyticsQueryServiceTest {
         assertThat(mix)
                 .extracting(MarketView.StageDay::day)
                 .containsExactly(LocalDate.now().minusDays(3), LocalDate.now());
+    }
+
+    @Test
+    void namesAStageTheWayTheRulesScreenDoesUnderATurkishLocale() {
+        // `toLowerCase()` with the default locale turns the `I` of NO_CORE_SKILL into a
+        // dotless `ı` under tr-TR, and the rules screen's join to its removal count misses
+        // without an error anywhere. The id is a wire name, not text, so it is Locale.ROOT.
+        long rejected = arrived(LocalDate.now());
+        jdbc.update("UPDATE offer SET filter_stage = 'NO_CORE_SKILL', status = 'FILTERED_OUT' WHERE id = ?", rejected);
+        var knockoutIds = WorkflowCatalog.knockouts().stream()
+                .map(WorkflowCatalog.KnockoutEntry::id)
+                .toList();
+
+        Locale previous = Locale.getDefault();
+        try {
+            Locale.setDefault(Locale.forLanguageTag("tr-TR"));
+            var view = analytics.analytics();
+
+            assertThat(view.market().stageMix())
+                    .extracting(MarketView.StageDay::stage)
+                    .containsExactly("no-core-skill");
+            assertThat(view.funnel().stages()).extracting(FunnelView.Stage::id).containsExactlyElementsOf(knockoutIds);
+            assertThat(view.funnel().stages())
+                    .filteredOn(stage -> stage.id().equals("no-core-skill"))
+                    .extracting(FunnelView.Stage::removed)
+                    .containsExactly(1);
+        } finally {
+            Locale.setDefault(previous);
+        }
     }
 
     private long arrived(LocalDate day) {

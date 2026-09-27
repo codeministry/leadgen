@@ -17,6 +17,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatModel;
@@ -36,6 +37,7 @@ import org.springframework.ai.chat.model.ChatResponse;
  * would mean the same offer scores differently depending on who was asked.
  */
 @Slf4j
+@RequiredArgsConstructor
 public class ChatClientJudge implements Judge {
 
     /**
@@ -98,15 +100,6 @@ public class ChatClientJudge implements Judge {
      */
     private final SkillProfile profile;
 
-    public ChatClientJudge(
-            ChatModel chatModel, String model, ObjectMapper json, Map<String, Integer> bounds, SkillProfile profile) {
-        this.chatModel = chatModel;
-        this.model = model;
-        this.json = json;
-        this.bounds = bounds;
-        this.profile = profile;
-    }
-
     /**
      * The bounds for the four judged factors, read out of the configured weight table.
      *
@@ -115,7 +108,7 @@ public class ChatClientJudge implements Judge {
      * alternative is a judge that cannot be constructed at all, which would take the whole
      * run down over a table nobody filled in.
      */
-    static Map<String, Integer> boundsOf(MatchingRules.Scoring scoring) {
+    public static Map<String, Integer> boundsOf(MatchingRules.Scoring scoring) {
         if (scoring == null) {
             return Map.of();
         }
@@ -179,7 +172,7 @@ public class ChatClientJudge implements Judge {
         }
     }
 
-    String instructions() {
+    public String instructions() {
         return instructions(bounds, profile);
     }
 
@@ -319,7 +312,7 @@ public class ChatClientJudge implements Judge {
      * calling an offer vague while the row beside it states all four is answering with less
      * than the application knows.
      */
-    static String describe(ScoreCandidate offer) {
+    public static String describe(ScoreCandidate offer) {
         StringBuilder text = new StringBuilder();
         text.append("Title: ").append(offer.title()).append('\n');
         if (offer.tags() != null && !offer.tags().isEmpty()) {
@@ -353,8 +346,12 @@ public class ChatClientJudge implements Judge {
      * the weight table is what decides, not the answer. <b>The bounds live here and nowhere
      * else</b> — a second copy for the batch path would mean the same offer scores
      * differently depending on whether the night was busy.
+     *
+     * <p>Public, with {@link #instructions()} and {@link #describe(ScoreCandidate)}, because
+     * {@code answer.AnswerService} asks a candidate model this same question and has to read
+     * the reply inside the same bounds — a third copy would be the same mistake again.
      */
-    protected List<ScoreReason> reasonsOf(String content, long offerId) {
+    public List<ScoreReason> reasonsOf(String content, long offerId) {
         List<ScoreReason> reasons = new ArrayList<>();
         try {
             JsonNode parsed = json.readTree(Answers.objectIn(content));

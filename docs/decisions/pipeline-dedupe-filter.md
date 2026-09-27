@@ -333,3 +333,11 @@ offer a person owns.
   `dialog:not([open]) { display: none }` and the panel then stands open forever while every API reports it closed. jsdom
   implements `HTMLDialogElement` as a bare `HTMLElement` with `open`
   and nothing else, so every call is optional-chained and no spec opens the dialog.
+
+## Traps moved from backend/CLAUDE.md
+
+- **`<mark>` reaches the title as text, and stripping the angle brackets is not stripping the tag.** `[^a-z0-9]+` turns
+  `<` and `>` into spaces and leaves the word `mark` standing twice, so `<mark>DevOps</mark> Engineer` fingerprints as
+  `mark devops mark engineer` and never meets its twin. Measured: 402 of 13240 titles carry it. `TitleNormalizer`
+  removes it before the gender suffixes, because a term matching "w" arrives as `(m/<mark>w</mark>/d)` and the suffix
+  pattern does not recognise its own shape until then. Numbers in `docs/SAMPLE-ANALYSIS.md` § 4.

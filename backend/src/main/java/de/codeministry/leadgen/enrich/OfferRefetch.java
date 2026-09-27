@@ -11,7 +11,7 @@ package de.codeministry.leadgen.enrich;
 import de.codeministry.leadgen.content.ContentService;
 import de.codeministry.leadgen.fields.FieldsService;
 import de.codeministry.leadgen.score.ScoringService;
-import javax.sql.DataSource;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
@@ -32,6 +32,7 @@ import org.springframework.stereotype.Service;
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class OfferRefetch {
 
     /**
@@ -49,30 +50,26 @@ public class OfferRefetch {
     private final ScoringService scoring;
     private final JdbcClient jdbc;
 
-    OfferRefetch(
-            EnrichmentService enrichment,
-            ContentService content,
-            FieldsService fields,
-            ScoringService scoring,
-            DataSource dataSource) {
-        this.enrichment = enrichment;
-        this.content = content;
-        this.fields = fields;
-        this.scoring = scoring;
-        this.jdbc = JdbcClient.create(dataSource);
-    }
-
     /**
      * A fetch that reached the page and failed is recorded by enrichment and ends here: the
      * offer keeps its blocks, fields and score, because nothing they were derived from changed.
+     *
+     * <p>So does a fetch that read the page but stored nothing, because text landed while it
+     * was out and the store is held back once the offer has its ad. Only the press whose write
+     * took derives and scores; this one would re-derive the other's text, which is three model
+     * calls for a row already on its way. The request still answers the current entry, as the
+     * failed half of that race does: the page was reached, and the ad is here.
      *
      * @throws EnrichmentService.NotFetchable when the night would not fetch this offer either
      * @throws EnrichmentService.NoPermit when the shared window has no request left this minute;
      *     nothing is written then
      */
     public void refetch(long id) {
-        Enrichment fetched = enrichment.runFor(id);
-        if (fetched.fullText() == null || fetched.fullText().isBlank()) {
+        EnrichmentService.Settled settled = enrichment.runFor(id);
+        Enrichment fetched = settled.enrichment();
+        if (!settled.stored()
+                || fetched.fullText() == null
+                || fetched.fullText().isBlank()) {
             return;
         }
         jdbc.sql(REDERIVE).param(id).update();

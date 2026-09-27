@@ -24,8 +24,10 @@ reached. `DatasourceBanner` prints the effective JDBC URL at startup for the sam
 ./gradlew check                # both modules — the gate
 ./gradlew :backend:test        # Spring tests
 ./gradlew :backend:bootRun     # API on :8080, reads the untracked .env from the repo root
-# ./gradlew spotlessApply      # formatting and the SPDX header — Spotless is off,
-                               # see the note in backend/build.gradle.kts
+./gradlew spotlessApply        # palantir-java-format, unused imports, the SPDX header and
+                               # ktlint on the .gradle.kts files; spotlessCheck runs inside
+                               # check. A disagreement is settled with one reviewed
+                               # spotlessApply, never with -x spotlessCheck
 
 docker compose up postgres     # just the database a local run expects
 docker compose up --build      # the whole stack

@@ -3,6 +3,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  DestroyRef,
   DOCUMENT,
   effect,
   ElementRef,
@@ -24,17 +25,21 @@ import {applicationEvents} from '@core/store/applications.events';
 import {ApplicationsStore} from '@core/store/applications.store';
 import {ApplicationStatus} from '@core/model/application';
 import {ShortlistFilters} from '@core/model/shortlist-page';
+import {densityEvents} from '@core/density/density.events';
+import {ListDensity} from '@core/density/density.model';
+import {DensityStore} from '@core/density/density.store';
 import {SCORE_THRESHOLDS} from '@shared/shared.ports';
 import {EmptyState} from '@shared/empty-state/empty-state';
 import {LoadMore} from '@shared/load-more/load-more';
 import {Icon} from '@shared/icon/icon';
+import {LgIconName} from '@shared/icon/lucide-icons';
 import {PageHeader} from '@shared/page-header/page-header';
 import {OfferCard} from './offer-card/offer-card';
 import {FacetPanel} from './facet-panel/facet-panel';
 import {SavedViews} from './saved-views/saved-views';
-import {SortMenu} from './sort-menu/sort-menu';
+import {SortMenu, SortOption} from './sort-menu/sort-menu';
 
-type BandFilter = 'all' | 'shortlist' | 'review';
+type BandFilter = 'all' | 'shortlist' | 'review' | 'discarded';
 
 /**
  * One filter the panel hides, as the bar displays it.
@@ -83,6 +88,29 @@ export class ShortlistPage {
     private readonly applicationDispatch = injectDispatch(applicationEvents);
     private readonly applications = inject(ApplicationsStore);
 
+  /**
+   * How tightly the list is set. Read here and handed to every card as an input, so the card
+   * never reads a store; written only through `chosen`, never through `write` — the query
+   * string is for what to look at, and a density in it would travel with every link and
+   * every saved view (ISC-381).
+   */
+  protected readonly density = inject(DensityStore);
+  private readonly densityDispatch = injectDispatch(densityEvents);
+
+  protected readonly densityOptions: readonly {
+    readonly density: ListDensity;
+    readonly icon: LgIconName;
+    /** A catalog key, not a sentence. */
+    readonly label: string;
+  }[] = [
+    {density: 'comfortable', icon: 'rows-2', label: 'shortlist.density.comfortable'},
+    {density: 'compact', icon: 'rows-4', label: 'shortlist.density.compact'},
+  ];
+
+  protected chooseDensity(density: ListDensity): void {
+    this.densityDispatch.chosen(density);
+  }
+
     /** Where each offer's application stands, so every card shows it, picked or not. */
     protected readonly statusByOffer = computed(
         () =>
@@ -106,6 +134,7 @@ export class ShortlistPage {
    */
   private readonly afterArchive = signal<{ readonly id: number; readonly next: number | null } | null>(null);
   private readonly document = inject(DOCUMENT);
+    private readonly destroyRef = inject(DestroyRef);
     private readonly injector = inject(Injector);
 
     /**
@@ -116,6 +145,9 @@ export class ShortlistPage {
      * move it away from what the reader was doing.
      */
     private readonly focusWanted = signal<number | null>(null);
+
+    /** Which way the key press walked: `landCard` looks one card ahead in that direction. */
+    private focusStep: 1 | -1 = 1;
 
     /**
      * The URL, only as a reason to look again — the same shape the shell uses, and for the
@@ -202,7 +234,7 @@ export class ShortlistPage {
    * clears `entries` and `cursor` on any change here, which is exactly what a sort change
    * needs and what stops a mismatched cursor ever being sent.
    */
-  readonly sort = input('score', {transform: (value: string | undefined) => value ?? 'score'});
+  readonly sort = input('fresh', {transform: (value: string | undefined) => value ?? 'fresh'});
 
   /**
    * When the engagement starts. Four values that partition the set, `unknown` included:
@@ -248,7 +280,7 @@ export class ShortlistPage {
   /**
    * Words to find offers near.
    *
-   * <p><b>This narrows and never reorders.</b> The list stays in whichever of the six orders
+   * <p><b>This narrows and never reorders.</b> The list stays in whichever of the ten orders
    * is selected, so the first row is not the best match — there is no such thing here, and an
    * interface that implies one would have people reading row one as the answer.
    *
@@ -270,23 +302,21 @@ export class ShortlistPage {
   });
 
   /**
-   * The six sort keys the server offers, in the order they are worth trying. The names are
-   * the server's; a union type here would disagree with it the first time one is added, the
-   * same reason nothing in this browser names a weight or a filter stage.
+   * The five orders the server offers, each with its reverse, in the order they are worth
+   * trying. The names are the server's; a union type here would disagree with it the first
+   * time one is added, the same reason nothing in this browser names a weight or a filter stage.
    *
-   * <p>`duration-asc` is the one reverse the server has, and the reason there is no direction
-   * toggle beside this list: over there a direction is not a modifier but part of the keyset
-   * tuple, along with the sentinel that keeps "not stated" at the end. A toggle would work on
-   * one of six orders, which is a control that lies at rest.
+   * <p>Pairs and not a direction flag: over the wire a direction is not a modifier but part of
+   * the keyset tuple, along with the sentinel that keeps "not stated" at the end, so every
+   * reverse is a key of its own and the toggle only picks the other one of the two.
    */
-  protected readonly sortOptions = [
-    'score',
-    'fresh',
-    'start',
-    'deadline',
-    'duration',
-    'duration-asc',
-  ] as const;
+  protected readonly sortOptions: readonly SortOption[] = [
+    {key: 'score', reverse: 'score-asc'},
+    {key: 'fresh', reverse: 'fresh-asc'},
+    {key: 'start', reverse: 'start-desc'},
+    {key: 'deadline', reverse: 'deadline-desc'},
+    {key: 'duration', reverse: 'duration-asc'},
+  ];
 
   protected readonly startWindowOptions = ['any', 'now', 'soon', 'later', 'unknown'] as const;
 
@@ -315,6 +345,7 @@ export class ShortlistPage {
             label: 'shortlist.bandBetween',
             params: {from: this.reviewAt(), to: this.shortlistAt() - 1},
         },
+        {id: 'discarded', label: 'shortlist.bandBetween', params: {from: 0, to: this.reviewAt() - 1}},
     ]);
 
     /**
@@ -363,7 +394,11 @@ export class ShortlistPage {
         if (typeof view?.matchMedia === 'function') {
             const query = view.matchMedia(ShortlistPage.BOTH_COLUMNS);
             this.bothColumns.set(query.matches);
-            query.addEventListener?.('change', (event) => this.bothColumns.set(event.matches));
+            const onChange = (event: MediaQueryListEvent) => this.bothColumns.set(event.matches);
+            query.addEventListener?.('change', onChange);
+            // The page is rebuilt on every visit to the route; a listener left on the query
+            // would keep each dead instance reachable and writing a signal nobody reads.
+            this.destroyRef.onDestroy(() => query.removeEventListener?.('change', onChange));
         }
 
         effect(() => this.dispatch.opened(this.filters()));
@@ -407,14 +442,16 @@ export class ShortlistPage {
             if (stillListed || pending.next === null) {
                 return;
             }
+            this.focusStep = 1;
             this.focusWanted.set(pending.next);
             void this.router.navigate(['/shortlist', pending.next], {queryParamsHandling: 'preserve'});
         });
 
-        // The focus follows a key press, which is what makes the browser scroll the card into
-        // view — no measuring, no `scrollIntoView`, and the ring lands where the reader is.
-        // `afterNextRender` because `aria-current` is on the new card only after the change
-        // detection the navigation triggers.
+        // The focus follows a key press. `afterNextRender` because `aria-current` is on the new
+        // card only after the change detection the navigation triggers. The browser's own
+        // scroll-on-focus is switched off: it drops the card mid-pane, which on a long list
+        // leaves half the scroller showing offers the reader has already walked past.
+        // `landCard` puts it at the top instead, and only when it was not fully in view.
         effect(() => {
             const wanted = this.focusWanted();
             if (wanted === null || this.selectedId() !== wanted) {
@@ -423,9 +460,19 @@ export class ShortlistPage {
             this.focusWanted.set(null);
             afterNextRender(
                 () => {
-                    this.listPane()
-                        ?.nativeElement.querySelector<HTMLAnchorElement>('[aria-current="true"]')
-                        ?.focus();
+                    const pane = this.listPane()?.nativeElement;
+                    const card = pane?.querySelector<HTMLAnchorElement>('[aria-current="true"]');
+                    if (pane === undefined || !card) {
+                        return;
+                    }
+                    // The pane scrolls only while it is a scroller (both columns fit); below
+                    // the breakpoint the list runs in the document and the browser's own
+                    // scroll-on-focus is the right one.
+                    const paneScrolls = pane.scrollHeight > pane.clientHeight;
+                    card.focus({preventScroll: paneScrolls});
+                    if (paneScrolls) {
+                        this.landCard(pane, card, this.focusStep);
+                    }
                 },
                 {injector: this.injector},
             );
@@ -448,6 +495,44 @@ export class ShortlistPage {
             scroller.scrollTop = 0;
             }
         });
+    }
+
+    /**
+     * Keeps one card of lookahead while the keys walk the list, scrolling only the pane.
+     *
+     * <p>Not `scrollIntoView`: that aligns the card in every scrolling ancestor at once, and
+     * the document is one of them — the page took a visible hop downwards before the
+     * selection effect reset it to zero (Marcello: "die ganze Page scrollt kurz nach unten
+     * mit"). Writing `scrollTop` on the pane touches nothing else.
+     *
+     * <p>The trigger is the neighbour in the walking direction rather than the card itself,
+     * so the list moves one offer before the reader hits the edge and the next card is always
+     * already in view. Downwards the card lands at the top, which turns the rest of the pane
+     * into what comes next; upwards the neighbour lands at the top, since that is the card
+     * being walked towards. Nothing moves while the neighbour is fully visible, so a step in
+     * the middle of the pane does not shift the list under the pointer.
+     *
+     * <p>Measured on the `li`, not the title link that carries `aria-current`: the link is
+     * one line inside the card. The offset is the pane's own block padding, the ring room, so
+     * a card at the top edge keeps its focus ring. jsdom lays nothing out, so every rect is
+     * zero there, which reads as "in view" and moves nothing.
+     */
+    private landCard(pane: HTMLElement, card: HTMLElement, step: 1 | -1): void {
+        const row = card.closest('li');
+        if (row === null) {
+            return;
+        }
+        const neighbour = step > 0 ? row.nextElementSibling : row.previousElementSibling;
+        const lookahead = neighbour instanceof HTMLElement ? neighbour : row;
+        const paneBox = pane.getBoundingClientRect();
+        const aheadBox = lookahead.getBoundingClientRect();
+        if (aheadBox.top >= paneBox.top && aheadBox.bottom <= paneBox.bottom) {
+            return;
+        }
+        const target = step > 0 ? row : lookahead;
+        const view = this.document.defaultView;
+        const ringRoom = view ? parseFloat(view.getComputedStyle(pane).paddingTop) || 0 : 0;
+        pane.scrollTop += target.getBoundingClientRect().top - paneBox.top - ringRoom;
     }
 
     /** What the server sent for these filters. The browser no longer decides what is shown. */
@@ -492,7 +577,7 @@ export class ShortlistPage {
         this.q() !== '' ||
         this.band() !== 'all' ||
         this.archived() ||
-        this.sort() !== 'score' ||
+        this.sort() !== 'fresh' ||
         this.related() !== null ||
         this.facetChips().length > 0,
     );
@@ -828,14 +913,15 @@ export class ShortlistPage {
   }
 
   /**
-   * `''`, `'all'`, `'score'`, `'any'` and `'0'` are the defaults, and a default is dropped
+   * `''`, `'all'`, `'fresh'`, `'any'` and `'0'` are the defaults, and a default is dropped
    * from the URL rather than written into it: a link should say what is unusual about the
-   * view and nothing else.
+   * view and nothing else. The list opens newest first (the operator's call, 2026-09-24): what
+   * came in since the last look is what a morning visit is for.
    *
    * <p>Only the stringy filters go through it. A score bound must not: `'0'` is in this set,
    * and `minScore=0` is a filter somebody asked for.
    */
-  private static readonly DEFAULTS = new Set(['', 'all', 'score', 'any', '0']);
+  private static readonly DEFAULTS = new Set(['', 'all', 'fresh', 'any', '0']);
 
   /**
    * The one writer of the query string.
@@ -1011,6 +1097,7 @@ export class ShortlistPage {
         }
 
         const id = entries[next].offer.id;
+        this.focusStep = step;
         this.focusWanted.set(id);
         void this.router.navigate(['/shortlist', id], {queryParamsHandling: 'preserve'});
     }

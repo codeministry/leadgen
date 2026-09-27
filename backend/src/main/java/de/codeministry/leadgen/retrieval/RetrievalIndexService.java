@@ -8,14 +8,17 @@
  */
 package de.codeministry.leadgen.retrieval;
 
+import de.codeministry.leadgen.concurrent.BoundedWork;
 import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.config.model.PipelineConfig;
 import de.codeministry.leadgen.llm.EmbeddingModels;
 import de.codeministry.leadgen.llm.LlmBudget;
 import de.codeministry.leadgen.llm.Vectors;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
-import javax.sql.DataSource;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.ai.embedding.EmbeddingRequest;
@@ -41,6 +44,7 @@ import org.springframework.stereotype.Service;
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class RetrievalIndexService {
 
     /**
@@ -91,13 +95,6 @@ public class RetrievalIndexService {
     private final LlmBudget budget;
     private final JdbcClient jdbc;
 
-    RetrievalIndexService(ConfigRegistry config, EmbeddingModels models, LlmBudget budget, DataSource dataSource) {
-        this.config = config;
-        this.models = models;
-        this.budget = budget;
-        this.jdbc = JdbcClient.create(dataSource);
-    }
-
     /**
      * The embedding model this configuration would index with, or null.
      *
@@ -143,31 +140,56 @@ public class RetrievalIndexService {
             return new RetrievalReport(0, 0, 0, model);
         }
 
+        List<List<Pending>> batches = new ArrayList<>();
+        for (int from = 0; from < due.size(); from += BATCH) {
+            batches.add(due.subList(from, Math.min(from + BATCH, due.size())));
+        }
+        // Up to `llm.concurrency` batches in flight at once; each writes only its own rows.
+        int width = llm.concurrency();
+        List<Optional<Batch>> results =
+                BoundedWork.forEach(width, batches, batch -> indexBatch(embeddings.get(), model, batch), Batch::stops);
         int embedded = 0;
         int requests = 0;
-        for (int from = 0; from < due.size(); from += BATCH) {
-            List<Pending> batch = due.subList(from, Math.min(from + BATCH, due.size()));
-            // One request carries a batch and counts as one call, because the number in the
-            // configuration says calls. A refusal leaves the rest due rather than half-written.
-            if (!budget.take()) {
-                log.info(
-                        "Retrieval: the day's llm.budget is spent after {} of {} offers;"
-                                + " the rest stay due for the next run",
-                        embedded,
-                        due.size());
-                break;
+        boolean refused = false;
+        for (Optional<Batch> result : results) {
+            if (result.isPresent()) {
+                embedded += result.get().written();
+                requests += result.get().sent() ? 1 : 0;
+                refused |= result.get().refused();
             }
-            requests++;
-            int written = embed(embeddings.get(), model, batch);
-            if (written < 0) {
-                // About the configuration rather than about this batch, so the next batch
-                // would be refused the same way.
-                break;
-            }
-            embedded += written;
         }
-        log.info("Retrieval: {} of {} adverts indexed with '{}'", embedded, due.size(), model);
-        return new RetrievalReport(due.size(), embedded, requests, model);
+        if (refused) {
+            log.info(
+                    "Retrieval: the day's llm.budget is spent after {} of {} offers;"
+                            + " the rest stay due for the next run",
+                    embedded,
+                    due.size());
+        }
+        var report = new RetrievalReport(due.size(), embedded, requests, model, width);
+        log.info(
+                "Retrieval: {} of {} adverts indexed with '{}'{}",
+                report.embedded(),
+                report.due(),
+                model,
+                BoundedWork.atWidth(report.width()));
+        return report;
+    }
+
+    /**
+     * One batch: the budget first, then the request and its rows.
+     *
+     * <p>A refused budget, or an answer that says the configuration cannot be used at all,
+     * stops the batches not yet handed out. A failed request does not: its adverts stay due
+     * and the other batches go on, and it still counts as a request, because it left.
+     */
+    private Batch indexBatch(EmbeddingModel embeddings, String model, List<Pending> batch) {
+        // One request carries a batch and counts as one call, because the number in the
+        // configuration says calls. A refusal leaves the rest due rather than half-written.
+        if (!budget.take()) {
+            return new Batch(0, false, true, true);
+        }
+        int written = embed(embeddings, model, batch);
+        return written < 0 ? new Batch(0, true, false, true) : new Batch(written, true, false, false);
     }
 
     /** One request, or -1 when the answer says this configuration cannot be used at all. */
@@ -245,4 +267,10 @@ public class RetrievalIndexService {
     }
 
     private record Pending(long id, String text) {}
+
+    /**
+     * What one batch did: the rows it wrote, whether its request left, whether the budget
+     * refused it, and whether the batches after it should still start.
+     */
+    private record Batch(int written, boolean sent, boolean refused, boolean stops) {}
 }

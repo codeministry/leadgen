@@ -11,6 +11,7 @@ function stage(extra: Partial<WorkflowStage>): WorkflowStage {
         promptId: null,
         settings: [],
         knockouts: null,
+        width: null,
         ...extra,
     };
 }

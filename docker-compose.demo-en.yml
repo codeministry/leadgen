@@ -1,0 +1,15 @@
+# The demo with its adverts in English, for the English help screenshots.
+#
+#     bun demo/generate-corpus.ts --lang en --until 2026-09-02
+#     POSTGRES_PORT=15434 SERVER_PORT=18081 WEB_PORT=14201 docker compose -p leadgen-demo-en \
+#       -f docker-compose.yml -f docker-compose.demo.yml -f docker-compose.demo-en.yml up --build -d
+#
+# Layered on top of `docker-compose.demo.yml`, and changing one thing: the English corpus is
+# mounted over the German one, so `demo/sources.yaml` reads it under the same source id and the
+# rest of the demo configuration applies unchanged. Its own compose project keeps its own
+# database, beside the German demo rather than instead of it.
+services:
+  api:
+    volumes:
+      - ./demo:/config:ro
+      - ./demo/corpus-en:/config/corpus:ro

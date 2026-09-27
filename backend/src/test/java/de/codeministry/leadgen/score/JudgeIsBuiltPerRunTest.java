@@ -208,10 +208,12 @@ class JudgeIsBuiltPerRunTest {
             Path pipeline = dir.resolve("pipeline.yaml");
             Files.writeString(
                     pipeline,
-                    Files.readString(pipeline, StandardCharsets.UTF_8)
+                    // Every other placeholder closed the way a test context closes it, so
+                    // `content`, `fields` and both concurrencies never come from a `.env`.
+                    ConfigFixtures.closePlaceholders(Files.readString(pipeline, StandardCharsets.UTF_8)
                             .replaceAll("(?m)^(\\s*)api_key:.*$", "$1api_key:")
                             .replaceAll("(?m)^(\\s*)scoring:\\s+\\$\\{LLM_MODEL_SCORING\\}.*$", "$1scoring:")
-                            .replaceAll("(?m)^(\\s*)scoring_options:.*$", "$1scoring_options:"),
+                            .replaceAll("(?m)^(\\s*)scoring_options:.*$", "$1scoring_options:")),
                     StandardCharsets.UTF_8);
             return dir;
         } catch (IOException e) {

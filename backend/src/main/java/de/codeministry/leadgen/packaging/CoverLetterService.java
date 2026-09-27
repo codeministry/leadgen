@@ -24,6 +24,8 @@ import javax.sql.DataSource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * The cover letter of a package, after the build: read it, save a person's version, or write a
@@ -41,9 +43,13 @@ import org.springframework.stereotype.Service;
  * still decides what an archive keeps — that is {@link PackageArchiveService#wentOut}, and it is
  * a different question.
  *
- * <p><b>Deliberately not {@code @Transactional}.</b> A draft waits on the writing model, and a
- * transaction around it would hold a connection for as long as the model takes. The row is one
- * {@code UPDATE}, which is atomic on its own.
+ * <p><b>The write, and only the write, is one transaction that holds the application row.</b> A
+ * draft waits on the writing model, and a transaction around it would hold a connection for as
+ * long as the model takes, so the model call stays outside. The write then locks the
+ * application row, reads its status under that lock and writes file, {@code meta.json} and row
+ * before it lets go. A status change is an {@code UPDATE} of that same row, so it either
+ * committed before the lock was taken — the write sees SENT and refuses — or it waits until the
+ * letter is written. A re-read without the lock only narrowed that window (ISC-319).
  */
 @Slf4j
 @Service
@@ -52,12 +58,18 @@ public class CoverLetterService {
     private final PackagingService packaging;
     private final PackageArchiveService packages;
     private final JdbcClient jdbc;
+    private final TransactionTemplate transactions;
     private final JsonMapper json = JsonMapper.builder().build();
 
-    CoverLetterService(PackagingService packaging, PackageArchiveService packages, DataSource dataSource) {
+    CoverLetterService(
+            PackagingService packaging,
+            PackageArchiveService packages,
+            DataSource dataSource,
+            PlatformTransactionManager transactionManager) {
         this.packaging = packaging;
         this.packages = packages;
         this.jdbc = JdbcClient.create(dataSource);
+        this.transactions = new TransactionTemplate(transactionManager);
     }
 
     /**
@@ -112,31 +124,56 @@ public class CoverLetterService {
         Path folder = folder(offerId);
         refuseIfSent(offerId);
         PackagingService.Letter letter = packaging.redraft(offerId);
-        // Again, because the model may have taken a minute and the application may have been
-        // marked sent in it. Narrows the window to the few writes below; it does not close it.
-        refuseIfSent(offerId);
+        // The model may have taken a minute and the application may have been marked sent in
+        // it, or be marked sent right now: store() decides that under the application's lock.
+        CoverLetter stored = store(offerId, folder, letter);
         log.info("Offer {}: the cover letter was drafted again on request, by the {}", offerId, letter.author());
-        return store(offerId, folder, letter);
+        return stored;
     }
 
+    /**
+     * File, {@code meta.json} and row, written while this transaction holds the application
+     * row, and only if the status it reads under that lock is before SENT.
+     *
+     * @throws AlreadySent when the application stands at SENT or later once the lock is held
+     */
     private CoverLetter store(long offerId, Path folder, PackagingService.Letter letter) {
-        try {
-            Files.writeString(folder.resolve(PackagingService.LETTER_FILE), letter.text(), StandardCharsets.UTF_8);
-            rewriteAuthor(folder.resolve("meta.json"), letter.author());
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
-        Instant at = jdbc.sql("""
-                UPDATE offer
-                SET cover_letter_text = ?, cover_letter_author = ?, cover_letter_at = now()
-                WHERE id = ?
-                RETURNING cover_letter_at
-                """)
-                .params(letter.text(), letter.author(), offerId)
-                .query((rs, n) -> rs.getObject(1, OffsetDateTime.class).toInstant())
-                .single();
-        // Not frozen: both writes refused a sent application before they got here.
+        Instant at = transactions.execute(status -> {
+            if (frozenLocked(offerId)) {
+                throw new AlreadySent(offerId);
+            }
+            try {
+                Files.writeString(folder.resolve(PackagingService.LETTER_FILE), letter.text(), StandardCharsets.UTF_8);
+                rewriteAuthor(folder.resolve("meta.json"), letter.author());
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+            return jdbc.sql("""
+                    UPDATE offer
+                    SET cover_letter_text = ?, cover_letter_author = ?, cover_letter_at = now()
+                    WHERE id = ?
+                    RETURNING cover_letter_at
+                    """)
+                    .params(letter.text(), letter.author(), offerId)
+                    .query((rs, n) -> rs.getObject(1, OffsetDateTime.class).toInstant())
+                    .single();
+        });
+        // Not frozen: the status read under the lock was before SENT.
         return new CoverLetter(letter.text(), letter.author(), at, false);
+    }
+
+    /**
+     * {@link #frozen}, read while taking the application row's lock, so no status write can
+     * commit between this read and the end of the calling transaction. An offer without an
+     * application row has nothing to lock and nothing that can have gone out.
+     */
+    private boolean frozenLocked(long offerId) {
+        return jdbc.sql("SELECT status FROM application WHERE offer_id = ? FOR UPDATE")
+                .param(offerId)
+                .query(String.class)
+                .optional()
+                .map(CoverLetterService::atOrPastSent)
+                .orElse(false);
     }
 
     /**
@@ -162,8 +199,12 @@ public class CoverLetterService {
                 .param(offerId)
                 .query(String.class)
                 .optional()
-                .map(status -> ApplicationStatus.valueOf(status).compareTo(ApplicationStatus.SENT) >= 0)
+                .map(CoverLetterService::atOrPastSent)
                 .orElse(false);
+    }
+
+    private static boolean atOrPastSent(String status) {
+        return ApplicationStatus.valueOf(status).compareTo(ApplicationStatus.SENT) >= 0;
     }
 
     private void refuseIfSent(long offerId) {

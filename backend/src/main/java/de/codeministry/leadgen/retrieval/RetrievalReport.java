@@ -8,6 +8,8 @@
  */
 package de.codeministry.leadgen.retrieval;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 /**
  * What one retrieval-indexing pass did.
  *
@@ -23,8 +25,24 @@ package de.codeministry.leadgen.retrieval;
  * @param model    the embedding model that answered, or null when none is configured — in which
  *                 case the column stays empty and semantic search does not exist, which is what
  *                 a fresh clone does.
+ * @param width      the width the stage's bounded loop actually ran at: {@code 1} when it ran
+ *                   sequentially, was skipped, had nothing due or no model to ask. The
+ *                   {@code pipeline_stage} note and the {@code " at width N"} of the log line
+ *                   are both read off this one value. Not part of the JSON a run answers with:
+ *                   a response field is part of the API, and this one is already on the stage
+ *                   row.
  */
-public record RetrievalReport(int due, int embedded, int requests, String model) {
+public record RetrievalReport(
+        int due,
+        int embedded,
+        int requests,
+        String model,
+        @JsonIgnore int width) {
+
+    /** At width 1, which is what every caller outside the stage's own run means. */
+    public RetrievalReport(int due, int embedded, int requests, String model) {
+        this(due, embedded, requests, model, 1);
+    }
 
     /** Nothing to do, or nothing this installation can do. */
     public static RetrievalReport skipped() {

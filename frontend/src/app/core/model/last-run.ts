@@ -29,7 +29,8 @@ export interface LastRunSource {
  * One timed stage of the recorded run. Mirrors `de.codeministry.leadgen.analytics.LastRunStage`.
  *
  * `stage` and `note` are the server's prose and stay English on every screen, like a score
- * reason. `status` is `OK` or `FAILED`: a failed source under a run that completed is normal,
+ * reason. `status` is `OK` or `FAILED`, and `note` carries the failure or, on an OK row of a
+ * model-bound stage, the width it ran at, `width=N`: a failed source under a run that completed is normal,
  * a failed stage last under a run whose own status is `FAILED` is where that run stopped.
  */
 export interface LastRunStage {
@@ -42,6 +43,11 @@ export interface LastRunStage {
     readonly millis: number;
     readonly status: string;
     readonly note: string | null;
+    /**
+     * The width an OK stage ran at, read out of its note once on the server; null on a FAILED
+     * row and whenever the note is anything but `width=N`. The browser never parses `note`.
+     */
+    readonly width: number | null;
 }
 
 export interface LastRunView {
@@ -73,4 +79,28 @@ export interface LastRunView {
     readonly sources: readonly LastRunSource[];
     /** Where the time went, in run order. Empty for a run recorded before the table existed. */
     readonly stages: readonly LastRunStage[];
+    /** When the run began: the whole run's duration is `finishedAt` minus this. */
+    readonly startedAt: string;
+    /** The run before, for the deltas beside each figure; null when this is the only one. */
+    readonly previous: LastRunPrevious | null;
+}
+
+/**
+ * Mirrors `LastRunPrevious`: the run before the last one, as much of it as a comparison needs —
+ * the figures and the two instants, nothing of its sources, stages or removals.
+ */
+export interface LastRunPrevious {
+    readonly startedAt: string;
+    readonly finishedAt: string;
+    readonly status: string;
+    readonly extracted: number;
+    readonly written: number;
+    readonly merged: number;
+    readonly enriched: number;
+    readonly filterConsidered: number;
+    readonly filterPassed: number;
+    readonly scored: number;
+    readonly shortlisted: number;
+    readonly review: number;
+    readonly packaged: number;
 }

@@ -1,5 +1,6 @@
 import {existsSync, readdirSync, readFileSync} from 'node:fs';
 import {resolve} from 'node:path';
+import {CHAPTER_SHOTS, HelpChapter} from './help-chapters';
 
 /**
  * The help chapters exist in both languages, and none of them says more than a user needs.
@@ -14,7 +15,19 @@ import {resolve} from 'node:path';
 const HELP = resolve(process.cwd(), 'public/help');
 const LANGUAGES = ['en', 'de'] as const;
 
-const CHAPTERS = ['dashboard', 'shortlist', 'pipeline', 'analytics', 'rules', 'sources', 'review', 'how-it-works'];
+const CHAPTERS = [
+    'dashboard',
+    'shortlist',
+    'offer-detail',
+    'application',
+    'filters-views',
+    'pipeline',
+    'analytics',
+    'workflow',
+    'sources',
+    'app-basics',
+    'how-it-works',
+];
 
 /** Where the drawer inserts a figure, in the order the chapter reads them. */
 const DIAGRAMS = ['run-phases', 'parts', 'application-states'];
@@ -50,9 +63,14 @@ function placeholders(text: string): string[] {
     return [...text.matchAll(/^<!-- diagram: ([a-z-]+) -->$/gm)].map((m) => m[1]);
 }
 
-/** The text with the placeholders removed, since a diagram id is not prose. */
+/** The screenshot ids a chapter places, in order, as `<!-- screenshot: id -->` lines. */
+function shots(text: string): string[] {
+    return [...text.matchAll(/^<!-- screenshot: ([a-z-]+) -->$/gm)].map((m) => m[1]);
+}
+
+/** The text with the placeholders removed, since a figure id is not prose. */
 function prose(text: string): string {
-    return text.replace(/^<!-- diagram: [a-z-]+ -->$/gm, '');
+    return text.replace(/^<!-- (?:diagram|screenshot): [a-z-]+ -->$/gm, '');
 }
 
 describe('help chapters', () => {
@@ -73,6 +91,17 @@ describe('help chapters', () => {
         for (const language of LANGUAGES) {
             for (const chapter of CHAPTERS.filter((id) => id !== 'how-it-works')) {
                 expect(placeholders(read(language, chapter)), `${language}/${chapter}`).toEqual([]);
+            }
+        }
+    });
+
+    it('place exactly the screenshots listed for the chapter, in the same order in both languages', () => {
+        // A placeholder for a shot the chapter does not list is dropped by the drawer, so it
+        // would be a figure the author meant and the reader never sees.
+        for (const language of LANGUAGES) {
+            for (const chapter of CHAPTERS) {
+                const listed = CHAPTER_SHOTS[chapter as HelpChapter];
+                expect(shots(read(language, chapter)), `${language}/${chapter}`).toEqual([...listed]);
             }
         }
     });

@@ -20,6 +20,7 @@ import de.codeministry.leadgen.score.ScoringReport;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.List;
+import lombok.Builder;
 
 /**
  * What one ingest run did, per source and per document.
@@ -61,6 +62,7 @@ import java.util.List;
  *                   — the history row keeps it, and a duration nobody asked for is a second number to
  *                   explain on a screen that answers "what came in this morning".
  */
+@Builder
 public record IngestReport(
         List<SourceIngestResult> sources,
         int merged,

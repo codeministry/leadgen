@@ -85,10 +85,16 @@ describe('Sources', () => {
     http = TestBed.inject(HttpTestingController);
   });
 
+  /** The table, and the first source, which opens by itself once the table has rows. */
   async function openList(view: SourcesView = SOURCES): Promise<RouterTestingHarness> {
     const harness = await RouterTestingHarness.create('/sources');
     http.expectOne('/api/v1/sources').flush(view);
     harness.detectChanges();
+    await harness.fixture.whenStable();
+    if (view.sources.length > 0) {
+      flushDetail();
+      harness.detectChanges();
+    }
     return harness;
   }
 
@@ -120,15 +126,33 @@ describe('Sources', () => {
     expect(harness.routeNativeElement!.querySelector('lg-empty-state')).toBeNull();
   });
 
+  it('opens the first source by itself, without a history entry', async () => {
+    // An empty space under a full table is a click nobody needs to make; `replaceUrl`, or the
+    // back button would undo a selection nobody made.
+    const harness = await openList();
+    const router = TestBed.inject(Router);
+
+    expect(router.url).toBe('/sources/demo-newsletter');
+    expect(harness.routeNativeElement!.querySelector('#lg-source-panel-title')?.textContent).toContain('demo-newsletter');
+  });
+
+  it('keeps a deep link rather than opening the first source over it', async () => {
+    const harness = await RouterTestingHarness.create('/sources/mailbox-primary');
+    http.expectOne('/api/v1/sources').flush(SOURCES);
+    http.expectOne((request) => request.url === '/api/v1/sources/mailbox-primary').flush({
+      ...DETAIL,
+      id: 'mailbox-primary'
+    });
+    harness.detectChanges();
+    await harness.fixture.whenStable();
+
+    expect(TestBed.inject(Router).url).toBe('/sources/mailbox-primary');
+  });
+
   it('keeps the table mounted when a source is opened', async () => {
     // A child route on a real component: two flat routes would be two configurations, so the
     // default reuse strategy destroys the table on the first click and refetches it.
     const harness = await openList();
-
-    await harness.navigateByUrl('/sources/demo-newsletter');
-    harness.detectChanges();
-    flushDetail();
-    harness.detectChanges();
 
     http.expectNone('/api/v1/sources');
     expect(harness.routeNativeElement!.textContent).toContain('demo-newsletter');
@@ -136,11 +160,6 @@ describe('Sources', () => {
 
   it('marks the open row for a screen reader as well as for the eye', async () => {
     const harness = await openList();
-
-    await harness.navigateByUrl('/sources/demo-newsletter');
-    harness.detectChanges();
-    flushDetail();
-    harness.detectChanges();
 
     const link: HTMLAnchorElement = harness.routeNativeElement!.querySelector('.source-link')!;
     expect(link.getAttribute('aria-expanded')).toBe('true');
@@ -151,11 +170,7 @@ describe('Sources', () => {
   it('asks again for the source that is open when a run finishes', async () => {
     // A run writes a new row into that source's history, and the configuration is
     // hot-reloadable, so the block beside it may have been rewritten since it was fetched.
-    const harness = await openList();
-    await harness.navigateByUrl('/sources/demo-newsletter');
-    harness.detectChanges();
-    flushDetail();
-    harness.detectChanges();
+    await openList();
 
     TestBed.inject(Router); // the harness owns the navigation; this keeps the injector warm
     const {injectDispatch} = await import('@ngrx/signals/events');
@@ -177,12 +192,7 @@ describe('Sources', () => {
     const harness = await openList();
     const root = harness.fixture.nativeElement as HTMLElement;
     const hrefs = () => Array.from(root.querySelectorAll('lg-anchor-rail nav a'), (a) => (a.getAttribute('href') ?? '').replace(/^[^#]*/, ''));
-    expect(hrefs()).toEqual(['#sources']);
     expect(root.querySelector('h2#sources.lg-anchor-target')).not.toBeNull();
-
-    await harness.navigateByUrl('/sources/demo-newsletter');
-    flushDetail();
-    harness.detectChanges();
 
     expect(hrefs()).toEqual(['#sources', '#runs', '#block']);
     for (const id of ['runs', 'block']) {

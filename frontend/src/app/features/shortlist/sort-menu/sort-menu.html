@@ -1,23 +1,36 @@
-<!-- The arrow is decoration on top of a sentence that already carries the direction, which
-     is what makes a missing entry in the icon map harmless. `aria-expanded` is set from the
-     panel's own toggle event, because `popovertarget`'s implicit expanded state is not
-     evenly supported; `aria-controls` names the panel. -->
-<button
-  #trigger
-  type="button"
-  class="btn btn-sm btn-soft btn-primary sort-button"
-  [class.is-set]="value() !== 'score'"
-  [lgAnchorFor]="panel"
-  [attr.popovertarget]="panelId"
-  [attr.aria-controls]="panelId"
-  [attr.aria-expanded]="open()"
-  [attr.aria-label]="'shortlist.sortTrigger' | transloco: {order: 'shortlist.sort.' + value() | transloco}"
->
-  @if (arrow(value()); as icon) {
-    <lg-icon [name]="icon" [size]="14"/>
-  }
-  <span class="sort-label">{{ 'shortlist.sort.' + value() | transloco }}</span>
-</button>
+<!-- The direction and the order as two controls, joined, the toggle first: the trigger's
+     sentence changes width with every order, and a toggle after it moved under the pointer
+     on each change. The toggle's icon is the current direction, which is what makes it
+     readable at rest; its name says what a click does. `aria-expanded` on the trigger is set
+     from the panel's own toggle event, because `popovertarget`'s implicit expanded state is
+     not evenly supported; `aria-controls` names the panel. -->
+<div class="join sort-controls">
+  <button
+    type="button"
+    class="btn btn-sm btn-soft btn-primary btn-square join-item sort-flip"
+    [disabled]="current() === undefined"
+    [attr.aria-pressed]="reversed()"
+    [attr.aria-label]="'shortlist.sortReverse' | transloco"
+    [attr.title]="'shortlist.sortReverse' | transloco"
+    (click)="flip()"
+  >
+    @if (arrow(value()); as icon) {
+      <lg-icon [name]="icon" [size]="14"/>
+    }
+  </button>
+  <button
+    #trigger
+    type="button"
+    class="btn btn-sm btn-soft btn-primary join-item sort-button"
+    [lgAnchorFor]="panel"
+    [attr.popovertarget]="panelId"
+    [attr.aria-controls]="panelId"
+    [attr.aria-expanded]="open()"
+    [attr.aria-label]="'shortlist.sortTrigger' | transloco: {order: 'shortlist.sort.' + value() | transloco}"
+  >
+    <span class="sort-label">{{ 'shortlist.sort.' + value() | transloco }}</span>
+  </button>
+</div>
 
 <!-- `display` belongs on `:popover-open` and nowhere else — see the stylesheet. The content
      is rendered whether the panel is open or not: a closed popover still contributes its
@@ -35,17 +48,17 @@
   </p>
 
   <div role="radiogroup" [attr.aria-labelledby]="panelId + '-legend'">
-    @for (option of options(); track option) {
+    @for (option of options(); track option.key) {
       <button
         type="button"
         role="radio"
         class="btn btn-ghost btn-sm order"
-        [class.btn-active]="value() === option"
-        [attr.aria-checked]="value() === option"
-        (click)="choose(option, panel)"
+        [class.btn-active]="current() === option"
+        [attr.aria-checked]="current() === option"
+        (click)="choose(option.key, panel)"
       >
-        <span class="order-label">{{ 'shortlist.sort.' + option | transloco }}</span>
-        @if (arrow(option); as icon) {
+        <span class="order-label">{{ 'shortlist.sort.' + option.key | transloco }}</span>
+        @if (arrow(option.key); as icon) {
           <lg-icon class="text-muted" [name]="icon" [size]="14"/>
         }
       </button>

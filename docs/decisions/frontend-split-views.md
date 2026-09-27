@@ -130,23 +130,24 @@ Every paragraph here was paid for once; none of it is a summary.
 
 ## The split views
 
-`features/shortlist/`, `features/pipeline/`, `features/review/` and, since ISC-287,
-`features/rules/`, with `layout/app-shell/` underneath all four. One list on the left, one thing
-being read on the right, and neither column scrolls the other — with rules' own exception below.
+`features/shortlist/`, `features/pipeline/` and `features/review/`, with `layout/app-shell/`
+underneath all three. One list on the left, one thing being read on the right, and neither column
+scrolls the other. Rules was the fourth from ISC-287 until spec 017 took it out; the bullet below
+says what it became and why.
 
-- **Rules is the fourth split view, and its rail does not follow the pattern of the other
-  three.** The rail is the phases and their stages, left; the selected stage's detail is right;
-  the selection lives in the `stage` query parameter, routed input exactly like the shortlist's
-  and the board's own selection. Where it diverges: the rail is **not** `position: sticky`. The
-  rail is taller than the viewport on any workflow with more than a couple of stages open at
-  once, so a sticky rail and a scrolling detail pane become two columns scrolling against each
-  other — the operator reported two scrollbars on the same screen, one nested inside the other,
-  and reached for the wrong one more than once. The rail simply scrolls with the document instead.
-  The counts on each stage are last-run figures only, from `/api/v1/ingest/last` and
-  `/api/v1/offers/funnel`, never a live figure — ENRICH's `enriched` count is now served there
-  too, additively, so every run figure the rail shows exists on the same read path. The legend
-  sits under the rail, not beside it, because it explains the rail's own icons and reads as the
-  rail's closing line rather than as a third column.
+- **Rules left the split views for a graph and a sheet (spec 017).** The operator found 008's
+  rail "zu statisch als liste": every stage drawn as the review queue's row read as "pick one of
+  N", and the four sources that merge at DEDUPE looked like serial stages. The screen is now a
+  workflow graph (ngx-vflow, laid out by hand in five phase columns, because one row of twelve
+  ranks fitted only at 0.28 zoom and a node's text was unreadable) with the selected stage's
+  settings in a sheet fixed to the window's right edge, the help drawer's width. The selection is
+  still the `stage` query parameter; a sub-node adds `section`. The canvas is **the one sanctioned
+  inner scroll surface** on this screen: it pans and zooms inside its own box, owns every wheel
+  over it (a plain wheel pans, a pinch or Ctrl zooms) and never scrolls the page, because a graph
+  that moved the page under the pointer is unusable. The sheet scrolls inside itself for the same
+  reason. Below 704 px of the screen's own width the graph is not built at all and the old rail
+  returns as a vertical pipe; that is where a fitted card drops under 100 px. The counts are still
+  last-run figures only, now as chips with a verb, and a stage the run never reached carries none.
 - **The board is bounded; the shortlist and the review hand their reading column to the document.** A route asks to be
   bounded with
   `data: { fill: true }` and `AppShell` reads that exactly where it reads `data.measure`, because the element that has
@@ -372,3 +373,34 @@ being read on the right, and neither column scrolls the other — with rules' ow
   paragraph twice says nothing the second time. The caption says where it came from, because the field is easy to
   mistake for something generated here.
 
+
+## The offer card, and the list's two densities
+
+The shortlist card is the surface scanned twenty at a time, and by v0.5.0 it carried up to
+thirteen elements: a 56px ring, the title, two meta lines whose first slot read "rate unknown"
+on nearly every card (the newsletter states a rate in 0.0 % of offers), up to six reasons with
+signed points, up to seven badges of one weight for four kinds of fact, an "also advertised by"
+line that repeated the "also on N" badge, and the checkbox. It was 254.8px on average over the
+demo shortlist (spec `016-offer-card-redesign`, measured headless at the list width).
+
+A card now answers four questions and leaves the rest to the detail: does it fit (ring and
+title), why this score (the strongest lift and the strongest penalty as bare labels, every
+matched interest topic by name — ISC-194.2 still holds), where the application stands (the
+status as text with an icon at the right edge of the title row, where the eye runs down the
+list), and when it came in (`ingestedAt`, relative, first on the facts line). Everything is an
+icon plus a value, never an icon alone, and there are no badges at all. Only values the advert
+carried appear: an absent rate or location leaves no slot and no placeholder.
+
+Two measured consequences. The facts line is one line and cuts at its end, because wrapping it
+was where the height went (45.8px of a 149.5px mean on the first after-run); with it on one
+line the card is 120.2px, less than half. And the status takes `--lg-primary-text`, not the
+primary: the bare primary read 4.35:1 as small text on the light theme's selected-hover wash.
+A reason label is shortened for the card only — its trailing `( … )` and `and N more` go —
+because the skill-overlap label runs to 120 characters with digits and pushed the penalty and
+the topics off the line.
+
+The density — comfortable or compact, a two-button toggle beside the sort menu — is a display
+preference kept in this browser like the theme (`DensityStore`, `lg-list-density`). It is never
+written to the URL or into a saved view: a link says what the list is, not how dense this
+reader likes it. Compact is two rows a card (53px): the title with the status, then the facts
+with the lift and a warning glyph when a flag is set.

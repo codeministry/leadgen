@@ -72,7 +72,8 @@ public class AdExtractor {
                 value("workload", document, text),
                 integer(value("remote_percent", document, text)),
                 date(value("start_date", document, text)),
-                trimmed(value("contact", document, text)),
+                // The rule reads a position; what is stored is the person standing there, or nobody.
+                ContactName.of(value("contact", document, text)),
                 value("full_text", document, text),
                 null);
     }
@@ -166,13 +167,5 @@ public class AdExtractor {
         } catch (DateTimeParseException e) {
             return null;
         }
-    }
-
-    private static String trimmed(String raw) {
-        if (raw == null) {
-            return null;
-        }
-        String value = raw.trim();
-        return value.isEmpty() ? null : value;
     }
 }

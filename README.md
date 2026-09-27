@@ -130,6 +130,14 @@ Two things the demo cannot fake, both by design: without an `LLM_API_KEY` the sh
 there and filtered but the score *total* is withheld rather than computed from half the
 weights, and enrichment has nothing to fetch because the invented URLs do not resolve.
 
+The app can be installed from the browser's own install affordance; there is no button for it
+inside the app. On the desktop it is the install icon at the right of the address bar in Chrome or Edge
+(Safari: **File › Add to Dock**; Firefox does not install web apps), on
+Android **Install app** or **Add to Home screen** in the browser menu, on iOS the share sheet
+and **Add to Home Screen**. It opens in its own window with the lead-ring icon and the app's
+colours, the shell loads without a network (the data never does; it always comes from the
+API), and a toast offers to reload once a deploy has landed.
+
 ## The screens
 
 |                                                          |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
@@ -139,7 +147,7 @@ weights, and enrichment has nothing to fetch because the invented URLs do not re
 | ![Pipeline board](docs/screenshots/pipeline-light.png)   | **Pipeline** — the half of the loop the tool cannot see. Nothing is sent from here, so everything here is recorded by hand.                                                                                                                                                                                                                                                                                                                                                                                                    |
 | ![Analytics](docs/screenshots/analytics-light.png)       | **Analytics** — what the market is doing, and what the rules are doing to it.                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | ![Sources](docs/screenshots/sources-dark.png)            | **Sources** — the configuration rather than the database, so a source that has never run still shows up. Opening one shows the block of `sources.yaml` that defines it, secrets masked, beside every run it has had and when its numbers last moved.                                                                                                                                                                                                                                                                           |
-| ![Rules](docs/screenshots/rules-dark.png)                | **Rules** — the run as a workflow, from ingest to digest: each stage with the last run's count, what it costs, and a marker where a model takes part. Picking a stage shows every key that decides it, the knockouts, the weights and the thresholds behind every number on the shortlist, and the prompt as this configuration actually renders it.                                                                                                                                                                             |
+| ![Workflow](docs/screenshots/rules-dark.png)             | **Workflow** — the run as a workflow, from ingest to digest: each stage with the last run's count, what it costs, and a marker where a model takes part. Picking a stage shows every key that decides it, the knockouts, the weights and the thresholds behind every number on the shortlist, and the prompt as this configuration actually renders it.                                                                                                                                                                             |
 | ![Help](docs/screenshots/help-light.png)                 | **Help** — a drawer from the header that opens at the chapter of the screen it was opened from, with a how-it-works chapter and its diagrams for the reader who wants to know what happens between a mail and a package.                                                                                                                                                                                                                                                                                                      |
 
 ## Configuration
@@ -167,11 +175,6 @@ Credentials never appear in any of them. Every value is a `${PLACEHOLDER}` resol
 Named rather than hidden, because a gap you find yourself is worse than one you were told
 about.
 
-- **The formatting gate is switched off.** JaCoCo, ESLint, Stylelint and Vitest all run on every push behind one
-  `./gradlew check`. Spotless does not: it disagreed with the formatting already in the tree, so it failed on layout
-  alone and was routed around in CI before being turned off in the build. The consequence worth knowing is that the SPDX
-  header on a new Java file is now copied by hand rather than enforced. The reason and the way back are in
-  `backend/build.gradle.kts`.
 - **Reading a mailbox writes to it.** The IMAP source is Spring Integration's
   `ImapMailReceiver`, which remembers what it has handed over by setting a user flag on each
   message. Nothing the owner sees is touched — no `\Seen`, no `\Flagged`, no `\Deleted` —
@@ -185,8 +188,9 @@ about.
   `llm.models.embedding` names a model of at least 2000 dimensions. Without one the pass is
   the exact fingerprint and nothing else, which is what a fresh clone does.
 - **`llm.models.writing` is the one key still read by nothing.** The cover letter is a
-  Freemarker template. `scoring` is read by the judge, the classifier and the field extractor,
-  `extraction` by the document fallback, and `embedding` by the two similarity strategies.
+  Freemarker template. `scoring` is read by the judge, `content` by the classifier and `fields`
+  by the field extractor (both empty means `scoring`), `extraction` by the document fallback, and
+  `embedding` by the two similarity strategies.
 - **Content segmentation caches a decision per block, so a mixed block is its weak spot.** A block that is nine parts
   portal furniture and one part per-offer text never repeats, so it never gets a cache hit and costs one model call per
   advert. Its counters are logged and written per offer but are not yet in `pipeline_run`, so the dashboard does not

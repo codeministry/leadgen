@@ -10,10 +10,13 @@ package de.codeministry.leadgen.content;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.*;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.BDDMockito.given;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
+import de.codeministry.leadgen.config.ConfigRegistry;
+import de.codeministry.leadgen.config.ConfigSnapshot;
 import de.codeministry.leadgen.config.model.PipelineConfig;
 import de.codeministry.leadgen.llm.ChatModels;
 import java.util.List;
@@ -23,8 +26,12 @@ import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.mockito.Mockito;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 
 /**
  * What the classifier sends and what it does with what comes back, at the byte level.
@@ -167,6 +174,40 @@ class ContentClassifierWireFormatTest {
                 .isEmpty();
     }
 
+    @Test
+    @ExtendWith(OutputCaptureExtension.class)
+    void asksTheModelItsOwnKeyNamesAndSaysWhichKeyWon(CapturedOutput output) {
+        // `llm.models.content` set, `fields` empty, `scoring` set: the classifier built for the
+        // run sends the content model, not the judge, and the log names the key that decided.
+        answers("""
+            {"blocks":[]}
+            """);
+
+        new Classifiers(
+                        registryWith(new PipelineConfig.Llm.Models(
+                                null, "a-judge", null, null, null, "a-small-model", null)),
+                        new ChatModels())
+                .current()
+                .orElseThrow()
+                .classify("Angular", BLOCKS);
+
+        MODEL.verify(postRequestedFor(urlPathEqualTo("/chat/completions"))
+                .withRequestBody(matchingJsonPath("$.model", equalTo("a-small-model"))));
+        assertThat(output).contains("Content blocks are labelled by 'a-small-model', from llm.models.content");
+    }
+
+    private static ConfigRegistry registryWith(PipelineConfig.Llm.Models models) {
+        var llm = new PipelineConfig.Llm(
+                ChatModels.OPENAI_COMPATIBLE, MODEL.baseUrl(), "test-key", null, false, models, null);
+        var registry = Mockito.mock(ConfigRegistry.class);
+        var snapshot = Mockito.mock(ConfigSnapshot.class);
+        var pipeline = Mockito.mock(PipelineConfig.class);
+        given(registry.snapshot()).willReturn(snapshot);
+        given(snapshot.application()).willReturn(pipeline);
+        given(pipeline.llm()).willReturn(llm);
+        return registry;
+    }
+
     private static ContentClassifier classifier() {
         var llm = new PipelineConfig.Llm(
                 ChatModels.OPENAI_COMPATIBLE,
@@ -174,7 +215,7 @@ class ContentClassifierWireFormatTest {
                 "test-key",
                 null,
                 false,
-                new PipelineConfig.Llm.Models(null, "a-model", null, null, null),
+                new PipelineConfig.Llm.Models(null, "a-model", null, null, null, null, null),
                 null);
         Optional<org.springframework.ai.chat.model.ChatModel> chatModel = new ChatModels().of(llm, "a-model");
         return new ContentClassifier(chatModel.orElseThrow(), "a-model", new ObjectMapper());

@@ -5,6 +5,10 @@ import {ChangeDetectionStrategy, Component, input} from '@angular/core';
     templateUrl: './page-header.html',
     styleUrl: './page-header.css',
     changeDetection: ChangeDetectionStrategy.OnPush,
+    // A screen's own title row keeps the shell's measure whatever the content under it does
+    // (operator, 2026-09-26) — see the `:host(.is-page-title)` rule. An `h2` or `h3` header sits
+    // inside a screen and takes its container's width, as it always did.
+    host: {'[class.is-page-title]': "heading() === 'h1'"},
 })
 export class PageHeader {
     readonly title = input.required<string>();
@@ -24,4 +28,11 @@ export class PageHeader {
      * is this component's job done in a template.
      */
     readonly heading = input<'h1' | 'h2' | 'h3'>('h1');
+
+    /**
+     * The title takes the whole row and the actions start a row of their own under it. Off,
+     * the title only gets what the actions leave, so where they wrap anyway — the offer detail
+     * in a split column — a long title broke after a few words beside empty space.
+     */
+    readonly stacked = input(false);
 }

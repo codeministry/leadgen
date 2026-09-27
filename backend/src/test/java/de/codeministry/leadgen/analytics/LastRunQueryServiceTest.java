@@ -194,6 +194,34 @@ class LastRunQueryServiceTest {
     }
 
     @Test
+    void carriesTheRunBeforeItForTheDeltasAndItsOwnStart() {
+        // The run status sheet puts a small delta beside each of the last run's figures and its
+        // duration, so it needs the run before — chosen by the same rule, never an abandoned row.
+        Instant earlier = Instant.now().minus(3, ChronoUnit.HOURS).truncatedTo(ChronoUnit.SECONDS);
+        Instant later = Instant.now().minus(1, ChronoUnit.HOURS).truncatedTo(ChronoUnit.SECONDS);
+        run(earlier, earlier.plusSeconds(240), "COMPLETE", "earlier");
+        run(later.minusSeconds(600), later.minusSeconds(590), "ABANDONED", "gone");
+        run(later, later.plusSeconds(180), "COMPLETE", "later");
+
+        var last = runs.lastRun().orElseThrow();
+
+        assertThat(last.scoreModel()).isEqualTo("later");
+        assertThat(last.startedAt()).isEqualTo(later);
+        assertThat(last.previous()).isNotNull();
+        assertThat(last.previous().startedAt()).isEqualTo(earlier);
+        assertThat(last.previous().finishedAt()).isEqualTo(earlier.plusSeconds(240));
+        assertThat(last.previous().shortlisted()).isEqualTo(7);
+    }
+
+    @Test
+    void hasNoRunBeforeTheOnlyOne() {
+        Instant only = Instant.now().minus(1, ChronoUnit.HOURS);
+        run(only, only.plusSeconds(60), "COMPLETE", "only");
+
+        assertThat(runs.lastRun().orElseThrow().previous()).isNull();
+    }
+
+    @Test
     void picksTheRunThatStartedLastEvenWhenAnOlderOneFinishedAfterIt() {
         // A batched run is finished by the collector, which moves its `finished_at` past
         // runs that started after it. Ordered by that column, this morning's batch would
@@ -328,6 +356,40 @@ class LastRunQueryServiceTest {
                 OpenReport.nothing(),
                 PackageReport.nothing(),
                 Instant.now());
+    }
+
+    // --- ISC-387: the width an OK stage ran at is parsed once, here, and a FAILED row has none.
+
+    @Test
+    void readsTheWidthAnOkStageRanAtOutOfItsNote() {
+        Instant startedAt = Instant.now().minus(5, ChronoUnit.MINUTES);
+        long id = run(startedAt, startedAt.plusSeconds(90), "COMPLETE", "claude-haiku-4-5");
+        noted(id, 0, "CONTENT", "OK", "width=4", startedAt);
+        noted(id, 1, "FIELDS", "OK", null, startedAt);
+        noted(id, 2, "SCORE", "FAILED", "width=4", startedAt);
+        noted(id, 3, "RETRIEVAL", "OK", "width=x", startedAt);
+        noted(id, 4, "DEDUPE", "OK", "width=4 and more", startedAt);
+
+        var stages = runs.lastRun().orElseThrow().stages();
+
+        assertThat(stages).extracting(LastRunStage::width).containsExactly(4, null, null, null, null);
+        // The note stays as it was written, whatever was read out of it.
+        assertThat(stages)
+                .extracting(LastRunStage::note)
+                .containsExactly("width=4", null, "width=4", "width=x", "width=4 and more");
+    }
+
+    private void noted(long runId, int position, String stage, String status, String note, Instant startedAt) {
+        jdbc.update(
+                "INSERT INTO pipeline_stage (run_id, position, stage, started_at, ended_at, status, note)"
+                        + " VALUES (?, ?, ?, ?, ?, ?, ?)",
+                runId,
+                position,
+                stage,
+                Timestamp.from(startedAt.plusSeconds(position)),
+                Timestamp.from(startedAt.plusSeconds(position + 1L)),
+                status,
+                note);
     }
 
     private void timing(long runId, int position, String stage, Instant startedAt, Instant endedAt) {

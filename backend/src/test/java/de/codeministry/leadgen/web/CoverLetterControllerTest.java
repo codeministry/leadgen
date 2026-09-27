@@ -27,12 +27,20 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
+import javax.sql.DataSource;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.chat.messages.AssistantMessage;
@@ -104,6 +112,9 @@ class CoverLetterControllerTest {
 
     @Autowired
     private JdbcTemplate jdbc;
+
+    @Autowired
+    private DataSource dataSource;
 
     @MockitoBean
     private ChatModels chatModels;
@@ -357,6 +368,71 @@ class CoverLetterControllerTest {
         save(id, "a later thought");
 
         assertThat(letterFile(id)).isEqualTo("a later thought");
+    }
+
+    /**
+     * ISC-319: a send that lands between the model call and the row write. The status write is
+     * begun on its own connection while the model answers and committed only once the regenerate
+     * has come as far as it can without it, so a regenerate that re-reads the status and then
+     * writes regardless overwrites the letter of an application that is SENT by the time its
+     * write lands. The write has to wait for the status, see SENT and answer 409.
+     */
+    @Test
+    void aSendBetweenTheModelCallAndTheRowWriteLeavesTheLetterAsItWas() throws Exception {
+        long id = packaged();
+        save(id, EDIT);
+        Map<String, Object> row = letterRow(id);
+        AtomicBoolean done = new AtomicBoolean();
+        ExecutorService committer = Executors.newSingleThreadExecutor();
+        try (Connection sender = dataSource.getConnection()) {
+            sender.setAutoCommit(false);
+            given(chatModels.writing(any())).willReturn(Optional.of(new ChatModel() {
+                @Override
+                public ChatResponse call(Prompt prompt) {
+                    try (PreparedStatement send =
+                            sender.prepareStatement("UPDATE application SET status = 'SENT' WHERE offer_id = ?")) {
+                        send.setLong(1, id);
+                        send.executeUpdate();
+                    } catch (SQLException e) {
+                        throw new IllegalStateException(e);
+                    }
+                    committer.submit(() -> commitOnceTheWriteWaitsOrIsDone(sender, done));
+                    return new ChatResponse(List.of(new Generation(new AssistantMessage(DRAFT))));
+                }
+            }));
+
+            MvcTestResult result =
+                    mvc.post().uri("/api/v1/offers/{id}/cover-letter/draft", id).exchange();
+            done.set(true);
+            committer.shutdown();
+            assertThat(committer.awaitTermination(30, TimeUnit.SECONDS)).isTrue();
+
+            assertThat(result).hasStatus(HttpStatus.CONFLICT);
+        } finally {
+            committer.shutdownNow();
+        }
+        assertThat(jdbc.queryForObject("SELECT status FROM application WHERE offer_id = ?", String.class, id))
+                .isEqualTo("SENT");
+        assertThat(letterFile(id)).as("cover_letter.txt is what went out").isEqualTo(EDIT);
+        assertThat(letterRow(id)).isEqualTo(row);
+    }
+
+    /**
+     * Commits the pending send as soon as another backend waits on a lock — the regenerate's
+     * write, held off by the uncommitted status — or the regenerate has already answered.
+     */
+    private Void commitOnceTheWriteWaitsOrIsDone(Connection sender, AtomicBoolean done) throws Exception {
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(20);
+        while (!done.get() && System.nanoTime() < deadline) {
+            Integer waiting = jdbc.queryForObject(
+                    "SELECT count(*) FROM pg_stat_activity WHERE wait_event_type = 'Lock'", Integer.class);
+            if (waiting != null && waiting > 0) {
+                break;
+            }
+            Thread.sleep(20);
+        }
+        sender.commit();
+        return null;
     }
 
     private void assertRefused(long id, AtomicInteger calls) {

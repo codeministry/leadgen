@@ -9,7 +9,7 @@
 package de.codeministry.leadgen.score;
 
 import java.util.List;
-import javax.sql.DataSource;
+import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,13 +23,10 @@ import org.springframework.transaction.annotation.Transactional;
  * the shortlist would simply be missing something.
  */
 @Component
+@RequiredArgsConstructor
 class ScoreWriter {
 
     private final JdbcClient jdbc;
-
-    ScoreWriter(DataSource dataSource) {
-        this.jdbc = JdbcClient.create(dataSource);
-    }
 
     /**
      * One offer, one transaction, and that boundary is load-bearing.

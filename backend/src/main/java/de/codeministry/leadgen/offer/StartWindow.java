@@ -10,6 +10,7 @@ package de.codeministry.leadgen.offer;
 
 import java.util.Arrays;
 import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
 
 /**
  * When an engagement starts, as a filter.
@@ -32,6 +33,7 @@ import java.util.stream.Collectors;
  * <p>{@code current_date} is the server's, never a date the browser sends. Two readers in two
  * timezones must not get two lists, and a date in a request is a date that can be edited.
  */
+@RequiredArgsConstructor
 public enum StartWindow {
 
     /**
@@ -73,11 +75,6 @@ public enum StartWindow {
 
     private final String key;
     private final String clause;
-
-    StartWindow(String key, String clause) {
-        this.key = key;
-        this.clause = clause;
-    }
 
     public String key() {
         return key;

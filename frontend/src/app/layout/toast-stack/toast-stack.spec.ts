@@ -1,8 +1,9 @@
 import {TestBed} from '@angular/core/testing';
 import {provideRouter} from '@angular/router';
-import {injectDispatch} from '@ngrx/signals/events';
+import {Events, injectDispatch} from '@ngrx/signals/events';
+import {updateEvents} from '@core/pwa/update.events';
 import {toastEvents} from '@core/toast/toast.events';
-import {toast} from '@core/toast/toast.model';
+import {actionToast, toast} from '@core/toast/toast.model';
 import {ToastStore} from '@core/toast/toast.store';
 import {ToastStack} from './toast-stack';
 
@@ -43,6 +44,32 @@ describe('ToastStack', () => {
         expect(document.activeElement).toBe(input);
 
         input.remove();
+    });
+
+    it('paints an action as a filled button in the tone that dispatches its event and closes the toast', () => {
+        const fixture = TestBed.createComponent(ToastStack);
+        const store = TestBed.inject(ToastStore);
+        const seen: string[] = [];
+        TestBed.inject(Events)
+            .on(updateEvents.activate)
+            .subscribe(({type}) => seen.push(type));
+        fixture.detectChanges();
+        dispatch.raised(actionToast('info', 'toast.update.ready', {key: 'toast.update.reload', event: updateEvents.activate()}));
+        fixture.detectChanges();
+
+        const alert: HTMLElement = fixture.nativeElement.querySelector('.alert');
+        expect(alert.textContent).toContain('A new version is ready');
+        const button = alert.querySelector<HTMLButtonElement>('button.btn-info');
+        expect(button).not.toBeNull();
+        expect(button!.textContent?.trim()).toBe('Reload');
+        expect(alert.querySelector('a')).toBeNull();
+
+        button!.click();
+        fixture.detectChanges();
+
+        expect(seen).toEqual([updateEvents.activate().type]);
+        expect(store.toasts().length).toBe(0);
+        expect(fixture.nativeElement.querySelectorAll('.alert').length).toBe(0);
     });
 
     it('carries only the two DaisyUI classes it means to, and its own prefixed ones', () => {

@@ -11,7 +11,9 @@ package de.codeministry.leadgen.analytics;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
 import java.util.function.Supplier;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Times the stages of one run, so the run row can say where the time went.
@@ -31,6 +33,7 @@ import java.util.function.Supplier;
  * <p>Not thread-safe, and it does not need to be: a run is sequential, and that sequence is
  * the point.
  */
+@Slf4j
 public final class StageLog {
 
     /**
@@ -77,15 +80,28 @@ public final class StageLog {
      * the report carries anyway.
      */
     public <T> T time(String stage, Supplier<T> body) {
+        return time(stage, body, result -> null);
+    }
+
+    /**
+     * Times one stage and states something about how it ran on its OK row — for the
+     * model-bound stages, the width they worked at.
+     *
+     * <p>The note is read off what the body returned, and only when it returned: a stage that
+     * threw keeps its failure reason as the note, because "why it stopped" outranks "how wide it
+     * ran". It is worked out outside the part that records a failure, so a note that cannot be
+     * worked out leaves an OK stage OK without a note, logged, rather than calling a finished
+     * stage FAILED. A note of {@code null} writes the row exactly as the two-argument form does.
+     */
+    public <T> T time(String stage, Supplier<T> body, Function<? super T, String> note) {
         Instant startedAt = Instant.now();
         // Before the work and outside the try, because it is not part of it: a marker that
         // threw would fail the stage it was only supposed to describe, and the whole point of
         // writing progress is that nobody is watching when it goes wrong.
         marker.entering(timings.size() + 1, stage);
+        T result;
         try {
-            T result = body.get();
-            timings.add(new StageTiming(timings.size(), stage, startedAt, Instant.now(), StageTiming.OK, null));
-            return result;
+            result = body.get();
         } catch (RuntimeException e) {
             // Recorded and rethrown. Swallowing it here would turn a broken stage into a run
             // that merely produced nothing, which is the failure this whole table exists to
@@ -93,6 +109,19 @@ public final class StageLog {
             timings.add(new StageTiming(
                     timings.size(), stage, startedAt, Instant.now(), StageTiming.FAILED, e.getMessage()));
             throw e;
+        }
+        Instant finishedAt = Instant.now();
+        timings.add(new StageTiming(
+                timings.size(), stage, startedAt, finishedAt, StageTiming.OK, noteOf(stage, result, note)));
+        return result;
+    }
+
+    private static <T> String noteOf(String stage, T result, Function<? super T, String> note) {
+        try {
+            return note.apply(result);
+        } catch (RuntimeException e) {
+            log.warn("Stage {} finished, but its note could not be worked out: {}", stage, e.getMessage(), e);
+            return null;
         }
     }
 

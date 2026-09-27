@@ -20,6 +20,12 @@ A run starts when you press **Run ingest**, or on a schedule. It works through t
 
 A model helps in a handful of places, and the Rules screen marks each one as an **AI step**: comparing offers by meaning for deduplication and for the related search, telling the advert from the portal's furniture, reading dates and durations out of free text, judging the role fit, and drafting the cover letter. Every one of these runs on a local model on your own machine, so it is free and nothing is sent to a third party. A hosted model is used only when you choose one for a specific run; the app never falls back to one on its own. And because the rules come first, the app still works without any model at all, only less sharply: nothing is skipped, the offers are just not ranked.
 
+Telling the advert from its furniture and reading the dates are small, bounded questions, so each can be given a smaller model of its own; left empty, the model that judges answers them too. The select beside **Run ingest** picks the judge for one run and changes neither of the two, and they read the adverts again only when a model of their own is set and changes.
+
+By default a run works on one advert at a time. The configuration can give it a width: deduplication, telling the advert from its furniture, reading the dates, judging and indexing then work on several adverts at once, and fetching the adverts can too, still inside the portal's rate limit and the cap per run. A width moves the clock and never the bill, because the day's model budget counts requests, not time — and it only helps when the model runtime can answer that many requests at once; otherwise the extra ones just wait in line.
+
+<!-- screenshot: run-phases-rail -->
+
 ## How the parts work together
 
 <!-- diagram: parts -->

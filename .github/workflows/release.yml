@@ -29,7 +29,7 @@ jobs:
         with:
           bun-version: '1.3.12'
       # The release gate is the CI gate run against the tagged tree, so it runs exactly
-      # what CI runs. Spotless is off in the build itself, so there is nothing to exclude.
+      # what CI runs, Spotless included, and nothing is excluded with `-x`.
       - run: ./gradlew check --no-daemon
 
   images:

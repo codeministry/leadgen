@@ -8,10 +8,11 @@
  */
 package de.codeministry.leadgen.enrich;
 
+import de.codeministry.leadgen.concurrent.BoundedWork;
 import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.config.model.PipelineConfig;
 import java.util.List;
-import javax.sql.DataSource;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
@@ -30,7 +31,15 @@ import org.springframework.stereotype.Service;
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class EnrichmentService {
+
+    /**
+     * The note for a page that answered but whose {@code full_text} rules matched nothing on it.
+     * The other notes name a failed fetch; this one names a fetch that worked and an extraction
+     * that did not, which is a question for the portal's rules and not for the portal.
+     */
+    public static final String NO_AD_TEXT = "the page was read, but no ad text could be extracted from it";
 
     private static final String DUE = """
         SELECT id, url FROM offer
@@ -84,13 +93,6 @@ public class EnrichmentService {
     private final JdbcClient jdbc;
     private final FetchWindow window;
 
-    EnrichmentService(ConfigRegistry config, PageCache cache, DataSource dataSource, FetchWindow window) {
-        this.config = config;
-        this.cache = cache;
-        this.jdbc = JdbcClient.create(dataSource);
-        this.window = window;
-    }
-
     /**
      * <b>Deliberately not {@code @Transactional}, and that is what lets a pass wait.</b>
      * Each offer's result is one statement and nothing here needs atomicity across offers —
@@ -118,19 +120,35 @@ public class EnrichmentService {
                 .query((rs, row) -> new Due(rs.getLong("id"), rs.getString("url")))
                 .list();
 
+        // One fetcher for the whole pass, shared by every worker: the budget of `max_per_run` is
+        // the pass's, so it has to be one counter however many fetches are in flight.
         AdFetcher fetcher = new AdFetcher(settings.fetch(), cache, window);
         AdExtractor extractor = new AdExtractor(settings.extract());
+
+        // Above width 1 the body runs on a virtual thread of its own. Nothing in it relies on
+        // the caller's thread: no transaction (see above), and each write is one statement.
+        int width = due.isEmpty() ? 1 : settings.fetch().concurrency();
+        List<Outcome> outcomes = BoundedWork.forEach(width, due, offer -> {
+            FetchResult fetched = fetcher.fetch(offer.url());
+            // Nothing is written, so the offer is still due next time. The due query is
+            // `enriched_at IS NULL`, and recording this would answer it forever. Reached
+            // only once the run's whole fetch budget is spent, not at the first refusal, and
+            // the loop goes on: every later offer is deferred the same way, and costs nothing.
+            if (fetched.deferred()) {
+                return new Outcome(fetched, false);
+            }
+            return new Outcome(
+                    fetched,
+                    settle(offer, fetched, extractor, RECORD).enrichment().complete());
+        });
+
         int enriched = 0;
         int incomplete = 0;
         int fromCache = 0;
         int requests = 0;
         int deferred = 0;
-
-        for (Due offer : due) {
-            FetchResult fetched = fetcher.fetch(offer.url());
-            // Nothing is written, so the offer is still due next time. The due query is
-            // `enriched_at IS NULL`, and recording this would answer it forever. Reached
-            // only once the run's whole fetch budget is spent, not at the first refusal.
+        for (Outcome outcome : outcomes) {
+            FetchResult fetched = outcome.fetched();
             if (fetched.deferred()) {
                 deferred++;
                 continue;
@@ -140,24 +158,24 @@ public class EnrichmentService {
             } else if (fetched.status() > 0) {
                 requests++;
             }
-
-            if (settle(offer, fetched, extractor, RECORD).complete()) {
+            if (outcome.complete()) {
                 enriched++;
             } else {
                 incomplete++;
             }
         }
 
-        var report = new EnrichmentReport(due.size(), enriched, incomplete, fromCache, requests, deferred);
+        var report = new EnrichmentReport(due.size(), enriched, incomplete, fromCache, requests, deferred, width);
         log.info(
                 "Enrichment: {} due, {} enriched, {} incomplete, {} from cache, {} requests,"
-                        + " {} beyond this run's fetch budget and due again",
+                        + " {} beyond this run's fetch budget and due again{}",
                 report.considered(),
                 report.enriched(),
                 report.incomplete(),
                 report.fromCache(),
                 report.requests(),
-                report.deferred());
+                report.deferred(),
+                BoundedWork.atWidth(report.width()));
         return report;
     }
 
@@ -171,12 +189,14 @@ public class EnrichmentService {
      * {@code @Transactional} for the reason {@link #run} documents: the fetch is a network call,
      * and the one write after it is one statement.
      *
-     * @return what was recorded, complete or not. A failed fetch is an outcome and is written
-     * down with its reason; only a refused permit writes nothing.
+     * @return what was recorded, complete or not, and whether this call was the one that
+     * recorded it. A failed fetch is an outcome and is written down with its reason; only a
+     * refused permit writes nothing. The write is a no-op once the offer has its text (the race
+     * the statement exists for), and {@link Settled#stored()} is false then.
      * @throws NotFetchable when enrichment is off, or the offer is not one the night would fetch.
      * @throws NoPermit     when the shared fetch window has no permit this minute.
      */
-    public Enrichment runFor(long id) {
+    public Settled runFor(long id) {
         PipelineConfig.Enrichment settings = config.snapshot().application().enrichment();
         if (settings == null || !settings.enabled()) {
             throw new NotFetchable("enrichment is disabled, so no ad is fetched");
@@ -200,27 +220,35 @@ public class EnrichmentService {
         if (fetched.deferred()) {
             throw new NoPermit(fetched.note());
         }
-        Enrichment result = settle(offer, fetched, new AdExtractor(settings.extract()), RECORD_UNLESS_READ);
-        log.info("Offer {} fetched again on request: {}", id, result.complete() ? "enriched" : result.note());
-        return result;
+        Settled settled = settle(offer, fetched, new AdExtractor(settings.extract()), RECORD_UNLESS_READ);
+        Enrichment result = settled.enrichment();
+        log.info(
+                "Offer {} fetched again on request: {}",
+                id,
+                !settled.stored()
+                        ? "its text landed meanwhile, nothing recorded"
+                        : result.complete() ? "enriched" : result.note());
+        return settled;
     }
 
     /**
      * What an answer from the portal means for one offer, and writing it down. Shared by the
      * run and the button, so the two cannot disagree about it.
      */
-    private Enrichment settle(Due offer, FetchResult fetched, AdExtractor extractor, String statement) {
+    private Settled settle(Due offer, FetchResult fetched, AdExtractor extractor, String statement) {
         Enrichment result;
         if (!fetched.succeeded()) {
             result = Enrichment.incomplete(fetched.note());
         } else {
             Enrichment extracted = extractor.extract(fetched.body(), offer.url());
-            result = extracted.fieldCount() == 0
-                    ? Enrichment.incomplete("the ad was read but stated none of the fields")
+            // No ad text is the case the card and the toast have to explain, whatever else the
+            // patterns found on the page: a rate without the advert is still an offer without its
+            // ad. What was found is kept, and the note says what is missing.
+            result = extracted.fullText() == null || extracted.fullText().isBlank()
+                    ? extracted.withNote(NO_AD_TEXT)
                     : extracted;
         }
-        record(statement, offer.id(), result);
-        return result;
+        return new Settled(result, record(statement, offer.id(), result) == 1);
     }
 
     /**
@@ -243,8 +271,9 @@ public class EnrichmentService {
         }
     }
 
-    private void record(String statement, long id, Enrichment enrichment) {
-        jdbc.sql(statement)
+    /** @return how many rows the statement wrote: one, or zero when its condition held it back. */
+    private int record(String statement, long id, Enrichment enrichment) {
+        return jdbc.sql(statement)
                 .params(
                         enrichment.rateEur(),
                         enrichment.duration(),
@@ -259,4 +288,26 @@ public class EnrichmentService {
     }
 
     private record Due(long id, String url) {}
+
+    /**
+     * What one offer of a pass came to, returned by its worker so the report is folded over the
+     * list afterwards rather than counted from several threads.
+     *
+     * @param complete whether what was recorded is complete; false for a deferral, which records
+     *     nothing
+     */
+    private record Outcome(FetchResult fetched, boolean complete) {}
+
+    /**
+     * What one fetch settled on, and whether this call was the one that wrote it down.
+     *
+     * <p>The night's statement always writes its row. The button's is held back once the offer
+     * has its text, so two presses that both passed the lookup store it once: the one whose
+     * write took is the one that derives and scores, and the other derives nothing, because
+     * nothing in the row came from what it fetched.
+     *
+     * @param enrichment what the fetch yielded, complete or with its note
+     * @param stored whether this call's write reached the row
+     */
+    public record Settled(Enrichment enrichment, boolean stored) {}
 }

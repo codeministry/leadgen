@@ -12,9 +12,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.config.model.PipelineConfig;
 import de.codeministry.leadgen.llm.ChatModels;
+import de.codeministry.leadgen.llm.ModelChoice;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.stereotype.Component;
@@ -34,6 +36,7 @@ import org.springframework.stereotype.Component;
  */
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class Judges {
 
     /**
@@ -47,11 +50,6 @@ public class Judges {
     private final ConfigRegistry config;
     private final ChatModels chatModels;
 
-    Judges(ConfigRegistry config, ChatModels chatModels) {
-        this.config = config;
-        this.chatModels = chatModels;
-    }
-
     /**
      * The judge the configuration names by default.
      */
@@ -63,8 +61,7 @@ public class Judges {
      * Every model that may be asked, the configured default first. Empty when none is set.
      */
     public List<String> choices() {
-        PipelineConfig.Llm llm = config.snapshot().application().llm();
-        return llm == null || llm.models() == null ? List.of() : llm.models().scoringChoices();
+        return ModelChoice.scoring(config.snapshot().application().llm());
     }
 
     /**
@@ -112,13 +109,12 @@ public class Judges {
         if (blank(llm.apiKey()) && !ChatModels.OLLAMA.equals(llm.provider())) {
             return Optional.empty();
         }
-        List<String> choices = llm.models() == null ? List.of() : llm.models().scoringChoices();
+        List<String> choices = ModelChoice.scoring(llm);
         if (choices.isEmpty()) {
             log.warn("llm.models.scoring is not set; nothing can be scored");
             return Optional.empty();
         }
-        // The default is the first entry, so "nothing was asked for" and "the configured
-        // one was asked for" are the same case and cannot drift apart.
+        // The default is the first entry, the same rule every stage reads from ModelChoice.
         String model = blank(requested) ? choices.getFirst() : requested.trim();
         if (!choices.contains(model)) {
             throw new UnknownModel(model, choices);

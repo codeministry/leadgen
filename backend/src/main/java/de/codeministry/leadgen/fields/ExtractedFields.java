@@ -9,7 +9,6 @@
 package de.codeministry.leadgen.fields;
 
 import java.time.LocalDate;
-import java.util.Objects;
 
 /**
  * What one advert says about its start, its length and its deadline.
@@ -55,23 +54,5 @@ public record ExtractedFields(
                 && durationMonths == null
                 && applyByText == null
                 && applyBy == null;
-    }
-
-    /**
-     * Whether writing this would change the row.
-     *
-     * <p>Only the two columns that were already populated by the enrichment regexes can
-     * differ from what is there; the four new ones are null until this stage writes them, so
-     * anything it has to say about them is a change. That is what decides whether {@code
-     * score_model} is nulled, and a re-judge is a language-model call — so it is asked
-     * against the row rather than assumed.
-     */
-    public boolean changes(LocalDate startsOnNow, String durationNow) {
-        return !Objects.equals(startsOn, startsOnNow)
-                || !Objects.equals(durationText, durationNow)
-                || startText != null
-                || durationMonths != null
-                || applyByText != null
-                || applyBy != null;
     }
 }

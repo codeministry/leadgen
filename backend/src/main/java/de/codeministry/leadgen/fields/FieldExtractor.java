@@ -14,6 +14,7 @@ import de.codeministry.leadgen.llm.Answers;
 import java.io.IOException;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatModel;
@@ -34,6 +35,7 @@ import org.springframework.ai.chat.model.ChatResponse;
  * separately would triple the bill for an answer that fits in three lines.
  */
 @Slf4j
+@RequiredArgsConstructor
 public class FieldExtractor {
 
     /**
@@ -96,12 +98,6 @@ public class FieldExtractor {
     private final ChatModel chatModel;
     private final String model;
     private final ObjectMapper json;
-
-    public FieldExtractor(ChatModel chatModel, String model, ObjectMapper json) {
-        this.chatModel = chatModel;
-        this.model = model;
-        this.json = json;
-    }
 
     public String model() {
         return model;
@@ -171,7 +167,7 @@ public class FieldExtractor {
      * beside it already states one knows less than the application does, and the correction
      * it is being asked for cannot be made against a value it cannot see.
      */
-    static String describe(Candidate offer) {
+    public static String describe(Candidate offer) {
         StringBuilder text = new StringBuilder("Title: ").append(offer.title() == null ? "(untitled)" : offer.title());
         if (offer.description() != null && !offer.description().isBlank()) {
             text.append("\n\nSummary:\n").append(offer.description());
@@ -192,8 +188,11 @@ public class FieldExtractor {
      *
      * <p>A value that fails a bound is dropped and the rest is kept. A model that resolves a
      * quarter into a day is wrong about one field, not about the advert.
+     *
+     * <p>Public, like {@link #describe}, because {@code answer.AnswerService} asks a candidate
+     * model this same question: one prompt and one reader, bounds included.
      */
-    private ExtractedFields read(String content) throws IOException {
+    public ExtractedFields read(String content) throws IOException {
         JsonNode parsed = json.readTree(Answers.objectIn(content));
         JsonNode start = parsed.path("start");
         JsonNode duration = parsed.path("duration");

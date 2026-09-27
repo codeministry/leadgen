@@ -9,16 +9,21 @@
 package de.codeministry.leadgen;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.BDDMockito.given;
 
 import de.codeministry.leadgen.config.ConfigProperties;
+import de.codeministry.leadgen.config.ConfigRegistry;
+import de.codeministry.leadgen.config.ConfigSnapshot;
 import de.codeministry.leadgen.config.DotEnv;
 import de.codeministry.leadgen.config.Secrets;
+import de.codeministry.leadgen.config.model.PipelineConfig;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 import org.springframework.core.env.MapPropertySource;
 import org.springframework.core.env.StandardEnvironment;
 
@@ -32,6 +37,17 @@ class ConfigurationBannerTest {
      * variables a property depends on) and the resolved one.
      */
     private ConfigurationBanner banner() {
+        return banner(null);
+    }
+
+    private ConfigurationBanner banner(PipelineConfig.Llm.Models models) {
+        var registry = Mockito.mock(ConfigRegistry.class);
+        var snapshot = Mockito.mock(ConfigSnapshot.class);
+        var pipeline = Mockito.mock(PipelineConfig.class);
+        given(registry.snapshot()).willReturn(snapshot);
+        given(snapshot.application()).willReturn(pipeline);
+        given(pipeline.llm()).willReturn(new PipelineConfig.Llm(null, null, null, null, false, models, null));
+
         Map<String, Object> properties = new LinkedHashMap<>();
         properties.put("server.port", "8080");
         properties.put("spring.datasource.url", "jdbc:postgresql://localhost:55432/leadgen");
@@ -46,7 +62,7 @@ class ConfigurationBannerTest {
                 .getPropertySources()
                 .addFirst(
                         new MapPropertySource("Config resource 'class path resource [application.yaml]'", properties));
-        return new ConfigurationBanner(environment, new ConfigProperties("config"));
+        return new ConfigurationBanner(environment, new ConfigProperties("config"), registry);
     }
 
     private static DotEnv dotenv(String... pairs) {
@@ -86,6 +102,33 @@ class ConfigurationBannerTest {
         assertThat(text).doesNotContain("s3cr3t");
         // An unset key and a masked one must not look alike — "is it set" is the point.
         assertThat(text).contains("LLM_API_KEY", Secrets.EMPTY);
+    }
+
+    @Test
+    void namesPerModelKeyWhichModelWillBeAskedAndWhichKeyWon() {
+        // ISC-368: LLM_MODEL_CONTENT set, LLM_MODEL_FIELDS empty, a scoring model configured.
+        String text = banner(new PipelineConfig.Llm.Models(null, "a-judge", null, null, null, "a-small-model", ""))
+                .describe(dotenv());
+
+        int model = text.indexOf("Language model");
+        assertThat(model).isPositive();
+        assertThat(row(text, "llm.models.content → used")).contains("a-small-model", "(from llm.models.content)");
+        assertThat(row(text, "llm.models.fields → used")).contains("a-judge", "(from llm.models.scoring)");
+        assertThat(row(text, "llm.models.extraction → used")).contains("a-judge", "(from llm.models.scoring)");
+        assertThat(text.indexOf("llm.models.content → used")).isGreaterThan(model);
+    }
+
+    @Test
+    void saysNoneForEveryModelKeyWhenNoModelIsConfigured() {
+        String text = banner(new PipelineConfig.Llm.Models(null, null, null, null, null, null, null))
+                .describe(dotenv());
+
+        assertThat(row(text, "llm.models.content → used")).contains("none");
+        assertThat(row(text, "llm.models.fields → used")).contains("none");
+    }
+
+    private static String row(String text, String key) {
+        return text.lines().filter(line -> line.contains(key)).findFirst().orElseThrow();
     }
 
     @Test

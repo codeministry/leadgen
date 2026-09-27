@@ -406,6 +406,9 @@ class ScoringWithAModelTest {
             text = set(text, "api_key", "test-key");
             text = set(text, "scoring", "test-model");
             text = set(text, "scoring_options", "other-model");
+            // And every key not named above — `content`, `fields`, both concurrencies — closed
+            // the way a test context closes it, never from the developer's `.env`.
+            text = ConfigFixtures.closePlaceholders(text);
             Files.writeString(pipeline, text, StandardCharsets.UTF_8);
             return dir;
         } catch (IOException e) {

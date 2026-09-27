@@ -1,10 +1,16 @@
-<div class="lg-panel p-4">
-    <p class="type-caption text-muted">{{ label() }}</p>
+<div class="lg-panel p-4" [class]="toneClass()">
+    <p class="type-caption text-muted flex items-center gap-2">
+        @if (icon(); as icon) {
+            <span class="lg-tone-chip" aria-hidden="true"><lg-icon [name]="icon" [size]="16"/></span>
+        }
+        {{ label() }}
+    </p>
     <p class="mt-1 flex items-baseline gap-1">
     <span
             class="type-display-m"
             [class.text-signal]="emphasis()"
             [class.text-muted]="value() === '—'"
+            [style.color]="tone() !== null && value() !== '—' && !emphasis() ? 'var(--lg-tone-text)' : null"
     >{{ value() }}</span
     >
         @if (unit(); as unit) {

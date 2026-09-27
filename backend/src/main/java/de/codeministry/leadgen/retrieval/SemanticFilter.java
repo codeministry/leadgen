@@ -12,7 +12,7 @@ import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.config.model.PipelineConfig;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import javax.sql.DataSource;
+import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 
@@ -42,6 +42,7 @@ import org.springframework.stereotype.Component;
  * means the opposite, which is the trap {@code SimilarOffers} already carries a note about.
  */
 @Component
+@RequiredArgsConstructor
 public class SemanticFilter {
 
     /**
@@ -85,12 +86,6 @@ public class SemanticFilter {
     private final ConfigRegistry config;
     private final QueryEmbedder queries;
     private final JdbcClient jdbc;
-
-    SemanticFilter(ConfigRegistry config, QueryEmbedder queries, DataSource dataSource) {
-        this.config = config;
-        this.queries = queries;
-        this.jdbc = JdbcClient.create(dataSource);
-    }
 
     /**
      * Whether this installation can answer a relatedness question at all.

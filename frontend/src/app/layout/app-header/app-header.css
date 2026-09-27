@@ -78,6 +78,34 @@
   margin-inline-end: -0.5rem;
 }
 
+/* While a pass is going the control takes the run colour — the one hue that means "being worked
+   right now" — and stops being a button at all (operator, 2026-09-26). Not a `btn` either, and
+   that is the point `button-tiers.spec.ts` made when it first refused this: it is a link into the
+   run, not one of the three action tiers, so it takes the button's geometry and none of its
+   vocabulary. The wash and border rather than a filled pink: at 64 % lightness the hue cannot
+   carry white text, and the same shape is already what the workflow's own status chip wears, so
+   the two read as one thing in two places. */
+.ingest-live {
+  display: inline-flex;
+  gap: 0.375rem;
+  align-items: center;
+  box-sizing: border-box;
+  height: 2rem;
+  padding: 0 0.75rem;
+  border: 1px solid var(--lg-run);
+  border-radius: var(--radius-field);
+  background-color: color-mix(in oklab, var(--lg-run) 14%, var(--color-base-100));
+  color: var(--color-base-content);
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.ingest-live:hover,
+.ingest-live:focus-visible {
+  background-color: color-mix(in oklab, var(--lg-run) 24%, var(--color-base-100));
+}
+
 .ingest-button {
     flex: none;
     white-space: nowrap;
@@ -134,11 +162,6 @@
 
 /* The one link in the panel sits above the two toggles, left-aligned like a menu row and
    set off from them by the panel's own gap. */
-.panel-link {
-  justify-content: flex-start;
-  margin-bottom: 0.25rem;
-}
-
 .panel-label {
   margin: 0;
 }
@@ -189,9 +212,6 @@
 /* Beside the button and only while a pass is going. Hidden below 64rem, where the header row
    is already the tightest thing on the screen and the stage is a nicety — the disabled button
    and its title still say a run is in flight. */
-.run-stage {
-  white-space: nowrap;
-}
 
 @media (width < 64rem) {
   .run-stage {

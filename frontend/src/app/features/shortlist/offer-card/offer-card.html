@@ -1,8 +1,20 @@
-<article class="offer" [class.is-selected]="selected()">
-    <lg-score [value]="entry().score.value"/>
+<!-- Four questions, one band each: does it fit (the ring and the title), what is known about it
+     (the facts line), why it scored what it scored (the why line) and where it comes from (the
+     source line). Everything else is the detail column's: every reason with its points, every
+     source by name, the published date and the fields the advert never filled. No badges — one
+     meta vocabulary of plain text, so the eye lands on the title and the status edge. -->
+<!-- Compact is the same card with two bands: the title row, then one line of the known facts and
+     the strongest lift. Same article, same anchor, same checkbox column — the stretched link,
+     the focus ring, `aria-current` and the Shift-range read the same markup in both densities. -->
+<article class="offer" [class.is-selected]="selected()" [class.is-compact]="compact()">
+    <lg-score [value]="entry().score.value" [size]="ringSize()"/>
 
     <div class="main">
-        <h3 class="type-h4 title">
+        <!-- `truncate` in compact, as a class binding: Tailwind emits the utility because the
+             template spells it literally further down, and a clamp written by hand is what the
+             build prefixer has dropped before. The stretched `::after` is positioned against
+             `.offer`, not this heading, so the clip never reaches the link's hit area. -->
+        <h3 class="type-h4 title" [class.truncate]="compact()">
             <!-- Into the split view, and `preserve` is not optional: navigating to a new URL
                  otherwise drops the query string, and the filters reset the moment an offer is
                  opened. `aria-current` says which of the set is on screen. -->
@@ -14,98 +26,141 @@
             >
         </h3>
 
-        <p class="type-mono-data text-muted meta">
-            @if (entry().offer.rateEur; as rate) {
-                <span>{{ rate }} &euro;/h</span>
-            } @else {
-                <span class="unknown">{{ 'offer.rateUnknown' | transloco }}</span>
-            }
-            <span aria-hidden="true">·</span>
-            <span>{{ entry().offer.location ?? ('offer.locationUnknown' | transloco) }}</span>
-            <span aria-hidden="true">·</span>
-            <span>{{ entry().offer.duration ?? ('offer.durationUnknown' | transloco) }}</span>
-            <span aria-hidden="true">·</span>
-            <span>{{ entry().offer.publishedOn }}</span>
-        </p>
-
-      <!-- A second line, and only when there is something on it. Six items on the first row
-           wrap to three lines on every card at this column width, and this is the surface
-           that is scanned twenty at a time. The phrase before the day, the same reading
-           order the detail panel uses: "ab sofort" is what the advert said — and `lgDay`
-           hands a phrase straight back, so one pipe covers both halves of the pair. -->
-      @if (startLabel() || deadlineLabel()) {
-        <p class="type-mono-data text-muted meta">
-          @if (startLabel(); as start) {
-            <span>{{ 'offer.startsAt' | transloco: {when: start | lgDay} }}</span>
-          }
-          @if (startLabel() && deadlineLabel()) {
-            <span aria-hidden="true">·</span>
-          }
-          @if (deadlineLabel(); as deadline) {
-            <span>{{ 'offer.applyBy' | transloco: {when: deadline | lgDay} }}</span>
-          }
-        </p>
-      }
-
-      <ul class="reasons">
-            @for (reason of shownReasons(); track reason.factor) {
-                <li class="type-small reason" [class.penalty]="reason.points < 0">
-          <span class="type-mono-data points">
-            {{ reason.points > 0 ? '+' : '' }}{{ reason.points }}
-          </span>
-                    <span class="reason-label line-clamp-2">{{ reason.label }}</span>
-                </li>
-            } @empty {
-                <li class="type-small text-muted reason">
-                    {{ 'offer.notScored' | transloco }}
-                </li>
-            }
-        </ul>
-
-        <div class="badges">
-            @if (statusText(); as status) {
-                <lg-badge tone="primary">{{ status }}</lg-badge>
-            }
-            @if (otherSources().length > 0) {
-                <lg-badge tone="primary" [outline]="true">
-                    <lg-icon name="copy" [size]="12"/>
-                    {{ 'offer.alsoOn' | transloco: {count: otherSources().length} }}
-                </lg-badge>
-            }
-            @if (entry().flags.incomplete) {
-                <lg-badge tone="warning" [outline]="true">{{ 'offer.incomplete' | transloco }}</lg-badge>
-            }
-          @if (entry().flags.possibleDuplicate) {
-            <lg-badge tone="warning" [outline]="true">{{ 'offer.possibleDuplicate' | transloco }}</lg-badge>
-          }
-
-          @if (entry().flags.remoteUnknown) {
-                <lg-badge tone="ghost" [outline]="true">{{ 'offer.remoteUnknown' | transloco }}</lg-badge>
-            } @else {
-                <lg-badge tone="ghost" [outline]="true">
-                    {{ 'offer.remoteShare' | transloco: {percent: entry().offer.remotePercent} }}
-                </lg-badge>
-            }
-            <lg-badge tone="ghost" [outline]="true">{{ entry().offer.portal }}</lg-badge>
-            @if (entry().offer.agency; as agency) {
-                <lg-badge tone="ghost" [outline]="true">{{ agency }}</lg-badge>
-            } @else {
-                <lg-badge tone="ghost" [outline]="true">{{ 'offer.noAgency' | transloco }}</lg-badge>
-            }
-        </div>
-
-        <!-- One project, several portals. The names sit on their own wrapping line
-             rather than inside the badge: a badge does not wrap, and three agency
-             names made it wider than a phone. -->
-        @if (otherSources().length > 0) {
-            <p class="type-small text-muted also">
-                {{ 'offer.alsoAdvertisedBy' | transloco }}
-                @for (source of otherSources(); track source.url; let last = $last) {
-                    {{ source.agency ?? source.portal }}{{ last ? '' : ', ' }}
+        <!-- Known values only, each an icon and its value, and no separator: the icon opens every
+             item, so the gap alone reads as the break. The rate carries no icon — "95 €/h" says
+             what it is. Every icon is decorative (`lg-icon` without a label is `aria-hidden`);
+             where the value alone would be ambiguous — a bare percentage, a bare date, a bare
+             "3 days ago" — the visible value is hidden and a catalog sentence stands in for it.
+             The came-in date closes the line and is always there, because every row has been
+             ingested. The start and the deadline keep the reading order the detail panel uses:
+             "ab sofort" is what the advert said — and `lgDay` hands a phrase straight back, so
+             one pipe covers both. -->
+        <ng-template #facts>
+            <!-- First, because "when did it come in" is one of the four questions a card answers, and
+                 the line is one line: whatever does not fit is cut from the end, never this. -->
+            <span class="offer-fact offer-came-in"><lg-icon class="offer-icon" name="inbox" [size]="12"/><span class="sr-only">{{ 'offer.glyph.cameIn' | transloco }} </span><time [attr.datetime]="entry().offer.ingestedAt">{{ entry().offer.ingestedAt | lgAgo }}</time></span>
+            @for (fact of knownFacts(); track $index) {
+                @if (fact.kind === 'text') {
+                    <span class="offer-fact">@if (fact.icon; as icon) {<lg-icon class="offer-icon" [name]="icon" [size]="12"/>}{{ fact.text }}</span>
+                } @else if (fact.kind === 'remote') {
+                    <span class="offer-fact"><lg-icon class="offer-icon" name="house" [size]="12"/><span aria-hidden="true">{{ fact.percent }} %</span><span class="sr-only">{{ 'offer.remoteShare' | transloco: {percent: fact.percent} }}</span></span>
+                } @else if (fact.kind === 'start') {
+                    <span class="offer-fact"><lg-icon class="offer-icon" name="calendar-arrow-up" [size]="12"/><span aria-hidden="true">{{ fact.when | lgDay }}</span><span class="sr-only">{{ 'offer.startsAt' | transloco: {when: fact.when | lgDay} }}</span></span>
+                } @else {
+                    <span class="offer-fact"><lg-icon class="offer-icon" name="calendar-clock" [size]="12"/><span aria-hidden="true">{{ fact.when | lgDay }}</span><span class="sr-only">{{ 'offer.applyBy' | transloco: {when: fact.when | lgDay} }}</span></span>
                 }
-            </p>
-        }
+            }
+        </ng-template>
+
+            @if (compact()) {
+                <!-- The second and last line in compact: the facts, then the one lift, then a
+                     warning triangle when either flag is set. The facts give way first
+                     (`truncate`, capped in the stylesheet), the lift takes what is left, and the
+                     triangle never shrinks — a warning cut off is a warning not given. -->
+                <p class="offer-brief min-w-0">
+                    <span class="type-mono-data text-muted offer-brief-facts truncate">
+                        <ng-container [ngTemplateOutlet]="facts"/>
+                    </span>
+                    @if (strongestLift(); as lift) {
+                        <span class="type-small offer-lift truncate min-w-0">
+                            <lg-icon class="offer-icon" name="trending-up" [size]="12"/>
+                            <span class="sr-only">{{ 'offer.glyph.lift' | transloco }}</span>
+                            {{ lift }}
+                        </span>
+                    }
+                    @if (flagged()) {
+                        <span class="type-small offer-flag">
+                            <lg-icon class="offer-icon" name="triangle-alert" [size]="12"/>
+                            <span class="sr-only">
+                                {{ 'offer.glyph.warning' | transloco }}
+                                @if (entry().flags.possibleDuplicate) {
+                                    {{ 'offer.possibleDuplicate' | transloco }}
+                                }
+                                @if (entry().flags.incomplete) {
+                                    {{ 'offer.incomplete' | transloco }}
+                                }
+                            </span>
+                        </span>
+                    }
+                </p>
+            } @else {
+                <p class="type-mono-data text-muted offer-facts">
+                    <ng-container [ngTemplateOutlet]="facts"/>
+                </p>
+
+                <!-- One line: every lifting topic, the strongest penalty, the strongest lift — labels,
+                     never points. The lift comes last because it is the long one (the skill overlap
+                     names up to eight skills): the topics and the penalty keep their width up to a cap,
+                     the lift takes what is left and is the one that truncates. Each icon is hidden
+                     from assistive technology and has its meaning spelled out beside it. -->
+                @if (hasWhy()) {
+                    <p class="type-small offer-why min-w-0">
+                        @if (topicNames().length > 0) {
+                            <span class="offer-topics truncate">
+                                <lg-icon class="offer-icon" name="tag" [size]="12"/>
+                                <span class="sr-only">{{ 'offer.glyph.topic' | transloco }}</span>
+                                {{ topicNames().join(', ') }}
+                            </span>
+                        }
+                        @if (strongestPenalty(); as penalty) {
+                            <span class="offer-penalty truncate">
+                                <lg-icon class="offer-icon" name="trending-down" [size]="12"/>
+                                <span class="sr-only">{{ 'offer.glyph.penalty' | transloco }}</span>
+                                {{ penalty }}
+                            </span>
+                        }
+                        @if (strongestLift(); as lift) {
+                            <span class="offer-lift truncate min-w-0">
+                                <lg-icon class="offer-icon" name="trending-up" [size]="12"/>
+                                <span class="sr-only">{{ 'offer.glyph.lift' | transloco }}</span>
+                                {{ lift }}
+                            </span>
+                        }
+                    </p>
+                } @else {
+                    <!-- A sentence, not a label: its own line, allowed to wrap, never clipped. -->
+                    <p class="type-small text-muted offer-not-scored">{{ 'offer.notScored' | transloco }}</p>
+                }
+
+                <!-- Where it comes from, in one word, how many others advertise it, and the two flags —
+                     warning-toned text, only when set. The other sources' names are the detail's. -->
+                @if (sourceWord() || otherSourceCount() > 0 || entry().flags.possibleDuplicate || entry().flags.incomplete) {
+                    <p class="type-small text-muted offer-source">
+                        @if (sourceWord(); as word) {
+                            <span class="offer-source-word"><lg-icon class="offer-icon" name="building-2" [size]="12"/>{{ word }}</span>
+                        }
+                        @if (otherSourceCount() > 0) {
+                            <span class="offer-dupes">
+                                <lg-icon class="offer-icon" name="copy" [size]="12"/><span aria-hidden="true">{{ otherSourceCount() }}</span>
+                                <span class="sr-only">{{ 'offer.glyph.otherSources' | transloco: {count: otherSourceCount()} }}</span>
+                            </span>
+                        }
+                        @if (entry().flags.possibleDuplicate) {
+                            <span class="offer-flag">
+                                <lg-icon class="offer-icon" name="triangle-alert" [size]="12"/>
+                                <span class="sr-only">{{ 'offer.glyph.warning' | transloco }}</span>
+                                {{ 'offer.possibleDuplicate' | transloco }}
+                            </span>
+                        }
+                        @if (entry().flags.incomplete) {
+                            <span class="offer-flag">
+                                <lg-icon class="offer-icon" name="triangle-alert" [size]="12"/>
+                                <span class="sr-only">{{ 'offer.glyph.warning' | transloco }}</span>
+                                {{ 'offer.incomplete' | transloco }}
+                            </span>
+                        }
+                    </p>
+                }
+            }
     </div>
+
+  <!-- Where the application stands, as text in the primary, at the right edge of the title row
+       — the edge he runs his eye down. Right-aligned and pinned to the top, so the status of
+       every card lines up whatever its length. Inert: it sits under the stretched link. The icon
+       is the state's shape, never its only carrier: the word stays beside it. -->
+  @if (statusView(); as status) {
+    <span class="type-small offer-state"><lg-icon class="offer-icon" [name]="status.icon" [size]="14"/>{{ status.text }}</span>
+  }
 
   <!-- A third column of the card, pinned to the top so it reads on one row with the score
        ring and the title's first line. It costs the body 38px of width, and the column is

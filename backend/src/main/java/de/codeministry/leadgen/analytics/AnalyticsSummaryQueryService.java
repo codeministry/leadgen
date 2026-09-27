@@ -15,7 +15,7 @@ import java.time.ZoneId;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import javax.sql.DataSource;
+import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 
@@ -29,6 +29,7 @@ import org.springframework.stereotype.Service;
  * reason this class exists beside it rather than reusing it.
  */
 @Service
+@RequiredArgsConstructor
 public class AnalyticsSummaryQueryService {
 
     /**
@@ -123,11 +124,6 @@ public class AnalyticsSummaryQueryService {
 
     private final JdbcClient jdbc;
     private final LastRunQueryService lastRun;
-
-    AnalyticsSummaryQueryService(DataSource dataSource, LastRunQueryService lastRun) {
-        this.jdbc = JdbcClient.create(dataSource);
-        this.lastRun = lastRun;
-    }
 
     public AnalyticsSummary summary() {
         String zone = ZoneId.systemDefault().getId();

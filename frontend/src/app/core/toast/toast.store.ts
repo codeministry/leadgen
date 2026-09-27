@@ -8,10 +8,12 @@ import {refreshEvents} from '@core/refresh/refresh.events';
 import {applicationEvents} from '@core/store/applications.events';
 import {coverLetterEvents} from '@core/store/cover-letter.events';
 import {ingestEvents} from '@core/store/ingest.events';
+import {RUN_STATUS} from '@core/model/workflow';
 import {manualEvents} from '@core/store/manual.events';
 import {shortlistEvents} from '@core/store/shortlist.events';
+import {updateEvents} from '@core/pwa/update.events';
 import {toastEvents} from './toast.events';
-import {TOAST_CAP, TOAST_LIFETIME_MS, Toast, toast} from './toast.model';
+import {actionToast, TOAST_CAP, TOAST_LIFETIME_MS, Toast, toast} from './toast.model';
 import {withAppDevtools} from '@core/store/devtools';
 
 interface ToastState {
@@ -26,6 +28,9 @@ const initialState: ToastState = {toasts: []};
  * away" and takes the warning tone; every other move, WON included, is forward and green.
  */
 const CLOSED_AGAINST_US: ReadonlySet<ApplicationStatus> = new Set<ApplicationStatus>(['LOST', 'REJECTED', 'EXPIRED']);
+
+/** The one key that may stand only once: a newer version replaces the offer of the older. */
+const UPDATE_READY_KEY = 'toast.update.ready';
 
 /**
  * The one place a domain event becomes a message.
@@ -53,7 +58,7 @@ export const ToastStore = signalStore(
             toasts: state.toasts.filter((standing) => standing.id !== payload),
         })),
     ),
-    withEventHandlers(() => {
+    withEventHandlers((store) => {
         const events = inject(Events);
 
         /** Whichever of the two carries this id: the timer's own end, or the button. */
@@ -68,9 +73,17 @@ export const ToastStore = signalStore(
              * or its own expiry. A release starts a fresh full lifetime rather than resuming
              * the remainder: the person just read it, and a line that vanishes the instant
              * the pointer leaves is the thing the hold exists to prevent.
+             *
+             * A toast with an action gets no timer on either path: the offer stands until the
+             * person takes it or closes it. The raise carries the toast; a release carries only
+             * the id, and the toast it names has stood in the state since its raise.
              */
             events.on(toastEvents.raised, toastEvents.released).pipe(
-                map(({payload}) => (typeof payload === 'number' ? payload : payload.id)),
+                map(({payload}) =>
+                    typeof payload === 'number' ? store.toasts().find((standing) => standing.id === payload) : payload,
+                ),
+                filter((standing): standing is Toast => standing !== undefined && standing.action === undefined),
+                map(({id}) => id),
                 mergeMap((id) =>
                     timer(TOAST_LIFETIME_MS).pipe(
                         takeUntil(gone(id)),
@@ -157,12 +170,20 @@ export const ToastStore = signalStore(
              * stream itself rather than through state, because the order in which a reducer
              * and a handler see one event is not something to depend on. The null between two
              * runs is what lets a new id through; the same id on every beat is one toast.
+             *
+             * "Open" goes to the run status on the workflow screen (operator, 2026-09-27): the
+             * one place that shows where a pass stands while it runs, stage by stage. The
+             * dashboard it used to open only has something to say once the run is over.
              */
             events.on(ingestEvents.currentLoaded).pipe(
                 map(({payload}) => payload?.id ?? null),
                 distinctUntilChanged(),
                 filter((id): id is number => id !== null),
-                map(() => toastEvents.raised(toast('info', 'toast.runStarted', undefined, '/dashboard'))),
+                map(() =>
+                    toastEvents.raised(
+                        toast('info', 'toast.runStarted', undefined, '/workflow', {stage: RUN_STATUS}),
+                    ),
+                ),
             ),
             /*
              * A run ending, from two paths that both fire for the operator's own run: the
@@ -233,6 +254,26 @@ export const ToastStore = signalStore(
                             : toast('success', 'toast.letterDrafted'),
                     ),
                 ),
+            ),
+            // A new version the worker holds, once per hash — the update store keys that. The
+            // one toast with an action: the reload is the person's call and it stands until they
+            // take it or close it. Info, because nobody in this browser asked for a deploy; and no
+            // link, because there is no page for it. Never raised while the worker is disabled,
+            // since the event then never fires. A standing update toast goes first: it describes
+            // a version the worker no longer holds, and two identical offers is one too many.
+            events.on(updateEvents.versionReady).pipe(
+                mergeMap(() => [
+                    ...store
+                        .toasts()
+                        .filter((standing) => standing.key === UPDATE_READY_KEY)
+                        .map((standing) => toastEvents.dismissed(standing.id)),
+                    toastEvents.raised(
+                        actionToast('info', UPDATE_READY_KEY, {
+                            key: 'toast.update.reload',
+                            event: updateEvents.activate(),
+                        }),
+                    ),
+                ]),
             ),
         ];
     }),

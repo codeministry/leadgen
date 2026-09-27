@@ -10,6 +10,9 @@
 # applies the defaults below instead.
 services:
   postgres:
+    # Every service comes back after a crash or a Docker restart, and stays down only
+    # after an explicit `docker compose stop`.
+    restart: unless-stopped
     # The official postgres image with pgvector added. Deduplication compares two adverts
     # that are not identical, which is a vector comparison, and `V22` creates the extension
     # at startup. A plain postgres image fails that migration with an error naming the
@@ -56,6 +59,7 @@ services:
     build:
       context: .
       dockerfile: backend/Dockerfile
+    restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
@@ -84,6 +88,10 @@ services:
       # A container is reachable only through its published port, and a process bound to
       # 127.0.0.1 inside it is reachable through nothing at all.
       SERVER_ADDRESS: 0.0.0.0
+      # The container side of the published port and the healthcheck both say 8080, so the
+      # process has to listen there whatever `SERVER_PORT` in `.env` says for the host side.
+      # `environment` beats `env_file`, the same way `POSTGRES_PORT` is pinned above.
+      SERVER_PORT: 8080
       # Which is the combination the application otherwise refuses to start on: no auth
       # and a bind past loopback. Here it is safe for a reason the process cannot see —
       # both published ports below carry a host address, and `SERVER_BIND` defaults to
@@ -106,18 +114,40 @@ services:
       # is the half no process can read. Loopback by default; `SERVER_BIND=0.0.0.0` opens
       # it, and that is the decision that needs AUTH_MODE=oidc first.
       - "${SERVER_BIND:-127.0.0.1}:${SERVER_PORT:-8080}:8080"
+    healthcheck:
+      # busybox `wget`, because the temurin alpine runtime has no `curl`. `127.0.0.1` and
+      # not `localhost`, which can resolve to ::1 while the process binds IPv4 only. The
+      # container side is pinned to 8080 by the `SERVER_PORT` in `environment` above.
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/actuator/health >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      # Flyway runs every migration before the port opens; failures during this window
+      # do not count against the retries.
+      start_period: 60s
 
   web:
     build:
       context: .
       dockerfile: frontend/Dockerfile
+    restart: unless-stopped
     depends_on:
-      - api
+      # Healthy, not merely started: nginx proxies `/api/` to it, and a started JVM still
+      # answers 502 until Flyway and the context are done.
+      api:
+        condition: service_healthy
     ports:
       # Bound the same way, and not as a matter of symmetry: nginx proxies `/api/` to the
       # api container, so a web port on every interface would hand out every write
       # endpoint that the api's own loopback binding just took away.
-      - "${SERVER_BIND:-127.0.0.1}:${WEB_PORT:-4200}:80"
+      - "${SERVER_BIND:-127.0.0.1}:${WEB_PORT:-4200}:8080"
+    healthcheck:
+      # nginx alpine ships busybox `wget` and no `curl`; nginx listens on 8080 (nginx.conf),
+      # because the unprivileged image runs as a non-root user that cannot bind 80.
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/ >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
 
 volumes:
   postgres-data:

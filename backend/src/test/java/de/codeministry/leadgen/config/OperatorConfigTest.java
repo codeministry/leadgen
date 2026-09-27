@@ -14,7 +14,6 @@ import jakarta.validation.Validation;
 import jakarta.validation.Validator;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Map;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
@@ -44,19 +43,12 @@ class OperatorConfigTest {
                 Files.isRegularFile(directory.resolve("pipeline.yaml")),
                 "config/ is absent — it is gitignored, so this check only runs on a machine that has one");
 
-        // The same placeholders a real start supplies from .env. Values are irrelevant:
-        // what is under test is that every key in the file still binds to the model.
-        Map<String, String> env = Map.of(
-                "IMAP_HOST", "imap.invalid",
-                "IMAP_USER", "someone",
-                "IMAP_PASSWORD", "secret",
-                "LLM_API_KEY", "",
-                "LLM_MODEL_EXTRACTION", "",
-                "LLM_MODEL_SCORING", "",
-                "LLM_MODEL_WRITING", "",
-                "LLM_MODEL_EMBEDDING", "");
-
-        assertThatCode(() -> ConfigFixtures.loaderFor(directory, VALIDATOR, env).load())
+        // The fixture's own values and never the machine's: what is under test is that every
+        // key in the file still binds to the model, not what this developer's .env says. A
+        // placeholder only the operator's file names resolves to nothing, as it would on a
+        // machine that never set it.
+        assertThatCode(() -> ConfigFixtures.loaderFor(directory, VALIDATOR, ConfigFixtures.NEUTRAL_PLACEHOLDERS)
+                        .load())
                 .doesNotThrowAnyException();
     }
 }

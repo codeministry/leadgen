@@ -15,6 +15,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -52,6 +53,9 @@ class OrphanSweepTest {
     private OrphanSweep sweep;
 
     @Autowired
+    private PackageOwner owner;
+
+    @Autowired
     private JdbcTemplate jdbc;
 
     private long sourceId;
@@ -66,8 +70,8 @@ class OrphanSweepTest {
     }
 
     @Test
-    void removesAPackageFolderNoRowNames() {
-        Path orphan = PackagesFixture.aPackage("2026-09-02_acme_verwaist");
+    void removesAnOrphanThisDatabaseBuilt() {
+        Path orphan = PackagesFixture.aPackage("2026-09-02_acme_verwaist", owner.id());
 
         sweep.run(null);
 
@@ -75,8 +79,33 @@ class OrphanSweepTest {
     }
 
     @Test
+    void leavesAFolderAnotherDatabaseBuilt() {
+        // The regression this rule exists for. A demo stack bind-mounts the same `packages/`,
+        // and a test run reads the same `PACKAGES_DIR`: their databases name none of the real
+        // folders, and "no row of mine names it" swept all of them — 76 on 2026-09-19, none
+        // left a week later.
+        Path real = PackagesFixture.aPackage(
+                "2026-09-02_acme_andere-datenbank", UUID.randomUUID().toString());
+
+        sweep.run(null);
+
+        assertThat(Files.exists(real)).isTrue();
+    }
+
+    @Test
+    void leavesAFolderFromBeforeTheMarkerAlone() {
+        // No `instance` in its `meta.json`: built before V31, so nothing can prove whose it is,
+        // and an unproven owner is not a licence to delete. Those are cleared by hand once.
+        Path legacy = PackagesFixture.aPackage("2026-09-02_acme_ohne-marker");
+
+        sweep.run(null);
+
+        assertThat(Files.exists(legacy)).isTrue();
+    }
+
+    @Test
     void keepsAFolderAnOfferStillPointsAt() {
-        Path kept = PackagesFixture.aPackage("2026-09-02_acme_referenziert");
+        Path kept = PackagesFixture.aPackage("2026-09-02_acme_referenziert", owner.id());
         offerPointingAt(kept);
 
         sweep.run(null);
@@ -89,7 +118,7 @@ class OrphanSweepTest {
         // The container writes `/packages/…` and a process on the host reads a temp
         // directory, so the stored prefix is the one part of the value that cannot be
         // trusted. Matching on it would sweep every folder on a machine that moved.
-        Path kept = PackagesFixture.aPackage("2026-09-02_acme_anderer-pfad");
+        Path kept = PackagesFixture.aPackage("2026-09-02_acme_anderer-pfad", owner.id());
         offerPointingAt(Path.of("/packages").resolve(kept.getFileName()));
 
         sweep.run(null);

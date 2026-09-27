@@ -7,7 +7,7 @@
 .gradle
 .angular
 .env
-config/local
+/config
 packages
 data
 docs/samples/emails

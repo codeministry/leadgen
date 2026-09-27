@@ -60,6 +60,63 @@ class StageLogTest {
     }
 
     @Test
+    void carriesTheNoteOfAStageThatFinished() {
+        // Read after the body, so a stage can say what it ran at once it has run. A stage
+        // timed without one keeps the null a width-1 run has always written.
+        var log = new StageLog();
+        log.time("DEDUPE", () -> 1);
+        log.time("CONTENT", () -> 2, result -> "width=4");
+
+        assertThat(log.timings())
+                .extracting(StageTiming::stage, StageTiming::status, StageTiming::note)
+                .containsExactly(
+                        org.assertj.core.api.Assertions.tuple("DEDUPE", StageTiming.OK, null),
+                        org.assertj.core.api.Assertions.tuple("CONTENT", StageTiming.OK, "width=4"));
+    }
+
+    @Test
+    void aFailedStageKeepsItsReasonRatherThanItsNote() {
+        var log = new StageLog();
+
+        assertThatThrownBy(() -> log.time(
+                        "SCORE",
+                        () -> {
+                            throw new IllegalStateException("the model is gone");
+                        },
+                        result -> "width=4"))
+                .isInstanceOf(IllegalStateException.class);
+
+        assertThat(log.timings().getLast().status()).isEqualTo(StageTiming.FAILED);
+        assertThat(log.timings().getLast().note()).isEqualTo("the model is gone");
+    }
+
+    @Test
+    void aNoteThatThrowsLeavesTheStageOkWithoutANote() {
+        // The body returned, so the stage succeeded; a note that cannot be worked out must not turn
+        // that into a FAILED row, nor lose the timing.
+        var log = new StageLog();
+
+        Integer result = log.time("SCORE", () -> 7, r -> {
+            throw new IllegalStateException("no width");
+        });
+
+        assertThat(result).isEqualTo(7);
+        assertThat(log.timings()).singleElement().satisfies(timing -> {
+            assertThat(timing.status()).isEqualTo(StageTiming.OK);
+            assertThat(timing.note()).isNull();
+        });
+    }
+
+    @Test
+    void theNoteIsReadOffWhatTheStageReturned() {
+        var log = new StageLog();
+
+        log.time("FIELDS", () -> 4, width -> "width=" + width);
+
+        assertThat(log.timings().getLast().note()).isEqualTo("width=4");
+    }
+
+    @Test
     void handsOutACopyRatherThanItsOwnList() {
         var log = new StageLog();
         log.time("DEDUPE", () -> 1);

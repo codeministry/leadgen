@@ -1,0 +1,173 @@
+:host {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 0;
+}
+
+.drawing {
+    display: block;
+    width: 100%;
+    height: auto;
+    overflow: visible;
+}
+
+/* Every moving part turns about the centre of the drawing, never about its own box: a band's
+   dots are scattered, so its bounding box is not centred and would wobble. */
+.orbit,
+.band,
+.halo {
+    transform-box: view-box;
+    transform-origin: 50% 50%;
+}
+
+.track {
+    fill: none;
+    stroke: var(--lg-stage-line);
+    stroke-width: 0.5;
+}
+
+.held {
+    fill: var(--lg-stage-dot);
+    opacity: 0.75;
+}
+
+/* The signal on the stage, and it means what it means everywhere: these survived the filter.
+   The strong ones glow; the rest sit a step back so the centre is where the eye lands. */
+.survivor {
+    fill: var(--lg-stage-signal);
+    opacity: 0.6;
+}
+
+.survivor.strong {
+    opacity: 1;
+}
+
+.core {
+    filter: drop-shadow(0 0 2.5px color-mix(in oklab, var(--lg-stage-signal) 70%, transparent));
+}
+
+.halo-from {
+    stop-color: var(--lg-stage-signal);
+    stop-opacity: 0.32;
+}
+
+.halo-to {
+    stop-color: var(--lg-stage-signal);
+    stop-opacity: 0;
+}
+
+/* The logo's ring, drawn in the stage's two glows rather than the primary: on the dark stage
+   the primary teal has nothing to push against, the glows are what the stage is lit by. */
+.brand-ring {
+    fill: none;
+    stroke-width: 3;
+    stroke-linecap: round;
+}
+
+.ring-from {
+    stop-color: var(--lg-stage-glow);
+}
+
+.ring-to {
+    stop-color: var(--lg-stage-glow-2);
+}
+
+/* The lead in the gap: the brand's second dot, the signal as the mark has always carried it. */
+.lead {
+    fill: var(--lg-stage-signal);
+    filter: drop-shadow(0 0 4px color-mix(in oklab, var(--lg-stage-signal) 80%, transparent));
+}
+
+.legend {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.25rem 1rem;
+    margin: 0;
+    color: var(--lg-stage-muted);
+}
+
+.key {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+}
+
+.swatch {
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+}
+
+.survivor-swatch {
+    background-color: var(--lg-stage-signal);
+    box-shadow: 0 0 6px var(--lg-stage-signal);
+}
+
+.held-swatch {
+    background-color: var(--lg-stage-dot);
+}
+
+/* The sift: each ring falls into place from a little further out, outside ring first, the core
+   last, so the first paint shows the archive narrowing to what survived. */
+.band {
+    animation: sift var(--lg-sift-duration) var(--lg-sift-ease) both;
+}
+
+.still .band {
+    animation: none;
+}
+
+/* The ambient motion: the rings drift, alternate ones the other way, and the halo breathes.
+   Slow enough to be noticed on the second look and never on the first. */
+.orbit {
+    animation: orbit var(--lg-orbit-duration) linear infinite;
+}
+
+.orbit.reverse {
+    animation-direction: reverse;
+}
+
+.halo {
+    animation: breathe var(--lg-pulse-duration) ease-in-out infinite alternate;
+}
+
+@keyframes sift {
+    from {
+        opacity: 0;
+        transform: scale(1.3) rotate(-12deg);
+    }
+
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+@keyframes orbit {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes breathe {
+    from {
+        opacity: 0.7;
+        transform: scale(0.92);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1.06);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .band,
+    .orbit,
+    .halo {
+        animation: none;
+    }
+}

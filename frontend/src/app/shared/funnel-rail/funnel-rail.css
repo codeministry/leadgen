@@ -1,3 +1,15 @@
+/* The host is the query container for the stacked layout below. It has to be, because the
+   rail is no longer always the width of the screen: on the dashboard it is half the bento's
+   first row, on the rules screen it is a full-width panel, and the viewport says nothing
+   about either. The old viewport breakpoint left the bar column at one pixel between 960px
+   and 1250px — the three fixed columns still fit, so nothing overflowed and nothing looked
+   broken except the one part of the rail that carries the meaning. */
+:host {
+    display: block;
+    container-type: inline-size;
+    container-name: rail;
+}
+
 .rail {
     display: flex;
     flex-direction: column;
@@ -25,12 +37,18 @@
     background-color: var(--color-base-300);
 }
 
+/* The stage bars are deliberately quieter than the primary they are mixed from. Seven of
+   them stack here, all of them saying the same thing — how much was still left — and at full
+   strength the block reads as seven headlines with the one line that matters, the survivor,
+   competing against them. Mixed back toward the panel surface they stay a shape the eye can
+   compare along a column and stop shouting; the track behind them is `--color-base-300`, so
+   the mix keeps enough of the primary to separate bar from track in both themes. */
 .fill {
     display: block;
     width: 100%;
     height: 100%;
     border-radius: inherit;
-    background-color: var(--color-primary);
+    background-color: color-mix(in oklab, var(--color-primary) 55%, var(--color-base-200));
     transition: width var(--lg-reveal-duration) var(--lg-reveal-ease);
 }
 
@@ -62,7 +80,9 @@
     opacity: 0.75;
 }
 
-@media (width < 60rem) {
+/* 36rem of the rail's own width: the three fixed columns and their gaps take 29.25rem, so
+   below this the bar has under 7rem left and stops being a bar. */
+@container rail (width < 36rem) {
     .row {
         grid-template-columns: 1fr 4.5rem;
         grid-template-areas: 'name count' 'bar bar' 'drop drop';

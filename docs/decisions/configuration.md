@@ -73,6 +73,26 @@ reads a YAML file itself.
   empty string, and an empty YAML scalar is **null**, not `""` — every consumer treats
   both alike. Whether empty is acceptable is a question about the field, so validation
   answers it: an unset LLM key is fine, an unset IMAP host on an *enabled* source is not.
+- **The resolver is a bean, and the test tree replaces it.** `ConfigLoader` used to build
+  `PlaceholderResolver.fromSystemEnvironment()` in its own constructor, which left no seam:
+  every Spring test context resolved the shipped defaults from the developer's process
+  environment and `.env`. Measured with `AUTH_MODE=oidc` exported: fifteen MockMvc probes
+  refused their context with `security.auth is 'oidc' and security.oidc.issuer is empty`, and
+  a context that named no directory read the operator's `config/` through `LEADGEN_CONFIG_DIR`.
+  The first fix emptied `${LLM_*}` in one test's materialised copy — one family, one test,
+  twenty-seven placeholders still open. Now `PlaceholderResolverConfiguration` declares the
+  production resolver, and `NeutralDefaultsInitializer`, registered once in the test tree's
+  `META-INF/spring.factories`, gives every context a primary resolver over
+  `ConfigFixtures.NEUTRAL_PLACEHOLDERS` plus `leadgen.config-dir` directly above
+  `systemEnvironment` — a test's own `@DynamicPropertySource` still wins, the machine never
+  does. The set is closed in both directions by `ConfigFixturesTest`, and the neutral resolver
+  refuses a name it does not list rather than handing it a default in silence: a lenient
+  lookup is exactly how the set would fall behind the files without anything saying so. The
+  values are what CI sees — empty — except the three IMAP credentials, which carry stand-ins so
+  an operator's file with an enabled mailbox still binds in `OperatorConfigTest`. The older
+  incident of the same class: a filled-in LLM key once sent the keyless scoring test to a real
+  endpoint, and the test that exists to prove the tool works without a model failed for the one
+  person who had finished configuring it.
 - **Paths in `application.yaml` are file names**, resolved against the config directory.
   A path with the directory baked in breaks the moment it moves — in the container it is
   `/config`, not `./config/local`. Such a path is still accepted, resolved from the working
@@ -146,3 +166,51 @@ reads a YAML file itself.
   `LlmBudgetTest`, where four assertions failed against a file that plainly held the new value.
   Create the directory in a static field and let the supplier return it; anything else with a
   side effect has to be memoized.
+
+## What `.env.example` is held to, and where the version comes from
+
+Both settled in spec `013-tech-debt` (2026-09-24), the first pass over the debt behind v0.5.0.
+
+- **`.env.example` is the contract a fresh clone has, and a test holds it.** It had drifted in
+  both directions: two placeholders the shipped files read (`RETRIEVAL_TOPIC_FLOOR` in
+  `pipeline.yaml`, `LEADGEN_CONFIG_MOUNT` in `docker-compose.yml`) had no line, and one line
+  named a key nothing read. A missing line silently takes the placeholder's default; a stray
+  line is a setting nobody obeys. `EnvExampleTest` reads every `${NAME}`, `${NAME:default}` and
+  `${NAME:-default}` out of the five shipped defaults, `application.yaml` and
+  `docker-compose.yml`, plus `process.env.NAME` out of `frontend/proxy.conf.js`, and asserts
+  both set differences empty, naming the offenders. The four `NEWSLETTER_*` keys exist for a
+  `sources.yaml` the operator writes, so they are exempt — but only while
+  `docs/CONFIGURATION.md` names them, which the test checks too, so a stray key cannot be
+  silenced by adding it to the exemption. The files are Gradle inputs of `test`, so an edit
+  re-runs it.
+- **The version mechanism stays as it is, for the native image's sake.** The audit proposed
+  Spring Boot's `buildInfo()` so the jar would carry the Gradle version and the literal default
+  could go. The operator kept the mechanism: `leadgen.version` defaults to a literal on
+  `ConfigProperties` and the deploy overrides it through `LEADGEN_VERSION` from the image tag.
+  Nothing about the build that `processAot` and the native image train on changes for a
+  version string, and AOT compatibility binds every change of that spec transitively
+  (ISC-350). One consequence worth knowing: `.env.example` ships `LEADGEN_VERSION=`, Compose
+  injects that as an empty string, and neither Spring's placeholder default nor `@DefaultValue`
+  replaces an empty string — so the header shows an empty version on the README's own setup
+  path. That is why the record carries no `@NotBlank` on `version`: the first draft did, and the
+  api refused to start.
+- **The `leadgen.*` keys bind on one record, and the `@WebMvcTest` slice sees it because the
+  application class names it.** `@ConfigurationPropertiesScan` was replaced by
+  `@EnableConfigurationProperties(ConfigProperties.class)` on `LeadGenerationApplication`: a
+  slice filters scanned records out but keeps what the application class imports, so
+  `StatusController` finds the record in its slice without wiring of its own. The two poll
+  intervals sit on the record as a typed, validated mirror of the `@Scheduled` strings that
+  actually govern them; an annotation attribute cannot read a bean, and SpEL would be the
+  runtime-computed name the native image forbids.
+- **Four files pin bun, and `BunPinTest` holds them to one version.** `packageManager`, the two
+  workflows and the web image's `COPY --from=oven/bun:…` line. The image copies the pinned bun
+  binary onto a pinned Node base, because bun's own Node shim reports a version the Angular
+  CLI refuses; Renovate groups the tag with the `packageManager` bump.
+
+## Moved from the root CLAUDE.md
+
+- **Two configuration layers, the same as Spring's own.** Working defaults ship on the
+  classpath under `backend/src/main/resources/leadgen/` and are part of the jar; the
+  directory in `leadgen.config-dir` overrides them **file by file**. The tool therefore
+  runs on a fresh clone with no configuration at all, and nothing individual is ever baked
+  into the artifact. The startup log names, per file, which layer won.
