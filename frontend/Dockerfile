@@ -8,8 +8,13 @@
 # `$BUILDPLATFORM`: the build output is static files, the same for every architecture, so the
 # stage runs once on the runner's own platform. Built per target, the arm64 pass ran under
 # QEMU, and esbuild (Go) died there with SIGILL after minutes. Only the nginx stage is per arch.
+# bun comes from a stage of its own on the same platform: `COPY --from=<image>` resolves the
+# image for the *target*, so the arm64 pass copied an arm64 bun into this amd64 stage and
+# `bun install` died with exit 255.
+FROM --platform=$BUILDPLATFORM oven/bun:1.3.12-alpine AS bun
+
 FROM --platform=$BUILDPLATFORM node:22.23.3-alpine AS build
-COPY --from=oven/bun:1.3.12-alpine /usr/local/bin/bun /usr/local/bin/bun
+COPY --from=bun /usr/local/bin/bun /usr/local/bin/bun
 WORKDIR /app
 COPY frontend/package.json frontend/bun.lock ./
 RUN bun install --frozen-lockfile

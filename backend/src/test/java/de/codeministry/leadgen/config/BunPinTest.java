@@ -24,7 +24,7 @@ import org.junit.jupiter.api.Test;
 /**
  * The bun version is pinned in four files that nothing else ties together: {@code
  * packageManager} in {@code frontend/package.json}, {@code bun-version} in the two workflows,
- * and the {@code COPY --from=oven/bun:...} line of {@code frontend/Dockerfile}. They have to
+ * and the {@code FROM ... oven/bun:...} stage of {@code frontend/Dockerfile}. They have to
  * name one version, or the image builds with a bun the lockfile was not written by. Renovate
  * groups the tag and the {@code packageManager} bump into one pull request for the same
  * reason; this is the check that the group did its job.
@@ -40,7 +40,7 @@ class BunPinTest {
             "frontend/package.json", Pattern.compile("\"packageManager\":\\s*\"bun@([0-9.]+)\""),
             ".github/workflows/ci.yml", Pattern.compile("bun-version:\\s*'([0-9.]+)'"),
             ".github/workflows/release.yml", Pattern.compile("bun-version:\\s*'([0-9.]+)'"),
-            "frontend/Dockerfile", Pattern.compile("COPY --from=oven/bun:([0-9.]+)-"));
+            "frontend/Dockerfile", Pattern.compile("FROM --platform=\\$BUILDPLATFORM oven/bun:([0-9.]+)-"));
 
     @Test
     void theFourPinsNameOneBunVersion() {
