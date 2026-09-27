@@ -5,7 +5,10 @@
 # floor (`engines.node` in node_modules/@angular/cli/package.json), the Node tag here moves
 # with it; CI builds on the runner's Node and will not notice. `BunPinTest` holds the bun
 # tag equal to `packageManager` and the two workflows.
-FROM node:22.23.3-alpine AS build
+# `$BUILDPLATFORM`: the build output is static files, the same for every architecture, so the
+# stage runs once on the runner's own platform. Built per target, the arm64 pass ran under
+# QEMU, and esbuild (Go) died there with SIGILL after minutes. Only the nginx stage is per arch.
+FROM --platform=$BUILDPLATFORM node:22.23.3-alpine AS build
 COPY --from=oven/bun:1.3.12-alpine /usr/local/bin/bun /usr/local/bin/bun
 WORKDIR /app
 COPY frontend/package.json frontend/bun.lock ./
