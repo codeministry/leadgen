@@ -1,4 +1,4 @@
-The header carries what is the same on every screen: the navigation, the settings and this help.
+The header carries what is the same on every screen: the navigation, **Ask** for the chat, the settings and this help.
 
 <!-- screenshot: run-confirm -->
 

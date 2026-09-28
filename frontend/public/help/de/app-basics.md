@@ -1,4 +1,4 @@
-Die Kopfzeile trägt, was auf jedem Bildschirm gleich ist: die Navigation, die Einstellungen und diese Hilfe.
+Die Kopfzeile trägt, was auf jedem Bildschirm gleich ist: die Navigation, **Fragen** für den Chat, die Einstellungen und diese Hilfe.
 
 <!-- screenshot: run-confirm -->
 

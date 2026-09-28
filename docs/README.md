@@ -30,6 +30,7 @@ The root [`README.md`](../README.md) is the front door and stays shorter than an
 | point it at your own mailbox or portal              | [ADDING-A-SOURCE.md](ADDING-A-SOURCE.md) |
 | change what survives the filter, or what scores     | [WRITING-RULES.md](WRITING-RULES.md)     |
 | know where a value comes from, or why it is missing | [CONFIGURATION.md](CONFIGURATION.md)     |
+| know what the chat may say, and where its numbers come from | [decisions/chat.md](decisions/chat.md) |
 | see it run without a mailbox                        | [`demo/README.md`](../demo/README.md)    |
 | know *why* a stage looks the way it does            | [`decisions/`](decisions/), table below  |
 | build or debug the native image                     | [native-image.md](decisions/native-image.md) |
@@ -39,7 +40,7 @@ The root [`README.md`](../README.md) is the front door and stays shorter than an
 - **[ARCHITECTURE.md](ARCHITECTURE.md)** — the modular monolith, the pipeline stage by
   stage, and the reasoning behind the parts that are not obvious. The single document to
   read if you only read one.
-- **[DATA-MODEL.md](DATA-MODEL.md)** — the fourteen tables as Flyway builds them: one ER
+- **[DATA-MODEL.md](DATA-MODEL.md)** — the nineteen tables as Flyway builds them: one ER
   diagram, `offer` grouped by the stage that owns each column, every other table with its
   writers and readers, and the legal values of every status-like column. Derived from the
   migrations; when the two disagree, the migration wins and this file is fixed.
@@ -57,7 +58,7 @@ The root [`README.md`](../README.md) is the front door and stays shorter than an
 - **[DEVELOPMENT.md](DEVELOPMENT.md)** — prerequisites with pinned versions, the commands,
   and the traps a newcomer hits first (Docker is required for the backend tests; Postgres is
   published on 55432, not 5432).
-- **[CONFIGURATION.md](CONFIGURATION.md)** — the two layers, the four files, every
+- **[CONFIGURATION.md](CONFIGURATION.md)** — the two layers, the five files, every
   environment variable, and what the startup banner is telling you.
 - **[ADDING-A-SOURCE.md](ADDING-A-SOURCE.md)** — a new source is a block of YAML, worked
   through line by line against the source that ships enabled, then every key with what reads
@@ -94,6 +95,7 @@ room.
 | [frontend-split-views.md](decisions/frontend-split-views.md)       | The three split screens, the shell, and the first screen that writes                               |
 | [frontend-design-system.md](decisions/frontend-design-system.md)   | Both themes, the accent's one meaning, the navigation, the catalogs                                |
 | [manual-status.md](decisions/manual-status.md)                     | The eleven application states and their event log                                                  |
+| [chat.md](decisions/chat.md)                                       | The chat: grounding by id, the five read-only tools, its own budget, the drawer                    |
 | [order-of-work.md](decisions/order-of-work.md)                     | The sixteen steps this tool was built in, and what each had to prove                               |
 | [native-image.md](decisions/native-image.md)                       | Why there are two images, the AOT cache's training problem, and the hints written by hand          |
 
