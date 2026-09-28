@@ -503,7 +503,7 @@ measurements are in `specs/019-corpus-chat/spec.md`.
   the help stays modal, because nothing on the page behind it is waiting to be used.
 - **`--lg-chat-w` steps at two widths only.** Below 48rem 100vw, a full-screen sheet that folds
   into a bar above the bottom navigation when a source is followed; from 48rem 36rem, with the
-  conversation list as a sub-view in the panel's body; from 80rem 56rem, with the list docked
+  conversation list as a sub-view in the panel's body; from 80rem 61rem, with the list docked
   inside as a rail. The panel sits below the full-width header as the shell's second column, not
   at full height beside a squeezed header.
 - **Every chat class carries the `lg-chat-` prefix.** DaisyUI owns `chat`, `chat-bubble`,

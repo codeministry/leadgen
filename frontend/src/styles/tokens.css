@@ -113,7 +113,7 @@
      goes back to the page. Not the help's 48rem: at 720px that would leave the page 100px beside it. */
   --lg-chat-w: 100vw;
   --lg-chat-thread-w: 41rem;
-  --lg-chat-rail-w: 15rem;
+  --lg-chat-rail-w: 20rem;
 
   /* The living mark's turn, which a host raises on its own element (the header's chat button on
      hover and focus) and the mark rotates by; nothing turns it here. */

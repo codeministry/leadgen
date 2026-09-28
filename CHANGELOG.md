@@ -194,6 +194,9 @@ may change in any release. See the status note in the README.
 
 ### Changed
 
+- **The chat's conversation rail is 20rem wide instead of 15rem**, so titles wrap less; from 80rem
+  the docked drawer is 61rem with the rail open, and the thread keeps its width.
+
 - **The chat has a living mark.** The assistant's glyph beside each answer, the empty chat's plate,
   the header's chat button and the mobile bar now show the brand's lead ring in one of four frames:
   at rest, working (dots flow into the ring while a tool runs), speaking (the arc sweeps while the
