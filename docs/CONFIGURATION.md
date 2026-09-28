@@ -266,16 +266,16 @@ rationale. `*` marks a credential.
 |---|---|---|
 | `SERVER_PORT` | `8080` | |
 | `SERVER_ADDRESS` | `127.0.0.1` | The only thing in front of the write endpoints while `AUTH_MODE` is `none`. Compose sets `0.0.0.0`. |
-| `AUTH_MODE` | `none` | The only implemented value; any other is fatal at load. |
 | `LOG_LEVEL` | `INFO` | |
 | `CONFIG_POLL_INTERVAL` | `PT2S` | Two polls are needed to apply a change, so worst case is twice this. |
 | `SCORE_BATCH_POLL_INTERVAL` | `PT5M` | Only read when `LLM_BATCH` is true. |
 | `AUTH_MODE` | `none` | `none` or `oidc`. Under `oidc`, `OIDC_ISSUER` is required and every request carries a bearer token. Read once at startup, so a change takes a restart. |
 | `OIDC_ISSUER` | — | The realm's issuer URL, the one whose `/.well-known/openid-configuration` answers. Fetched at startup, so an unreachable issuer stops the application rather than starting it unprotected. |
 | `OIDC_CLIENT_ID` | — | Optional. Set it and a token must also name it in `aud`, which on Keycloak needs an audience mapper on the client. Empty means issuer and signature only. |
+| `OIDC_JWK_SET_URI` | — | Optional. Where the signing keys are fetched from instead of discovering them at the issuer, for a process that cannot use the issuer URL: behind a private CA, or in a cluster, the identity provider's in-cluster service. Fetched on the first token rather than at startup; `iss` is still checked against `OIDC_ISSUER`. |
+| `OIDC_AUDIENCE` | — | Optional. What every token must name in `aud`, when it is not the browser's client: a realm that mints every token for a bearer-only resource client. Set, it replaces the `OIDC_CLIENT_ID` check; empty, the client id is checked as before. |
 | `INGEST_CRON` | `-` | A Spring cron expression, in the JVM's timezone, for a pass the tool starts itself. `-` is no schedule, and it is the default. Leave it alone if a CronJob or the host's cron already schedules the run. |
 | `DIGEST_FORMAT` | `html` | `text` or `html`. |
-| `OIDC_ISSUER`, `OIDC_CLIENT_ID` | — | Read only when `AUTH_MODE` is `oidc`, which is not implemented. |
 | `SAMPLE_FEED_URL` | — | The feed of `sample-portal-feed`, which ships disabled. |
 
 ### Compose and the dev server only

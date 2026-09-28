@@ -13,11 +13,14 @@ import static org.mockito.Mockito.when;
 
 import de.codeministry.leadgen.Databases;
 import de.codeministry.leadgen.config.ConfigFixtures;
+import de.codeministry.leadgen.config.model.PipelineConfig;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
+import java.util.List;
+import java.util.Map;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -25,6 +28,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.security.oauth2.core.OAuth2TokenValidator;
 import org.springframework.security.oauth2.jwt.BadJwtException;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
@@ -165,6 +169,86 @@ class SecurityConfigTest {
                     .issuedAt(Instant.now().minusSeconds(60))
                     .expiresAt(Instant.now().plusSeconds(600))
                     .build();
+        }
+    }
+
+    /**
+     * Where the signing keys come from, and whether building the decoder already asks.
+     *
+     * <p>An issuer nobody can reach stands in for the one a pod cannot trust: inside the
+     * cluster `auth.microk8s.home` answers with a certificate from a private CA, so discovery
+     * fails the TLS handshake and takes the application down with it. A named key set is
+     * fetched on the first token instead, from wherever the deployment can reach.
+     */
+    @Nested
+    class TheDecoder {
+
+        private static final String UNREACHABLE = "https://issuer.invalid/realms/leadgen";
+
+        @Test
+        void asksTheIssuerAtStartupWhenNoKeySetIsNamed() {
+            // The shipped behaviour, kept: an unreachable issuer stops the application rather
+            // than starting it with authentication that cannot work.
+            Assertions.assertThatThrownBy(() -> SecurityConfig.decoder(security(Map.of("issuer", UNREACHABLE))))
+                    .isInstanceOf(IllegalArgumentException.class);
+        }
+
+        @Test
+        void buildsWithoutAskingTheIssuerWhenAKeySetIsNamed() {
+            Map<String, String> oidc = Map.of("issuer", UNREACHABLE, "jwk_set_uri", "http://127.0.0.1:1/certs");
+
+            Assertions.assertThatCode(() -> SecurityConfig.decoder(security(oidc)))
+                    .doesNotThrowAnyException();
+        }
+
+        @Test
+        void treatsABlankKeySetAsUnset() {
+            // `${OIDC_JWK_SET_URI:}` resolves to an empty string, not to a missing key.
+            Map<String, String> oidc = Map.of("issuer", UNREACHABLE, "jwk_set_uri", "");
+
+            Assertions.assertThatThrownBy(() -> SecurityConfig.decoder(security(oidc)))
+                    .isInstanceOf(IllegalArgumentException.class);
+        }
+
+        @Test
+        void checksTheNamedAudienceRatherThanTheBrowsersClient() {
+            // The realm's shape: the browser signs in as leadgen-web, every token is minted for
+            // the bearer-only leadgen-api. A service account's token never names leadgen-web.
+            Map<String, String> oidc =
+                    Map.of("issuer", UNREACHABLE, "client_id", "leadgen-web", "audience", "leadgen-api");
+
+            OAuth2TokenValidator<Jwt> validator = SecurityConfig.validator(security(oidc));
+
+            Assertions.assertThat(validator.validate(token("leadgen-api")).hasErrors())
+                    .isFalse();
+            Assertions.assertThat(validator.validate(token("leadgen-web")).hasErrors())
+                    .isTrue();
+        }
+
+        @Test
+        void fallsBackToTheClientIdWhenNoAudienceIsNamed() {
+            Map<String, String> oidc = Map.of("issuer", UNREACHABLE, "client_id", "leadgen-web", "audience", "");
+
+            OAuth2TokenValidator<Jwt> validator = SecurityConfig.validator(security(oidc));
+
+            Assertions.assertThat(validator.validate(token("leadgen-web")).hasErrors())
+                    .isFalse();
+            Assertions.assertThat(validator.validate(token("leadgen-api")).hasErrors())
+                    .isTrue();
+        }
+
+        private static Jwt token(String audience) {
+            return Jwt.withTokenValue("t")
+                    .header("alg", "RS256")
+                    .claim("iss", UNREACHABLE)
+                    .claim("aud", List.of(audience))
+                    .issuedAt(Instant.now().minusSeconds(60))
+                    .expiresAt(Instant.now().plusSeconds(600))
+                    .build();
+        }
+
+        private static PipelineConfig.Security security(Map<String, String> oidc) {
+            return new PipelineConfig.Security(SecurityConfig.OIDC, oidc);
         }
     }
 

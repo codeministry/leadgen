@@ -72,6 +72,8 @@ public class SecurityConfig {
 
     static final String ISSUER = "issuer";
     static final String CLIENT_ID = "client_id";
+    static final String JWK_SET_URI = "jwk_set_uri";
+    static final String AUDIENCE = "audience";
 
     /**
      * Open in both modes, and each for its own reason. The container's liveness question
@@ -98,7 +100,7 @@ public class SecurityConfig {
                 throw new IllegalStateException("security.auth is not 'oidc'; nothing here verifies a token");
             };
         }
-        return discovered(security);
+        return decoder(security);
     }
 
     @Bean
@@ -204,12 +206,19 @@ public class SecurityConfig {
     }
 
     /**
-     * The decoder, built from the issuer's own discovery document.
+     * The decoder, built from the issuer's own discovery document unless a key set is named.
      *
      * <p>Discovery is a request to the issuer at startup, so an unreachable Keycloak stops
      * the application rather than starting it with authentication that cannot work. That is
      * the intended trade: the alternative is a process that answers every request with a
      * 401 and looks like a broken token.
+     *
+     * <p><b>A named key set skips discovery.</b> The issuer is the URL the browser sees, and
+     * a pod cannot always use it: behind a private CA the handshake fails and the application
+     * never starts. {@code jwk_set_uri} names where this process fetches the signing keys
+     * instead, typically the identity provider's in-cluster service. It is fetched on the
+     * first token rather than at startup, and the issuer is still required and still checked
+     * against every token's {@code iss}; only the transport for the keys moves.
      *
      * <p><b>The audience is only checked when one is configured.</b> Keycloak puts the
      * client in {@code azp} by default and {@code aud} carries {@code account}, so a client
@@ -218,23 +227,45 @@ public class SecurityConfig {
      * only, which is the configuration that works out of the box; setting it is the
      * deliberate, stricter choice, and it needs the mapper on the Keycloak side.
      */
-    private static JwtDecoder discovered(PipelineConfig.Security security) {
+    static JwtDecoder decoder(PipelineConfig.Security security) {
         String issuer = value(security, ISSUER);
         if (issuer == null || issuer.isBlank()) {
             // Unreachable while ConfigLoader does its job, said out loud for the day it does not.
             throw new IllegalStateException("security.auth is 'oidc' and security.oidc.issuer is empty");
         }
-        NimbusJwtDecoder decoder = JwtDecoders.fromIssuerLocation(issuer);
-        List<OAuth2TokenValidator<Jwt>> validators = new ArrayList<>();
-        validators.add(JwtValidators.createDefaultWithIssuer(issuer));
-
-        String clientId = value(security, CLIENT_ID);
-        if (clientId != null && !clientId.isBlank()) {
-            log.info("Tokens must also name '{}' in their audience", clientId);
-            validators.add(new JwtClaimValidator<List<String>>("aud", audience -> audience.contains(clientId)));
+        String jwkSetUri = value(security, JWK_SET_URI);
+        NimbusJwtDecoder decoder;
+        if (jwkSetUri == null || jwkSetUri.isBlank()) {
+            decoder = JwtDecoders.fromIssuerLocation(issuer);
+        } else {
+            log.info("Signing keys fetched from {} rather than discovered at {}", jwkSetUri, issuer);
+            decoder = NimbusJwtDecoder.withJwkSetUri(jwkSetUri).build();
         }
-        decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(validators));
+        decoder.setJwtValidator(validator(security));
         return decoder;
+    }
+
+    /**
+     * Issuer always; the audience when one is configured.
+     *
+     * <p><b>{@code audience} names the resource, {@code client_id} the browser.</b> On a realm
+     * that mints every token for a bearer-only client (Keycloak's {@code leadgen-api}), the
+     * browser's own client never appears in a service account's {@code aud}, so checking the
+     * client id there locks out the CronJob and the MCP server. Without an {@code audience} the
+     * client id is checked, as before.
+     */
+    static OAuth2TokenValidator<Jwt> validator(PipelineConfig.Security security) {
+        List<OAuth2TokenValidator<Jwt>> validators = new ArrayList<>();
+        validators.add(JwtValidators.createDefaultWithIssuer(value(security, ISSUER)));
+
+        String named = value(security, AUDIENCE);
+        String expected = named == null || named.isBlank() ? value(security, CLIENT_ID) : named;
+        if (expected != null && !expected.isBlank()) {
+            log.info("Tokens must also name '{}' in their audience", expected);
+            validators.add(new JwtClaimValidator<List<String>>(
+                    "aud", audience -> audience != null && audience.contains(expected)));
+        }
+        return new DelegatingOAuth2TokenValidator<>(validators);
     }
 
     private static String value(PipelineConfig.Security security, String key) {

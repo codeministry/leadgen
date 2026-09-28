@@ -11,6 +11,14 @@ may change in any release. See the status note in the README.
 
 ### Added
 
+- **`oidc` works where the issuer's certificate does not.** Two optional keys under
+  `security.oidc`: `jwk_set_uri` (`OIDC_JWK_SET_URI`) fetches the signing keys from an address this
+  process can reach instead of discovering them at the issuer, which in a cluster whose ingress
+  certificate comes from a private CA fails the TLS handshake and stopped the application at
+  startup; `iss` is still checked on every token. `audience` (`OIDC_AUDIENCE`) names what a token
+  must carry in `aud` when the realm mints tokens for a bearer-only resource client rather than for
+  the browser's; unset, `OIDC_CLIENT_ID` is checked as before.
+
 - **Ask the corpus in a chat.** An Ask button in the header opens a chat on every screen: a question
   in plain words about the offers, your applications and your profile, answered as the model writes
   it. Every offer or application the answer names is a numbered link to a row a search of that very

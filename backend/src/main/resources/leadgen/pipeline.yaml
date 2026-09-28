@@ -308,3 +308,8 @@ security:
   oidc:
     issuer: ${OIDC_ISSUER:}
     client_id: ${OIDC_CLIENT_ID:}
+    # Where the signing keys are fetched from, when this process cannot use the issuer URL
+    # itself (a private CA, an in-cluster address). Empty means discovery at the issuer.
+    jwk_set_uri: ${OIDC_JWK_SET_URI:}
+    # What every token must name in `aud`. Empty checks client_id instead.
+    audience: ${OIDC_AUDIENCE:}

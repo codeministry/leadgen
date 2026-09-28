@@ -104,6 +104,8 @@ public final class ConfigFixtures {
         values.put("AUTH_MODE", "");
         values.put("OIDC_ISSUER", "");
         values.put("OIDC_CLIENT_ID", "");
+        values.put("OIDC_JWK_SET_URI", "");
+        values.put("OIDC_AUDIENCE", "");
         // sources.yaml
         values.put("IMAP_HOST", "imap.invalid");
         values.put("IMAP_PORT", "");

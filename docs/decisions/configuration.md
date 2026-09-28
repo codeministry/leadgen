@@ -28,6 +28,18 @@ Every paragraph here was paid for once; none of it is a summary.
 - **Discovery happens at startup, so an unreachable issuer stops the application.** Deliberate: the alternative is a
   process that starts, answers every request with a 401 and looks like a bad token. The cost is a hard dependency on
   the realm being up when the container starts.
+- **`jwk_set_uri` moves the key fetch, never the issuer check.** Measured 2026-09-28 on microk8s: from the api pod,
+  `https://auth.microk8s.home` fails the TLS handshake, because its certificate comes from the private codeministry Root
+  CA and the image trusts only the public ones. A combined truststore would fix it too, but it has to be built for the
+  JVM, the native image and Compose alike, and one missing public CA breaks the enrichment fetch and the model
+  providers. The key set by its in-cluster address is what the MCP server already does. Named, the keys are fetched
+  on the first token rather than at startup, so an unreachable provider no longer stops the application; `iss` is
+  still compared with `OIDC_ISSUER` on every token.
+- **`audience` names the resource, `client_id` the browser.** The codeministry realm mints its tokens for the
+  bearer-only `leadgen-api` (measured 2026-09-28: a `leadgen-mcp` client-credentials token carries `aud: leadgen-api`
+  and no trace of `leadgen-web`). Checking the browser's client id in `aud` would lock out every service account, and
+  adding a `leadgen-web` audience mapper to each of them would bend the realm to a conflation in this code. Unset, the
+  client id is still what is checked, so a realm built the other way keeps working.
 - **The audience is checked only when `OIDC_CLIENT_ID` is set.** Keycloak puts the client in `azp` by default and
   `aud` carries `account`, so a client id checked against `aud` rejects every real token until an audience mapper is
   added. Empty means issuer and signature only, which is what works out of the box.
