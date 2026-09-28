@@ -6,7 +6,7 @@
  * Licensed under the Apache License, Version 2.0. You may obtain a copy of the
  * License at http://www.apache.org/licenses/LICENSE-2.0
  */
-package de.codeministry.leadgen.web;
+package de.codeministry.leadgen.score;
 
 import de.codeministry.leadgen.config.model.CoverLetterStyle;
 import de.codeministry.leadgen.config.model.MatchingRules;
@@ -17,7 +17,6 @@ import de.codeministry.leadgen.fields.FieldExtractor;
 import de.codeministry.leadgen.ingest.extract.LlmExtractor;
 import de.codeministry.leadgen.llm.ModelChoice;
 import de.codeministry.leadgen.packaging.CoverLetterWriter;
-import de.codeministry.leadgen.score.ChatClientJudge;
 import java.util.List;
 
 /**

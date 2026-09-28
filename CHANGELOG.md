@@ -11,6 +11,18 @@ may change in any release. See the status note in the README.
 
 ### Added
 
+- **leadgen is an MCP server.** `/mcp` serves ten read-only tools over Streamable HTTP: the six a
+  separate aggregator used to serve through the REST API (`leadgen_search_offers`, `leadgen_get_offer`,
+  `leadgen_funnel_stats`, `leadgen_ingest_status`, `leadgen_list_applications`,
+  `leadgen_get_pipeline_config`), with their names, parameters and answer shapes unchanged, and four of
+  the chat's (`leadgen_semantic_search`, `leadgen_statistics`, `leadgen_application`,
+  `leadgen_profile`), answering as the chat's tools do but without a chat turn or its daily ceiling.
+  They read leadgen's services in-process, write nothing, and every answer passes the chat's output
+  masker. `/mcp` follows `AUTH_MODE`; under `oidc` a 401 names
+  `/.well-known/oauth-protected-resource/mcp` (RFC 9728), which names the issuer, and the new
+  optional `OIDC_RESOURCE` fixes the resource URL where a proxy terminates TLS. The compose stack's
+  nginx passes both paths to the api, unbuffered.
+
 - **`oidc` works where the issuer's certificate does not.** Two optional keys under
   `security.oidc`: `jwk_set_uri` (`OIDC_JWK_SET_URI`) fetches the signing keys from an address this
   process can reach instead of discovering them at the issuer, which in a cluster whose ingress

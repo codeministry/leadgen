@@ -68,4 +68,40 @@ public record OfferView(
         Instant ingestedAt,
         Instant archivedAt,
         String archiveSource,
-        String enrichmentNote) {}
+        String enrichmentNote) {
+
+    /**
+     * The same offer without its advert text, which is the one field that runs to pages: what an MCP
+     * client gets unless it asks for the text (spec 023). The screens always read it whole.
+     */
+    public OfferView withoutFullText() {
+        return new OfferView(
+                id,
+                sourceName,
+                externalId,
+                title,
+                description,
+                url,
+                location,
+                portal,
+                agency,
+                publishedOn,
+                tags,
+                rateEur,
+                remotePercent,
+                startsOn,
+                startText,
+                duration,
+                durationMonths,
+                applyBy,
+                applyByText,
+                workload,
+                language,
+                null,
+                packageDir,
+                ingestedAt,
+                archivedAt,
+                archiveSource,
+                enrichmentNote);
+    }
+}

@@ -1,0 +1,62 @@
+{
+  "applications": [
+    {
+      "id": 13,
+      "offerId": 123,
+      "status": "INTERVIEW",
+      "title": "Senior Developer Microservices Automotive – Event Sourcing",
+      "agency": "Vandelay Industries GmbH",
+      "portal": "portal-b",
+      "score": 100,
+      "hasPackage": true,
+      "url": "https://portal-b.example/project/senior-developer-microservices-automotive-event-sourcing-663332"
+    },
+    {
+      "id": 2,
+      "offerId": 111,
+      "status": "REPLIED",
+      "title": "Fullstack Developer Spring Boot and Angular Media – Fullstack (m/w/d)",
+      "agency": "Umbrella IT Partner GmbH",
+      "portal": "portal-c",
+      "score": 100,
+      "hasPackage": true,
+      "url": "https://portal-c.example/project/fullstack-developer-spring-boot-and-angular-media-fullstack-m-w-d-158640"
+    },
+    {
+      "id": 23,
+      "offerId": 163,
+      "status": "SENT",
+      "title": "Java Developer Spring Boot Automotive – Microservices (m/w/d)",
+      "agency": "Globex Solutions GmbH",
+      "portal": "portal-e",
+      "score": 100,
+      "hasPackage": true,
+      "url": "https://portal-e.example/project/java-developer-spring-boot-automotive-microservices-m-w-d-251680"
+    },
+    {
+      "id": 28,
+      "offerId": 10,
+      "status": "SENT",
+      "title": "Senior Software Developer Fullstack Industry – Java / Angular / Kubernetes (m/f/d)",
+      "agency": "Contoso Services GmbH",
+      "portal": "portal-c",
+      "score": 100,
+      "hasPackage": true,
+      "url": "https://portal-c.example/project/senior-software-developer-fullstack-industry-java-angular-kubernetes-m-f-d-892577"
+    },
+    {
+      "id": 41,
+      "offerId": 94,
+      "status": "PACKAGED",
+      "title": "Senior Developer Microservices Insurance – Integration layer (m/f/d)",
+      "agency": "Initech Personal AG",
+      "portal": "portal-c",
+      "score": 100,
+      "hasPackage": true,
+      "url": "https://portal-c.example/project/senior-developer-microservices-insurance-integration-layer-m-f-d-659330"
+    }
+  ],
+  "returned": 5,
+  "matched": 43,
+  "truncated": true
+}

@@ -136,6 +136,11 @@ dependencies {
     implementation(libs.spring.ai.chat)
     implementation(libs.spring.ai.anthropic)
     implementation(libs.spring.ai.openai)
+    // The MCP server (spec 023): leadgen serves its own read tools at /mcp, Streamable HTTP over the
+    // same WebMVC stack. The starter's auto-configuration is the point here, unlike the model
+    // modules above: it registers the transport and scans the @McpTool beans, and has nothing
+    // it could build that this application does not use.
+    implementation(libs.spring.ai.mcp.server)
     implementation(libs.jsoup)
     implementation(libs.freemarker)
     implementation(libs.flexmark.html2md)

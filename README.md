@@ -149,6 +149,21 @@ and **Add to Home Screen**. It opens in its own window with the lead-ring icon a
 colours, the shell loads without a network (the data never does; it always comes from the
 API), and a toast offers to reload once a deploy has landed.
 
+### Ask it from an MCP client
+
+leadgen is an MCP server too: `/mcp` speaks Streamable HTTP and serves ten read-only tools, the
+shortlist search and an offer's detail, the funnel, the last run, the application board and the
+configuration, and four the chat uses (search by meaning, the statistics, one application, the
+profile). Point a client at the web port, e.g. for Claude Code:
+
+```bash
+claude mcp add --transport http leadgen http://localhost:4200/mcp
+```
+
+With `AUTH_MODE=oidc` the endpoint wants a bearer token like every other; a client that speaks
+MCP's authorization flow finds the issuer at `/.well-known/oauth-protected-resource/mcp`. What the
+tools answer and why is in [`docs/decisions/mcp.md`](docs/decisions/mcp.md).
+
 ## The screens
 
 |                                                          |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |

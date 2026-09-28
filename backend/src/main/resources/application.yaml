@@ -17,6 +17,25 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
+  # The MCP server (spec 023): leadgen's read tools at /mcp, the same process and the same
+  # security chain as the REST API. No switch: it is part of the api as the endpoints are.
+  ai:
+    mcp:
+      server:
+        name: leadgen
+        # What a client reads in the `initialize` result: the running build, from the one place
+        # the build names itself (leadgen.version below).
+        version: ${LEADGEN_VERSION:0.5.0}
+        # STREAMABLE and not SSE: Spring AI 2.0 deprecates SSE, and Streamable HTTP is what
+        # current MCP clients negotiate.
+        protocol: STREAMABLE
+        # SYNC, because every tool reads a blocking service. An ASYNC server registers only
+        # reactive annotated methods and would silently expose nothing.
+        type: SYNC
+        annotation-scanner:
+          enabled: true
+        streamable-http:
+          mcp-endpoint: /mcp
 
 # Working defaults for the pipeline ship on the classpath under /leadgen/. This
 # directory overrides them file by file and holds everything individual: real

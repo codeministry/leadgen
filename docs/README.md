@@ -96,6 +96,7 @@ room.
 | [frontend-design-system.md](decisions/frontend-design-system.md)   | Both themes, the accent's one meaning, the navigation, the catalogs                                |
 | [manual-status.md](decisions/manual-status.md)                     | The eleven application states and their event log                                                  |
 | [chat.md](decisions/chat.md)                                       | The chat: grounding by id, the five read-only tools, its own budget, the drawer                    |
+| [mcp.md](decisions/mcp.md)                                         | The MCP server at `/mcp`: ten read-only tools, the masker, how a client finds the issuer       |
 | [order-of-work.md](decisions/order-of-work.md)                     | The sixteen steps this tool was built in, and what each had to prove                               |
 | [native-image.md](decisions/native-image.md)                       | Why there are two images, the AOT cache's training problem, and the hints written by hand          |
 

@@ -209,6 +209,57 @@ check "the $provider endpoint was actually called (count $served)" '[[ "$served"
 check "the stubbed verdict came back through the SDK" '[[ "$scored" == *role_fit* || $(psql_ -c "SELECT count(*) FROM offer_score_reason r JOIN offer o ON o.id = r.offer_id WHERE o.external_id = '"'"'smoke-1'"'"' AND r.factor = '"'"'role_fit'"'"'") -ge 1 ]]'
 
 # ---------------------------------------------------------------------------------------
+section "the MCP server lists and answers its ten tools"
+# The MCP server finds its tools by annotation and calls them by reflection, and writes each
+# result to JSON through the record's accessors; a hint missing from LeadGenRuntimeHints is a
+# tool that is listed and answers `{}`. So every tool is called once and its answer read.
+mcp_headers=$(mktemp)
+mcp_() { # mcp_ '<json-rpc body>' — prints the first `data:` payload of the answer
+  curl -s -X POST "$API/mcp" -H 'Content-Type: application/json' \
+    -H 'Accept: application/json, text/event-stream' ${mcp_session:+-H "Mcp-Session-Id: $mcp_session"} \
+    -d "$1" | sed -n 's/^data://p' | head -1
+}
+curl -s -D "$mcp_headers" -o /dev/null -X POST "$API/mcp" -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"smoke","version":"0"}}}' || true
+mcp_session=$(grep -i '^mcp-session-id:' "$mcp_headers" | cut -d' ' -f2 | tr -d '\r' || true)
+rm -f "$mcp_headers"
+check "initialize opened a session" '[[ -n "$mcp_session" ]]'
+curl -s -o /dev/null -X POST "$API/mcp" -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' -H "Mcp-Session-Id: $mcp_session" \
+  -d '{"jsonrpc":"2.0","method":"notifications/initialized"}' || true
+tools=$(mcp_ '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
+        | python3 -c 'import json,sys; print(" ".join(sorted(t["name"] for t in json.load(sys.stdin)["result"]["tools"])))' \
+        || true)
+check "tools/list names ten tools ($tools)" '[[ $(wc -w <<<"$tools") -eq 10 ]]'
+# One call each. The answer has to be a JSON object with at least one field filled, and the
+# search has to find the offer the package step seeded: an unhinted record serialises as `{}`.
+for call in \
+    "leadgen_search_offers|{}" \
+    "leadgen_get_offer|{\"id\":$offer_id}" \
+    "leadgen_funnel_stats|{}" \
+    "leadgen_ingest_status|{}" \
+    "leadgen_list_applications|{}" \
+    "leadgen_get_pipeline_config|{\"section\":\"rules\"}" \
+    "leadgen_semantic_search|{\"query\":\"backend\"}" \
+    "leadgen_statistics|{}" \
+    "leadgen_application|{\"offerId\":$offer_id}" \
+    "leadgen_profile|{}"; do
+  tool=${call%%|*}
+  answer=$(mcp_ "{\"jsonrpc\":\"2.0\",\"id\":3,\"method\":\"tools/call\",\"params\":{\"name\":\"$tool\",\"arguments\":${call#*|}}}")
+  check "$tool answers with a filled object" 'python3 -c "
+import json,sys
+r=json.loads(sys.argv[1])[\"result\"]
+body=json.loads(r[\"content\"][0][\"text\"])
+sys.exit(0 if not r.get(\"isError\") and isinstance(body, dict) and any(v not in (None, [], {}, \"\") for v in body.values()) else 1)" "$answer"'
+done
+offer_answer=$(mcp_ "{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"tools/call\",\"params\":{\"name\":\"leadgen_get_offer\",\"arguments\":{\"id\":$offer_id}}}")
+check "leadgen_get_offer returned the seeded offer $offer_id" 'python3 -c "
+import json,sys
+body=json.loads(json.loads(sys.argv[1])[\"result\"][\"content\"][0][\"text\"])
+sys.exit(0 if str(body[\"offer\"][\"id\"]) == sys.argv[2] and body[\"offer\"][\"title\"] else 1)" "$offer_answer" "$offer_id"'
+
+# ---------------------------------------------------------------------------------------
 section "the numbers"
 mem=$("${COMPOSE[@]}" exec -T smoke-api sh -c 'cat /sys/fs/cgroup/memory.current' 2>/dev/null \
       || docker stats --no-stream --format '{{.MemUsage}}' "$("${COMPOSE[@]}" ps -q smoke-api)")

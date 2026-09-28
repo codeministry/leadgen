@@ -13,6 +13,7 @@ import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.retrieval.QueryEmbedder;
 import de.codeministry.leadgen.retrieval.SemanticFilter;
 import java.sql.Timestamp;
+import java.util.function.BooleanSupplier;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
@@ -93,6 +94,15 @@ public class SemanticSearchTool {
                             description = "What the offers should be about, in a few words, e.g. 'event streaming"
                                     + " with Kafka'.")
                     String query) {
+        // The chat's own ceiling, never `llm.budget` (ISC-433): see QueryEmbedder.
+        return searchByMeaning(query, budget::take);
+    }
+
+    /**
+     * The same search against a ceiling the caller names: the chat passes its own, the MCP server
+     * leadgen's `llm.budget`, as its shortlist search does (ISC-484).
+     */
+    public SemanticSearchResult searchByMeaning(String query, BooleanSupplier take) {
         if (query == null || query.isBlank()) {
             return SemanticSearchResult.absent("no words were given to search by");
         }
@@ -102,8 +112,7 @@ public class SemanticSearchTool {
         }
         // Present once `available()` said so: it is the same key that decided it.
         String model = config.snapshot().application().llm().models().embedding();
-        // The chat's own ceiling, never `llm.budget` (ISC-433): see QueryEmbedder.
-        var vector = queries.vectorFor(query, model, budget::take);
+        var vector = queries.vectorFor(query, model, take);
         if (vector.isEmpty()) {
             return SemanticSearchResult.absent(
                     "the words could not be read for meaning just now; the day's model budget may be spent");

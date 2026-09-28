@@ -313,3 +313,6 @@ security:
     jwk_set_uri: ${OIDC_JWK_SET_URI:}
     # What every token must name in `aud`. Empty checks client_id instead.
     audience: ${OIDC_AUDIENCE:}
+    # The URL MCP clients reach `/mcp` at, as `/.well-known/oauth-protected-resource` names it.
+    # Empty derives it from the request, which behind a TLS proxy may read `http://`.
+    resource: ${OIDC_RESOURCE:}

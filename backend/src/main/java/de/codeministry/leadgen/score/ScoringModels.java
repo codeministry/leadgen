@@ -6,7 +6,7 @@
  * Licensed under the Apache License, Version 2.0. You may obtain a copy of the
  * License at http://www.apache.org/licenses/LICENSE-2.0
  */
-package de.codeministry.leadgen.web;
+package de.codeministry.leadgen.score;
 
 import java.util.List;
 
@@ -25,7 +25,7 @@ import java.util.List;
  *                  {@code available} while that list is not empty, named separately so the browser does
  *                  not have to know that.
  */
-record ScoringModels(List<String> available, String preferred) {
+public record ScoringModels(List<String> available, String preferred) {
 
     static ScoringModels of(List<String> choices) {
         return new ScoringModels(choices, choices.isEmpty() ? null : choices.getFirst());

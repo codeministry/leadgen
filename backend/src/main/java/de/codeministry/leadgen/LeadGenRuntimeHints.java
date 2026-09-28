@@ -43,11 +43,19 @@ import de.codeministry.leadgen.chat.tools.PinnedOfferResult;
 import de.codeministry.leadgen.chat.tools.ProfileTool;
 import de.codeministry.leadgen.chat.tools.SemanticSearchTool;
 import de.codeministry.leadgen.chat.tools.StatisticsTool;
+import de.codeministry.leadgen.config.ConfigProperties;
+import de.codeministry.leadgen.mcp.ApplicationTools;
+import de.codeministry.leadgen.mcp.ChatToolsForMcp;
+import de.codeministry.leadgen.mcp.OfferTools;
+import de.codeministry.leadgen.mcp.PipelineTools;
 import java.lang.reflect.Method;
+import java.lang.reflect.RecordComponent;
 import java.util.List;
+import org.springframework.ai.mcp.annotation.McpTool;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.aot.hint.BindingReflectionHintsRegistrar;
 import org.springframework.aot.hint.ExecutableMode;
+import org.springframework.aot.hint.MemberCategory;
 import org.springframework.aot.hint.RuntimeHints;
 import org.springframework.aot.hint.RuntimeHintsRegistrar;
 
@@ -96,6 +104,8 @@ public class LeadGenRuntimeHints implements RuntimeHintsRegistrar {
         hints.resources().registerPattern("leadgen/i18n/*.properties");
         registerChatTools(hints);
         registerChatRecords(hints);
+        registerMcpTools(hints);
+        registerValidatedConfiguration(hints);
     }
 
     /**
@@ -147,6 +157,49 @@ public class LeadGenRuntimeHints implements RuntimeHintsRegistrar {
                 PinnedAdvert.class,
                 // Never serialised; hinted because the guard binds every public chat record.
                 PinnedContext.class);
+    }
+
+    /**
+     * Every nested record of {@link ConfigProperties}, field by field. The configuration binder
+     * validates each level of {@code leadgen.*} itself, so no {@code @Valid} leads the bean-validation
+     * AOT processor to them, and Hibernate Validator reads a constrained component through its
+     * field. Unhinted, the native image stops at startup on {@code Chat.turnTimeout}: measured
+     * 2026-09-28, the first native start since the chat's keys were added (spec 023 found it).
+     */
+    private static void registerValidatedConfiguration(RuntimeHints hints) {
+        for (RecordComponent component : ConfigProperties.class.getRecordComponents()) {
+            if (component.getType().isRecord()) {
+                hints.reflection().registerType(component.getType(), MemberCategory.ACCESS_DECLARED_FIELDS);
+            }
+        }
+    }
+
+    /**
+     * The MCP server's tools (spec 023), found by their {@code @McpTool} annotation and called the
+     * way the chat's are, by reflection, with the result written to JSON through its accessors.
+     *
+     * <p>One step further than the chat's: {@code leadgen_funnel_stats} returns a sealed interface,
+     * and a binding hint on an interface reaches none of the records behind it, so the permitted
+     * subtypes are bound one by one. {@code leadgen_get_pipeline_config} returns {@code Object}; its
+     * sections are the REST controllers' views, which AOT binds from the controllers.
+     * {@code LeadGenRuntimeHintsTest} scans for {@code @McpTool} and for the records of the package.
+     */
+    private static void registerMcpTools(RuntimeHints hints) {
+        BindingReflectionHintsRegistrar bindings = new BindingReflectionHintsRegistrar();
+        for (Class<?> tool :
+                List.of(OfferTools.class, PipelineTools.class, ApplicationTools.class, ChatToolsForMcp.class)) {
+            for (Method method : tool.getDeclaredMethods()) {
+                if (method.isAnnotationPresent(McpTool.class)) {
+                    hints.reflection().registerMethod(method, ExecutableMode.INVOKE);
+                    bindings.registerReflectionHints(hints.reflection(), method.getGenericReturnType());
+                    bindings.registerReflectionHints(hints.reflection(), method.getGenericParameterTypes());
+                    if (method.getReturnType().isSealed()) {
+                        bindings.registerReflectionHints(
+                                hints.reflection(), method.getReturnType().getPermittedSubclasses());
+                    }
+                }
+            }
+        }
     }
 
     /**

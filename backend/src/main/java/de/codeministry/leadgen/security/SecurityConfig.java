@@ -32,7 +32,11 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtDecoders;
 import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
+import org.springframework.security.oauth2.server.resource.OAuth2ProtectedResourceMetadata;
+import org.springframework.security.oauth2.server.resource.web.BearerTokenAuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.util.UrlUtils;
+import org.springframework.web.util.UriComponentsBuilder;
 
 /**
  * Who may call this API, decided by {@code security.auth} at startup.
@@ -74,16 +78,25 @@ public class SecurityConfig {
     static final String CLIENT_ID = "client_id";
     static final String JWK_SET_URI = "jwk_set_uri";
     static final String AUDIENCE = "audience";
+    static final String RESOURCE = "resource";
+
+    /** Where RFC 9728 puts a resource server's metadata; the path-suffixed form names one resource of several. */
+    static final String METADATA = "/.well-known/oauth-protected-resource";
+
+    /** The MCP endpoint (spec 023), the resource an MCP client asks the metadata about. */
+    static final String MCP = "/mcp";
 
     /**
      * Open in both modes, and each for its own reason. The container's liveness question
      * has no caller to authenticate and is asked before anything else is up. The
      * auth-config endpoint is how the browser learns where to log in, and a bootstrap
      * question cannot require the thing it bootstraps; what it answers is an issuer URL
-     * and a public client id, both of which end up in the address bar anyway.
+     * and a public client id, both of which end up in the address bar anyway. The protected
+     * resource metadata is the same question asked by an MCP client (RFC 9728): which issuer to
+     * get a token from, answered before it has one.
      */
     private static final String[] ALWAYS_OPEN = {
-        "/actuator/health", "/actuator/health/**", "/actuator/info", "/api/v1/auth-config"
+        "/actuator/health", "/actuator/health/**", "/actuator/info", "/api/v1/auth-config", METADATA, METADATA + "/**"
     };
 
     /**
@@ -156,8 +169,61 @@ public class SecurityConfig {
                         .permitAll()
                         .anyRequest()
                         .authenticated())
-                .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt.decoder(decoder)))
+                .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt.decoder(decoder))
+                        .authenticationEntryPoint(entryPoint(security))
+                        .protectedResourceMetadata(metadata ->
+                                metadata.protectedResourceMetadataCustomizer(builder -> describe(builder, security))))
                 .build();
+    }
+
+    /**
+     * The protected resource metadata (RFC 9728, spec 023): the issuer as the one authorization
+     * server, and the configured {@code resource} when there is one. Spring answers it at
+     * {@value #METADATA} and below; the path-suffixed {@code …/mcp} form names the MCP endpoint by
+     * itself, derived from the request.
+     *
+     * <p>Spring's filter offers certificate-bound tokens by default. These are plain bearer tokens
+     * from the realm, so the metadata says so rather than invite a client to try mutual TLS.
+     */
+    static void describe(OAuth2ProtectedResourceMetadata.Builder builder, PipelineConfig.Security security) {
+        builder.authorizationServer(value(security, ISSUER)).tlsClientCertificateBoundAccessTokens(false);
+        String resource = value(security, RESOURCE);
+        if (resource != null && !resource.isBlank()) {
+            builder.resource(resource);
+        }
+    }
+
+    /**
+     * A 401 names where the metadata is, in {@code WWW-Authenticate}, which is how an MCP client
+     * finds the issuer (the MCP authorization spec). For a request to {@value #MCP} it names the
+     * metadata of the MCP endpoint: the configured resource with the well-known path inserted
+     * before its path, as RFC 9728 derives it, or the path-suffixed form on this request's own
+     * host. Every other 401 keeps Spring's own answer, the metadata of the whole server.
+     */
+    static BearerTokenAuthenticationEntryPoint entryPoint(PipelineConfig.Security security) {
+        var entryPoint = new BearerTokenAuthenticationEntryPoint();
+        String resource = value(security, RESOURCE);
+        entryPoint.setResourceMetadataParameterResolver(request -> {
+            String path =
+                    request.getRequestURI().substring(request.getContextPath().length());
+            boolean mcp = path.equals(MCP) || path.startsWith(MCP + "/");
+            if (mcp && resource != null && !resource.isBlank()) {
+                var uri = UriComponentsBuilder.fromUriString(resource).build();
+                return UriComponentsBuilder.fromUriString(resource)
+                        .replacePath(METADATA + (uri.getPath() == null ? "" : uri.getPath()))
+                        .replaceQuery(null)
+                        .fragment(null)
+                        .build()
+                        .toUriString();
+            }
+            return UriComponentsBuilder.fromUriString(UrlUtils.buildFullRequestUrl(request))
+                    .replacePath(request.getContextPath() + METADATA + (mcp ? MCP : ""))
+                    .replaceQuery(null)
+                    .fragment(null)
+                    .build()
+                    .toUriString();
+        });
+        return entryPoint;
     }
 
     /**

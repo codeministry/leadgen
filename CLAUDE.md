@@ -63,6 +63,7 @@ Violating one of these is expensive, and most of them fail silently.
 - **Anything reached by a name computed at runtime needs a hint in `LeadGenRuntimeHints`.**
   The five YAML files and the three templates are; a missing hint is an empty result in a
   native image, not an error. `LeadGenRuntimeHintsTest` fails when a new one has none.
+- **An MCP tool reads leadgen's services in-process, never writes, and its answer passes `ToolOutputMasker` at the tool list.** — reasoning in `docs/decisions/mcp.md`.
 - **Never commit.** Do the work, leave it uncommitted, offer the commit — the maintainer
   reviews the diff and decides what lands.
 
@@ -117,6 +118,7 @@ there**, which is what keeps this file readable.
 | The sixteen steps this tool was built in, and what each had to prove        | `docs/decisions/order-of-work.md`           |
 | The AOT cache, the native image, the hints, and pre-1.0 versioning          | `docs/decisions/native-image.md`            |
 | The chat: grounding, tools, budget, the drawer                              | `docs/decisions/chat.md`                    |
+| The MCP server: ten tools, the masker, the protected-resource metadata    | `docs/decisions/mcp.md`                   |
 
 The conventions and the traps for each half sit beside the code, in `backend/CLAUDE.md` and
 `frontend/CLAUDE.md`. A nested file is loaded when a file in that tree is read, never at
@@ -162,6 +164,8 @@ backend/…/llm/                    ChatModels and Answers, shared by the judge 
                                   classifier
 backend/…/chat/                   the chat: the turn, its ledger and citation filter, the
                                   masker, its own budget, five read-only tools — decisions/chat.md
+backend/…/mcp/                    the MCP server at `/mcp`: ten read-only tools, the masker around
+                                  every answer — decisions/mcp.md
 frontend/src/styles.css           both DaisyUI themes, the fonts, the @theme block —
                                   the only file allowed to hold a colour literal
 frontend/src/styles/tokens.css    semantic aliases, layout constants, the type scale

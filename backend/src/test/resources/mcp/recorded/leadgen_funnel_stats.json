@@ -1,0 +1,82 @@
+{
+  "funnel": {
+    "total": 146,
+    "stages": [
+      {
+        "id": "abroad",
+        "label": "Abroad",
+        "removed": 12
+      },
+      {
+        "id": "remote-share",
+        "label": "Remote share below the minimum",
+        "removed": 0
+      },
+      {
+        "id": "out-of-reach",
+        "label": "Beyond reach, not remote",
+        "removed": 17
+      },
+      {
+        "id": "role-or-stack",
+        "label": "Foreign stack or wrong role",
+        "removed": 45
+      },
+      {
+        "id": "no-core-skill",
+        "label": "No core skill",
+        "removed": 6
+      },
+      {
+        "id": "contract-form",
+        "label": "Contract form rejected",
+        "removed": 2
+      }
+    ],
+    "survived": 64,
+    "archived": 0
+  },
+  "lanes": [
+    {
+      "id": "backlog",
+      "label": "Backlog",
+      "states": [
+        "NEW",
+        "SHORTLISTED"
+      ]
+    },
+    {
+      "id": "prepared",
+      "label": "Prepared",
+      "states": [
+        "PACKAGED"
+      ]
+    },
+    {
+      "id": "out",
+      "label": "Out",
+      "states": [
+        "SENT",
+        "REPLIED"
+      ]
+    },
+    {
+      "id": "talking",
+      "label": "Talking",
+      "states": [
+        "INTERVIEW",
+        "OFFER"
+      ]
+    },
+    {
+      "id": "closed",
+      "label": "Closed",
+      "states": [
+        "WON",
+        "LOST",
+        "REJECTED",
+        "EXPIRED"
+      ]
+    }
+  ]
+}

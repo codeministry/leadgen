@@ -6,7 +6,7 @@
  * Licensed under the Apache License, Version 2.0. You may obtain a copy of the
  * License at http://www.apache.org/licenses/LICENSE-2.0
  */
-package de.codeministry.leadgen.web;
+package de.codeministry.leadgen.score;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

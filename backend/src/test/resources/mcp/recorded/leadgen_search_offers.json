@@ -1,0 +1,60 @@
+{
+  "offers": [
+    {
+      "id": 163,
+      "title": "Java Developer Spring Boot Automotive – Microservices (m/w/d)",
+      "agency": "Globex Solutions GmbH",
+      "portal": "portal-e",
+      "location": "Remote",
+      "durationMonths": 9,
+      "startText": "at the start of the month",
+      "publishedOn": "2026-09-01",
+      "score": 100,
+      "tags": [
+        "Java",
+        "Spring Boot"
+      ],
+      "url": "https://portal-e.example/project/java-developer-spring-boot-automotive-microservices-m-w-d-251680",
+      "incomplete": true
+    },
+    {
+      "id": 153,
+      "title": "Integration Architect Public sector – Spring Boot (m/f/d)",
+      "agency": "Globex Solutions GmbH",
+      "portal": "portal-f",
+      "location": "Düsseldorf",
+      "durationMonths": 12,
+      "startText": "by arrangement",
+      "publishedOn": "2026-09-01",
+      "score": 100,
+      "tags": [
+        "Microservices",
+        "Kafka"
+      ],
+      "url": "https://portal-f.example/project/integration-architect-public-sector-spring-boot-m-f-d-662478",
+      "incomplete": true
+    },
+    {
+      "id": 151,
+      "title": "Senior Developer Microservices Logistics – Kafka (w/m/d)",
+      "agency": "Umbrella IT Partner GmbH",
+      "portal": "portal-c",
+      "location": "Remote and Aachen",
+      "durationMonths": 6,
+      "startText": "by arrangement",
+      "publishedOn": "2026-09-02",
+      "score": 100,
+      "tags": [
+        "Microservices",
+        "Kafka"
+      ],
+      "url": "https://portal-c.example/project/senior-developer-microservices-logistics-kafka-w-m-d-858456",
+      "incomplete": true
+    }
+  ],
+  "returned": 3,
+  "matched": 64,
+  "total": 64,
+  "nextCursor": "score|100|1790274032884347|151",
+  "truncated": true
+}

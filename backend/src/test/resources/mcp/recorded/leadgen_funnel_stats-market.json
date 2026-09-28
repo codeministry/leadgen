@@ -1,0 +1,241 @@
+{
+  "section": "market",
+  "generatedAt": "2026-09-28T14:30:12.139660422Z",
+  "data": {
+    "portals": [
+      {
+        "portal": "portal-b",
+        "listings": 30,
+        "projects": 25,
+        "passed": 9,
+        "shortlisted": 6
+      },
+      {
+        "portal": "portal-d",
+        "listings": 30,
+        "projects": 30,
+        "passed": 14,
+        "shortlisted": 9
+      },
+      {
+        "portal": "portal-f",
+        "listings": 30,
+        "projects": 22,
+        "passed": 10,
+        "shortlisted": 8
+      },
+      {
+        "portal": "portal-a",
+        "listings": 27,
+        "projects": 24,
+        "passed": 8,
+        "shortlisted": 5
+      },
+      {
+        "portal": "portal-e",
+        "listings": 27,
+        "projects": 24,
+        "passed": 10,
+        "shortlisted": 6
+      },
+      {
+        "portal": "portal-c",
+        "listings": 25,
+        "projects": 21,
+        "passed": 13,
+        "shortlisted": 9
+      }
+    ],
+    "tags": [
+      {
+        "tag": "Java",
+        "projects": 41,
+        "passed": 28
+      },
+      {
+        "tag": "Spring Boot",
+        "projects": 41,
+        "passed": 28
+      },
+      {
+        "tag": "Kafka",
+        "projects": 21,
+        "passed": 15
+      },
+      {
+        "tag": "Microservices",
+        "projects": 21,
+        "passed": 15
+      },
+      {
+        "tag": "C",
+        "projects": 18,
+        "passed": 0
+      },
+      {
+        "tag": "Embedded",
+        "projects": 18,
+        "passed": 0
+      },
+      {
+        "tag": "ABAP",
+        "projects": 16,
+        "passed": 0
+      },
+      {
+        "tag": "CRM",
+        "projects": 16,
+        "passed": 0
+      },
+      {
+        "tag": "Salesforce",
+        "projects": 16,
+        "passed": 0
+      },
+      {
+        "tag": "SAP",
+        "projects": 16,
+        "passed": 0
+      },
+      {
+        "tag": "DevOps",
+        "projects": 13,
+        "passed": 10
+      },
+      {
+        "tag": "Kubernetes",
+        "projects": 13,
+        "passed": 10
+      },
+      {
+        "tag": "Angular",
+        "projects": 11,
+        "passed": 11
+      },
+      {
+        "tag": "TypeScript",
+        "projects": 11,
+        "passed": 11
+      },
+      {
+        "tag": "Data Engineering",
+        "projects": 10,
+        "passed": 0
+      },
+      {
+        "tag": "Python",
+        "projects": 10,
+        "passed": 0
+      }
+    ],
+    "locations": [
+      {
+        "location": "Remote",
+        "projects": 29,
+        "passed": 12
+      },
+      {
+        "location": "Remote (home office)",
+        "projects": 16,
+        "passed": 10
+      },
+      {
+        "location": "Remote (Germany-wide)",
+        "projects": 14,
+        "passed": 11
+      },
+      {
+        "location": "Aachen",
+        "projects": 5,
+        "passed": 2
+      },
+      {
+        "location": "Remote and München",
+        "projects": 5,
+        "passed": 3
+      },
+      {
+        "location": "Stuttgart",
+        "projects": 5,
+        "passed": 1
+      },
+      {
+        "location": "Hamburg",
+        "projects": 4,
+        "passed": 0
+      },
+      {
+        "location": "Leverkusen",
+        "projects": 4,
+        "passed": 0
+      },
+      {
+        "location": "Remote and Hamburg",
+        "projects": 4,
+        "passed": 3
+      },
+      {
+        "location": "Dresden",
+        "projects": 3,
+        "passed": 0
+      },
+      {
+        "location": "Düsseldorf",
+        "projects": 3,
+        "passed": 3
+      },
+      {
+        "location": "Köln",
+        "projects": 3,
+        "passed": 1
+      },
+      {
+        "location": "Neuss",
+        "projects": 3,
+        "passed": 2
+      },
+      {
+        "location": "Remote and Bonn",
+        "projects": 3,
+        "passed": 1
+      },
+      {
+        "location": "Remote and Dresden",
+        "projects": 3,
+        "passed": 1
+      }
+    ],
+    "reach": {
+      "outOfReach": 17,
+      "abroad": 12,
+      "remoteShare": 0
+    },
+    "stageMix": [
+      {
+        "day": "2026-09-24",
+        "stage": "abroad",
+        "removed": 12
+      },
+      {
+        "day": "2026-09-24",
+        "stage": "contract-form",
+        "removed": 2
+      },
+      {
+        "day": "2026-09-24",
+        "stage": "no-core-skill",
+        "removed": 6
+      },
+      {
+        "day": "2026-09-24",
+        "stage": "out-of-reach",
+        "removed": 17
+      },
+      {
+        "day": "2026-09-24",
+        "stage": "role-or-stack",
+        "removed": 45
+      }
+    ]
+  }
+}

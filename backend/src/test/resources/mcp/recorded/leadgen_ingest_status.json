@@ -1,0 +1,178 @@
+{
+  "last": {
+    "finishedAt": "2026-09-24T19:04:41.303621Z",
+    "status": "COMPLETE",
+    "scoreModel": "scoring-model",
+    "extracted": 169,
+    "written": 169,
+    "merged": 23,
+    "enriched": 0,
+    "removed": {
+      "ABROAD": 13,
+      "CONTRACT_FORM": 2,
+      "NO_CORE_SKILL": 7,
+      "OUT_OF_REACH": 19,
+      "ROLE_OR_STACK": 55
+    },
+    "filterConsidered": 169,
+    "filterPassed": 73,
+    "scored": 64,
+    "shortlisted": 43,
+    "review": 15,
+    "packaged": 0,
+    "digestWritten": true,
+    "sources": [
+      {
+        "sourceId": "demo-newsletter",
+        "documents": 5,
+        "extracted": 169,
+        "written": 169,
+        "announced": 169,
+        "complete": true
+      },
+      {
+        "sourceId": "manual-inbox",
+        "documents": 0,
+        "extracted": 0,
+        "written": 0,
+        "announced": null,
+        "complete": true
+      }
+    ],
+    "stages": [
+      {
+        "position": 0,
+        "stage": "INGEST demo-newsletter",
+        "startedAt": "2026-09-24T18:20:32.572470Z",
+        "endedAt": "2026-09-24T18:20:32.917748Z",
+        "status": "OK",
+        "note": null,
+        "width": null,
+        "millis": 345
+      },
+      {
+        "position": 1,
+        "stage": "INGEST manual-inbox",
+        "startedAt": "2026-09-24T18:20:32.917782Z",
+        "endedAt": "2026-09-24T18:20:32.925516Z",
+        "status": "OK",
+        "note": null,
+        "width": null,
+        "millis": 7
+      },
+      {
+        "position": 2,
+        "stage": "DEDUPE",
+        "startedAt": "2026-09-24T18:20:32.925839Z",
+        "endedAt": "2026-09-24T18:22:14.499353Z",
+        "status": "OK",
+        "note": null,
+        "width": null,
+        "millis": 101573
+      },
+      {
+        "position": 3,
+        "stage": "FILTER",
+        "startedAt": "2026-09-24T18:22:14.499789Z",
+        "endedAt": "2026-09-24T18:22:14.615204Z",
+        "status": "OK",
+        "note": null,
+        "width": null,
+        "millis": 115
+      },
+      {
+        "position": 4,
+        "stage": "ARCHIVE",
+        "startedAt": "2026-09-24T18:22:14.615488Z",
+        "endedAt": "2026-09-24T18:22:14.618659Z",
+        "status": "OK",
+        "note": null,
+        "width": null,
+        "millis": 3
+      },
+      {
+        "position": 5,
+        "stage": "ENRICH",
+        "startedAt": "2026-09-24T18:22:14.618902Z",
+        "endedAt": "2026-09-24T18:25:22.881034Z",
+        "status": "OK",
+        "note": null,
+        "width": null,
+        "millis": 188262
+      },
+      {
+        "position": 6,
+        "stage": "CONTENT",
+        "startedAt": "2026-09-24T18:25:22.881424Z",
+        "endedAt": "2026-09-24T18:25:22.899926Z",
+        "status": "OK",
+        "note": null,
+        "width": null,
+        "millis": 18
+      },
+      {
+        "position": 7,
+        "stage": "FIELDS",
+        "startedAt": "2026-09-24T18:25:22.900115Z",
+        "endedAt": "2026-09-24T18:38:29.648596Z",
+        "status": "OK",
+        "note": null,
+        "width": null,
+        "millis": 786748
+      },
+      {
+        "position": 8,
+        "stage": "SCORE",
+        "startedAt": "2026-09-24T18:38:29.649642Z",
+        "endedAt": "2026-09-24T19:04:41.259878Z",
+        "status": "OK",
+        "note": null,
+        "width": null,
+        "millis": 1571610
+      },
+      {
+        "position": 9,
+        "stage": "RETRIEVAL",
+        "startedAt": "2026-09-24T19:04:41.260377Z",
+        "endedAt": "2026-09-24T19:04:41.263787Z",
+        "status": "OK",
+        "note": null,
+        "width": null,
+        "millis": 3
+      },
+      {
+        "position": 10,
+        "stage": "OPEN",
+        "startedAt": "2026-09-24T19:04:41.264354Z",
+        "endedAt": "2026-09-24T19:04:41.271388Z",
+        "status": "OK",
+        "note": null,
+        "width": null,
+        "millis": 7
+      },
+      {
+        "position": 11,
+        "stage": "PACKAGE",
+        "startedAt": "2026-09-24T19:04:41.271905Z",
+        "endedAt": "2026-09-24T19:04:41.273874Z",
+        "status": "OK",
+        "note": null,
+        "width": null,
+        "millis": 1
+      },
+      {
+        "position": 12,
+        "stage": "DIGEST",
+        "startedAt": "2026-09-24T19:04:41.274158Z",
+        "endedAt": "2026-09-24T19:04:41.299381Z",
+        "status": "OK",
+        "note": null,
+        "width": null,
+        "millis": 25
+      }
+    ],
+    "startedAt": "2026-09-24T18:20:32.568654Z",
+    "previous": null
+  },
+  "current": "no run in flight"
+}

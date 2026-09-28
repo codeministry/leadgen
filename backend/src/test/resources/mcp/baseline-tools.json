@@ -1,0 +1,306 @@
+[
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": true,
+      "title": ""
+    },
+    "description": "How offers moved through the pipeline: the funnel stages with how many each removed, and the application lanes. Pass an analytics section ('intake', 'market', 'scores', 'applications', 'runs') to get that slice of the full analytics view instead.",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "section": {
+          "description": "One of intake, market, scores, applications, runs. Omit for the funnel and lanes overview.",
+          "type": "string"
+        }
+      },
+      "required": [],
+      "type": "object"
+    },
+    "name": "leadgen_funnel_stats",
+    "title": "leadgen_funnel_stats"
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": true,
+      "title": ""
+    },
+    "description": "Fetch one offer by id with its full detail: description, score reasons, flags and sources. Set includeFullText to get the complete advert text as well, which is large.",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "id": {
+          "description": "The offer id.",
+          "format": "int64",
+          "type": "integer"
+        },
+        "includeFullText": {
+          "description": "Include the complete advert text. Default false, because it is long.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "type": "object"
+    },
+    "name": "leadgen_get_offer",
+    "title": "leadgen_get_offer"
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": true,
+      "title": ""
+    },
+    "description": "The configuration that decides what survives and how it is scored: matching rules with weights, penalties and knockouts; the scoring models; the configured sources; or the prompts.",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "section": {
+          "description": "One of rules, scoring-models, sources, prompts.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "section"
+      ],
+      "type": "object"
+    },
+    "name": "leadgen_get_pipeline_config",
+    "title": "leadgen_get_pipeline_config"
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": true,
+      "title": ""
+    },
+    "description": "The last completed ingest run and the one in flight, if any: per-source counts, what each filter removed, and how many reached the shortlist. Each stage row carries its status and duration; an OK stage that worked on several adverts at once also carries `width` and the note `width=N`, which is how wide it ran, not an error.",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {},
+      "required": [],
+      "type": "object"
+    },
+    "name": "leadgen_ingest_status",
+    "title": "leadgen_ingest_status"
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": true,
+      "title": ""
+    },
+    "description": "The application board: every offer that moved past the shortlist, with its status, lane, score and whether a package was built for it. Note that the package itself is a zip download from leadgen's own UI and is deliberately not reachable through this server.",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "limit": {
+          "description": "Maximum rows to return, 1-50. Default 50.",
+          "format": "int32",
+          "type": "integer"
+        },
+        "status": {
+          "description": "Only applications in this status, e.g. 'APPLIED'. Omit for all.",
+          "type": "string"
+        }
+      },
+      "required": [],
+      "type": "object"
+    },
+    "name": "leadgen_list_applications",
+    "title": "leadgen_list_applications"
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": true,
+      "title": ""
+    },
+    "description": "Search the leadgen shortlist of freelance project offers. Returns compact summaries (title, agency, portal, location, remote share, duration, rate, score, tags, url) — not the advert text. Use leadgen_get_offer for the full advert of one offer. Results are capped; the response always reports how many matched in total and carries a nextCursor when more exist.",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "archived": {
+          "description": "Include archived offers. Default false.",
+          "type": "boolean"
+        },
+        "band": {
+          "description": "Score band, e.g. 'high'. Cannot be combined with minScore/maxScore.",
+          "type": "string"
+        },
+        "cursor": {
+          "description": "Opaque cursor from a previous response's nextCursor.",
+          "type": "string"
+        },
+        "deadlineOpen": {
+          "description": "Only offers whose application deadline has not passed.",
+          "type": "boolean"
+        },
+        "limit": {
+          "description": "Maximum rows to return, 1-50. Default 20.",
+          "format": "int32",
+          "type": "integer"
+        },
+        "maxScore": {
+          "description": "Maximum score, 0-100.",
+          "format": "int32",
+          "type": "integer"
+        },
+        "minMonths": {
+          "description": "Minimum project duration in months.",
+          "format": "int32",
+          "type": "integer"
+        },
+        "minScore": {
+          "description": "Minimum score, 0-100.",
+          "format": "int32",
+          "type": "integer"
+        },
+        "portal": {
+          "description": "Restrict to one portal, e.g. 'freelancermap'.",
+          "type": "string"
+        },
+        "q": {
+          "description": "Free-text search over title, description and tags.",
+          "type": "string"
+        },
+        "semantic": {
+          "description": "Semantic search phrase. Ranks by meaning rather than keyword; cannot be combined with similarToOfferId.",
+          "type": "string"
+        },
+        "similarToOfferId": {
+          "description": "Find offers similar to this offer id.",
+          "format": "int64",
+          "type": "integer"
+        },
+        "sort": {
+          "description": "Sort key as leadgen defines it, e.g. 'score'.",
+          "type": "string"
+        }
+      },
+      "required": [],
+      "type": "object"
+    },
+    "name": "leadgen_search_offers",
+    "title": "leadgen_search_offers"
+  },
+  {
+    "name": "leadgen_application",
+    "title": "leadgen_application",
+    "description": "The application for one offer: its status, every status change newest first, dates, the note, and the cover letter's text if one was written. Look it up by the offer's id, as leadgen_search_offers returns it.",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "offerId": {
+          "type": "integer",
+          "format": "int64",
+          "description": "The offer's id, as the other tools return it."
+        }
+      },
+      "required": [
+        "offerId"
+      ]
+    },
+    "annotations": {
+      "title": "",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "leadgen_profile",
+    "title": "leadgen_profile",
+    "description": "The skill profile in force: roles, seniority, skills by tier with weights, industries, the topics that lift or sink a score, the reference projects a cover letter may cite, and languages.",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {},
+      "required": []
+    },
+    "annotations": {
+      "title": "",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "leadgen_semantic_search",
+    "title": "leadgen_semantic_search",
+    "description": "Finds offers whose advert is closest in meaning to the given words, nearest first, across the working shortlist and the archive; each offer says whether it is archived. Use it for 'anything like ...' questions and leadgen_search_offers for filters and counts. When 'unavailable' is set this installation cannot search by meaning.",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "query": {
+          "type": "string",
+          "description": "What the offers should be about, in a few words, e.g. 'event streaming with Kafka'."
+        }
+      },
+      "required": [
+        "query"
+      ]
+    },
+    "annotations": {
+      "title": "",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "leadgen_statistics",
+    "title": "leadgen_statistics",
+    "description": "The numbers the dashboard and analytics screens show: the filter funnel, offers per day, pipeline runs per day, the score histogram and bands, applications per status with reply times, the last run, the market, the knockouts per day and stage, and the scoring scales in use. 'from' and 'to' narrow only the per-day series; the result says which days were covered. With 'compareFrom' and 'compareTo' it also carries 'comparison' and 'differences', this window's totals minus the comparison's.",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "from": {
+          "type": "string",
+          "description": "First day to include, as YYYY-MM-DD."
+        },
+        "to": {
+          "type": "string",
+          "description": "Last day to include, as YYYY-MM-DD."
+        },
+        "compareFrom": {
+          "type": "string",
+          "description": "First day of a window to compare with, as YYYY-MM-DD."
+        },
+        "compareTo": {
+          "type": "string",
+          "description": "Last day of a window to compare with, as YYYY-MM-DD."
+        }
+      },
+      "required": []
+    },
+    "annotations": {
+      "title": "",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    }
+  }
+]
