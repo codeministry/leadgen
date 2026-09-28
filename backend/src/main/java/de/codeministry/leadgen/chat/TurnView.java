@@ -23,6 +23,9 @@ import java.util.List;
  * @param replacesTurnId the turn a regenerate replaced, or null.
  * @param model          which model answered.
  * @param createdAt      when it started.
+ * @param endReason      why it ended incomplete, as its live {@code error} event said; null for every
+ *                       other ending and for a turn stored before the reason was (spec 022, ISC-473).
+ * @param finishedAt     when it ended, or null while it streams.
  */
 public record TurnView(
         long id,
@@ -33,4 +36,6 @@ public record TurnView(
         List<ChatSourceItem> sources,
         Long replacesTurnId,
         String model,
-        Instant createdAt) {}
+        Instant createdAt,
+        ChatErrorReason endReason,
+        Instant finishedAt) {}

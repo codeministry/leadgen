@@ -82,7 +82,8 @@ public class ConversationRepository {
             """;
 
     private static final String TURNS = """
-            SELECT id, question, answer_md, state, replaces_turn_id, model, created_at, citations
+            SELECT id, question, answer_md, state, replaces_turn_id, model, created_at, citations,
+                   end_reason, finished_at
               FROM chat_turn
              WHERE conversation_id = :id
              ORDER BY ordinal
@@ -421,7 +422,7 @@ public class ConversationRepository {
      */
     public int abandonStreaming(OffsetDateTime startedBefore) {
         return jdbc.sql("""
-                        UPDATE chat_turn SET state = 'INCOMPLETE', finished_at = now()
+                        UPDATE chat_turn SET state = 'INCOMPLETE', end_reason = 'MODEL', finished_at = now()
                          WHERE state = 'STREAMING' AND created_at < :startedBefore
                         """).param("startedBefore", startedBefore).update();
     }
@@ -478,7 +479,7 @@ public class ConversationRepository {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public boolean incomplete(long turnId) {
         return jdbc.sql("""
-                        UPDATE chat_turn SET state = 'INCOMPLETE', finished_at = now()
+                        UPDATE chat_turn SET state = 'INCOMPLETE', end_reason = 'MODEL', finished_at = now()
                          WHERE id = :id AND state = 'STREAMING'
                         """).param("id", turnId).update() > 0;
     }
@@ -494,12 +495,28 @@ public class ConversationRepository {
     @Transactional
     public void finish(
             long turnId, ChatTurnState state, List<TurnLedger.Call> calls, List<TurnLedger.Citation> citations) {
+        finish(turnId, state, null, calls, citations);
+    }
+
+    /**
+     * Ends a turn as {@link #finish(long, ChatTurnState, List, List)} does, and stores why it ended
+     * incomplete — the reason its live {@code error} event named (ISC-473). Null for any other ending.
+     */
+    @Transactional
+    public void finish(
+            long turnId,
+            ChatTurnState state,
+            ChatErrorReason reason,
+            List<TurnLedger.Call> calls,
+            List<TurnLedger.Citation> citations) {
         jdbc.sql("""
                         UPDATE chat_turn
-                           SET state = :state, finished_at = now(), citations = CAST(:citations AS jsonb)
+                           SET state = :state, end_reason = :reason, finished_at = now(),
+                               citations = CAST(:citations AS jsonb)
                          WHERE id = :id
                         """)
                 .param("state", state.name())
+                .param("reason", state == ChatTurnState.INCOMPLETE && reason != null ? reason.name() : null)
                 .param("citations", json(citations))
                 .param("id", turnId)
                 .update();
@@ -589,6 +606,26 @@ public class ConversationRepository {
     }
 
     /** Takes the turns and their tool calls with it, by the tables' own cascade. */
+    /**
+     * Deletes the named conversations in one statement, so in one transaction, with their turns and
+     * tool calls (ISC-477). An id that names nothing is skipped.
+     *
+     * @return the ids that were deleted, ascending
+     */
+    public List<Long> deleteAll(List<Long> ids) {
+        if (ids.isEmpty()) {
+            return List.of();
+        }
+        return jdbc
+                .sql("DELETE FROM chat_conversation WHERE id IN (:ids) RETURNING id")
+                .param("ids", ids.stream().distinct().toList())
+                .query(Long.class)
+                .list()
+                .stream()
+                .sorted()
+                .toList();
+    }
+
     public boolean delete(long id) {
         return jdbc.sql("DELETE FROM chat_conversation WHERE id = :id")
                         .param("id", id)
@@ -634,7 +671,11 @@ public class ConversationRepository {
                 (Long) rs.getObject("replaces_turn_id"),
                 rs.getString("model"),
                 rs.getTimestamp("created_at").toInstant(),
-                citations(rs.getString("citations")));
+                citations(rs.getString("citations")),
+                rs.getString("end_reason") == null ? null : ChatErrorReason.valueOf(rs.getString("end_reason")),
+                rs.getTimestamp("finished_at") == null
+                        ? null
+                        : rs.getTimestamp("finished_at").toInstant());
     }
 
     private static List<Long> ids(List<TurnLedger.Citation> citations, ChatSourceKind kind) {
@@ -892,10 +933,13 @@ public class ConversationRepository {
             Long replaces,
             String model,
             java.time.Instant createdAt,
-            List<TurnLedger.Citation> citations) {
+            List<TurnLedger.Citation> citations,
+            ChatErrorReason endReason,
+            java.time.Instant finishedAt) {
 
         TurnView view(List<ChatStep> steps, List<ChatSourceItem> sources) {
-            return new TurnView(id, question, answer, state, steps, sources, replaces, model, createdAt);
+            return new TurnView(
+                    id, question, answer, state, steps, sources, replaces, model, createdAt, endReason, finishedAt);
         }
     }
 }

@@ -423,6 +423,7 @@ erDiagram
         text state
         bigint replaces_turn_id FK
         jsonb citations
+        text end_reason
     }
     chat_tool_call {
         bigint id PK
@@ -455,7 +456,7 @@ it after `create`, `startTurn` and `rename`, the migration filled it once with `
 is the first offer of `chat_context`, mirrored by `create` and `replaceContext`, and still read by
 `pinnedOffer` for the turn's pinned lookup; a later release drops it.
 
-**`chat_turn`** (`V32`, `V34`). One row per question asked, including every regenerated one.
+**`chat_turn`** (`V32`, `V34`, `V36`). One row per question asked, including every regenerated one.
 `startTurn` writes `conversation_id`, the next `ordinal` in the conversation (unique with it),
 `question`, `model` — the chat model the turn was sent to — and, on a regenerate,
 `replaces_turn_id`, the turn this one answers again; both stay. `answer_md` starts empty and
@@ -463,6 +464,9 @@ is the first offer of `chat_context`, mirrored by `create` and `replaceContext`,
 to `[n](cite:offer/ID)` or `⟨unverified:ID⟩`, so a stopped or failed turn keeps exactly what the
 reader saw. `state` starts at `STREAMING`; `finish` sets it to `DONE`, `STOPPED` or `INCOMPLETE`
 with `finished_at` and `citations`, the `[{n, kind, id}]` list that numbers the answer's sources.
+`end_reason` (`V36`) says why a turn ended `INCOMPLETE` — `MODEL`, `BUDGET` or `ROUNDS`, what its live
+`error` event named — and is `NULL` for every other ending and every turn stored before it; `incomplete`
+and the start sweep write `MODEL`. The answer's status popover reads it with `finished_at` (spec 022).
 Read by `find` for the thread, by `history` for the model's context — which leaves out a replaced
 answer, so the model does not read its own earlier attempt as settled — and by `question` when a
 turn is regenerated; `history` orders a regenerated answer by the ordinal of the first turn of its

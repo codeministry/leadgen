@@ -121,7 +121,7 @@
               <p class="type-small text-muted">{{ 'chat.loading' | transloco }}</p>
             } @else if (empty()) {
               <div class="lg-chat-intro">
-                <span class="lg-chat-plate" aria-hidden="true"><lg-living-mark frame="rest" [size]="26"/></span>
+                <span class="lg-chat-plate"><lg-chat-status frame="rest" [size]="26"/></span>
                 <h3 class="type-display-m lg-chat-intro-title">{{ 'chat.empty.title' | transloco }}</h3>
                 <p class="type-small text-muted lg-chat-intro-body">{{ 'chat.empty.body' | transloco }}</p>
                 <!-- What the data suggests (ISC-456): skeleton rows of the final height while the server answers. -->
@@ -194,7 +194,7 @@
   <article class="lg-chat-turn">
     <p class="type-body lg-chat-question">{{ turn.question }}</p>
     <div class="lg-chat-answer" data-slot="answer">
-      <span class="lg-chat-glyph" aria-hidden="true"><lg-living-mark [frame]="frameOf(turn)" [size]="20"/></span>
+      <span class="lg-chat-glyph"><lg-chat-status [frame]="frameOf(turn)" [turn]="statusOf(turn)" [size]="20"/></span>
       <lg-chat-answer
         [answer]="turn.answer"
         [steps]="turn.steps"

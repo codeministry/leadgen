@@ -8,11 +8,15 @@
  */
 package de.codeministry.leadgen.web;
 
+import de.codeministry.leadgen.chat.BulkDelete;
+import de.codeministry.leadgen.chat.BulkDeleted;
+import de.codeministry.leadgen.chat.ChatBudget;
 import de.codeministry.leadgen.chat.ChatCapability;
 import de.codeministry.leadgen.chat.ChatCapabilityView;
 import de.codeministry.leadgen.chat.ChatContextItem;
 import de.codeministry.leadgen.chat.ChatContextKind;
 import de.codeministry.leadgen.chat.ChatEvent;
+import de.codeministry.leadgen.chat.ChatStatusView;
 import de.codeministry.leadgen.chat.ChatTurnService;
 import de.codeministry.leadgen.chat.ConversationRepository;
 import de.codeministry.leadgen.chat.ConversationSummary;
@@ -95,6 +99,7 @@ class ChatController {
     private final ChatTurnService turns;
     private final SuggestionService suggestions;
     private final FollowUps followUps;
+    private final ChatBudget budget;
 
     /**
      * {@code leadgen.chat.*}: the turn timeout {@link ChatTurnService} stops a turn at, read here
@@ -115,6 +120,18 @@ class ChatController {
      * Newest first. A blank {@code q} is no search, so a cleared search field asks for the whole
      * list; otherwise only the conversations holding every word of it, ignoring case and accents.
      */
+    /**
+     * The chat's own state for the empty chat's ring (ISC-476): the model, today's calls against the
+     * ceiling, the round bound. Absent where no chat model is configured, as the rest of the chat is.
+     */
+    @GetMapping("/status")
+    ChatStatusView status() {
+        String model = capability
+                .model()
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "no chat model is configured"));
+        return new ChatStatusView(model, budget.used(), budget.limit(), budget.toolRounds());
+    }
+
     @GetMapping("/conversations")
     List<ConversationSummary> conversations(@RequestParam(required = false) String q) {
         return q == null || q.isBlank() ? conversations.list() : conversations.search(q);
@@ -238,6 +255,20 @@ class ChatController {
      * last write done before the rows go. A turn that outlasts {@link #STOP_BEFORE_DELETE} is
      * deleted under anyway and ends as a turn whose conversation vanished.
      */
+    /**
+     * Deletes the conversations it names (ISC-477): each one's streaming turns are stopped first, as
+     * the single delete does, then the rows go in one statement. An unknown id is skipped; an empty or
+     * missing list is a 400 before anything is stopped.
+     */
+    @PostMapping("/conversations/bulk-delete")
+    BulkDeleted bulkDelete(@Valid @RequestBody BulkDelete request) {
+        List<Long> ids = request.ids().stream().distinct().toList();
+        for (long id : ids) {
+            turns.stopAll(id, STOP_BEFORE_DELETE);
+        }
+        return new BulkDeleted(conversations.deleteAll(ids));
+    }
+
     @DeleteMapping("/conversations/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     void delete(@PathVariable long id) {

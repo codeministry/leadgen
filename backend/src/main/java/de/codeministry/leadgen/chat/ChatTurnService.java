@@ -657,7 +657,8 @@ public class ChatTurnService {
          */
         private void endRow() {
             try {
-                conversations.finish(id, ChatTurnState.INCOMPLETE, ledger.calls(), ledger.citations());
+                conversations.finish(
+                        id, ChatTurnState.INCOMPLETE, ChatErrorReason.MODEL, ledger.calls(), ledger.citations());
                 ended = true;
                 return;
             } catch (RuntimeException e) {
@@ -683,7 +684,7 @@ public class ChatTurnService {
             List<TurnLedger.Citation> citations = ledger.citations();
             // Resolved before the row is ended, so a failure here still leaves it to `unstored`.
             List<ChatSourceItem> sources = sources(citations);
-            conversations.finish(id, ChatTurnState.INCOMPLETE, ledger.calls(), citations);
+            conversations.finish(id, ChatTurnState.INCOMPLETE, reason, ledger.calls(), citations);
             ended = true;
             if (!sources.isEmpty()) {
                 sink.accept(new ChatSources(sources));

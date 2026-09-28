@@ -969,7 +969,11 @@
       "title": "Diese Unterhaltung löschen?",
       "body": "„{title}“ wird mit allen Antworten gelöscht.",
       "streaming": "Die Antwort wird noch geschrieben. Löschen bricht sie ab.",
-      "confirm": "Löschen"
+      "confirm": "Löschen",
+      "manyTitle": "{{n}} Konversationen löschen?",
+      "manyBody": "Sie werden mit allen Antworten gelöscht.",
+      "manyStreaming": "In einer davon wird noch geantwortet. Löschen stoppt das.",
+      "manyConfirm": "{{n}} löschen"
     },
     "useView": "Diese Ansicht verwenden",
     "followups": {
@@ -987,6 +991,42 @@
     "mention": {
       "label": "Angebote zu @{query}",
       "none": "Kein Angebot passt zu „{query}“"
+    },
+    "status": {
+      "turnLabel": "Status der Antwort: {{state}}",
+      "chatLabel": "Status des Chats",
+      "state": {
+        "done": "Fertig",
+        "working": "Arbeitet: ein Werkzeug läuft",
+        "writing": "Schreibt die Antwort",
+        "incomplete": "Unvollständig",
+        "stopped": "Gestoppt"
+      },
+      "reason": {
+        "MODEL": "Das Modell hat vor dem Ende aufgehört.",
+        "BUDGET": "Die Modellaufrufe für heute sind aufgebraucht.",
+        "ROUNDS": "Das Limit an Werkzeugrunden ist erreicht.",
+        "none": "Es wurde kein Grund gespeichert."
+      },
+      "steps": "Werkzeugaufrufe",
+      "duration": "Dauer",
+      "seconds": "{{n}} s",
+      "minutes": "{{m}} min {{s}} s",
+      "model": "Modell",
+      "chatTitle": "Der Chat",
+      "calls": "Modellaufrufe heute",
+      "callsValue": "{{used}} von {{limit}}",
+      "rounds": "Werkzeugrunden pro Antwort",
+      "chatLoading": "Wird geladen…",
+      "chatFailed": "Der Status wurde nicht geladen."
+    },
+    "select": {
+      "action": "Auswählen",
+      "done": "Fertig",
+      "all": "Alle auswählen",
+      "count": "{{n}} ausgewählt",
+      "delete": "{{n}} löschen",
+      "label": "„{{title}}“ auswählen"
     }
   }
 }

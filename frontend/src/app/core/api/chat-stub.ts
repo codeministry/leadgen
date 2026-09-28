@@ -1,6 +1,6 @@
 import {Observable} from 'rxjs';
 
-import type {ChatEvent, ChatFollowUp, ChatSuggestion} from '../model/chat';
+import type {ChatEvent, ChatFollowUp, ChatStatus, ChatSuggestion} from '../model/chat';
 
 /**
  * What `GET /suggestions` answers for an empty chat once the server does (ISC-455): at most four,
@@ -13,6 +13,9 @@ export const RECORDED_SUGGESTIONS: readonly ChatSuggestion[] = [
 ];
 
 /** What `GET …/followups` answers under a finished turn (ISC-457): two or three questions. */
+/** What `GET /status` answers on an instance with a chat model (ISC-476). */
+export const RECORDED_STATUS: ChatStatus = {model: 'chat-model', callsUsed: 12, callsLimit: 200, toolRounds: 6};
+
 export const RECORDED_FOLLOWUPS: readonly ChatFollowUp[] = [{text: 'Only the remote ones?'}, {text: 'Which of them pay the most?'}];
 
 /**

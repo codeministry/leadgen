@@ -99,6 +99,18 @@ public class ChatBudget {
                 .single();
     }
 
+    /** {@code chat.max_calls_per_day} as it resolves now, the shipped default where it is absent. */
+    public int limit() {
+        Integer configured = chat().maxCallsPerDay();
+        return configured == null ? DEFAULT_CALLS_PER_DAY : configured;
+    }
+
+    /** {@code chat.max_tool_rounds} as it resolves now, the shipped default where it is absent. */
+    public int toolRounds() {
+        Integer configured = chat().maxToolRounds();
+        return configured == null ? DEFAULT_TOOL_ROUNDS : configured;
+    }
+
     /**
      * A fresh round counter for one turn, bound to the ceiling configured now: a reload in the
      * middle of a turn does not move the goalposts of the turn already running.

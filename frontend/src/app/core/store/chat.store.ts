@@ -80,6 +80,10 @@ export interface LiveTurn {
      * call running for a reader that left and never stores the turn as `STOPPED`.
      */
     readonly stopPending: boolean;
+    /** When the question was asked, on this clock; the status popover's duration starts here (ISC-474). */
+    readonly startedAt: string;
+    /** When its `done` or `error` event arrived; null while it streams. */
+    readonly finishedAt: string | null;
 }
 
 interface ChatState {
@@ -237,6 +241,8 @@ function startTurn(conversationId: number | null, question: string, replacesTurn
         failureParams: null,
         replacesTurnId,
         stopPending: false,
+        startedAt: new Date().toISOString(),
+        finishedAt: null,
     };
 }
 
@@ -255,9 +261,9 @@ function applyEvent(turn: LiveTurn, event: ChatEvent): LiveTurn {
         case 'sources':
             return {...turn, sources: event.data.sources};
         case 'error':
-            return {...turn, state: 'INCOMPLETE', error: event.data, ...failureOf(event.data)};
+            return {...turn, state: 'INCOMPLETE', error: event.data, finishedAt: new Date().toISOString(), ...failureOf(event.data)};
         case 'done':
-            return {...turn, state: event.data.state};
+            return {...turn, state: event.data.state, finishedAt: new Date().toISOString()};
     }
 }
 
@@ -276,7 +282,9 @@ function fold(conversation: ConversationView | null, live: LiveTurn | null): Con
         sources: live.sources,
         replacesTurnId: live.replacesTurnId,
         model: null,
-        createdAt: new Date().toISOString(),
+        createdAt: live.startedAt,
+        endReason: live.error?.reason ?? null,
+        finishedAt: live.finishedAt,
     };
     return {...conversation, turns: [...conversation.turns, turn]};
 }
@@ -413,6 +421,16 @@ export const ChatStore = signalStore(
             live: state.live?.conversationId === payload ? null : state.live,
         })),
         on(chatEvents.deleteFailed, ({payload}) => ({error: payload})),
+        on(chatEvents.bulkDeleted, ({payload}, state) => {
+            const gone = new Set(payload);
+            return {
+                conversations: state.conversations.filter((c) => !gone.has(c.id)),
+                conversation: state.conversation !== null && gone.has(state.conversation.id) ? null : state.conversation,
+                lastId: state.lastId !== null && gone.has(state.lastId) ? null : state.lastId,
+                live: state.live?.conversationId != null && gone.has(state.live.conversationId) ? null : state.live,
+            };
+        }),
+        on(chatEvents.bulkDeleteFailed, ({payload}) => ({error: payload})),
         // The same predicate as `takesQuestion`, read off the state because a reducer sees no computed;
         // a question the server would refuse for its length costs no conversation and no turn.
         on(chatEvents.asked, ({payload}, state) =>
@@ -601,6 +619,11 @@ export const ChatStore = signalStore(
                 filter(({payload}) => store.openId() === payload),
                 tap(() => go('new', null)),
             ),
+            // …and the same when it is among several deleted at once (ISC-478).
+            events.on(chatEvents.bulkDeleted).pipe(
+                filter(({payload}) => payload.includes(store.openId() ?? NaN)),
+                tap(() => go('new', null)),
+            ),
 
             // `?chat=list`, the rail asking beside an open conversation, or the search pausing (ISC-450): the
             // same read with the words the field holds, and `?chat` stays as it is. `switchMap`: a newer
@@ -658,6 +681,17 @@ export const ChatStore = signalStore(
                         map((capability) => chatEvents.capabilityLoaded(capability.present)),
                         // Unreadable is absent: a button that opens onto an error is worse than none.
                         catchError(() => of(chatEvents.capabilityLoaded(false))),
+                    ),
+                ),
+            ),
+
+            // Several at once (ISC-478): one request naming them; the server stops their streaming turns
+            // before the rows go, so nothing is stopped from here.
+            events.on(chatEvents.bulkDeleteRequested).pipe(
+                concatMap(({payload: ids}) =>
+                    api.deleteMany(ids).pipe(
+                        map((answer) => chatEvents.bulkDeleted(answer.deleted)),
+                        catchError((error: unknown) => of(chatEvents.bulkDeleteFailed(serverMessage(error as {error?: unknown}, 'error.chatDelete')))),
                     ),
                 ),
             ),

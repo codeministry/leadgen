@@ -12,6 +12,10 @@ export interface DeleteAsk {
     readonly back: HTMLElement | null;
     /** The next row, or the one before when it was the last: focus goes there after a delete. */
     readonly next: HTMLElement | null;
+    /** Several conversations at once (ISC-478): asked for by count, sent as one request. `id` is then unused. */
+    readonly ids?: readonly number[];
+    /** Called after a confirm, before the dialog closes: the list leaves its select mode. */
+    readonly confirmed?: () => void;
 }
 
 /**
@@ -39,8 +43,13 @@ export class ChatDeleteDialog {
     /** Deleting stops a turn still being written (the server does it first); the dialog says so. */
     protected readonly streaming = computed(() => {
         const live = this.store.live();
-        return live?.state === 'STREAMING' && live.conversationId === this.pending()?.id;
+        const pending = this.pending();
+        if (live?.state !== 'STREAMING' || live.conversationId === null || pending === null) return false;
+        return pending.ids ? pending.ids.includes(live.conversationId) : live.conversationId === pending.id;
     });
+
+    /** How many the dialog asks about; null for the single delete, which names its conversation instead. */
+    protected readonly count = computed(() => this.pending()?.ids?.length ?? null);
 
     ask(what: DeleteAsk): void {
         this.pending.set(what);
@@ -57,7 +66,9 @@ export class ChatDeleteDialog {
     protected confirm(): void {
         const what = this.pending();
         if (what === null) return;
-        this.dispatch.deleteRequested(what.id);
+        if (what.ids) this.dispatch.bulkDeleteRequested(what.ids);
+        else this.dispatch.deleteRequested(what.id);
+        what.confirmed?.();
         this.pending.set(null);
         this.dialog().nativeElement.close?.();
         what.next?.focus();

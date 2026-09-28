@@ -11,6 +11,7 @@ import {
   Injector,
   input,
   signal,
+  untracked,
   viewChild,
 } from '@angular/core';
 import {takeUntilDestroyed, toSignal} from '@angular/core/rxjs-interop';
@@ -151,6 +152,20 @@ export class ShortlistPage {
 
     /** Which way the key press walked: `landCard` looks one card ahead in that direction. */
     private focusStep: 1 | -1 = 1;
+
+    /**
+     * The offer a key press walked to. Its card is landed by the focus path above, so the
+     * outside-selection path below leaves it alone rather than moving the list a second time.
+     */
+    private keyedId: number | null = null;
+
+    /**
+     * A selection the list did not make itself — a chat citation, a deep link — waiting for its
+     * card to be on screen beside the detail (ISC-479). Beside the docked chat the page is one
+     * column below 73.8rem and the detail replaces the list, so the wish is kept until both
+     * columns show: at once on a wide screen, otherwise when the chat closes.
+     */
+    private readonly landWanted = signal<number | null>(null);
 
     /**
      * The URL, only as a reason to look again — the same shape the shell uses, and for the
@@ -489,6 +504,7 @@ export class ShortlistPage {
                 return;
             }
             this.focusStep = 1;
+            this.keyedId = pending.next;
             this.focusWanted.set(pending.next);
             void this.router.navigate(['/shortlist', pending.next], {queryParamsHandling: 'preserve'});
         });
@@ -519,6 +535,39 @@ export class ShortlistPage {
                     if (paneScrolls) {
                         this.landCard(pane, card, this.focusStep);
                     }
+                },
+                {injector: this.injector},
+            );
+        });
+
+        // Every selection that did not come from a key press asks for its card to be landed; a
+        // card already in view makes that a no-op, so a click in the list moves nothing.
+        effect(() => {
+            const id = this.selectedId();
+            untracked(() => this.landWanted.set(id !== null && id !== this.keyedId ? id : null));
+        });
+
+        // …and it lands once the list is on screen beside the detail and the card is rendered. The
+        // pane scrolls, never the document; a card outside the loaded page is never found, so an
+        // offer cited from further down opens its detail and moves nothing.
+        effect(() => {
+            const wanted = this.landWanted();
+            if (wanted === null || !this.bothColumns()) {
+                return;
+            }
+            this.visible();
+            afterNextRender(
+                () => {
+                    const pane = this.listPane()?.nativeElement;
+                    const card = pane?.querySelector<HTMLElement>('[aria-current="true"]');
+                    if (pane === undefined || !card || this.landWanted() !== wanted) {
+                        return;
+                    }
+                    if (pane.scrollHeight <= pane.clientHeight) {
+                        return;
+                    }
+                    this.landWanted.set(null);
+                    this.bringIntoPane(pane, card);
                 },
                 {injector: this.injector},
             );
@@ -579,6 +628,25 @@ export class ShortlistPage {
         const view = this.document.defaultView;
         const ringRoom = view ? parseFloat(view.getComputedStyle(pane).paddingTop) || 0 : 0;
         pane.scrollTop += target.getBoundingClientRect().top - paneBox.top - ringRoom;
+    }
+
+    /**
+     * The least scroll that puts the card's row wholly inside the pane: a row below the fold comes
+     * up to the bottom edge, one above it down to the top edge, keeping the pane's block padding as
+     * room for the focus ring. A row already inside moves nothing. `scrollTop` on the pane, for
+     * the reason `landCard` gives: `scrollIntoView` would scroll the document as well.
+     */
+    private bringIntoPane(pane: HTMLElement, card: HTMLElement): void {
+        const row = card.closest('li') ?? card;
+        const paneBox = pane.getBoundingClientRect();
+        const rowBox = row.getBoundingClientRect();
+        const view = this.document.defaultView;
+        const ringRoom = view ? parseFloat(view.getComputedStyle(pane).paddingTop) || 0 : 0;
+        if (rowBox.top < paneBox.top + ringRoom) {
+            pane.scrollTop += rowBox.top - paneBox.top - ringRoom;
+        } else if (rowBox.bottom > paneBox.bottom - ringRoom) {
+            pane.scrollTop += rowBox.bottom - paneBox.bottom + ringRoom;
+        }
     }
 
     /** What the server sent for these filters. The browser no longer decides what is shown. */
@@ -1207,6 +1275,7 @@ export class ShortlistPage {
 
         const id = entries[next].offer.id;
         this.focusStep = step;
+        this.keyedId = id;
         this.focusWanted.set(id);
         void this.router.navigate(['/shortlist', id], {queryParamsHandling: 'preserve'});
     }

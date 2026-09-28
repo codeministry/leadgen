@@ -19,6 +19,18 @@ may change in any release. See the status note in the README.
   must carry in `aud` when the realm mints tokens for a bearer-only resource client rather than for
   the browser's; unset, `OIDC_CLIENT_ID` is checked as before.
 
+- **The chat's ring says what happened, and the list deletes many at once.** Hovering or focusing the
+  ring beside an answer turns it and opens a status popover: done, working, writing, incomplete with
+  its reason (the model, today's budget or the tool rounds) or stopped, with the tool calls, the
+  duration and the model — the same after a reload, because `V36` stores the reason in
+  `chat_turn.end_reason`. The empty chat's ring shows the chat itself: the model, today's calls
+  against the ceiling and the round bound, from the new `GET /api/v1/chat/status`. The conversation
+  list has a select mode: tick rows or select every row shown (with a search, the hits) and delete
+  them with one confirmation and one `POST /api/v1/chat/conversations/bulk-delete`, which stops
+  their streaming turns first and deletes only the ids it is sent. An offer opened from a chat
+  citation now also scrolls its marked row into the shortlist's list pane once the list is on screen
+  beside the detail (spec `022-chat-turn-status-and-bulk-delete`).
+
 - **Ask the corpus in a chat.** An Ask button in the header opens a chat on every screen: a question
   in plain words about the offers, your applications and your profile, answered as the model writes
   it. Every offer or application the answer names is a numbered link to a row a search of that very

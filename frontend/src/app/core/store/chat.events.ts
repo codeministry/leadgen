@@ -56,6 +56,11 @@ export const chatEvents = eventGroup({
         deleted: type<number>(),
         deleteFailed: type<string>(),
 
+        /** Several conversations at once, named by id (ISC-478); the answer names what went. */
+        bulkDeleteRequested: type<readonly number[]>(),
+        bulkDeleted: type<readonly number[]>(),
+        bulkDeleteFailed: type<string>(),
+
         /** A new title; an empty one clears the name back to the derived one (ISC-449). */
         renameRequested: type<{id: number; title: string}>(),
         renamed: type<ConversationView>(),

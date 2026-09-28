@@ -8,12 +8,15 @@
  */
 package de.codeministry.leadgen;
 
+import de.codeministry.leadgen.chat.BulkDelete;
+import de.codeministry.leadgen.chat.BulkDeleted;
 import de.codeministry.leadgen.chat.ChatCapabilityView;
 import de.codeministry.leadgen.chat.ChatContextItem;
 import de.codeministry.leadgen.chat.ChatDone;
 import de.codeministry.leadgen.chat.ChatError;
 import de.codeministry.leadgen.chat.ChatSource;
 import de.codeministry.leadgen.chat.ChatSources;
+import de.codeministry.leadgen.chat.ChatStatusView;
 import de.codeministry.leadgen.chat.ChatStep;
 import de.codeministry.leadgen.chat.ChatText;
 import de.codeministry.leadgen.chat.ChatTurnStarted;
@@ -109,12 +112,15 @@ public class LeadGenRuntimeHints implements RuntimeHintsRegistrar {
         BindingReflectionHintsRegistrar bindings = new BindingReflectionHintsRegistrar();
         bindings.registerReflectionHints(
                 hints.reflection(),
+                BulkDelete.class,
+                BulkDeleted.class,
                 ChatCapabilityView.class,
                 ChatContextItem.class,
                 ChatDone.class,
                 ChatError.class,
                 ChatSource.class,
                 ChatSources.class,
+                ChatStatusView.class,
                 ChatStep.class,
                 ChatText.class,
                 ChatTurnStarted.class,

@@ -1,0 +1,61 @@
+<!-- The ring as a button: its name states what it stands for, the popover describes it further. -->
+<button
+  #trigger
+  type="button"
+  class="lg-chat-status-trigger"
+  [attr.aria-label]="label()"
+  [attr.aria-describedby]="panelId"
+  (pointerenter)="enter()"
+  (pointerleave)="leave()"
+  (focus)="show()"
+  (blur)="hide()"
+>
+  <lg-living-mark [frame]="frame()" [size]="size()"/>
+</button>
+
+<div
+  #panel
+  popover="manual"
+  role="tooltip"
+  class="lg-chat-status-panel"
+  [id]="panelId"
+  (pointerenter)="stay()"
+  (pointerleave)="leave()"
+>
+  @if (turn(); as t) {
+    <p class="type-small lg-chat-status-state" [attr.data-kind]="t.kind">{{ 'chat.status.state.' + t.kind | transloco }}</p>
+    @if (t.kind === 'incomplete') {
+      <p class="type-small text-muted lg-chat-status-reason">
+        {{ (t.reason ? 'chat.status.reason.' + t.reason : 'chat.status.reason.none') | transloco }}
+      </p>
+    }
+    <dl class="lg-chat-status-facts">
+      <dt>{{ 'chat.status.steps' | transloco }}</dt>
+      <dd class="type-mono-data lg-chat-status-steps">{{ t.steps }}</dd>
+      @if (duration(); as d) {
+        <dt>{{ 'chat.status.duration' | transloco }}</dt>
+        <dd class="type-mono-data lg-chat-status-duration">{{ d }}</dd>
+      }
+      @if (t.model) {
+        <dt>{{ 'chat.status.model' | transloco }}</dt>
+        <dd class="type-mono-data lg-chat-status-model">{{ t.model }}</dd>
+      }
+    </dl>
+  } @else {
+    <p class="type-small lg-chat-status-state">{{ 'chat.status.chatTitle' | transloco }}</p>
+    @if (chat(); as c) {
+      <dl class="lg-chat-status-facts">
+        <dt>{{ 'chat.status.model' | transloco }}</dt>
+        <dd class="type-mono-data lg-chat-status-model">{{ c.model }}</dd>
+        <dt>{{ 'chat.status.calls' | transloco }}</dt>
+        <dd class="type-mono-data lg-chat-status-calls">{{ 'chat.status.callsValue' | transloco: {used: c.callsUsed, limit: c.callsLimit} }}</dd>
+        <dt>{{ 'chat.status.rounds' | transloco }}</dt>
+        <dd class="type-mono-data lg-chat-status-rounds">{{ c.toolRounds }}</dd>
+      </dl>
+    } @else if (chatFailed()) {
+      <p class="type-small text-muted">{{ 'chat.status.chatFailed' | transloco }}</p>
+    } @else {
+      <p class="type-small text-muted">{{ 'chat.status.chatLoading' | transloco }}</p>
+    }
+  }
+</div>

@@ -349,7 +349,7 @@ panel is the shell's second column: the page reflows into the remaining width, t
 and no focus trap, Escape with focus inside and ✕ close it, focus moves in on open and back to the
 header button on close, and a source navigates beside it with `?chat` unchanged. The cost is the
 page squeezed at tablet widths; the page's own responsive rules already cover the narrower box, the
-panel steps only at 48rem (36rem wide) and 80rem (56rem, with the conversation rail inside), and the
+panel steps only at 48rem (36rem wide) and 80rem (61rem, with the conversation rail inside), and the
 operator can close it.
 
 **Below 48rem a sheet that folds into a bar.** A phone has no second column, so the chat is a
@@ -467,6 +467,26 @@ diacritics by a Java NFD normaliser — rewritten whenever the conversation chan
 goes through the same normaliser before a `LIKE` per word. `V35` fills the column for the
 conversations that predate it with `translate()` over the Latin accents, which is what that
 normaliser leaves of them.
+
+**Bulk delete: several at once, named by id (spec 022).** The list's select mode ticks rows or every row shown —
+under a search, the hits — and one confirmation sends `POST …/conversations/bulk-delete` with the ids.
+The server stops each conversation's streaming turn first, as the single delete does, then deletes the
+known ones in one statement and answers the ids that went; an unknown id is skipped. There is no path
+that deletes without naming, so a client showing a stale or filtered list can never empty a history it
+did not show. An open conversation among them leaves the thread for a new one.
+
+## The ring says what it stands for (spec 022)
+
+Hover or keyboard focus on the ring beside an answer turns it once and opens the status popover: done, working,
+writing, incomplete with its reason, or stopped, with the tool calls, the duration and the model. The
+reason is stored (`chat_turn.end_reason`, `V36`), so a reload says what the live `error` event said;
+a turn from before the column says "no reason was recorded" rather than guessing. On the empty chat's
+plate the same gesture shows the chat itself — the model, today's calls against
+`chat.max_calls_per_day`, and `chat.max_tool_rounds` — from `GET /api/v1/chat/status`, asked when the
+popover opens rather than carried on the capability, which the header reads once per page. Every word
+is a catalog entry; the popover is a manual top-layer popover beside the ring, holds nothing
+focusable, and the ring stays one tab stop. The AI colour on the working and speaking mark moved with
+the mark into `chat-status-popover.css`, still under `features/chat`.
 
 ## The schema
 

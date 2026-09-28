@@ -1,0 +1,81 @@
+/* The host is the ring's box; nothing here moves the answer beside it. */
+:host {
+  display: inline-grid;
+  place-items: center;
+}
+
+/* While the popover is open the mark turns once, through the property it reads (spec 021's hook). */
+:host(.is-open) {
+  --lg-living-mark-turn: -360deg;
+}
+
+/* "A model takes part here": the AI colour reaches the mark only while it works or speaks, and only
+   on its dots — the mark paints them in `currentColor`, its ring stays primary. At rest and halted the
+   dots keep the mark's own signal (ISC-467, moved here from the panel with spec 022). */
+lg-living-mark[data-frame='working'],
+lg-living-mark[data-frame='speaking'] {
+  color: var(--lg-ai);
+}
+
+.lg-chat-status-trigger {
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  cursor: help;
+}
+
+.lg-chat-status-trigger:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* Top layer, placed beside the ring from its box (`--lg-anchor-*`, written on open). `display` lives on
+   `:popover-open` only, or the panel never closes — the trap in the frontend CLAUDE.md. */
+.lg-chat-status-panel {
+  position: fixed;
+  inset: auto;
+  top: var(--lg-anchor-y);
+  left: var(--lg-anchor-x);
+  max-width: min(18rem, calc(100vw - 2rem));
+  margin: 0;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid var(--color-base-300);
+  border-radius: var(--radius-box);
+  background-color: var(--color-base-100);
+  box-shadow: 0 8px 24px var(--lg-float-shadow);
+  color: var(--color-base-content);
+}
+
+.lg-chat-status-panel:popover-open {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.lg-chat-status-state {
+  margin: 0;
+  font-weight: 600;
+}
+
+.lg-chat-status-reason {
+  margin: 0;
+}
+
+.lg-chat-status-facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.125rem 0.75rem;
+  margin: 0.25rem 0 0;
+}
+
+.lg-chat-status-facts dt {
+  color: var(--lg-muted);
+}
+
+.lg-chat-status-facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}

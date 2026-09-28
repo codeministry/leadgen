@@ -284,6 +284,10 @@ export interface TurnView {
     readonly replacesTurnId: number | null;
     readonly model: string | null;
     readonly createdAt: string;
+    /** Why it ended incomplete, as its live `error` event said; null otherwise and for a turn stored before it was kept (ISC-473). */
+    readonly endReason?: ChatErrorReason | null;
+    /** When it ended; null while it streams. */
+    readonly finishedAt?: string | null;
 }
 
 /** A whole conversation, as the drawer opens it. */
@@ -300,4 +304,17 @@ export interface ConversationView {
 /** `GET /api/v1/chat/capability` — false means the header draws no button. */
 export interface ChatCapability {
     readonly present: boolean;
+}
+
+/** `POST /api/v1/chat/conversations/bulk-delete`'s answer: the named conversations that existed (ISC-477). */
+export interface BulkDeleted {
+    readonly deleted: readonly number[];
+}
+
+/** `GET /api/v1/chat/status` — the chat's own state, shown on the empty chat's ring (ISC-476). */
+export interface ChatStatus {
+    readonly model: string;
+    readonly callsUsed: number;
+    readonly callsLimit: number;
+    readonly toolRounds: number;
 }

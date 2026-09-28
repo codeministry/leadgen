@@ -117,10 +117,15 @@ const PENDING: PendingDocument = {
     duplicateOfTitle: null,
 };
 
+/** What `/api/v1/offers` answers; a block that needs a list longer than the pane swaps it. */
+let offersPayload: ShortlistPayload = OFFERS;
+
 /** The answer to every request a screen or the shell makes; `undefined` for one nobody expected. */
 function answer(request: TestRequest): unknown {
     const url = request.request.url;
-    if (url === '/api/v1/offers') return OFFERS;
+    if (url === '/api/v1/offers') return offersPayload;
+    // Unanswered, the funnel's failure is the list's error and the list pane renders no row at all.
+    if (url === '/api/v1/offers/funnel') return {total: offersPayload.total, stages: [], survived: offersPayload.total, archived: 0};
     const offer = /^\/api\/v1\/offers\/(\d+)$/.exec(url);
     if (offer) return entry(Number(offer[1]));
     if (url === '/api/v1/applications') return [APPLICATION];
@@ -349,6 +354,68 @@ describe('the split views beside the chat (ISC-472)', () => {
             const columns = visibleColumns(VIEWS[0]);
             expect(columns.length).toBe(2);
             expect(pageBox().width).toBeGreaterThan(1300);
+        });
+    });
+
+    /*
+     * An offer opened from a chat citation (ISC-479): the citation navigates by URL to
+     * `/shortlist/:id` with the chat kept open, which is what `navigateByUrl` does here. The row is
+     * already marked; what this holds is that it is also inside the list pane once the list is on
+     * screen beside the detail — at once where both columns fit beside the chat, else when the
+     * chat closes — and that the pane scrolls, never the document.
+     */
+    describe('the cited row in view (ISC-479)', () => {
+        const MANY = Array.from({length: 40}, (_, i) => entry(i + 1));
+
+        beforeEach(() => (offersPayload = {...OFFERS, entries: MANY, matched: MANY.length, total: MANY.length}));
+        afterEach(() => (offersPayload = OFFERS));
+
+        const pane = () => q('lg-shortlist-page .list-pane')!;
+
+        /** The marked row's box lies inside the pane's box. */
+        function rowInPane(): boolean {
+            const row = pane().querySelector('[aria-current="true"]')?.closest('li');
+            expect(row, 'the cited row is marked').toBeTruthy();
+            const box = row!.getBoundingClientRect();
+            const frame = pane().getBoundingClientRect();
+            return box.top >= frame.top - 1 && box.bottom <= frame.bottom + 1;
+        }
+
+        async function cite(id: number): Promise<void> {
+            await router.navigateByUrl(`/shortlist/${id}?chat=new`);
+            await settle();
+        }
+
+        it('lands the cited row in the pane at once where both columns fit beside the chat', async () => {
+            await open('/shortlist', 2560, true);
+            expect(shown(q('.lg-chat-panel')), 'the chat is docked open').toBe(true);
+            expect(visibleColumns(VIEWS[0]).length, 'both columns beside the chat').toBe(2);
+
+            await cite(35);
+            expect(rowInPane(), 'row 35 inside the pane').toBe(true);
+            expect(pane().scrollTop, 'the pane scrolled').toBeGreaterThan(0);
+            expect(document.scrollingElement!.scrollTop, 'the document did not').toBe(0);
+        });
+
+        it('lands it once the chat closes where the list was hidden beside it', async () => {
+            await open('/shortlist', 1440, true);
+            await cite(35);
+            expect(visibleColumns(VIEWS[0]).length, 'one column beside the chat').toBe(1);
+
+            q<HTMLButtonElement>('.lg-chat-close')!.click();
+            await settle();
+            await transitions();
+            await settle();
+            expect(visibleColumns(VIEWS[0]).length, 'both columns once it is closed').toBe(2);
+            expect(rowInPane(), 'row 35 inside the pane').toBe(true);
+            expect(document.scrollingElement!.scrollTop).toBe(0);
+        });
+
+        it('scrolls nothing for an offer outside the loaded page, and still opens it', async () => {
+            await open('/shortlist', 2560, true);
+            await cite(99);
+            expect(pane().scrollTop).toBe(0);
+            expect(q('lg-shortlist-page .detail-pane')?.textContent).toContain(`${TITLE} 99`);
         });
     });
 });

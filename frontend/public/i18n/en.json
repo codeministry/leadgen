@@ -969,7 +969,11 @@
       "title": "Delete this conversation?",
       "body": "“{title}” and all its answers are deleted.",
       "streaming": "Its answer is still being written. Deleting stops it.",
-      "confirm": "Delete"
+      "confirm": "Delete",
+      "manyTitle": "Delete {{n}} conversations?",
+      "manyBody": "They and all their answers are deleted.",
+      "manyStreaming": "One of them is still being written. Deleting stops it.",
+      "manyConfirm": "Delete {{n}}"
     },
     "useView": "Use this view",
     "followups": {
@@ -987,6 +991,42 @@
     "mention": {
       "label": "Offers matching @{query}",
       "none": "No offer matches “{query}”"
+    },
+    "status": {
+      "turnLabel": "Answer status: {{state}}",
+      "chatLabel": "Chat status",
+      "state": {
+        "done": "Done",
+        "working": "Working: a tool is running",
+        "writing": "Writing the answer",
+        "incomplete": "Incomplete",
+        "stopped": "Stopped"
+      },
+      "reason": {
+        "MODEL": "The model stopped before it finished.",
+        "BUDGET": "Today's model calls are spent.",
+        "ROUNDS": "It reached the limit of tool rounds.",
+        "none": "No reason was recorded."
+      },
+      "steps": "Tool calls",
+      "duration": "Took",
+      "seconds": "{{n}} s",
+      "minutes": "{{m}} min {{s}} s",
+      "model": "Model",
+      "chatTitle": "The chat",
+      "calls": "Model calls today",
+      "callsValue": "{{used}} of {{limit}}",
+      "rounds": "Tool rounds per answer",
+      "chatLoading": "Loading…",
+      "chatFailed": "The status did not load."
+    },
+    "select": {
+      "action": "Select",
+      "done": "Done",
+      "all": "Select all",
+      "count": "{{n}} selected",
+      "delete": "Delete {{n}}",
+      "label": "Select “{{title}}”"
     }
   }
 }

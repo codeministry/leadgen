@@ -4,11 +4,13 @@ import {createParser, EventSourceMessage} from 'eventsource-parser';
 import {Observable} from 'rxjs';
 import {AuthService} from '@core/auth/auth.service';
 import {
+    BulkDeleted,
     ChatCapability,
     ChatContextItem,
     ChatEvent,
     ChatEventMap,
     ChatFollowUp,
+    ChatStatus,
     ChatSuggestion,
     ConversationSummary,
     ConversationView,
@@ -78,6 +80,11 @@ export class ChatApi {
      * Up to four questions the data suggests (ISC-455): for a stored conversation, or for pins not
      * stored yet, passed as the `?chatCtx` string the URL carries.
      */
+    /** The chat's own state, asked each time the empty chat's ring opens its popover (ISC-476). */
+    status(): Observable<ChatStatus> {
+        return this.http.get<ChatStatus>(`${BASE}/status`);
+    }
+
     suggestions(forWhat: SuggestionsFor): Observable<readonly ChatSuggestion[]> {
         const params: Record<string, string> =
             'conversationId' in forWhat ? {conversation: String(forWhat.conversationId)} : contextParam(forWhat.context);
@@ -87,6 +94,11 @@ export class ChatApi {
     /** Two or three questions to ask next, for a finished turn; none for any other (ISC-457). */
     followups(conversationId: number, turnId: number): Observable<readonly ChatFollowUp[]> {
         return this.http.get<readonly ChatFollowUp[]>(`${BASE}/conversations/${conversationId}/turns/${turnId}/followups`);
+    }
+
+    /** Deletes the named conversations in one request; the server stops their streaming turns first (ISC-477). */
+    deleteMany(ids: readonly number[]): Observable<BulkDeleted> {
+        return this.http.post<BulkDeleted>(`${BASE}/conversations/bulk-delete`, {ids});
     }
 
     delete(id: number): Observable<void> {

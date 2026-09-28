@@ -28,7 +28,7 @@ let instances = 0;
     templateUrl: './chat-history.html',
     styleUrl: './chat-history.css',
     changeDetection: ChangeDetectionStrategy.OnPush,
-    host: {class: 'lg-chat-history'},
+    host: {class: 'lg-chat-history', '(keydown.escape)': 'escape($event)'},
 })
 export class ChatHistory {
     protected readonly store = inject(ChatStore);
@@ -52,6 +52,58 @@ export class ChatHistory {
         () => this.store.resultQuery() !== '' && this.store.conversations().length === 0 && !this.store.listLoading(),
     );
     protected readonly empty = computed(() => this.store.conversations().length === 0 && this.store.resultQuery() === '');
+
+    /** Select mode (ISC-478) and what is ticked in it. */
+    protected readonly selecting = signal(false);
+    protected readonly picked = signal<ReadonlySet<number>>(new Set());
+    /** What is ticked among the rows shown: a row a search hid or a delete took is never sent. */
+    protected readonly pickedShown = computed(() => this.store.conversations().map((c) => c.id).filter((id) => this.picked().has(id)));
+    protected readonly allPicked = computed(() => this.store.conversations().length > 0 && this.pickedShown().length === this.store.conversations().length);
+    protected readonly somePicked = computed(() => this.pickedShown().length > 0 && !this.allPicked());
+
+    protected startSelect(): void {
+        this.picked.set(new Set());
+        this.selecting.set(true);
+    }
+
+    protected endSelect(): void {
+        this.selecting.set(false);
+        this.picked.set(new Set());
+    }
+
+    protected pick(id: number): void {
+        const next = new Set(this.picked());
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        this.picked.set(next);
+    }
+
+    /** Every row shown, which under a search is the hits and nothing else. */
+    protected pickAll(event: Event): void {
+        const on = (event.target as HTMLInputElement).checked;
+        this.picked.set(on ? new Set(this.store.conversations().map((c) => c.id)) : new Set());
+    }
+
+    /** Escape leaves select mode first, before it reaches the drawer. */
+    protected escape(event: Event): void {
+        if (!this.selecting()) return;
+        event.stopPropagation();
+        this.endSelect();
+    }
+
+    /** The panel's one dialog asks for the count; confirming sends one request and ends the mode. */
+    protected askBulk(back: HTMLElement): void {
+        const ids = this.pickedShown();
+        if (ids.length === 0) return;
+        this.deleteAsked.emit({
+            id: ids[0],
+            title: '',
+            ids,
+            back,
+            next: this.host.nativeElement.querySelector<HTMLElement>('.lg-chat-search-input'),
+            confirmed: () => this.endSelect(),
+        });
+    }
 
     protected menuId(id: number): string {
         return `${this.uid}-menu-${id}`;

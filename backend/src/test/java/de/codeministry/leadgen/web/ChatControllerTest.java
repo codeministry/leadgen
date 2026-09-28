@@ -14,7 +14,11 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willAnswer;
+import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
+import de.codeministry.leadgen.chat.ChatBudget;
 import de.codeministry.leadgen.chat.ChatCapability;
 import de.codeministry.leadgen.chat.ChatCapabilityView;
 import de.codeministry.leadgen.chat.ChatContextItem;
@@ -60,6 +64,9 @@ class ChatControllerTest {
 
     @MockitoBean
     private FollowUps followUps;
+
+    @MockitoBean
+    private ChatBudget budget;
 
     @Test
     void saysPresentWhenAModelAnswers() {
@@ -185,5 +192,66 @@ class ChatControllerTest {
 
         assertThat(result.getResponse().getHeader("X-Accel-Buffering")).isEqualTo("no");
         assertThat(result.getResponse().getHeader("Cache-Control")).isEqualTo("no-cache");
+    }
+
+    /** ISC-476: the chat's own status, which the empty chat's ring shows on hover. */
+    @Test
+    void theStatusNamesTheModelTodaysCallsAgainstTheCeilingAndTheRoundBound() {
+        given(capability.model()).willReturn(Optional.of("chat-model"));
+        given(budget.used()).willReturn(12);
+        given(budget.limit()).willReturn(200);
+        given(budget.toolRounds()).willReturn(6);
+
+        var status =
+                assertThat(mvc.get().uri("/api/v1/chat/status")).hasStatusOk().bodyJson();
+        status.extractingPath("$.model").isEqualTo("chat-model");
+        status.extractingPath("$.callsUsed").isEqualTo(12);
+        status.extractingPath("$.callsLimit").isEqualTo(200);
+        status.extractingPath("$.toolRounds").isEqualTo(6);
+    }
+
+    /** ISC-476: absent where no chat model is configured, as the rest of the chat is. */
+    @Test
+    void theStatusIsNotFoundWithoutAChatModel() {
+        given(capability.model()).willReturn(Optional.empty());
+
+        assertThat(mvc.get().uri("/api/v1/chat/status")).hasStatus(404);
+    }
+
+    /**
+     * ISC-477: one request names the conversations; each one's streaming turn is stopped before any
+     * row goes, an unknown id is skipped, and the answer names what was deleted.
+     */
+    @Test
+    void aBulkDeleteStopsEachConversationsTurnsFirstAndNamesWhatWent() {
+        given(conversations.deleteAll(List.of(1L, 2L, 3L, 99L))).willReturn(List.of(1L, 2L, 3L));
+
+        var result = assertThat(mvc.post()
+                        .uri("/api/v1/chat/conversations/bulk-delete")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"ids\":[1,2,3,99]}"))
+                .hasStatusOk()
+                .bodyJson();
+        result.extractingPath("$.deleted").isEqualTo(List.of(1, 2, 3));
+
+        var order = inOrder(turns, conversations);
+        for (long id : List.of(1L, 2L, 3L, 99L)) {
+            order.verify(turns).stopAll(eq(id), any());
+        }
+        order.verify(conversations).deleteAll(List.of(1L, 2L, 3L, 99L));
+    }
+
+    /** ISC-477: there is no path that deletes conversations without naming them. */
+    @Test
+    void aBulkDeleteWithoutIdsIsABadRequestAndDeletesNothing() {
+        for (String body : List.of("{\"ids\":[]}", "{}", "")) {
+            assertThat(mvc.post()
+                            .uri("/api/v1/chat/conversations/bulk-delete")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(body))
+                    .as(body.isEmpty() ? "no body" : body)
+                    .hasStatus(400);
+        }
+        verify(conversations, never()).deleteAll(any());
     }
 }

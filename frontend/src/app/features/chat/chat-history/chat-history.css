@@ -16,6 +16,39 @@
   width: 100%;
 }
 
+/* The select mode's row under the field (ISC-478), inside the sticky search so it stays in reach. */
+.lg-chat-select-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.75rem;
+  min-height: 1.5rem;
+  margin-top: 0.25rem;
+}
+
+.lg-chat-select-all-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  cursor: pointer;
+}
+
+/* Relative, so the absolutely positioned `.sr-only` phrase inside stays contained by the count and
+   adds no scrollable overflow to the rail (frontend/CLAUDE.md). */
+.lg-chat-select-count {
+  position: relative;
+}
+
+/* Delete and Done never part: the bar may wrap, the pair does not, and it keeps to the end. */
+.lg-chat-select-actions {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.25rem;
+  margin-inline-start: auto;
+  white-space: nowrap;
+}
+
 /* max(16px, 1rem): the app's root is 15 px, and below 16 px iOS zooms the page on focus. */
 .lg-chat-search-input {
   font-size: max(16px, 1rem);
@@ -42,7 +75,7 @@
 
 .lg-chat-group-heading {
   position: sticky;
-  top: 3.5rem;
+  top: 5.25rem;
   z-index: 1;
   margin: 0;
   padding: 1rem var(--lg-gutter) 0.25rem;
@@ -189,4 +222,10 @@
   .lg-chat-row {
     transition: none;
   }
+}
+
+/* In select mode the row is the checkbox's label and the box leads it, inside the row's own gutter
+   and under its hover; the row keeps its right padding although the "⋯" is gone (ISC-478). */
+.lg-chat-row-check {
+  flex: none;
 }

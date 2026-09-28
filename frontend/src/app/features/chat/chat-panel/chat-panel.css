@@ -204,13 +204,9 @@
   height: 1.5rem;
 }
 
-/* "A model takes part here": the AI colour reaches the mark only while it works or speaks, and
-   only on its dots — the mark paints them in `currentColor`, its ring stays primary. At rest and
-   halted the dots keep the mark's own signal. */
-.lg-chat-panel lg-living-mark[data-frame='working'],
-.lg-chat-panel lg-living-mark[data-frame='speaking'] {
-  color: var(--lg-ai);
-}
+/* The AI colour on the working and speaking mark lives in `chat-status-popover.css` since spec
+   022: the glyph and the plate hold the mark inside `lg-chat-status`, which a rule here no longer
+   reaches through the view encapsulation. */
 
 .lg-chat-answer-raw {
   min-width: 0;

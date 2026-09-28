@@ -25,7 +25,7 @@ import {chatEvents} from '@core/store/chat.events';
 import {ChatStore} from '@core/store/chat.store';
 import {Icon} from '@shared/icon/icon';
 import {LgIconName} from '@shared/icon/lucide-icons';
-import {LivingMark, LivingMarkFrame} from '@shared/living-mark/living-mark';
+import {LivingMarkFrame} from '@shared/living-mark/living-mark';
 import {SideDrawer} from '@shared/side-drawer/side-drawer';
 import {ChatAnswer} from '../chat-answer/chat-answer';
 import {ChatComposer} from '../chat-composer/chat-composer';
@@ -33,6 +33,8 @@ import {ChatDeleteDialog} from '../chat-history/chat-delete-dialog';
 import {ChatHistory} from '../chat-history/chat-history';
 import {ChatMinibar} from '../chat-minibar/chat-minibar';
 import {turnFrame} from './turn-frame';
+import {ChatStatusPopover} from '../chat-status-popover/chat-status-popover';
+import {TurnLike, TurnStatus, turnStatus} from '../chat-status-popover/turn-status';
 
 const RAIL_QUERY = '(width >= 80rem)';
 /** Below it the drawer is a full-screen sheet, and following a source folds it into the bar. */
@@ -101,7 +103,7 @@ function readRail(): boolean {
  */
 @Component({
     selector: 'lg-chat-panel',
-    imports: [ChatAnswer, ChatComposer, ChatDeleteDialog, ChatHistory, ChatMinibar, Icon, LivingMark, NgTemplateOutlet, SideDrawer, TranslocoPipe],
+    imports: [ChatAnswer, ChatComposer, ChatDeleteDialog, ChatHistory, ChatMinibar, ChatStatusPopover, Icon, NgTemplateOutlet, SideDrawer, TranslocoPipe],
     templateUrl: './chat-panel.html',
     styleUrl: './chat-panel.css',
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -295,6 +297,11 @@ export class ChatPanel {
     /** The living mark beside an answer (ISC-465): a stored turn and the live one read the same way. */
     protected frameOf(turn: Pick<TurnView, 'state' | 'steps'>): LivingMarkFrame {
         return turnFrame(turn.state, turn.steps);
+    }
+
+    /** What the ring beside an answer says on hover or focus (ISC-474), for a stored and a live turn alike. */
+    protected statusOf(turn: TurnLike): TurnStatus {
+        return turnStatus(turn);
     }
 
     protected close(): void {

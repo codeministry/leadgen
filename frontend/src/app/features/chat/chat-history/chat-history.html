@@ -22,6 +22,51 @@
       </button>
     }
   </label>
+  <!-- Select mode (ISC-478): tick rows, or every row shown (with a search, the hits), and delete them
+       with one confirmation. Off, it is one quiet control; nothing about a row changes. -->
+  <div class="lg-chat-select-bar">
+    @if (!selecting()) {
+      <button
+        type="button"
+        class="btn btn-ghost btn-xs lg-chat-select-toggle"
+        [disabled]="store.conversations().length === 0"
+        (click)="startSelect()"
+      >
+        {{ 'chat.select.action' | transloco }}
+      </button>
+    } @else {
+      <label class="type-small lg-chat-select-all-label">
+        <input
+          type="checkbox"
+          class="checkbox checkbox-xs lg-chat-select-all"
+          [checked]="allPicked()"
+          [indeterminate]="somePicked()"
+          (change)="pickAll($event)"
+        />
+        {{ 'chat.select.all' | transloco }}
+      </label>
+      <!-- The number alone on screen; the whole phrase for a screen reader. -->
+      <span class="type-small text-muted lg-chat-select-count" aria-live="polite">
+        <span class="type-mono-data lg-chat-select-n" aria-hidden="true">{{ pickedShown().length }}</span>
+        <span class="sr-only">{{ 'chat.select.count' | transloco: {n: pickedShown().length} }}</span>
+      </span>
+      <!-- One unit: when the rail is too narrow for the whole bar, the pair wraps together. -->
+      <span class="lg-chat-select-actions">
+        <button
+          #bulkButton
+          type="button"
+          class="btn btn-soft btn-primary btn-xs lg-chat-bulk-delete"
+          [disabled]="pickedShown().length === 0"
+          (click)="askBulk(bulkButton)"
+        >
+          {{ 'chat.select.delete' | transloco: {n: pickedShown().length} }}
+        </button>
+        <button type="button" class="btn btn-ghost btn-xs lg-chat-select-done" (click)="endSelect()">
+          {{ 'chat.select.done' | transloco }}
+        </button>
+      </span>
+    }
+  </div>
 </search>
 
 <div class="lg-chat-groups" [attr.aria-busy]="store.listLoading()">
@@ -55,6 +100,27 @@
                 (keydown)="renameKey($event, conversation)"
                 (blur)="commit($event, conversation)"
               />
+            } @else if (selecting()) {
+              <!-- Select mode: the row is the checkbox's label, so the box sits inside the row, the
+                   row's hover covers it, and a click anywhere on the row ticks it. A checkbox inside
+                   the row's button would be interactive content inside a button. -->
+              <label
+                class="lg-chat-row"
+                [attr.data-id]="conversation.id"
+                [attr.aria-current]="conversation.id === store.openId() ? 'true' : null"
+              >
+                <input
+                  type="checkbox"
+                  class="checkbox checkbox-sm lg-chat-row-check"
+                  [checked]="picked().has(conversation.id)"
+                  [attr.aria-label]="'chat.select.label' | transloco: {title: conversation.title || ('chat.new' | transloco)}"
+                  (change)="pick(conversation.id)"
+                />
+                <span class="type-small lg-chat-row-title">{{ conversation.title || ('chat.new' | transloco) }}</span>
+                <time class="type-mono-data text-muted lg-chat-row-time" [attr.datetime]="activity(conversation)">
+                  {{ timeOf(conversation, group.key) }}
+                </time>
+              </label>
             } @else {
               <button
                 type="button"
@@ -70,7 +136,9 @@
               </button>
             }
             <!-- One "⋯" per row, a native popover (not role="menu"): shown always on a coarse
-                 pointer, on hover or focus-within on a fine one. Keyed on the pointer, never the width. -->
+                 pointer, on hover or focus-within on a fine one. Keyed on the pointer, never the width.
+                 Gone in select mode, where the row's click picks it. -->
+            @if (!selecting()) {
             <button
               type="button"
               class="btn btn-ghost btn-sm btn-square lg-chat-more"
@@ -90,6 +158,7 @@
                 {{ 'chat.delete.action' | transloco }}
               </button>
             </div>
+            }
           </li>
         }
       </ul>
