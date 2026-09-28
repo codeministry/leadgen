@@ -52,6 +52,33 @@ describe('ChatStore', () => {
         http.expectOne({method: 'GET', url: `${BASE}/${id}`}).flush(body);
     }
 
+    it('deletes more than the server takes in one request in batches of 500, and drops every row that went', async () => {
+        // The server caps a bulk delete at 500 ids; "Select all" over a longer list used to get a 400
+        // and delete nothing at all.
+        await router.navigateByUrl('/offers');
+        const ids = Array.from({length: 1200}, (_, i) => i + 1);
+        dispatch.bulkDeleteRequested(ids);
+        for (const size of [500, 500, 200]) {
+            const request = http.expectOne({method: 'POST', url: `${BASE}/bulk-delete`});
+            const sent = (request.request.body as {ids: number[]}).ids;
+            expect(sent).toHaveLength(size);
+            request.flush({deleted: sent});
+        }
+        expect(store.error()).toBeNull();
+    });
+
+    it('keeps the answer to the latest status request when an older one comes back last', () => {
+        const first = new Subject<{model: string; callsUsed: number; callsLimit: number; toolRounds: number}>();
+        const second = new Subject<{model: string; callsUsed: number; callsLimit: number; toolRounds: number}>();
+        vi.spyOn(api, 'status').mockReturnValueOnce(first).mockReturnValueOnce(second);
+        dispatch.statusRequested();
+        dispatch.statusRequested();
+        second.next({model: 'new', callsUsed: 2, callsLimit: 200, toolRounds: 6});
+        first.next({model: 'old', callsUsed: 1, callsLimit: 200, toolRounds: 6});
+        expect(store.status()?.model).toBe('new');
+        expect(store.statusFailed()).toBe(false);
+    });
+
     it('is closed while the URL holds no chat', async () => {
         await router.navigateByUrl('/offers');
 

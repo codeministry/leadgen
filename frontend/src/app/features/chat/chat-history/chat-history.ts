@@ -1,4 +1,4 @@
-import {afterNextRender, ChangeDetectionStrategy, Component, computed, ElementRef, inject, Injector, output, signal} from '@angular/core';
+import {afterNextRender, ChangeDetectionStrategy, Component, computed, DestroyRef, effect, ElementRef, inject, Injector, output, signal, untracked} from '@angular/core';
 import {TranslocoPipe, TranslocoService} from '@jsverse/transloco';
 import {injectDispatch} from '@ngrx/signals/events';
 import {ConversationSummary, TITLE_MAX} from '@core/model/chat';
@@ -36,6 +36,7 @@ export class ChatHistory {
     private readonly transloco = inject(TranslocoService);
     private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
     private readonly injector = inject(Injector);
+    private readonly destroyRef = inject(DestroyRef);
 
     /** A row's "Delete" was chosen; the panel's dialog asks. */
     readonly deleteAsked = output<DeleteAsk>();
@@ -61,14 +62,49 @@ export class ChatHistory {
     protected readonly allPicked = computed(() => this.store.conversations().length > 0 && this.pickedShown().length === this.store.conversations().length);
     protected readonly somePicked = computed(() => this.pickedShown().length > 0 && !this.allPicked());
 
+    constructor() {
+        // The sticky day headings stick where the sticky search ends, and the search grows when the
+        // select bar wraps; a fixed offset slid them under it.
+        afterNextRender(() => {
+            const host = this.host.nativeElement;
+            const search = host.querySelector<HTMLElement>('.lg-chat-search');
+            if (search === null || typeof ResizeObserver === 'undefined') return;
+            const observer = new ResizeObserver(() => host.style.setProperty('--lg-chat-search-h', `${search.getBoundingClientRect().height}px`));
+            observer.observe(search);
+            this.destroyRef.onDestroy(() => observer.disconnect());
+        });
+
+        // Select mode ends when the delete landed, not when it was confirmed: a failed one keeps the
+        // ticks, so the same selection can be sent again (ISC-478).
+        let before = this.store.bulk();
+        effect(() => {
+            const now = this.store.bulk();
+            untracked(() => {
+                if (before === 'deleting' && now === 'idle' && this.selecting()) this.endSelect();
+                before = now;
+            });
+        });
+    }
+
+    /** The controls swap under the focus, so focus moves with them rather than dropping to the body. */
     protected startSelect(): void {
         this.picked.set(new Set());
         this.selecting.set(true);
+        this.focusAfterRender('.lg-chat-select-all');
     }
 
     protected endSelect(): void {
+        // Only when focus sits on a control that is about to disappear: the mode can end when a delete
+        // lands, and by then the reader may be typing in the search field, which stays.
+        const active = this.host.nativeElement.ownerDocument.activeElement;
+        const hadFocus = active !== null && this.host.nativeElement.contains(active) && active.closest('.lg-chat-select-bar, .lg-chat-row') !== null;
         this.selecting.set(false);
         this.picked.set(new Set());
+        if (hadFocus) this.focusAfterRender('.lg-chat-select-toggle');
+    }
+
+    private focusAfterRender(selector: string): void {
+        afterNextRender(() => this.host.nativeElement.querySelector<HTMLElement>(selector)?.focus(), {injector: this.injector});
     }
 
     protected pick(id: number): void {
@@ -84,14 +120,19 @@ export class ChatHistory {
         this.picked.set(on ? new Set(this.store.conversations().map((c) => c.id)) : new Set());
     }
 
-    /** Escape leaves select mode first, before it reaches the drawer. */
+    /**
+     * Escape leaves select mode first, before it reaches the drawer: `stopPropagation` keeps it from
+     * the docked panel, which closes on a bubbling Escape, and `preventDefault` from the modal sheet,
+     * whose `<dialog>` closes on the key's default action (as the head's rename does).
+     */
     protected escape(event: Event): void {
         if (!this.selecting()) return;
+        event.preventDefault();
         event.stopPropagation();
         this.endSelect();
     }
 
-    /** The panel's one dialog asks for the count; confirming sends one request and ends the mode. */
+    /** The panel's one dialog asks for the count; confirming sends the request, and its landing ends the mode. */
     protected askBulk(back: HTMLElement): void {
         const ids = this.pickedShown();
         if (ids.length === 0) return;
@@ -101,7 +142,6 @@ export class ChatHistory {
             ids,
             back,
             next: this.host.nativeElement.querySelector<HTMLElement>('.lg-chat-search-input'),
-            confirmed: () => this.endSelect(),
         });
     }
 

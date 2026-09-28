@@ -970,9 +970,9 @@
       "body": "“{title}” and all its answers are deleted.",
       "streaming": "Its answer is still being written. Deleting stops it.",
       "confirm": "Delete",
-      "manyTitle": "Delete {{n}} conversations?",
-      "manyBody": "They and all their answers are deleted.",
-      "manyStreaming": "One of them is still being written. Deleting stops it.",
+      "manyTitle": "{n, plural, one {Delete 1 conversation?} other {Delete # conversations?}}",
+      "manyBody": "{n, plural, one {It and all its answers are deleted.} other {They and all their answers are deleted.}}",
+      "manyStreaming": "{n, plural, one {Its answer is still being written. Deleting stops it.} other {One of them is still being written. Deleting stops it.}}",
       "manyConfirm": "Delete {{n}}"
     },
     "useView": "Use this view",
@@ -1026,7 +1026,7 @@
       "all": "Select all",
       "count": "{{n}} selected",
       "delete": "Delete {{n}}",
-      "label": "Select “{{title}}”"
+      "label": "Select “{title}”"
     }
   }
 }

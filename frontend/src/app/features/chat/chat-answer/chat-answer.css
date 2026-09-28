@@ -198,3 +198,31 @@
     flex: none;
     color: var(--lg-muted);
 }
+
+/* A table the model writes: its cells apart and its rows ruled, or an id runs straight into the
+   title beside it ("163Java Developer…", measured on the demo with the cells at 0px padding). */
+:host ::ng-deep .lg-chat-md table {
+  border-collapse: collapse;
+}
+
+:host ::ng-deep .lg-chat-md :where(th, td) {
+  /* `break-word`, not the answer's `anywhere`: anywhere lowers a cell's minimum width to one letter,
+     so a long title beside it squeezed "163" into "16" over "3". break-word still breaks a URL
+     that cannot fit, but only after the column has taken the width of its longest word. */
+  overflow-wrap: break-word;
+  padding: 0.25rem 0.75rem 0.25rem 0;
+  text-align: start;
+  vertical-align: top;
+}
+
+:host ::ng-deep .lg-chat-md :where(th, td):last-child {
+  padding-inline-end: 0;
+}
+
+:host ::ng-deep .lg-chat-md th {
+  font-weight: 600;
+}
+
+:host ::ng-deep .lg-chat-md tr {
+  border-bottom: 1px solid var(--color-base-300);
+}

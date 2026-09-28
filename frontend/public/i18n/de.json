@@ -970,9 +970,9 @@
       "body": "„{title}“ wird mit allen Antworten gelöscht.",
       "streaming": "Die Antwort wird noch geschrieben. Löschen bricht sie ab.",
       "confirm": "Löschen",
-      "manyTitle": "{{n}} Konversationen löschen?",
-      "manyBody": "Sie werden mit allen Antworten gelöscht.",
-      "manyStreaming": "In einer davon wird noch geantwortet. Löschen stoppt das.",
+      "manyTitle": "{n, plural, one {1 Unterhaltung löschen?} other {# Unterhaltungen löschen?}}",
+      "manyBody": "{n, plural, one {Sie wird mit allen Antworten gelöscht.} other {Sie werden mit allen Antworten gelöscht.}}",
+      "manyStreaming": "{n, plural, one {Die Antwort wird noch geschrieben. Löschen bricht sie ab.} other {In einer davon wird noch geantwortet. Löschen stoppt das.}}",
       "manyConfirm": "{{n}} löschen"
     },
     "useView": "Diese Ansicht verwenden",
@@ -1026,7 +1026,7 @@
       "all": "Alle auswählen",
       "count": "{{n}} ausgewählt",
       "delete": "{{n}} löschen",
-      "label": "„{{title}}“ auswählen"
+      "label": "„{title}“ auswählen"
     }
   }
 }

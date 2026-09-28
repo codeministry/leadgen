@@ -92,7 +92,7 @@ class ChatStreamQueueWaitTest {
                     Thread.ofVirtual().start(() -> {
                         try {
                             Thread.sleep(QUEUED);
-                            sink.accept(new ChatTurnStarted(7L));
+                            sink.accept(new ChatTurnStarted(7L, null));
                             sink.accept(new ChatDone(ChatTurnState.DONE));
                         } catch (InterruptedException | RuntimeException e) {
                             // The stream is already closed: the assertion below says so.

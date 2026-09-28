@@ -53,3 +53,20 @@ export function turnStatus(turn: TurnLike): TurnStatus {
         model: turn.model ?? null,
     };
 }
+
+const cache = new WeakMap<TurnLike, TurnStatus>();
+
+/**
+ * {@link turnStatus}, kept per turn object. The store replaces a turn when it changes, so the same
+ * object means the same status, and the ring's input keeps its identity through every change
+ * detection a streamed chunk causes elsewhere in the thread. A WeakMap, so a turn that leaves the
+ * store takes its entry with it.
+ */
+export function cachedTurnStatus(turn: TurnLike): TurnStatus {
+    let status = cache.get(turn);
+    if (status === undefined) {
+        status = turnStatus(turn);
+        cache.set(turn, status);
+    }
+    return status;
+}

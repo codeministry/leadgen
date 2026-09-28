@@ -10,6 +10,7 @@ package de.codeministry.leadgen.web;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
@@ -234,11 +235,11 @@ class ChatControllerTest {
                 .bodyJson();
         result.extractingPath("$.deleted").isEqualTo(List.of(1, 2, 3));
 
+        // All of them in one stop and one wait: a wait per conversation added up to k timeouts.
         var order = inOrder(turns, conversations);
-        for (long id : List.of(1L, 2L, 3L, 99L)) {
-            order.verify(turns).stopAll(eq(id), any());
-        }
+        order.verify(turns).stopAll(eq(List.of(1L, 2L, 3L, 99L)), any());
         order.verify(conversations).deleteAll(List.of(1L, 2L, 3L, 99L));
+        verify(turns, never()).stopAll(anyLong(), any());
     }
 
     /** ISC-477: there is no path that deletes conversations without naming them. */

@@ -30,11 +30,13 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -250,9 +252,21 @@ public class ChatTurnService {
      * @return false when a turn was still running once the wait was over
      */
     public boolean stopAll(long conversationId, Duration wait) {
+        return stopAll(List.of(conversationId), wait);
+    }
+
+    /**
+     * {@link #stopAll(long, Duration)} for several conversations: every matching turn is stopped
+     * first and all of them are waited for once, so the wait is bounded by {@code wait} and not by
+     * {@code wait} times the conversations that were streaming.
+     *
+     * @return false when a turn was still running once the wait was over
+     */
+    public boolean stopAll(Collection<Long> conversationIds, Duration wait) {
+        Set<Long> named = Set.copyOf(conversationIds);
         List<CompletableFuture<Void>> ending = new ArrayList<>();
         for (Turn turn : running.values()) {
-            if (turn.conversationId == conversationId) {
+            if (named.contains(turn.conversationId)) {
                 turn.stop();
                 ending.add(turn.over);
             }
@@ -314,7 +328,7 @@ public class ChatTurnService {
             long turnId = conversations.startTurn(conversationId, question, modelName, replaces);
             turn = new Turn(turnId, conversationId, question, modelName, sink);
             running.put(turnId, turn);
-            sink.accept(new ChatTurnStarted(turnId));
+            sink.accept(new ChatTurnStarted(turnId, modelName));
             turn.run();
         } catch (RuntimeException e) {
             if (turn == null) {

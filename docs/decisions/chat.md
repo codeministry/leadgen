@@ -238,7 +238,8 @@ times out, or when a write fails because the reader left. A proxy in front still
 timeout (nginx `proxy_read_timeout`) at or above the heartbeat interval — the chart's 60 s is.
 `ChatTurnDeadlineTest` holds it with a model silent for several intervals.
 
-**Six events, in a fixed order.** `turn` once, first; `step` around each tool call (running, then
+**Six events, in a fixed order.** `turn` once, first, with the turn id and the model answering it (so
+the live status names the model before a reload does); `step` around each tool call (running, then
 done with a count and a duration); `text` with citations already resolved; `sources` exactly once,
 last before `done`; `error` with `MODEL`, `BUDGET` or `ROUNDS` ends the stream and the turn is
 `INCOMPLETE` with its partial answer kept. An `error` after a partial answer that cited anything —

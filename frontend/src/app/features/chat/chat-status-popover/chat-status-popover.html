@@ -5,9 +5,11 @@
   class="lg-chat-status-trigger"
   [attr.aria-label]="label()"
   [attr.aria-describedby]="panelId"
-  (pointerenter)="enter()"
-  (pointerleave)="leave()"
-  (focus)="show()"
+  (pointerenter)="enter($event)"
+  (pointerleave)="leave($event)"
+  (pointerdown)="pointerType = $event.pointerType"
+  (click)="tap()"
+  (focus)="focused()"
   (blur)="hide()"
 >
   <lg-living-mark [frame]="frame()" [size]="size()"/>

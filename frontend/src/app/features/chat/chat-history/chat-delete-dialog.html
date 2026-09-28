@@ -9,9 +9,9 @@
     @if (count(); as n) {
       <h2 class="type-h3" id="lg-chat-delete-title">{{ 'chat.delete.manyTitle' | transloco: {n} }}</h2>
       <p class="type-small lg-chat-delete-body" id="lg-chat-delete-body">
-        {{ 'chat.delete.manyBody' | transloco }}
+        {{ 'chat.delete.manyBody' | transloco: {n} }}
         @if (streaming()) {
-          {{ 'chat.delete.manyStreaming' | transloco }}
+          {{ 'chat.delete.manyStreaming' | transloco: {n} }}
         }
       </p>
     } @else {

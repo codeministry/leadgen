@@ -29,7 +29,8 @@ const TOOLCHAIN_PREFIXES = ['--color-', '--radius-', '--size-', '--font-', '--te
 const TOOLCHAIN_NAMES = ['--border', '--depth', '--noise'];
 
 /** Written on the element at runtime by `shared/popover/anchor-for.ts`, never declared in CSS. */
-const RUNTIME_ALLOWLIST = ['--lg-anchor-x', '--lg-anchor-y'];
+/** Set from script at runtime: the popover's anchor, and the chat list's measured search height. */
+const RUNTIME_ALLOWLIST = ['--lg-anchor-x', '--lg-anchor-y', '--lg-chat-search-h'];
 
 /** The seven navigation destinations, in the order the nav lists them. */
 const SECTIONS = ['dashboard', 'shortlist', 'pipeline', 'analytics', 'sources', 'review', 'workflow'] as const;

@@ -76,15 +76,15 @@ export class ChatApi {
         return this.http.put<ConversationView>(`${BASE}/conversations/${id}/context`, {context});
     }
 
-    /**
-     * Up to four questions the data suggests (ISC-455): for a stored conversation, or for pins not
-     * stored yet, passed as the `?chatCtx` string the URL carries.
-     */
     /** The chat's own state, asked each time the empty chat's ring opens its popover (ISC-476). */
     status(): Observable<ChatStatus> {
         return this.http.get<ChatStatus>(`${BASE}/status`);
     }
 
+    /**
+     * Up to four questions the data suggests (ISC-455): for a stored conversation, or for pins not
+     * stored yet, passed as the `?chatCtx` string the URL carries.
+     */
     suggestions(forWhat: SuggestionsFor): Observable<readonly ChatSuggestion[]> {
         const params: Record<string, string> =
             'conversationId' in forWhat ? {conversation: String(forWhat.conversationId)} : contextParam(forWhat.context);

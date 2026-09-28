@@ -3,7 +3,7 @@ import {provideHttpClient} from '@angular/common/http';
 import {HttpTestingController, provideHttpClientTesting} from '@angular/common/http/testing';
 import {ComponentFixture, TestBed} from '@angular/core/testing';
 import {provideRouter, Router} from '@angular/router';
-import {page} from 'vitest/browser';
+import {page, userEvent} from 'vitest/browser';
 import {ConversationSummary} from '@core/model/chat';
 import {App} from '../../../app';
 
@@ -175,6 +175,107 @@ describe('deleting several conversations (ISC-478)', () => {
         element!.click();
         await settle();
     }
+
+    it('names a ticked row after its title even when the title holds braces', async () => {
+        // The title used to be filled in before MessageFormat read the string, so its braces were
+        // parsed as ICU syntax: "{ENV}" came out as an argument, an open "{" threw.
+        await start('/dashboard?chat=list', 1024);
+        http.expectOne(BASE).flush([
+            {id: 3, title: 'What does {ENV} mean?', updatedAt: FIVE[0].updatedAt},
+            {id: 4, title: 'map {a: 1', updatedAt: FIVE[0].updatedAt},
+        ]);
+        await settle();
+        await click(q('.lg-chat-select-toggle'));
+        expect(checks().map((c) => c.getAttribute('aria-label'))).toEqual(['Select “What does {ENV} mean?”', 'Select “map {a: 1”']);
+    });
+
+    it('leaves select mode on Escape and keeps the chat open, also as a modal sheet', async () => {
+        // Below 48rem the chat is a modal <dialog>, which closes on Escape's default action; stopping
+        // propagation alone left select mode and shut the chat with the same key.
+        await start('/dashboard?chat=list', 600);
+        http.expectOne(BASE).flush(FIVE);
+        await settle();
+        await click(q('.lg-chat-select-toggle'));
+        expect(checks()).toHaveLength(5);
+
+        // A real key press: a synthetic one has no default action, so it cannot show the <dialog> closing.
+        checks()[0].focus();
+        await userEvent.keyboard('{Escape}');
+        await settle();
+        expect(checks(), 'select mode ended').toHaveLength(0);
+        expect(document.querySelector<HTMLDialogElement>('dialog.lg-chat-drawer')?.open, 'the chat stays open').toBe(true);
+    });
+
+    it('speaks of one conversation in the singular when only one is ticked', async () => {
+        await start('/dashboard?chat=list', 1024);
+        http.expectOne(BASE).flush(FIVE);
+        await settle();
+        await click(q('.lg-chat-select-toggle'));
+        await click(checks()[1]);
+
+        await click(q<HTMLButtonElement>('.lg-chat-bulk-delete'));
+        expect(dialog().textContent).toContain('Delete 1 conversation?');
+        expect(dialog().textContent).not.toContain('1 conversations');
+        expect(dialog().textContent).toContain('It and all its answers are deleted.');
+        await click(dialog().querySelector<HTMLButtonElement>('.lg-chat-delete-cancel'));
+    });
+
+    it('keeps the ticks when the delete fails, so the same selection can be sent again', async () => {
+        await start('/dashboard?chat=list', 1024);
+        http.expectOne(BASE).flush(FIVE);
+        await settle();
+        await click(q('.lg-chat-select-toggle'));
+        for (const i of [0, 1]) await click(checks()[i]);
+
+        await click(q<HTMLButtonElement>('.lg-chat-bulk-delete'));
+        await click(dialog().querySelector<HTMLButtonElement>('.lg-chat-delete-confirm'));
+        http.expectOne(`${BASE}/bulk-delete`).flush(null, {status: 500, statusText: 'Server Error'});
+        await settle();
+        expect(checks(), 'still in select mode').toHaveLength(5);
+        expect(checks().filter((c) => c.checked), 'the two ticks survive').toHaveLength(2);
+
+        await click(q<HTMLButtonElement>('.lg-chat-bulk-delete'));
+        await click(dialog().querySelector<HTMLButtonElement>('.lg-chat-delete-confirm'));
+        const again = http.expectOne(`${BASE}/bulk-delete`);
+        // The reader starts a search while the delete is in flight; its landing must not take the field away.
+        const search = q<HTMLInputElement>('.lg-chat-search-input')!;
+        search.focus();
+        again.flush({deleted: (again.request.body as {ids: number[]}).ids});
+        await settle();
+        expect(checks(), 'the mode ends once the delete landed').toHaveLength(0);
+        expect(document.activeElement, 'focus stays in the search field').toBe(search);
+    });
+
+    it('keeps the day headings below the search even when the select bar wraps', async () => {
+        // The headings stuck at a fixed 5.25rem, a one-line bar; in German the bar wraps in the 20rem
+        // rail and the headings slid under the search.
+        await start('/dashboard?chat=list', 1024);
+        http.expectOne(BASE).flush(FIVE);
+        await settle();
+        const host = document.querySelector<HTMLElement>('lg-chat-history')!;
+        host.style.width = '170px';
+        await click(q('.lg-chat-select-toggle'));
+        await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        await settle();
+        const search = document.querySelector<HTMLElement>('.lg-chat-history .lg-chat-search')!;
+        const heading = document.querySelector<HTMLElement>('.lg-chat-history .lg-chat-group-heading')!;
+        const oneLine = parseFloat(getComputedStyle(document.documentElement).fontSize) * 5.25;
+        expect(search.getBoundingClientRect().height, 'the bar wrapped').toBeGreaterThan(oneLine + 8);
+        const stuckAt = parseFloat(getComputedStyle(heading).top);
+        expect(Math.abs(stuckAt - search.getBoundingClientRect().height), 'the heading sticks where the search ends').toBeLessThanOrEqual(1);
+    });
+
+    it('keeps keyboard focus in the bar when select mode starts and ends', async () => {
+        await start('/dashboard?chat=list', 1024);
+        http.expectOne(BASE).flush(FIVE);
+        await settle();
+        q<HTMLButtonElement>('.lg-chat-select-toggle')!.focus();
+        await click(q('.lg-chat-select-toggle'));
+        expect(document.activeElement?.classList.contains('lg-chat-select-all'), 'on Select all').toBe(true);
+
+        await click(q<HTMLButtonElement>('.lg-chat-select-done'));
+        expect(document.activeElement?.classList.contains('lg-chat-select-toggle'), 'back on Select').toBe(true);
+    });
 
     it('deletes the three picked in one request, takes their rows away and leaves the mode', async () => {
         await start('/dashboard?chat=list', 1024);

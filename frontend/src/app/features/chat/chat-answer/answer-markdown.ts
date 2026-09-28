@@ -255,7 +255,10 @@ export function answerRenderer(context: AnswerContext): (markdown: string) => st
     });
 
     return (markdown: string) => {
-        const source = markdown.trim();
+        // gpt-oss puts U+202F, the narrow no-break space, between words and inside figures, and the
+        // typeface draws it at almost no width ("mention Kafka" read as "mentionKafka"). U+00A0 keeps
+        // what the model meant, a space that does not break, at a width the typeface does draw.
+        const source = markdown.replaceAll('\u202F', '\u00A0').trim();
         if (source === '') return '';
         mint = freshMint();
         slots = [];

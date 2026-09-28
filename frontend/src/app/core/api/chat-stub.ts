@@ -12,10 +12,10 @@ export const RECORDED_SUGGESTIONS: readonly ChatSuggestion[] = [
     {trigger: 'NO_ANSWER', text: 'Which applications have had no answer for two weeks?', count: 2},
 ];
 
-/** What `GET …/followups` answers under a finished turn (ISC-457): two or three questions. */
 /** What `GET /status` answers on an instance with a chat model (ISC-476). */
 export const RECORDED_STATUS: ChatStatus = {model: 'chat-model', callsUsed: 12, callsLimit: 200, toolRounds: 6};
 
+/** What `GET …/followups` answers under a finished turn (ISC-457): two or three questions. */
 export const RECORDED_FOLLOWUPS: readonly ChatFollowUp[] = [{text: 'Only the remote ones?'}, {text: 'Which of them pay the most?'}];
 
 /**

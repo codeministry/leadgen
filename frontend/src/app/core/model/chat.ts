@@ -41,9 +41,11 @@ export function conversationTitle(question: string): string {
     return `${line.slice(0, cut > TITLE_LENGTH / 2 ? cut : TITLE_LENGTH)}…`;
 }
 
-/** `turn` — the id the stop and regenerate calls address. */
+/** `turn` — the id the stop and regenerate calls address, and the model answering it. */
 export interface ChatTurnStarted {
     readonly turnId: number;
+    /** Absent from an older server; the live turn then shows no model until it is reloaded. */
+    readonly model?: string | null;
 }
 
 /** `step` — a tool call, sent once when it starts and once when it ends, under one ordinal. */

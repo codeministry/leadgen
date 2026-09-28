@@ -127,3 +127,19 @@ describe('answerRenderer after an inline raw-block tag (fix 4F-11)', () => {
         expect(box.querySelectorAll('a.lg-chat-cite')).toHaveLength(1);
     });
 });
+
+/**
+ * gpt-oss writes U+202F, the narrow no-break space, between ordinary words, and the app's typeface
+ * draws it at almost no width: "mention Kafka" read as "mentionKafka" in a real answer.
+ */
+describe('answerRenderer and the narrow no-break space', () => {
+    it('renders U+202F as a no-break space the typeface draws at full width', () => {
+        const box = renderDom('**Offers that mention\u202FKafka**');
+        expect(box.textContent?.trim()).toBe('Offers that mention\u00A0Kafka');
+    });
+
+    it('keeps a figure and its unit together, as the model meant', () => {
+        const box = renderDom('Up to 10\u202F000\u202F€ a month.');
+        expect(box.textContent?.trim()).toBe('Up to 10\u00A0000\u00A0€ a month.');
+    });
+});

@@ -8,8 +8,10 @@ import {
     concat,
     concatMap,
     debounceTime,
+    from,
     distinctUntilChanged,
     EMPTY,
+    endWith,
     exhaustMap,
     filter,
     ignoreElements,
@@ -30,6 +32,7 @@ import {
     ChatErrorReason,
     ChatEvent,
     ChatTurnSource,
+    ChatStatus,
     ChatStep,
     ChatTurnState,
     ConversationSummary,
@@ -82,6 +85,8 @@ export interface LiveTurn {
     readonly stopPending: boolean;
     /** When the question was asked, on this clock; the status popover's duration starts here (ISC-474). */
     readonly startedAt: string;
+    /** The model the server named in the `turn` event, so the live status reads as the stored one. */
+    readonly model: string | null;
     /** When its `done` or `error` event arrived; null while it streams. */
     readonly finishedAt: string | null;
 }
@@ -125,7 +130,18 @@ interface ChatState {
      * (ISC-453): the composer says why under the chips. Cleared by the next pin taken, an unpin, and a route.
      */
     contextRefused: boolean;
+    /** The chat's own state for the empty chat's ring (ISC-476); null while it loads. */
+    status: ChatStatus | null;
+    statusFailed: boolean;
+    /**
+     * A bulk delete from request to its last batch (ISC-478). The list keeps its select mode and its
+     * ticks until this says `idle` again, so a failed delete can be sent once more as it stood.
+     */
+    bulk: 'idle' | 'deleting' | 'failed';
 }
+
+/** What one bulk delete may name; the server refuses more (`BulkDelete`, `@Size(max = 500)`). */
+export const BULK_DELETE_MAX = 500;
 
 const initialState: ChatState = {
     present: null,
@@ -144,9 +160,19 @@ const initialState: ChatState = {
     streamOpen: false,
     error: null,
     contextRefused: false,
+    status: null,
+    statusFailed: false,
+    bulk: 'idle',
 };
 
 const ID = /^[1-9]\d*$/;
+
+/** `ids` cut into runs of at most `size`, in order. */
+function batches(ids: readonly number[], size: number): number[][] {
+    const runs: number[][] = [];
+    for (let i = 0; i < ids.length; i += size) runs.push(ids.slice(i, i + size));
+    return runs;
+}
 
 /**
  * The pins the next question is asked under (ISC-446, ISC-451): the ones `?chatCtx` names, else —
@@ -242,6 +268,7 @@ function startTurn(conversationId: number | null, question: string, replacesTurn
         replacesTurnId,
         stopPending: false,
         startedAt: new Date().toISOString(),
+        model: null,
         finishedAt: null,
     };
 }
@@ -250,7 +277,7 @@ function startTurn(conversationId: number | null, question: string, replacesTurn
 function applyEvent(turn: LiveTurn, event: ChatEvent): LiveTurn {
     switch (event.event) {
         case 'turn':
-            return {...turn, turnId: event.data.turnId};
+            return {...turn, turnId: event.data.turnId, model: event.data.model ?? null};
         case 'step': {
             const step = event.data;
             const steps = [...turn.steps.filter((s) => s.ordinal !== step.ordinal), step];
@@ -281,7 +308,7 @@ function fold(conversation: ConversationView | null, live: LiveTurn | null): Con
         steps: live.steps,
         sources: live.sources,
         replacesTurnId: live.replacesTurnId,
-        model: null,
+        model: live.model,
         createdAt: live.startedAt,
         endReason: live.error?.reason ?? null,
         finishedAt: live.finishedAt,
@@ -377,6 +404,12 @@ export const ChatStore = signalStore(
     withReducer(
         on(chatEvents.routed, ({payload: {chat, ctx}}, state) => ({...routedState(chat, ctx, state), contextRefused: false})),
         on(chatEvents.capabilityLoaded, ({payload}) => ({present: payload})),
+        on(chatEvents.statusRequested, () => ({status: null, statusFailed: false})),
+        on(chatEvents.statusLoaded, ({payload}) => ({status: payload})),
+        on(chatEvents.statusFailed, () => ({statusFailed: true})),
+        on(chatEvents.bulkDeleteRequested, () => ({bulk: 'deleting' as const})),
+        on(chatEvents.bulkDeleteDone, () => ({bulk: 'idle' as const})),
+        on(chatEvents.bulkDeleteFailed, () => ({bulk: 'failed' as const})),
         // One chip per offer, view or window: a second press of the same control changes nothing. Past
         // ten offers nothing is pinned at all, wherever the pins would have gone (ISC-453).
         on(chatEvents.contextPinned, ({payload}, state) => {
@@ -686,12 +719,27 @@ export const ChatStore = signalStore(
             ),
 
             // Several at once (ISC-478): one request naming them; the server stops their streaming turns
-            // before the rows go, so nothing is stopped from here.
+            // before the rows go, so nothing is stopped from here. More than the server takes in one
+            // request go in batches, one after the other; each batch's rows leave the list as it lands,
+            // and a failed batch stops the rest.
             events.on(chatEvents.bulkDeleteRequested).pipe(
                 concatMap(({payload: ids}) =>
-                    api.deleteMany(ids).pipe(
+                    from(batches(ids, BULK_DELETE_MAX)).pipe(
+                        concatMap((batch) => api.deleteMany(batch)),
                         map((answer) => chatEvents.bulkDeleted(answer.deleted)),
+                        endWith(chatEvents.bulkDeleteDone()),
                         catchError((error: unknown) => of(chatEvents.bulkDeleteFailed(serverMessage(error as {error?: unknown}, 'error.chatDelete')))),
+                    ),
+                ),
+            ),
+
+            // The latest open wins: a quick hover off and on again asks twice, and the older answer,
+            // if it comes back last, is dropped rather than shown over the newer one.
+            events.on(chatEvents.statusRequested).pipe(
+                switchMap(() =>
+                    api.status().pipe(
+                        map((status) => chatEvents.statusLoaded(status)),
+                        catchError(() => of(chatEvents.statusFailed())),
                     ),
                 ),
             ),

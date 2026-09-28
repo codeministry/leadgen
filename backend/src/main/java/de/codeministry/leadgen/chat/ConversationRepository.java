@@ -605,7 +605,6 @@ public class ConversationRepository {
         return sources;
     }
 
-    /** Takes the turns and their tool calls with it, by the tables' own cascade. */
     /**
      * Deletes the named conversations in one statement, so in one transaction, with their turns and
      * tool calls (ISC-477). An id that names nothing is skipped.
@@ -626,6 +625,7 @@ public class ConversationRepository {
                 .toList();
     }
 
+    /** Takes the turns and their tool calls with it, by the tables' own cascade. */
     public boolean delete(long id) {
         return jdbc.sql("DELETE FROM chat_conversation WHERE id = :id")
                         .param("id", id)

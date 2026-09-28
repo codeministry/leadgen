@@ -155,7 +155,9 @@ export class ShortlistPage {
 
     /**
      * The offer a key press walked to. Its card is landed by the focus path above, so the
-     * outside-selection path below leaves it alone rather than moving the list a second time.
+     * outside-selection path below leaves it alone rather than moving the list a second time. It
+     * speaks for that one selection only and is spent by it: left standing, a later citation of the
+     * same offer was taken for a key press and never landed.
      */
     private keyedId: number | null = null;
 
@@ -544,12 +546,18 @@ export class ShortlistPage {
         // card already in view makes that a no-op, so a click in the list moves nothing.
         effect(() => {
             const id = this.selectedId();
-            untracked(() => this.landWanted.set(id !== null && id !== this.keyedId ? id : null));
+            untracked(() => {
+                const keyed = id !== null && id === this.keyedId;
+                this.keyedId = null;
+                this.landWanted.set(id !== null && !keyed ? id : null);
+            });
         });
 
         // …and it lands once the list is on screen beside the detail and the card is rendered. The
         // pane scrolls, never the document; a card outside the loaded page is never found, so an
-        // offer cited from further down opens its detail and moves nothing.
+        // offer cited from further down opens its detail and moves nothing. A wish that finds the
+        // list on screen is spent whether it landed or not: kept, it jumped the pane to its card
+        // much later, when a next page or a filter brought the card in during the reader's own scroll.
         effect(() => {
             const wanted = this.landWanted();
             if (wanted === null || !this.bothColumns()) {
@@ -559,15 +567,14 @@ export class ShortlistPage {
             afterNextRender(
                 () => {
                     const pane = this.listPane()?.nativeElement;
-                    const card = pane?.querySelector<HTMLElement>('[aria-current="true"]');
-                    if (pane === undefined || !card || this.landWanted() !== wanted) {
-                        return;
-                    }
-                    if (pane.scrollHeight <= pane.clientHeight) {
+                    if (pane === undefined || this.landWanted() !== wanted || this.visible().length === 0) {
                         return;
                     }
                     this.landWanted.set(null);
-                    this.bringIntoPane(pane, card);
+                    const card = pane.querySelector<HTMLElement>('[aria-current="true"]');
+                    if (card && pane.scrollHeight > pane.clientHeight) {
+                        this.bringIntoPane(pane, card);
+                    }
                 },
                 {injector: this.injector},
             );
@@ -625,9 +632,7 @@ export class ShortlistPage {
             return;
         }
         const target = step > 0 ? row : lookahead;
-        const view = this.document.defaultView;
-        const ringRoom = view ? parseFloat(view.getComputedStyle(pane).paddingTop) || 0 : 0;
-        pane.scrollTop += target.getBoundingClientRect().top - paneBox.top - ringRoom;
+        pane.scrollTop += target.getBoundingClientRect().top - paneBox.top - this.ringRoom(pane);
     }
 
     /**
@@ -640,13 +645,21 @@ export class ShortlistPage {
         const row = card.closest('li') ?? card;
         const paneBox = pane.getBoundingClientRect();
         const rowBox = row.getBoundingClientRect();
-        const view = this.document.defaultView;
-        const ringRoom = view ? parseFloat(view.getComputedStyle(pane).paddingTop) || 0 : 0;
+        const ringRoom = this.ringRoom(pane);
         if (rowBox.top < paneBox.top + ringRoom) {
             pane.scrollTop += rowBox.top - paneBox.top - ringRoom;
         } else if (rowBox.bottom > paneBox.bottom - ringRoom) {
             pane.scrollTop += rowBox.bottom - paneBox.bottom + ringRoom;
         }
+    }
+
+    /**
+     * The room a landed row keeps from the pane's edge for its focus ring: the pane's own block
+     * padding, so both landing paths (the key path and a citation) measure it the same way.
+     */
+    private ringRoom(pane: HTMLElement): number {
+        const view = this.document.defaultView;
+        return view ? parseFloat(view.getComputedStyle(pane).paddingTop) || 0 : 0;
     }
 
     /** What the server sent for these filters. The browser no longer decides what is shown. */

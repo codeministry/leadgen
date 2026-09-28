@@ -73,9 +73,11 @@
   margin-inline-start: calc(var(--lg-gutter) - 0.75rem);
 }
 
+/* Sticks where the search ends, measured (chat-history.ts), because the select bar wraps in a narrow
+   rail; 5.25rem, one line of bar, until the first measurement lands. */
 .lg-chat-group-heading {
   position: sticky;
-  top: 5.25rem;
+  top: var(--lg-chat-search-h, 5.25rem);
   z-index: 1;
   margin: 0;
   padding: 1rem var(--lg-gutter) 0.25rem;

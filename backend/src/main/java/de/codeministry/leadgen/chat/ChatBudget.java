@@ -75,8 +75,7 @@ public class ChatBudget {
      * @return true when the call may be sent; false ends the turn with {@link ChatErrorReason#BUDGET}.
      */
     public boolean take() {
-        Integer configured = chat().maxCallsPerDay();
-        int limit = configured == null ? DEFAULT_CALLS_PER_DAY : configured;
+        int limit = limit();
         if (limit <= 0) {
             announceOnce("chat.max_calls_per_day is {}, so the chat asks nothing of a model today", limit);
             return false;
@@ -116,8 +115,7 @@ public class ChatBudget {
      * middle of a turn does not move the goalposts of the turn already running.
      */
     public Rounds rounds() {
-        Integer configured = chat().maxToolRounds();
-        return new Rounds(configured == null ? DEFAULT_TOOL_ROUNDS : configured);
+        return new Rounds(toolRounds());
     }
 
     /** Absent block and absent keys alike are the shipped defaults, never a zero nobody wrote. */

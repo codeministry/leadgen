@@ -267,13 +267,15 @@ describe('the status popovers (ISC-474, ISC-475, ISC-476)', () => {
         input.dispatchEvent(new Event('input'));
         input.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', bubbles: true, cancelable: true}));
         await settle();
-        server.next({event: 'turn', data: {turnId: 31}});
+        server.next({event: 'turn', data: {turnId: 31, model: 'chat-model'}});
         server.next({event: 'step', data: step(1, 'RUNNING')});
         await settle();
 
         const trigger = glyphs().at(-1)!;
         await hover(trigger);
         expect(openPanel()!.querySelector('.lg-chat-status-state')!.textContent!.trim()).toBe('Working: a tool is running');
+        // The live turn names its model as the stored one does; it used to appear only after a reload.
+        expect(openPanel()!.querySelector('.lg-chat-status-model')?.textContent?.trim()).toBe('chat-model');
         const mark = trigger.querySelector('svg.mark')!;
         expect(mark.getAnimations().length, 'the turn plays while the popover is open').toBeGreaterThan(0);
 
@@ -285,6 +287,73 @@ describe('the status popovers (ISC-474, ISC-475, ISC-476)', () => {
         document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true}));
         await settle();
         expect(openPanel()).toBeNull();
+    });
+
+    it('closes only its popover on Escape from the ring, never the drawer around it', async () => {
+        await openConversation([stored(1, 'DONE')]);
+        const trigger = glyphs()[0];
+        trigger.focus();
+        await settle();
+        expect(openPanel(), 'open on focus').not.toBeNull();
+
+        trigger.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true, cancelable: true}));
+        await settle();
+        expect(openPanel()).toBeNull();
+        expect(document.querySelector('.lg-chat-drawer'), 'the drawer stays open').not.toBeNull();
+    });
+
+    it('opens on a tap and closes on a tap elsewhere, as a touch screen needs', async () => {
+        // A tap brings pointerenter and pointerleave around it and, on iOS, no focus: hover and focus
+        // alone opened nothing on a phone.
+        await openConversation([stored(1, 'DONE')]);
+        const trigger = glyphs()[0];
+        const touch = (type: string, target: EventTarget) =>
+            target.dispatchEvent(new PointerEvent(type, {pointerType: 'touch', bubbles: true}));
+        touch('pointerenter', trigger);
+        touch('pointerdown', trigger);
+        touch('pointerup', trigger);
+        trigger.click();
+        touch('pointerleave', trigger);
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        await settle();
+        expect(openPanel(), 'open after the tap').not.toBeNull();
+
+        touch('pointerdown', document.body);
+        await settle();
+        expect(openPanel(), 'closed by a tap elsewhere').toBeNull();
+    });
+
+    it('stays open after a tap where the browser also focuses the ring, as Chromium on Android does', async () => {
+        await openConversation([stored(1, 'DONE')]);
+        const trigger = glyphs()[0];
+        trigger.dispatchEvent(new PointerEvent('pointerdown', {pointerType: 'touch', bubbles: true}));
+        trigger.focus();
+        trigger.click();
+        await settle();
+        expect(openPanel(), 'the focus and the tap must not cancel each other out').not.toBeNull();
+
+        // A later keyboard focus still opens it: the tap is not remembered past its own click.
+        trigger.blur();
+        await settle();
+        trigger.focus();
+        await settle();
+        expect(openPanel(), 'open on keyboard focus after a tap').not.toBeNull();
+    });
+
+    it('closes a hovered popover on Escape without taking the key from where focus is', async () => {
+        await openConversation([stored(1, 'DONE')]);
+        await hover(glyphs()[0]);
+        expect(openPanel()).not.toBeNull();
+        const input = document.querySelector<HTMLTextAreaElement>('.lg-chat-input')!;
+        input.focus();
+        let reached = false;
+        const onward = () => (reached = true);
+        document.addEventListener('keydown', onward);
+        input.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true, cancelable: true}));
+        document.removeEventListener('keydown', onward);
+        await settle();
+        expect(openPanel()).toBeNull();
+        expect(reached, 'the key still reached whatever handles it where focus is').toBe(true);
     });
 
     it('opens on keyboard focus with a name that states the turn, and does not turn under reduced motion', async () => {

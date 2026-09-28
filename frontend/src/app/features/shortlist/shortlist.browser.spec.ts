@@ -411,6 +411,35 @@ describe('the split views beside the chat (ISC-472)', () => {
             expect(document.scrollingElement!.scrollTop).toBe(0);
         });
 
+        it('lands a cited row even when an earlier key press had walked to it', async () => {
+            // A key press marks the offer it walked to, so the key path lands it and this path does
+            // not. The mark used to outlive that one selection, and a later citation of the same
+            // offer was taken for a key press and never landed.
+            await open('/shortlist', 2560, true);
+            await cite(34);
+            pane().dispatchEvent(new KeyboardEvent('keydown', {key: 'j', bubbles: true}));
+            await settle();
+            expect(router.url).toContain('/shortlist/35');
+            await cite(1);
+            pane().scrollTop = 0;
+            await settle();
+
+            await cite(35);
+            expect(rowInPane(), 'row 35 inside the pane').toBe(true);
+        });
+
+        it('forgets a wish it could not land, so a later page or scroll does not jump to it', async () => {
+            await open('/shortlist', 2560, true);
+            await cite(99);
+            expect(pane().scrollTop).toBe(0);
+            // The list grows while offer 99 is still open: the wish from the citation is gone, so the
+            // pane stays where the reader left it.
+            offersPayload = {...OFFERS, entries: Array.from({length: 100}, (_, i) => entry(i + 1)), matched: 100, total: 100};
+            await router.navigateByUrl('/shortlist/99?chat=new&q=x');
+            await settle();
+            expect(pane().scrollTop, 'the pane did not jump').toBe(0);
+        });
+
         it('scrolls nothing for an offer outside the loaded page, and still opens it', async () => {
             await open('/shortlist', 2560, true);
             await cite(99);

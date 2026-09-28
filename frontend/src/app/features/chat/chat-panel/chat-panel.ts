@@ -34,7 +34,7 @@ import {ChatHistory} from '../chat-history/chat-history';
 import {ChatMinibar} from '../chat-minibar/chat-minibar';
 import {turnFrame} from './turn-frame';
 import {ChatStatusPopover} from '../chat-status-popover/chat-status-popover';
-import {TurnLike, TurnStatus, turnStatus} from '../chat-status-popover/turn-status';
+import {TurnLike, TurnStatus, cachedTurnStatus} from '../chat-status-popover/turn-status';
 
 const RAIL_QUERY = '(width >= 80rem)';
 /** Below it the drawer is a full-screen sheet, and following a source folds it into the bar. */
@@ -301,7 +301,7 @@ export class ChatPanel {
 
     /** What the ring beside an answer says on hover or focus (ISC-474), for a stored and a live turn alike. */
     protected statusOf(turn: TurnLike): TurnStatus {
-        return turnStatus(turn);
+        return cachedTurnStatus(turn);
     }
 
     protected close(): void {

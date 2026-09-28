@@ -1,6 +1,6 @@
 import {type} from '@ngrx/signals';
 import {eventGroup} from '@ngrx/signals/events';
-import {ChatContextItem, ChatEvent, ConversationSummary, ConversationView} from '@core/model/chat';
+import {ChatContextItem, ChatEvent, ChatStatus, ConversationSummary, ConversationView} from '@core/model/chat';
 
 /**
  * The chat drawer's events.
@@ -60,6 +60,13 @@ export const chatEvents = eventGroup({
         bulkDeleteRequested: type<readonly number[]>(),
         bulkDeleted: type<readonly number[]>(),
         bulkDeleteFailed: type<string>(),
+        /** After the last batch landed; not after a failed one. */
+        bulkDeleteDone: type<void>(),
+
+        /** The chat's own state for the empty chat's ring (ISC-476), asked each time its popover opens. */
+        statusRequested: type<void>(),
+        statusLoaded: type<ChatStatus>(),
+        statusFailed: type<void>(),
 
         /** A new title; an empty one clears the name back to the derived one (ISC-449). */
         renameRequested: type<{id: number; title: string}>(),

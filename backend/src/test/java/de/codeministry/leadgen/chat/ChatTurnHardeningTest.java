@@ -376,6 +376,16 @@ class ChatTurnHardeningTest {
                         org.mockito.ArgumentMatchers.any(),
                         org.mockito.ArgumentMatchers.anyList(),
                         org.mockito.ArgumentMatchers.anyList());
+        // The broken path writes through the overload that carries the end reason; it has to be
+        // rejected too, or the whole write succeeds there and the fallback is never reached.
+        doThrow(new org.springframework.dao.DataIntegrityViolationException("a row the table rejects"))
+                .when(conversations)
+                .finish(
+                        anyLong(),
+                        org.mockito.ArgumentMatchers.any(),
+                        org.mockito.ArgumentMatchers.any(),
+                        org.mockito.ArgumentMatchers.anyList(),
+                        org.mockito.ArgumentMatchers.anyList());
         MODEL.enqueue(ModelStub.text(Duration.ZERO, "An answer."));
 
         List<TurnStream.Event> events = TurnStream.ask(port, conversation, "Anything?");
@@ -385,6 +395,8 @@ class ChatTurnHardeningTest {
                 .containsEntry("state", "INCOMPLETE")
                 .containsEntry("answer_md", "An answer.")
                 .containsEntry("ended", true);
+        // The row ended through the fallback, not through a whole write that happened to succeed.
+        org.mockito.Mockito.verify(conversations).incomplete(anyLong());
     }
 
     /**

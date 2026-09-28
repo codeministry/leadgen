@@ -117,10 +117,6 @@ class ChatController {
     }
 
     /**
-     * Newest first. A blank {@code q} is no search, so a cleared search field asks for the whole
-     * list; otherwise only the conversations holding every word of it, ignoring case and accents.
-     */
-    /**
      * The chat's own state for the empty chat's ring (ISC-476): the model, today's calls against the
      * ceiling, the round bound. Absent where no chat model is configured, as the rest of the chat is.
      */
@@ -132,6 +128,10 @@ class ChatController {
         return new ChatStatusView(model, budget.used(), budget.limit(), budget.toolRounds());
     }
 
+    /**
+     * Newest first. A blank {@code q} is no search, so a cleared search field asks for the whole
+     * list; otherwise only the conversations holding every word of it, ignoring case and accents.
+     */
     @GetMapping("/conversations")
     List<ConversationSummary> conversations(@RequestParam(required = false) String q) {
         return q == null || q.isBlank() ? conversations.list() : conversations.search(q);
@@ -250,25 +250,24 @@ class ChatController {
     }
 
     /**
+     * Deletes the conversations it names (ISC-477): their streaming turns are stopped first, all of
+     * them at once and waited for once, as the single delete does for one; then the rows go in one
+     * statement. An unknown id is skipped; an empty or missing list is a 400 before anything is
+     * stopped.
+     */
+    @PostMapping("/conversations/bulk-delete")
+    BulkDeleted bulkDelete(@Valid @RequestBody BulkDelete request) {
+        List<Long> ids = request.ids();
+        turns.stopAll(ids, STOP_BEFORE_DELETE);
+        return new BulkDeleted(conversations.deleteAll(ids));
+    }
+
+    /**
      * Takes its turns and their tool calls with it. A turn still streaming in it is stopped first,
      * the same stop as {@code …/stop}, and waited for, so its model connection is closed and its
      * last write done before the rows go. A turn that outlasts {@link #STOP_BEFORE_DELETE} is
      * deleted under anyway and ends as a turn whose conversation vanished.
      */
-    /**
-     * Deletes the conversations it names (ISC-477): each one's streaming turns are stopped first, as
-     * the single delete does, then the rows go in one statement. An unknown id is skipped; an empty or
-     * missing list is a 400 before anything is stopped.
-     */
-    @PostMapping("/conversations/bulk-delete")
-    BulkDeleted bulkDelete(@Valid @RequestBody BulkDelete request) {
-        List<Long> ids = request.ids().stream().distinct().toList();
-        for (long id : ids) {
-            turns.stopAll(id, STOP_BEFORE_DELETE);
-        }
-        return new BulkDeleted(conversations.deleteAll(ids));
-    }
-
     @DeleteMapping("/conversations/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     void delete(@PathVariable long id) {

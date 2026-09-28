@@ -352,3 +352,43 @@ describe('the statistics card in a browser (ISC-460)', () => {
         expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(document.documentElement.clientWidth);
     });
 });
+
+/** The Markdown the model writes, laid out in a real browser, where CSS applies and jsdom has none. */
+describe('the answer Markdown in a browser', () => {
+    beforeEach(() => TestBed.configureTestingModule({providers: [provideRouter([])]}));
+
+    it('keeps a table'+"'"+'s columns apart: an id never runs into the title beside it', async () => {
+        // Measured on the demo: "163Java Developer…", the cells at 0px padding.
+        const answer = TestBed.createComponent(ChatAnswer);
+        answer.componentRef.setInput('answer', '| id | title |\n|----|-------|\n| 163 | Java Developer |');
+        answer.componentRef.setInput('state', 'DONE');
+        document.body.appendChild(answer.nativeElement);
+        answer.detectChanges();
+        await answer.whenStable();
+        const [id, title] = [...(answer.nativeElement as HTMLElement).querySelectorAll('td')];
+        expect(id).toBeDefined();
+        expect(title.getBoundingClientRect().left - id.getBoundingClientRect().right).toBeGreaterThanOrEqual(0);
+        const text = document.createRange();
+        text.selectNodeContents(title);
+        expect(text.getBoundingClientRect().left - id.getBoundingClientRect().left).toBeGreaterThan(id.textContent!.trim().length * 6);
+        expect(parseFloat(getComputedStyle(id).paddingInlineEnd)).toBeGreaterThan(0);
+        (answer.nativeElement as HTMLElement).remove();
+    });
+
+    it('never breaks a short id inside its cell when a long title squeezes the table', async () => {
+        // Measured on the demo: "163" drawn as "16" over "3" beside a long title, because the answer's
+        // overflow-wrap: anywhere let the table shrink the id column below the width of its number.
+        const answer = TestBed.createComponent(ChatAnswer);
+        answer.componentRef.setInput('answer', '| ID | Title |\n|----|-------|\n| 163 | Java Developer Spring Boot Automotive – Microservices and a lot more words |');
+        answer.componentRef.setInput('state', 'DONE');
+        (answer.nativeElement as HTMLElement).style.cssText = 'display: block; width: 260px';
+        document.body.appendChild(answer.nativeElement);
+        answer.detectChanges();
+        await answer.whenStable();
+        const id = (answer.nativeElement as HTMLElement).querySelector('td')!;
+        const text = document.createRange();
+        text.selectNodeContents(id);
+        expect(text.getClientRects().length, 'the id on one line').toBe(1);
+        (answer.nativeElement as HTMLElement).remove();
+    });
+});
