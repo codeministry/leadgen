@@ -182,8 +182,8 @@ describe('the web app manifest (ISC-327)', () => {
     const manifest = JSON.parse(readFileSync(MANIFEST, 'utf8')) as Manifest;
 
     it('names the app in English, the same words as the page title', () => {
-        expect(manifest.name).toBe('Lead Generation');
-        expect(manifest.short_name).toBe('Leadgen');
+        expect(manifest.name).toBe('leadGEN / AI');
+        expect(manifest.short_name).toBe('leadGEN / AI');
         expect(manifest.lang).toBe('en');
         expect(manifest.description.length).toBeGreaterThan(0);
     });

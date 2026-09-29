@@ -178,7 +178,7 @@ public class DigestService {
 
     private String renderText(LocalDate day, List<Section> sections) {
         StringBuilder out = new StringBuilder();
-        out.append("Lead Generation, ").append(day).append('\n');
+        out.append("leadGEN / AI, ").append(day).append('\n');
         out.append("=".repeat(60)).append("\n\n");
 
         for (Section section : sections) {
@@ -214,14 +214,14 @@ public class DigestService {
     private String renderHtml(LocalDate day, List<Section> sections) {
         StringBuilder out = new StringBuilder();
         out.append("<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\">")
-                .append("<title>Lead Generation, ")
+                .append("<title>leadGEN / AI, ")
                 .append(day)
                 .append("</title>")
                 .append("<style>body{font-family:system-ui,sans-serif;max-width:52rem;margin:2rem auto;padding:0 1rem}")
                 .append("h2{margin-top:2rem}article{border-top:1px solid #ddd;padding:.75rem 0}")
                 .append(".score{font-variant-numeric:tabular-nums;font-weight:600}")
                 .append(".meta,.reason{color:#555;font-size:.9rem}</style></head><body>\n")
-                .append("<h1>Lead Generation, ")
+                .append("<h1>leadGEN / AI, ")
                 .append(day)
                 .append("</h1>\n");
 

@@ -224,6 +224,11 @@ may change in any release. See the status note in the README.
 
 ### Changed
 
+- **The name is leadGEN / AI everywhere.** The installed app (manifest `name` and `short_name`), the
+  browser tab (`<screen> · leadGEN / AI`), the header's wordmark and the name a screen reader hears for
+  it, the digest's heading, and the wordmark image on the README and every guide. The header's label
+  still said Annusa AI from a rename that was dropped.
+
 - **URLs derived from a request name what the client used.** `server.forward-headers-strategy:
   native` reads `X-Forwarded-Proto` and `-Host` from a private or loopback proxy, so behind the
   compose nginx or an ingress that terminates TLS the api names `https://` and the public host.

@@ -1,4 +1,4 @@
-<img src="docs/brand/leadgen.png" alt="LEADgen / AI" height="28">
+<img src="docs/brand/leadgen.png" alt="leadGEN / AI" height="28">
 
 # Security policy
 

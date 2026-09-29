@@ -7,14 +7,14 @@ import {map, of, Subject, switchMap} from 'rxjs';
 
 /**
  * The application's name in the browser tab, after every screen name and alone where a
- * route has none. It is the text `src/index.html` shows before the first navigation, and
- * not the `LEADgen` wordmark the header draws: the two are separate things.
+ * route has none. It is the text `src/index.html` shows before the first navigation and the
+ * installed app's name in the manifest, and it spells the wordmark the header draws.
  */
-export const BRAND = 'Lead Generation';
+export const BRAND = 'leadGEN / AI';
 
 /**
  * Route titles are catalog keys (`title.dashboard`), and the tab reads
- * `<screen name> · Lead Generation` in the active language.
+ * `<screen name> · leadGEN / AI` in the active language.
  *
  * <p>`selectTranslate` rather than `translate`: the catalogs are fetched over HTTP, so the
  * first navigation can arrive before one has loaded, and a synchronous lookup would put the

@@ -1,5 +1,5 @@
 <h1 align="center">
-  <img alt="LEADgen / AI" src="docs/brand/leadgen.png" width="420">
+  <img alt="leadGEN / AI" src="docs/brand/leadgen.png" width="420">
 </h1>
 
 **An acquisition tool for freelancers.** It collects project offers from sources you

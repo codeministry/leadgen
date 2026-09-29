@@ -7,7 +7,7 @@ import {Section} from '@core/theme/section.model';
  * `title` is set per route rather than in a component: the browser tab is the only place
  * two open screens of this application are told apart, and a route that forgets it inherits
  * whichever title happened to be set last. It is a catalog key under `title.*`, and
- * `core/i18n/title.strategy.ts` turns it into `<screen name> · Lead Generation` in the active
+ * `core/i18n/title.strategy.ts` turns it into `<screen name> · leadGEN / AI` in the active
  * language.
  *
  * The unknown path redirects rather than showing a not-found page. There is nothing here a

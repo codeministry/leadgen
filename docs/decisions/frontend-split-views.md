@@ -1,4 +1,4 @@
-<img src="../brand/leadgen.png" alt="LEADgen / AI" height="28">
+<img src="../brand/leadgen.png" alt="leadGEN / AI" height="28">
 
 # The split views and the write path
 

@@ -22,7 +22,7 @@ export class BrandMark {
     readonly size = input(28);
     readonly wordmark = input(true);
     /** Carried by the wordmark when it is visible, by the mark alone when it is not. */
-    readonly label = input('Annusa AI');
+    readonly label = input('leadGEN / AI');
 
     protected readonly width = computed(() =>
         Math.round((this.size() * BrandMark.INTRINSIC.width) / BrandMark.INTRINSIC.height),
