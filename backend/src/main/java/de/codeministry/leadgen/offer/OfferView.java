@@ -71,10 +71,11 @@ public record OfferView(
         String enrichmentNote) {
 
     /**
-     * The same offer without its advert text, which is the one field that runs to pages: what an MCP
-     * client gets unless it asks for the text (spec 023). The screens always read it whole.
+     * The offer as an MCP client gets it (spec 023): never the package's path on this server, which
+     * no client can use (the board says only whether a package exists), and the advert text, the
+     * one field that runs to pages, only when asked for. The screens always read it whole.
      */
-    public OfferView withoutFullText() {
+    public OfferView forMcpClient(boolean withFullText) {
         return new OfferView(
                 id,
                 sourceName,
@@ -97,8 +98,8 @@ public record OfferView(
                 applyByText,
                 workload,
                 language,
+                withFullText ? fullText : null,
                 null,
-                packageDir,
                 ingestedAt,
                 archivedAt,
                 archiveSource,

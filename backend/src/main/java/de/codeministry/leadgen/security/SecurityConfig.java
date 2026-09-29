@@ -178,9 +178,13 @@ public class SecurityConfig {
 
     /**
      * The protected resource metadata (RFC 9728, spec 023): the issuer as the one authorization
-     * server, and the configured {@code resource} when there is one. Spring answers it at
-     * {@value #METADATA} and below; the path-suffixed {@code …/mcp} form names the MCP endpoint by
-     * itself, derived from the request.
+     * server. Spring answers it at {@value #METADATA} and below and derives {@code resource} from
+     * the request's path: the bare document describes the whole server, the path-suffixed
+     * {@code …/mcp} one the MCP endpoint.
+     *
+     * <p>The configured {@code resource} is the MCP endpoint's, so it replaces only a derived
+     * resource that names {@value #MCP}. RFC 9728 § 3.3 has a client reject metadata whose resource
+     * is not the one it derived the URL from, and the server's own 401s point at the bare document.
      *
      * <p>Spring's filter offers certificate-bound tokens by default. These are plain bearer tokens
      * from the realm, so the metadata says so rather than invite a client to try mutual TLS.
@@ -189,7 +193,12 @@ public class SecurityConfig {
         builder.authorizationServer(value(security, ISSUER)).tlsClientCertificateBoundAccessTokens(false);
         String resource = value(security, RESOURCE);
         if (resource != null && !resource.isBlank()) {
-            builder.resource(resource);
+            builder.claims(claims -> {
+                Object derived = claims.get("resource");
+                if (derived != null && derived.toString().endsWith(MCP)) {
+                    claims.put("resource", resource);
+                }
+            });
         }
     }
 

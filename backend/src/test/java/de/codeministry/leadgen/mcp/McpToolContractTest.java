@@ -97,6 +97,8 @@ class McpToolContractTest {
                     id);
             jdbc.update(
                     "INSERT INTO application (offer_id, status, sent_on) VALUES (?, 'SENT', DATE '2026-09-10')", id);
+            jdbc.update("UPDATE offer SET content_blocks = CAST(? AS jsonb) WHERE id = ?", """
+                    [{"index": 0, "kind": "CONTENT", "text": "The whole advert.", "reason": "fixture", "by": "RULE"}]""", id);
             offerId = id;
         }
         jdbc.update("""
@@ -136,9 +138,19 @@ class McpToolContractTest {
         assertThat(answer.path("offer").path("fullText").isNull())
                 .as("no advert text unless asked")
                 .isTrue();
+        // Nor the same text again as the blocks the detail reads it in.
+        assertThat(answer.path("content")).as("no advert blocks unless asked").isEmpty();
+        // A server path is nothing a client can use; the board says hasPackage instead.
+        assertThat(noValue(answer.path("offer").path("packageDir")))
+                .as("no package path")
+                .isTrue();
         var whole =
                 client().callToolJson("leadgen_get_offer", "{\"id\":%d,\"includeFullText\":true}".formatted(offerId));
         assertThat(whole.path("offer").path("fullText").asString()).isEqualTo("The whole advert.");
+        assertThat(whole.path("content").path(0).path("text").asString()).isEqualTo("The whole advert.");
+        assertThat(noValue(whole.path("offer").path("packageDir")))
+                .as("no package path, even in full")
+                .isTrue();
     }
 
     @Test
@@ -155,6 +167,18 @@ class McpToolContractTest {
     @Test
     void listApplicationsAnswersInTheRecordedShape() {
         assertSameShape("leadgen_list_applications", "{\"limit\":5}", "leadgen_list_applications");
+    }
+
+    /** An unknown status is an error naming the valid ones, never an empty board read as a fact. */
+    @Test
+    void anUnknownStatusIsRefusedWithTheValidOnes() {
+        var answer = client().callTool("leadgen_list_applications", "{\"status\":\"SUBMITTED\"}");
+
+        assertThat(answer.path("isError").asBoolean(false)).isTrue();
+        assertThat(answer.path("content").path(0).path("text").asString())
+                .contains("SUBMITTED")
+                .contains("SENT")
+                .contains("PACKAGED");
     }
 
     @Test
@@ -211,6 +235,10 @@ class McpToolContractTest {
         } else if (actual.isArray() && !actual.isEmpty() && !recorded.isEmpty()) {
             compare(path + "[0]", recorded.get(0), actual.get(0), problems);
         }
+    }
+
+    private static boolean noValue(JsonNode node) {
+        return node.isMissingNode() || node.isNull();
     }
 
     private McpTestClient client() {

@@ -78,6 +78,12 @@ management:
 
 server:
   port: ${SERVER_PORT:8080}
+  # The scheme and host a client used, from X-Forwarded-Proto and -Host, so every URL this process
+  # derives from a request (the protected-resource metadata, the 401's resource_metadata) names
+  # the https address the client reached the proxy at, not the plain one the proxy forwards to. `native` is Tomcat's
+  # RemoteIpValve, which believes the headers only from a private or loopback peer: the compose
+  # nginx and the cluster ingress qualify, a client on the open internet does not.
+  forward-headers-strategy: native
   # While `security.auth` is `none` this is what stands in front of the write endpoints:
   # the service is reachable from this machine and nowhere else. A container has to bind
   # every interface to be reachable through its published port, which is why

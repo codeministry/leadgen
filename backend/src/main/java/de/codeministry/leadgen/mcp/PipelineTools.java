@@ -16,6 +16,7 @@ import de.codeministry.leadgen.config.RulesView;
 import de.codeministry.leadgen.config.SourceQueryService;
 import de.codeministry.leadgen.offer.OfferQueryService;
 import de.codeministry.leadgen.score.PromptCatalog;
+import java.time.Instant;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.mcp.annotation.McpTool;
@@ -61,20 +62,11 @@ public class PipelineTools {
         if (section == null || section.isBlank()) {
             return new FunnelStats.Overview(offers.funnel(), ApplicationStatus.LANES);
         }
-        var view = analytics.analytics();
-        Object data =
-                switch (section) {
-                    case "intake" -> view.intake();
-                    case "market" -> view.market();
-                    case "scores" -> view.scores();
-                    case "applications" -> view.applications();
-                    case "runs" -> view.runs();
-                    default -> null;
-                };
-        if (data == null) {
-            return new FunnelStats.Unknown("unknown section '" + section + "'", SECTIONS);
-        }
-        return new FunnelStats.Section(section, view.generatedAt(), data);
+        // The one section asked for, not the whole analytics view with four others thrown away.
+        return analytics
+                .section(section)
+                .<FunnelStats>map(data -> new FunnelStats.Section(section, Instant.now(), data))
+                .orElseGet(() -> new FunnelStats.Unknown("unknown section '" + section + "'", SECTIONS));
     }
 
     @McpTool(

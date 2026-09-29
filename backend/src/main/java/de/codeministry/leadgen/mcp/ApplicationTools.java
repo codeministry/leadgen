@@ -9,6 +9,9 @@
 package de.codeministry.leadgen.mcp;
 
 import de.codeministry.leadgen.application.ApplicationService;
+import de.codeministry.leadgen.application.ApplicationStatus;
+import java.util.Arrays;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.mcp.annotation.McpTool;
 import org.springframework.ai.mcp.annotation.McpToolParam;
@@ -39,6 +42,15 @@ public class ApplicationTools {
                             required = false)
                     String status,
             @McpToolParam(description = "Maximum rows to return, 1-50. Default 50.", required = false) Integer limit) {
+        if (status != null
+                && !status.isBlank()
+                && Arrays.stream(ApplicationStatus.values())
+                        .noneMatch(known -> known.name().equalsIgnoreCase(status))) {
+            // An error the client can correct, not an empty board a model would report as a fact. The
+            // description's example, 'APPLIED', carried over unchanged from codeministry-mcp, is one.
+            throw new IllegalArgumentException("unknown status '" + status + "'; expected one of "
+                    + Arrays.stream(ApplicationStatus.values()).map(Enum::name).collect(Collectors.joining(", ")));
+        }
         var rows = applications.board().stream()
                 .filter(view -> status == null
                         || status.isBlank()

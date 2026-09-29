@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
@@ -471,15 +472,8 @@ public class AnalyticsQueryService {
     public AnalyticsView analytics() {
         String zone = ZoneId.systemDefault().getId();
 
-        List<IntakeSeries.Day> byIngested = byIngestedAt(zone);
-        List<IntakeSeries.Day> byPublished = byPublishedOn();
-        List<IntakeSeries.Day> byReceived = byReceivedAt(zone);
-        var coverage = jdbc.sql(PUBLISHED_COVERAGE)
-                .param("days", PUBLISHED_WINDOW_DAYS)
-                .query((rs, index) -> new int[] {
-                    rs.getInt("without_published"), rs.getInt("out_of_range"), rs.getInt("without_received")
-                })
-                .single();
+        IntakeSeries intake = intake(zone);
+        List<IntakeSeries.Day> byIngested = intake.byIngestedAt();
 
         return new AnalyticsView(
                 zone,
@@ -489,12 +483,41 @@ public class AnalyticsQueryService {
                 // Reused rather than recomputed: the funnel already knows the stages, their
                 // labels and their order, and a second copy would be a second answer.
                 offers.funnel(),
-                new IntakeSeries(byIngested, byPublished, byReceived, coverage[0], coverage[1], coverage[2]),
+                intake,
                 market(zone),
                 scores(),
                 applications(zone),
                 runs(zone),
                 jdbc.sql(SCALES).query(AnalyticsQueryService::scale).list());
+    }
+
+    /**
+     * One of the five sections of {@link #analytics()} on its own, built without the other four:
+     * {@code intake}, {@code market}, {@code scores}, {@code applications} or {@code runs}.
+     * Empty for any other name. The MCP funnel tool asks for one at a time.
+     */
+    public Optional<Object> section(String name) {
+        String zone = ZoneId.systemDefault().getId();
+        return Optional.ofNullable(
+                switch (name == null ? "" : name) {
+                    case "intake" -> intake(zone);
+                    case "market" -> market(zone);
+                    case "scores" -> scores();
+                    case "applications" -> applications(zone);
+                    case "runs" -> runs(zone);
+                    default -> null;
+                });
+    }
+
+    private IntakeSeries intake(String zone) {
+        var coverage = jdbc.sql(PUBLISHED_COVERAGE)
+                .param("days", PUBLISHED_WINDOW_DAYS)
+                .query((rs, index) -> new int[] {
+                    rs.getInt("without_published"), rs.getInt("out_of_range"), rs.getInt("without_received")
+                })
+                .single();
+        return new IntakeSeries(
+                byIngestedAt(zone), byPublishedOn(), byReceivedAt(zone), coverage[0], coverage[1], coverage[2]);
     }
 
     /**

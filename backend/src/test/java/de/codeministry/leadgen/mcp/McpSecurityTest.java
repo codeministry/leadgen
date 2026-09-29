@@ -23,6 +23,7 @@ import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
+import java.util.Map;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -76,6 +77,22 @@ class McpSecurityTest {
         private int port;
 
         @Test
+        void refusesABrowserPageFromAnotherOrigin() {
+            // DNS rebinding: a page on a name that resolves to this host posts from its own origin.
+            assertThat(initialize(port, null, Map.of("Origin", "http://attacker.example"))
+                            .statusCode())
+                    .isEqualTo(403);
+        }
+
+        @Test
+        void servesAClientWithoutAnOriginAndALocalBrowserTool() {
+            assertThat(initialize(port, null).statusCode()).isEqualTo(200);
+            assertThat(initialize(port, null, Map.of("Origin", "http://localhost:6274"))
+                            .statusCode())
+                    .isEqualTo(200);
+        }
+
+        @Test
         void listsTheToolsWithoutAToken() {
             assertThat(McpTestClient.connect("http://localhost:" + port).toolNames())
                     .hasSize(10);
@@ -125,6 +142,21 @@ class McpSecurityTest {
         }
 
         @Test
+        void readsTheSchemeAndHostTheProxyForwarded() {
+            var forwarded = Map.of("X-Forwarded-Proto", "https", "X-Forwarded-Host", "leadgen.example.invalid");
+
+            var metadata = get(port, "/.well-known/oauth-protected-resource/mcp", forwarded);
+            assertThat(metadata.path("resource").asString()).isEqualTo("https://leadgen.example.invalid/mcp");
+
+            var refused = initialize(port, null, forwarded);
+            assertThat(refused.statusCode()).isEqualTo(401);
+            assertThat(refused.headers().firstValue("WWW-Authenticate"))
+                    .hasValueSatisfying(value -> assertThat(value)
+                            .contains("resource_metadata=\"https://leadgen.example.invalid"
+                                    + "/.well-known/oauth-protected-resource/mcp\""));
+        }
+
+        @Test
         void describesTheMcpEndpointWithoutAToken() {
             var metadata = get(port, "/.well-known/oauth-protected-resource/mcp");
 
@@ -155,18 +187,19 @@ class McpSecurityTest {
         @LocalServerPort
         private int port;
 
-        /** Behind a proxy the request's own scheme and host are not the ones a client used. */
+        /**
+         * The configured resource is the MCP endpoint's, so only its path-suffixed metadata names it;
+         * the bare document describes the whole server, whose own 401s point there (RFC 9728 § 3.3).
+         */
         @Test
-        void namesTheConfiguredResourceAtTheBareAndTheSuffixedPath() {
-            for (String path :
-                    new String[] {"/.well-known/oauth-protected-resource", "/.well-known/oauth-protected-resource/mcp"
-                    }) {
-                var metadata = get(port, path);
-                assertThat(metadata.path("resource").asString()).as(path).isEqualTo(RESOURCE);
-                assertThat(metadata.path("authorization_servers").path(0).asString())
-                        .as(path)
-                        .isEqualTo(ISSUER);
-            }
+        void namesTheConfiguredResourceForTheMcpEndpointOnly() {
+            var mcp = get(port, "/.well-known/oauth-protected-resource/mcp");
+            assertThat(mcp.path("resource").asString()).isEqualTo(RESOURCE);
+            assertThat(mcp.path("authorization_servers").path(0).asString()).isEqualTo(ISSUER);
+
+            var server = get(port, "/.well-known/oauth-protected-resource");
+            assertThat(server.path("resource").asString()).isEqualTo("http://localhost:" + port);
+            assertThat(server.path("authorization_servers").path(0).asString()).isEqualTo(ISSUER);
         }
 
         @Test
@@ -183,6 +216,10 @@ class McpSecurityTest {
     }
 
     private static HttpResponse<String> initialize(int port, String token) {
+        return initialize(port, token, Map.of());
+    }
+
+    private static HttpResponse<String> initialize(int port, String token, Map<String, String> headers) {
         var request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/mcp"))
                 .header("Content-Type", "application/json")
                 .header("Accept", "application/json, text/event-stream")
@@ -193,13 +230,19 @@ class McpSecurityTest {
         if (token != null) {
             request.header("Authorization", "Bearer " + token);
         }
+        headers.forEach(request::header);
         return send(request.build());
     }
 
     private static JsonNode get(int port, String path) {
-        var response = send(HttpRequest.newBuilder(URI.create("http://localhost:" + port + path))
-                .GET()
-                .build());
+        return get(port, path, Map.of());
+    }
+
+    private static JsonNode get(int port, String path, Map<String, String> headers) {
+        var request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + path))
+                .GET();
+        headers.forEach(request::header);
+        var response = send(request.build());
         assertThat(response.statusCode()).as(path).isEqualTo(200);
         return JSON.readTree(response.body());
     }

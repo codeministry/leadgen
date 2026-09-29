@@ -8,8 +8,12 @@
  */
 const target = process.env['API_PROXY_TARGET'] ?? 'http://localhost:8080';
 
-console.log(`[proxy] /api → ${target}`);
+console.log(`[proxy] /api, /mcp → ${target}`);
 
+// `/mcp` and the protected-resource metadata go to the api too, as nginx.conf sends them: without
+// them the dev server answers both with index.html and a 200, which an MCP client cannot parse.
 module.exports = {
     '/api': {target, secure: false, changeOrigin: true},
+    '/mcp': {target, secure: false, changeOrigin: true},
+    '/.well-known/oauth-protected-resource': {target, secure: false, changeOrigin: true},
 };

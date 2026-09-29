@@ -118,10 +118,13 @@ public class OfferTools {
                             required = false)
                     Boolean includeFullText) {
         var entry = offers.find(id).orElseThrow(() -> new NoSuchElementException("no offer " + id));
-        if (Boolean.TRUE.equals(includeFullText)) {
-            return entry;
-        }
+        // The advert comes whole or not at all: the blocks the detail reads it in are the same text.
+        boolean whole = Boolean.TRUE.equals(includeFullText);
         return new ShortlistEntry(
-                entry.offer().withoutFullText(), entry.score(), entry.flags(), entry.sources(), entry.content());
+                entry.offer().forMcpClient(whole),
+                entry.score(),
+                entry.flags(),
+                entry.sources(),
+                whole ? entry.content() : List.of());
     }
 }

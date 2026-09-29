@@ -20,8 +20,10 @@ may change in any release. See the status note in the README.
   They read leadgen's services in-process, write nothing, and every answer passes the chat's output
   masker. `/mcp` follows `AUTH_MODE`; under `oidc` a 401 names
   `/.well-known/oauth-protected-resource/mcp` (RFC 9728), which names the issuer, and the new
-  optional `OIDC_RESOURCE` fixes the resource URL where a proxy terminates TLS. The compose stack's
-  nginx passes both paths to the api, unbuffered.
+  optional `OIDC_RESOURCE` names the MCP endpoint's resource outright. A browser page from another
+  origin is refused with 403 (DNS rebinding); MCP clients send no `Origin` and local browser tools
+  are served. The compose stack's nginx and `bun run start` pass both paths to the api, `/mcp`
+  unbuffered.
 
 - **`oidc` works where the issuer's certificate does not.** Two optional keys under
   `security.oidc`: `jwk_set_uri` (`OIDC_JWK_SET_URI`) fetches the signing keys from an address this
@@ -217,6 +219,10 @@ may change in any release. See the status note in the README.
   next card and carries the arrowhead.
 
 ### Changed
+
+- **URLs derived from a request name what the client used.** `server.forward-headers-strategy:
+  native` reads `X-Forwarded-Proto` and `-Host` from a private or loopback proxy, so behind the
+  compose nginx or an ingress that terminates TLS the api names `https://` and the public host.
 
 - **The chat's conversation rail is 20rem wide instead of 15rem**, so titles wrap less; from 80rem
   the docked drawer is 61rem with the rail open, and the thread keeps its width.

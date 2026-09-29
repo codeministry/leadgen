@@ -2,8 +2,8 @@
   "available": [
     "scoring-model",
     "second-model",
-    "granite4.2:3b",
-    "granite4.2:8b"
+    "small-model",
+    "large-model"
   ],
   "preferred": "scoring-model"
 }
