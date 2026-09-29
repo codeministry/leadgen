@@ -20,10 +20,15 @@ may change in any release. See the status note in the README.
   They read leadgen's services in-process, write nothing, and every answer passes the chat's output
   masker. `/mcp` follows `AUTH_MODE`; under `oidc` a 401 names
   `/.well-known/oauth-protected-resource/mcp` (RFC 9728), which names the issuer, and the new
-  optional `OIDC_RESOURCE` names the MCP endpoint's resource outright. A browser page from another
-  origin is refused with 403 (DNS rebinding); MCP clients send no `Origin` and local browser tools
-  are served. The compose stack's nginx and `bun run start` pass both paths to the api, `/mcp`
-  unbuffered.
+  optional `OIDC_RESOURCE` names the MCP endpoint's resource outright. The compose stack's nginx and
+  `bun run start` pass both paths to the api, `/mcp` exactly and unbuffered, with the port the
+  browser used.
+
+- **`AUTH_MODE=none` refuses DNS rebinding.** A page on a name its author points at this machine
+  reached the API as its own, reads included. Under `none` a request whose Host, or whose Origin,
+  is a dotted name nobody configured now gets a 403 on every path but the health check. Loopback,
+  IP literals and single-label names always pass; a real host name under `none` goes into the new
+  `ALLOWED_HOSTS`. Under `oidc` nothing changes: the token is the check.
 
 - **`oidc` works where the issuer's certificate does not.** Two optional keys under
   `security.oidc`: `jwk_set_uri` (`OIDC_JWK_SET_URI`) fetches the signing keys from an address this
@@ -232,6 +237,8 @@ may change in any release. See the status note in the README.
 - **URLs derived from a request name what the client used.** `server.forward-headers-strategy:
   native` reads `X-Forwarded-Proto` and `-Host` from a private or loopback proxy, so behind the
   compose nginx or an ingress that terminates TLS the api names `https://` and the public host.
+  Spring Security's HSTS header is switched off: behind TLS it would now commit every browser to
+  https for a year, subdomains included, which is the TLS proxy's decision.
 
 - **The chat's conversation rail is 20rem wide instead of 15rem**, so titles wrap less; from 80rem
   the docked drawer is 61rem with the rail open, and the thread keeps its width.

@@ -266,6 +266,7 @@ rationale. `*` marks a credential.
 |---|---|---|
 | `SERVER_PORT` | `8080` | |
 | `SERVER_ADDRESS` | `127.0.0.1` | The only thing in front of the write endpoints while `AUTH_MODE` is `none`. Compose sets `0.0.0.0`. |
+| `ALLOWED_HOSTS` | — | Only under `AUTH_MODE=none`. Comma-separated dotted host names the api may be reached under, each written out: a scheme, a port or a trailing dot is forgiven, a wildcard is not (it is logged at startup and matches nothing). A Unicode name is converted to punycode; one with ß, ς or a joiner is listed in the punycode the browser shows, since Java and the browsers convert those differently. As a Host, loopback, IP literals and single-label names always pass; as an Origin loopback, these names and the host the request itself was sent to, so the UI opened by a LAN address or a bare machine name writes too. Anything else, the raw Host and every X-Forwarded-Host included, is refused with 403 as DNS rebinding. Name the host here when `none` runs behind a real host name. |
 | `LOG_LEVEL` | `INFO` | |
 | `CONFIG_POLL_INTERVAL` | `PT2S` | Two polls are needed to apply a change, so worst case is twice this. |
 | `SCORE_BATCH_POLL_INTERVAL` | `PT5M` | Only read when `LLM_BATCH` is true. |

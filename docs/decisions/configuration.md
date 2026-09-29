@@ -51,9 +51,13 @@ Every paragraph here was paid for once; none of it is a summary.
     cross-site form cannot set, and the session policy is `STATELESS`, so no cookie exists to ride.
   - Under `none` there are no credentials at all, so a CSRF token has nothing to protect. What does stand in front of
     the write paths is worth naming rather than assuming: `SERVER_ADDRESS` binds to 127.0.0.1 unless a deployment
-    says otherwise, and the browser's preflight covers the rest, because the write paths take JSON and `PATCH` and
-    neither is a simple request while this application configures no CORS. **That is a thinner guard than a token
-    would be**, and it is the honest description of the residual rather than a claim that none exists.
+    says otherwise; `RebindingGuard` refuses a request whose Host or Origin is a dotted name nobody listed in
+    `ALLOWED_HOSTS`, and lets a page write only from a local origin, a listed host or the very origin the request
+    was sent to (reasoning in `decisions/mcp.md`); and the browser's preflight stops a cross-origin JSON or
+    `PATCH` write, since this application configures no CORS. What is left: a write without a body (`POST
+    /api/v1/ingest`, a rescore, a refetch) is a simple request, so a page on another local port can still send it
+    blind. **That is a thinner guard than a token would be**, and it is the honest description of the residual
+    rather than a claim that none exists.
   - A token would not fit anyway. With `STATELESS` there is nowhere to hold the expected value, so it would take
     `CookieCsrfTokenRepository` plus a SPA that reads the cookie: frontend work to guard the mode whose actual answer
     is `oidc`. The alert is therefore dismissed as **won't fix** and not as a false positive, because half of it is

@@ -13,6 +13,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.List;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.ConstructorBinding;
 import org.springframework.boot.context.properties.bind.DefaultValue;
@@ -78,7 +79,7 @@ public record ConfigProperties(
                 Duration.parse(DEFAULT_CONFIG_POLL_INTERVAL),
                 Duration.parse(DEFAULT_SCORE_BATCH_POLL_INTERVAL),
                 DEFAULT_INGEST_CRON,
-                new Security(false),
+                new Security(false, List.of()),
                 new Chat(Duration.parse(DEFAULT_CHAT_TURN_TIMEOUT), Duration.parse(DEFAULT_CHAT_HEARTBEAT)));
     }
 
@@ -105,8 +106,13 @@ public record ConfigProperties(
      * @param allowOpenBind asserts that something outside this process decides who reaches
      *     the port, which is the only thing that makes {@code security.auth: none} survivable
      *     on a bind past loopback; Compose sets it and limits reach on the host side instead
+     * @param allowedHosts the dotted names this process may be reached under while
+     *     {@code security.auth} is {@code none}, beyond loopback, IP literals and single-label
+     *     names; any other name is refused as DNS rebinding ({@code RebindingGuard})
      */
-    public record Security(@DefaultValue("false") boolean allowOpenBind) {}
+    public record Security(
+            @DefaultValue("false") boolean allowOpenBind,
+            @DefaultValue List<String> allowedHosts) {}
 
     /**
      * {@code leadgen.chat.*}: the two process-level clocks of a chat turn. Neither is in

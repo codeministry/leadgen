@@ -94,6 +94,12 @@ class AnalyticsQueryServiceTest {
         assertThat(analytics.section("applications")).contains(whole.applications());
         assertThat(analytics.section("runs")).contains(whole.runs());
         assertThat(analytics.section("nonsense")).isEmpty();
+        // One list of the names, read by the MCP funnel tool too, and every name on it resolves.
+        assertThat(AnalyticsQueryService.SECTIONS)
+                .containsExactly("intake", "market", "scores", "applications", "runs");
+        for (String name : AnalyticsQueryService.SECTIONS) {
+            assertThat(analytics.section(name)).as(name).isPresent();
+        }
     }
 
     @Test

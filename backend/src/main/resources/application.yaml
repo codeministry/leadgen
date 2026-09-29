@@ -53,6 +53,11 @@ leadgen:
     # the only thing that makes `security.auth: none` survivable on a bind past loopback.
     # Compose sets it and limits reach on the host side of its published ports instead.
     allow-open-bind: ${ALLOW_OPEN_BIND:false}
+    # The dotted names the api may be reached under while `security.auth` is `none`, comma-separated,
+    # beyond loopback, IP literals and single-label service names. Any other name is refused as DNS
+    # rebinding: a page on a name its author points at this machine would otherwise read and write
+    # the API as its own. Ignored under `oidc`, where the token is the guard.
+    allowed-hosts: ${ALLOWED_HOSTS:}
   # How often the three files are checked for changes. Two polls are needed before a
   # change is applied, so the worst case is twice this value.
   config-poll-interval: ${CONFIG_POLL_INTERVAL:PT2S}

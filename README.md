@@ -28,8 +28,9 @@ Read this before you rely on it.
 - **The API and the configuration schema will change** without a deprecation period.
 - **It is single-operator by design.** There is no multi-tenancy. Authentication is optional:
   under `security.auth: oidc` every request needs a token from your identity provider, and
-  under the default `none` the only thing standing in front of the write endpoints is that the
-  server binds `127.0.0.1`. Do not expose it without `oidc`.
+  under the default `none` what stands in front of the write endpoints is that the server binds
+  `127.0.0.1` and refuses a dotted host name nobody configured, DNS rebinding included; a LAN
+  address or a bare machine name is served without configuration. Do not expose it without `oidc`.
 - **Known gaps** are listed under [What does not work yet](#what-does-not-work-yet), not
   hidden.
 

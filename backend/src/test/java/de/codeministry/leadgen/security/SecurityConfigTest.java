@@ -253,6 +253,32 @@ class SecurityConfigTest {
     }
 
     /**
+     * Which derived resource the configured one replaces: the MCP endpoint's under the servlet's
+     * context path, the same path the 401 reads once it strips that prefix.
+     */
+    @Nested
+    class TheMcpResource {
+
+        @Test
+        void isTheMcpPathExactlyWithoutAContextPath() {
+            Assertions.assertThat(SecurityConfig.isMcp("https://leadgen.example/mcp", ""))
+                    .isTrue();
+            Assertions.assertThat(SecurityConfig.isMcp("https://leadgen.example/mcp/", ""))
+                    .isFalse();
+            Assertions.assertThat(SecurityConfig.isMcp("https://leadgen.example/x/mcp", null))
+                    .isFalse();
+        }
+
+        @Test
+        void isTheMcpPathBelowTheContextPath() {
+            Assertions.assertThat(SecurityConfig.isMcp("https://leadgen.example/leadgen/mcp", "/leadgen"))
+                    .isTrue();
+            Assertions.assertThat(SecurityConfig.isMcp("https://leadgen.example/mcp", "/leadgen"))
+                    .isFalse();
+        }
+    }
+
+    /**
      * The one combination that looks configured and protects nothing: no authentication,
      * and a socket bound past the loopback interface.
      *

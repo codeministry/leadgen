@@ -16,6 +16,7 @@ import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.web.server.autoconfigure.ServerProperties;
 import org.springframework.context.annotation.Bean;
@@ -35,6 +36,7 @@ import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.server.resource.OAuth2ProtectedResourceMetadata;
 import org.springframework.security.oauth2.server.resource.web.BearerTokenAuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.access.intercept.AuthorizationFilter;
 import org.springframework.security.web.util.UrlUtils;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -83,6 +85,9 @@ public class SecurityConfig {
     /** Where RFC 9728 puts a resource server's metadata; the path-suffixed form names one resource of several. */
     static final String METADATA = "/.well-known/oauth-protected-resource";
 
+    /** The container's health question: open under oidc, and let past RebindingGuard under none. */
+    static final List<String> HEALTH = List.of("/actuator/health", "/actuator/health/**");
+
     /** The MCP endpoint (spec 023), the resource an MCP client asks the metadata about. */
     static final String MCP = "/mcp";
 
@@ -95,9 +100,9 @@ public class SecurityConfig {
      * resource metadata is the same question asked by an MCP client (RFC 9728): which issuer to
      * get a token from, answered before it has one.
      */
-    private static final String[] ALWAYS_OPEN = {
-        "/actuator/health", "/actuator/health/**", "/actuator/info", "/api/v1/auth-config", METADATA, METADATA + "/**"
-    };
+    private static final String[] ALWAYS_OPEN = Stream.concat(
+                    HEALTH.stream(), Stream.of("/actuator/info", "/api/v1/auth-config", METADATA, METADATA + "/**"))
+            .toArray(String[]::new);
 
     /**
      * A bean rather than a local, for two reasons that point the same way. A test can
@@ -144,22 +149,31 @@ public class SecurityConfig {
         // Under `none` there are no credentials at all, so there is nothing for a CSRF
         // token to protect either. What actually stands in front of the write paths there
         // is named honestly: `SERVER_ADDRESS` binds to 127.0.0.1 unless a deployment says
-        // otherwise, and the preflight does the rest, because the write paths take JSON and
-        // PATCH and neither is a simple request while this application configures no CORS.
+        // otherwise; RebindingGuard refuses a page on a name its author points at this machine
+        // (DNS rebinding), which is same-origin to the browser, and a page whose origin is not
+        // local, listed or the request's own;
+        // and the preflight stops a cross-origin JSON or PATCH write, since this application
+        // configures no CORS. A write without a body is a simple request and slips past the last.
         //
         // A CSRF token would also not fit: with STATELESS there is nowhere to hold the
         // expected value, so it would take `CookieCsrfTokenRepository` and a SPA that reads
         // the cookie — frontend work to guard a mode whose real answer is `oidc`. The
         // residual is written down in `docs/decisions/configuration.md`.
         http.csrf(AbstractHttpConfigurer::disable)
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                // HSTS is the TLS proxy's to send, not this process's: behind the ingress the
+                // forwarded headers now tell Spring it sits behind https, and Spring Security would
+                // otherwise commit every browser to https for a year, subdomains included.
+                .headers(headers -> headers.httpStrictTransportSecurity(hsts -> hsts.disable()));
 
         if (!OIDC.equals(security.auth())) {
             log.info(
-                    "security.auth is '{}': every endpoint is open, and SERVER_ADDRESS is the only thing"
-                            + " in front of the write paths",
+                    "security.auth is '{}': every endpoint is open under loopback, IP literals, single-label names"
+                            + " and the allowed hosts, and SERVER_ADDRESS is the only other thing in front of the write paths",
                     security.auth());
+            // With no token, a page on a rebound name would reach the API as its own; see RebindingGuard.
             return http.authorizeHttpRequests(requests -> requests.anyRequest().permitAll())
+                    .addFilterBefore(new RebindingGuard(leadgen.security().allowedHosts()), AuthorizationFilter.class)
                     .build();
         }
 
@@ -171,8 +185,8 @@ public class SecurityConfig {
                         .authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt.decoder(decoder))
                         .authenticationEntryPoint(entryPoint(security))
-                        .protectedResourceMetadata(metadata ->
-                                metadata.protectedResourceMetadataCustomizer(builder -> describe(builder, security))))
+                        .protectedResourceMetadata(metadata -> metadata.protectedResourceMetadataCustomizer(builder ->
+                                describe(builder, security, server.getServlet().getContextPath()))))
                 .build();
     }
 
@@ -189,17 +203,29 @@ public class SecurityConfig {
      * <p>Spring's filter offers certificate-bound tokens by default. These are plain bearer tokens
      * from the realm, so the metadata says so rather than invite a client to try mutual TLS.
      */
-    static void describe(OAuth2ProtectedResourceMetadata.Builder builder, PipelineConfig.Security security) {
+    static void describe(
+            OAuth2ProtectedResourceMetadata.Builder builder, PipelineConfig.Security security, String contextPath) {
         builder.authorizationServer(value(security, ISSUER)).tlsClientCertificateBoundAccessTokens(false);
         String resource = value(security, RESOURCE);
         if (resource != null && !resource.isBlank()) {
             builder.claims(claims -> {
                 Object derived = claims.get("resource");
-                if (derived != null && derived.toString().endsWith(MCP)) {
+                if (derived != null && isMcp(derived.toString(), contextPath)) {
                     claims.put("resource", resource);
                 }
             });
         }
+    }
+
+    /**
+     * Whether a derived resource names the MCP endpoint: its path is the context path and {@value
+     * #MCP}, exactly, as the 401 reads it. A client compares the resource with the URL it derived, so
+     * {@code /mcp/} keeps its own.
+     */
+    static boolean isMcp(String resource, String contextPath) {
+        String prefix = contextPath == null ? "" : contextPath;
+        return (prefix + MCP)
+                .equals(UriComponentsBuilder.fromUriString(resource).build().getPath());
     }
 
     /**
@@ -215,7 +241,7 @@ public class SecurityConfig {
         entryPoint.setResourceMetadataParameterResolver(request -> {
             String path =
                     request.getRequestURI().substring(request.getContextPath().length());
-            boolean mcp = path.equals(MCP) || path.startsWith(MCP + "/");
+            boolean mcp = path.equals(MCP);
             if (mcp && resource != null && !resource.isBlank()) {
                 var uri = UriComponentsBuilder.fromUriString(resource).build();
                 return UriComponentsBuilder.fromUriString(resource)

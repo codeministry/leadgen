@@ -44,9 +44,10 @@ reads it in as well as `fullText`: the same text in another shape is the same pa
 never names the package's path on this server, which no client can use; the board says
 `hasPackage`. And `leadgen_list_applications` refuses a status that does not exist with the valid
 ones, where the old server answered an empty board a model would report as a fact. The inherited
-description's own example, `'APPLIED'`, is such a status; the description stays as the baseline
-pins it, and the error now teaches the right word. `leadgen_funnel_stats` with a section builds that
-section alone (`AnalyticsQueryService.section`), not the whole analytics view.
+description's own example, `'APPLIED'`, was such a status; it reads `'SENT'` now, the one change
+to the six descriptions, made on purpose and pinned in `baseline-tools.json` like the rest.
+`leadgen_funnel_stats` with a section builds that section alone (`AnalyticsQueryService.section`,
+whose `SECTIONS` the tool names in its error), not the whole analytics view.
 
 **The four added are the chat's own tools**: `leadgen_semantic_search`, `leadgen_statistics`,
 `leadgen_application` and `leadgen_profile` call the chat's tool classes, so the two surfaces answer
@@ -59,14 +60,24 @@ ceiling the shortlist's own search and `leadgen_search_offers` already draw on.
 compares every table's rows and the packages directory before and after calling each of them. The
 package itself stays a download from leadgen's UI and is not reachable here.
 
-**A browser page from elsewhere is refused before any tool runs.** Under `security.auth: none` a
-page on a name its author points at this machine (DNS rebinding) could post to `/mcp` as a
-same-origin request. The browser always names that page's origin; an MCP client that is not a
-browser sends no `Origin` at all. So `McpTransportConfig` hands the transport the SDK's
-`DefaultServerTransportSecurityValidator` with local origins only (`localhost`, `127.0.0.1`,
-`[::1]`, any port), and a request from any other origin gets a 403, as the MCP transport spec asks.
-The Host header is not checked: a deployment reaches this process under whatever name its proxy
-gives it, and the Origin check alone closes the path.
+**A page on a rebound name is refused, on `/mcp` and everywhere else.** Under `security.auth:
+none` a page on a name its author points at this machine (DNS rebinding) reaches the API as a
+same-origin request, reads included, with no preflight in the way; the MCP transport spec asks a
+server to refuse it, and the REST write paths need the same. Such a request always carries the
+author's name as its Host, and on anything but a plain GET as its Origin too. `RebindingGuard`,
+installed in the `none` chain only, refuses a Host that is a dotted name nobody configured, and
+it reads every Host the client sent: the raw header and each X-Forwarded-Host, never only the one
+Tomcat settled on, because with forwarded headers on a same-origin page can hand the valve a
+local name of its own. That holds while no proxy in front rewrites the Host and passes a client's
+X-Forwarded-Host on, so nginx and the dev server's proxy both overwrite it with the Host the
+browser sent. Loopback, IP literals and single-label names (a Compose service, a pod IP)
+pass as a Host; an Origin, being a page, passes when it is local, configured, or the very host the
+request was sent to (the UI opened by a LAN address), never some other IP or service name. A real host
+name under `none` is listed in `ALLOWED_HOSTS`, a port or a trailing dot there is forgiven, and
+the health question stays open. A first version
+put the SDK's Origin validator on `/mcp` alone: it left `/api` open to the same attack and, with
+its localhost-only list, refused a browser-based MCP client under `oidc` that held a valid token.
+Under `oidc` there is no guard at all; the token is the check.
 
 ## Every answer passes the masker
 
@@ -103,10 +114,14 @@ resource is not the one it derived the URL from (§ 3.3), so the two are never m
 **The scheme and host come from the proxy.** Derived from the request alone they are whatever the
 last hop spoke: behind a TLS-terminating ingress, `http://`. `server.forward-headers-strategy:
 native` has Tomcat read `X-Forwarded-Proto` and `-Host`, and only from a private or loopback peer,
-which the compose nginx and the ingress are and a client on the internet is not; nginx passes the
-Host with its port for these two paths. It changes how every request reads its own URL, and
-nothing in leadgen reads the peer address for a decision, so the only effect is URLs that name
-what the client used. `security.oidc.resource` (`OIDC_RESOURCE`) stays as the explicit answer
+which the compose nginx and the ingress are and a client on the internet is not. Once
+`X-Forwarded-Proto` is there, Tomcat takes the port from `X-Forwarded-Port` and otherwise the
+scheme's default, so nginx sends the port the browser's Host named for these two paths (a `map`
+on `$http_host`), and the dev server's proxy sets `xfwd`. It changes how every request reads its
+own URL, and nothing in leadgen reads the peer address for a decision. One more effect had to be
+switched off: knowing it sits behind https, Spring Security would send HSTS for a year,
+subdomains included, a commitment that belongs to whoever terminates TLS, so both chains disable
+it. `security.oidc.resource` (`OIDC_RESOURCE`) stays as the explicit answer
 where a proxy chain gets it wrong anyway; set, it replaces the MCP endpoint's resource and the
 401's pointer, never the server's.
 

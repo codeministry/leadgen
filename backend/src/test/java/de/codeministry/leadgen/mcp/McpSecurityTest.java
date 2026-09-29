@@ -156,6 +156,50 @@ class McpSecurityTest {
                                     + "/.well-known/oauth-protected-resource/mcp\""));
         }
 
+        /** A proxy on a port of its own: the port travels in X-Forwarded-Port, or in the forwarded Host. */
+        @Test
+        void keepsThePortTheClientUsed() {
+            var viaPort = get(
+                    port,
+                    "/.well-known/oauth-protected-resource/mcp",
+                    Map.of(
+                            "X-Forwarded-Proto", "http",
+                            "X-Forwarded-Host", "leadgen.example.invalid",
+                            "X-Forwarded-Port", "4200"));
+            assertThat(viaPort.path("resource").asString()).isEqualTo("http://leadgen.example.invalid:4200/mcp");
+
+            // What the dev server's proxy sends with xfwd: the Host with its port, and the port again.
+            var viaHost = get(
+                    port,
+                    "/.well-known/oauth-protected-resource/mcp",
+                    Map.of(
+                            "X-Forwarded-Proto", "http",
+                            "X-Forwarded-Host", "localhost:4200",
+                            "X-Forwarded-Port", "4200"));
+            assertThat(viaHost.path("resource").asString()).isEqualTo("http://localhost:4200/mcp");
+        }
+
+        /** HSTS is the TLS proxy's decision, not this process's, even when it now knows it sits behind one. */
+        @Test
+        void sendsNoStrictTransportSecurityBehindTls() {
+            when(decoder.decode(anyString())).thenReturn(verified());
+            var response = initialize(port, "good", Map.of("X-Forwarded-Proto", "https"));
+
+            assertThat(response.statusCode()).isEqualTo(200);
+            assertThat(response.headers().firstValue("Strict-Transport-Security"))
+                    .isEmpty();
+        }
+
+        /** Under oidc the token is the guard: a browser-based client on any origin is served with one. */
+        @Test
+        void servesABrowserClientFromAnyOriginWithAToken() {
+            when(decoder.decode(anyString())).thenReturn(verified());
+
+            assertThat(initialize(port, "good", Map.of("Origin", "https://tools.example.invalid"))
+                            .statusCode())
+                    .isEqualTo(200);
+        }
+
         @Test
         void describesTheMcpEndpointWithoutAToken() {
             var metadata = get(port, "/.well-known/oauth-protected-resource/mcp");
@@ -202,6 +246,22 @@ class McpSecurityTest {
             assertThat(server.path("authorization_servers").path(0).asString()).isEqualTo(ISSUER);
         }
 
+        /**
+         * The MCP endpoint by its path, exactly: a client compares the resource with the URL it derived
+         * (RFC 9728 § 3.3), so a trailing slash or a deeper path keeps its own derived resource.
+         */
+        @Test
+        void matchesTheMcpPathExactly() {
+            assertThat(get(port, "/.well-known/oauth-protected-resource/mcp/")
+                            .path("resource")
+                            .asString())
+                    .isEqualTo("http://localhost:" + port + "/mcp/");
+            assertThat(get(port, "/.well-known/oauth-protected-resource/x/mcp")
+                            .path("resource")
+                            .asString())
+                    .isEqualTo("http://localhost:" + port + "/x/mcp");
+        }
+
         @Test
         void pointsA401AtTheConfiguredResourcesMetadata() {
             var response = initialize(port, null);
@@ -212,6 +272,23 @@ class McpSecurityTest {
                             value -> assertThat(value)
                                     .contains(
                                             "resource_metadata=\"https://leadgen.example.invalid/.well-known/oauth-protected-resource/mcp\""));
+        }
+
+        /**
+         * The 401 and the metadata agree on what the MCP endpoint is: {@code /mcp/} is not it, so its
+         * 401 points at the whole server's document rather than at one whose resource it would reject.
+         */
+        @Test
+        void pointsA401ElsewhereThanTheMcpPathAtTheServersMetadata() {
+            var response = send(HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/mcp/"))
+                    .POST(HttpRequest.BodyPublishers.noBody())
+                    .build());
+
+            assertThat(response.statusCode()).isEqualTo(401);
+            assertThat(response.headers().firstValue("WWW-Authenticate"))
+                    .hasValueSatisfying(value -> assertThat(value)
+                            .contains("resource_metadata=\"http://localhost:%d/.well-known/oauth-protected-resource\""
+                                    .formatted(port)));
         }
     }
 

@@ -11,6 +11,7 @@ package de.codeministry.leadgen.mcp;
 import de.codeministry.leadgen.application.ApplicationService;
 import de.codeministry.leadgen.application.ApplicationStatus;
 import java.util.Arrays;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.mcp.annotation.McpTool;
@@ -38,27 +39,35 @@ public class ApplicationTools {
                             openWorldHint = false))
     public ApplicationList listApplications(
             @McpToolParam(
-                            description = "Only applications in this status, e.g. 'APPLIED'. Omit for all.",
+                            description = "Only applications in this status, e.g. 'SENT'. Omit for all.",
                             required = false)
                     String status,
             @McpToolParam(description = "Maximum rows to return, 1-50. Default 50.", required = false) Integer limit) {
-        if (status != null
-                && !status.isBlank()
-                && Arrays.stream(ApplicationStatus.values())
-                        .noneMatch(known -> known.name().equalsIgnoreCase(status))) {
-            // An error the client can correct, not an empty board a model would report as a fact. The
-            // description's example, 'APPLIED', carried over unchanged from codeministry-mcp, is one.
-            throw new IllegalArgumentException("unknown status '" + status + "'; expected one of "
-                    + Arrays.stream(ApplicationStatus.values()).map(Enum::name).collect(Collectors.joining(", ")));
-        }
+        Optional<ApplicationStatus> wanted = wanted(status);
         var rows = applications.board().stream()
-                .filter(view -> status == null
-                        || status.isBlank()
-                        || status.equalsIgnoreCase(view.status().name()))
+                .filter(view -> wanted.map(asked -> asked == view.status()).orElse(true))
                 .map(ApplicationRow::of)
                 .toList();
         int cap = Rows.clamp(limit, Rows.MAX);
         var page = rows.size() > cap ? rows.subList(0, cap) : rows;
         return new ApplicationList(page, page.size(), rows.size(), rows.size() > cap ? Boolean.TRUE : null);
+    }
+
+    /**
+     * The status asked for, resolved once and case-insensitively; empty for none. A status that
+     * does not exist is an error the client can correct, not an empty board a model would report
+     * as a fact. The description inherited from codeministry-mcp named one, 'APPLIED'.
+     */
+    private static Optional<ApplicationStatus> wanted(String status) {
+        if (status == null || status.isBlank()) {
+            return Optional.empty();
+        }
+        return Optional.of(Arrays.stream(ApplicationStatus.values())
+                .filter(known -> known.name().equalsIgnoreCase(status.trim()))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("unknown status '" + status + "'; expected one of "
+                        + Arrays.stream(ApplicationStatus.values())
+                                .map(Enum::name)
+                                .collect(Collectors.joining(", ")))));
     }
 }

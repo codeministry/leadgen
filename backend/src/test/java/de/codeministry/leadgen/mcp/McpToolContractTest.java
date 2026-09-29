@@ -157,6 +157,8 @@ class McpToolContractTest {
     void funnelStatsAnswersInTheRecordedShape() {
         assertSameShape("leadgen_funnel_stats", "{}", "leadgen_funnel_stats");
         assertSameShape("leadgen_funnel_stats", "{\"section\":\"market\"}", "leadgen_funnel_stats-market");
+        // Read as the status is, trimmed and in any case: a model writes ' Market ' as often as 'market'.
+        assertSameShape("leadgen_funnel_stats", "{\"section\":\" Market \"}", "leadgen_funnel_stats-market");
     }
 
     @Test

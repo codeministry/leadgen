@@ -17,7 +17,7 @@ import de.codeministry.leadgen.config.SourceQueryService;
 import de.codeministry.leadgen.offer.OfferQueryService;
 import de.codeministry.leadgen.score.PromptCatalog;
 import java.time.Instant;
-import java.util.List;
+import java.util.Locale;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.mcp.annotation.McpTool;
 import org.springframework.ai.mcp.annotation.McpToolParam;
@@ -32,8 +32,6 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class PipelineTools {
 
-    private static final List<String> SECTIONS = List.of("intake", "market", "scores", "applications", "runs");
-
     private final OfferQueryService offers;
     private final AnalyticsQueryService analytics;
     private final LastRunQueryService runs;
@@ -41,11 +39,20 @@ public class PipelineTools {
     private final ConfigRegistry config;
     private final PromptCatalog prompts;
 
+    /**
+     * The section names the funnel tool's descriptions spell out, twice. An annotation takes a constant
+     * only, so these are written out and {@code PipelineToolsTest} holds them to
+     * {@link AnalyticsQueryService#SECTIONS}.
+     */
+    static final String SECTION_NAMES = "intake, market, scores, applications, runs";
+
+    static final String QUOTED_SECTION_NAMES = "'intake', 'market', 'scores', 'applications', 'runs'";
+
     @McpTool(
             name = "leadgen_funnel_stats",
             description = "How offers moved through the pipeline: the funnel stages with how many each"
                     + " removed, and the application lanes. Pass an analytics section"
-                    + " ('intake', 'market', 'scores', 'applications', 'runs') to get that"
+                    + " (" + QUOTED_SECTION_NAMES + ") to get that"
                     + " slice of the full analytics view instead.",
             annotations =
                     @McpTool.McpAnnotations(
@@ -55,18 +62,20 @@ public class PipelineTools {
                             openWorldHint = false))
     public FunnelStats funnelStats(
             @McpToolParam(
-                            description = "One of intake, market, scores, applications, runs. Omit for the"
-                                    + " funnel and lanes overview.",
+                            description = "One of " + SECTION_NAMES + ". Omit for the funnel and lanes overview.",
                             required = false)
                     String section) {
         if (section == null || section.isBlank()) {
             return new FunnelStats.Overview(offers.funnel(), ApplicationStatus.LANES);
         }
-        // The one section asked for, not the whole analytics view with four others thrown away.
+        // The one section asked for, not the whole analytics view with four others thrown away; read
+        // as leadgen_list_applications reads its status, trimmed and in any case.
+        String name = section.trim().toLowerCase(Locale.ROOT);
         return analytics
-                .section(section)
-                .<FunnelStats>map(data -> new FunnelStats.Section(section, Instant.now(), data))
-                .orElseGet(() -> new FunnelStats.Unknown("unknown section '" + section + "'", SECTIONS));
+                .section(name)
+                .<FunnelStats>map(data -> new FunnelStats.Section(name, Instant.now(), data))
+                .orElseGet(() ->
+                        new FunnelStats.Unknown("unknown section '" + section + "'", AnalyticsQueryService.SECTIONS));
     }
 
     @McpTool(

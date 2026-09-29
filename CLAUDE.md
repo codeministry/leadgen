@@ -64,6 +64,7 @@ Violating one of these is expensive, and most of them fail silently.
   The five YAML files and the three templates are; a missing hint is an empty result in a
   native image, not an error. `LeadGenRuntimeHintsTest` fails when a new one has none.
 - **An MCP tool reads leadgen's services in-process, never writes, and its answer passes `ToolOutputMasker` at the tool list.** — reasoning in `docs/decisions/mcp.md`.
+- **Under `AUTH_MODE=none` `RebindingGuard` is the access control, and every proxy in front of the api overwrites `X-Forwarded-Host`, never passes a client's on.** — reasoning in `docs/decisions/mcp.md`.
 - **Never commit.** Do the work, leave it uncommitted, offer the commit — the maintainer
   reviews the diff and decides what lands.
 
