@@ -175,6 +175,10 @@ may change in any release. See the status note in the README.
 
 ### Fixed
 
+- **The browser tests no longer fail on a cold CI runner.** Vite bundles their dependencies on the
+  first run, and on a slow runner Chromium asked for the setup file before it was done, so every spec
+  file failed to import. CI now runs one spec file first to fill the cache.
+
 - **Four chat bugs.** The chat closed on every change of screen; `?chat`
   is now sticky across navigation, and a close stays closed. Its thread widened when the navigation
   rail folded, because the drawer's width followed a fixed step instead of the rail; the split views
