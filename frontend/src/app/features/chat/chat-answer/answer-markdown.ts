@@ -240,7 +240,9 @@ export function answerRenderer(context: AnswerContext): (markdown: string) => st
                     if (FOREIGN_SCHEME.test(href)) return text;
                     // Never an anchor: the address is shown so the reader can judge it, and it goes nowhere.
                     const shown = escapeHtml(shownUrl(href));
-                    const plain = text.replace(/<[^>]*>/g, '').trim();
+                    const plainNode = document.createElement('span');
+                    plainNode.innerHTML = text;
+                    const plain = (plainNode.textContent ?? '').trim();
                     return plain === escapeHtml(href.trim()) || plain === href.trim() ? shown : `${text} (${shown})`;
                 }
                 const pill = slot({
