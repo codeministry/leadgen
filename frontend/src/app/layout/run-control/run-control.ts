@@ -9,14 +9,18 @@ import {ScoringModelStore} from '@core/store/scoring-model.store';
 import {Icon} from '@shared/icon/icon';
 import {RunConfirm} from './run-confirm/run-confirm';
 
+/** Numbers each instance's select, so its label still names exactly one control. */
+let nextSelectId = 0;
+
 /**
  * Starting a run by hand, and choosing the judge it asks: the scoring-model select and Run ingest
  * (operator, 2026-09-27).
  *
- * <p>They used to sit in the app header on every screen. A run is a pipeline action, so they live
- * on the workflow screen now, directly above the status chip that follows the run they start —
- * the chip is the way into a pass in flight, so while one is going this control needs no link of
- * its own. The button stays and is disabled, with the step in its title (ISC-318).
+ * <p>It lives in two places: on the workflow screen, directly above the status chip that follows
+ * the run it starts, and in the header's run-status popover, so a run can be started from any
+ * screen (operator, 2026-09-30). Both can be on screen at once, which is why the select's id is
+ * per instance. While a pass is going the button stays and is disabled, with the step in its
+ * title (ISC-318).
  *
  * <p>No request leaves from here: the click dispatches `ingestEvents.requested`, and the POST is
  * `IngestStore`'s, in core — the workflow screen itself holds no write call (ISC-419).
@@ -36,6 +40,7 @@ export class RunControl {
     private readonly transloco = inject(TranslocoService);
     private readonly lang = toSignal(this.transloco.langChanges$, {initialValue: this.transloco.getActiveLang()});
     private readonly runConfirm = viewChild.required(RunConfirm);
+    protected readonly selectId = `scoring-model-${nextSelectId++}`;
 
     /**
      * Why the button is refusing. Disabled on `busy` and not on `running`: `running` says only

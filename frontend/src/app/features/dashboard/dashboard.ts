@@ -204,6 +204,28 @@ export class Dashboard implements OnInit {
         return slowest.millis > 0 ? slowest.position : null;
     });
 
+    /** The longest stage and the sum of all of them, the two scales {@link stageShare} reads. */
+    private readonly stageScale = computed(() => {
+        const stages = this.runStages();
+        return {
+            longest: stages.reduce((longest, stage) => Math.max(longest, stage.millis), 0),
+            total: stages.reduce((sum, stage) => sum + stage.millis, 0),
+        };
+    });
+
+    /**
+     * A stage's bar and figure in the timing table: the bar against the slowest stage, so the one
+     * that dominates fills its cell, and the figure as its share of the whole run, which is what
+     * "where the time went" asks. Under one percent says so rather than rounding to a zero.
+     */
+    protected stageShare(stage: LastRunStage): {readonly bar: number; readonly percent: string} {
+        const {longest, total} = this.stageScale();
+        const bar = longest > 0 ? (stage.millis / longest) * 100 : 0;
+        const share = total > 0 ? stage.millis / total : 0;
+        const format = new Intl.NumberFormat(this.transloco.getActiveLang(), {style: 'percent', maximumFractionDigits: 0});
+        return {bar, percent: share > 0 && share < 0.01 ? `<${format.format(0.01)}` : format.format(share)};
+    }
+
     /**
      * The stage the recorded run stopped in, when it stopped in one. The last timing,
      * because the server appends the failed one last; the run's own status and not the

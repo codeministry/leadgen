@@ -33,11 +33,21 @@ import org.springframework.core.env.SystemEnvironmentPropertySource;
  * would. Everything below it, `application.yaml` included, now loses to the file, which is
  * the whole point: that is where the machine-specific values are meant to live.
  *
+ * <p><b>The name ends in {@code -systemEnvironment}, and that is load-bearing.</b> Boot applies the
+ * environment-variable mapping to a source only when its name is {@code systemEnvironment} or ends
+ * in {@code -systemEnvironment}. Named plain {@code .env}, a scalar still resolved, but nothing that
+ * binds a map ever saw its keys: {@code SPRING_SSL_BUNDLE_JKS_OIDC_*} was in the file and no {@code
+ * oidc} bundle existed (operator, 2026-09-30).
+ *
  * <p>Registered through `META-INF/spring.factories` rather than as a bean, because it has to
  * run before the environment is bound — and through the factories file rather than a hook in
  * `main`, so a test context, a jar and an IDE run all see the same file.
  */
 public class DotEnvEnvironmentPostProcessor implements EnvironmentPostProcessor {
+
+    /** The source's name: the file's, with the suffix Boot reads as "map these like the environment". */
+    static final String SOURCE_NAME =
+            DotEnv.FILE_NAME + "-" + StandardEnvironment.SYSTEM_ENVIRONMENT_PROPERTY_SOURCE_NAME;
 
     @Override
     public void postProcessEnvironment(ConfigurableEnvironment environment, SpringApplication application) {
@@ -48,7 +58,7 @@ public class DotEnvEnvironmentPostProcessor implements EnvironmentPostProcessor 
             return;
         }
 
-        var source = new SystemEnvironmentPropertySource(DotEnv.FILE_NAME, values);
+        var source = new SystemEnvironmentPropertySource(SOURCE_NAME, values);
         var sources = environment.getPropertySources();
         if (sources.contains(StandardEnvironment.SYSTEM_ENVIRONMENT_PROPERTY_SOURCE_NAME)) {
             sources.addAfter(StandardEnvironment.SYSTEM_ENVIRONMENT_PROPERTY_SOURCE_NAME, source);

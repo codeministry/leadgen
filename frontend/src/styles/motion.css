@@ -16,6 +16,10 @@
     /* The marching dash on the edge a run is entering (spec 018, ISC-413). One cycle of the
        10px dash pattern; slow enough to read as direction rather than as flicker. */
     --lg-run-march-duration: 600ms;
+
+    /* One pulse of the header's run icon while a pass is going: slow, so it reads as "busy" and
+       not as a loading indicator that promises an answer any second. */
+    --lg-run-pulse-duration: 1600ms;
     --lg-hover-ease: ease;
     --lg-reveal-duration: 520ms;
     --lg-reveal-ease: cubic-bezier(0.16, 1, 0.3, 1);

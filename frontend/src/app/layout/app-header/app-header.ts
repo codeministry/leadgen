@@ -14,18 +14,19 @@ import {LanguageToggle} from '../language-toggle/language-toggle';
 import {ThemeToggle} from '../theme-toggle/theme-toggle';
 import {HelpDrawer} from '../help-drawer/help-drawer';
 import {UserMenu} from '../user-menu/user-menu';
+import {RunStatus} from '../run-status/run-status';
 import {SignedInState} from '@core/auth/signed-in.state';
 
 /**
- * The chrome on every screen: the brand, the navigation, the chat, settings and help.
+ * The chrome on every screen: the brand, the navigation, the chat, the run, settings and help.
  *
- * <p>Run ingest and the model choice are not here any more (operator, 2026-09-27). Starting a run
- * is a pipeline action, so it sits on the workflow screen, directly above the status chip that
- * follows the run it starts — `features/rules/run-control/`.
+ * <p>The run is one icon (operator, 2026-09-30, reversing 2026-09-27): a run can be started from
+ * any screen again, but the header carries no select and no worded button any more — both live in
+ * the icon's popover, `layout/run-status/`, beside a short status of the pass.
  */
 @Component({
     selector: 'lg-app-header',
-  imports: [AppNav, BrandMark, HelpDrawer, Icon, LivingMark, RouterLink, ThemeToggle, LanguageToggle, TranslocoPipe, UserMenu],
+  imports: [AppNav, BrandMark, HelpDrawer, Icon, LivingMark, RouterLink, RunStatus, ThemeToggle, LanguageToggle, TranslocoPipe, UserMenu],
     templateUrl: './app-header.html',
     styleUrl: './app-header.css',
     changeDetection: ChangeDetectionStrategy.OnPush,

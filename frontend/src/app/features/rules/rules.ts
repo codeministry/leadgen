@@ -22,7 +22,7 @@ import {fanIn} from './fan-in';
 import {failedStageIds, markersOf} from './stage-marks';
 import {RUN_STATUS, RunState, runState} from './run-state';
 import {formatStartedAt} from './run-time';
-import {RunControl} from './run-control/run-control';
+import {RunControl} from '@layout/run-control/run-control';
 
 /**
  * The content width, in px, below which the canvas gives way to the pipe (ISC-395): 44rem at the

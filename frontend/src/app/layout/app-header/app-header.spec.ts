@@ -54,15 +54,78 @@ describe('AppHeader', () => {
 
     const el = (selector: string) => fixture.nativeElement.querySelector(selector) as HTMLElement;
 
-    // Operator, 2026-09-27: Run ingest and the model choice moved to the workflow screen, at every
-    // width. A header that grows them back is a second place that starts a run.
-    it('holds no run control and no model choice, even with several models to pick from', () => {
-        http.match('/api/v1/scoring-models').forEach((req) => req.flush({available: ['model-a', 'model-b'], preferred: 'model-a'}));
-        fixture.detectChanges();
-        const host = fixture.nativeElement as HTMLElement;
+    // Operator, 2026-09-30: a run starts from every screen again, through one icon without a word
+    // whose colour follows the pass. The select and the start live in its popover, and only while
+    // it is open, so a closed header asks for no model list.
+    describe('the run status (operator, 2026-09-30)', () => {
+        const button = () => el('.run-status-button') as HTMLButtonElement;
+        const panel = () => el('#run-status-panel');
+        const current = (run: object | null) => {
+            http.match('/api/v1/ingest/current').forEach((req) => req.flush(run));
+            fixture.detectChanges();
+        };
+        const lastRun = (run: object | null) => {
+            http.match('/api/v1/ingest/last').forEach((req) => req.flush(run));
+            fixture.detectChanges();
+        };
+        const openPanel = () => {
+            panel().dispatchEvent(Object.assign(new Event('toggle'), {newState: 'open'}));
+            fixture.detectChanges();
+        };
 
-        expect(host.querySelector('.ingest-button, .ingest-live, lg-run-confirm, lg-run-control')).toBeNull();
-        expect(host.querySelector('select')).toBeNull();
+        it('is one icon without a word that opens the popover, and holds no run control while shut', () => {
+            http.match('/api/v1/scoring-models').forEach((req) => req.flush({available: ['model-a', 'model-b'], preferred: 'model-a'}));
+            fixture.detectChanges();
+
+            expect(button().textContent?.trim()).toBe('');
+            expect(button().querySelector('lg-icon')).not.toBeNull();
+            expect(button().getAttribute('popovertarget')).toBe('run-status-panel');
+            expect(button().getAttribute('aria-label')).toBeTruthy();
+            expect(el('lg-run-control')).toBeNull();
+            http.expectNone('/api/v1/scoring-models');
+        });
+
+        it('takes the run hue while a pass is going and names the step', () => {
+            const started = new Date(Date.now() - 90_000).toISOString();
+            current({id: 7, startedAt: started, scoreModel: null, stage: 'ENRICH', stagePosition: 3, stageTotal: 9, stageStartedAt: started});
+
+            expect(button().classList).toContain('is-running');
+            expect(button().getAttribute('aria-label')).toBe('Status: a pass is running, step 3 of 9');
+            const bar = panel().querySelector('progress') as HTMLProgressElement;
+            expect(bar.value).toBe(2);
+            expect(bar.max).toBe(9);
+            expect(panel().textContent).toContain('Step 3 of 9');
+            expect(panel().textContent).toContain('ENRICH');
+        });
+
+        it('leaves a line out rather than throw when a pass arrives without its start or its step', () => {
+            // A payload missing a field once took the header down with an Intl RangeError.
+            current({id: 8, startedAt: null, scoreModel: null, stage: null, stagePosition: null, stageTotal: undefined, stageStartedAt: null});
+
+            expect(button().classList).toContain('is-running');
+            expect(button().getAttribute('aria-label')).toBe(en.shell.run.running);
+            expect(panel().querySelector('progress')).toBeNull();
+        });
+
+        it('paints a failed last run, and a pass in flight outranks it', () => {
+            current(null);
+            lastRun({status: 'FAILED', startedAt: '2026-09-30T08:00:00Z', finishedAt: '2026-09-30T08:05:00Z', stages: [], sources: []});
+            expect(button().classList).toContain('has-failed');
+            expect(button().classList).not.toContain('is-running');
+        });
+
+        it('offers the run control once open, which starts nothing without the confirmation', () => {
+            current(null);
+            openPanel();
+
+            expect(button().getAttribute('aria-expanded')).toBe('true');
+            const start = panel().querySelector('lg-run-control .ingest-button') as HTMLButtonElement;
+            expect(start).not.toBeNull();
+            start.click();
+            fixture.detectChanges();
+            http.expectNone((req) => req.method === 'POST' && req.url.startsWith('/api/v1/ingest'));
+            expect(panel().querySelector('lg-run-confirm dialog')?.hasAttribute('open')).toBe(true);
+        });
     });
 
     describe('the help button (ISC-311)', () => {

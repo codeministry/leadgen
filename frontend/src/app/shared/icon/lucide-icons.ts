@@ -97,6 +97,7 @@ import {
   ShieldQuestionMark,
   MailQuestionMark,
   CornerDownRight,
+  Orbit,
 } from 'lucide';
 
 /** Lucide 1.x hands out a flat `[tag, attributes][]`; there are no nested children. */
@@ -199,6 +200,8 @@ export const LG_ICONS = {
     'chevrons-up-down': ChevronsUpDown,
     'circle-minus': CircleMinus,
     activity: Activity,
+    // The header's run button (operator, 2026-09-30).
+    orbit: Orbit,
     expand: Expand,
     'maximize-2': Maximize2,
     'message-square-text': MessageSquareText,

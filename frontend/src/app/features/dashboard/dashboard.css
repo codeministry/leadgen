@@ -96,23 +96,96 @@ lg-stat-tile.cell {
     }
 }
 
-/* The machine room folds through a `details`; the summary is the panel's heading and the
-   marker is the browser's own, which is one fewer thing to draw. */
+/* The machine room folds through a `details`; the summary is the run's facts behind a chevron
+   of our own. The browser's triangle has no width anyone can read, so the body could never line
+   up with the facts; the chevron is 1rem plus a 0.5rem gap, and `--lg-fold-indent` is that sum. */
+
 .machine-room > summary {
+    list-style: none;
     cursor: pointer;
 }
 
 .machine-room > summary::-webkit-details-marker {
-    color: var(--lg-muted);
+    display: none;
 }
 
-/* The summary is the room's header whenever something follows it: a rule and a gap set it off
-   from the detail under it, open or not, since the per-source table stays when it folds. */
-.machine-room[open] > summary,
-.machine-room-panel:has(> .table-scroll) > .machine-room > summary {
-    margin-bottom: 1.25rem;
-    padding-bottom: 1rem;
-    border-bottom: 1px solid var(--color-base-300);
+.fold-chevron {
+    display: inline-block;
+    width: 1rem;
+    margin-inline-end: 0.5rem;
+    color: var(--lg-muted);
+    vertical-align: top;
+    transition: rotate var(--lg-hover-duration) var(--lg-hover-ease);
+}
+
+.machine-room[open] .fold-chevron {
+    rotate: 90deg;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .fold-chevron {
+        transition: none;
+    }
+}
+
+/* The heading and, beside it, the one-line preview; wraps below the heading on a narrow screen. */
+.machine-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.25rem 1rem;
+}
+
+.machine-head .preview {
+    min-width: 0;
+}
+
+/* The fold under the table: a rule sets the run's facts off from the sources above them. Without
+   a run there is no table, and the fold sits directly under the heading. */
+.machine-room {
+    margin-top: 0.75rem;
+}
+
+.table-scroll + .machine-room {
+    margin-top: 1.25rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--color-base-300);
+}
+
+/* Everything the fold opens starts on the facts' line, not on the chevron's, and a step below
+   them. The gap is on the body rather than on the open summary, so it cannot collapse away. */
+.machine-body {
+    margin-top: 1.25rem;
+    padding-inline-start: var(--lg-fold-indent);
+}
+
+.machine-body > :first-child {
+    margin-top: 0;
+}
+
+/* The run's facts as tiles: label over value, on the page ground so they sit a step back from
+   the panel, as many to a row as fit. `min()` so one tile never pushes a phone sideways. */
+.run-meta {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(11rem, 100%), 1fr));
+    gap: 0.75rem;
+    margin: 0;
+}
+
+.run-meta-tile {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    min-width: 0;
+    padding: 0.625rem 0.75rem;
+    border: 1px solid var(--color-base-300);
+    border-radius: var(--radius-field);
+    background-color: var(--color-base-200);
+}
+
+.run-meta-tile dd {
+    margin: 0;
+    overflow-wrap: anywhere;
 }
 
 .panel-note {
@@ -164,7 +237,69 @@ lg-empty-state {
 /* The same rhythm as the panel note above the first table: the second table is a second
    question about the same run, not a new section. */
 .stages-heading {
-  margin: 1.5rem 0 0;
+  margin: 1.75rem 0 0;
+}
+
+/* Stage names, durations and the status badges keep their line: the bar column is the one that
+   gives way, so a name never breaks into three lines beside an empty stretch of bar. */
+.stages-table th,
+.stages-table .num {
+  white-space: nowrap;
+}
+
+/* The share of the run: a bar against the slowest stage and the figure beside it. The column
+   takes whatever width the table has left, so the bars get the room on a wide screen. */
+.stages-table .share-col {
+  width: 100%;
+  min-width: 8rem;
+}
+
+.stage-share {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.stage-bar {
+  flex: 1 1 auto;
+  height: 0.375rem;
+  overflow: hidden;
+  border-radius: var(--radius-selector);
+  background-color: var(--color-base-200);
+}
+
+.stage-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background-color: color-mix(in oklab, var(--color-primary) 55%, var(--color-base-100));
+}
+
+.slowest-stage .stage-bar-fill {
+  background-color: var(--color-warning);
+}
+
+.failed-stage .stage-bar-fill {
+  background-color: var(--color-error);
+}
+
+.stage-pct {
+  flex: none;
+  min-width: 3.5ch;
+  text-align: right;
+}
+
+/* The closing note about recorded runs: an icon in front, the text beside it. */
+.machine-body .panel-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin: 1rem 0 0;
+}
+
+.machine-body .panel-note lg-icon {
+  flex: none;
+  margin-top: 0.125rem;
 }
 
 /* Weight and not colour for the slowest row: the badge beside it already carries the tone,
@@ -173,40 +308,25 @@ lg-empty-state {
   font-weight: 600;
 }
 
-/* Not `.status`: DaisyUI 5 ships a component of that name and it would restyle the cell. */
+/* Not `.status`: DaisyUI 5 ships a component of that name and it would restyle the cell. One line,
+   so a badge is never cut short beside the bar column, which is the one that gives way. */
 .stage-status {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  white-space: nowrap;
   align-items: center;
   gap: 0.5rem;
 }
 
-/* The fold's summary is a row: the heading and, beside it, the one-line preview that says
-   what the room holds while it is closed. Wraps below the heading on a narrow screen. */
-
-/* The summary stays a list item so the browser draws its own marker; the rows inside it are
-   spans made blocks. The facts are a two-column grid, label and value, capped so the lines
-   stay readable on a wide screen. */
-
-/* Inline, so the marker the browser draws stays on the title's line rather than above it. */
-.machine-summary .head {
-    display: inline-flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: 0.25rem 1rem;
-    max-width: 100%;
-}
-
-.machine-summary .preview {
-    min-width: 0;
-}
-
+/* The summary stays a list item so the browser draws its own marker; the facts inside it are a
+   two-column grid, label and value, inline so the marker stays on the first line, and capped so
+   the lines stay readable on a wide screen. */
 .machine-summary .facts {
-    display: grid;
+    display: inline-grid;
+    vertical-align: top;
     grid-template-columns: auto minmax(0, 1fr);
     gap: 0.375rem 1rem;
     max-width: 48rem;
-    margin-top: 0.75rem;
 }
 
 .machine-summary .fact-label {

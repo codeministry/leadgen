@@ -56,8 +56,8 @@
     background-color: var(--color-base-200);
 }
 
-/* The chat, settings and help, held together and pushed right. Run ingest and the model choice
-   are not here any more — they moved to the workflow screen (operator, 2026-09-27).
+/* The chat, the run, settings and help, held together and pushed right. The run is one icon
+   whose popover holds the model choice and the start (operator, 2026-09-30).
    The auto margin sits on the group rather than on its first member, which is what makes
    the narrow widths need no fallback: a member dropping out changes nothing. */
 .ops {

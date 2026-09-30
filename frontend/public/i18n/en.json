@@ -31,7 +31,13 @@
   "shell": {
     "connecting": "connecting…",
     "settings": "Settings and version",
-    "help": "Help"
+    "help": "Help",
+    "run": {
+      "title": "Workflow run",
+      "running": "A run is going",
+      "idle": "No run yet — start one",
+      "details": "Open in workflow"
+    }
   },
   "user": {
     "menu": "Account",
@@ -170,10 +176,6 @@
     "noRunYet": "No run yet",
     "noRunYetHint": "Run ingest from the header. It reads every enabled source once and reports what each document gave up.",
     "nothingFiltered": "Nothing has been filtered yet. Run ingest, and this counts the archive.",
-    "analysed": "{count, plural, =0 {Nothing needed re-judging — a run judges what is stale} one {1 offer judged} other {# offers judged}} · model {model}",
-    "analysedNoModel": "{count, plural, =0 {Nothing needed re-judging — a run judges what is stale} one {1 offer judged} other {# offers judged}}",
-    "recordedRun": "Recorded by the pipeline, finished {when}. Nothing has been run from this browser.",
-    "finishedRun": "Finished {when}.",
     "recordedRunLimits": "A recorded run is counted per source. Which document came up short is known only while the run is being watched.",
     "mismatch": "{count, plural, one {# document extracted fewer offers than it announced} other {# documents extracted fewer offers than they announced}}. A selector that stopped matching looks exactly like a quiet market.",
     "colSource": "Source",
@@ -184,6 +186,14 @@
     "ofAnnounced": "{extracted} of {announced}",
     "archivedNote": "{count, plural, one {# offer is} other {# offers are}} archived and outside these numbers.",
     "stages": "Where the time went",
+    "metaFinished": "Finished",
+    "metaStartedBy": "Started by",
+    "metaByPipeline": "The pipeline, recorded",
+    "metaByBrowser": "This browser",
+    "metaJudged": "Judged",
+    "metaJudgedValue": "{count, plural, =0 {Nothing stale} one {1 offer} other {# offers}}",
+    "metaModel": "Model",
+    "colShare": "Share of the run",
     "colStage": "Stage",
     "colDuration": "Duration",
     "colStatus": "Status",
@@ -222,6 +232,7 @@
     "cellLoading": "Loading…",
     "machineRoom": "Machine room",
     "machineRoomEmpty": "No run recorded yet",
+    "machineRoomMore": "Run details",
     "machineRoomPreview": "Last run {when}: {sources, plural, one {1 source} other {# sources}} read, {count, plural, =0 {nothing new} one {1 new offer} other {# new offers}}, {duration}",
     "machineRoomPreviewModel": "Last run {when}: {sources, plural, one {1 source} other {# sources}} read, {count, plural, =0 {nothing new} one {1 new offer} other {# new offers}}, {duration}, judged by {model}",
     "hardFilter": "The hard filter",

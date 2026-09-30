@@ -5,7 +5,7 @@ import {provideRouter} from '@angular/router';
 import {Dispatcher} from '@ngrx/signals/events';
 import {ingestEvents} from '@core/store/ingest.events';
 import {ScoringModelStore} from '@core/store/scoring-model.store';
-import en from '../../../../../public/i18n/en.json';
+import en from '../../../../public/i18n/en.json';
 import {RunControl} from './run-control';
 
 /** The same two methods the help drawer's spec fills in, for the same reason: jsdom has neither. */
@@ -142,7 +142,7 @@ describe('RunControl', () => {
     });
 
     describe('the model choice', () => {
-        const select = () => el('select#scoring-model') as HTMLSelectElement | null;
+        const select = () => el('select.run-model') as HTMLSelectElement | null;
 
         it('draws no select for one model or none', () => {
             answerModels(['only-model']);
@@ -155,7 +155,7 @@ describe('RunControl', () => {
             const box = select();
             expect(box).not.toBeNull();
             expect([...box!.options].map((o) => o.value)).toEqual(['model-a', 'model-b']);
-            expect(el('label[for="scoring-model"]')?.textContent).toContain(en.rules.runControl.model);
+            expect(el(`label[for="${box!.id}"]`)?.textContent).toContain(en.rules.runControl.model);
 
             box!.value = 'model-b';
             box!.dispatchEvent(new Event('change'));

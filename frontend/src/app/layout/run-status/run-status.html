@@ -1,0 +1,87 @@
+<!-- One icon, no word (operator, 2026-09-30). Its colour carries the run — the run hue while a pass
+     is going, the error colour when the last one failed — and the orbit glyph pulses while it goes, so
+     colour is never the only carrier; the name says the same in words. `aria-expanded` is set
+     from the panel's own toggle event, as on the settings button. -->
+<button
+        type="button"
+        class="btn btn-soft btn-primary btn-square run-status-button"
+        [class.is-running]="ingest.current() !== null"
+        [class.has-failed]="failed()"
+        popovertarget="run-status-panel"
+        aria-controls="run-status-panel"
+        [attr.aria-expanded]="open()"
+        [attr.aria-label]="label()"
+        [attr.title]="label()"
+>
+    <lg-icon name="orbit" [size]="20"/>
+</button>
+
+<!-- A popover rather than a dialog, for the settings panel's reasons: light dismiss, Escape and
+     focus return with no script, and nothing to trap. -->
+<div #panel id="run-status-panel" popover class="run-status-panel" (toggle)="onToggle($event)">
+    <!-- The title and, on its line at the right, the way to the full sheet: an icon, its name on the
+         link (operator, 2026-09-30). -->
+    <div class="panel-head">
+        <p class="type-caption text-muted panel-title">{{ 'shell.run.title' | transloco }}</p>
+        <a
+                class="btn btn-ghost btn-square btn-xs panel-open"
+                routerLink="/workflow"
+                [queryParams]="{ stage: runStatus }"
+                [attr.aria-label]="'shell.run.details' | transloco"
+                [attr.title]="'shell.run.details' | transloco"
+                (click)="close(panel)"
+        >
+            <lg-icon name="maximize-2" [size]="14"/>
+        </a>
+    </div>
+
+    @if (ingest.current(); as run) {
+        <p class="type-small panel-line">
+            <span>{{ 'rules.status.runningSince' | transloco: {time: startedAt()} }}</span>
+            @if (elapsed(); as seconds) {
+                <span class="type-mono-data text-muted">{{ 'rules.status.soFar' | transloco: {time: clock(seconds)} }}</span>
+            }
+        </p>
+        @if (run.stagePosition && run.stageTotal) {
+            <progress
+                    class="progress run-status-progress"
+                    [value]="done() ?? 0"
+                    [max]="run.stageTotal"
+                    [attr.aria-label]="'rules.status.progress' | transloco: {done: done(), total: run.stageTotal}"
+            ></progress>
+            <p class="type-small panel-line">
+                <span class="type-mono-data">{{ 'rules.status.step' | transloco: {position: run.stagePosition, total: run.stageTotal} }}</span>
+                @if (run.stage) {
+                    <span class="type-mono-data text-muted">{{ run.stage }}</span>
+                }
+            </p>
+        }
+    } @else if (ingest.lastRun(); as run) {
+        <p class="type-small panel-line">
+            <lg-badge [tone]="statusTone()">{{ run.status }}</lg-badge>
+            <span class="text-muted">{{ run.finishedAt | lgAgo }}</span>
+        </p>
+        <p class="type-small panel-line">
+            <span>{{ 'rules.status.finishedAt' | transloco: {time: finishedAt()} }}</span>
+            @if (took(); as seconds) {
+                <span class="type-mono-data text-muted">{{ 'rules.status.took' | transloco: {time: clock(seconds)} }}</span>
+            }
+        </p>
+    } @else {
+        <p class="type-small text-muted panel-line">{{ 'dashboard.noRunYet' | transloco }}</p>
+    }
+
+    <!-- A start that did not start: inline, never a toast, like every other failed request. -->
+    @if (ingest.error(); as error) {
+        <p class="type-small panel-error" role="alert">
+            <lg-icon name="triangle-alert" [size]="16"/>
+            {{ error | transloco }}
+        </p>
+    }
+
+    <div class="panel-actions">
+        @if (open()) {
+            <lg-run-control/>
+        }
+    </div>
+</div>

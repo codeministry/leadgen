@@ -1,0 +1,138 @@
+/* Not `.status`: DaisyUI 5 ships a component of that name. */
+:host {
+    display: contents;
+}
+
+/* The soft tier with an edge, like the chat's Ask beside it (operator, 2026-09-30): the two are the
+   header's two entries into work, so they share a shape, while settings and help stay ghosts.
+   DaisyUI's soft button draws its border in the ground's own colour, so the edge is set here, a
+   1px ring in the primary's tint. The ground and ink come from `btn-soft btn-primary`. */
+.run-status-button {
+    --btn-border: color-mix(in oklab, var(--color-primary) 35%, transparent);
+}
+
+/* The run hue while a pass is going: the neon the graph's running node and the workflow's status
+   chip already speak, on the edge, the ink and a light wash of the ground. A failed last run takes
+   the error colour; a pass in flight outranks it, which is why `is-running` follows it here. */
+.run-status-button.has-failed {
+    --btn-bg: color-mix(in oklab, var(--color-error) 12%, var(--color-base-100));
+    --btn-border: var(--color-error);
+    --btn-fg: var(--color-error);
+
+    color: var(--color-error);
+}
+
+.run-status-button.is-running {
+    --btn-bg: color-mix(in oklab, var(--lg-run) 12%, var(--color-base-100));
+    --btn-border: var(--lg-run);
+    --btn-fg: var(--lg-run);
+
+    color: var(--lg-run);
+}
+
+.run-status-button.is-running:hover {
+    --btn-bg: color-mix(in oklab, var(--lg-run) 22%, var(--color-base-100));
+}
+
+/* Below 48rem the Ask button turns into a ghost square with no edge, and this one follows it, so
+   the row of squares at the top of a phone stays one kind. The run colours stay on the ink. */
+@media (width < 48rem) {
+    .run-status-button:not(.is-running, .has-failed) {
+        --btn-bg: transparent;
+        --btn-border: transparent;
+        --btn-fg: var(--color-base-content);
+
+        color: var(--color-base-content);
+    }
+}
+
+/* The orbit glyph pulses while the pass goes, so colour is never the only carrier. A pulse
+   rather than a turn: a spinning glyph reads as a loading spinner, not as work in progress. */
+.run-status-button.is-running lg-icon {
+    animation: lg-run-status-pulse var(--lg-run-pulse-duration) ease-in-out infinite;
+}
+
+@keyframes lg-run-status-pulse {
+    50% {
+        opacity: 0.4;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .run-status-button.is-running lg-icon {
+        animation: none;
+    }
+}
+
+/* Anchored under the header's right end like the settings panel, for the same reasons: the top
+   layer's containing block is the viewport, and the UA's `inset: 0; margin: auto` has to go.
+   `display` only on `:popover-open`, or the panel never closes — the trap `app-header.css` names. */
+.run-status-panel {
+    position: fixed;
+    inset: auto;
+    top: calc(var(--lg-header-h) + 0.25rem);
+    inset-inline-end: max(var(--lg-gutter), calc((100vw - var(--lg-shell-max)) / 2));
+    width: min(24rem, calc(100vw - 2 * var(--lg-gutter)));
+    gap: 0.5rem;
+    margin: 0;
+    padding: 0.75rem;
+    border: 1px solid var(--color-base-300);
+    border-radius: var(--radius-box);
+    background-color: var(--color-base-100);
+    box-shadow: 0 8px 24px var(--lg-float-shadow);
+}
+
+.run-status-panel:popover-open {
+    display: flex;
+    flex-direction: column;
+}
+
+.panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+.panel-title,
+.panel-line,
+.panel-error {
+    margin: 0;
+}
+
+.panel-line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.25rem 0.75rem;
+}
+
+/* The bar in the run hue, the one this screen's other run marks use. */
+.run-status-progress {
+    width: 100%;
+    color: var(--lg-run);
+}
+
+.panel-error {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--lg-warning-text);
+}
+
+/* The run control, right-aligned and set off by a rule; it wraps on a phone rather than push the
+   panel sideways. */
+.panel-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    margin-top: 0.25rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--color-base-300);
+}
+
+.panel-actions lg-run-control {
+    flex: 1 1 auto;
+}

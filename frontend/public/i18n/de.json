@@ -31,7 +31,13 @@
   "shell": {
     "connecting": "verbinde…",
     "settings": "Einstellungen und Version",
-    "help": "Hilfe"
+    "help": "Hilfe",
+    "run": {
+      "title": "Workflow-Lauf",
+      "running": "Ein Lauf läuft",
+      "idle": "Noch kein Lauf — jetzt starten",
+      "details": "Im Workflow öffnen"
+    }
   },
   "user": {
     "menu": "Konto",
@@ -170,10 +176,6 @@
     "noRunYet": "Noch kein Lauf",
     "noRunYetHint": "Starte den Lauf oben im Kopf. Er liest jede aktive Quelle einmal und meldet, was jedes Dokument hergab.",
     "nothingFiltered": "Es wurde noch nichts gefiltert. Lies die Quellen ein, dann zählt das hier das Archiv.",
-    "analysed": "{count, plural, =0 {Nichts war neu zu bewerten — ein Lauf bewertet, was veraltet ist} one {1 Offer bewertet} other {# Offers bewertet}} · Modell {model}",
-    "analysedNoModel": "{count, plural, =0 {Nichts war neu zu bewerten — ein Lauf bewertet, was veraltet ist} one {1 Offer bewertet} other {# Offers bewertet}}",
-    "recordedRun": "Von der Pipeline aufgezeichnet, beendet am {when}. Aus diesem Browser wurde nichts gestartet.",
-    "finishedRun": "Beendet am {when}.",
     "recordedRunLimits": "Ein aufgezeichneter Lauf wird pro Quelle gezählt. Welches Dokument zu wenig geliefert hat, ist nur während des laufenden Durchgangs bekannt.",
     "mismatch": "{count, plural, one {# Dokument hat weniger Angebote geliefert als es angekündigt hat} other {# Dokumente haben weniger Angebote geliefert als sie angekündigt haben}}. Ein Selektor, der nicht mehr greift, sieht genau aus wie ein ruhiger Markt.",
     "colSource": "Quelle",
@@ -184,6 +186,14 @@
     "ofAnnounced": "{extracted} von {announced}",
     "archivedNote": "{count, plural, one {# Angebot ist} other {# Angebote sind}} archiviert und in diesen Zahlen nicht enthalten.",
     "stages": "Wo die Zeit blieb",
+    "metaFinished": "Beendet",
+    "metaStartedBy": "Gestartet von",
+    "metaByPipeline": "Der Pipeline, aufgezeichnet",
+    "metaByBrowser": "Diesem Browser",
+    "metaJudged": "Bewertet",
+    "metaJudgedValue": "{count, plural, =0 {Nichts veraltet} one {1 Offer} other {# Offers}}",
+    "metaModel": "Modell",
+    "colShare": "Anteil am Lauf",
     "colStage": "Stufe",
     "colDuration": "Dauer",
     "colStatus": "Status",
@@ -222,6 +232,7 @@
     "cellLoading": "Lädt…",
     "machineRoom": "Maschinenraum",
     "machineRoomEmpty": "Noch kein Lauf aufgezeichnet",
+    "machineRoomMore": "Laufdetails",
     "machineRoomPreview": "Letzter Lauf {when}: {sources, plural, one {1 Quelle} other {# Quellen}} gelesen, {count, plural, =0 {nichts Neues} one {1 neues Angebot} other {# neue Angebote}}, {duration}",
     "machineRoomPreviewModel": "Letzter Lauf {when}: {sources, plural, one {1 Quelle} other {# Quellen}} gelesen, {count, plural, =0 {nichts Neues} one {1 neues Angebot} other {# neue Angebote}}, {duration}, bewertet von {model}",
     "hardFilter": "Der harte Filter",
