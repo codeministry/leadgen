@@ -189,6 +189,10 @@ may change in any release. See the status note in the README.
 
 ### Fixed
 
+- **A shortlist cursor with a number past the int range is refused.** Keyset paging bound a cursor's
+  score or month count as an int by narrowing the long the client sent back, so a crafted one wrapped
+  and paged from an unrelated position; it now answers 400 like any other malformed cursor.
+
 - **The shortlist's last card can be scrolled into view.** Before the page had scrolled far enough to
   pin the list column, the column's bottom hung below the window (39px at 1440×900), and a wheel over
   the list never moved the page, so the last card stayed out of reach. The list now hands its scroll
