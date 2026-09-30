@@ -120,6 +120,27 @@ describe('Dashboard', () => {
         expect(rows[1].textContent).toContain('9');
     });
 
+    // Operator, 2026-09-30: the run's facts as tiles, and each stage with a bar and its share.
+    it('shows the run as tiles and every stage with its share of the run', () => {
+        const fixture = render(lastRun());
+        const host = fixture.nativeElement as HTMLElement;
+
+        const tiles = [...host.querySelectorAll('.run-meta-tile')].map((tile) => ({
+            label: tile.querySelector('dt')?.textContent?.trim(),
+            value: tile.querySelector('dd')?.textContent?.trim(),
+        }));
+        expect(tiles.map((tile) => tile.label)).toEqual(['Finished', 'Started by', 'Judged', 'Model']);
+        expect(tiles.find((tile) => tile.label === 'Model')?.value).toBe('some-model');
+
+        // 200 + 9000 + 50 ms: FILTER is the whole bar and most of the run, ARCHIVE under a percent.
+        const rows = stageRows(fixture);
+        const fill = (row: HTMLTableRowElement) => (row.querySelector('.stage-bar-fill') as HTMLElement).style.width;
+        const pct = (row: HTMLTableRowElement) => row.querySelector('.stage-pct')?.textContent?.trim();
+        expect(fill(rows[1])).toBe('100%');
+        expect(pct(rows[1])).toBe('97%');
+        expect(pct(rows[2])).toBe('<1%');
+    });
+
     it('says where a failed run stopped, and shows the reason on the stage that threw', () => {
         const fixture = render(
             lastRun({
@@ -327,7 +348,7 @@ describe('Dashboard', () => {
             expect((healthy.nativeElement.querySelector('details.machine-room') as HTMLDetailsElement).open).toBe(false);
             expect(healthy.nativeElement.querySelector('lg-stat-tile:last-of-type')?.textContent).toContain('Healthy');
             // The closed fold still says what it holds: the run's own numbers, one line.
-            const preview = healthy.nativeElement.querySelector('.machine-summary .preview') as HTMLElement;
+            const preview = healthy.nativeElement.querySelector('.machine-head .preview') as HTMLElement;
             expect(preview.textContent).toContain('169 new offers');
             expect(preview.textContent).toContain('some-model');
             expect(preview.textContent).toContain('9.3');
@@ -350,6 +371,10 @@ describe('Dashboard', () => {
                 'Source', 'Documents', 'Extracted', 'Written', 'Announced',
             ]);
             expect(room.querySelector('.stages-heading')).toBeNull();
+            // Operator, 2026-09-30: the table sits above the run's facts, right under the heading.
+            const head = room.querySelector('.machine-head') as HTMLElement;
+            expect(head.compareDocumentPosition(table) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+            expect(table.compareDocumentPosition(details) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
             details.open = true;
             details.dispatchEvent(new Event('toggle'));

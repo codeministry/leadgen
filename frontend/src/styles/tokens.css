@@ -30,6 +30,10 @@
     --lg-section: var(--color-base-300);
     --lg-edge-w: 3px;
     --lg-panel-pad: 1rem;
+
+    /* How far a fold's body sits in from its summary: the 1rem chevron plus its 0.5rem gap, so the
+       dashboard machine room's opened content starts on the line of the facts above it. */
+    --lg-fold-indent: 1.5rem;
     --lg-hero-wash: 6%;
 
     /* How strongly a tone glows out of its cell's corner (`.lg-tone-wash`). The two custom

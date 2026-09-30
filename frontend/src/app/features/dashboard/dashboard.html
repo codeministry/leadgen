@@ -85,94 +85,20 @@
         }
     </section>
 </div>
-<!-- The machine room: the per-source table, the stage timings, the model, the archive
-     note. The per-source table shows whether the room is folded or not (operator,
-     2026-09-30): what each source delivered is the first question after a run, and it should
-     not take a click. The rest folds; it opens by itself when the run failed or a source came
+<!-- The machine room: its heading, the per-source table, then the fold with the rest. The table
+     comes first (operator, 2026-09-30): what each source delivered is the first question after a
+     run, so it sits directly under the heading and above the run's facts, and it shows whether the
+     room is folded or not. The rest folds; it opens by itself when the run failed or a source came
      up short, because a failure must never hide behind a fold (ISC-270).
 
-     The fold is a `details` holding the summary alone, and the parts under the table follow
-     its open state: a table cannot sit inside a `summary`, and one inside the `details` body
-     would fold with the rest. -->
+     The heading stands outside the fold and the facts are its summary: a table cannot sit inside a
+     `summary`, and one inside the `details` body would fold with the rest. -->
 <section class="lg-panel machine-room-panel">
-<details class="machine-room" [open]="roomOpen()" (toggle)="onRoomToggle($event)">
-    <!-- The summary carries the run in one line and four lines of its numbers, so the closed
-         fold is a summary and not an empty bar: what it read, what the filter did, where the
-         time went, what came out. Spans made blocks, because a summary allows phrasing content
-         only. The detail is one click away. -->
-    <summary class="machine-summary">
-        <span class="head">
-            <span class="type-h2">{{ 'dashboard.machineRoom' | transloco }}</span>
-            <span class="type-small text-muted preview">{{ machineRoomPreview().key | transloco: machineRoomPreview().params }}</span>
-        </span>
-        @if (machineRoomFacts().length > 0) {
-            <span class="facts">
-                @for (fact of machineRoomFacts(); track fact.label) {
-                    <span class="type-caption text-muted fact-label">{{ fact.label | transloco }}</span>
-                    <span class="type-small fact-value">{{ fact.key | transloco: fact.params }}</span>
-                }
-            </span>
-        }
-    </summary>
-</details>
-    @if (roomOpen()) {
-        @if (ingest.error(); as error) {
-            <p class="type-small run-error" role="alert">
-                <lg-icon name="triangle-alert" [size]="16"/>
-                {{ error | transloco }}
-            </p>
-        }
-    }
-  @if (hasRun()) {
-        @if (roomOpen()) {
-            <!-- When this run finished, always. A recorded one additionally says that nothing was
-                 started here, which is what explains the missing per-document detail below. -->
-            @if (finishedAt(); as when) {
-                <p class="type-small text-muted panel-note">
-                    @if (showingRecordedRun()) {
-                        {{ 'dashboard.recordedRun' | transloco: {when} }}
-                    } @else {
-                        {{ 'dashboard.finishedRun' | transloco: {when} }}
-                    }
-                </p>
-            }
-    
-            <!-- The one fact about a failed run the panel must not bury: where it stopped. The
-                 counts below are real up to that stage and stop there. The stage name and the
-                 reason are the server's and stay English. -->
-            @if (failedStage(); as failed) {
-                <p class="type-small run-error run-failed" role="alert">
-                    <lg-icon name="triangle-alert" [size]="16"/>
-                    <lg-badge tone="error">{{ 'dashboard.runFailed' | transloco }}</lg-badge>
-                    <span>{{ 'dashboard.runFailedIn' | transloco: {stage: failed.stage} }}</span>
-                    @if (failed.note) {
-                        <span class="type-mono-data failure-note">{{ failed.note }}</span>
-                    }
-                </p>
-            }
-    
-            <!-- What the run judged, beside which judge judged it. Two keys rather than one
-                 sentence with an optional tail: a live report carries no model, and "· model null"
-                 is worse than a sentence that does not mention one. -->
-            @if (analysed(); as analysed) {
-                <p class="type-small text-muted panel-note">
-                    @if (analysed.model) {
-                        {{ 'dashboard.analysed' | transloco: {count: analysed.count, model: analysed.model} }}
-                    } @else {
-                        {{ 'dashboard.analysedNoModel' | transloco: {count: analysed.count} }}
-                    }
-                </p>
-            }
-    
-            @if (mismatches() > 0) {
-                <p class="type-small run-error" role="alert">
-                    <lg-icon name="triangle-alert" [size]="16"/>
-                    {{ 'dashboard.mismatch' | transloco: {count: mismatches()} }}
-                </p>
-            }
-    
-        }
-
+    <header class="machine-head">
+        <h2 class="type-h2">{{ 'dashboard.machineRoom' | transloco }}</h2>
+        <span class="type-small text-muted preview">{{ machineRoomPreview().key | transloco: machineRoomPreview().params }}</span>
+    </header>
+    @if (hasRun()) {
         <div class="table-scroll">
             <table class="table table-sm">
                 <thead>
@@ -216,69 +142,163 @@
                 </tbody>
             </table>
         </div>
-
-        @if (roomOpen()) {
-            <!-- Where the time went. Fed by the recorded run only, which the run-ended refresh
-                 reads back after this browser's own run too. A failed source is a red row under a
-                 run that completed; a failed stage last is where a failed run stopped. -->
-            @if (runStages().length > 0) {
-                <h3 class="type-small text-muted stages-heading">{{ 'dashboard.stages' | transloco }}</h3>
-                <div class="table-scroll">
-                    <table class="table table-sm">
-                        <thead>
-                        <tr>
-                            <th scope="col">{{ 'dashboard.colStage' | transloco }}</th>
-                            <th scope="col" class="num">{{ 'dashboard.colDuration' | transloco }}</th>
-                            <th scope="col">{{ 'dashboard.colStatus' | transloco }}</th>
-                        </tr>
-                        </thead>
-                        <tbody>
-                            @for (stage of runStages(); track stage.position) {
-                                <tr [class.slowest-stage]="stage.position === slowestStage()">
-                                    <th scope="row" class="type-mono-data">{{ stage.stage }}</th>
-                                    <td class="type-mono-data num">{{ duration(stage.millis) }}</td>
-                                    <td>
-                                        <span class="stage-status">
-                                            @if (stage.status === 'FAILED') {
-                                                <lg-badge tone="error">{{ 'dashboard.stageFailed' | transloco }}</lg-badge>
-                                                @if (stage.note) {
-                                                    <span class="type-small text-muted">{{ stage.note }}</span>
-                                                }
-                                            } @else {
-                                                @if (stage.position === slowestStage()) {
-                                                    <lg-badge tone="warning">{{ 'dashboard.slowestStage' | transloco }}</lg-badge>
-                                                }
-                                                <!-- The width a model-bound stage ran at, parsed on the server. Width one
-                                                     is the default and says nothing, so that row keeps its dash. -->
-                                                @if (stage.width !== null && stage.width > 1) {
-                                                    <span class="type-small text-muted">{{ 'dashboard.stageWidth' | transloco: {count: stage.width} }}</span>
-                                                } @else if (stage.position !== slowestStage()) {
-                                                    <span class="type-small text-muted">—</span>
-                                                }
-                                            }
-                                        </span>
-                                    </td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
+    }
+    <details class="machine-room" [open]="roomOpen()" (toggle)="onRoomToggle($event)">
+        <!-- The summary carries four lines of the run's numbers, so the closed fold is a summary and
+             not an empty bar: what it read, what the filter did, where the time went, what came
+             out. Spans made blocks, because a summary allows phrasing content only. The marker is
+             our own chevron rather than the browser's triangle, so its width is known and the
+             body below can start on the same line as the facts (operator, 2026-09-30). -->
+        <summary class="machine-summary">
+            <lg-icon class="fold-chevron" name="chevron-right" [size]="16"/>
+            @if (machineRoomFacts().length > 0) {
+                <span class="facts">
+                    @for (fact of machineRoomFacts(); track fact.label) {
+                        <span class="type-caption text-muted fact-label">{{ fact.label | transloco }}</span>
+                        <span class="type-small fact-value">{{ fact.key | transloco: fact.params }}</span>
+                    }
+                </span>
+            } @else {
+                <span class="type-small text-muted">{{ 'dashboard.machineRoomMore' | transloco }}</span>
             }
-    
-            <!-- Only a run this browser started carries the per-document breakdown. The recorded
-                 one is not missing it by accident, and saying so beats a column that is always a
-                 dash for reasons nobody can see. -->
-            @if (showingRecordedRun()) {
-                <p class="type-small text-muted panel-note">
-                    {{ 'dashboard.recordedRunLimits' | transloco }}
+        </summary>
+    </details>
+    @if (roomOpen()) {
+        <!-- The fold's body, indented to the facts above it so the two read as one block. -->
+        <div class="machine-body">
+            @if (ingest.error(); as error) {
+                <p class="type-small run-error" role="alert">
+                    <lg-icon name="triangle-alert" [size]="16"/>
+                    {{ error | transloco }}
                 </p>
             }
-        }
-    } @else if (roomOpen()) {
-        <lg-empty-state
-                icon="funnel"
-                [title]="'dashboard.noRunYet' | transloco"
-                [description]="'dashboard.noRunYetHint' | transloco"
-        />
+            @if (hasRun()) {
+                <!-- The run's own facts as tiles, label over value like the facts in the summary:
+                     when it finished, who ran it, how much it judged and which judge judged it. A
+                     recorded run is one this browser did not watch, which is what explains the
+                     missing per-document detail in the table above. -->
+                <dl class="run-meta">
+                    @if (finishedAt(); as when) {
+                        <div class="run-meta-tile">
+                            <dt class="type-caption text-muted">{{ 'dashboard.metaFinished' | transloco }}</dt>
+                            <dd class="type-small">{{ when }}</dd>
+                        </div>
+                    }
+                    <div class="run-meta-tile">
+                        <dt class="type-caption text-muted">{{ 'dashboard.metaStartedBy' | transloco }}</dt>
+                        <dd class="type-small">
+                            {{ (showingRecordedRun() ? 'dashboard.metaByPipeline' : 'dashboard.metaByBrowser') | transloco }}
+                        </dd>
+                    </div>
+                    @if (analysed(); as analysed) {
+                        <div class="run-meta-tile">
+                            <dt class="type-caption text-muted">{{ 'dashboard.metaJudged' | transloco }}</dt>
+                            <dd class="type-small">{{ 'dashboard.metaJudgedValue' | transloco: {count: analysed.count} }}</dd>
+                        </div>
+                        @if (analysed.model) {
+                            <div class="run-meta-tile">
+                                <dt class="type-caption text-muted">{{ 'dashboard.metaModel' | transloco }}</dt>
+                                <dd class="type-mono-data">{{ analysed.model }}</dd>
+                            </div>
+                        }
+                    }
+                </dl>
+
+                <!-- The one fact about a failed run the panel must not bury: where it stopped. The
+                     counts below are real up to that stage and stop there. The stage name and the
+                     reason are the server's and stay English. -->
+                @if (failedStage(); as failed) {
+                    <p class="type-small run-error run-failed" role="alert">
+                        <lg-icon name="triangle-alert" [size]="16"/>
+                        <lg-badge tone="error">{{ 'dashboard.runFailed' | transloco }}</lg-badge>
+                        <span>{{ 'dashboard.runFailedIn' | transloco: {stage: failed.stage} }}</span>
+                        @if (failed.note) {
+                            <span class="type-mono-data failure-note">{{ failed.note }}</span>
+                        }
+                    </p>
+                }
+
+                @if (mismatches() > 0) {
+                    <p class="type-small run-error" role="alert">
+                        <lg-icon name="triangle-alert" [size]="16"/>
+                        {{ 'dashboard.mismatch' | transloco: {count: mismatches()} }}
+                    </p>
+                }
+
+                <!-- Where the time went. Fed by the recorded run only, which the run-ended refresh
+                     reads back after this browser's own run too. A failed source is a red row under
+                     a run that completed; a failed stage last is where a failed run stopped. The bar
+                     is the stage against the slowest one, the figure its share of the whole run. -->
+                @if (runStages().length > 0) {
+                    <h3 class="type-caption text-muted stages-heading">{{ 'dashboard.stages' | transloco }}</h3>
+                    <div class="table-scroll">
+                        <table class="table table-sm stages-table">
+                            <thead>
+                            <tr>
+                                <th scope="col">{{ 'dashboard.colStage' | transloco }}</th>
+                                <th scope="col" class="num">{{ 'dashboard.colDuration' | transloco }}</th>
+                                <th scope="col" class="share-col">{{ 'dashboard.colShare' | transloco }}</th>
+                                <th scope="col">{{ 'dashboard.colStatus' | transloco }}</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                                @for (stage of runStages(); track stage.position) {
+                                    @let share = stageShare(stage);
+                                    <tr [class.slowest-stage]="stage.position === slowestStage()" [class.failed-stage]="stage.status === 'FAILED'">
+                                        <th scope="row" class="type-mono-data">{{ stage.stage }}</th>
+                                        <td class="type-mono-data num">{{ duration(stage.millis) }}</td>
+                                        <td class="share-col">
+                                            <span class="stage-share">
+                                                <span class="stage-bar" aria-hidden="true">
+                                                    <span class="stage-bar-fill" [style.width.%]="share.bar"></span>
+                                                </span>
+                                                <span class="type-mono-data text-muted stage-pct">{{ share.percent }}</span>
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span class="stage-status">
+                                                @if (stage.status === 'FAILED') {
+                                                    <lg-badge tone="error">{{ 'dashboard.stageFailed' | transloco }}</lg-badge>
+                                                    @if (stage.note) {
+                                                        <span class="type-small text-muted">{{ stage.note }}</span>
+                                                    }
+                                                } @else {
+                                                    @if (stage.position === slowestStage()) {
+                                                        <lg-badge tone="warning">{{ 'dashboard.slowestStage' | transloco }}</lg-badge>
+                                                    }
+                                                    <!-- The width a model-bound stage ran at, parsed on the server. Width
+                                                         one is the default and says nothing, so that row keeps its dash. -->
+                                                    @if (stage.width !== null && stage.width > 1) {
+                                                        <span class="type-small text-muted">{{ 'dashboard.stageWidth' | transloco: {count: stage.width} }}</span>
+                                                    } @else if (stage.position !== slowestStage()) {
+                                                        <span class="type-small text-muted">—</span>
+                                                    }
+                                                }
+                                            </span>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+
+                <!-- Only a run this browser started carries the per-document breakdown. The recorded
+                     one is not missing it by accident, and saying so beats a column that is always a
+                     dash for reasons nobody can see. -->
+                @if (showingRecordedRun()) {
+                    <p class="type-small text-muted panel-note">
+                        <lg-icon name="circle-help" [size]="14"/>
+                        <span>{{ 'dashboard.recordedRunLimits' | transloco }}</span>
+                    </p>
+                }
+            } @else {
+                <lg-empty-state
+                        icon="funnel"
+                        [title]="'dashboard.noRunYet' | transloco"
+                        [description]="'dashboard.noRunYetHint' | transloco"
+                />
+            }
+        </div>
     }
 </section>
