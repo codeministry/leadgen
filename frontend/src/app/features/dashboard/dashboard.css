@@ -96,7 +96,7 @@ lg-stat-tile.cell {
     }
 }
 
-/* The machine room is a `details` so it folds; the summary is the panel's heading and the
+/* The machine room folds through a `details`; the summary is the panel's heading and the
    marker is the browser's own, which is one fewer thing to draw. */
 .machine-room > summary {
     cursor: pointer;
@@ -106,9 +106,10 @@ lg-stat-tile.cell {
     color: var(--lg-muted);
 }
 
-/* Open, the summary is the room's header: a rule and a gap set it off from the detail under
-   it, which otherwise started on the line after the last fact. */
-.machine-room[open] > summary {
+/* The summary is the room's header whenever something follows it: a rule and a gap set it off
+   from the detail under it, open or not, since the per-source table stays when it folds. */
+.machine-room[open] > summary,
+.machine-room-panel:has(> .table-scroll) > .machine-room > summary {
     margin-bottom: 1.25rem;
     padding-bottom: 1rem;
     border-bottom: 1px solid var(--color-base-300);

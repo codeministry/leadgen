@@ -90,6 +90,14 @@ describe('Dashboard', () => {
             }
         }
         fixture.detectChanges();
+        // The stage timings sit behind the machine room's fold (only the per-source table shows
+        // folded), so the tests about them open it the way a reader does.
+        const fold = fixture.nativeElement.querySelector('details.machine-room') as HTMLDetailsElement | null;
+        if (fold && !fold.open) {
+            fold.open = true;
+            fold.dispatchEvent(new Event('toggle'));
+            fixture.detectChanges();
+        }
         return fixture;
     }
 
@@ -329,6 +337,25 @@ describe('Dashboard', () => {
             expect(facts).toContain('slowest FILTER at 9');
             expect(facts).toContain('7 shortlisted');
             expect(facts).toContain('digest written');
+        });
+
+        it('shows the per-source table with the room folded, and the rest only once it opens', () => {
+            // Operator, 2026-09-30: what each source delivered is the first question after a run.
+            const healthy = renderRoom(lastRun());
+            const room = healthy.nativeElement as HTMLElement;
+            const details = room.querySelector('details.machine-room') as HTMLDetailsElement;
+            expect(details.open).toBe(false);
+            const table = room.querySelector('.machine-room-panel > .table-scroll table') as HTMLTableElement;
+            expect([...table.querySelectorAll('thead th')].map((th) => th.textContent?.trim())).toEqual([
+                'Source', 'Documents', 'Extracted', 'Written', 'Announced',
+            ]);
+            expect(room.querySelector('.stages-heading')).toBeNull();
+
+            details.open = true;
+            details.dispatchEvent(new Event('toggle'));
+            healthy.detectChanges();
+
+            expect(room.querySelector('.stages-heading')).not.toBeNull();
         });
 
         it('opens the machine room on a failed run', () => {

@@ -244,6 +244,10 @@ may change in any release. See the status note in the README.
 
 ### Changed
 
+- **The dashboard's machine room shows its per-source table folded.** Source, documents, extracted,
+  written and announced sit under the room's heading whether it is open or not; the stage timings and
+  the notes still fold, and the room still opens by itself on a failed run or a short source.
+
 - **Wider pages and larger type on a large monitor.** The page cap is 128rem instead of 104rem, one
   screen class up: a 1920px window is filled to its gutters, and a larger monitor at full screen still
   gets a bounded page. The pipeline board and the workflow keep the full width. The root type size is
