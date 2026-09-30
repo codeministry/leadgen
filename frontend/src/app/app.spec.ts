@@ -21,7 +21,7 @@ describe('App', () => {
         const fixture = TestBed.createComponent(App);
         fixture.detectChanges();
 
-      httpMock.expectOne('/api/v1/status').flush({application: 'lead-generation', version: '0.5.1'});
+      httpMock.expectOne('/api/v1/status').flush({application: 'lead-generation', version: '0.5.2'});
         // Run ingest and the model choice left the header for the workflow screen (operator,
         // 2026-09-27), so the shell does not create the scoring-model store: the model list is
         // not asked for here. The ingest store is created at the root (fix 2F-5), so its
@@ -34,7 +34,7 @@ describe('App', () => {
         await fixture.whenStable();
         fixture.detectChanges();
 
-      expect(fixture.nativeElement.textContent).toContain('lead-generation 0.5.1');
+      expect(fixture.nativeElement.textContent).toContain('lead-generation 0.5.2');
         httpMock.verify();
     });
 

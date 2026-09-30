@@ -9,6 +9,42 @@ may change in any release. See the status note in the README.
 
 ## [Unreleased]
 
+## [0.5.2] — 2026-09-30
+
+A run starts and shows itself from every screen, the machine room reads at a glance, the workflow
+canvas no longer hides part of the graph under an open stage sheet, and a local `oidc` run behind a
+private CA starts without a JVM flag. Nothing changes for a deployed instance.
+
+### Added
+
+- **The run in the header.** One icon without a word, in the soft tier with an edge like Ask. Its
+  colour follows the pass: the run hue while one is going, with the glyph pulsing, the error colour
+  after a failed run. A click opens a short popover with running since, a bar and step n of m, or
+  how the last run ended, a link to the workflow's status sheet, and the model choice with the
+  start, which still asks for confirmation. The run control moved from `features/rules` to
+  `layout`; the workflow screen keeps its own.
+- **An `oidc` SSL bundle for the issuer.** The decoder's requests to the issuer trust Spring's SSL
+  bundle named `oidc` when one is configured (`SPRING_SSL_BUNDLE_JKS_OIDC_TRUSTSTORE_*`, documented
+  in `.env.example`), so a local run against a private-CA realm no longer needs a
+  `JAVA_TOOL_OPTIONS` trust store. Discovery still happens at startup.
+
+### Changed
+
+- **The machine room.** The per-source table sits directly under the heading, above the run's
+  facts. Opened, the fold starts on the facts' line, shows the run as four tiles (finished, started
+  by, judged, model) and draws each stage's share of the run as a bar against the slowest one.
+
+### Fixed
+
+- **Panning the workflow canvas beside the stage sheet.** The bounds were measured against the whole
+  box although the sheet lies over it, so the graph's right end could not be brought out from under
+  an open sheet. They are now the part of the box the sheet leaves free, read at every gesture.
+- **Maps bound from `.env`.** Boot maps environment-variable names only for a source named
+  `systemEnvironment` or ending in `-systemEnvironment`; under the name `.env` a scalar resolved,
+  but no map ever bound. The source is `.env-systemEnvironment` now.
+- **The touch icon names its 180x180 size.** iPadOS reads only `apple-touch-icon` for the home
+  screen.
+
 ## [0.5.1] — 2026-09-30
 
 The corpus gets a chat, leadgen serves its own MCP tools at `/mcp`, `oidc` runs behind a private CA
@@ -1587,7 +1623,8 @@ Found while building the demo, all of them in paths only a container exercises:
   left six.
 - The shortlist card printed the description's Markdown syntax in its teaser.
 
-[Unreleased]: https://github.com/codeministry/leadgen/compare/v0.5.1...HEAD
+[Unreleased]: https://github.com/codeministry/leadgen/compare/v0.5.2...HEAD
+[0.5.2]: https://github.com/codeministry/leadgen/releases/tag/v0.5.2
 [0.5.1]: https://github.com/codeministry/leadgen/releases/tag/v0.5.1
 [0.5.0]: https://github.com/codeministry/leadgen/releases/tag/v0.5.0
 [0.4.3]: https://github.com/codeministry/leadgen/releases/tag/v0.4.3
