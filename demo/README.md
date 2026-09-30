@@ -1,4 +1,4 @@
-<img src="../docs/brand/leadgen.png" alt="LEADgen / AI" height="28">
+<img src="../docs/brand/leadgen.png" alt="leadGEN / AI" height="28">
 
 # The demo
 
@@ -50,7 +50,8 @@ stages have something to do rather than something to explain:
 there, filtered and deduplicated, and every deterministic reason is written out — but
 the score *total* is withheld rather than computed from five of nine weights. That is
 by design: a number from half the weights is not comparable to one from all of them.
-Add a key and the same run produces scored offers.
+Add a key and the same run produces scored offers. The same model answers the chat: with one
+configured, **Ask** appears in the header and questions the invented corpus like a real one.
 
 **Enrichment has nothing to fetch.** The invented URLs point at `.example`, which does
 not resolve, so every offer keeps a note saying the fetch failed. Also by design: a

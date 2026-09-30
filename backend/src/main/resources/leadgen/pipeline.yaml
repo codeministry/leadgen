@@ -73,6 +73,10 @@ llm:
     # the width of `offer.embedding` and the widest pgvector will index; a wider model is
     # truncated to it and says so once at startup.
     embedding: ${LLM_MODEL_EMBEDDING}
+    # The chat in the app's drawer. Empty means `scoring`, like `content` and `fields`; the
+    # model has to call tools, which not every model a judge runs on does well. With neither
+    # key set the chat is absent and the header draws no button.
+    chat: ${LLM_MODEL_CHAT}
   budget:
     # Every request that leaves for a model counts once, whatever it carries: a judge's
     # prompt, a classifier's, a field extraction, a document with no frontmatter, and an
@@ -85,6 +89,32 @@ llm:
     # stopped. `0` means no calls at all; **no ceiling is this block being absent**, not a
     # zero.
     max_calls_per_day: 300
+
+# The chat's own ceilings, beside `llm.budget` and never through it: a long afternoon of
+# questions must not starve the nightly run, and the nightly run must not silence the chat.
+# 0 means no calls. Unlike `llm.budget`, absent is NOT no ceiling: a key left out — or this
+# whole block missing from an override — is the shipped 200 calls and 6 rounds, because the
+# chat is on wherever a scoring model exists and an unbounded tool loop never ends.
+chat:
+  max_calls_per_day: ${CHAT_MAX_CALLS_PER_DAY:200}
+  # A turn may call tools at most this often before it has to answer; the turn then ends
+  # with its reason rather than with an answer the model never finished.
+  max_tool_rounds: ${CHAT_MAX_TOOL_ROUNDS:6}
+  # When the empty chat offers a question: each trigger's line, read by rule from the screens'
+  # own read services, before any model phrases it. Starting defaults, not yet measured on a
+  # corpus. A trigger whose number stays below its line offers nothing.
+  suggestions:
+    # The last run wrote at least this many offers.
+    new_offers_min: ${CHAT_SUGGEST_NEW_OFFERS_MIN:1}
+    # An open offer's deadline falls within this many days from today.
+    deadline_days: ${CHAT_SUGGEST_DEADLINE_DAYS:7}
+    # A sent application has had no reply for at least this many days.
+    no_reply_days: ${CHAT_SUGGEST_NO_REPLY_DAYS:14}
+    # A tag rose by at least this percentage over the window before, across at least
+    # tag_rise_min_offers offers in the current window of tag_window_days days.
+    tag_window_days: ${CHAT_SUGGEST_TAG_WINDOW_DAYS:7}
+    tag_rise_percent: ${CHAT_SUGGEST_TAG_RISE_PERCENT:30}
+    tag_rise_min_offers: ${CHAT_SUGGEST_TAG_RISE_MIN_OFFERS:5}
 
 # File names, resolved against the configuration directory — never a path with the
 # directory baked in: inside the container that directory is /config, not
@@ -278,3 +308,14 @@ security:
   oidc:
     issuer: ${OIDC_ISSUER:}
     client_id: ${OIDC_CLIENT_ID:}
+    # Where the signing keys are fetched from, when this process cannot use the issuer URL
+    # itself (a private CA, an in-cluster address). Empty means discovery at the issuer.
+    jwk_set_uri: ${OIDC_JWK_SET_URI:}
+    # What every token must name in `aud`. Empty checks client_id instead.
+    audience: ${OIDC_AUDIENCE:}
+    # The URL MCP clients reach `/mcp` at, as `/.well-known/oauth-protected-resource/mcp` names
+    # it. Empty derives it from the request and the proxy's X-Forwarded-Proto and -Host.
+    resource: ${OIDC_RESOURCE:}
+    # Whether the header's user menu asks gravatar.com for an avatar, by a SHA-256 hash of the
+    # signed-in address. On unless this says false; off, the menu shows initials only.
+    gravatar: ${GRAVATAR_ENABLED:true}

@@ -1,0 +1,9 @@
+{
+  "available": [
+    "scoring-model",
+    "second-model",
+    "small-model",
+    "large-model"
+  ],
+  "preferred": "scoring-model"
+}

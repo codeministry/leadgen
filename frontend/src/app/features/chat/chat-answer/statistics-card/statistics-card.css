@@ -1,0 +1,93 @@
+/* The card never widens the answer column; only the table's own wrapper scrolls sideways (ISC-460). */
+:host {
+    display: block;
+    min-width: 0;
+    max-width: 100%;
+    margin-block: 0.75rem;
+}
+
+.lg-chat-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin: 0;
+    padding: 0.75rem;
+    border: 1px solid var(--color-base-300);
+    border-radius: var(--radius-box);
+    min-width: 0;
+}
+
+.lg-chat-stats-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    min-width: 0;
+}
+
+/* Muted currentColor: never the signal, never the AI accent. */
+.lg-chat-stats-spark {
+    flex: none;
+    color: var(--lg-muted);
+}
+
+.lg-chat-stats-scroll {
+    overflow-x: auto;
+    max-width: 100%;
+}
+
+.lg-chat-stats-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.lg-chat-stats-table th,
+.lg-chat-stats-table td {
+    padding: 0.25rem 0.5rem;
+    text-align: start;
+    vertical-align: baseline;
+}
+
+.lg-chat-stats-table thead th {
+    color: var(--lg-muted);
+    font-weight: normal;
+    white-space: nowrap;
+}
+
+.lg-chat-stats-table th:first-child,
+.lg-chat-stats-table td:first-child {
+    padding-inline-start: 0;
+}
+
+.lg-chat-stats-table tbody tr + tr {
+    border-top: 1px solid var(--color-base-300);
+}
+
+.lg-chat-stats-label {
+    font-weight: normal;
+    min-width: 10rem;
+}
+
+.lg-chat-stats-num {
+    text-align: end;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+/* A difference is a sign and an arrow in the row's own ink, never a good or bad colour. */
+.lg-chat-stats-delta {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.125rem;
+    color: inherit;
+}
+
+.lg-chat-stats-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    align-self: flex-start;
+    min-height: 2.75rem;
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+}

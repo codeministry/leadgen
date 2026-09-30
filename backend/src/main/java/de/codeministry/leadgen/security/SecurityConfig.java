@@ -16,6 +16,7 @@ import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.web.server.autoconfigure.ServerProperties;
 import org.springframework.context.annotation.Bean;
@@ -32,7 +33,12 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtDecoders;
 import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
+import org.springframework.security.oauth2.server.resource.OAuth2ProtectedResourceMetadata;
+import org.springframework.security.oauth2.server.resource.web.BearerTokenAuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.access.intercept.AuthorizationFilter;
+import org.springframework.security.web.util.UrlUtils;
+import org.springframework.web.util.UriComponentsBuilder;
 
 /**
  * Who may call this API, decided by {@code security.auth} at startup.
@@ -72,17 +78,31 @@ public class SecurityConfig {
 
     static final String ISSUER = "issuer";
     static final String CLIENT_ID = "client_id";
+    static final String JWK_SET_URI = "jwk_set_uri";
+    static final String AUDIENCE = "audience";
+    static final String RESOURCE = "resource";
+
+    /** Where RFC 9728 puts a resource server's metadata; the path-suffixed form names one resource of several. */
+    static final String METADATA = "/.well-known/oauth-protected-resource";
+
+    /** The container's health question: open under oidc, and let past RebindingGuard under none. */
+    static final List<String> HEALTH = List.of("/actuator/health", "/actuator/health/**");
+
+    /** The MCP endpoint (spec 023), the resource an MCP client asks the metadata about. */
+    static final String MCP = "/mcp";
 
     /**
      * Open in both modes, and each for its own reason. The container's liveness question
      * has no caller to authenticate and is asked before anything else is up. The
      * auth-config endpoint is how the browser learns where to log in, and a bootstrap
      * question cannot require the thing it bootstraps; what it answers is an issuer URL
-     * and a public client id, both of which end up in the address bar anyway.
+     * and a public client id, both of which end up in the address bar anyway. The protected
+     * resource metadata is the same question asked by an MCP client (RFC 9728): which issuer to
+     * get a token from, answered before it has one.
      */
-    private static final String[] ALWAYS_OPEN = {
-        "/actuator/health", "/actuator/health/**", "/actuator/info", "/api/v1/auth-config"
-    };
+    private static final String[] ALWAYS_OPEN = Stream.concat(
+                    HEALTH.stream(), Stream.of("/actuator/info", "/api/v1/auth-config", METADATA, METADATA + "/**"))
+            .toArray(String[]::new);
 
     /**
      * A bean rather than a local, for two reasons that point the same way. A test can
@@ -98,7 +118,7 @@ public class SecurityConfig {
                 throw new IllegalStateException("security.auth is not 'oidc'; nothing here verifies a token");
             };
         }
-        return discovered(security);
+        return decoder(security);
     }
 
     @Bean
@@ -129,22 +149,31 @@ public class SecurityConfig {
         // Under `none` there are no credentials at all, so there is nothing for a CSRF
         // token to protect either. What actually stands in front of the write paths there
         // is named honestly: `SERVER_ADDRESS` binds to 127.0.0.1 unless a deployment says
-        // otherwise, and the preflight does the rest, because the write paths take JSON and
-        // PATCH and neither is a simple request while this application configures no CORS.
+        // otherwise; RebindingGuard refuses a page on a name its author points at this machine
+        // (DNS rebinding), which is same-origin to the browser, and a page whose origin is not
+        // local, listed or the request's own;
+        // and the preflight stops a cross-origin JSON or PATCH write, since this application
+        // configures no CORS. A write without a body is a simple request and slips past the last.
         //
         // A CSRF token would also not fit: with STATELESS there is nowhere to hold the
         // expected value, so it would take `CookieCsrfTokenRepository` and a SPA that reads
         // the cookie — frontend work to guard a mode whose real answer is `oidc`. The
         // residual is written down in `docs/decisions/configuration.md`.
         http.csrf(AbstractHttpConfigurer::disable)
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                // HSTS is the TLS proxy's to send, not this process's: behind the ingress the
+                // forwarded headers now tell Spring it sits behind https, and Spring Security would
+                // otherwise commit every browser to https for a year, subdomains included.
+                .headers(headers -> headers.httpStrictTransportSecurity(hsts -> hsts.disable()));
 
         if (!OIDC.equals(security.auth())) {
             log.info(
-                    "security.auth is '{}': every endpoint is open, and SERVER_ADDRESS is the only thing"
-                            + " in front of the write paths",
+                    "security.auth is '{}': every endpoint is open under loopback, IP literals, single-label names"
+                            + " and the allowed hosts, and SERVER_ADDRESS is the only other thing in front of the write paths",
                     security.auth());
+            // With no token, a page on a rebound name would reach the API as its own; see RebindingGuard.
             return http.authorizeHttpRequests(requests -> requests.anyRequest().permitAll())
+                    .addFilterBefore(new RebindingGuard(leadgen.security().allowedHosts()), AuthorizationFilter.class)
                     .build();
         }
 
@@ -154,8 +183,82 @@ public class SecurityConfig {
                         .permitAll()
                         .anyRequest()
                         .authenticated())
-                .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt.decoder(decoder)))
+                .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt.decoder(decoder))
+                        .authenticationEntryPoint(entryPoint(security))
+                        .protectedResourceMetadata(metadata -> metadata.protectedResourceMetadataCustomizer(builder ->
+                                describe(builder, security, server.getServlet().getContextPath()))))
                 .build();
+    }
+
+    /**
+     * The protected resource metadata (RFC 9728, spec 023): the issuer as the one authorization
+     * server. Spring answers it at {@value #METADATA} and below and derives {@code resource} from
+     * the request's path: the bare document describes the whole server, the path-suffixed
+     * {@code …/mcp} one the MCP endpoint.
+     *
+     * <p>The configured {@code resource} is the MCP endpoint's, so it replaces only a derived
+     * resource that names {@value #MCP}. RFC 9728 § 3.3 has a client reject metadata whose resource
+     * is not the one it derived the URL from, and the server's own 401s point at the bare document.
+     *
+     * <p>Spring's filter offers certificate-bound tokens by default. These are plain bearer tokens
+     * from the realm, so the metadata says so rather than invite a client to try mutual TLS.
+     */
+    static void describe(
+            OAuth2ProtectedResourceMetadata.Builder builder, PipelineConfig.Security security, String contextPath) {
+        builder.authorizationServer(value(security, ISSUER)).tlsClientCertificateBoundAccessTokens(false);
+        String resource = value(security, RESOURCE);
+        if (resource != null && !resource.isBlank()) {
+            builder.claims(claims -> {
+                Object derived = claims.get("resource");
+                if (derived != null && isMcp(derived.toString(), contextPath)) {
+                    claims.put("resource", resource);
+                }
+            });
+        }
+    }
+
+    /**
+     * Whether a derived resource names the MCP endpoint: its path is the context path and {@value
+     * #MCP}, exactly, as the 401 reads it. A client compares the resource with the URL it derived, so
+     * {@code /mcp/} keeps its own.
+     */
+    static boolean isMcp(String resource, String contextPath) {
+        String prefix = contextPath == null ? "" : contextPath;
+        return (prefix + MCP)
+                .equals(UriComponentsBuilder.fromUriString(resource).build().getPath());
+    }
+
+    /**
+     * A 401 names where the metadata is, in {@code WWW-Authenticate}, which is how an MCP client
+     * finds the issuer (the MCP authorization spec). For a request to {@value #MCP} it names the
+     * metadata of the MCP endpoint: the configured resource with the well-known path inserted
+     * before its path, as RFC 9728 derives it, or the path-suffixed form on this request's own
+     * host. Every other 401 keeps Spring's own answer, the metadata of the whole server.
+     */
+    static BearerTokenAuthenticationEntryPoint entryPoint(PipelineConfig.Security security) {
+        var entryPoint = new BearerTokenAuthenticationEntryPoint();
+        String resource = value(security, RESOURCE);
+        entryPoint.setResourceMetadataParameterResolver(request -> {
+            String path =
+                    request.getRequestURI().substring(request.getContextPath().length());
+            boolean mcp = path.equals(MCP);
+            if (mcp && resource != null && !resource.isBlank()) {
+                var uri = UriComponentsBuilder.fromUriString(resource).build();
+                return UriComponentsBuilder.fromUriString(resource)
+                        .replacePath(METADATA + (uri.getPath() == null ? "" : uri.getPath()))
+                        .replaceQuery(null)
+                        .fragment(null)
+                        .build()
+                        .toUriString();
+            }
+            return UriComponentsBuilder.fromUriString(UrlUtils.buildFullRequestUrl(request))
+                    .replacePath(request.getContextPath() + METADATA + (mcp ? MCP : ""))
+                    .replaceQuery(null)
+                    .fragment(null)
+                    .build()
+                    .toUriString();
+        });
+        return entryPoint;
     }
 
     /**
@@ -204,12 +307,19 @@ public class SecurityConfig {
     }
 
     /**
-     * The decoder, built from the issuer's own discovery document.
+     * The decoder, built from the issuer's own discovery document unless a key set is named.
      *
      * <p>Discovery is a request to the issuer at startup, so an unreachable Keycloak stops
      * the application rather than starting it with authentication that cannot work. That is
      * the intended trade: the alternative is a process that answers every request with a
      * 401 and looks like a broken token.
+     *
+     * <p><b>A named key set skips discovery.</b> The issuer is the URL the browser sees, and
+     * a pod cannot always use it: behind a private CA the handshake fails and the application
+     * never starts. {@code jwk_set_uri} names where this process fetches the signing keys
+     * instead, typically the identity provider's in-cluster service. It is fetched on the
+     * first token rather than at startup, and the issuer is still required and still checked
+     * against every token's {@code iss}; only the transport for the keys moves.
      *
      * <p><b>The audience is only checked when one is configured.</b> Keycloak puts the
      * client in {@code azp} by default and {@code aud} carries {@code account}, so a client
@@ -218,23 +328,45 @@ public class SecurityConfig {
      * only, which is the configuration that works out of the box; setting it is the
      * deliberate, stricter choice, and it needs the mapper on the Keycloak side.
      */
-    private static JwtDecoder discovered(PipelineConfig.Security security) {
+    static JwtDecoder decoder(PipelineConfig.Security security) {
         String issuer = value(security, ISSUER);
         if (issuer == null || issuer.isBlank()) {
             // Unreachable while ConfigLoader does its job, said out loud for the day it does not.
             throw new IllegalStateException("security.auth is 'oidc' and security.oidc.issuer is empty");
         }
-        NimbusJwtDecoder decoder = JwtDecoders.fromIssuerLocation(issuer);
-        List<OAuth2TokenValidator<Jwt>> validators = new ArrayList<>();
-        validators.add(JwtValidators.createDefaultWithIssuer(issuer));
-
-        String clientId = value(security, CLIENT_ID);
-        if (clientId != null && !clientId.isBlank()) {
-            log.info("Tokens must also name '{}' in their audience", clientId);
-            validators.add(new JwtClaimValidator<List<String>>("aud", audience -> audience.contains(clientId)));
+        String jwkSetUri = value(security, JWK_SET_URI);
+        NimbusJwtDecoder decoder;
+        if (jwkSetUri == null || jwkSetUri.isBlank()) {
+            decoder = JwtDecoders.fromIssuerLocation(issuer);
+        } else {
+            log.info("Signing keys fetched from {} rather than discovered at {}", jwkSetUri, issuer);
+            decoder = NimbusJwtDecoder.withJwkSetUri(jwkSetUri).build();
         }
-        decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(validators));
+        decoder.setJwtValidator(validator(security));
         return decoder;
+    }
+
+    /**
+     * Issuer always; the audience when one is configured.
+     *
+     * <p><b>{@code audience} names the resource, {@code client_id} the browser.</b> On a realm
+     * that mints every token for a bearer-only client (Keycloak's {@code leadgen-api}), the
+     * browser's own client never appears in a service account's {@code aud}, so checking the
+     * client id there locks out the CronJob and the MCP server. Without an {@code audience} the
+     * client id is checked, as before.
+     */
+    static OAuth2TokenValidator<Jwt> validator(PipelineConfig.Security security) {
+        List<OAuth2TokenValidator<Jwt>> validators = new ArrayList<>();
+        validators.add(JwtValidators.createDefaultWithIssuer(value(security, ISSUER)));
+
+        String named = value(security, AUDIENCE);
+        String expected = named == null || named.isBlank() ? value(security, CLIENT_ID) : named;
+        if (expected != null && !expected.isBlank()) {
+            log.info("Tokens must also name '{}' in their audience", expected);
+            validators.add(new JwtClaimValidator<List<String>>(
+                    "aud", audience -> audience != null && audience.contains(expected)));
+        }
+        return new DelegatingOAuth2TokenValidator<>(validators);
     }
 
     private static String value(PipelineConfig.Security security, String key) {

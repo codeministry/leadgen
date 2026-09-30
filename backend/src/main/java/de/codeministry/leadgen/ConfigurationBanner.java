@@ -195,7 +195,8 @@ public class ConfigurationBanner {
                         ModelChoice.extraction(models),
                         models == null ? null : models.extraction()),
                 chosen("llm.models.content", ModelChoice.content(models), models == null ? null : models.content()),
-                chosen("llm.models.fields", ModelChoice.fields(models), models == null ? null : models.fields()));
+                chosen("llm.models.fields", ModelChoice.fields(models), models == null ? null : models.fields()),
+                chosen("llm.models.chat", ModelChoice.chat(models), models == null ? null : models.chat()));
     }
 
     private static Entry chosen(String key, Optional<String> model, String configured) {

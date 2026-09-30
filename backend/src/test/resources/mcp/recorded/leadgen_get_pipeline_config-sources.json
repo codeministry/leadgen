@@ -1,0 +1,26 @@
+{
+  "file": "sources.yaml",
+  "layer": "config-dir",
+  "sources": [
+    {
+      "id": "demo-newsletter",
+      "kind": "file",
+      "enabled": true,
+      "lastRunAt": "2026-09-24T18:20:32.915584Z",
+      "documents": 5,
+      "extracted": 169,
+      "announced": 169,
+      "survived": 64
+    },
+    {
+      "id": "manual-inbox",
+      "kind": "file",
+      "enabled": true,
+      "lastRunAt": "2026-09-24T18:20:32.923412Z",
+      "documents": 0,
+      "extracted": 0,
+      "announced": null,
+      "survived": 0
+    }
+  ]
+}

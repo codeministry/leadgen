@@ -1,4 +1,4 @@
-<img src="../brand/leadgen.png" alt="LEADgen / AI" height="28">
+<img src="../brand/leadgen.png" alt="leadGEN / AI" height="28">
 
 # The design system and the interface language
 
@@ -204,6 +204,8 @@ it now. The claims and the measurements are in `specs/006-dashboard-control-room
   `core/`, so their day and band shapes are local types in `spark-day.ts`. The signal allowlist
   grows by the two components' five files and by the hero template, to sixteen; ISC-268 holds the
   count now, and ISC-224's ten is history.
+  *Spec 021 adds `living-mark.css` as the seventeenth reader: the mark's dots rest on the signal,
+  exactly as `shared/brand-mark`'s do.*
 - **The machine room is a `<details>`.** The per-source table, the stage timings, the model name
   and the archive note sit under the grid, closed unless the last run failed or a source
   mismatched. Closed, its summary line carries a preview — when, how many sources, how many new,
@@ -284,7 +286,8 @@ what a model takes part in. The claims and the measurements are in
   `modelFallback` when the stage's own key is empty and the scoring judge answers in its place,
   so the band names the key beside the model either way. Both markers read `isAi()` off the
   same stage, so they can never disagree about which stages are AI steps and which are not.
-  `FILTER` is deterministic and carries neither.
+  `FILTER` is deterministic and carries neither. *Amended by spec 019: the chat is the recorded
+  third use, the only one — see § The chat below.*
 - **The AI band says only what a model does; a stage's width is a neutral fact in the head and
   takes no semantic colour, because `ENRICH` has a width and no model.** "Works on up to N
   adverts at once" beside `llm.concurrency` or `enrichment.fetch.concurrency` sits in the
@@ -455,6 +458,106 @@ everything ahead of it pending. The claims and the measurements are in
   way — the running node shows the time spent in its stage instead — and when the pass ends the
   encoding is held until the reloaded last run has arrived, so the chips come back once, carrying
   the run that just finished, rather than flashing the previous run's numbers first.
+
+### The chat (spec 019, 2026-09-27)
+
+A drawer on every screen where the operator asks the corpus in plain words. The backend side —
+grounding, tools, budget, why the shell is ours — is in [chat.md](chat.md); the claims and the
+measurements are in `specs/019-corpus-chat/spec.md`.
+
+- **The chat is `--lg-ai`'s third use, and the last one the token takes.** "Two uses, never a
+  third" was written so the violet would keep one meaning: *a model takes part here*. The chat is
+  that meaning literally — a model is typing — so it was admitted rather than given a hue of its
+  own, which would have been a fourth reserved colour to learn for the same fact. It marks exactly
+  five things, all of them "the model, now": the assistant's sparkle glyph (`.lg-chat-glyph`, on
+  `--lg-ai-surface`), a running tool step (`.lg-chat-step-running` and its ring), the streaming
+  caret at the end of the answer, the header's busy dot while a turn streams with the drawer closed
+  (`.lg-chat-busy`), and the mobile bar's streaming mark (`.lg-chat-minibar-busy`). A finished step
+  folds to muted text; a finished answer loses the caret. ISC-309's `rg -l "lg-ai"` gate widened
+  to `features/chat` and `layout/app-header`, and `contrast.browser.spec.ts` holds the violet to
+  ≥ 3:1 as an object on every ground the chat puts it on, in both themes.
+  *Amended by spec 021: the glyph, the header's busy dot and the bar's streaming mark are now the
+  living mark, and the violet reaches it only on its dots while it works or speaks — see § The living
+  mark below.*
+- **Nothing else in the chat takes a reserved colour.** Citations and source cards take the
+  primary (`--lg-primary-text` on `--lg-selected-surface`), never the signal, because a cited
+  offer may be archived or below the line and the signal would call it a survivor. Source cards
+  carry no score ring for the same reason. `--lg-run` means an ingest pass is being worked and a
+  model typing is not that. An unverified id is a dashed `--lg-warning-text` underline with a
+  shield-question icon: a warning about the text, not a state of a row. The drawer belongs to no
+  section, so it carries no section colour either.
+- **`shared/side-drawer` is the drawer primitive, and the chat is its second consumer.** It was
+  extracted from the help drawer in the same task that moved the help onto it, with
+  `help-drawer.spec.ts` unchanged and green before the chat used it. The primitive owns the
+  placement at the inline end, the slide-in from the motion tokens (off under reduced motion), the
+  width capped at the window, and the focus handover: in on open, back to the trigger on close.
+  The help and the chat pass their own width token, `--lg-help-w` and the stepped `--lg-chat-w`.
+- **One primitive, two modalities, chosen by the consumer.** Below 48rem, and for a drawer that
+  never docks — the help — it is a native `<dialog>` opened with `showModal()`, so the platform
+  gives the backdrop, the inert page and the focus trap. With `dock` set, from 48rem it is a plain
+  complementary panel instead: no backdrop, no trap, laid out by the shell as a second column so
+  the page reflows beside it and stays usable, because following a source must leave the chat
+  open beside what it opened. Escape with focus inside and ✕ close either. The consumer's content
+  is projected once and stamped into whichever frame is current, so a resize across 48rem while it
+  is open moves the content rather than rebuilding it. The operator chose docked over modal;
+  the help stays modal, because nothing on the page behind it is waiting to be used.
+- **`--lg-chat-w` steps at two widths only.** Below 48rem 100vw, a full-screen sheet that folds
+  into a bar above the bottom navigation when a source is followed; from 48rem 36rem, with the
+  conversation list as a sub-view in the panel's body; from 80rem 61rem, with the list docked
+  inside as a rail. The panel sits below the full-width header as the shell's second column, not
+  at full height beside a squeezed header.
+- **Every chat class carries the `lg-chat-` prefix.** DaisyUI owns `chat`, `chat-bubble`,
+  `drawer` and `modal`, and the `.status`, `.label` and `.stack` traps were the same collision
+  three times before. The answer's Markdown is rendered by `marked` and sanitised by DOMPurify, and
+  styled through the tokens only; `color-no-hex` holds over `features/chat`.
+- **Touch is keyed on the pointer, never on the width.** Focus on open goes to the composer on a
+  fine pointer and to the drawer heading on a coarse one, so a phone does not raise its keyboard
+  over the answer it was opened to read. The composer's font is `max(16px, 1rem)`, the one
+  deliberate step off the type scale: 1rem is 15px at the app's 93.75 % root, and iOS zooms an
+  input set smaller than 16px.
+- **A finished answer is announced once.** A polite live region says one sentence when the stream
+  ends and nothing per token; a screen reader that heard every chunk would hear nothing else.
+
+### The living mark (spec 021, 2026-09-27)
+
+The chat's figure is the brand mark brought to life, not a mascot: the lead ring is already the
+product's one figure (the favicon, the header, the dashboard's sieve), so a second character would
+have been a second identity. `shared/living-mark` is the brand mark's **second drawing, after the
+sieve**: the same ring and lead as `brand/mark.svg` and `shared/brand-mark`, inlined, never a CSS
+mask, with one input choosing one of four frames that the host carries as `data-frame`.
+
+- **Four frames, one word each.** `rest` is the brand mark as it stands. `working` lets three dots
+  flow through the ring's opening into its centre while a tool runs. `speaking` sweeps the arc
+  toward closing the ring while the answer streams. `halted` holds the arc open with a hollow core,
+  for a turn that ended incomplete or was stopped. `rest` and `halted` never move; under reduced
+  motion none of them does, and the four stills stay distinguishable.
+- **The ring is the brand, the motion is the model.** The ring's stroke is `--color-primary` in
+  every frame; the dots are `currentColor`, which the mark's own `:host` sets to the signal, so
+  `rest` looks like the brand mark wherever it is placed. The hosts raise `color: var(--lg-ai)`
+  on the `working` and `speaking` frames in their own stylesheets. That is the AI colour's whole
+  path onto the mark: never the ring, never `shared/`, so ISC-309's `rg -l "lg-ai"` file set did
+  not widen. The signal allowlist grew by one file, `living-mark.css`, to seventeen.
+- **It replaced three things and added none.** The answer glyph's sparkle and its
+  `--lg-ai-surface` disc, the header's busy dot and the mobile bar's streaming dot are all the mark
+  now; the header button carries it at `rest` as its icon and in `working` while a turn streams
+  with the drawer shut. The empty chat's plate shows it at `rest`. No catalog key was added: every
+  accessible name stayed where it was, and the mark itself is `aria-hidden`.
+- **Measured, not eyeballed.** The ring, both dot colours and the hollow core hold ≥ 3:1 on the
+  panel, the plate, the header, the button's soft fill and the bar's frost in both themes
+  (`contrast.browser.spec.ts`, lowest 4.23); the plate and every answer's text box kept their
+  size against a baseline measured before the swap.
+- **One ambient host: the header's chat button (operator, 2026-09-27).** A second input,
+  `motion`, is `still` everywhere by default; the header passes `ambient` while the drawer is
+  shut. At `rest` the ring then draws itself in once and, at the end of every
+  `--lg-mark-idle-period` (24 s), turns once counter-clockwise with the arc closing toward 330°,
+  the lead swelling and the core drawing in. The button's 1px gradient edge (primary through
+  `--lg-ai`) sweeps round in step, runs steadily while a turn streams behind the shut drawer, and
+  hover or keyboard focus plays the turn at once with a halo in the AI colour; `⌘K`/`Ctrl K`
+  sits in the button as a chip, symbols only, `aria-hidden`. Every period is a token in
+  `motion.css`, the edge and the halo exist only from 48rem, and none of it runs under reduced
+  motion. The period is long on purpose: a mark that moves every few seconds competes with the
+  page under it. A host turns the mark through `--lg-living-mark-turn`, so `shared/` never names
+  the button.
 
 ## The interface language
 

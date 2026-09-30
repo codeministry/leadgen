@@ -1,0 +1,162 @@
+{
+  "version": "1",
+  "weights": [
+    {
+      "key": "core_skill_overlap",
+      "points": 45
+    },
+    {
+      "key": "role_fit",
+      "points": 15
+    },
+    {
+      "key": "interest_fit",
+      "points": 15
+    },
+    {
+      "key": "industry_fit",
+      "points": 10
+    },
+    {
+      "key": "seniority_fit",
+      "points": 10
+    },
+    {
+      "key": "project_setup",
+      "points": 10
+    },
+    {
+      "key": "rate_fit",
+      "points": 10
+    }
+  ],
+  "penalties": [
+    {
+      "key": "stack_mismatch_dominant",
+      "points": -30
+    },
+    {
+      "key": "role_mismatch",
+      "points": -25
+    },
+    {
+      "key": "disinterest_fit",
+      "points": -20
+    },
+    {
+      "key": "vague_description",
+      "points": -10
+    }
+  ],
+  "thresholds": {
+    "autoShortlist": 70,
+    "review": 50,
+    "discard": 0
+  },
+  "archiveAfterDays": 3650,
+  "knockouts": [
+    {
+      "key": "location.country_allowlist",
+      "label": "Countries",
+      "value": null,
+      "values": [
+        "DE"
+      ]
+    },
+    {
+      "key": "location.onsite_cities",
+      "label": "Reachable for on-site days",
+      "value": null,
+      "values": [
+        "Köln",
+        "Düsseldorf",
+        "Bonn",
+        "Aachen",
+        "Leverkusen",
+        "Neuss",
+        "Wuppertal",
+        "Duisburg",
+        "Essen",
+        "Dortmund",
+        "Mönchengladbach",
+        "Krefeld",
+        "Koblenz"
+      ]
+    },
+    {
+      "key": "remote.min_remote_percent",
+      "label": "Minimum remote share",
+      "value": "40 %, unstated accepted",
+      "values": []
+    },
+    {
+      "key": "role.rejected_title_keywords",
+      "label": "Rejected on the title alone",
+      "value": null,
+      "values": [
+        "SAP",
+        "ABAP",
+        "Salesforce",
+        ".NET",
+        "C#",
+        "PHP",
+        "ServiceNow",
+        "Sharepoint",
+        "Data Scientist",
+        "Machine Learning Engineer",
+        "Power BI",
+        "Scrum Master",
+        "Product Owner",
+        "Projektleiter",
+        "Projektmanager",
+        "Tester",
+        "Oracle APEX",
+        "Mainframe",
+        "COBOL",
+        "Embedded",
+        "SPS",
+        "iOS",
+        "Android",
+        "Flutter",
+        "React Native",
+        "Netzwerk",
+        "First Level",
+        "Support"
+      ]
+    },
+    {
+      "key": "contract.rejected",
+      "label": "Rejected contract forms",
+      "value": null,
+      "values": [
+        "Festanstellung",
+        "Arbeitnehmerüberlassung",
+        "ANÜ",
+        "Personalvermittlung",
+        "Praktikum",
+        "Werkstudent",
+        "permanent position",
+        "temporary agency work",
+        "temp staffing"
+      ]
+    },
+    {
+      "key": "rate.min_hourly_eur",
+      "label": "Minimum rate",
+      "value": "60 EUR, applied after enrichment",
+      "values": []
+    }
+  ],
+  "interestTopics": [
+    {
+      "name": "Data platform",
+      "weight": 8
+    }
+  ],
+  "disinterestTopics": [
+    {
+      "name": "Legacy maintenance",
+      "weight": 6
+    }
+  ]
+}

@@ -39,6 +39,9 @@
     flex-direction: column;
   max-height: calc(100svh - var(--lg-sticky-top) - var(--lg-gutter));
     min-height: 0;
+
+  /* The pane below reads whether this column is pinned yet, see `.list-pane`. */
+  container-type: scroll-state;
 }
 
 /* A focus ring at `outline-offset: 2px` on a card at the pane's edge is otherwise clipped by
@@ -61,11 +64,23 @@
      card keeps from the top edge when the list scrolls to it. */
   padding-block: 4px;
 
-  /* A flick through the list does not throw the advert behind it. */
-    overscroll-behavior: contain;
+  /* A flick through the list does not throw the advert behind it, but only once the column is
+     pinned. The max-height above is sized for the pinned position; before the page has
+     scrolled that far the column starts lower and its bottom hangs below the viewport by the
+     difference. Contained from the start, a wheel over the list never scrolled the page, and
+     the last card could not be reached at all (measured: 39px short at 1440x900). Unpinned,
+     the scroll chains to the page, which pins the column and brings its bottom into view; a
+     browser without scroll-state queries keeps chaining, the safe half. */
+    overscroll-behavior: auto;
 
   /* No layout shift the first time the list is long enough to scroll. */
     scrollbar-gutter: stable;
+}
+
+@container scroll-state(stuck: top) {
+  .list-pane {
+    overscroll-behavior: contain;
+  }
 }
 
 /* The query container for the detail's own panel grid, and it no longer scrolls: the
@@ -195,6 +210,29 @@
   margin: 0;
 }
 
+/* Below 48rem the selection bar takes the minibar's slot, directly on the bottom navigation
+   (ISC-453, design.md § Viewport-übergreifend): the navigation's layer plus one, so while a
+   selection is up it stands where the minibar stood rather than stacking a second bar over it.
+   `bottom` is the navigation's measured height, bound on the element; a static bar above 48rem ignores it. */
+@media (width < 48rem) {
+  .bulk-bar {
+    position: fixed;
+    inset-inline: 0;
+    z-index: 21;
+    max-width: none;
+    margin: 0;
+    padding: 0.5rem var(--lg-gutter);
+    border-top: 1px solid var(--color-base-300);
+    background-color: var(--color-base-100);
+  }
+}
+
+.lg-chat-ask-refused {
+  max-width: var(--lg-list-w);
+  margin: 0 0 0.75rem;
+  color: var(--lg-warning-text);
+}
+
 .bulk-error {
   max-width: var(--lg-list-w);
   margin: 0 0 0.75rem;
@@ -266,18 +304,23 @@
    there is one state left and the old number is measured against a layout that no longer
    exists. The floor it defended is the reading column it produced in the bad state, 489px.
 
-   Without the rail the reading column is `min(V - 45, 1560) - 558.75`: 548px at 72rem, which
+   Without the rail the reading column is `min(V - 45, 1920) - 558.75`: 548px at 72rem, which
    clears the floor, and 420px at 64rem, which does not. 48rem stays its own number, where the
    navigation becomes a bottom bar — two structural relayouts on one breakpoint make both
    harder to check.
 
-   A `rem` here is not a `rem` in the rules below it: `html` is at 93.75%, so the layout's
-   own rem is 15px while a media query resolves against the initial 16px. 72rem is 1152px;
-   `--lg-list-w: 36rem` is 540px.
+   It is a container query on the page's own box (`main.content`, named in the shell), not a
+   media query on the window (ISC-472): with the chat docked the page is the window minus the
+   panel, and at 1440 a viewport rule kept two columns in 600px and cut this one to a sliver.
+   The number is the old one moved onto that box. The viewport rule split at 1152px of window;
+   the page box is the window minus the two 1.5rem gutters, 1107px there, and a container
+   query's rem is the root's 15px — unlike a media query's, which is the initial 16px — so
+   1107px is 73.8rem. With the chat closed the split therefore breaks at exactly the window
+   width it always did: two columns at 1152, one at 1151.
 
-   Stated once here, once in `shortlist-page.ts` for the auto-selection, and once each in the
-   two sibling split views. */
-@media (width < 72rem) {
+   Stated once here and once each in the two sibling split views. `shortlist-page.ts` reads
+   the grid this produces rather than repeating the number. */
+@container page (width < 73.8rem) {
     .split {
         grid-template-columns: minmax(0, 1fr);
     }

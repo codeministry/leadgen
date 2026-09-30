@@ -1,4 +1,4 @@
-<img src="brand/leadgen.png" alt="LEADgen / AI" height="28">
+<img src="brand/leadgen.png" alt="leadGEN / AI" height="28">
 
 # Backend flows
 
@@ -30,6 +30,7 @@ other trigger.
 | offers are archived by hand | `packaging/PackageWorker.onOffersArchived`, the same annotations | discards their folders, § 2b |
 | the application has started | five `ApplicationReadyEvent` listeners and one `ApplicationRunner` | banners, the abandon sweep, the orphan sweep, the inbox directories, § 2c |
 | somebody writes from a screen | the ten endpoints in § 3 | one transaction each, and at most one event |
+| somebody asks in the chat | `POST /api/v1/chat/conversations/{id}/turns` in `web/ChatController` | one turn on the chat's own pool, streamed as server-sent events, § 5 |
 
 `@EnableScheduling` and `@EnableAsync` are both on `LeadGenerationApplication`. Every
 `@Scheduled` method and both `@Async` listeners depend on them, so removing either switches
@@ -792,3 +793,73 @@ working list is the conjunction of both axes with the duplicate pointer:
 `FilterStage` is an ordered enum and not a state machine: an offer stops at the first stage
 that rejects it, and the six stages with what each reads are in
 [WRITING-RULES.md](WRITING-RULES.md).
+
+## 5. A chat turn
+
+The chat is not a stage and runs outside § 1: nothing starts it but a question, and no stage
+reads what it writes. A turn is `POST /api/v1/chat/conversations/{id}/turns` in
+`web/ChatController.ask`, answered as server-sent events by `chat/ChatTurnService` on a pool of its
+own (four running, eight waiting, 503 past that), so the servlet thread is handed back as soon as
+the stream is open. The tool loop is driven here rather than by Spring AI, because each step of it
+carries a rule: the chat's own budget before every model request, the round bound before every
+tool round, the masker on every tool result, the ledger on every returned id. The reasoning is in
+[decisions/chat.md](decisions/chat.md); the five tables in [DATA-MODEL.md § 5](DATA-MODEL.md#5-the-chats-five-tables).
+
+```mermaid
+%%{init: {"themeVariables": {"actorBkg":"#dbe4ee","actorBorder":"#4a6d8c","actorTextColor":"#1f2937","noteBkgColor":"#fff3c4","noteBorderColor":"#a4781b","noteTextColor":"#1f2937","labelBoxBkgColor":"#eef1f5","labelBoxBorderColor":"#9aa3ad","labelTextColor":"#1f2937"}}}%%
+sequenceDiagram
+    participant UI as Chat panel
+    participant C as ChatController.ask
+    participant T as ChatTurnService
+    participant B as ChatBudget
+    participant M as Chat model
+    participant X as Read-only tools
+    participant K as ToolOutputMasker
+    participant F as CitationFilter + TurnLedger
+    participant D as chat_turn, chat_tool_call
+    UI->>C: POST turns {question}
+    C->>T: start on the turn pool
+    T->>D: INSERT chat_turn (STREAMING), title from the first question
+    T-->>UI: event turn
+    loop until the model answers without asking for a tool
+        T->>B: take()
+        alt refused
+            T->>D: finish INCOMPLETE, the text so far kept
+            T-->>UI: event error BUDGET
+        end
+        rect rgba(226,213,241,0.35)
+            T->>M: stream(system prompt, history, question, tools)
+            M-->>T: text chunks with [[offer:ID]] markers
+        end
+        T->>F: accept(chunk): a marker held until it closes
+        F-->>T: [n](cite:offer/ID) when the ledger holds the id and the row is reachable, else ⟨unverified:ID⟩
+        T->>D: UPDATE answer_md, append
+        T-->>UI: event text (resolved)
+        opt the model asks for tools
+            T->>B: rounds.next()
+            alt spent
+                T->>D: finish INCOMPLETE
+                T-->>UI: event error ROUNDS
+            end
+            T-->>UI: event step RUNNING
+            T->>X: call through the screens' own services
+            X-->>T: rows as JSON
+            T->>K: mask(result): mailbox address and every secret value
+            T->>F: record the returned ids in the ledger
+            T-->>UI: event step DONE {count, durationMs}
+        end
+    end
+    T->>D: finish DONE: state, finished_at, citations; INSERT chat_tool_call per call
+    T-->>UI: event sources, exactly once
+    T-->>UI: event done
+```
+
+A model that fails mid-stream ends the turn the same way as a refusal: `error MODEL`, the turn
+stored `INCOMPLETE` with the text it had already sent. `POST …/turns/{turnId}/stop` sets the
+turn's flag and fires a signal that cancels the waiting model request; the turn then flushes the
+filter, stores `STOPPED` and still sends `sources` and `done`. `POST …/turns/{turnId}/regenerate`
+starts a new turn for the same question with `replaces_turn_id` set, and the model's history leaves
+the replaced answer out. A reader that closes the tab stops the sending, not the turn: it runs to
+its end and is stored. The semantic tool's question vector goes through `retrieval/QueryEmbedder`
+and so asks `LlmBudget` on a cache miss, as the shortlist's search box does; every chat-model
+request asks `ChatBudget` and never `LlmBudget`.

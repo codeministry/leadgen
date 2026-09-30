@@ -181,7 +181,8 @@ class WorkflowCatalogTest {
 
     @Test
     void everyModelKeyTheShippedPipelineDeclaresIsFiledUnderAStage() throws IOException {
-        // A new `llm.models.*` key is a new model a stage asks, so it is never "read by nothing".
+        // A new `llm.models.*` key is a new model a stage asks, so it is never "read by nothing" —
+        // except the chat's, below.
         Map<String, Object> pipeline;
         try (InputStream in = WorkflowCatalogTest.class.getResourceAsStream("/leadgen/pipeline.yaml")) {
             pipeline = new Yaml().load(in);
@@ -192,6 +193,11 @@ class WorkflowCatalogTest {
         Map<String, Object> models = (Map<String, Object>) llm.get("models");
         assertThat(models).isNotEmpty();
         for (String name : models.keySet()) {
+            // The one exception is the chat's model: the chat is no stage of a run, and the
+            // catalog lists its key as read by no stage on purpose.
+            if (WorkflowCatalog.isReadByNothing(WorkflowCatalog.FILE_PIPELINE, "llm.models." + name)) {
+                continue;
+            }
             assertThat(WorkflowCatalog.ownerOf(WorkflowCatalog.FILE_PIPELINE, "llm.models." + name))
                     .as("llm.models.%s", name)
                     .isPresent();

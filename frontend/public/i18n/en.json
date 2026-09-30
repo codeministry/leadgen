@@ -30,21 +30,17 @@
   },
   "shell": {
     "connecting": "connecting…",
-    "ingest": "Run ingest",
-    "ingestRunning": "Reading sources…",
-    "runLive": "Run in progress",
-    "scoringModel": "Scoring model",
     "settings": "Settings and version",
-    "runStage": "{stage} · step {position} of {total}",
-    "runStageUnknown": "starting…",
-    "runSince": "A run has been going since {time}",
-    "runSinceStage": "A run has been going since {time} — {stage}",
-    "help": "Help",
-    "confirmRun": {
-      "title": "Start a run now?",
-      "body": "A run reads the mailbox, calls the configured models and spends part of the call budget.",
-      "start": "Start run"
-    }
+    "help": "Help"
+  },
+  "user": {
+    "menu": "Account",
+    "menuFor": "Account: {name}",
+    "email": "Email",
+    "verified": "verified",
+    "issuer": "Signed in at",
+    "expires": "Session until",
+    "logout": "Log out"
   },
   "help": {
     "title": "Help",
@@ -62,7 +58,8 @@
       "offer-detail": "Reading one offer: the ad, its score, its fields, and asking it.",
       "application": "Where an application stands, its cover letter and its package.",
       "filters-views": "Narrowing and ordering the list, and saving what you set.",
-      "app-basics": "Running a pass, the settings, the keyboard and the installed app."
+      "app-basics": "Running a pass, the settings, the keyboard and the installed app.",
+      "chat": "Asking about offers, applications and your profile, and what its links mean."
     },
     "loading": "Loading the chapter…",
     "failed": "This chapter could not be loaded.",
@@ -77,7 +74,8 @@
       "offer-detail": "Offer detail",
       "application": "Application and cover letter",
       "filters-views": "Filters, sorting and views",
-      "app-basics": "Header, keyboard and app"
+      "app-basics": "Header, keyboard and app",
+      "chat": "The chat"
     },
     "diagram": {
       "run-phases": "The five phases of a run, from the mailbox to a scored offer",
@@ -362,7 +360,9 @@
     "noRelatedTitle": "Nothing related on this list",
     "noRelatedHint": "The related search and these filters have no offers in common. Remove one, or clear the related search.",
     "countRelated": "{matched} of {total} · closest matches only",
-    "countArchivedRelated": "{matched} of {total} archived · closest matches only"
+    "countArchivedRelated": "{matched} of {total} archived · closest matches only",
+    "select": "Select",
+    "selectDone": "Done"
   },
   "offer": {
     "notScored": "Not scored. The pipeline ran without a language model, so this is the hard filter's answer only.",
@@ -741,6 +741,18 @@
       "budget": "Model calls today: {used} of {limit}",
       "budgetUnlimited": "Model calls today: {used}, no daily limit",
       "budgetSpent": "Today's allowance is spent"
+    },
+    "runControl": {
+      "model": "Scoring model",
+      "start": "Run ingest",
+      "running": "Reading sources…",
+      "since": "A run has been going since {time}",
+      "sinceStage": "A run has been going since {time} — {stage}",
+      "confirm": {
+        "title": "Start a run now?",
+        "body": "A run reads the mailbox, calls the configured models and spends part of the call budget.",
+        "start": "Start run"
+      }
     }
   },
   "analytics": {
@@ -858,6 +870,172 @@
     "summaryLoad": "The dashboard cells did not load.",
     "manualUpload": "The document was not accepted.",
     "manualConfirm": "The document was not confirmed.",
-    "manualReject": "The document was not deleted."
+    "manualReject": "The document was not deleted.",
+    "chatStream": "The answer stopped before it was finished.",
+    "chatModel": "The answer stopped: {message}",
+    "chatBudget": "The chat has used its calls for today.",
+    "chatRounds": "The answer used all the searches one question may run.",
+    "chatList": "The conversations could not be loaded.",
+    "chatLoad": "The conversation could not be loaded.",
+    "chatDelete": "The conversation could not be deleted.",
+    "chatCreate": "The conversation could not be started.",
+    "chatRename": "The conversation could not be renamed.",
+    "chatContext": "The pins could not be stored."
+  },
+  "chat": {
+    "open": "Ask the corpus",
+    "openShort": "Ask",
+    "openShortcut": "Ask · {{keys}}",
+    "jumpToLatest": "Jump to latest",
+    "busyLabel": "an answer is being written",
+    "askAboutOffer": "Ask about this offer",
+    "new": "New chat",
+    "newConversation": "New conversation",
+    "close": "Close the chat",
+    "history": "Conversations",
+    "historyEmpty": "No conversations yet.",
+    "listLoading": "Loading the conversations…",
+    "loading": "Loading the conversation…",
+    "empty": {
+      "title": "Ask the corpus",
+      "body": "Offers, your applications and your profile. Every answer links to the rows it read."
+    },
+    "suggest": {
+      "title": "Suggested questions",
+      "loading": "Looking for questions in your data…"
+    },
+    "missing": {
+      "title": "This conversation no longer exists",
+      "action": "Start a new one"
+    },
+    "thinking": "Thinking…",
+    "placeholder": "Ask about offers, applications or your profile…",
+    "inputLabel": "Your question",
+    "hint": "Enter to send · Shift+Enter for a new line · @ to pin an offer",
+    "send": "Send",
+    "context": {
+      "label": "Asked under",
+      "offer": "Offer {id}",
+      "remove": "Remove {chip}",
+      "view": "Shortlist · {count, plural, one {# filter} other {# filters}}",
+      "window": "Window · {from}–{to}",
+      "more": "Show all {count, plural, one {# more pin} other {# more pins}}",
+      "limit": "A conversation holds at most {max} offers.",
+      "count": "{count} of {max} offers"
+    },
+    "disclaimer": "Answers can be wrong. Unverified ids are marked.",
+    "announce": {
+      "done": "Answer ready, {count, plural, =0 {no sources} one {1 source} other {# sources}}"
+    },
+    "stop": "Stop",
+    "minibar": {
+      "expand": "Back to the chat"
+    },
+    "answer": {
+      "copy": "Copy the answer with its sources",
+      "copied": "Copied",
+      "regenerate": "Write this answer again",
+      "unverified": "unverified"
+    },
+    "steps": {
+      "summary": "Used {tools, plural, one {1 tool} other {# tools}} · {rows, plural, one {1 row} other {# rows}}",
+      "rows": "{count, plural, one {1 row} other {# rows}}",
+      "running": "running"
+    },
+    "sources": {
+      "title": "Sources",
+      "offer": "Offer",
+      "application": "Application",
+      "archived": "Archived",
+      "more": "Show all {count}"
+    },
+    "cite": {
+      "label": "Source {n}: {title}",
+      "unverifiedTitle": "{id} could not be checked",
+      "unverifiedReason": "No search in this turn returned this id, or it lies outside the working set and the archive, so it is not a link."
+    },
+    "actions": "Actions for {title}",
+    "group": {
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "week": "This week",
+      "month": "This month",
+      "older": "Older"
+    },
+    "search": {
+      "label": "Search conversations",
+      "clear": "Clear the search",
+      "clearAction": "Clear search",
+      "none": "No conversation contains “{query}”."
+    },
+    "rename": {
+      "action": "Rename",
+      "label": "Conversation title",
+      "placeholder": "Named after its first question"
+    },
+    "delete": {
+      "action": "Delete",
+      "title": "Delete this conversation?",
+      "body": "“{title}” and all its answers are deleted.",
+      "streaming": "Its answer is still being written. Deleting stops it.",
+      "confirm": "Delete",
+      "manyTitle": "{n, plural, one {Delete 1 conversation?} other {Delete # conversations?}}",
+      "manyBody": "{n, plural, one {It and all its answers are deleted.} other {They and all their answers are deleted.}}",
+      "manyStreaming": "{n, plural, one {Its answer is still being written. Deleting stops it.} other {One of them is still being written. Deleting stops it.}}",
+      "manyConfirm": "Delete {{n}}"
+    },
+    "useView": "Use this view",
+    "followups": {
+      "title": "Ask next"
+    },
+    "statistics": {
+      "window": "Statistics · {from} – {to}",
+      "metric": "Metric",
+      "value": "Value",
+      "compare": "{from} – {to}",
+      "delta": "Change",
+      "link": "Open in Analytics"
+    },
+    "askPicked": "{count, plural, one {Ask about # offer} other {Ask about # offers}}",
+    "mention": {
+      "label": "Offers matching @{query}",
+      "none": "No offer matches “{query}”"
+    },
+    "status": {
+      "turnLabel": "Answer status: {{state}}",
+      "chatLabel": "Chat status",
+      "state": {
+        "done": "Done",
+        "working": "Working: a tool is running",
+        "writing": "Writing the answer",
+        "incomplete": "Incomplete",
+        "stopped": "Stopped"
+      },
+      "reason": {
+        "MODEL": "The model stopped before it finished.",
+        "BUDGET": "Today's model calls are spent.",
+        "ROUNDS": "It reached the limit of tool rounds.",
+        "none": "No reason was recorded."
+      },
+      "steps": "Tool calls",
+      "duration": "Took",
+      "seconds": "{{n}} s",
+      "minutes": "{{m}} min {{s}} s",
+      "model": "Model",
+      "chatTitle": "The chat",
+      "calls": "Model calls today",
+      "callsValue": "{{used}} of {{limit}}",
+      "rounds": "Tool rounds per answer",
+      "chatLoading": "Loading…",
+      "chatFailed": "The status did not load."
+    },
+    "select": {
+      "action": "Select",
+      "done": "Done",
+      "all": "Select all",
+      "count": "{{n}} selected",
+      "delete": "Delete {{n}}",
+      "label": "Select “{title}”"
+    }
   }
 }

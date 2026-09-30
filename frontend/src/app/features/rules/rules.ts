@@ -22,6 +22,7 @@ import {fanIn} from './fan-in';
 import {failedStageIds, markersOf} from './stage-marks';
 import {RUN_STATUS, RunState, runState} from './run-state';
 import {formatStartedAt} from './run-time';
+import {RunControl} from './run-control/run-control';
 
 /**
  * The content width, in px, below which the canvas gives way to the pipe (ISC-395): 44rem at the
@@ -58,7 +59,7 @@ function otherOverlayOpen(): boolean {
  */
 @Component({
     selector: 'lg-rules',
-    imports: [FlowCanvas, FlowLegend, Icon, PageHeader, RouterLink, StageRail, StageSheet, TranslocoPipe],
+    imports: [FlowCanvas, FlowLegend, Icon, PageHeader, RouterLink, RunControl, StageRail, StageSheet, TranslocoPipe],
     templateUrl: './rules.html',
     styleUrl: './rules.css',
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -514,7 +515,7 @@ export class Rules implements OnInit {
         if (this.detail() === null || event.defaultPrevented || this.inSheet(event.target) || press?.inSheet) {
             return;
         }
-        if (event.target instanceof Element && event.target.closest('a[href], button, [data-action], dialog, [popover]') !== null) {
+        if (event.target instanceof Element && event.target.closest('a[href], button, select, [data-action], dialog, [popover]') !== null) {
             return;
         }
         if (press !== null && Math.hypot(event.clientX - press.x, event.clientY - press.y) > PAN_SLOP_PX) {

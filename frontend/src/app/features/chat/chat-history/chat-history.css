@@ -1,0 +1,233 @@
+:host {
+  display: block;
+}
+
+/* The search stays at the top while the list scrolls beneath it. */
+.lg-chat-search {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: block;
+  padding: 0.5rem var(--lg-gutter);
+  background-color: inherit;
+}
+
+.lg-chat-search-field {
+  width: 100%;
+}
+
+/* The select mode's row under the field (ISC-478), inside the sticky search so it stays in reach. */
+.lg-chat-select-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.75rem;
+  min-height: 1.5rem;
+  margin-top: 0.25rem;
+}
+
+.lg-chat-select-all-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  cursor: pointer;
+}
+
+/* Relative, so the absolutely positioned `.sr-only` phrase inside stays contained by the count and
+   adds no scrollable overflow to the rail (frontend/CLAUDE.md). */
+.lg-chat-select-count {
+  position: relative;
+}
+
+/* Delete and Done never part: the bar may wrap, the pair does not, and it keeps to the end. */
+.lg-chat-select-actions {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.25rem;
+  margin-inline-start: auto;
+  white-space: nowrap;
+}
+
+/* max(16px, 1rem): the app's root is 15 px, and below 16 px iOS zooms the page on focus. */
+.lg-chat-search-input {
+  font-size: max(16px, 1rem);
+}
+
+/* The platform's own cancel glyph is too small to hit; the field draws its own. */
+.lg-chat-search-input::-webkit-search-cancel-button {
+  appearance: none;
+}
+
+.lg-chat-search-clear {
+  margin-inline-end: -0.5rem;
+}
+
+.lg-chat-no-match,
+.lg-chat-rows-empty {
+  margin: 0;
+  padding: 0.5rem var(--lg-gutter) 0;
+}
+
+.lg-chat-clear-search {
+  margin-inline-start: calc(var(--lg-gutter) - 0.75rem);
+}
+
+/* Sticks where the search ends, measured (chat-history.ts), because the select bar wraps in a narrow
+   rail; 5.25rem, one line of bar, until the first measurement lands. */
+.lg-chat-group-heading {
+  position: sticky;
+  top: var(--lg-chat-search-h, 5.25rem);
+  z-index: 1;
+  margin: 0;
+  padding: 1rem var(--lg-gutter) 0.25rem;
+  background-color: inherit;
+  color: var(--lg-muted);
+}
+
+.lg-chat-group {
+  background-color: inherit;
+}
+
+.lg-chat-rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lg-chat-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.lg-chat-row {
+  display: flex;
+  flex: 1 1 auto;
+  gap: 0.5rem;
+  align-items: center;
+  min-width: 0;
+  min-height: 2.75rem;
+  padding: 0.5rem 0 0.5rem var(--lg-gutter);
+  padding-inline-end: 2.75rem;
+  border: 0;
+  background: none;
+  color: inherit;
+  text-align: start;
+  cursor: pointer;
+  transition: background-color var(--lg-hover-duration) var(--lg-hover-ease);
+}
+
+.lg-chat-row:hover {
+  background-color: var(--color-base-300);
+}
+
+/* The open conversation: the app's "you are here" — a ground and a primary edge, never the signal. */
+.lg-chat-row[aria-current='true'] {
+  background-color: var(--lg-selected-surface);
+  box-shadow: inset 2px 0 0 var(--color-primary);
+}
+
+.lg-chat-row:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
+.lg-chat-row-title {
+  display: -webkit-box;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 600;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.lg-chat-row-time {
+  flex: none;
+}
+
+.lg-chat-rename {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0.25rem 2.75rem 0.25rem calc(var(--lg-gutter) - 0.5rem);
+}
+
+/* The "⋯" sits over the row's end. Always there on a coarse pointer; on a fine one it appears
+   with the row's hover or with focus anywhere in the row, so the keyboard reaches it. */
+.lg-chat-more {
+  position: absolute;
+  inset-inline-end: 0.25rem;
+}
+
+@media (pointer: coarse) {
+  .lg-chat-more {
+    width: max(2.75rem, 44px);
+    height: max(2.75rem, 44px);
+  }
+}
+
+@media (pointer: fine) {
+  .lg-chat-more {
+    opacity: 0;
+  }
+
+  .lg-chat-more:focus-visible,
+  .lg-chat-item:hover .lg-chat-more,
+  .lg-chat-item:focus-within .lg-chat-more {
+    opacity: 1;
+  }
+}
+
+/* Top layer: `inset: auto` first, or the UA's `inset: 0; margin: auto` centres it. `display`
+   belongs on `:popover-open` and nowhere else, or it never closes (frontend/CLAUDE.md). */
+.lg-chat-menu {
+  position: fixed;
+  inset: auto;
+  min-width: 10rem;
+  margin: 0;
+  padding: 0.25rem;
+  border: 1px solid var(--color-base-300);
+  border-radius: var(--radius-box);
+  background-color: var(--color-base-100);
+  color: var(--color-base-content);
+  box-shadow: 0 8px 24px var(--lg-float-shadow);
+}
+
+.lg-chat-menu:popover-open {
+  display: flex;
+  flex-direction: column;
+}
+
+.lg-chat-menu-item {
+  min-height: 2.5rem;
+  padding: 0.5rem 0.75rem;
+  border: 0;
+  border-radius: var(--radius-field);
+  background: none;
+  color: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.lg-chat-menu-item:hover,
+.lg-chat-menu-item:focus-visible {
+  background-color: var(--color-base-200);
+}
+
+.lg-chat-delete-action {
+  color: var(--color-error);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lg-chat-row {
+    transition: none;
+  }
+}
+
+/* In select mode the row is the checkbox's label and the box leads it, inside the row's own gutter
+   and under its hover; the row keeps its right padding although the "⋯" is gone (ISC-478). */
+.lg-chat-row-check {
+  flex: none;
+}

@@ -35,7 +35,7 @@ describe('CatalogTitleStrategy', () => {
     it('sets the translated screen name followed by the brand', async () => {
         await RouterTestingHarness.create('/dashboard');
 
-        expect(TestBed.inject(Title).getTitle()).toBe('Dashboard · Lead Generation');
+        expect(TestBed.inject(Title).getTitle()).toBe('Dashboard · leadGEN / AI');
     });
 
     it('sets the brand alone on a route without a title', async () => {
@@ -50,7 +50,7 @@ describe('CatalogTitleStrategy', () => {
         transloco.setTranslation(de, 'de');
         transloco.setActiveLang('de');
 
-        expect(TestBed.inject(Title).getTitle()).toBe(`${de.title.dashboard} · Lead Generation`);
+        expect(TestBed.inject(Title).getTitle()).toBe(`${de.title.dashboard} · leadGEN / AI`);
     });
 
     it('renders every route title of the application as it read before the titles became keys', () => {
@@ -60,15 +60,15 @@ describe('CatalogTitleStrategy', () => {
         );
 
         expect(rendered).toEqual({
-            '/dashboard': 'Dashboard · Lead Generation',
-            '/analytics': 'Analytics · Lead Generation',
-            '/shortlist': 'Shortlist · Lead Generation',
-            '/shortlist/:id': 'Offer · Lead Generation',
-            '/pipeline': 'Pipeline · Lead Generation',
-            '/pipeline/:id': 'Offer · Lead Generation',
-            '/sources': 'Sources · Lead Generation',
-            '/sources/:id': 'Source · Lead Generation',
-            '/workflow': 'Workflow · Lead Generation',
+            '/dashboard': 'Dashboard · leadGEN / AI',
+            '/analytics': 'Analytics · leadGEN / AI',
+            '/shortlist': 'Shortlist · leadGEN / AI',
+            '/shortlist/:id': 'Offer · leadGEN / AI',
+            '/pipeline': 'Pipeline · leadGEN / AI',
+            '/pipeline/:id': 'Offer · leadGEN / AI',
+            '/sources': 'Sources · leadGEN / AI',
+            '/sources/:id': 'Source · leadGEN / AI',
+            '/workflow': 'Workflow · leadGEN / AI',
         });
     });
 });

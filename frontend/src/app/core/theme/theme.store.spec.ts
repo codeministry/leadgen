@@ -150,7 +150,7 @@ describe('the inline theme script (ISC-333)', () => {
      * without it the script has to create the tag rather than skip the write.
      */
     function runInlineScript(stored: string | null, osDark: boolean, withStaticMeta = true): Document {
-        const doc = document.implementation.createHTMLDocument('Lead Generation');
+        const doc = document.implementation.createHTMLDocument('leadGEN / AI');
         if (withStaticMeta) {
             const meta = doc.createElement('meta');
             meta.name = 'theme-color';

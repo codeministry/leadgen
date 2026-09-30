@@ -1,0 +1,36 @@
+@if (all().length > 0) {
+  <section class="lg-chat-sources" [attr.aria-label]="'chat.sources.title' | transloco">
+    <h4 class="type-caption lg-chat-sources-title">{{ 'chat.sources.title' | transloco }} · {{ all().length }}</h4>
+    <ul class="lg-chat-sources-list">
+      @for (source of shown(); track source.kind + source.id) {
+        <li>
+          <a class="lg-chat-source" [routerLink]="commands(source)" queryParamsHandling="preserve">
+            <span class="lg-chat-source-top">
+              <span class="type-caption lg-chat-source-n">{{ source.n }}</span>
+              <lg-icon
+                [name]="source.kind === 'OFFER' ? 'briefcase' : 'send'"
+                [size]="14"
+                [label]="(source.kind === 'OFFER' ? 'chat.sources.offer' : 'chat.sources.application') | transloco"
+              />
+              @if (source.archived) {
+                <lg-badge class="lg-chat-source-archived">{{ 'chat.sources.archived' | transloco }}</lg-badge>
+              }
+            </span>
+            <span class="type-small lg-chat-source-title">{{ source.title }}</span>
+            <span class="type-mono-data lg-chat-source-meta">
+              {{ source.source }}
+              @if (source.date | lgDay; as day) {
+                · {{ day }}
+              }
+            </span>
+          </a>
+        </li>
+      }
+    </ul>
+    @if (hidden() > 0) {
+      <button type="button" class="btn btn-ghost btn-sm lg-chat-sources-more" (click)="expand()">
+        {{ 'chat.sources.more' | transloco: {count: all().length} }}
+      </button>
+    }
+  </section>
+}

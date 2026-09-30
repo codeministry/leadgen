@@ -1,10 +1,15 @@
 import {provideHttpClient} from '@angular/common/http';
 import {HttpTestingController, provideHttpClientTesting} from '@angular/common/http/testing';
 import {ComponentFixture, TestBed} from '@angular/core/testing';
-import {provideRouter} from '@angular/router';
+import {Component} from '@angular/core';
+import {provideRouter, Router} from '@angular/router';
+import {injectDispatch} from '@ngrx/signals/events';
+import {Subject} from 'rxjs';
+import {ChatApi} from '@core/api/chat.api';
+import {ChatEvent} from '@core/model/chat';
+import {chatEvents} from '@core/store/chat.events';
+import {routes} from '../../app.routes';
 import en from '../../../../public/i18n/en.json';
-import {Dispatcher} from '@ngrx/signals/events';
-import {ingestEvents} from '@core/store/ingest.events';
 import {AppHeader} from './app-header';
 
 /** The same two methods the help drawer's spec fills in, for the same reason: jsdom has neither. */
@@ -24,6 +29,12 @@ function polyfillDialog(): void {
     }
 }
 
+@Component({template: ''})
+class Blank {}
+
+/** The app's own top-level paths, read off its route table rather than restated. */
+const PATHS = routes.map((r) => r.path ?? '').filter((p) => p !== '' && p !== '**');
+
 describe('AppHeader', () => {
     let fixture: ComponentFixture<AppHeader>;
     let http: HttpTestingController;
@@ -42,55 +53,16 @@ describe('AppHeader', () => {
     afterEach(() => (fixture.nativeElement as HTMLElement).remove());
 
     const el = (selector: string) => fixture.nativeElement.querySelector(selector) as HTMLElement;
-    const runPosts = () => http.match(req => req.method === 'POST' && req.url === '/api/v1/ingest');
 
-    describe('Run ingest asks first (ISC-318)', () => {
-        const confirmDialog = () => el('.lg-run-confirm') as HTMLDialogElement;
+    // Operator, 2026-09-27: Run ingest and the model choice moved to the workflow screen, at every
+    // width. A header that grows them back is a second place that starts a run.
+    it('holds no run control and no model choice, even with several models to pick from', () => {
+        http.match('/api/v1/scoring-models').forEach((req) => req.flush({available: ['model-a', 'model-b'], preferred: 'model-a'}));
+        fixture.detectChanges();
+        const host = fixture.nativeElement as HTMLElement;
 
-        function activate(): void {
-            const button = el('.ingest-button') as HTMLButtonElement;
-            button.focus();
-            button.click();
-            fixture.detectChanges();
-        }
-
-        it('sends nothing on activation, only opens the confirmation', () => {
-            activate();
-
-            expect(confirmDialog().hasAttribute('open')).toBe(true);
-            expect(confirmDialog().textContent).toContain(en.shell.confirmRun.title);
-            expect(confirmDialog().textContent).toContain(en.shell.confirmRun.body);
-            expect(runPosts().length).toBe(0);
-        });
-
-        it('starts nothing on cancel, and puts focus back on the button', () => {
-            activate();
-            (confirmDialog().querySelector('.btn-ghost') as HTMLButtonElement).click();
-            fixture.detectChanges();
-
-            expect(confirmDialog().hasAttribute('open')).toBe(false);
-            expect(runPosts().length).toBe(0);
-            expect(document.activeElement).toBe(el('.ingest-button'));
-        });
-
-        it('starts nothing on Escape', () => {
-            activate();
-            confirmDialog().dispatchEvent(new Event('cancel', {cancelable: true}));
-            fixture.detectChanges();
-
-            expect(confirmDialog().hasAttribute('open')).toBe(false);
-            expect(runPosts().length).toBe(0);
-            expect(document.activeElement).toBe(el('.ingest-button'));
-        });
-
-        it('starts exactly one run on confirm', () => {
-            activate();
-            (confirmDialog().querySelector('.btn-primary') as HTMLButtonElement).click();
-            fixture.detectChanges();
-
-            expect(confirmDialog().hasAttribute('open')).toBe(false);
-            expect(runPosts().length).toBe(1);
-        });
+        expect(host.querySelector('.ingest-button, .ingest-live, lg-run-confirm, lg-run-control')).toBeNull();
+        expect(host.querySelector('select')).toBeNull();
     });
 
     describe('the help button (ISC-311)', () => {
@@ -119,32 +91,199 @@ describe('AppHeader', () => {
         });
     });
 
-    // The operator's call (2026-09-26): while a pass is going this is not a refused button but the
-    // way into the run — the run colour, the step, and a link to the workflow's status panel.
-    describe('while a pass is running', () => {
-        it('replaces the run button with a link into the workflow status, carrying the step', () => {
-            TestBed.inject(Dispatcher).dispatch(
-                ingestEvents.currentLoaded({
-                    id: 7,
-                    startedAt: '2026-09-26T08:00:00Z',
-                    scoreModel: 'judge',
-                    stage: 'SCORE',
-                    stagePosition: 9,
-                    stageTotal: 15,
-                    stageStartedAt: '2026-09-26T08:04:00Z',
-                }),
-            );
+    describe('the chat entry (ISC-422, ISC-432)', () => {
+        const chatRequests = () => http.match((r) => r.url.startsWith('/api/v1/chat') && r.url !== '/api/v1/chat/capability');
+        const answerCapability = (present: boolean) => {
+            http.expectOne('/api/v1/chat/capability').flush({present});
             fixture.detectChanges();
-            const host = fixture.nativeElement as HTMLElement;
+        };
 
-            const live = host.querySelector<HTMLAnchorElement>('a.ingest-live');
-            expect(live, 'the live link').not.toBeNull();
-            expect(live!.getAttribute('href')).toContain('stage=run');
-            expect(live!.textContent).toContain('9/15');
-            // The name says the stage in words; the figure alone would not.
-            expect(live!.getAttribute('aria-label')).toContain('SCORE');
-            // And the button that starts one is gone while one is going.
-            expect(host.querySelector('button.ingest-button')).toBeNull();
+        it('asks for the capability once, and with a chat model draws a named button', () => {
+            answerCapability(true);
+            const button = el('.lg-chat-open');
+            expect(button).not.toBeNull();
+            expect(button.getAttribute('aria-label')).toBe(en.chat.open);
+            // First in the operations cluster, so arriving late moves nothing to its right.
+            expect(el('.ops').firstElementChild).toBe(button);
+        });
+
+        it('without a chat model draws no button, and no chat request leaves on any route', async () => {
+            answerCapability(false);
+            expect(el('.lg-chat-open')).toBeNull();
+
+            // Every top-level path the app routes, visited in turn with the header on screen.
+            const router = TestBed.inject(Router);
+            router.resetConfig(PATHS.map((path) => ({path, component: Blank})));
+            for (const path of PATHS) {
+                await router.navigateByUrl(`/${path}`);
+                fixture.detectChanges();
+            }
+            expect(el('.lg-chat-open')).toBeNull();
+            // Counted at the HTTP seam: every request to `/api/v1/chat` but the capability
+            // call itself, which `answerCapability` already took out of the queue.
+            expect(chatRequests().length).toBe(0);
+        });
+
+        // Spec 021: the ring is the brand on the button itself — at rest while nothing streams,
+        // working while a turn is written behind a shut drawer — and the sparkle and the busy dot
+        // are folded into it. The name is the only place the busy state is spoken.
+        describe('the living mark on the button (ISC-469)', () => {
+            const mark = () => el('.lg-chat-open lg-living-mark');
+
+            it('carries the mark at rest in the icon slot and no sparkle', () => {
+                answerCapability(true);
+
+                expect(mark()).not.toBeNull();
+                expect(mark().getAttribute('data-frame')).toBe('rest');
+                expect(el('.lg-chat-open lg-icon')).toBeNull();
+                expect(el('.lg-chat-busy')).toBeNull();
+            });
+
+            // Operator, 2026-09-27: the button draws itself in and turns now and then while the chat
+            // is shut; open, the drawer is what moves, and the mark stands.
+            it('is ambient while the chat is shut and still while it is open', async () => {
+                answerCapability(true);
+                expect(mark().getAttribute('data-motion')).toBe('ambient');
+
+                const router = TestBed.inject(Router);
+                router.resetConfig([{path: 'offers', component: Blank}]);
+                await router.navigateByUrl('/offers?chat=new');
+                fixture.detectChanges();
+                expect(mark().getAttribute('data-motion')).toBe('still');
+            });
+
+            it('shows the shortcut as a chip hidden from assistive tech, the name unchanged', () => {
+                vi.spyOn(navigator, 'platform', 'get').mockReturnValue('MacIntel');
+                answerCapability(true);
+                const chip = el('.lg-chat-open .lg-chat-kbd');
+                expect(chip.textContent?.trim()).toBe('⌘K');
+                expect(chip.getAttribute('aria-hidden')).toBe('true');
+                expect(el('.lg-chat-open').getAttribute('aria-label')).toBe(en.chat.open);
+                vi.restoreAllMocks();
+            });
+
+            it('works while a turn streams with the drawer shut, and rests again once it ends', async () => {
+                answerCapability(true);
+                const router = TestBed.inject(Router);
+                router.resetConfig([{path: 'offers', component: Blank}]);
+                await router.navigateByUrl('/offers?chat=4');
+                http.expectOne('/api/v1/chat/conversations/4').flush({
+                    id: 4,
+                    title: 'Conversation 4',
+                    pinnedOfferId: null,
+                    turns: [],
+                    updatedAt: '2026-09-27T08:00:00Z',
+                });
+                const server = new Subject<ChatEvent>();
+                vi.spyOn(TestBed.inject(ChatApi), 'ask').mockReturnValue(server.asObservable());
+                const dispatch = TestBed.runInInjectionContext(() => injectDispatch(chatEvents));
+
+                dispatch.asked('Which offers asked for Kafka?');
+                server.next({event: 'turn', data: {turnId: 31}});
+                fixture.detectChanges();
+                // The drawer is open: the reader watches the turn, the button stays at rest.
+                expect(mark().getAttribute('data-frame')).toBe('rest');
+
+                // Shut by the chat's own close: a link without `?chat` no longer shuts it (ISC-444).
+                dispatch.closeRequested();
+                await vi.waitFor(() => expect(router.url).toBe('/offers'));
+                fixture.detectChanges();
+                expect(mark().getAttribute('data-frame')).toBe('working');
+                expect(el('.lg-chat-busy')).toBeNull();
+                expect(el('.lg-chat-open').getAttribute('aria-label')).toBe(`${en.chat.open}, ${en.chat.busyLabel}`);
+
+                server.next({event: 'done', data: {state: 'DONE'}});
+                server.complete();
+                fixture.detectChanges();
+                expect(mark().getAttribute('data-frame')).toBe('rest');
+                expect(el('.lg-chat-open').getAttribute('aria-label')).toBe(en.chat.open);
+            });
+        });
+
+        // Spec 020: ⌘K on macOS, Ctrl+K elsewhere, from any screen. Only the handled combination is
+        // taken from the browser; everything else — Ctrl+K on a Mac, a plain k — goes on untouched.
+        describe('the keyboard shortcut (ISC-461)', () => {
+            const press = (init: KeyboardEventInit) => {
+                const event = new KeyboardEvent('keydown', {key: 'k', bubbles: true, cancelable: true, ...init});
+                document.body.dispatchEvent(event);
+                fixture.detectChanges();
+                return event;
+            };
+            const onPlatform = (platform: string) => vi.spyOn(navigator, 'platform', 'get').mockReturnValue(platform);
+            const chatParam = () => new URL(TestBed.inject(Router).url, 'http://x').searchParams.get('chat');
+
+            afterEach(() => vi.restoreAllMocks());
+
+            const PLATFORMS = [
+                {platform: 'MacIntel', handled: {metaKey: true}, other: {ctrlKey: true}, keys: 'Meta+K', hint: '⌘K'},
+                {platform: 'Win32', handled: {ctrlKey: true}, other: {metaKey: true}, keys: 'Control+K', hint: 'Ctrl+K'},
+            ] as const;
+
+            for (const {platform, handled, other, keys, hint} of PLATFORMS) {
+                describe(`on ${platform}`, () => {
+                    beforeEach(() => onPlatform(platform));
+
+                    it(`names ${hint} in the tooltip and in aria-keyshortcuts`, () => {
+                        answerCapability(true);
+                        const button = el('.lg-chat-open');
+                        expect(button.getAttribute('aria-keyshortcuts')).toBe(keys);
+                        expect(button.getAttribute('title')).toBe(en.chat.openShortcut.replace('{{keys}}', hint));
+                        // The name stays the chat's own; the shortcut is announced by the attribute.
+                        expect(button.getAttribute('aria-label')).toBe(en.chat.open);
+                    });
+
+                    it('opens the chat from any screen with the chat closed, and takes only that combination', async () => {
+                        answerCapability(true);
+                        const router = TestBed.inject(Router);
+                        router.resetConfig(PATHS.map((path) => ({path, component: Blank})));
+                        for (const path of PATHS.slice(0, 3)) {
+                            await router.navigateByUrl(`/${path}`);
+                            fixture.detectChanges();
+                            expect(chatParam()).toBeNull();
+
+                            expect(press({...other}).defaultPrevented).toBe(false);
+                            expect(press({}).defaultPrevented).toBe(false);
+                            expect(press({...handled, shiftKey: true}).defaultPrevented).toBe(false);
+                            await Promise.resolve();
+                            expect(chatParam()).toBeNull();
+
+                            expect(press({...handled}).defaultPrevented).toBe(true);
+                            await vi.waitFor(() => expect(chatParam()).toBe('new'));
+                            expect(router.url.startsWith(`/${path}`)).toBe(true);
+                            await router.navigateByUrl(`/${path}`);
+                            fixture.detectChanges();
+                        }
+                    });
+
+                    it('with the chat open, keeps it open and puts focus back into the composer', async () => {
+                        answerCapability(true);
+                        const router = TestBed.inject(Router);
+                        router.resetConfig([{path: 'offers', component: Blank}]);
+                        await router.navigateByUrl('/offers?chat=new');
+                        fixture.detectChanges();
+                        // The panel is not part of this fixture; its composer is stood in for by the field it renders.
+                        const composer = document.createElement('textarea');
+                        composer.className = 'lg-chat-input';
+                        document.body.appendChild(composer);
+                        el('.settings-button').focus();
+
+                        expect(press({...handled}).defaultPrevented).toBe(true);
+                        await Promise.resolve();
+
+                        expect(chatParam()).toBe('new');
+                        expect(document.activeElement).toBe(composer);
+                        composer.remove();
+                    });
+                });
+            }
+
+            it('does nothing without a chat model', async () => {
+                onPlatform('Win32');
+                answerCapability(false);
+                expect(press({ctrlKey: true}).defaultPrevented).toBe(false);
+                await Promise.resolve();
+                expect(chatParam()).toBeNull();
+            });
         });
     });
 });

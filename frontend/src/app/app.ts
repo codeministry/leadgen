@@ -1,5 +1,7 @@
 import {ChangeDetectionStrategy, Component, inject} from '@angular/core';
 import {RefreshStore} from '@core/refresh/refresh.store';
+import {IngestStore} from '@core/store/ingest.store';
+import {ChatPanel} from '@features/chat/chat-panel/chat-panel';
 import {AppShell} from '@layout/app-shell/app-shell';
 
 /**
@@ -9,7 +11,7 @@ import {AppShell} from '@layout/app-shell/app-shell';
  */
 @Component({
     selector: 'lg-root',
-    imports: [AppShell],
+    imports: [AppShell, ChatPanel],
     templateUrl: './app.html',
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -30,5 +32,10 @@ export class App {
    */
   constructor() {
     inject(RefreshStore);
+    // The same reason for `IngestStore`: its `onInit` starts the run heartbeat, which the
+    // run-ended refresh and the run toast both hang on. The header's run control used to create
+    // it on every screen; since that control moved to the workflow screen, nothing did anywhere
+    // else, and a run ending on /pipeline refreshed nothing and said nothing.
+    inject(IngestStore);
   }
 }

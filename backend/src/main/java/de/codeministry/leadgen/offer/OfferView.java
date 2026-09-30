@@ -68,4 +68,41 @@ public record OfferView(
         Instant ingestedAt,
         Instant archivedAt,
         String archiveSource,
-        String enrichmentNote) {}
+        String enrichmentNote) {
+
+    /**
+     * The offer as an MCP client gets it (spec 023): never the package's path on this server, which
+     * no client can use (the board says only whether a package exists), and the advert text, the
+     * one field that runs to pages, only when asked for. The screens always read it whole.
+     */
+    public OfferView forMcpClient(boolean withFullText) {
+        return new OfferView(
+                id,
+                sourceName,
+                externalId,
+                title,
+                description,
+                url,
+                location,
+                portal,
+                agency,
+                publishedOn,
+                tags,
+                rateEur,
+                remotePercent,
+                startsOn,
+                startText,
+                duration,
+                durationMonths,
+                applyBy,
+                applyByText,
+                workload,
+                language,
+                withFullText ? fullText : null,
+                null,
+                ingestedAt,
+                archivedAt,
+                archiveSource,
+                enrichmentNote);
+    }
+}

@@ -1,5 +1,5 @@
 <h1 align="center">
-  <img alt="LEADgen / AI" src="docs/brand/leadgen.png" width="420">
+  <img alt="leadGEN / AI" src="docs/brand/leadgen.png" width="420">
 </h1>
 
 **An acquisition tool for freelancers.** It collects project offers from sources you
@@ -26,9 +26,11 @@ Read this before you rely on it.
   published, but the only upgrade path is the *Upgrading* note in
   [CHANGELOG.md](CHANGELOG.md), and there is no promise that a database written today is readable next month.
 - **The API and the configuration schema will change** without a deprecation period.
-- **It is single-operator by design.** There is no authentication (`security.auth` accepts
-  only `none`), no multi-tenancy, and the only thing standing in front of the write
-  endpoints is that the server binds `127.0.0.1` by default. Do not expose it.
+- **It is single-operator by design.** There is no multi-tenancy. Authentication is optional:
+  under `security.auth: oidc` every request needs a token from your identity provider, and
+  under the default `none` what stands in front of the write endpoints is that the server binds
+  `127.0.0.1` and refuses a dotted host name nobody configured, DNS rebinding included; a LAN
+  address or a bare machine name is served without configuration. Do not expose it without `oidc`.
 - **Known gaps** are listed under [What does not work yet](#what-does-not-work-yet), not
   hidden.
 
@@ -110,6 +112,14 @@ selector and the date format. There is a test that reads the repository for `Tra
 `JavaMailSender`, `setRecipient(` and `mailto:` and fails the build if a send path ever
 appears.
 
+**Ask the corpus.** An **Ask** button in the header opens a chat beside every screen: a
+question in plain words about the offers, your applications and your profile. It is not a
+pipeline stage and it only reads — five read-only tools over the same services the screens use,
+a daily call budget of its own, and your mailbox address never reaches the model. Every offer or
+application it names becomes a numbered link only when one of that answer's own searches
+returned it; anything else stays plain text, marked unverified. The reasoning is in
+[`docs/decisions/chat.md`](docs/decisions/chat.md).
+
 ## Try it in one command
 
 The repository ships a complete **invented** dataset — five newsletter mails carrying ~170
@@ -123,12 +133,14 @@ cp .env.example .env    # the file has to exist; it may stay exactly as it is
 docker compose -f docker-compose.yml -f docker-compose.demo.yml up --build
 ```
 
-Open <http://localhost:4200> and press **Run ingest** once. Details, and how to regenerate
+Open <http://localhost:4200>, go to **Workflow** and press **Run ingest** once. Details, and how to regenerate
 the corpus, are in [`demo/README.md`](demo/README.md).
 
 Two things the demo cannot fake, both by design: without an `LLM_API_KEY` the shortlist is
 there and filtered but the score *total* is withheld rather than computed from half the
 weights, and enrichment has nothing to fetch because the invented URLs do not resolve.
+The chat needs a model too: with one configured, **Ask** appears in the header; without one it
+is simply not there.
 
 The app can be installed from the browser's own install affordance; there is no button for it
 inside the app. On the desktop it is the install icon at the right of the address bar in Chrome or Edge
@@ -137,6 +149,21 @@ Android **Install app** or **Add to Home screen** in the browser menu, on iOS th
 and **Add to Home Screen**. It opens in its own window with the lead-ring icon and the app's
 colours, the shell loads without a network (the data never does; it always comes from the
 API), and a toast offers to reload once a deploy has landed.
+
+### Ask it from an MCP client
+
+leadgen is an MCP server too: `/mcp` speaks Streamable HTTP and serves ten read-only tools, the
+shortlist search and an offer's detail, the funnel, the last run, the application board and the
+configuration, and four the chat uses (search by meaning, the statistics, one application, the
+profile). Point a client at the web port, e.g. for Claude Code:
+
+```bash
+claude mcp add --transport http leadgen http://localhost:4200/mcp
+```
+
+With `AUTH_MODE=oidc` the endpoint wants a bearer token like every other; a client that speaks
+MCP's authorization flow finds the issuer at `/.well-known/oauth-protected-resource/mcp`. What the
+tools answer and why is in [`docs/decisions/mcp.md`](docs/decisions/mcp.md).
 
 ## The screens
 
@@ -148,6 +175,7 @@ API), and a toast offers to reload once a deploy has landed.
 | ![Analytics](docs/screenshots/analytics-light.png)       | **Analytics** — what the market is doing, and what the rules are doing to it.                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | ![Sources](docs/screenshots/sources-dark.png)            | **Sources** — the configuration rather than the database, so a source that has never run still shows up. Opening one shows the block of `sources.yaml` that defines it, secrets masked, beside every run it has had and when its numbers last moved.                                                                                                                                                                                                                                                                           |
 | ![Workflow](docs/screenshots/rules-dark.png)             | **Workflow** — the run as a workflow, from ingest to digest: each stage with the last run's count, what it costs, and a marker where a model takes part. Picking a stage shows every key that decides it, the knockouts, the weights and the thresholds behind every number on the shortlist, and the prompt as this configuration actually renders it.                                                                                                                                                                             |
+| ![Chat](docs/screenshots/chat-light.png)                 | **Chat** — a question in plain words, answered beside the page it was asked on. Each offer it names is a numbered link to a row one of its own searches returned, the sources sit below the answer, and following one opens the offer next to the conversation. Earlier conversations are kept by day and searchable, and can be deleted one at a time or many at once. |
 | ![Help](docs/screenshots/help-light.png)                 | **Help** — a drawer from the header that opens at the chapter of the screen it was opened from, with a how-it-works chapter and its diagrams for the reader who wants to know what happens between a mail and a package.                                                                                                                                                                                                                                                                                                      |
 
 ## Configuration
@@ -232,12 +260,12 @@ open for the question you have.
 
 - [Architecture](docs/ARCHITECTURE.md) — the pipeline stage by stage, and the reasoning
   behind the parts that are not obvious
-- [Data model](docs/DATA-MODEL.md) — the thirteen tables, their keys, and which class writes
+- [Data model](docs/DATA-MODEL.md) — the nineteen tables, their keys, and which class writes
   each column
 - [Backend flows](docs/BACKEND-FLOWS.md) — the run as a sequence, the asynchronous side,
   every write path from an endpoint down, the state machines, and where a rule decides
   against where a model speaks
-- [Configuration](docs/CONFIGURATION.md) — the two layers, the four files, every variable
+- [Configuration](docs/CONFIGURATION.md) — the two layers, the five files, every variable
 - [Adding a source](docs/ADDING-A-SOURCE.md) — a new source is a YAML block, worked through
   line by line, then every key with what reads it
 - [Writing rules](docs/WRITING-RULES.md) — the six knockouts, the weight table and the

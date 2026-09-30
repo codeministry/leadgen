@@ -28,6 +28,7 @@ import de.codeministry.leadgen.config.SourcesView;
 import de.codeministry.leadgen.config.YamlBlock;
 import de.codeministry.leadgen.config.model.PipelineConfig;
 import de.codeministry.leadgen.score.Judges;
+import de.codeministry.leadgen.score.PromptCatalog;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
 import jakarta.validation.ValidatorFactory;
@@ -39,6 +40,7 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpStatus;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
@@ -46,10 +48,12 @@ import org.springframework.test.web.servlet.assertj.MvcTestResult;
 
 /**
  * The edge of the one endpoint on this controller that serves file text, and the field names of
- * {@code /rules} and {@code /prompts}, which the MCP server's pipeline-config tool reads and which
- * therefore do not change shape under it.
+ * {@code /rules} and {@code /prompts}, whose views the MCP tool {@code leadgen_get_pipeline_config}
+ * returns as they are, so neither changes shape under it. {@link PromptCatalog} is imported rather
+ * than mocked: the assembly it took over from this controller is what the prompt rows pin.
  */
 @WebMvcTest(ConfigController.class)
+@Import(PromptCatalog.class)
 class ConfigControllerTest {
 
     @Autowired

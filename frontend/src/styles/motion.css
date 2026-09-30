@@ -38,4 +38,14 @@
     --lg-orbit-duration: 240s;
     --lg-aurora-duration: 28s;
     --lg-pulse-duration: 4.8s;
+
+    /* The header's chat button, the living mark's one ambient host. The intro draws the ring
+       once when the button appears; every idle period the mark turns once, its arc closing
+       and the dots answering, with the button's gradient edge sweeping round in step; the
+       turn is the same gesture a hover or a keyboard focus plays at once. Rare on purpose:
+       a mark that moves every few seconds competes with the page it sits above. All of it is
+       off under reduced motion. */
+    --lg-mark-intro-duration: 900ms;
+    --lg-mark-turn-duration: 800ms;
+    --lg-mark-idle-period: 24s;
 }

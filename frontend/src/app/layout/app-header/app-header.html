@@ -12,12 +12,42 @@
 <header class="header">
   <div class="header-row">
     <a routerLink="/dashboard" class="brand-link">
-      <lg-brand-mark class="compact" [size]="26"/>
+      <lg-brand-mark class="compact" [size]="30"/>
     </a>
 
     <lg-app-nav/>
 
     <div class="ops">
+      <!-- The chat (spec 019): first in the cluster, so a capability answer arriving late shifts
+           nothing to its right, and absent — not disabled — without a chat model (ISC-422). From
+           48rem the soft tier with the word "Ask"; below it the stylesheet turns the same button
+           into a ghost square, one element so focus always has one place to come back to. Its icon
+           is the living mark (spec 021): the brand's ring at rest, working while a turn is written
+           behind a shut drawer; the busy state is spoken by the name alone. -->
+      @if (chat.present()) {
+        <button
+          type="button"
+          class="btn btn-soft btn-primary lg-chat-open"
+          aria-haspopup="dialog"
+          [attr.aria-expanded]="chat.view() !== 'closed'"
+          [attr.aria-label]="chatLabel()"
+          [attr.title]="chatTitle()"
+          [attr.aria-keyshortcuts]="shortcutKeys()"
+          (click)="toggleChat()"
+        >
+          <lg-living-mark
+            [frame]="chatBusy() ? 'working' : 'rest'"
+            [motion]="chat.view() === 'closed' ? 'ambient' : 'still'"
+            [size]="18"
+          />
+          <span class="lg-chat-open-label">{{ 'chat.openShort' | transloco }}</span>
+          <!-- The shortcut, shown where a keyboard is likely. Symbols only, so no catalog key; the
+               button's `aria-keyshortcuts` is what announces it, so the chip is hidden from AT. -->
+          @if (shortcutChip(); as keys) {
+            <kbd class="kbd kbd-xs lg-chat-kbd" aria-hidden="true">{{ keys }}</kbd>
+          }
+        </button>
+      }
       <!-- The version is the honest health check, and the failure is the half that has to
            be seen without a click: a backend that stopped answering shows up here, while
            the digits of a healthy one live in the panel. -->
@@ -31,78 +61,6 @@
           </span>
       }
 
-      <!--
-        One model is not a choice and no model at all means nothing is configured to judge,
-        so the select appears only when there is something to pick. The list comes from
-        `/api/v1/scoring-models`, never from a constant here: a second copy disagrees with the
-        configuration the first time a model is added, and the server refuses what it does
-        not know.
-
-        The selection is bound per option rather than with `[value]` on the select, the same
-        trap `shared/status-picker` documents: `[value]` depends on the options existing when
-        it is written, and losing that race leaves the first one showing while the run uses
-        another.
-      -->
-      @if (models.selectable()) {
-        <label class="sr-only" for="scoring-model">{{ 'shell.scoringModel' | transloco }}</label>
-        <select
-          id="scoring-model"
-          class="select select-xs type-mono-data model-select"
-          [disabled]="ingest.busy()"
-          (change)="chooseModel($event)"
-        >
-          @for (model of models.available(); track model) {
-            <option [value]="model" [selected]="model === models.effective()">{{ model }}</option>
-          }
-        </select>
-      }
-
-      <!--
-        Disabled on `busy` and not on `running`: `running` says only whether *this* browser is
-        waiting on its own request, so during a nightly pass the button stayed enabled, the
-        click went out, and the answer was a 409 whose sentence nobody saw. The title carries
-        the stage, because a disabled control with no reason is worse than one that refuses.
-      -->
-      <!-- Two things in one place (operator, 2026-09-26): while a pass is going this is not a
-           refused button but the way into it — the run colour, the step it is on, and a link to
-           the workflow's status panel, which holds every fact about the run. The rest of the time
-           it is the button that asks, and the dialog that starts it (ISC-318): a run reads the
-           mailbox and spends the call budget, and this control is on every screen.
-
-           The old disabled state is gone with the banner it stood beside. It was disabled on
-           `busy` rather than `running`, because `running` says only whether *this* browser is
-           waiting on its own request — the same reason a link is right now: a pass someone else
-           started is one this browser should still be able to follow. -->
-      @if (ingest.current(); as run) {
-        <a
-          class="type-small ingest-live"
-          routerLink="/workflow"
-          [queryParams]="{ stage: 'run' }"
-          [attr.aria-label]="runStage()"
-          [title]="runStage()"
-        >
-          <lg-icon name="refresh" [size]="16"/>
-          <span class="ingest-label">{{ 'shell.runLive' | transloco }}</span>
-          @if (run.stagePosition !== null && run.stageTotal !== null) {
-            <span class="type-mono-data">{{ run.stagePosition }}/{{ run.stageTotal }}</span>
-          }
-        </a>
-      } @else {
-        <button
-          #runButton
-          type="button"
-          class="btn btn-primary btn-sm ingest-button"
-          [disabled]="ingest.busy()"
-          [attr.title]="runTitle()"
-          (click)="askToRun(runButton)"
-        >
-          <lg-icon name="refresh" [size]="16"/>
-          <span class="ingest-label">{{ (ingest.busy() ? 'shell.ingestRunning' : 'shell.ingest') | transloco }}</span>
-        </button>
-      }
-      <lg-run-confirm (confirmed)="runIngest()"/>
-
-
       <!-- The name belongs on the button, not on the icon inside it: a control whose
            accessible name comes from a nested role="img" is one refactor away from having
            none at all. `popovertarget` yields an implicit expanded state in current
@@ -110,14 +68,14 @@
            the panel's own toggle event. -->
       <button
         type="button"
-        class="btn btn-ghost btn-sm btn-square settings-button"
+        class="btn btn-ghost btn-square settings-button"
         popovertarget="app-settings"
         aria-controls="app-settings"
         [attr.aria-expanded]="settingsOpen()"
         [attr.aria-label]="'shell.settings' | transloco"
         [attr.title]="'shell.settings' | transloco"
       >
-        <lg-icon name="settings" [size]="18"/>
+        <lg-icon name="settings" [size]="20"/>
       </button>
 
       <!--
@@ -154,15 +112,22 @@
       <button
         #helpButton
         type="button"
-        class="btn btn-ghost btn-sm btn-square help-button"
+        class="btn btn-ghost btn-square help-button"
         aria-haspopup="dialog"
         [attr.aria-label]="'shell.help' | transloco"
         [attr.title]="'shell.help' | transloco"
         (click)="help.open(helpButton)"
       >
-        <lg-icon name="circle-help" [size]="18"/>
+        <lg-icon name="circle-help" [size]="20"/>
       </button>
       <lg-help-drawer #help/>
+
+      <!-- Who is signed in, at the very end of the row where an account usually sits. Only under
+           `oidc` with somebody signed in: under `none` there is nobody to show and nothing to
+           log out of, so the button is absent, not disabled. -->
+      @if (signedIn.user()) {
+        <lg-user-menu/>
+      }
     </div>
   </div>
 </header>

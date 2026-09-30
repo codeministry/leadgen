@@ -17,6 +17,25 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
+  # The MCP server (spec 023): leadgen's read tools at /mcp, the same process and the same
+  # security chain as the REST API. No switch: it is part of the api as the endpoints are.
+  ai:
+    mcp:
+      server:
+        name: leadgen
+        # What a client reads in the `initialize` result: the running build, from the one place
+        # the build names itself (leadgen.version below).
+        version: ${LEADGEN_VERSION:0.5.0}
+        # STREAMABLE and not SSE: Spring AI 2.0 deprecates SSE, and Streamable HTTP is what
+        # current MCP clients negotiate.
+        protocol: STREAMABLE
+        # SYNC, because every tool reads a blocking service. An ASYNC server registers only
+        # reactive annotated methods and would silently expose nothing.
+        type: SYNC
+        annotation-scanner:
+          enabled: true
+        streamable-http:
+          mcp-endpoint: /mcp
 
 # Working defaults for the pipeline ship on the classpath under /leadgen/. This
 # directory overrides them file by file and holds everything individual: real
@@ -34,6 +53,11 @@ leadgen:
     # the only thing that makes `security.auth: none` survivable on a bind past loopback.
     # Compose sets it and limits reach on the host side of its published ports instead.
     allow-open-bind: ${ALLOW_OPEN_BIND:false}
+    # The dotted names the api may be reached under while `security.auth` is `none`, comma-separated,
+    # beyond loopback, IP literals and single-label service names. Any other name is refused as DNS
+    # rebinding: a page on a name its author points at this machine would otherwise read and write
+    # the API as its own. Ignored under `oidc`, where the token is the guard.
+    allowed-hosts: ${ALLOWED_HOSTS:}
   # How often the three files are checked for changes. Two polls are needed before a
   # change is applied, so the worst case is twice this value.
   config-poll-interval: ${CONFIG_POLL_INTERVAL:PT2S}
@@ -59,6 +83,12 @@ management:
 
 server:
   port: ${SERVER_PORT:8080}
+  # The scheme and host a client used, from X-Forwarded-Proto and -Host, so every URL this process
+  # derives from a request (the protected-resource metadata, the 401's resource_metadata) names
+  # the https address the client reached the proxy at, not the plain one the proxy forwards to. `native` is Tomcat's
+  # RemoteIpValve, which believes the headers only from a private or loopback peer: the compose
+  # nginx and the cluster ingress qualify, a client on the open internet does not.
+  forward-headers-strategy: native
   # While `security.auth` is `none` this is what stands in front of the write endpoints:
   # the service is reachable from this machine and nowhere else. A container has to bind
   # every interface to be reachable through its published port, which is why

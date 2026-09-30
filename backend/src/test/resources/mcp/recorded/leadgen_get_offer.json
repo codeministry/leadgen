@@ -1,0 +1,75 @@
+{
+  "offer": {
+    "id": 163,
+    "sourceName": "demo-newsletter",
+    "externalId": "https://portal-e.example/project/java-developer-spring-boot-automotive-microservices-m-w-d-251680",
+    "title": "Java Developer Spring Boot Automotive – Microservices (m/w/d)",
+    "description": "Industry: Automotive. A new product is being built, and with it an API landscape from scratch.\n\n**Your tasks**\n\n* Code reviews and alignment with the product teams\n* Designing and building REST interfaces\n* Building and maintaining the automated test coverage\n\n**Your profile**\n\n* Experience with Kafka or a comparable broker\n* Docker, Gradle, Git\n* Java 21, Spring Boot, Spring Data\n* PostgreSQL and clean data modelling\n\nStart: at the start of the month\n\n\nDuration: 9 months with an option to extend\n\n\nWorkload: full-time",
+    "url": "https://portal-e.example/project/java-developer-spring-boot-automotive-microservices-m-w-d-251680",
+    "location": "Remote",
+    "portal": "portal-e",
+    "agency": "Globex Solutions GmbH",
+    "publishedOn": "2026-09-01",
+    "tags": [
+      "Java",
+      "Spring Boot"
+    ],
+    "rateEur": null,
+    "remotePercent": null,
+    "startsOn": null,
+    "startText": "at the start of the month",
+    "duration": "9 months with an option to extend",
+    "durationMonths": 9,
+    "applyBy": null,
+    "applyByText": null,
+    "workload": null,
+    "language": "en",
+    "packageDir": "/packages/2026-09-01_globex-solutions-gmbh_java-developer-spring-boot-automotive-microservices-m-w-d",
+    "ingestedAt": "2026-09-24T18:20:32.884347Z",
+    "archivedAt": null,
+    "archiveSource": null,
+    "enrichmentNote": "unreachable: UnresolvedAddressException"
+  },
+  "score": {
+    "value": 100,
+    "hardPass": true,
+    "reasons": [
+      {
+        "factor": "core_skill_overlap",
+        "label": "Java, Spring Boot, PostgreSQL, Docker, Kafka, REST (skill weight 46, a full match is 37)",
+        "points": 45,
+        "maxPoints": 45,
+        "topic": null
+      },
+      {
+        "factor": "project_setup",
+        "label": "states duration",
+        "points": 3,
+        "maxPoints": 0,
+        "topic": null
+      },
+      {
+        "factor": "role_fit",
+        "label": "Fullstack and backend developer match role and stack for Java, Spring Boot, and microservices",
+        "points": 13,
+        "maxPoints": 15,
+        "topic": null
+      }
+    ],
+    "model": "scoring-model",
+    "rulesetVersion": "1"
+  },
+  "flags": {
+    "incomplete": true,
+    "remoteUnknown": true,
+    "possibleDuplicate": false
+  },
+  "sources": [
+    {
+      "portal": "portal-e",
+      "agency": "Globex Solutions GmbH",
+      "url": "https://portal-e.example/project/java-developer-spring-boot-automotive-microservices-m-w-d-251680"
+    }
+  ],
+  "content": []
+}

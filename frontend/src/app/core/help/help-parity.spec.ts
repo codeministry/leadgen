@@ -25,6 +25,7 @@ const CHAPTERS = [
     'analytics',
     'workflow',
     'sources',
+    'chat',
     'app-basics',
     'how-it-works',
 ];

@@ -1,13 +1,12 @@
-<!-- No `display` on the dialog itself, only on the panel inside it: an author `display` on the
-     dialog beats the UA's `dialog:not([open]) { display: none }` and the drawer would stand open
-     forever while every API reports it closed. The panel fills the dialog, which is what makes
-     a click on the dialog element a click on the backdrop. -->
-<dialog
-  #dialog
-  class="lg-help-drawer"
-  aria-labelledby="lg-help-title"
-  (cancel)="onCancel($event)"
-  (close)="onClose()"
+<!-- The frame is the shared drawer primitive (DS-APP-27), modal at every width because the help
+     covers the screen it explains. The panel fills the dialog, which is what makes a click on
+     the dialog element a click on the backdrop. -->
+<lg-side-drawer
+  labelledBy="lg-help-title"
+  width="var(--lg-help-w)"
+  frameClass="lg-help-drawer"
+  (dismissed)="close()"
+  (closed)="onClose()"
 >
   <div class="lg-help-body">
     <div class="lg-help-head">
@@ -93,4 +92,4 @@
     </div>
     }
   </div>
-</dialog>
+</lg-side-drawer>

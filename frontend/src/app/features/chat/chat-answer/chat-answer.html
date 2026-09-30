@@ -1,0 +1,66 @@
+<lg-chat-steps [steps]="steps()"/>
+
+@if (answer() === '' && streaming()) {
+  <p class="type-small text-muted lg-chat-thinking">{{ 'chat.thinking' | transloco }}</p>
+} @else {
+  <!-- The pills and marks are rendered Markdown with no bindings of their own; the host listens for them. -->
+  <div class="type-body lg-chat-md" [class.lg-chat-md-streaming]="streaming()" [innerHTML]="html()"></div>
+}
+
+@if (failure(); as reason) {
+  <!-- The partial text above stays; the reason sits under a rule, never inside the answer.
+       A model failure's server sentence arrives as an interpolated value: text, never markup. -->
+  <p class="type-small lg-chat-failure"><lg-icon name="triangle-alert" [size]="14"/>{{ reason | transloco: (failureParams() ?? {}) }}</p>
+}
+
+@if (!streaming()) {
+  <!-- Drawn from the tool's own result, never from digits in the text above (ISC-460). -->
+  @for (stat of statistics(); track stat.ordinal) {
+    <lg-chat-statistics-card [source]="stat"/>
+  }
+  <lg-chat-sources [sources]="rows()"/>
+}
+
+@if (finished()) {
+  <div class="lg-chat-actions">
+    <button
+      type="button"
+      class="btn btn-ghost btn-square btn-sm lg-chat-copy"
+      [attr.aria-label]="(copied() ? 'chat.answer.copied' : 'chat.answer.copy') | transloco"
+      [attr.title]="'chat.answer.copy' | transloco"
+      (click)="copy()"
+    >
+      <lg-icon [name]="copied() ? 'circle-check' : 'copy'" [size]="16"/>
+    </button>
+    @if (canRegenerate()) {
+      <button
+        type="button"
+        class="btn btn-ghost btn-square btn-sm lg-chat-regenerate"
+        [attr.aria-label]="'chat.answer.regenerate' | transloco"
+        [attr.title]="'chat.answer.regenerate' | transloco"
+        (click)="regenerate()"
+      >
+        <lg-icon name="rotate-ccw" [size]="16"/>
+      </button>
+    }
+  </div>
+}
+
+@if (followUps().length > 0) {
+  <!-- Removed from the DOM, not hidden, once the next question is sent (ISC-457). -->
+  <section class="lg-chat-followups" [attr.aria-label]="'chat.followups.title' | transloco">
+    <h4 class="type-caption text-muted lg-chat-followups-title">{{ 'chat.followups.title' | transloco }}</h4>
+    <ul class="lg-chat-followups-list">
+      @for (followUp of followUps(); track $index) {
+        <li>
+          <button type="button" class="btn btn-ghost btn-sm lg-chat-followup" (click)="askFollowUp(followUp.text)">
+            <lg-icon name="corner-down-right" [size]="14"/>
+            <span>{{ followUp.text }}</span>
+          </button>
+        </li>
+      }
+    </ul>
+  </section>
+}
+
+<lg-citation-card/>

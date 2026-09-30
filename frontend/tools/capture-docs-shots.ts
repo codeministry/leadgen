@@ -30,6 +30,8 @@ interface Shot {
     readonly theme: 'light' | 'dark';
     /** The path to open, given the offer the shortlist puts first. */
     readonly route: (top: number) => string;
+    /** 'load' where the screen keeps a request open on purpose; networkidle otherwise. */
+    readonly waitUntil?: 'load' | 'networkidle';
     /** What has to be on screen before the picture is taken, beyond the route. */
     readonly prepare?: (page: Page) => Promise<void>;
 }
@@ -71,6 +73,36 @@ const SHOTS: Record<string, Shot> = {
             await page.locator('lg-flow-node a[data-stage="SCORE"]').first().click();
             await page.locator('lg-stage-sheet').first().waitFor();
             await page.waitForTimeout(800);
+        },
+    },
+    // The chat docked beside the offer the shortlist puts first, with one real answer in it: the
+    // question goes through the composer and the demo's own model answers, so the picture shows
+    // what the chat actually does with this corpus. A local model can take minutes to answer.
+    'chat-light': {
+        theme: 'light',
+        route: (top) => `/shortlist/${top}?chat=new`,
+        // The empty chat asks the model to phrase its suggestions, so the network never idles.
+        waitUntil: 'load',
+        prepare: async (page) => {
+            // Earlier takes left their conversation behind, and the rail showed one row per take.
+            const question = 'Which three offers on my shortlist score highest, and what do they ask for?';
+            const earlier = (await (await page.request.get(`${BASE}/api/v1/chat/conversations`)).json()) as {id: number}[];
+            if (earlier.length > 0) {
+                await page.request.post(`${BASE}/api/v1/chat/conversations/bulk-delete`, {data: {ids: earlier.map((c) => c.id)}});
+                await page.reload({waitUntil: 'load'});
+            }
+            const composer = page.locator('.lg-chat-composer textarea').first();
+            await composer.waitFor();
+            await composer.fill(question);
+            await page.locator('.lg-chat-send').first().click();
+            await page.locator('.lg-chat-thread[aria-busy="true"]').first()
+                .waitFor({timeout: 30_000})
+                .catch(() => undefined);
+            await page.waitForFunction(
+                () => document.querySelector('.lg-chat-thread[aria-busy="true"]') === null,
+                undefined,
+                {timeout: 600_000},
+            );
         },
     },
     // The help drawer at its how-it-works chapter, over the screen it was opened from.
@@ -123,7 +155,7 @@ async function main(): Promise<void> {
                 localStorage.setItem('lg-theme', mode);
             }, shot.theme);
             const page = await context.newPage();
-            await page.goto(`${BASE}${shot.route(top)}`, {waitUntil: 'networkidle'});
+            await page.goto(`${BASE}${shot.route(top)}`, {waitUntil: shot.waitUntil ?? 'networkidle'});
             await shot.prepare?.(page);
             // Fonts, and the last layout pass after the data arrived.
             await page.evaluate(() => document.fonts.ready);

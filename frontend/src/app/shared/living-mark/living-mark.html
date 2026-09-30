@@ -1,0 +1,25 @@
+<!-- Inline SVG, two colours: the ring on the theme's primary, the dots on `currentColor`.
+     The ring is the brand's own arc from `frontend/brand/mark.svg` (top, counter-clockwise, to
+     three o'clock) closed by its last quarter, so the path is one full circle with
+     `pathLength="360"` and the visible arc is a `stroke-dasharray` in degrees: `270 90` is the
+     brand mark, and only the three-o'clock end ever moves. Core and lead are the brand's two
+     dots; the three flow dots start on the lead and are placed per frame by the stylesheet. -->
+<svg
+        class="mark"
+        viewBox="0 0 32 32"
+        [style.height.px]="size()"
+        [style.width.px]="size()"
+        aria-hidden="true"
+        focusable="false"
+>
+  <!-- One group around everything, so the ambient turn rotates the ring and its dots together
+       about the viewBox centre, which is the ring's own. -->
+  <g class="body">
+    <path class="ring" d="M16 3a13 13 0 1 0 13 13a13 13 0 0 0 -13 -13" pathLength="360"/>
+    <circle class="dot core" cx="16" cy="16" r="4.6"/>
+    <circle class="dot lead" cx="27.5" cy="6.5" r="3"/>
+    <circle class="dot flow flow-1" cx="27.5" cy="6.5" r="2"/>
+    <circle class="dot flow flow-2" cx="27.5" cy="6.5" r="2"/>
+    <circle class="dot flow flow-3" cx="27.5" cy="6.5" r="2"/>
+  </g>
+</svg>

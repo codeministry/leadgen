@@ -108,8 +108,14 @@ public class OfferQueryService {
      * "everything matching Java". Moving them also removed the second implementation — the
      * band boundaries are the configured thresholds, read once, instead of two literals in
      * TypeScript that decided which offers a button showed.
+     *
+     * <p>{@code take} pays a topic's embedding and is always named by the caller: the screen passes
+     * {@code LlmBudget::take}, the chat's {@code search_offers} {@code ChatBudget::take} (ISC-433).
+     * Only the topic's paraphrase half embeds anything — relatedness is paid by {@code llm.budget}
+     * inside {@link SemanticFilter#narrow}, and the chat never reaches it — so the supplier goes
+     * there and nowhere else.
      */
-    public ShortlistPage shortlist(ShortlistQuery query) {
+    public ShortlistPage shortlist(ShortlistQuery query, java.util.function.BooleanSupplier take) {
         var thresholds = config.snapshot().rules().scoring().thresholds();
         // Resolved before the clause is built, because this is the one filter that can refuse:
         // a relatedness question this installation cannot answer is a 400 with a sentence, never
@@ -118,7 +124,8 @@ public class OfferQueryService {
         var narrowing =
                 semantic.narrow(query.related().semantic(), query.related().similarTo());
         // Never refuses: without the index a topic is answered by its stored alias matches alone.
-        var topicNeighbourhood = semantic.topicNeighbourhood(query.topic()).orElse(null);
+        var topicNeighbourhood =
+                semantic.topicNeighbourhood(query.topic(), take).orElse(null);
         var filters = where(query, thresholds, narrowing, topicNeighbourhood);
 
         // The page clause on the list and deliberately not on the count. Formatted into
@@ -359,6 +366,18 @@ public class OfferQueryService {
             // bug. `current_date` is the server's and never a date the browser sends: two
             // readers in two timezones must not get two lists.
             sql.append(" AND (o.apply_by IS NULL OR o.apply_by >= current_date)\n");
+        }
+
+        // The came-in window, which only the chat's search sets. In `sql` and not after the
+        // query, so the match count and the keyset order are over the window, exactly as they
+        // are over every other filter.
+        if (query.cameAfter() != null) {
+            sql.append(" AND o.ingested_at >= :cameAfter\n");
+            params.put("cameAfter", java.sql.Timestamp.from(query.cameAfter()));
+        }
+        if (query.cameBefore() != null) {
+            sql.append(" AND o.ingested_at < :cameBefore\n");
+            params.put("cameBefore", java.sql.Timestamp.from(query.cameBefore()));
         }
 
         // The relatedness neighbourhood, and it goes in `sql` with every other filter rather

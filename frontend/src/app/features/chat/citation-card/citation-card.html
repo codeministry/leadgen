@@ -1,0 +1,19 @@
+<div #panel popover="manual" role="tooltip" class="lg-chat-cite-card" [id]="id">
+  @if (preview(); as p) {
+    @if (p.kind === 'cite') {
+      <p class="type-small lg-chat-cite-card-title">{{ p.title }}</p>
+      <p class="type-mono-data lg-chat-cite-card-meta">
+        {{ p.source }}
+        @if (p.date | lgDay; as day) {
+          · {{ day }}
+        }
+      </p>
+    } @else {
+      <p class="type-small lg-chat-cite-card-title lg-chat-cite-card-warn">
+        <lg-icon name="shield-question" [size]="14"/>
+        {{ 'chat.cite.unverifiedTitle' | transloco: {id: p.id} }}
+      </p>
+      <p class="type-small lg-chat-cite-card-reason">{{ 'chat.cite.unverifiedReason' | transloco }}</p>
+    }
+  }
+</div>

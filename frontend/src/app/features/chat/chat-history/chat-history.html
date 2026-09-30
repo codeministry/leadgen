@@ -1,0 +1,167 @@
+<!-- Search (ISC-450): sticky at the top, narrowed on the server. 16px at least, or iOS zooms on focus. -->
+<search class="lg-chat-search">
+  <label class="input lg-chat-search-field">
+    <lg-icon name="search" [size]="16"/>
+    <input
+      type="search"
+      class="lg-chat-search-input"
+      [value]="store.query()"
+      [attr.aria-label]="'chat.search.label' | transloco"
+      [placeholder]="'chat.search.label' | transloco"
+      (input)="search($event)"
+    />
+    @if (store.query() !== '') {
+      <button
+        type="button"
+        class="btn btn-ghost btn-sm btn-square lg-chat-search-clear"
+        [attr.aria-label]="'chat.search.clear' | transloco"
+        [attr.title]="'chat.search.clear' | transloco"
+        (click)="clearSearch()"
+      >
+        <lg-icon name="circle-x" [size]="16"/>
+      </button>
+    }
+  </label>
+  <!-- Select mode (ISC-478): tick rows, or every row shown (with a search, the hits), and delete them
+       with one confirmation. Off, it is one quiet control; nothing about a row changes. -->
+  <div class="lg-chat-select-bar">
+    @if (!selecting()) {
+      <button
+        type="button"
+        class="btn btn-ghost btn-xs lg-chat-select-toggle"
+        [disabled]="store.conversations().length === 0"
+        (click)="startSelect()"
+      >
+        {{ 'chat.select.action' | transloco }}
+      </button>
+    } @else {
+      <label class="type-small lg-chat-select-all-label">
+        <input
+          type="checkbox"
+          class="checkbox checkbox-xs lg-chat-select-all"
+          [checked]="allPicked()"
+          [indeterminate]="somePicked()"
+          (change)="pickAll($event)"
+        />
+        {{ 'chat.select.all' | transloco }}
+      </label>
+      <!-- The number alone on screen; the whole phrase for a screen reader. -->
+      <span class="type-small text-muted lg-chat-select-count" aria-live="polite">
+        <span class="type-mono-data lg-chat-select-n" aria-hidden="true">{{ pickedShown().length }}</span>
+        <span class="sr-only">{{ 'chat.select.count' | transloco: {n: pickedShown().length} }}</span>
+      </span>
+      <!-- One unit: when the rail is too narrow for the whole bar, the pair wraps together. -->
+      <span class="lg-chat-select-actions">
+        <button
+          #bulkButton
+          type="button"
+          class="btn btn-soft btn-primary btn-xs lg-chat-bulk-delete"
+          [disabled]="pickedShown().length === 0"
+          (click)="askBulk(bulkButton)"
+        >
+          {{ 'chat.select.delete' | transloco: {n: pickedShown().length} }}
+        </button>
+        <button type="button" class="btn btn-ghost btn-xs lg-chat-select-done" (click)="endSelect()">
+          {{ 'chat.select.done' | transloco }}
+        </button>
+      </span>
+    }
+  </div>
+</search>
+
+<div class="lg-chat-groups" [attr.aria-busy]="store.listLoading()">
+  @if (noMatch()) {
+    <p class="type-small text-muted lg-chat-no-match">
+      {{ 'chat.search.none' | transloco: {query: store.resultQuery()} }}
+    </p>
+    <button type="button" class="btn btn-ghost btn-sm lg-chat-clear-search" (click)="clearSearch()">
+      {{ 'chat.search.clearAction' | transloco }}
+    </button>
+  } @else if (empty()) {
+    <p class="type-small text-muted lg-chat-rows-empty">
+      {{ (store.listLoading() ? 'chat.listLoading' : 'chat.historyEmpty') | transloco }}
+    </p>
+  }
+
+  @for (group of groups(); track group.key) {
+    <section class="lg-chat-group" [attr.aria-labelledby]="uid + '-' + group.key">
+      <h3 class="type-caption lg-chat-group-heading" [id]="uid + '-' + group.key">{{ 'chat.group.' + group.key | transloco }}</h3>
+      <ul class="lg-chat-rows">
+        @for (conversation of group.rows; track conversation.id) {
+          <li class="lg-chat-item">
+            @if (editing() === conversation.id) {
+              <input
+                type="text"
+                class="input input-sm lg-chat-rename"
+                [maxLength]="titleMax"
+                [value]="conversation.title"
+                [placeholder]="'chat.rename.placeholder' | transloco"
+                [attr.aria-label]="'chat.rename.label' | transloco"
+                (keydown)="renameKey($event, conversation)"
+                (blur)="commit($event, conversation)"
+              />
+            } @else if (selecting()) {
+              <!-- Select mode: the row is the checkbox's label, so the box sits inside the row, the
+                   row's hover covers it, and a click anywhere on the row ticks it. A checkbox inside
+                   the row's button would be interactive content inside a button. -->
+              <label
+                class="lg-chat-row"
+                [attr.data-id]="conversation.id"
+                [attr.aria-current]="conversation.id === store.openId() ? 'true' : null"
+              >
+                <input
+                  type="checkbox"
+                  class="checkbox checkbox-sm lg-chat-row-check"
+                  [checked]="picked().has(conversation.id)"
+                  [attr.aria-label]="'chat.select.label' | transloco: {title: conversation.title || ('chat.new' | transloco)}"
+                  (change)="pick(conversation.id)"
+                />
+                <span class="type-small lg-chat-row-title">{{ conversation.title || ('chat.new' | transloco) }}</span>
+                <time class="type-mono-data text-muted lg-chat-row-time" [attr.datetime]="activity(conversation)">
+                  {{ timeOf(conversation, group.key) }}
+                </time>
+              </label>
+            } @else {
+              <button
+                type="button"
+                class="lg-chat-row"
+                [attr.data-id]="conversation.id"
+                [attr.aria-current]="conversation.id === store.openId() ? 'true' : null"
+                (click)="open(conversation.id)"
+              >
+                <span class="type-small lg-chat-row-title">{{ conversation.title || ('chat.new' | transloco) }}</span>
+                <time class="type-mono-data text-muted lg-chat-row-time" [attr.datetime]="activity(conversation)">
+                  {{ timeOf(conversation, group.key) }}
+                </time>
+              </button>
+            }
+            <!-- One "⋯" per row, a native popover (not role="menu"): shown always on a coarse
+                 pointer, on hover or focus-within on a fine one. Keyed on the pointer, never the width.
+                 Gone in select mode, where the row's click picks it. -->
+            @if (!selecting()) {
+            <button
+              type="button"
+              class="btn btn-ghost btn-sm btn-square lg-chat-more"
+              [id]="moreId(conversation.id)"
+              [attr.popovertarget]="menuId(conversation.id)"
+              [attr.aria-label]="'chat.actions' | transloco: {title: conversation.title || ('chat.new' | transloco)}"
+              [attr.title]="'chat.actions' | transloco: {title: conversation.title || ('chat.new' | transloco)}"
+              (click)="place($event, conversation.id)"
+            >
+              <lg-icon name="ellipsis" [size]="16"/>
+            </button>
+            <div popover class="lg-chat-menu" [id]="menuId(conversation.id)">
+              <button type="button" class="lg-chat-menu-item lg-chat-rename-action" (click)="startRename(conversation.id)">
+                {{ 'chat.rename.action' | transloco }}
+              </button>
+              <button type="button" class="lg-chat-menu-item lg-chat-delete-action" (click)="askDelete(conversation)">
+                {{ 'chat.delete.action' | transloco }}
+              </button>
+            </div>
+            }
+          </li>
+        }
+      </ul>
+    </section>
+  }
+</div>

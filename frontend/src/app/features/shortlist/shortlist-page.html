@@ -42,6 +42,15 @@
     <lg-icon name="archive" [size]="14"/>
     {{ 'shortlist.archive' | transloco }}
   </button>
+
+  <!-- Pins this list, as its query string stands, into the open conversation or a new one
+       (ISC-451). Labelled, never icon-only: a phone has no tooltip. Absent without a chat model. -->
+  @if (chat.present()) {
+    <button type="button" class="btn btn-sm btn-soft btn-primary lg-chat-use-view" (click)="useView()">
+      <lg-icon name="message-square-plus" [size]="14"/>
+      {{ 'chat.useView' | transloco }}
+    </button>
+  }
 </lg-page-header>
 
 <div class="split">
@@ -185,6 +194,19 @@
             </button>
           }
         </div>
+
+        <!-- A touch screen has no hover to reveal the cards' checkboxes, so they wait behind this
+             toggle there (ISC-453); a fine pointer always has them and never sees it. -->
+        @if (coarse && !archived()) {
+          <button
+            type="button"
+            class="btn btn-ghost btn-sm lg-select-toggle"
+            [attr.aria-pressed]="selecting()"
+            (click)="toggleSelecting()"
+          >
+            {{ (selecting() ? 'shortlist.selectDone' : 'shortlist.select') | transloco }}
+          </button>
+        }
       </div>
 
       <!-- One chip per filter the panel hides, and nothing for the two that are already
@@ -272,16 +294,25 @@
          is hidden while an offer is open, so in the header the bar would stand above a
          detail view with no list, offering to archive a selection nobody can see. -->
     @if (!archived() && store.pickedCount() > 0) {
-      <div class="bulk-bar">
+      <div class="bulk-bar" [style.bottom.px]="navOffset()">
         <p class="type-small" role="status">
           {{ 'shortlist.selected' | transloco: {count: store.pickedCount()} }}
         </p>
-        <!-- `--color-primary`, never the signal and never error red: the signal means "this
-             survived the filter" and nothing else, and archiving is a reversible decision the
-             operator owns rather than a failure. -->
+        <!-- Asking comes first because it changes nothing (ISC-453): the one primary action, the
+             offers pinned into the open conversation or a new one. Absent without a chat model. -->
+        @if (chat.present()) {
+          <button type="button" class="btn btn-sm btn-primary lg-chat-ask-picked" (click)="askAboutPicked()">
+            <lg-icon name="message-square-plus" [size]="14"/>
+            {{ 'chat.askPicked' | transloco: {count: store.pickedCount()} }}
+          </button>
+        }
+        <!-- Never the signal and never error red: the signal means "this survived the filter" and
+             nothing else, and archiving is a reversible decision the operator owns rather than a
+             failure. Soft beside the ask, which is the one filled action here. -->
         <button
           type="button"
           class="btn btn-sm btn-primary"
+          [class.btn-soft]="chat.present()"
           [disabled]="store.bulkArchiving()"
           (click)="askToArchivePicked()"
         >
@@ -292,6 +323,9 @@
           {{ 'shortlist.clearSelection' | transloco }}
         </button>
       </div>
+      @if (askRefused()) {
+        <p class="type-small lg-chat-ask-refused" role="alert">{{ 'chat.context.limit' | transloco: {max: maxOffers} }}</p>
+      }
       @if (store.bulkArchiveError(); as error) {
         <p class="type-small bulk-error" role="alert">{{ error | transloco }}</p>
       }
@@ -316,7 +350,7 @@
                             [entry]="entry"
                             [selected]="entry.offer.id === selectedId()"
                             [status]="statusByOffer().get(entry.offer.id) ?? null"
-                            [pickable]="!archived()"
+                            [pickable]="pickable()"
                             [picked]="store.pickedIds().has(entry.offer.id)"
                             [pickDisabled]="store.bulkArchiving()"
                             [density]="density.density()"

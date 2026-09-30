@@ -285,8 +285,13 @@ public enum ShortlistSort {
          * A score or a month count.
          */
         NUMBER {
+            // A cursor comes back from the client, so its number is checked rather than narrowed: a
+            // long past the int range would otherwise wrap and page from somewhere else entirely.
             @Override
             Object bind(long carried) {
+                if (carried < Integer.MIN_VALUE || carried > Integer.MAX_VALUE) {
+                    throw new BadShortlistRequest("the cursor names a value out of range; load the list again");
+                }
                 return (int) carried;
             }
         },

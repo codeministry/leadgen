@@ -1,7 +1,16 @@
 <lg-page-header
         [title]="'analytics.title' | transloco"
         [subtitle]="'analytics.subtitle' | transloco"
-/>
+>
+  <!-- Pins the window the screen is showing into the open conversation or a new one (ISC-451).
+       Only once the view has arrived with a window: an empty archive has none to pin. -->
+  @if (chat.present() && store.view()?.from && store.view()?.to) {
+    <button type="button" class="btn btn-sm btn-soft btn-primary lg-chat-use-view" (click)="useView()">
+      <lg-icon name="message-square-plus" [size]="14"/>
+      {{ 'chat.useView' | transloco }}
+    </button>
+  }
+</lg-page-header>
 
 @if (store.error(); as error) {
     <p class="type-small error" role="alert">{{ error | transloco }}</p>

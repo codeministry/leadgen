@@ -85,6 +85,15 @@ public final class ConfigFixtures {
         values.put("LLM_MODEL_SCORING_OPTIONS", "");
         values.put("LLM_MODEL_WRITING", "");
         values.put("LLM_MODEL_EMBEDDING", "");
+        values.put("LLM_MODEL_CHAT", "");
+        values.put("CHAT_MAX_CALLS_PER_DAY", "");
+        values.put("CHAT_MAX_TOOL_ROUNDS", "");
+        values.put("CHAT_SUGGEST_NEW_OFFERS_MIN", "");
+        values.put("CHAT_SUGGEST_DEADLINE_DAYS", "");
+        values.put("CHAT_SUGGEST_NO_REPLY_DAYS", "");
+        values.put("CHAT_SUGGEST_TAG_WINDOW_DAYS", "");
+        values.put("CHAT_SUGGEST_TAG_RISE_PERCENT", "");
+        values.put("CHAT_SUGGEST_TAG_RISE_MIN_OFFERS", "");
         values.put("PROFILE_PATH", "");
         values.put("RULES_PATH", "");
         values.put("RETRIEVAL_ENABLED", "");
@@ -95,6 +104,10 @@ public final class ConfigFixtures {
         values.put("AUTH_MODE", "");
         values.put("OIDC_ISSUER", "");
         values.put("OIDC_CLIENT_ID", "");
+        values.put("OIDC_JWK_SET_URI", "");
+        values.put("OIDC_AUDIENCE", "");
+        values.put("OIDC_RESOURCE", "");
+        values.put("GRAVATAR_ENABLED", "");
         // sources.yaml
         values.put("IMAP_HOST", "imap.invalid");
         values.put("IMAP_PORT", "");

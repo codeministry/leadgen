@@ -19,9 +19,12 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.function.BiFunction;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
@@ -471,15 +474,8 @@ public class AnalyticsQueryService {
     public AnalyticsView analytics() {
         String zone = ZoneId.systemDefault().getId();
 
-        List<IntakeSeries.Day> byIngested = byIngestedAt(zone);
-        List<IntakeSeries.Day> byPublished = byPublishedOn();
-        List<IntakeSeries.Day> byReceived = byReceivedAt(zone);
-        var coverage = jdbc.sql(PUBLISHED_COVERAGE)
-                .param("days", PUBLISHED_WINDOW_DAYS)
-                .query((rs, index) -> new int[] {
-                    rs.getInt("without_published"), rs.getInt("out_of_range"), rs.getInt("without_received")
-                })
-                .single();
+        IntakeSeries intake = intake(zone);
+        List<IntakeSeries.Day> byIngested = intake.byIngestedAt();
 
         return new AnalyticsView(
                 zone,
@@ -489,12 +485,53 @@ public class AnalyticsQueryService {
                 // Reused rather than recomputed: the funnel already knows the stages, their
                 // labels and their order, and a second copy would be a second answer.
                 offers.funnel(),
-                new IntakeSeries(byIngested, byPublished, byReceived, coverage[0], coverage[1], coverage[2]),
+                intake,
                 market(zone),
                 scores(),
                 applications(zone),
                 runs(zone),
                 jdbc.sql(SCALES).query(AnalyticsQueryService::scale).list());
+    }
+
+    /**
+     * The five sections of {@link #analytics()} by name, each built on its own for a zone. One map,
+     * so the names {@link #section} answers and the list the MCP funnel tool offers cannot drift.
+     */
+    private static final Map<String, BiFunction<AnalyticsQueryService, String, Object>> SECTION_BUILDERS = sections();
+
+    /** The names {@link #section} answers, in the order the analytics view carries them. */
+    public static final List<String> SECTIONS = List.copyOf(SECTION_BUILDERS.keySet());
+
+    private static Map<String, BiFunction<AnalyticsQueryService, String, Object>> sections() {
+        Map<String, BiFunction<AnalyticsQueryService, String, Object>> sections = new LinkedHashMap<>();
+        sections.put("intake", AnalyticsQueryService::intake);
+        sections.put("market", AnalyticsQueryService::market);
+        sections.put("scores", (service, zone) -> service.scores());
+        sections.put("applications", AnalyticsQueryService::applications);
+        sections.put("runs", AnalyticsQueryService::runs);
+        return Collections.unmodifiableMap(sections);
+    }
+
+    /**
+     * One of the five sections of {@link #analytics()} on its own, built without the other four:
+     * {@code intake}, {@code market}, {@code scores}, {@code applications} or {@code runs}.
+     * Empty for any other name. The MCP funnel tool asks for one at a time.
+     */
+    public Optional<Object> section(String name) {
+        String zone = ZoneId.systemDefault().getId();
+        return Optional.ofNullable(name == null ? null : SECTION_BUILDERS.get(name))
+                .map(builder -> builder.apply(this, zone));
+    }
+
+    private IntakeSeries intake(String zone) {
+        var coverage = jdbc.sql(PUBLISHED_COVERAGE)
+                .param("days", PUBLISHED_WINDOW_DAYS)
+                .query((rs, index) -> new int[] {
+                    rs.getInt("without_published"), rs.getInt("out_of_range"), rs.getInt("without_received")
+                })
+                .single();
+        return new IntakeSeries(
+                byIngestedAt(zone), byPublishedOn(), byReceivedAt(zone), coverage[0], coverage[1], coverage[2]);
     }
 
     /**

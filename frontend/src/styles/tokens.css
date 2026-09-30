@@ -41,7 +41,7 @@
 
   /* The shell. The header is the only chrome left: the navigation is a row inside it
      above 48rem and a fixed bottom bar below, so neither has a width to name. */
-    --lg-header-h: 3.5rem;
+    --lg-header-h: 4rem;
 
   /* The application's outer bound: the widest content edge that exists. The split views
      cap themselves here and the header row does too, so on the shortlist the chrome's
@@ -53,8 +53,13 @@
      Setting it changed nothing, which makes it the number the next person centres
      something on. The board still takes no cap at all: its lanes divide whatever they
      are given, so there is no `full` token either, only the absence of one. A route
-     opts out with `data.measure: 'full'`; nothing decides it per component. */
-  --lg-shell-max: 104rem;
+     opts out with `data.measure: 'full'`; nothing decides it per component.
+
+     128rem: one screen class up from the 104rem it was (operator, 2026-09-30), so a 1920px
+     window is filled to its gutters and a larger monitor at full screen still gets a bounded
+     page rather than lines and panels stretched to the edges. The root is fluid (styles.css),
+     so the cap is 1920px at 15px and 2176px at the 17px a 2560px window gets. */
+  --lg-shell-max: 128rem;
   --lg-measure: var(--lg-shell-max);
 
   /* One gutter, for the content and for the header row alike. They used to be 1.5rem and
@@ -104,6 +109,37 @@
   /* The help drawer (spec 010): wider than the list column, so a diagram reads at a useful size
      and a chapter row never wraps; the drawer still caps itself at the window. */
   --lg-help-w: 48rem;
+
+  /* The chat drawer (spec 019), stepped by breakpoint below: the whole window on a phone, where it
+     is a sheet; 36rem docked beside the page from 48rem, about 68 characters of answer and 280px
+     left for the page at 820. From 80rem it is the thread plus the conversation rail docked inside
+     it, and the thread alone while the rail is folded (ISC-445): the panel hands the folded width to
+     the drawer, so the thread's box, and the answer's line length, never move, and the rail's width
+     goes back to the page. Not the help's 48rem: at 720px that would leave the page 100px beside it. */
+  --lg-chat-w: 100vw;
+  --lg-chat-thread-w: 41rem;
+  --lg-chat-rail-w: 20rem;
+
+  /* The living mark's turn, which a host raises on its own element (the header's chat button on
+     hover and focus) and the mark rotates by; nothing turns it here. */
+  --lg-living-mark-turn: 0deg;
+
+  /* The frosted head and composer shelf: the drawer's own ground, partly see-through, so the
+     thread reads as scrolling underneath rather than being cut by a rule. */
+  --lg-chat-frost: color-mix(in oklab, var(--color-base-100) 82%, transparent);
+
+  /* The streaming caret's blink, a typing cursor's rhythm: two steps, no fade. Solid under
+     reduced motion. */
+  --lg-caret-duration: 1060ms;
+
+  /* One turn of the running tool step's ring. Still under reduced motion. */
+  --lg-chat-spin-duration: 900ms;
+
+  /* A citation, as a pill and as its source card's number: the primary on the selected ground,
+     never the signal, because a cited offer may be archived. An unverified id's line. */
+  --lg-chat-cite-ink: var(--lg-primary-text);
+  --lg-chat-cite-ground: var(--lg-selected-surface);
+  --lg-chat-unverified-ink: var(--lg-warning-text);
 
   /* The run status in the workflow's sheet (operator, 2026-09-27): a column of small facts,
      narrower than the help drawer's 48rem, and just wide enough to cover the header's status
@@ -171,6 +207,19 @@
     /* Tailwind spells this `--font-mono--font-feature-settings`, which stylelint's
        custom-property-pattern rejects for the double dash. One name, ours. */
     --lg-mono-features: 'tnum' 1;
+}
+
+/* The chat drawer's two docked steps; below 48rem it keeps the full window. */
+@media (width >= 48rem) {
+  :root {
+    --lg-chat-w: 36rem;
+  }
+}
+
+@media (width >= 80rem) {
+  :root {
+    --lg-chat-w: calc(var(--lg-chat-thread-w) + var(--lg-chat-rail-w));
+  }
 }
 
 /* 38px of air above the first thing on a phone is a lot, and the fixed bottom bar already

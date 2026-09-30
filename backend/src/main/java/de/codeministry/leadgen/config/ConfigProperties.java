@@ -13,6 +13,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.List;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.ConstructorBinding;
 import org.springframework.boot.context.properties.bind.DefaultValue;
@@ -41,6 +42,7 @@ import org.springframework.validation.annotation.Validated;
  * @param ingestCron when the tool runs a pass of its own; {@code -} is Spring's disabled
  *     marker and the default, so the shipped artifact reads nobody's mailbox
  * @param security the bind-related switch {@code SecurityConfig} reads once at startup
+ * @param chat the turn deadline and the stream heartbeat; see {@link Chat}
  */
 @Validated
 @ConfigurationProperties(prefix = "leadgen")
@@ -50,7 +52,8 @@ public record ConfigProperties(
         @DefaultValue(DEFAULT_CONFIG_POLL_INTERVAL) Duration configPollInterval,
         @DefaultValue(DEFAULT_SCORE_BATCH_POLL_INTERVAL) Duration scoreBatchPollInterval,
         @NotBlank @DefaultValue(DEFAULT_INGEST_CRON) String ingestCron,
-        @Valid @NotNull @DefaultValue Security security) {
+        @Valid @NotNull @DefaultValue Security security,
+        @Valid @NotNull @DefaultValue Chat chat) {
 
     // One home per default, read by the bound constructor and the hand-built one alike, so
     // the two cannot drift. `@DefaultValue` takes a compile-time constant, hence strings.
@@ -58,6 +61,8 @@ public record ConfigProperties(
     private static final String DEFAULT_CONFIG_POLL_INTERVAL = "PT2S";
     private static final String DEFAULT_SCORE_BATCH_POLL_INTERVAL = "PT5M";
     private static final String DEFAULT_INGEST_CRON = "-";
+    private static final String DEFAULT_CHAT_TURN_TIMEOUT = "PT15M";
+    private static final String DEFAULT_CHAT_HEARTBEAT = "PT15S";
 
     /** The one Spring binds. Named, because the record has a second constructor below. */
     @ConstructorBinding
@@ -74,7 +79,8 @@ public record ConfigProperties(
                 Duration.parse(DEFAULT_CONFIG_POLL_INTERVAL),
                 Duration.parse(DEFAULT_SCORE_BATCH_POLL_INTERVAL),
                 DEFAULT_INGEST_CRON,
-                new Security(false));
+                new Security(false, List.of()),
+                new Chat(Duration.parse(DEFAULT_CHAT_TURN_TIMEOUT), Duration.parse(DEFAULT_CHAT_HEARTBEAT)));
     }
 
     // `packages-dir` and `inbox-dir` used to sit here as well, read by nothing: the packages
@@ -100,6 +106,28 @@ public record ConfigProperties(
      * @param allowOpenBind asserts that something outside this process decides who reaches
      *     the port, which is the only thing that makes {@code security.auth: none} survivable
      *     on a bind past loopback; Compose sets it and limits reach on the host side instead
+     * @param allowedHosts the dotted names this process may be reached under while
+     *     {@code security.auth} is {@code none}, beyond loopback, IP literals and single-label
+     *     names; any other name is refused as DNS rebinding ({@code RebindingGuard})
      */
-    public record Security(@DefaultValue("false") boolean allowOpenBind) {}
+    public record Security(
+            @DefaultValue("false") boolean allowOpenBind,
+            @DefaultValue List<String> allowedHosts) {}
+
+    /**
+     * {@code leadgen.chat.*}: the two process-level clocks of a chat turn. Neither is in
+     * {@code pipeline.yaml}, because a test has to shorten them for one context and a reload must
+     * not change the deadline of a stream that is already open.
+     *
+     * @param turnTimeout how long one turn may take from its first model call to its last event;
+     *     {@code ChatTurnService} stops the turn there and {@code ChatController} gives the stream a
+     *     little longer, so the reader still gets the turn's {@code error}
+     * @param heartbeat how often a running turn's stream carries an SSE comment, well below any
+     *     proxy's idle timeout, so a model silent over a long prompt is not cut off
+     */
+    public record Chat(
+            @NotNull @DefaultValue(DEFAULT_CHAT_TURN_TIMEOUT)
+            Duration turnTimeout,
+
+            @NotNull @DefaultValue(DEFAULT_CHAT_HEARTBEAT) Duration heartbeat) {}
 }

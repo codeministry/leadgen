@@ -2,8 +2,11 @@ import {provideHttpClient} from '@angular/common/http';
 import {HttpTestingController, provideHttpClientTesting} from '@angular/common/http/testing';
 import {ComponentFixture, TestBed} from '@angular/core/testing';
 import {signal} from '@angular/core';
-import {provideRouter} from '@angular/router';
+import {provideRouter, Router} from '@angular/router';
+import {Dispatcher} from '@ngrx/signals/events';
 import {ContentBlock} from '@core/model/offer';
+import {chatEvents} from '@core/store/chat.events';
+import {ChatStore} from '@core/store/chat.store';
 import {ShortlistEntry} from '@core/model/shortlist-entry';
 import {SCORE_THRESHOLDS} from '@shared/shared.ports';
 import {OfferDetail} from './offer-detail';
@@ -99,6 +102,31 @@ describe('OfferDetail', () => {
   function reveals(fixture: ComponentFixture<OfferDetail>): HTMLButtonElement[] {
     return Array.from(fixture.nativeElement.querySelectorAll('.ad-reveal'));
   }
+
+  describe('"Ask about this offer" (ISC-432)', () => {
+    const ask = (fixture: ComponentFixture<OfferDetail>) =>
+      fixture.nativeElement.querySelector('.lg-chat-ask-offer') as HTMLButtonElement | null;
+
+    // The store is created before its event is sent, or the reducer is not there to hear it.
+    beforeEach(() => TestBed.inject(ChatStore));
+
+    it('is absent without a chat model', () => {
+      TestBed.inject(Dispatcher).dispatch(chatEvents.capabilityLoaded(false));
+      expect(ask(render(entry(12, null)))).toBeNull();
+    });
+
+    it('starts a new conversation with this offer pinned', async () => {
+      TestBed.inject(Dispatcher).dispatch(chatEvents.capabilityLoaded(true));
+      const fixture = render(entry(12, null));
+      expect(ask(fixture)?.textContent).toContain('Ask about this offer');
+
+      ask(fixture)!.click();
+      await fixture.whenStable();
+
+      expect(TestBed.inject(ChatStore).pinnedOfferId()).toBe(12);
+      expect(TestBed.inject(Router).url).toBe('/?chat=new&chatCtx=o:12');
+    });
+  });
 
   it('reads the panel in four blocks, and says when the offer was read in', () => {
     // The whole order, not a pair of neighbours: nothing in the markup separates the

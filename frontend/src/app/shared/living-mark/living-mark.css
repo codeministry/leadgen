@@ -1,0 +1,305 @@
+/* The dots paint `currentColor`, and the host's colour defaults to the signal: at rest the
+   mark is the brand mark, as in `shared/brand-mark`. A host raises another colour for the
+   working and speaking frames by setting `color` on this element; the ring never follows. */
+:host {
+    display: inline-flex;
+    color: var(--lg-signal);
+}
+
+/* The turn a host asks for. It sets `--lg-living-mark-turn` (the header's chat button does, on
+   hover and keyboard focus) and the whole mark turns by it, counter-clockwise the way the brand's
+   arc is drawn; taking the property away turns it back. Nothing here knows which host it is. */
+.mark {
+    flex: none;
+    display: block;
+
+    /* The swelling lead passes the viewBox's edge while the ambient turn carries it round the
+       bottom; clipped there, it reads as a dot cut in half. */
+    overflow: visible;
+    transform: rotate(var(--lg-living-mark-turn));
+    transition: transform var(--lg-mark-turn-duration) var(--lg-reveal-ease);
+}
+
+/* One full circle, 360 units long; the dash is the visible arc in degrees. `270 90` renders
+   the brand's own arc, and the frames below only change the first number. Between frames the
+   arc moves on the reveal, so speaking settles back to 270° or falls to 240° instead of
+   jumping. */
+.ring {
+    fill: none;
+    stroke: var(--color-primary);
+    stroke-width: 4.5;
+    stroke-linecap: round;
+    stroke-dasharray: 270 90;
+    transition: stroke-dasharray var(--lg-reveal-duration) var(--lg-reveal-ease);
+}
+
+.dot {
+    fill: currentcolor;
+}
+
+/* Every part that the ambient motion scales or turns does so about its own centre: the group
+   about the viewBox's, which is the ring's, and a dot about its own box rather than the viewBox
+   origin, or it would drift off its place while it swells. */
+.body {
+    transform-box: view-box;
+    transform-origin: center;
+}
+
+.core {
+    transform-box: fill-box;
+    transform-origin: center;
+}
+
+/* Hidden by opacity rather than removed, so the lead can fade in and out between frames. */
+.lead,
+.flow {
+    opacity: 0;
+}
+
+.lead {
+    transform-box: fill-box;
+    transform-origin: center;
+    transition: opacity var(--lg-hover-duration) var(--lg-hover-ease);
+}
+
+/* A flow dot scales about its own centre; without this an SVG element scales about the
+   viewBox origin and the shrinking dot would drift off the diagonal. */
+.flow {
+    transform-box: fill-box;
+    transform-origin: center;
+}
+
+/* The frames (design.md § Viewport-übergreifend). Shape first, colour second: the frames stay
+   apart by arc length, dot count and core fill, never by hue alone. The static values are the
+   reduced-motion stills; the animations play on top of them (ISC-466) and are switched off as a
+   whole under `prefers-reduced-motion` below. */
+
+/* rest: the brand mark. 270° of arc, solid core, the lead in the opening. */
+:host([data-frame='rest']) .lead {
+    opacity: 1;
+}
+
+/* working: the lead has broken into three flow dots that fall from its place through the
+   opening into the core, each fall one sift on the sieve's own ease, inside a cycle of two
+   sifts. The negative delays start the dots a third of a cycle apart, so one or two are in
+   flight from the very first frame. Still: frozen at 14.9, 11.1 and 7.3 units from the centre. */
+:host([data-frame='working']) .flow {
+    opacity: 1;
+    animation: lg-living-mark-flow calc(var(--lg-sift-duration) * 2) var(--lg-sift-ease) infinite;
+}
+
+:host([data-frame='working']) .flow-2 {
+    transform: translate(-2.9px, 2.4px);
+    animation-delay: calc(var(--lg-sift-duration) * -2 / 3);
+}
+
+:host([data-frame='working']) .flow-3 {
+    transform: translate(-5.9px, 4.8px);
+    animation-delay: calc(var(--lg-sift-duration) * -4 / 3);
+}
+
+/* speaking: the lead has been taken in and the arc sweeps toward closing and back, a quarter
+   pulse each way. 320° leaves about 20° of visible opening, which reads as "almost closed"
+   rather than as a broken ring. Still: held at 315°. */
+:host([data-frame='speaking']) .ring {
+    stroke-dasharray: 315 45;
+    animation: lg-living-mark-sweep calc(var(--lg-pulse-duration) / 4) ease-in-out infinite alternate;
+}
+
+/* halted: the arc retracts to 240°, no lead, and the core is an outline in the ring's own
+   primary — the signal has left the mark. */
+:host([data-frame='halted']) .ring {
+    stroke-dasharray: 240 120;
+}
+
+:host([data-frame='halted']) .core {
+    fill: none;
+    stroke: var(--color-primary);
+    stroke-width: 2.25;
+}
+
+/* One fall is the first half of the cycle: fade in over its first 10 %, out over its last 20 %,
+   shrink to 0.4 on the way into the core, then stay hidden for the second half. The transform
+   has keyframes only at 0 % and 50 %, so the ease spans the whole fall. */
+@keyframes lg-living-mark-flow {
+    0% {
+        opacity: 0;
+        transform: translate(0, 0) scale(1);
+    }
+
+    5%,
+    40% {
+        opacity: 1;
+    }
+
+    50%,
+    100% {
+        opacity: 0;
+        transform: translate(-11.5px, 9.5px) scale(0.4);
+    }
+}
+
+@keyframes lg-living-mark-sweep {
+    from {
+        stroke-dasharray: 270 90;
+    }
+
+    to {
+        stroke-dasharray: 320 40;
+    }
+}
+
+/* Ambient motion, rest only, and only where the host asked for it (the header's chat button).
+   Two layers per part: the idle gesture first, the intro after it, so the intro wins while it
+   plays and fills only backwards; once it has run, the idle gesture holds the part.
+
+   The intro draws the ring from nothing to the brand's 270° and pops the lead into the opening
+   as the arc arrives. The idle gesture sits at the end of each period, so the first one comes a
+   whole period after the intro rather than on top of it: the mark turns once, the arc closing
+   toward 330° on the way round, the lead swelling and the core drawing in. Only without a
+   motion preference, so the reduced-motion still needs no selector to outweigh these. */
+@media (prefers-reduced-motion: no-preference) {
+    :host([data-motion='ambient'][data-frame='rest']) .body {
+        animation: lg-living-mark-idle-turn var(--lg-mark-idle-period) infinite;
+    }
+
+    :host([data-motion='ambient'][data-frame='rest']) .ring {
+        animation:
+            lg-living-mark-idle-arc var(--lg-mark-idle-period) infinite,
+            lg-living-mark-draw var(--lg-mark-intro-duration) var(--lg-reveal-ease) backwards;
+    }
+
+    :host([data-motion='ambient'][data-frame='rest']) .lead {
+        animation:
+            lg-living-mark-idle-swell var(--lg-mark-idle-period) infinite,
+            lg-living-mark-pop var(--lg-reveal-duration) var(--lg-reveal-ease) calc(var(--lg-mark-intro-duration) * 0.6) backwards;
+    }
+
+    :host([data-motion='ambient'][data-frame='rest']) .core {
+        animation: lg-living-mark-idle-draw-in var(--lg-mark-idle-period) infinite;
+    }
+}
+
+@keyframes lg-living-mark-draw {
+    from {
+        stroke-dasharray: 0 360;
+    }
+
+    to {
+        stroke-dasharray: 270 90;
+    }
+}
+
+@keyframes lg-living-mark-pop {
+    from {
+        opacity: 0;
+        transform: scale(0);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* The gesture takes the last 4 % of the period, about the turn duration at 24 s. Each keyframe
+   that starts a movement names its own ease, so the hold before it stays a hold. */
+@keyframes lg-living-mark-idle-turn {
+    0%,
+    96% {
+        transform: rotate(0deg);
+        animation-timing-function: var(--lg-reveal-ease);
+    }
+
+    100% {
+        transform: rotate(-360deg);
+    }
+}
+
+@keyframes lg-living-mark-idle-arc {
+    0%,
+    96% {
+        stroke-dasharray: 270 90;
+        animation-timing-function: ease-in-out;
+    }
+
+    98% {
+        stroke-dasharray: 330 30;
+        animation-timing-function: ease-in-out;
+    }
+
+    100% {
+        stroke-dasharray: 270 90;
+    }
+}
+
+@keyframes lg-living-mark-idle-swell {
+    0%,
+    96% {
+        transform: scale(1);
+        animation-timing-function: ease-in-out;
+    }
+
+    98% {
+        transform: scale(1.35);
+        animation-timing-function: ease-in-out;
+    }
+
+    100% {
+        transform: scale(1);
+    }
+}
+
+@keyframes lg-living-mark-idle-draw-in {
+    0%,
+    96.5% {
+        transform: scale(1);
+        animation-timing-function: ease-in-out;
+    }
+
+    98.5% {
+        transform: scale(0.8);
+        animation-timing-function: ease-in-out;
+    }
+
+    100% {
+        transform: scale(1);
+    }
+}
+
+/* No animation and no transition at all: every frame falls back to its still, the working dots
+   a dotted diagonal into the core and the speaking arc held at 315°. The ambient mark is the
+   brand mark, standing, and a host's turn does not play. */
+@media (prefers-reduced-motion: reduce) {
+    .mark {
+        transform: none;
+        transition: none;
+    }
+
+    .ring,
+    .lead {
+        transition: none;
+    }
+
+    :host([data-frame='working']) .flow,
+    :host([data-frame='speaking']) .ring {
+        animation: none;
+    }
+}
+
+/* Forced colours drop authored fills and strokes to the system palette; naming
+   `canvastext` keeps every frame a visible shape rather than letting it vanish. */
+@media (forced-colors: active) {
+    .ring,
+    :host([data-frame='halted']) .core {
+        stroke: canvastext;
+    }
+
+    .dot {
+        fill: canvastext;
+    }
+
+    :host([data-frame='halted']) .core {
+        fill: none;
+    }
+}

@@ -20,7 +20,7 @@
       "groupName": "frontend (minor and patch)"
     },
     {
-      "description": "The bun version is pinned in four places — packageManager, the two workflows and the image's COPY --from — and BunPinTest holds them equal, so the tag and the packageManager bump have to arrive in one pull request.",
+      "description": "The bun version is pinned in four places — packageManager, the two workflows and the image's bun stage — and BunPinTest holds them equal, so the tag and the packageManager bump have to arrive in one pull request.",
       "matchPackageNames": ["oven/bun", "bun"],
       "matchManagers": ["dockerfile", "npm"],
       "groupName": "bun"

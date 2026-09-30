@@ -11,6 +11,100 @@ may change in any release. See the status note in the README.
 
 ### Added
 
+- **A user menu in the header.** Under `AUTH_MODE=oidc`, with somebody signed in, an avatar button
+  at the end of the header opens a popover with the ID token's name, username, address (marked when
+  verified), the realm and the time the session runs to, and a Log out button that ends the Keycloak
+  session too (RP-initiated logout), not only this tab's tokens. The avatar comes from gravatar.com
+  by a SHA-256 hash of the address, never the address itself, with the initials in its place when
+  there is no image; `GRAVATAR_ENABLED=false` (new, `security.oidc.gravatar`, on by default) shows
+  the initials only. `/api/v1/auth-config` answers `gravatar`, and the compose nginx allows
+  `https://gravatar.com` in `img-src`. Under `none` there is no button at all.
+
+- **leadgen is an MCP server.** `/mcp` serves ten read-only tools over Streamable HTTP: the six a
+  separate aggregator used to serve through the REST API (`leadgen_search_offers`, `leadgen_get_offer`,
+  `leadgen_funnel_stats`, `leadgen_ingest_status`, `leadgen_list_applications`,
+  `leadgen_get_pipeline_config`), with their names, parameters and answer shapes unchanged, and four of
+  the chat's (`leadgen_semantic_search`, `leadgen_statistics`, `leadgen_application`,
+  `leadgen_profile`), answering as the chat's tools do but without a chat turn or its daily ceiling.
+  They read leadgen's services in-process, write nothing, and every answer passes the chat's output
+  masker. `/mcp` follows `AUTH_MODE`; under `oidc` a 401 names
+  `/.well-known/oauth-protected-resource/mcp` (RFC 9728), which names the issuer, and the new
+  optional `OIDC_RESOURCE` names the MCP endpoint's resource outright. The compose stack's nginx and
+  `bun run start` pass both paths to the api, `/mcp` exactly and unbuffered, with the port the
+  browser used.
+
+- **`AUTH_MODE=none` refuses DNS rebinding.** A page on a name its author points at this machine
+  reached the API as its own, reads included. Under `none` a request whose Host, or whose Origin,
+  is a dotted name nobody configured now gets a 403 on every path but the health check. Loopback,
+  IP literals and single-label names always pass; a real host name under `none` goes into the new
+  `ALLOWED_HOSTS`. Under `oidc` nothing changes: the token is the check.
+
+- **`oidc` works where the issuer's certificate does not.** Two optional keys under
+  `security.oidc`: `jwk_set_uri` (`OIDC_JWK_SET_URI`) fetches the signing keys from an address this
+  process can reach instead of discovering them at the issuer, which in a cluster whose ingress
+  certificate comes from a private CA fails the TLS handshake and stopped the application at
+  startup; `iss` is still checked on every token. `audience` (`OIDC_AUDIENCE`) names what a token
+  must carry in `aud` when the realm mints tokens for a bearer-only resource client rather than for
+  the browser's; unset, `OIDC_CLIENT_ID` is checked as before.
+
+- **The chat's ring says what happened, and the list deletes many at once.** Hovering or focusing the
+  ring beside an answer turns it and opens a status popover: done, working, writing, incomplete with
+  its reason (the model, today's budget or the tool rounds) or stopped, with the tool calls, the
+  duration and the model — the same after a reload, because `V36` stores the reason in
+  `chat_turn.end_reason`. The empty chat's ring shows the chat itself: the model, today's calls
+  against the ceiling and the round bound, from the new `GET /api/v1/chat/status`. The conversation
+  list has a select mode: tick rows or select every row shown (with a search, the hits) and delete
+  them with one confirmation and one `POST /api/v1/chat/conversations/bulk-delete`, which stops
+  their streaming turns first and deletes only the ids it is sent. An offer opened from a chat
+  citation now also scrolls its marked row into the shortlist's list pane once the list is on screen
+  beside the detail (spec `022-chat-turn-status-and-bulk-delete`).
+
+- **Ask the corpus in a chat.** An Ask button in the header opens a chat on every screen: a question
+  in plain words about the offers, your applications and your profile, answered as the model writes
+  it. Every offer or application the answer names is a numbered link to a row a search of that very
+  turn returned; an id no search returned stays plain text marked unverified, with a card that says
+  why. Numbers come from the same queries the dashboard and the analytics screen run. The searches
+  it ran are shown as steps, the rows it relied on as sources; stop, regenerate and copy work on an
+  answer, and hovering a citation previews the row. From 48rem the chat is a panel docked beside the
+  page, which stays usable, so following a source keeps it open; below 48rem a full-screen sheet that
+  folds into a bar above the bottom navigation. Opened from an offer, a conversation starts with that
+  offer pinned. Conversations are kept, listed newest first and deletable one by one, and the open one
+  is part of the address (`?chat=`). The chat only reads: its five tools reach read services, and
+  every tool result is masked before the model sees it. New keys: `llm.models.chat`
+  (`LLM_MODEL_CHAT`, empty means `scoring`; with neither set the chat is absent and nothing else
+  changes), and a `chat:` block with `max_calls_per_day` (`CHAT_MAX_CALLS_PER_DAY`, 200) and
+  `max_tool_rounds` (`CHAT_MAX_TOOL_ROUNDS`, 6) — the chat's own ceiling beside `llm.budget`, never
+  through it. New tables `chat_conversation`, `chat_turn`, `chat_tool_call` (`V32`),
+  `chat_call_budget` (`V33`) and the column `chat_turn.citations` (`V34`); the endpoints live under
+  `/api/v1/chat`. New dependencies `dompurify` and `eventsource-parser`, pinned. A help chapter
+  explains it in both languages (spec `019-corpus-chat`).
+
+- **The chat knows what it is asked about, and suggests what to ask.** A conversation is asked under
+  pins, one chip each: offers (**Ask about this offer**, at most ten), a shortlist view or an
+  analytics window (**Use this view** on either screen). Several offers are pinned at once with
+  **Ask about N offers** in the shortlist's selection bar, one at a time by typing `@` and a title in
+  the composer; a pinned view or window is applied by the server as fixed filters on the chat's
+  searches and statistics, never left to the model. The empty chat offers up to four questions
+  found by rule in your data — the last run's new offers, deadlines coming up, applications without a
+  reply, a rising tag, the pinned offer, the shortlist, open applications — and phrased by the chat's
+  model on its own day, with a catalog fallback and a guard that drops any phrasing whose numbers
+  differ; a finished answer offers two or three follow-ups from the rows it read. `statistics` also
+  answers the market, the stage mix and the scales in use, and compares two windows with the
+  differences computed on the server; its numbers become a table and a sparkline under the answer,
+  with a link to the analytics screen. The history groups by day, and each conversation can be
+  renamed, deleted from a ⋯ menu with a confirmation, and found by a search that ignores case and
+  accents. ⌘K (Ctrl+K) opens the chat from any screen, and **Jump to latest** returns to a streaming
+  answer. New keys `chat.suggestions.new_offers_min`, `deadline_days`, `no_reply_days`,
+  `tag_window_days`, `tag_rise_percent` and `tag_rise_min_offers` (`CHAT_SUGGEST_*`: 1, 7, 14, 7, 30,
+  5). New endpoints under `/api/v1/chat`: `PATCH conversations/{id}`, `?q=` on the list,
+  `PUT conversations/{id}/context`, `GET suggestions` and `GET …/turns/{turnId}/followups`; a
+  `DELETE` now stops a streaming turn first. `V35` adds `chat_conversation.custom_title` and
+  `search_text` (filled for existing conversations), the table `chat_context` (each existing pin
+  copied in as its first chip) and `chat_tool_call.data`; expand only, `pinned_offer_id` stays. A
+  rollback to the previous image needs the four statements in `docs/decisions/chat.md` § The schema
+  and loses custom titles, every pin beyond the first offer and the stored statistics series, never
+  a conversation. The help chapter covers it in both languages (spec `020-chat-handling-and-context`).
+
 - **The run status sheet says where a pass stands and what it spent.** It takes its own width
   (`--lg-run-status-w`, 37rem, just enough to cover the header chip that opened it) instead of the
   help drawer's 48rem, where a running pass was four lines in a mostly empty panel. While a pass
@@ -95,6 +189,28 @@ may change in any release. See the status note in the README.
 
 ### Fixed
 
+- **A shortlist cursor with a number past the int range is refused.** Keyset paging bound a cursor's
+  score or month count as an int by narrowing the long the client sent back, so a crafted one wrapped
+  and paged from an unrelated position; it now answers 400 like any other malformed cursor.
+
+- **The shortlist's last card can be scrolled into view.** Before the page had scrolled far enough to
+  pin the list column, the column's bottom hung below the window (39px at 1440×900), and a wheel over
+  the list never moved the page, so the last card stayed out of reach. The list now hands its scroll
+  to the page until the column is pinned, and keeps it to itself from then on (a scroll-state
+  container query; a browser without one always hands it on). The parked review screen got the same.
+
+- **The browser tests no longer fail on a cold CI runner.** Vite bundles their dependencies on the
+  first run, and on a slow runner Chromium asked for the setup file before it was done, so every spec
+  file failed to import. CI now runs one spec file first to fill the cache.
+
+- **Four chat bugs.** The chat closed on every change of screen; `?chat`
+  is now sticky across navigation, and a close stays closed. Its thread widened when the navigation
+  rail folded, because the drawer's width followed a fixed step instead of the rail; the split views
+  now switch on a container query of the main column. A pin was lost on the first suggestion, because
+  the store dropped `pinnedOfferId` on every route to a conversation id; the pins now live in the URL
+  (`chatCtx`) and on the conversation. And the mobile sheet overflowed the screen sideways (spec
+  `020-chat-handling-and-context`).
+
 - **The orphan sweep deletes only package folders its own database built.** It used to remove
   every folder under `packaging.output_dir` that no row of *its* database named, and that
   directory is shared: a demo stack bind-mounts the same `packages/`, a test run reads the same
@@ -131,6 +247,48 @@ may change in any release. See the status note in the README.
   next card and carries the arrowhead.
 
 ### Changed
+
+- **The dashboard's machine room shows its per-source table folded.** Source, documents, extracted,
+  written and announced sit under the room's heading whether it is open or not; the stage timings and
+  the notes still fold, and the room still opens by itself on a failed run or a short source.
+
+- **Wider pages and larger type on a large monitor.** The page cap is 128rem instead of 104rem, one
+  screen class up: a 1920px window is filled to its gutters, and a larger monitor at full screen still
+  gets a bounded page. The pipeline board and the workflow keep the full width. The root type size is
+  fluid above a laptop: 15px up to a 1440px window as before, 16px at 1920 and 17px from about 2500,
+  and every rem scales with it, the cap included (2176px at 2560).
+
+- **The name is leadGEN / AI everywhere.** The installed app (manifest `name` and `short_name`), the
+  browser tab (`<screen> · leadGEN / AI`), the header's wordmark and the name a screen reader hears for
+  it, the digest's heading, and the wordmark image on the README and every guide. The header's label
+  still said Annusa AI from a rename that was dropped.
+
+- **URLs derived from a request name what the client used.** `server.forward-headers-strategy:
+  native` reads `X-Forwarded-Proto` and `-Host` from a private or loopback proxy, so behind the
+  compose nginx or an ingress that terminates TLS the api names `https://` and the public host.
+  Spring Security's HSTS header is switched off: behind TLS it would now commit every browser to
+  https for a year, subdomains included, which is the TLS proxy's decision.
+
+- **The chat's conversation rail is 20rem wide instead of 15rem**, so titles wrap less; from 80rem
+  the docked drawer is 61rem with the rail open, and the thread keeps its width.
+
+- **The chat has a living mark.** The assistant's glyph beside each answer, the empty chat's plate,
+  the header's chat button and the mobile bar now show the brand's lead ring in one of four frames:
+  at rest, working (dots flow into the ring while a tool runs), speaking (the arc sweeps while the
+  answer streams) and halted (a turn that was stopped or ended incomplete). The sparkle and the two
+  busy dots are gone; nothing moves under reduced motion, and no label or catalog key changed
+  (spec `021-chat-living-mark`).
+
+- **The header's chat button comes alive.** The mark draws itself in when the page loads and turns
+  once every 24 seconds while the chat is shut; hover and keyboard focus play the turn at once. From
+  48rem the button has a gradient edge in the brand and AI colours that sweeps with the turn and runs
+  while an answer is written behind a shut drawer, a soft halo on hover, and the shortcut as a
+  `⌘K`/`Ctrl K` chip. The period is `--lg-mark-idle-period` in `motion.css`; nothing moves under
+  reduced motion.
+
+- **Run ingest and the model select live on the workflow screen.** Both left the header at every
+  width and sit above the status chips, with the same confirmation before a run starts; the header
+  keeps navigation, the chat, settings and help.
 
 - The shortlist opens newest first rather than by score, so what came in since the last look is
   on top; a link without `sort` means newest first. The API's default order is unchanged, and

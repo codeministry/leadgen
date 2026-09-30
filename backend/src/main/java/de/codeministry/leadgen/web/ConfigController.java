@@ -9,10 +9,9 @@
 package de.codeministry.leadgen.web;
 
 import de.codeministry.leadgen.config.*;
-import de.codeministry.leadgen.ingest.extract.LlmExtractors;
-import de.codeministry.leadgen.llm.ChatModels;
-import de.codeministry.leadgen.llm.ModelChoice;
-import de.codeministry.leadgen.score.Judges;
+import de.codeministry.leadgen.score.PromptCatalog;
+import de.codeministry.leadgen.score.PromptView;
+import de.codeministry.leadgen.score.ScoringModels;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -31,7 +30,7 @@ class ConfigController {
     private final SourceQueryService sources;
     private final SourceDetailService details;
     private final ConfigRegistry config;
-    private final Judges judges;
+    private final PromptCatalog prompts;
 
     /**
      * The file that defines the sources, and the sources.
@@ -95,22 +94,7 @@ class ConfigController {
      */
     @GetMapping("/prompts")
     List<PromptView> prompts() {
-        var snapshot = config.snapshot();
-        var choices = judges.choices();
-        var llm = snapshot.application().llm();
-        var models = llm == null ? null : llm.models();
-        return PromptView.all(
-                snapshot.rules(),
-                snapshot.profile(),
-                snapshot.coverLetter(),
-                choices.isEmpty() ? null : choices.getFirst(),
-                // Each stage's own choice, asked rather than reproduced: a copy of it here
-                // would name one model on the screen while the run used the other.
-                LlmExtractors.modelFor(models),
-                ModelChoice.content(models).orElse(null),
-                ModelChoice.fields(models).orElse(null),
-                ChatModels.writingModelFor(models),
-                models);
+        return prompts.prompts();
     }
 
     /**
@@ -121,6 +105,6 @@ class ConfigController {
      */
     @GetMapping("/scoring-models")
     ScoringModels scoringModels() {
-        return ScoringModels.of(judges.choices());
+        return prompts.scoringModels();
     }
 }

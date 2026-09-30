@@ -1,4 +1,4 @@
-<img src="brand/leadgen.png" alt="LEADgen / AI" height="28">
+<img src="brand/leadgen.png" alt="leadGEN / AI" height="28">
 
 # Configuration
 
@@ -87,7 +87,7 @@ flowchart LR
 | `sources.yaml`        | `SourcesConfig`  | Where offers come from and how a document is read, down to the CSS selector and the date format. A new source is a block here — see [ADDING-A-SOURCE.md](ADDING-A-SOURCE.md). |
 | `matching-rules.yaml` | `MatchingRules`  | The six knockout stages, the scoring weights and penalties, the three thresholds, deduplication, freshness, follow-up — see [WRITING-RULES.md](WRITING-RULES.md).             |
 | `skill-profile.yaml`  | `SkillProfile`   | Who is applying: skills with weights and aliases, industries, reference projects, topics, CVs.                                                    |
-| `pipeline.yaml`       | `PipelineConfig` | The process itself: provider and model, enrichment, content segmentation, packaging, digest, auth.                                                                            |
+| `pipeline.yaml`       | `PipelineConfig` | The process itself: provider and model, enrichment, content segmentation, packaging, digest, auth, the chat's ceilings.                                                                            |
 | `cover-letter.yaml`   | `CoverLetterStyle` | How a model-written cover letter may read, per language: banned phrases, a word limit, structure notes, and example letters the model takes its tone from. The shipped file has rules and no example; yours carries the letters. It has no path key in `pipeline.yaml`. |
 
 **`pipeline.yaml` is not `application.yaml`.** The latter is Spring's and only Spring's: it
@@ -111,6 +111,24 @@ to share a name, which meant a stack trace naming it could mean either file.
   is asked again on the next run, and `score_model` is nulled only for the adverts whose answer actually moved. A
   blank key does not follow `scoring` that way — switching the judge re-judges, it does not re-segment. Neither key is
   a parameter of the run; the select beside the run button stays the judge's alone.
+- **The chat has its own model key and its own ceilings, and none of them touches the pipeline.**
+  `llm.models.chat` falls back to `scoring` like `content` and `fields`; the top-level `chat:` block
+  holds `max_calls_per_day` and `max_tool_rounds`, counted in a table of their own beside
+  `llm.budget`. Unlike `llm.budget`, both ceilings ship as placeholders with a default, so `.env`
+  moves them without a `pipeline.yaml` override — and unlike `llm.budget`, **absent is that default,
+  not no ceiling**: an override without the key, or without the whole `chat:` block, gets 200 calls
+  and 6 rounds. The chat is on wherever a scoring model exists, so an override that predates the
+  block must not leave it unmetered or its tool loop unbounded. The reasoning is in
+  [decisions/chat.md](decisions/chat.md).
+- **`chat.suggestions.*` decides which questions the empty chat offers, and none of it spends a call.**
+  Six thresholds, each a rule over the numbers a screen already shows: `new_offers_min`, `deadline_days`,
+  `no_reply_days`, and the tag rise as `tag_window_days`, `tag_rise_percent` and `tag_rise_min_offers`.
+  A trigger whose line is not met offers nothing, and the two evergreen questions are always there.
+  Like the ceilings they ship as placeholders with a default, and a key left out of an override is its
+  default; they are read per request from the live configuration, so a reload moves the next set.
+  Phrasing the sentences is one call on the chat's own day, never `llm.budget`, and without a chat
+  model the catalog's sentences show as they are. The reasoning is in
+  [decisions/chat.md](decisions/chat.md) § Suggestions.
 - **`llm.concurrency` and `enrichment.fetch.concurrency` are widths, and a width moves the clock, never the bill.**
   `llm.concurrency` is how many adverts CONTENT, FIELDS and the synchronous SCORE work at once, and how many
   32-advert embedding batches DEDUPE and RETRIEVAL have in flight; `enrichment.fetch.concurrency` is how many fetches
@@ -198,13 +216,22 @@ rationale. `*` marks a credential.
 | `LLM_BATCH`                 | `false` | Half the price, answers minutes later. Only the Messages API batch is implemented; `true` on any other provider is fatal at load rather than quietly synchronous at full price.                                                                                                                                                                                                                                           |
 | `LLM_TIMEOUT`               | `PT120S` | ISO-8601. How long one request to a model may take. |
 | `LLM_CONCURRENCY`           | `1`     | `llm.concurrency`: how many adverts CONTENT, FIELDS and the synchronous SCORE work at once, and how many embedding batches DEDUPE and RETRIEVAL have in flight. Refused above the database connection pool. The endpoint has to serve that many at once; the budget is unchanged, only the clock moves. |
-| `LLM_MODEL_SCORING`         | —       | The judge, and the default of the list below. Also the fallback of every model key left empty: `LLM_MODEL_CONTENT`, `LLM_MODEL_FIELDS` and `LLM_MODEL_EXTRACTION`. Changing it re-judges; it does not make CONTENT or FIELDS due again, even for the stages that fall back to it. |
+| `LLM_MODEL_SCORING`         | —       | The judge, and the default of the list below. Also the fallback of every model key left empty: `LLM_MODEL_CONTENT`, `LLM_MODEL_FIELDS`, `LLM_MODEL_EXTRACTION` and `LLM_MODEL_CHAT`. Changing it re-judges; it does not make CONTENT or FIELDS due again, even for the stages that fall back to it. |
 | `LLM_MODEL_CONTENT`         | —       | `llm.models.content`: the content classifier, which labels the blocks of an advert no rule and no cached label decided. Empty means `LLM_MODEL_SCORING`. Set and then changed, it makes CONTENT due again for every advert segmented under another model; cached block labels stand, so only blocks nobody has a label for go to the new model. |
 | `LLM_MODEL_FIELDS`          | —       | `llm.models.fields`: the field extractor, which reads start, duration and apply-by out of the advert. Empty means `LLM_MODEL_SCORING`. Set and then changed, it makes FIELDS due again for every advert read under another model. |
 | `LLM_MODEL_SCORING_OPTIONS` | —       | Comma separated. An **allowlist**, checked before the run starts: the chosen model travels as a request parameter to an endpoint billed per token. It governs the judge alone — which classifier reads an advert is not a parameter of the run, because two judges are two scales and comparing them is the point, while a label is a fact about a paragraph and there is nothing to compare.                             |
 | `LLM_MODEL_EXTRACTION`      | —       | Read by the extraction fallback: a source with `fallback: llm` hands it a document the deterministic rules could not read. Empty falls back to `LLM_MODEL_SCORING`, and the startup log says which was taken.                                                                                                                                                                                                             |
 | `LLM_MODEL_EMBEDDING`       | —       | Read by deduplication's two similarity strategies. **No fallback**: a chat model is not an embedding model, so unset means only `exact_fingerprint` runs. Must return at least 2000-dimensional vectors, the width of the `offer.embedding` column and the widest pgvector will index; a wider model is truncated to the leading 2000.                                                                                                                                                                          |
 | `LLM_MODEL_WRITING`         | —       | Drafts the cover letter when an application moves to PACKAGED. The draft is checked against the profile and `cover-letter.yaml` before it is written; unset, failed or rejected, the Freemarker template writes the letter. **No fallback** to `LLM_MODEL_SCORING`. |
+| `LLM_MODEL_CHAT`            | —       | `llm.models.chat`: the chat in the drawer every screen opens. Empty means `LLM_MODEL_SCORING`, and the startup log says which key decided. The model has to call tools, which not every judge does well. With neither key set the chat is absent: the header draws no button and no chat request leaves the browser. |
+| `CHAT_MAX_CALLS_PER_DAY`    | `200`   | `chat.max_calls_per_day`: the chat's own daily ceiling on model requests, counted in `chat_call_budget` beside `llm.budget` and never through it, so questions cannot starve the nightly run nor a spent night silence the chat. `0` means no calls. Left out of a `pipeline.yaml` override — the key or the whole `chat:` block — it is `200`, not no ceiling (changed from "absent = no ceiling": the chat is on by default wherever a scoring model exists). A spent day ends a turn with its reason. |
+| `CHAT_MAX_TOOL_ROUNDS`      | `6`     | `chat.max_tool_rounds`: how many rounds of tool calls one chat turn may take before it has to answer. Past it the turn ends with its reason and keeps what it had said, rather than showing an answer the model never finished. Left out of an override it is `6`; there is no unbounded setting, because a model that keeps asking for tools would loop for ever. |
+| `CHAT_SUGGEST_NEW_OFFERS_MIN` | `1` | `chat.suggestions.new_offers_min`: the empty chat suggests the last run's new offers once that run wrote at least this many. |
+| `CHAT_SUGGEST_DEADLINE_DAYS` | `7` | `chat.suggestions.deadline_days`: suggests the open offers whose apply-by date falls within this many days from today. |
+| `CHAT_SUGGEST_NO_REPLY_DAYS` | `14` | `chat.suggestions.no_reply_days`: suggests the sent applications that have had no reply for at least this many days. |
+| `CHAT_SUGGEST_TAG_WINDOW_DAYS` | `7` | `chat.suggestions.tag_window_days`: the window a tag's rise is measured over, against the same number of days before it. |
+| `CHAT_SUGGEST_TAG_RISE_PERCENT` | `30` | `chat.suggestions.tag_rise_percent`: a tag counts as rising from this percentage over the window before. |
+| `CHAT_SUGGEST_TAG_RISE_MIN_OFFERS` | `5` | `chat.suggestions.tag_rise_min_offers`: and only across at least this many offers in the current window, so two offers after one is not a trend. |
 
 ### Enrichment
 
@@ -239,16 +266,19 @@ rationale. `*` marks a credential.
 |---|---|---|
 | `SERVER_PORT` | `8080` | |
 | `SERVER_ADDRESS` | `127.0.0.1` | The only thing in front of the write endpoints while `AUTH_MODE` is `none`. Compose sets `0.0.0.0`. |
-| `AUTH_MODE` | `none` | The only implemented value; any other is fatal at load. |
+| `ALLOWED_HOSTS` | — | Only under `AUTH_MODE=none`. Comma-separated dotted host names the api may be reached under, each written out: a scheme, a port or a trailing dot is forgiven, a wildcard is not (it is logged at startup and matches nothing). A Unicode name is converted to punycode; one with ß, ς or a joiner is listed in the punycode the browser shows, since Java and the browsers convert those differently. As a Host, loopback, IP literals and single-label names always pass; as an Origin loopback, these names and the host the request itself was sent to, so the UI opened by a LAN address or a bare machine name writes too. Anything else, the raw Host and every X-Forwarded-Host included, is refused with 403 as DNS rebinding. Name the host here when `none` runs behind a real host name. |
 | `LOG_LEVEL` | `INFO` | |
 | `CONFIG_POLL_INTERVAL` | `PT2S` | Two polls are needed to apply a change, so worst case is twice this. |
 | `SCORE_BATCH_POLL_INTERVAL` | `PT5M` | Only read when `LLM_BATCH` is true. |
 | `AUTH_MODE` | `none` | `none` or `oidc`. Under `oidc`, `OIDC_ISSUER` is required and every request carries a bearer token. Read once at startup, so a change takes a restart. |
 | `OIDC_ISSUER` | — | The realm's issuer URL, the one whose `/.well-known/openid-configuration` answers. Fetched at startup, so an unreachable issuer stops the application rather than starting it unprotected. |
 | `OIDC_CLIENT_ID` | — | Optional. Set it and a token must also name it in `aud`, which on Keycloak needs an audience mapper on the client. Empty means issuer and signature only. |
+| `OIDC_JWK_SET_URI` | — | Optional. Where the signing keys are fetched from instead of discovering them at the issuer, for a process that cannot use the issuer URL: behind a private CA, or in a cluster, the identity provider's in-cluster service. Fetched on the first token rather than at startup; `iss` is still checked against `OIDC_ISSUER`. |
+| `OIDC_AUDIENCE` | — | Optional. What every token must name in `aud`, when it is not the browser's client: a realm that mints every token for a bearer-only resource client. Set, it replaces the `OIDC_CLIENT_ID` check; empty, the client id is checked as before. |
+| `OIDC_RESOURCE` | — | Optional. The URL MCP clients reach `/mcp` at, as `/.well-known/oauth-protected-resource` names it under `oidc`, e.g. `https://leadgen.example.invalid/mcp`. Empty derives it from the request and the proxy's `X-Forwarded-Proto` and `-Host` (`server.forward-headers-strategy: native`, believed only from a private or loopback peer); set it where a proxy chain gets the scheme or host wrong anyway. |
+| `GRAVATAR_ENABLED` | `true` | Only under `AUTH_MODE=oidc`. Whether the header's user menu asks gravatar.com for an avatar, by a SHA-256 hash of the signed-in address (the browser sends the hash, never the address). `false` shows the initials from the token's name instead. The compose nginx allows `https://gravatar.com` in `img-src` for this. |
 | `INGEST_CRON` | `-` | A Spring cron expression, in the JVM's timezone, for a pass the tool starts itself. `-` is no schedule, and it is the default. Leave it alone if a CronJob or the host's cron already schedules the run. |
 | `DIGEST_FORMAT` | `html` | `text` or `html`. |
-| `OIDC_ISSUER`, `OIDC_CLIENT_ID` | — | Read only when `AUTH_MODE` is `oidc`, which is not implemented. |
 | `SAMPLE_FEED_URL` | — | The feed of `sample-portal-feed`, which ships disabled. |
 
 ### Compose and the dev server only

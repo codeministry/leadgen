@@ -63,6 +63,11 @@ public class ApplicationService {
         WHERE a.id = ?
         """;
 
+    /** One row by its offer, likewise without the archive predicate; see {@link #findByOffer}. */
+    private static final String BY_OFFER = SELECT + """
+        WHERE a.offer_id = ?
+        """;
+
     /**
      * What belongs on the board: everything the pipeline put on the shortlist and nobody has
      * a card for yet.
@@ -118,6 +123,15 @@ public class ApplicationService {
      */
     public Optional<ApplicationView> find(long id) {
         return jdbc.sql(BY_ID).param(id).query(ApplicationService::view).optional();
+    }
+
+    /**
+     * The application of one offer, archived or not — {@code offer_id} is unique, so there is at
+     * most one. The chat's application tool asks by the offer's id, and scanning {@link #board()}
+     * for it would miss every archived offer and read the whole board for one row.
+     */
+    public Optional<ApplicationView> findByOffer(long offerId) {
+        return jdbc.sql(BY_OFFER).param(offerId).query(ApplicationService::view).optional();
     }
 
     private static ApplicationView view(ResultSet rs, int row) throws SQLException {

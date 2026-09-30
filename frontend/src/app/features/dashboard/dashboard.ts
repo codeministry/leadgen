@@ -1,4 +1,4 @@
-import {ChangeDetectionStrategy, Component, computed, inject, OnInit} from '@angular/core';
+import {ChangeDetectionStrategy, Component, computed, inject, linkedSignal, OnInit} from '@angular/core';
 import {injectDispatch} from '@ngrx/signals/events';
 import {TranslocoPipe, TranslocoService} from '@jsverse/transloco';
 import {applicationEvents} from '@core/store/applications.events';
@@ -327,9 +327,19 @@ export class Dashboard implements OnInit {
     /**
      * The machine room opens itself when there is something in it a person must see: a
      * failed run, or a source that came up short. Otherwise it is one click away, which is
-     * where the per-source table and the timings belong on a normal morning.
+     * where the timings belong on a normal morning. The per-source table shows either way.
      */
     protected readonly machineRoomOpen = computed(() => this.failedStage() !== null || this.mismatches() > 0);
+
+    /**
+     * Whether the fold is open right now: `machineRoomOpen` until the reader toggles it, then
+     * theirs. The parts under the table follow it, since they sit outside the `details`.
+     */
+    protected readonly roomOpen = linkedSignal(() => this.machineRoomOpen());
+
+    protected onRoomToggle(event: Event): void {
+        this.roomOpen.set((event.target as HTMLDetailsElement).open);
+    }
 
 
     /**

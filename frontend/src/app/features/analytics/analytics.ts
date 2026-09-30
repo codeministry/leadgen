@@ -3,6 +3,9 @@ import {Router} from '@angular/router';
 import {TranslocoPipe} from '@jsverse/transloco';
 import {injectDispatch} from '@ngrx/signals/events';
 import {analyticsEvents} from '@core/store/analytics.events';
+import {chatEvents} from '@core/store/chat.events';
+import {ChatStore} from '@core/store/chat.store';
+import {Icon} from '@shared/icon/icon';
 import {AnalyticsStore} from '@core/store/analytics.store';
 import {AnchorRail, AnchorSection} from '@shared/anchor-rail/anchor-rail';
 import {EmptyState} from '@shared/empty-state/empty-state';
@@ -56,6 +59,7 @@ export const ANALYTICS_SECTIONS: readonly AnchorSection[] = [
         AnchorRail,
         ApplicationsPanel,
         EmptyState,
+        Icon,
         IntakePanel,
         MarketPanel,
         PageHeader,
@@ -73,6 +77,14 @@ export class Analytics implements OnInit {
     private readonly router = inject(Router);
     private readonly dispatch = injectDispatch(analyticsEvents);
     protected readonly store = inject(AnalyticsStore);
+    protected readonly chat = inject(ChatStore);
+    private readonly chatDispatch = injectDispatch(chatEvents);
+
+    /** "Use this view" (ISC-451): the window being shown, pinned into the open conversation or a new one. */
+    protected useView(): void {
+        const view = this.store.view();
+        if (view?.from && view.to) this.chatDispatch.contextPinned({kind: 'ANALYTICS_WINDOW', from: view.from, to: view.to});
+    }
 
     readonly axis = input<TimeAxis, TimeAxis | undefined>('received', {
         transform: (value) => (isTimeAxis(value) ? value : 'received'),

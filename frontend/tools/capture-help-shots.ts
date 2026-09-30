@@ -238,7 +238,7 @@ const SHOTS: Record<string, Shot> = {
         rect: sized(520, 420),
     },
     'run-confirm': {
-        route: async () => '/dashboard',
+        route: async () => '/workflow',
         // Opens the confirmation and nothing more: the run itself starts on its confirm button,
         // which is never pressed here.
         prepare: (page) => open(page, '.ingest-button', '.lg-run-confirm[open] .modal-box'),
@@ -275,7 +275,7 @@ async function refuseAnythingButTheDemo(base: string, page: Page): Promise<void>
 
 /**
  * The model names the instance is configured with. They are values of the operator's `.env`, and
- * the header, the rules screen's AI steps and an offer's score line all print them; a shot that
+ * the workflow screen's model select and AI steps and an offer's score line all print them; a shot that
  * frames one of them publishes it.
  */
 async function modelNames(base: string, page: Page): Promise<string[]> {

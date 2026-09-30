@@ -39,7 +39,42 @@ public record PipelineConfig(
         @Valid Retrieval retrieval,
         @Valid @NotNull Packaging packaging,
         @Valid Digest digest,
-        @Valid Security security) {
+        @Valid Security security,
+        @Valid Chat chat) {
+
+    /**
+     * Every component but the chat's ceilings, which are then absent and mean the shipped defaults
+     * ({@code ChatBudget.DEFAULT_CALLS_PER_DAY}, {@code ChatBudget.DEFAULT_TOOL_ROUNDS}). For
+     * code that builds this by hand — the tests that have nothing to say about the chat.
+     */
+    public PipelineConfig(
+            int version,
+            Llm llm,
+            Profile profile,
+            Rules rules,
+            Sources sources,
+            Enrichment enrichment,
+            Content content,
+            Fields fields,
+            Retrieval retrieval,
+            Packaging packaging,
+            Digest digest,
+            Security security) {
+        this(
+                version,
+                llm,
+                profile,
+                rules,
+                sources,
+                enrichment,
+                content,
+                fields,
+                retrieval,
+                packaging,
+                digest,
+                security,
+                null);
+    }
 
     /**
      * Every field is optional, and an empty block is the working state on a fresh clone.
@@ -140,6 +175,8 @@ public record PipelineConfig(
          *                       configured default; {@code ModelChoice.content} is the one place that decides.
          * @param fields         the field extractor's model. Empty means {@link #scoring}'s
          *                       configured default; {@code ModelChoice.fields} is the one place that decides.
+         * @param chat           the chat's model, which has to call tools. Empty means {@link #scoring}'s
+         *                       configured default; {@code ModelChoice.chat} is the one place that decides.
          */
         public record Models(
                 String extraction,
@@ -148,7 +185,20 @@ public record PipelineConfig(
                 String embedding,
                 String scoringOptions,
                 String content,
-                String fields) {
+                String fields,
+                String chat) {
+
+            /** Every key but the chat's, which is then empty and reads {@link #scoring}. */
+            public Models(
+                    String extraction,
+                    String scoring,
+                    String writing,
+                    String embedding,
+                    String scoringOptions,
+                    String content,
+                    String fields) {
+                this(extraction, scoring, writing, embedding, scoringOptions, content, fields, null);
+            }
 
             /**
              * Every model that may be asked to judge, the configured default first.
@@ -385,4 +435,44 @@ public record PipelineConfig(
     public record Digest(boolean enabled, String format, String outputDir, List<String> include) {}
 
     public record Security(@NotBlank String auth, Map<String, String> oidc) {}
+
+    /**
+     * The chat's own ceilings, beside {@link Llm.Budget} and never through it.
+     *
+     * @param maxCallsPerDay how many requests a day the chat may send. <b>Null and zero are different
+     *                       answers</b>, but unlike {@link Llm.Budget} absent is the shipped default of
+     *                       200 ({@code ChatBudget.DEFAULT_CALLS_PER_DAY}), not no ceiling; {@code 0} is none.
+     * @param maxToolRounds  how often one turn may call tools before it has to answer; absent is the
+     *                       shipped default of 6 ({@code ChatBudget.DEFAULT_TOOL_ROUNDS}), never no bound.
+     * @param suggestions    the lines the empty chat's suggestion triggers read; absent is every
+     *                       shipped default ({@code SuggestionThresholds}).
+     */
+    public record Chat(
+            @Min(0) Integer maxCallsPerDay,
+            @Min(1) Integer maxToolRounds,
+            @Valid Suggestions suggestions) {
+
+        /** The ceilings alone, for code that has nothing to say about suggestions. */
+        public Chat(Integer maxCallsPerDay, Integer maxToolRounds) {
+            this(maxCallsPerDay, maxToolRounds, null);
+        }
+    }
+
+    /**
+     * Each suggestion trigger's line (ISC-455). Absent means the shipped default, never "off".
+     *
+     * @param newOffersMin     the last run wrote at least this many offers
+     * @param deadlineDays     an open deadline within this many days from today
+     * @param noReplyDays      a sent application without a reply for at least this many days
+     * @param tagWindowDays    the length of the window a tag is compared over, against the one before
+     * @param tagRisePercent   how far above the window before a tag has to be
+     * @param tagRiseMinOffers how many offers the current window needs before a rise counts
+     */
+    public record Suggestions(
+            @Min(1) Integer newOffersMin,
+            @Min(0) Integer deadlineDays,
+            @Min(1) Integer noReplyDays,
+            @Min(1) Integer tagWindowDays,
+            @Min(0) Integer tagRisePercent,
+            @Min(1) Integer tagRiseMinOffers) {}
 }

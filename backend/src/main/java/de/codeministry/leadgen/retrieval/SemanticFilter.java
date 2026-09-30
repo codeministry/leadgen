@@ -204,8 +204,13 @@ public class SemanticFilter {
      * takes from the day's budget only on a miss, so a topic costs one call per process and
      * not one per page. A floor and not a count, because this is a similarity on a column,
      * measured before it acts; and it only ever widens the filter — nothing here reaches a score.
+     *
+     * <p><b>The payer is always named.</b> {@code take} pays the embedding request: the screen hands
+     * {@code LlmBudget::take}, the chat's tool {@code ChatBudget::take} (ISC-433), because a question
+     * in the drawer must never spend, or be refused by, the pipeline's day. There is no default, so
+     * a new caller cannot land on the pipeline's budget by leaving an argument out.
      */
-    public java.util.Optional<Narrowing> topicNeighbourhood(String topic) {
+    public java.util.Optional<Narrowing> topicNeighbourhood(String topic, java.util.function.BooleanSupplier take) {
         PipelineConfig application = config.snapshot().application();
         PipelineConfig.Retrieval retrieval = application.retrieval();
         if (topic == null || retrieval == null || !retrieval.enabled() || retrieval.topicFloor() == null) {
@@ -215,7 +220,8 @@ public class SemanticFilter {
         if (model == null) {
             return java.util.Optional.empty();
         }
-        return queries.vectorFor(topic, model).map(vector -> {
+        var embedded = queries.vectorFor(topic, model, take);
+        return embedded.map(vector -> {
             Map<String, Object> params = new LinkedHashMap<>();
             params.put("topicModel", model);
             params.put("topicVector", vector);

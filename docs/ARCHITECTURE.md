@@ -1,4 +1,4 @@
-<img src="brand/leadgen.png" alt="LEADgen / AI" height="28">
+<img src="brand/leadgen.png" alt="leadGEN / AI" height="28">
 
 # Architecture
 
@@ -62,7 +62,7 @@ flowchart LR
     person --> web
     api -- "INGEST: read, flag" --> mail
     api -- "ENRICH: GET, politely" --> portals
-    api -- "judge, classifier, fields,<br/>embeddings, one budget" --> llm
+    api -- "judge, classifier, fields, embeddings;<br/>the chat, on a budget of its own" --> llm
     cfg -. "read at start, watched every 2 s" .-> api
     inbox --> api
     api --> out
@@ -485,6 +485,32 @@ it was ever answered, and a mistyped status has to be correctable without an arg
 *is* checked is that the values make sense together: moving to a sent state with no date gets
 today, and a closing status drops the follow-up. A board that argues is a board nobody
 updates, and it is the only place this state exists.
+
+## The chat
+
+Not a pipeline stage: nothing in it runs at night, no stage reads a row it writes
+(`ChatIsolationTest` fails on a planted reference), and without a chat model the header draws
+no **Ask** button and the tool is the tool it was. It answers questions about the offers, the
+applications and the profile through five read-only tools — offer search, semantic search,
+statistics, an application with its history, the profile — over the same read services the
+screens use, and it writes only its own five `chat_*` tables.
+
+**Grounding by id, decided on the server.** The model marks what it speaks about as
+`[[offer:42]]`. `TurnLedger` records every id this turn's tools returned, and
+`CitationFilter`, in the stream before a byte leaves the machine, turns a marker into a numbered
+link only when the ledger holds the id and the row is still in the working set or the archive.
+Anything else becomes a visible *unverified* mark. The browser draws what it is given and makes
+no grounding decision of its own.
+
+**Its own budget, and nothing personal in the prompt.** Every model call takes
+`ChatBudget.take()` against `chat.max_calls_per_day`, never the pipeline's `LlmBudget`, so a
+long conversation cannot starve the nightly run; a turn calls tools at most
+`chat.max_tool_rounds` times. `ToolOutputMasker` sits between every tool and the model and
+replaces the configured mailbox address and every value the startup banner would mask. A turn
+stores why it ended, so its status reads the same after a reload.
+
+The reasoning is in [`decisions/chat.md`](decisions/chat.md), the tables in
+[DATA-MODEL.md § 5](DATA-MODEL.md#5-the-chats-five-tables).
 
 ## Frontend
 

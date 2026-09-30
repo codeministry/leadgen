@@ -1,4 +1,4 @@
-<img src="../brand/leadgen.png" alt="LEADgen / AI" height="28">
+<img src="../brand/leadgen.png" alt="leadGEN / AI" height="28">
 
 # The split views and the write path
 
@@ -231,7 +231,7 @@ says what it became and why.
   with the nav rail **open** — the worse of two states no media query could see, because the rail went from 4rem to
   14.5rem on a click with no breakpoint of its own. That rail is gone, so there is one state left and the old number
   defends a layout that no longer exists. The floor it defended is the reading column it produced in the bad state,
-  489px. Without the rail that column is `min(V - 45, 1560) - 558.75`, so 72rem yields 548px and 64rem would yield
+  489px. Without the rail that column is `min(V - 45, 1920) - 558.75`, so 72rem yields 548px and 64rem would yield
   420px. Measured after the change, on all three screens: two columns at 1152 and one at 1151, the shortlist and the
   review at 548px of reading column and the board at 638px of lanes beside its fixed 30rem panel; 706px at 1280, where
   the detail's panels now sit two-up. 48rem is where the navigation becomes a bottom bar and stays its own number:
@@ -240,6 +240,13 @@ says what it became and why.
   layout's rem is 15px while a media query resolves against the initial 16px whatever the root says. `72rem` is
   therefore 1152px, and `--lg-list-w: 36rem` is 540px. Comparing the two numbers as if they were the same unit is how a
   breakpoint gets picked for a column width it does not actually produce.
+- **The split answers to the page's own box, not the window (spec 020, ISC-472).** With the chat docked the page is the
+  window minus the panel, and a window-wide media query kept two columns beside a 56rem panel, clipping the detail to a
+  sliver. The shell's main column is a container (`container-name: page`), and the three split rules are
+  `@container page (width < 73.8rem)`: a container query measures the content box, the window minus two 1.5rem
+  gutters, in the root's 15px rem, so 1107px reproduces the old 1152px window split exactly. With the chat closed
+  nothing moved (two columns at 1152, one at 1151). The shortlist's `bothColumns`, which drives the auto-select and the
+  list's paging root, reads the split's rendered track count as well, and the anchor rail collapses on the same box.
 - **The selection is a route, never local state.** The URL is what a deep link, the back button and a click all agree
   on, and a second copy in a signal disagrees with it the first time one of the three is used. Read from
   `route.snapshot.firstChild` with `NavigationEnd`

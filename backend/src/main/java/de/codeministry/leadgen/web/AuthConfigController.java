@@ -42,9 +42,12 @@ public class AuthConfigController {
     AuthConfig authConfig() {
         PipelineConfig.Security security = config.snapshot().application().security();
         if (!SecurityConfig.OIDC.equals(security.auth())) {
-            return new AuthConfig(SecurityConfig.NONE, null, null);
+            return new AuthConfig(SecurityConfig.NONE, null, null, false);
         }
         Map<String, String> oidc = security.oidc() == null ? Map.of() : security.oidc();
-        return new AuthConfig(SecurityConfig.OIDC, oidc.get("issuer"), oidc.get("client_id"));
+        // On unless named off: a deployment whose own pipeline.yaml predates the key keeps the default.
+        boolean gravatar =
+                !"false".equalsIgnoreCase(String.valueOf(oidc.get("gravatar")).trim());
+        return new AuthConfig(SecurityConfig.OIDC, oidc.get("issuer"), oidc.get("client_id"), gravatar);
     }
 }

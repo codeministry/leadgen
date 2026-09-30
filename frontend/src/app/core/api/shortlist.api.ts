@@ -86,6 +86,14 @@ export class ShortlistApi {
         return this.http.get<ShortlistPage>('/api/v1/offers', {params});
     }
 
+    /**
+     * Offers found by their words, for the chat composer's `@` (ISC-453): the list's own `q=`, with
+     * no other filter, so the offer asked about is found wherever the shortlist would find it.
+     */
+    search(q: string): Observable<ShortlistPage> {
+        return this.http.get<ShortlistPage>('/api/v1/offers', {params: new HttpParams().set('q', q.trim())});
+    }
+
     /** What the filter did to the whole archive, stage by stage. */
     funnel(): Observable<FunnelView> {
         return this.http.get<FunnelView>('/api/v1/offers/funnel');

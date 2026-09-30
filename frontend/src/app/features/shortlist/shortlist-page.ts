@@ -11,6 +11,7 @@ import {
   Injector,
   input,
   signal,
+  untracked,
   viewChild,
 } from '@angular/core';
 import {takeUntilDestroyed, toSignal} from '@angular/core/rxjs-interop';
@@ -19,6 +20,9 @@ import {debounceTime, filter, map, Subject} from 'rxjs';
 import {injectDispatch} from '@ngrx/signals/events';
 import {TranslocoPipe} from '@jsverse/transloco';
 import {shortlistEvents} from '@core/store/shortlist.events';
+import {chatEvents} from '@core/store/chat.events';
+import {ChatStore} from '@core/store/chat.store';
+import {ChatContextItem, MAX_PINNED_OFFERS, viewQuery, withPins} from '@core/model/chat';
 import {ConfigStore} from '@core/store/config.store';
 import {ShortlistStore} from '@core/store/shortlist.store';
 import {applicationEvents} from '@core/store/applications.events';
@@ -148,6 +152,22 @@ export class ShortlistPage {
 
     /** Which way the key press walked: `landCard` looks one card ahead in that direction. */
     private focusStep: 1 | -1 = 1;
+
+    /**
+     * The offer a key press walked to. Its card is landed by the focus path above, so the
+     * outside-selection path below leaves it alone rather than moving the list a second time. It
+     * speaks for that one selection only and is spent by it: left standing, a later citation of the
+     * same offer was taken for a key press and never landed.
+     */
+    private keyedId: number | null = null;
+
+    /**
+     * A selection the list did not make itself — a chat citation, a deep link — waiting for its
+     * card to be on screen beside the detail (ISC-479). Beside the docked chat the page is one
+     * column below 73.8rem and the detail replaces the list, so the wish is kept until both
+     * columns show: at once on a wide screen, otherwise when the chat closes.
+     */
+    private readonly landWanted = signal<number | null>(null);
 
     /**
      * The URL, only as a reason to look again — the same shape the shell uses, and for the
@@ -379,22 +399,65 @@ export class ShortlistPage {
      * so auto-selecting there would answer "show me the shortlist" with a single offer and
      * the reader would have to press back to reach the list they asked for.
      *
-     * <p>`matchMedia` and not a measured width: it is a media query and not a rendering-
-     * lifecycle API, so it answers correctly in a backgrounded tab, unlike a
-     * `ResizeObserver`. Guarded because jsdom has neither it nor `addEventListener` on the
-     * result, and a specs run must not depend on either.
+     * <p>Two halves since the split became a container query on the page's own box (ISC-472).
+     * The window has to be wide enough — `matchMedia`, which is not a rendering-lifecycle API
+     * and so answers in a backgrounded tab too — and the page box has to be, which only the
+     * rendered grid knows: with the chat docked the page is the window minus the panel. That
+     * half reads the grid the stylesheet produced rather than repeating its number, so the
+     * breakpoint is still stated once. Guarded because jsdom has neither `matchMedia` nor
+     * `addEventListener` on the result, and lays nothing out, so a specs run must not depend
+     * on either.
      */
     private static readonly BOTH_COLUMNS = '(width >= 72rem)';
 
+  private readonly host: ElementRef<HTMLElement> = inject(ElementRef);
+
+  /** The window allows two columns. */
+  private readonly wideWindow = signal(false);
+
+  /**
+   * The page's own box does not: the split rendered one track. Only ever set from a grid the
+   * browser laid out, so it stays `false` wherever nothing is laid out.
+   */
+  private readonly narrowPage = signal(false);
+
   /** Read by the template as well: the sentinel's root depends on it. */
-  protected readonly bothColumns = signal(false);
+  protected readonly bothColumns = computed(() => this.wideWindow() && !this.narrowPage());
+
+  /**
+   * One track in the split's resolved `grid-template-columns` is the single-column layout. A
+   * browser resolves the value to lengths (`540px 548px`); an empty string is a document that
+   * computed no grid at all, which says nothing either way.
+   */
+  private readSplit(): void {
+    const split = this.host.nativeElement.querySelector('.split');
+    const view = this.document.defaultView;
+    if (split === null || view === null) {
+      return;
+    }
+    const tracks = view.getComputedStyle(split).gridTemplateColumns.trim();
+    this.narrowPage.set(tracks !== '' && tracks.split(/\s+/).length === 1);
+  }
 
     constructor() {
+        this.watchNav();
       const view = this.document.defaultView;
+      // `getComputedStyle` forces the style and layout it needs, container queries included,
+      // so the first read is right even in a tab that is not rendering; the observer then
+      // follows the page box as the chat opens, closes or the window is resized.
+      afterNextRender(() => this.readSplit());
+      if (typeof view?.ResizeObserver === 'function') {
+        const observer = new view.ResizeObserver(() => this.readSplit());
+        observer.observe(this.host.nativeElement);
+        this.destroyRef.onDestroy(() => observer.disconnect());
+      }
         if (typeof view?.matchMedia === 'function') {
             const query = view.matchMedia(ShortlistPage.BOTH_COLUMNS);
-            this.bothColumns.set(query.matches);
-            const onChange = (event: MediaQueryListEvent) => this.bothColumns.set(event.matches);
+            this.wideWindow.set(query.matches);
+            const onChange = (event: MediaQueryListEvent) => {
+              this.wideWindow.set(event.matches);
+              this.readSplit();
+            };
             query.addEventListener?.('change', onChange);
             // The page is rebuilt on every visit to the route; a listener left on the query
             // would keep each dead instance reachable and writing a signal nobody reads.
@@ -443,6 +506,7 @@ export class ShortlistPage {
                 return;
             }
             this.focusStep = 1;
+            this.keyedId = pending.next;
             this.focusWanted.set(pending.next);
             void this.router.navigate(['/shortlist', pending.next], {queryParamsHandling: 'preserve'});
         });
@@ -472,6 +536,44 @@ export class ShortlistPage {
                     card.focus({preventScroll: paneScrolls});
                     if (paneScrolls) {
                         this.landCard(pane, card, this.focusStep);
+                    }
+                },
+                {injector: this.injector},
+            );
+        });
+
+        // Every selection that did not come from a key press asks for its card to be landed; a
+        // card already in view makes that a no-op, so a click in the list moves nothing.
+        effect(() => {
+            const id = this.selectedId();
+            untracked(() => {
+                const keyed = id !== null && id === this.keyedId;
+                this.keyedId = null;
+                this.landWanted.set(id !== null && !keyed ? id : null);
+            });
+        });
+
+        // …and it lands once the list is on screen beside the detail and the card is rendered. The
+        // pane scrolls, never the document; a card outside the loaded page is never found, so an
+        // offer cited from further down opens its detail and moves nothing. A wish that finds the
+        // list on screen is spent whether it landed or not: kept, it jumped the pane to its card
+        // much later, when a next page or a filter brought the card in during the reader's own scroll.
+        effect(() => {
+            const wanted = this.landWanted();
+            if (wanted === null || !this.bothColumns()) {
+                return;
+            }
+            this.visible();
+            afterNextRender(
+                () => {
+                    const pane = this.listPane()?.nativeElement;
+                    if (pane === undefined || this.landWanted() !== wanted || this.visible().length === 0) {
+                        return;
+                    }
+                    this.landWanted.set(null);
+                    const card = pane.querySelector<HTMLElement>('[aria-current="true"]');
+                    if (card && pane.scrollHeight > pane.clientHeight) {
+                        this.bringIntoPane(pane, card);
                     }
                 },
                 {injector: this.injector},
@@ -530,9 +632,34 @@ export class ShortlistPage {
             return;
         }
         const target = step > 0 ? row : lookahead;
+        pane.scrollTop += target.getBoundingClientRect().top - paneBox.top - this.ringRoom(pane);
+    }
+
+    /**
+     * The least scroll that puts the card's row wholly inside the pane: a row below the fold comes
+     * up to the bottom edge, one above it down to the top edge, keeping the pane's block padding as
+     * room for the focus ring. A row already inside moves nothing. `scrollTop` on the pane, for
+     * the reason `landCard` gives: `scrollIntoView` would scroll the document as well.
+     */
+    private bringIntoPane(pane: HTMLElement, card: HTMLElement): void {
+        const row = card.closest('li') ?? card;
+        const paneBox = pane.getBoundingClientRect();
+        const rowBox = row.getBoundingClientRect();
+        const ringRoom = this.ringRoom(pane);
+        if (rowBox.top < paneBox.top + ringRoom) {
+            pane.scrollTop += rowBox.top - paneBox.top - ringRoom;
+        } else if (rowBox.bottom > paneBox.bottom - ringRoom) {
+            pane.scrollTop += rowBox.bottom - paneBox.bottom + ringRoom;
+        }
+    }
+
+    /**
+     * The room a landed row keeps from the pane's edge for its focus ring: the pane's own block
+     * padding, so both landing paths (the key path and a citation) measure it the same way.
+     */
+    private ringRoom(pane: HTMLElement): number {
         const view = this.document.defaultView;
-        const ringRoom = view ? parseFloat(view.getComputedStyle(pane).paddingTop) || 0 : 0;
-        pane.scrollTop += target.getBoundingClientRect().top - paneBox.top - ringRoom;
+        return view ? parseFloat(view.getComputedStyle(pane).paddingTop) || 0 : 0;
     }
 
     /** What the server sent for these filters. The browser no longer decides what is shown. */
@@ -550,6 +677,68 @@ export class ShortlistPage {
     this.navigated();
     return this.router.url.split('?')[1] ?? '';
   });
+
+  protected readonly chat = inject(ChatStore);
+  private readonly chatDispatch = injectDispatch(chatEvents);
+
+  /**
+   * "Use this view" (ISC-451): the query as it stands, the chat's own parameters left out, pinned
+   * into the open conversation or a new one. The server applies it as the list's own filters.
+   */
+  protected useView(): void {
+    this.chatDispatch.contextPinned({kind: 'SHORTLIST_VIEW', query: viewQuery(this.currentQuery().split('#')[0])});
+  }
+
+  /**
+   * Whether the pointer is coarse: a touch screen has no hover to reveal the cards' checkboxes, so
+   * they wait behind "Select" there (ISC-453). Read once — a device does not change its pointer
+   * mid-triage — and guarded, because `matchMedia` is absent in the test environment.
+   */
+  protected readonly coarse = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
+  /** "Select" pressed on a coarse pointer; a fine one always shows the checkboxes. */
+  protected readonly selecting = signal(false);
+  protected readonly pickable = computed(() => !this.archived() && (!this.coarse || this.selecting()));
+  /** "Ask about N offers" refused because the conversation would pass ten offers (ISC-453). */
+  protected readonly askRefused = signal(false);
+  protected readonly maxOffers = MAX_PINNED_OFFERS;
+  /**
+   * The bottom navigation's measured height below 48rem: the selection bar docks on it, in the
+   * minibar's slot (design.md § Viewport-übergreifend). Measured like the minibar's, never copied.
+   */
+  protected readonly navOffset = signal(0);
+  private watchNav(): void {
+    afterNextRender(() => {
+      const nav = this.document.querySelector<HTMLElement>('.topnav');
+      if (nav === null) return;
+      const measure = () => this.navOffset.set(nav.getBoundingClientRect().height);
+      measure();
+      if (typeof ResizeObserver !== 'function') return;
+      const observer = new ResizeObserver(measure);
+      observer.observe(nav);
+      this.destroyRef.onDestroy(() => observer.disconnect());
+    }, {injector: this.injector});
+  }
+
+  protected toggleSelecting(): void {
+    if (this.selecting()) this.clearPicks();
+    this.selecting.update((on) => !on);
+  }
+
+  /**
+   * "Ask about N offers" (ISC-453): every picked offer pinned in one go — one replacement of the open
+   * conversation's context, or a new conversation holding them all. Refused here, with its reason,
+   * when the pins would pass ten offers; the selection stays, so fewer can be asked about.
+   */
+  protected askAboutPicked(): void {
+    const pins = this.store.picked().map((offerId): ChatContextItem => ({kind: 'OFFER', offerId}));
+    const open = this.chat.view() === 'conversation' || this.chat.view() === 'new';
+    if (withPins(open ? this.chat.contextItems() : [], pins) === null) {
+      this.askRefused.set(true);
+      return;
+    }
+    this.askRefused.set(false);
+    this.chatDispatch.contextPinned(pins);
+  }
 
   /**
    * A saved view, applied.
@@ -817,6 +1006,7 @@ export class ShortlistPage {
   }
 
   protected clearPicks(): void {
+    this.askRefused.set(false);
     this.dispatch.picksCleared();
   }
 
@@ -1098,6 +1288,7 @@ export class ShortlistPage {
 
         const id = entries[next].offer.id;
         this.focusStep = step;
+        this.keyedId = id;
         this.focusWanted.set(id);
         void this.router.navigate(['/shortlist', id], {queryParamsHandling: 'preserve'});
     }

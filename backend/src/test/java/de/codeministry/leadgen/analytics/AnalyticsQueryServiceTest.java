@@ -78,6 +78,30 @@ class AnalyticsQueryServiceTest {
                 jdbc.queryForObject("INSERT INTO source (name, kind) VALUES ('test', 'file') RETURNING id", Long.class);
     }
 
+    /**
+     * One section is the same slice the whole view carries, built without the other four: the MCP
+     * funnel tool asks for one at a time, and paid for the whole view each time.
+     */
+    @Test
+    void aSectionIsTheSliceTheWholeViewCarries() {
+        arrived(LocalDate.now().minusDays(2));
+        arrived(LocalDate.now());
+        var whole = analytics.analytics();
+
+        assertThat(analytics.section("intake")).contains(whole.intake());
+        assertThat(analytics.section("market")).contains(whole.market());
+        assertThat(analytics.section("scores")).contains(whole.scores());
+        assertThat(analytics.section("applications")).contains(whole.applications());
+        assertThat(analytics.section("runs")).contains(whole.runs());
+        assertThat(analytics.section("nonsense")).isEmpty();
+        // One list of the names, read by the MCP funnel tool too, and every name on it resolves.
+        assertThat(AnalyticsQueryService.SECTIONS)
+                .containsExactly("intake", "market", "scores", "applications", "runs");
+        for (String name : AnalyticsQueryService.SECTIONS) {
+            assertThat(analytics.section(name)).as(name).isPresent();
+        }
+    }
+
     @Test
     void fillsTheDaysNothingArrivedOn() {
         // A line drawn straight across a gap claims a quiet market on a day when nothing

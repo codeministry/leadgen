@@ -29,7 +29,8 @@ const TOOLCHAIN_PREFIXES = ['--color-', '--radius-', '--size-', '--font-', '--te
 const TOOLCHAIN_NAMES = ['--border', '--depth', '--noise'];
 
 /** Written on the element at runtime by `shared/popover/anchor-for.ts`, never declared in CSS. */
-const RUNTIME_ALLOWLIST = ['--lg-anchor-x', '--lg-anchor-y'];
+/** Set from script at runtime: the popover's anchor, and the chat list's measured search height. */
+const RUNTIME_ALLOWLIST = ['--lg-anchor-x', '--lg-anchor-y', '--lg-chat-search-h'];
 
 /** The seven navigation destinations, in the order the nav lists them. */
 const SECTIONS = ['dashboard', 'shortlist', 'pipeline', 'analytics', 'sources', 'review', 'workflow'] as const;
@@ -175,14 +176,31 @@ describe('the tokens (ISC-223)', () => {
         expect([...blocks.get('light')!.keys()].sort()).toEqual([...blocks.get('dark')!.keys()].sort());
     });
 
+    // Fix 3F-8: `color-no-hex` misses rgb() and every other colour function, so this is their gate.
+    it('no component stylesheet and no token file holds a colour literal; a mask\'s alpha ramp is not paint', () => {
+        const literal = /#[0-9a-f]{3,8}\b|\b(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\(/i;
+        const found: string[] = [];
+        for (const file of [...cssFilesUnder(APP), ...TOKEN_FILES.map((f) => resolve(FRONTEND, f))]) {
+            const text = readFileSync(file, 'utf8').replace(/\/\*[\s\S]*?\*\//g, (c) => c.replace(/[^\n]/g, ' '));
+            for (const [i, line] of text.split('\n').entries()) {
+                if (/^\s*(?:-webkit-)?mask(?:-image)?\s*:/.test(line)) continue;
+                if (literal.test(line)) found.push(`${file.slice(FRONTEND.length + 1)}:${i + 1}: ${line.trim()}`);
+            }
+        }
+        expect(found).toEqual([]);
+    });
+
     it('every var(--x) a component reads is defined, and a fallback does not count', () => {
         const defined = definedNames();
         const missing: string[] = [];
         for (const file of cssFilesUnder(APP)) {
             const text = readFileSync(file, 'utf8');
+            // A property the same stylesheet registers with `@property` has its `initial-value` there:
+            // a component-local animated angle, defined where it is read and nowhere else.
+            const registered = new Set([...text.matchAll(/@property\s+(--[\w-]+)/g)].map((m) => m[1]));
             for (const m of text.matchAll(/var\(\s*(--[\w-]+)/g)) {
                 const name = m[1];
-                if (defined.has(name) || isToolchainName(name) || RUNTIME_ALLOWLIST.includes(name)) continue;
+                if (defined.has(name) || registered.has(name) || isToolchainName(name) || RUNTIME_ALLOWLIST.includes(name)) continue;
                 missing.push(`${file.slice(FRONTEND.length + 1)}: ${name}`);
             }
         }

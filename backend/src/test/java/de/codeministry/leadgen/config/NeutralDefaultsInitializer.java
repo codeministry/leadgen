@@ -50,7 +50,13 @@ public final class NeutralDefaultsInitializer implements ApplicationContextIniti
         MutablePropertySources sources = context.getEnvironment().getPropertySources();
         var defaults = new MapPropertySource(
                 PROPERTY_SOURCE,
-                Map.of("leadgen.config-dir", ConfigFixtures.shippedDefaults().toString()));
+                Map.of(
+                        "leadgen.config-dir",
+                        ConfigFixtures.shippedDefaults().toString(),
+                        // `${ALLOWED_HOSTS:}` in application.yaml, pinned empty so a name the machine exports
+                        // never decides which Host a test sees refused; a test that needs one names it.
+                        "leadgen.security.allowed-hosts",
+                        ""));
         if (sources.contains(StandardEnvironment.SYSTEM_ENVIRONMENT_PROPERTY_SOURCE_NAME)) {
             sources.addBefore(StandardEnvironment.SYSTEM_ENVIRONMENT_PROPERTY_SOURCE_NAME, defaults);
         } else {

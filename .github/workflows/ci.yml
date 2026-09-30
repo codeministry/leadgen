@@ -66,6 +66,17 @@ jobs:
           bun install --frozen-lockfile
           bunx playwright install --with-deps chromium
 
+      # Vite bundles the browser tier's dependencies on the first run, into node_modules/.vite.
+      # On a cold runner that bundling can still be going when Chromium asks for the setup file,
+      # and every spec file then fails as "Failed to fetch dynamically imported module …
+      # init-testbed.js" with no test run (twice in 25 runs, never locally). One small spec
+      # file first fills the cache the full run in `check` reuses, measured locally: the same
+      # cache directory, and no bundling on the second run. Its own result does not matter,
+      # hence `|| true`; `check` still runs every browser spec, this one included.
+      - name: Warm the browser tier's dependency cache
+        working-directory: frontend
+        run: bun run test:browser -- --include src/app/shared/side-drawer/side-drawer.browser.spec.ts || true
+
       # The backend tests start a real Postgres through Testcontainers. Ubuntu runners
       # ship Docker, so this needs no service container — and must not have one: the tests
       # own the container's lifecycle and a second Postgres on 5432 would only confuse a

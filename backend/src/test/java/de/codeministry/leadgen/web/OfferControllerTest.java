@@ -22,6 +22,7 @@ import de.codeministry.leadgen.ask.AdvertAnswer;
 import de.codeministry.leadgen.ask.AdvertAskService;
 import de.codeministry.leadgen.ask.AdvertQuestion;
 import de.codeministry.leadgen.enrich.OfferRefetch;
+import de.codeministry.leadgen.llm.LlmBudget;
 import de.codeministry.leadgen.offer.*;
 import de.codeministry.leadgen.score.ScoringService;
 import java.time.Instant;
@@ -47,6 +48,9 @@ class OfferControllerTest {
 
     @MockitoBean
     private OfferQueryService offers;
+
+    @MockitoBean
+    private LlmBudget llmBudget;
 
     @MockitoBean
     private ScoringService scoring;
@@ -225,7 +229,7 @@ class OfferControllerTest {
         assertThat(mvc.get().uri("/api/v1/offers").param("sort", "score; DROP TABLE offer"))
                 .hasStatus(org.springframework.http.HttpStatus.BAD_REQUEST);
 
-        then(offers).should(never()).shortlist(any());
+        then(offers).should(never()).shortlist(any(), any());
     }
 
     @Test
@@ -233,7 +237,7 @@ class OfferControllerTest {
         assertThat(mvc.get().uri("/api/v1/offers").param("startWindow", "yesterday"))
                 .hasStatus(org.springframework.http.HttpStatus.BAD_REQUEST);
 
-        then(offers).should(never()).shortlist(any());
+        then(offers).should(never()).shortlist(any(), any());
     }
 
     @Test
@@ -273,12 +277,13 @@ class OfferControllerTest {
 
     @Test
     void passesTheRelatednessAxisThroughAsTheTypesItIs() {
-        given(offers.shortlist(any())).willReturn(new ShortlistPage(List.of(), null, 0, 0, 0, List.of(), null, null));
+        given(offers.shortlist(any(), any()))
+                .willReturn(new ShortlistPage(List.of(), null, 0, 0, 0, List.of(), null, null));
 
         assertThat(mvc.get().uri("/api/v1/offers").param("similar", "42")).hasStatusOk();
 
         var captured = org.mockito.ArgumentCaptor.forClass(ShortlistQuery.class);
-        then(offers).should().shortlist(captured.capture());
+        then(offers).should().shortlist(captured.capture(), any());
         assertThat(captured.getValue().related().similarTo()).isEqualTo(42L);
         assertThat(captured.getValue().related().semantic()).isNull();
     }
@@ -294,7 +299,7 @@ class OfferControllerTest {
                         .param("similar", "42"))
                 .hasStatus(org.springframework.http.HttpStatus.BAD_REQUEST);
 
-        then(offers).should(never()).shortlist(any());
+        then(offers).should(never()).shortlist(any(), any());
     }
 
     @Test
@@ -302,7 +307,7 @@ class OfferControllerTest {
         // Never a silently widened list: a shared link or a saved view carrying `semantic=` is
         // how this arrives on an installation without the index, and the reader has to be able
         // to tell a refusal from a quiet market.
-        given(offers.shortlist(any()))
+        given(offers.shortlist(any(), any()))
                 .willThrow(new de.codeministry.leadgen.retrieval.SemanticFilter.RetrievalUnavailable(
                         "this installation does not search by meaning: the retrieval index is switched off"));
 
@@ -314,7 +319,8 @@ class OfferControllerTest {
 
     @Test
     void passesTheNewFiltersThroughToTheQueryAsTheTypesTheyAre() {
-        given(offers.shortlist(any())).willReturn(new ShortlistPage(List.of(), null, 0, 0, 0, List.of(), null, null));
+        given(offers.shortlist(any(), any()))
+                .willReturn(new ShortlistPage(List.of(), null, 0, 0, 0, List.of(), null, null));
 
         assertThat(mvc.get()
                         .uri("/api/v1/offers")
@@ -325,7 +331,7 @@ class OfferControllerTest {
                 .hasStatusOk();
 
         var captured = org.mockito.ArgumentCaptor.forClass(ShortlistQuery.class);
-        then(offers).should().shortlist(captured.capture());
+        then(offers).should().shortlist(captured.capture(), any());
         assertThat(captured.getValue().sort()).isEqualTo(ShortlistSort.DEADLINE);
         assertThat(captured.getValue().startWindow()).isEqualTo(StartWindow.SOON);
         assertThat(captured.getValue().minMonths()).isEqualTo(6);
@@ -337,7 +343,7 @@ class OfferControllerTest {
         assertThat(mvc.get().uri("/api/v1/offers").param("scoreState", "pending"))
                 .hasStatus(org.springframework.http.HttpStatus.BAD_REQUEST);
 
-        then(offers).should(never()).shortlist(any());
+        then(offers).should(never()).shortlist(any(), any());
     }
 
     @Test
@@ -348,12 +354,13 @@ class OfferControllerTest {
         assertThat(mvc.get().uri("/api/v1/offers").param("band", "shortlist").param("minScore", "60"))
                 .hasStatus(org.springframework.http.HttpStatus.BAD_REQUEST);
 
-        then(offers).should(never()).shortlist(any());
+        then(offers).should(never()).shortlist(any(), any());
     }
 
     @Test
     void passesTheScoreAxisAndEveryNamedPortalThroughAsTheTypesTheyAre() {
-        given(offers.shortlist(any())).willReturn(new ShortlistPage(List.of(), null, 0, 0, 0, List.of(), null, null));
+        given(offers.shortlist(any(), any()))
+                .willReturn(new ShortlistPage(List.of(), null, 0, 0, 0, List.of(), null, null));
 
         assertThat(mvc.get()
                         .uri("/api/v1/offers")
@@ -363,7 +370,7 @@ class OfferControllerTest {
                 .hasStatusOk();
 
         var captured = org.mockito.ArgumentCaptor.forClass(ShortlistQuery.class);
-        then(offers).should().shortlist(captured.capture());
+        then(offers).should().shortlist(captured.capture(), any());
         assertThat(captured.getValue().score().min()).isEqualTo(40);
         assertThat(captured.getValue().score().max()).isEqualTo(80);
         assertThat(captured.getValue().portals()).containsExactly("portal-b", "portal-c");
@@ -373,23 +380,25 @@ class OfferControllerTest {
     void readsOnePortalAsAListOfOne() {
         // The parameter kept its singular name, so a link written before the filter took more
         // than one still binds — this is what says so.
-        given(offers.shortlist(any())).willReturn(new ShortlistPage(List.of(), null, 0, 0, 0, List.of(), null, null));
+        given(offers.shortlist(any(), any()))
+                .willReturn(new ShortlistPage(List.of(), null, 0, 0, 0, List.of(), null, null));
 
         assertThat(mvc.get().uri("/api/v1/offers").param("portal", "portal-c")).hasStatusOk();
 
         var captured = org.mockito.ArgumentCaptor.forClass(ShortlistQuery.class);
-        then(offers).should().shortlist(captured.capture());
+        then(offers).should().shortlist(captured.capture(), any());
         assertThat(captured.getValue().portals()).containsExactly("portal-c");
     }
 
     @Test
     void defaultsToTheScoreOrderWhenNothingAsksForAnything() {
-        given(offers.shortlist(any())).willReturn(new ShortlistPage(List.of(), null, 0, 0, 0, List.of(), null, null));
+        given(offers.shortlist(any(), any()))
+                .willReturn(new ShortlistPage(List.of(), null, 0, 0, 0, List.of(), null, null));
 
         assertThat(mvc.get().uri("/api/v1/offers")).hasStatusOk();
 
         var captured = org.mockito.ArgumentCaptor.forClass(ShortlistQuery.class);
-        then(offers).should().shortlist(captured.capture());
+        then(offers).should().shortlist(captured.capture(), any());
         assertThat(captured.getValue().sort()).isEqualTo(ShortlistSort.SCORE);
         assertThat(captured.getValue().startWindow()).isEqualTo(StartWindow.ANY);
         assertThat(captured.getValue().minMonths()).isNull();

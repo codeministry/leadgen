@@ -1,5 +1,8 @@
 # syntax=docker/dockerfile:1
-FROM gradle:9.4.1-jdk25 AS build
+# `$BUILDPLATFORM`: the jar is JVM bytecode and the same for every architecture, so the build
+# runs once on the runner's own platform instead of once more under QEMU for arm64. The runtime
+# stage below stays per target, and so does anything built there for the JRE it runs on.
+FROM --platform=$BUILDPLATFORM gradle:9.4.1-jdk25 AS build
 WORKDIR /workspace
 COPY settings.gradle.kts build.gradle.kts gradle.properties ./
 COPY gradle ./gradle

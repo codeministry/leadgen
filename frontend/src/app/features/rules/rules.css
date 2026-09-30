@@ -46,12 +46,26 @@
     overflow-y: auto;
 }
 
+/* The run control over the chips: two rows, both flush with the right edge of the title row, and
+   neither wider than the screen — each row wraps inside itself instead. */
+.rules-head {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.5rem;
+    min-width: 0;
+    max-width: 100%;
+}
+
 /* The two configuration facts in the header, as one pair: the same height, the same centre line,
    an icon each (operator, 2026-09-26). */
 .rules-facts {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
+
+    /* Flush right with the run control above it, wrapped or not. */
+    justify-content: flex-end;
     gap: 0.5rem;
 }
 

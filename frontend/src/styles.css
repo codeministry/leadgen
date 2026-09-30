@@ -173,6 +173,11 @@
     --lg-stage-glow-2: oklch(52% 0.16 280); /* #5A58C2 */
     --lg-stage-signal: oklch(76% 0.17 345); /* #FB80CA */
     --lg-stage-line: oklch(100% 0 0 / 12%);
+
+    /* Fix 3F-8: what lifts a floating surface (menus, popovers, the citation card) off the page,
+       and what dims the page behind a modal drawer. Stronger at night, where a light shadow vanishes. */
+    --lg-float-shadow: oklch(0% 0 0 / 18%);
+    --lg-backdrop: oklch(0% 0 0 / 40%);
 }
 
 [data-theme='lg-dark'] {
@@ -215,6 +220,9 @@
     --lg-stage-glow-2: oklch(52% 0.18 285); /* #6351CA */
     --lg-stage-signal: oklch(76% 0.17 345); /* #FB80CA */
     --lg-stage-line: oklch(100% 0 0 / 10%);
+
+    --lg-float-shadow: oklch(0% 0 0 / 45%);
+    --lg-backdrop: oklch(0% 0 0 / 60%);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -250,6 +258,8 @@
         --lg-stage-glow-2: oklch(52% 0.18 285);
         --lg-stage-signal: oklch(76% 0.17 345);
         --lg-stage-line: oklch(100% 0 0 / 10%);
+        --lg-float-shadow: oklch(0% 0 0 / 45%);
+        --lg-backdrop: oklch(0% 0 0 / 60%);
     }
 }
 
@@ -298,9 +308,15 @@ body {
    type scale, the spacing, the rail and header constants — so the root size is
    the only place "everything a notch smaller" can be said once. 93.75 % is 15 px
    against a browser default of 16, and it stays a percentage so a reader who has
-   raised their browser's font size still gets a proportionally larger app. */
+   raised their browser's font size still gets a proportionally larger app.
+
+   Fluid above a laptop (operator, 2026-09-30): 15px up to a 1440px window, 16px at
+   1920 and 17px from about 2500, linear in between, so a large monitor reads larger instead
+   of only wider. The floor and the ceiling stay percentages of the browser's size; the
+   slope is the viewport's. Everything in rem scales with it, the page cap included,
+   which is what keeps the proportions of a smaller screen on a larger one. */
 html {
-    font-size: 93.75%;
+    font-size: clamp(93.75%, 75% + 0.20833vw, 106.25%);
     font-family: var(--font-sans);
     font-optical-sizing: auto;
     text-rendering: optimizeLegibility;
