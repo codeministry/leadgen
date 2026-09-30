@@ -316,3 +316,6 @@ security:
     # The URL MCP clients reach `/mcp` at, as `/.well-known/oauth-protected-resource/mcp` names
     # it. Empty derives it from the request and the proxy's X-Forwarded-Proto and -Host.
     resource: ${OIDC_RESOURCE:}
+    # Whether the header's user menu asks gravatar.com for an avatar, by a SHA-256 hash of the
+    # signed-in address. On unless this says false; off, the menu shows initials only.
+    gravatar: ${GRAVATAR_ENABLED:true}

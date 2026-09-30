@@ -33,6 +33,15 @@
     "settings": "Einstellungen und Version",
     "help": "Hilfe"
   },
+  "user": {
+    "menu": "Konto",
+    "menuFor": "Konto: {name}",
+    "email": "E-Mail",
+    "verified": "bestätigt",
+    "issuer": "Angemeldet bei",
+    "expires": "Sitzung bis",
+    "logout": "Abmelden"
+  },
   "help": {
     "title": "Hilfe",
     "close": "Hilfe schließen",

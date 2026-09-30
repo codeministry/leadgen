@@ -13,6 +13,8 @@ import {TranslocoPipe, TranslocoService} from '@jsverse/transloco';
 import {LanguageToggle} from '../language-toggle/language-toggle';
 import {ThemeToggle} from '../theme-toggle/theme-toggle';
 import {HelpDrawer} from '../help-drawer/help-drawer';
+import {UserMenu} from '../user-menu/user-menu';
+import {SignedInState} from '@core/auth/signed-in.state';
 
 /**
  * The chrome on every screen: the brand, the navigation, the chat, settings and help.
@@ -23,7 +25,7 @@ import {HelpDrawer} from '../help-drawer/help-drawer';
  */
 @Component({
     selector: 'lg-app-header',
-  imports: [AppNav, BrandMark, HelpDrawer, Icon, LivingMark, RouterLink, ThemeToggle, LanguageToggle, TranslocoPipe],
+  imports: [AppNav, BrandMark, HelpDrawer, Icon, LivingMark, RouterLink, ThemeToggle, LanguageToggle, TranslocoPipe, UserMenu],
     templateUrl: './app-header.html',
     styleUrl: './app-header.css',
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -31,6 +33,7 @@ import {HelpDrawer} from '../help-drawer/help-drawer';
 })
 export class AppHeader {
     protected readonly status = inject(StatusStore);
+    protected readonly signedIn = inject(SignedInState);
 
   /**
    * Mirrored from the panel's own `toggle` event rather than tracked on the click, so a

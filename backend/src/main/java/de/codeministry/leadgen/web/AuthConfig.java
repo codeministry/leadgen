@@ -17,5 +17,8 @@ package de.codeministry.leadgen.web;
  *     document from. Public: it is in the address bar during the redirect.
  * @param clientId the public client the browser identifies as. Public for the same reason,
  *     and it holds no secret — that is what makes PKCE necessary rather than optional.
+ * @param gravatar whether the user menu may ask gravatar.com for an avatar. False under
+ *     {@code none}, where there is no user menu; under {@code oidc} true unless
+ *     {@code security.oidc.gravatar} says {@code false}, absent included.
  */
-public record AuthConfig(String mode, String issuer, String clientId) {}
+public record AuthConfig(String mode, String issuer, String clientId, boolean gravatar) {}

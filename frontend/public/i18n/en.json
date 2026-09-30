@@ -33,6 +33,15 @@
     "settings": "Settings and version",
     "help": "Help"
   },
+  "user": {
+    "menu": "Account",
+    "menuFor": "Account: {name}",
+    "email": "Email",
+    "verified": "verified",
+    "issuer": "Signed in at",
+    "expires": "Session until",
+    "logout": "Log out"
+  },
   "help": {
     "title": "Help",
     "close": "Close help",

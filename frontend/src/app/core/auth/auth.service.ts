@@ -2,6 +2,7 @@ import {inject, Injectable, signal} from '@angular/core';
 import {AuthConfig as OidcConfig, OAuthService} from 'angular-oauth2-oidc';
 import {firstValueFrom} from 'rxjs';
 import {AuthConfig, AuthConfigApi} from './auth-config.api';
+import {SignedInState} from './signed-in.state';
 
 /**
  * Whether anybody has to log in, and the token if they did.
@@ -32,6 +33,9 @@ export class AuthService {
     /** The signed-in subject's display name, or null under `none`. */
     readonly name = signal<string | null>(null);
 
+    /** Who is signed in and whether an avatar may be loaded, for the header to read. */
+    private readonly signedIn = inject(SignedInState);
+
     /**
      * Runs once, before the first route, and **never rejects**.
      *
@@ -58,7 +62,10 @@ export class AuthService {
         try {
             await this.oauth.loadDiscoveryDocumentAndLogin();
             this.authenticated.set(this.oauth.hasValidAccessToken());
-            this.name.set((this.oauth.getIdentityClaims() as {name?: string} | null)?.name ?? null);
+            const user = signedInUser(this.oauth.getIdentityClaims() as IdentityClaims | null, config.issuer);
+            this.signedIn.user.set(this.authenticated() ? user : null);
+            this.name.set(user?.name ?? null);
+            this.signedIn.gravatar.set(config.gravatar !== false);
         } catch {
             // Deliberately swallowed and surfaced as "not signed in": an unreachable
             // issuer is not a reason to leave the operator looking at nothing.
@@ -74,6 +81,11 @@ export class AuthService {
         return this.oauth.hasValidAccessToken() ? this.oauth.getAccessToken() : null;
     }
 
+    /**
+     * Ends the Keycloak session too, not only this tab's tokens: RP-initiated logout at the
+     * issuer's `end_session_endpoint`, with the ID token as the hint and back to this origin.
+     * A local-only logout would be undone by the next load, which signs in silently again.
+     */
     logout(): void {
         if (this.enabled()) {
             this.oauth.logOut();
@@ -99,4 +111,47 @@ export class AuthService {
             requireHttps: 'remoteOnly',
         };
     }
+}
+
+/** The ID token claims the user menu reads; every one of them optional, as the realm decides. */
+interface IdentityClaims {
+    readonly name?: string;
+    readonly given_name?: string;
+    readonly family_name?: string;
+    readonly preferred_username?: string;
+    readonly email?: string;
+    readonly email_verified?: boolean;
+    readonly exp?: number;
+}
+
+/**
+ * Who is signed in, as the user menu shows it.
+ *
+ * <p>`name` falls back to the username and then to the address, so the menu always has a line
+ * to lead with; `expiresAt` is the ID token's own expiry, which is when the next load signs in
+ * again, not a session a logout would shorten.
+ */
+export interface SignedInUser {
+    readonly name: string | null;
+    readonly username: string | null;
+    readonly email: string | null;
+    readonly emailVerified: boolean | null;
+    readonly issuer: string;
+    readonly expiresAt: Date | null;
+}
+
+export function signedInUser(claims: IdentityClaims | null, issuer: string): SignedInUser | null {
+    if (!claims) {
+        return null;
+    }
+    const joined = [claims.given_name, claims.family_name].filter((part) => !!part?.trim()).join(' ');
+    const name = claims.name?.trim() || joined || claims.preferred_username || claims.email || null;
+    return {
+        name,
+        username: claims.preferred_username ?? null,
+        email: claims.email ?? null,
+        emailVerified: claims.email_verified ?? null,
+        issuer,
+        expiresAt: typeof claims.exp === 'number' ? new Date(claims.exp * 1000) : null,
+    };
 }

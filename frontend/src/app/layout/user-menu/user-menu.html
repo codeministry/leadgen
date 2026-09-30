@@ -1,0 +1,65 @@
+<!-- The same shape as the settings popover beside it: a native popover gives light dismiss,
+     Escape and focus return with no script, and `aria-expanded` follows the panel's own toggle
+     event so a light dismiss is as visible to a screen reader as the click was. -->
+<button
+  type="button"
+  class="btn btn-ghost btn-square user-button"
+  popovertarget="app-user"
+  aria-controls="app-user"
+  [attr.aria-expanded]="open()"
+  [attr.aria-label]="buttonLabel()"
+  [attr.title]="buttonLabel()"
+>
+  <ng-container *ngTemplateOutlet="avatar; context: {size: 'small'}"/>
+</button>
+
+<div id="app-user" popover class="user-panel" (toggle)="onToggle($event)">
+  @if (user(); as user) {
+    <div class="user-head">
+      <ng-container *ngTemplateOutlet="avatar; context: {size: 'large'}"/>
+      <div class="user-names">
+        <p class="user-name">{{ user.name }}</p>
+        @if (user.username && user.username !== user.name) {
+          <p class="type-small text-muted user-username">{{ user.username }}</p>
+        }
+      </div>
+    </div>
+
+    <dl class="user-claims type-small">
+      @if (user.email) {
+        <dt class="text-muted">{{ 'user.email' | transloco }}</dt>
+        <dd class="user-email">
+          <span class="user-email-address">{{ user.email }}</span>
+          @if (user.emailVerified) {
+            <span class="badge badge-xs badge-outline">{{ 'user.verified' | transloco }}</span>
+          }
+        </dd>
+      }
+      @if (issuerHost(); as issuer) {
+        <dt class="text-muted">{{ 'user.issuer' | transloco }}</dt>
+        <dd class="type-mono-data user-issuer">{{ issuer }}</dd>
+      }
+      @if (expiresAt(); as expires) {
+        <dt class="text-muted">{{ 'user.expires' | transloco }}</dt>
+        <dd class="type-mono-data">{{ expires }}</dd>
+      }
+    </dl>
+
+    <button type="button" class="btn btn-sm btn-soft btn-primary user-logout" (click)="logout()">
+      <lg-icon name="log-out" [size]="16"/>
+      {{ 'user.logout' | transloco }}
+    </button>
+  }
+</div>
+
+<ng-template #avatar let-size="size">
+  <span class="user-avatar" [class.user-avatar-large]="size === 'large'" aria-hidden="true">
+    @if (avatarUrl() && !avatarFailed()) {
+      <img [src]="avatarUrl()" alt="" referrerpolicy="no-referrer" (error)="avatarFailed.set(true)"/>
+    } @else if (user()) {
+      <span class="user-initials">{{ initials() }}</span>
+    } @else {
+      <lg-icon name="user-round" [size]="20"/>
+    }
+  </span>
+</ng-template>

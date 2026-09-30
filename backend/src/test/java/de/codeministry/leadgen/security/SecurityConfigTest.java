@@ -159,6 +159,11 @@ class SecurityConfigTest {
                     .bodyJson()
                     .extractingPath("$.mode")
                     .isEqualTo("oidc");
+            // The user menu's avatar is on by default, and the test placeholder leaves it unset.
+            Assertions.assertThat(mvc.get().uri("/api/v1/auth-config"))
+                    .bodyJson()
+                    .extractingPath("$.gravatar")
+                    .isEqualTo(true);
         }
 
         private static Jwt verified() {

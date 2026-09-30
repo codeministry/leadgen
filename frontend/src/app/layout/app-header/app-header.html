@@ -121,6 +121,13 @@
         <lg-icon name="circle-help" [size]="20"/>
       </button>
       <lg-help-drawer #help/>
+
+      <!-- Who is signed in, at the very end of the row where an account usually sits. Only under
+           `oidc` with somebody signed in: under `none` there is nobody to show and nothing to
+           log out of, so the button is absent, not disabled. -->
+      @if (signedIn.user()) {
+        <lg-user-menu/>
+      }
     </div>
   </div>
 </header>

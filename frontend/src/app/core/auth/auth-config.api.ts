@@ -12,6 +12,8 @@ export interface AuthConfig {
     readonly mode: 'none' | 'oidc';
     readonly issuer: string | null;
     readonly clientId: string | null;
+    /** Whether the user menu may ask gravatar.com for an avatar; false under `none`. */
+    readonly gravatar: boolean;
 }
 
 @Injectable({providedIn: 'root'})

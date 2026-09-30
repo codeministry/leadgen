@@ -4,6 +4,7 @@ import {TestBed} from '@angular/core/testing';
 import {OAuthService} from 'angular-oauth2-oidc';
 import {AuthConfig} from './auth-config.api';
 import {AuthService} from './auth.service';
+import {SignedInState} from './signed-in.state';
 
 /** Every method this service reaches for, and a record of what was called. */
 function oauth(): Partial<OAuthService> & {calls: string[]} {
@@ -40,7 +41,7 @@ describe('AuthService', () => {
         const {service, backend, spy} = setUp();
 
         const done = service.initialise();
-        answer(backend, {mode: 'none', issuer: null, clientId: null});
+        answer(backend, {mode: 'none', issuer: null, clientId: null, gravatar: false});
         await done;
 
         expect(spy.calls).toEqual([]);
@@ -53,13 +54,17 @@ describe('AuthService', () => {
         const {service, backend, spy} = setUp();
 
         const done = service.initialise();
-        answer(backend, {mode: 'oidc', issuer: 'https://auth.example/realms/x', clientId: 'leadgen-web'});
+        answer(backend, {mode: 'oidc', issuer: 'https://auth.example/realms/x', clientId: 'leadgen-web', gravatar: true});
         await done;
 
         expect(spy.calls).toEqual(['configure', 'login']);
         expect(service.authenticated()).toBe(true);
         expect(service.token()).toBe('a-token');
         expect(service.name()).toBe('Somebody');
+        // The user menu reads these two: the claims as a user, and the avatar switch from the config.
+        const signedIn = TestBed.inject(SignedInState);
+        expect(signedIn.user()).toMatchObject({name: 'Somebody', issuer: 'https://auth.example/realms/x'});
+        expect(signedIn.gravatar()).toBe(true);
         backend.verify();
     });
 
@@ -84,11 +89,31 @@ describe('AuthService', () => {
         const {service, backend, spy} = setUp();
 
         const done = service.initialise();
-        answer(backend, {mode: 'oidc', issuer: null, clientId: null});
+        answer(backend, {mode: 'oidc', issuer: null, clientId: null, gravatar: true});
         await done;
 
         expect(spy.calls).toEqual([]);
         expect(service.token()).toBeNull();
         backend.verify();
+    });
+});
+
+describe('signedInUser', () => {
+    it('leads with the name, then the given and family name, then the username or address', async () => {
+        const {signedInUser} = await import('./auth.service');
+        const issuer = 'https://auth.example/realms/x';
+
+        expect(signedInUser({name: 'Ada Lovelace', email: 'ada@example.com', exp: 1_800_000_000}, issuer)).toEqual({
+            name: 'Ada Lovelace',
+            username: null,
+            email: 'ada@example.com',
+            emailVerified: null,
+            issuer,
+            expiresAt: new Date(1_800_000_000 * 1000),
+        });
+        expect(signedInUser({given_name: 'Ada', family_name: 'Lovelace'}, issuer)?.name).toBe('Ada Lovelace');
+        expect(signedInUser({preferred_username: 'ada'}, issuer)?.name).toBe('ada');
+        expect(signedInUser({email: 'ada@example.com'}, issuer)?.name).toBe('ada@example.com');
+        expect(signedInUser(null, issuer)).toBeNull();
     });
 });

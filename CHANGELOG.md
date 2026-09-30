@@ -11,6 +11,15 @@ may change in any release. See the status note in the README.
 
 ### Added
 
+- **A user menu in the header.** Under `AUTH_MODE=oidc`, with somebody signed in, an avatar button
+  at the end of the header opens a popover with the ID token's name, username, address (marked when
+  verified), the realm and the time the session runs to, and a Log out button that ends the Keycloak
+  session too (RP-initiated logout), not only this tab's tokens. The avatar comes from gravatar.com
+  by a SHA-256 hash of the address, never the address itself, with the initials in its place when
+  there is no image; `GRAVATAR_ENABLED=false` (new, `security.oidc.gravatar`, on by default) shows
+  the initials only. `/api/v1/auth-config` answers `gravatar`, and the compose nginx allows
+  `https://gravatar.com` in `img-src`. Under `none` there is no button at all.
+
 - **leadgen is an MCP server.** `/mcp` serves ten read-only tools over Streamable HTTP: the six a
   separate aggregator used to serve through the REST API (`leadgen_search_offers`, `leadgen_get_offer`,
   `leadgen_funnel_stats`, `leadgen_ingest_status`, `leadgen_list_applications`,
