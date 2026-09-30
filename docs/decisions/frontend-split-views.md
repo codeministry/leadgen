@@ -231,7 +231,7 @@ says what it became and why.
   with the nav rail **open** — the worse of two states no media query could see, because the rail went from 4rem to
   14.5rem on a click with no breakpoint of its own. That rail is gone, so there is one state left and the old number
   defends a layout that no longer exists. The floor it defended is the reading column it produced in the bad state,
-  489px. Without the rail that column is `min(V - 45, 1560) - 558.75`, so 72rem yields 548px and 64rem would yield
+  489px. Without the rail that column is `min(V - 45, 1920) - 558.75`, so 72rem yields 548px and 64rem would yield
   420px. Measured after the change, on all three screens: two columns at 1152 and one at 1151, the shortlist and the
   review at 548px of reading column and the board at 638px of lanes beside its fixed 30rem panel; 706px at 1280, where
   the detail's panels now sit two-up. 48rem is where the navigation becomes a bottom bar and stays its own number:

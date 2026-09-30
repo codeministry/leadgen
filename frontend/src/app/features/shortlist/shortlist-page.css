@@ -304,7 +304,7 @@
    there is one state left and the old number is measured against a layout that no longer
    exists. The floor it defended is the reading column it produced in the bad state, 489px.
 
-   Without the rail the reading column is `min(V - 45, 1560) - 558.75`: 548px at 72rem, which
+   Without the rail the reading column is `min(V - 45, 1920) - 558.75`: 548px at 72rem, which
    clears the floor, and 420px at 64rem, which does not. 48rem stays its own number, where the
    navigation becomes a bottom bar — two structural relayouts on one breakpoint make both
    harder to check.

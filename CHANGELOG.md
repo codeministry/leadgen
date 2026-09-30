@@ -244,6 +244,12 @@ may change in any release. See the status note in the README.
 
 ### Changed
 
+- **Wider pages and larger type on a large monitor.** The page cap is 128rem instead of 104rem, one
+  screen class up: a 1920px window is filled to its gutters, and a larger monitor at full screen still
+  gets a bounded page. The pipeline board and the workflow keep the full width. The root type size is
+  fluid above a laptop: 15px up to a 1440px window as before, 16px at 1920 and 17px from about 2500,
+  and every rem scales with it, the cap included (2176px at 2560).
+
 - **The name is leadGEN / AI everywhere.** The installed app (manifest `name` and `short_name`), the
   browser tab (`<screen> · leadGEN / AI`), the header's wordmark and the name a screen reader hears for
   it, the digest's heading, and the wordmark image on the README and every guide. The header's label
