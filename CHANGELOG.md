@@ -9,6 +9,27 @@ may change in any release. See the status note in the README.
 
 ## [Unreleased]
 
+## [0.5.1] — 2026-09-30
+
+The corpus gets a chat, leadgen serves its own MCP tools at `/mcp`, `oidc` runs behind a private CA
+and shows who is signed in, and a large monitor gets a wider page with larger type.
+
+Before upgrading, three changes in how the release runs:
+
+- **The web image listens on 8080, as a non-root nginx.** Compose maps `WEB_PORT` to it; a
+  deployment that sets the container port itself (a chart's service port and nginx ConfigMap) moves
+  to 8080 first, or the web pod never turns ready. By the rule in `docs/decisions/native-image.md`
+  this would move the minor; it ships as a patch by the operator's call, and this note is where it
+  is said.
+- **`AUTH_MODE=none` refuses a dotted host nobody listed.** Loopback, IP literals and single-label
+  names pass as before; an instance under `none` behind a real host name lists it in
+  `ALLOWED_HOSTS` or answers 403.
+- **MCP clients move to leadgen's own `/mcp`.** codeministry-mcp no longer serves the leadgen tools.
+
+New and optional: `ALLOWED_HOSTS`, `OIDC_JWK_SET_URI`, `OIDC_AUDIENCE`, `OIDC_RESOURCE`,
+`GRAVATAR_ENABLED`, `LLM_MODEL_CHAT` and the `CHAT_*` keys. Migrations `V32` to `V36` add the chat's
+tables and columns and remove nothing.
+
 ### Added
 
 - **A user menu in the header.** Under `AUTH_MODE=oidc`, with somebody signed in, an avatar button
@@ -1566,7 +1587,8 @@ Found while building the demo, all of them in paths only a container exercises:
   left six.
 - The shortlist card printed the description's Markdown syntax in its teaser.
 
-[Unreleased]: https://github.com/codeministry/leadgen/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/codeministry/leadgen/compare/v0.5.1...HEAD
+[0.5.1]: https://github.com/codeministry/leadgen/releases/tag/v0.5.1
 [0.5.0]: https://github.com/codeministry/leadgen/releases/tag/v0.5.0
 [0.4.3]: https://github.com/codeministry/leadgen/releases/tag/v0.4.3
 [0.4.2]: https://github.com/codeministry/leadgen/releases/tag/v0.4.2

@@ -57,7 +57,7 @@ public record ConfigProperties(
 
     // One home per default, read by the bound constructor and the hand-built one alike, so
     // the two cannot drift. `@DefaultValue` takes a compile-time constant, hence strings.
-    private static final String DEFAULT_VERSION = "0.5.0";
+    private static final String DEFAULT_VERSION = "0.5.1";
     private static final String DEFAULT_CONFIG_POLL_INTERVAL = "PT2S";
     private static final String DEFAULT_SCORE_BATCH_POLL_INTERVAL = "PT5M";
     private static final String DEFAULT_INGEST_CRON = "-";
