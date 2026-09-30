@@ -13,14 +13,19 @@ import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.config.model.PipelineConfig;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.net.http.HttpClient;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
+import javax.net.ssl.SSLContext;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.boot.ssl.SslBundles;
 import org.springframework.boot.web.server.autoconfigure.ServerProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -38,6 +43,9 @@ import org.springframework.security.oauth2.server.resource.web.BearerTokenAuthen
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.intercept.AuthorizationFilter;
 import org.springframework.security.web.util.UrlUtils;
+import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestOperations;
+import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
 /**
@@ -111,14 +119,43 @@ public class SecurityConfig {
      * request is not made at all rather than made and ignored.
      */
     @Bean
-    JwtDecoder jwtDecoder(ConfigRegistry config) {
+    JwtDecoder jwtDecoder(ConfigRegistry config, ObjectProvider<SslBundles> bundles) {
         PipelineConfig.Security security = config.snapshot().application().security();
         if (!OIDC.equals(security.auth())) {
             return token -> {
                 throw new IllegalStateException("security.auth is not 'oidc'; nothing here verifies a token");
             };
         }
-        return decoder(security);
+        return decoder(security, trusting(bundles.getIfAvailable()));
+    }
+
+    /**
+     * The SSL bundle the decoder's own requests trust when one of this name is configured —
+     * {@code spring.ssl.bundle.jks.oidc.truststore.*}, or its {@code SPRING_SSL_BUNDLE_JKS_OIDC_*}
+     * spelling in {@code .env}.
+     */
+    static final String TRUST_BUNDLE = "oidc";
+
+    /**
+     * The requests to the issuer, over the {@value #TRUST_BUNDLE} bundle when one is configured,
+     * else null and the JDK's own trust store.
+     *
+     * <p><b>A local run against an issuer behind a private CA.</b> The JVM trusts the JDK's store
+     * and nothing else, so discovery against {@code https://auth.microk8s.home} failed the
+     * handshake and a plain {@code ./gradlew :backend:bootRun} never started (operator,
+     * 2026-09-30). A {@code JAVA_TOOL_OPTIONS} trust store fixed it for whoever remembered to set
+     * it, and swapped the trust of every other connection this process makes along with it. The
+     * bundle is read through Spring's environment, so {@code .env} reaches it on every start
+     * path, and it applies to these requests alone. A pod keeps the in-cluster key set instead.
+     */
+    static RestOperations trusting(SslBundles bundles) {
+        if (bundles == null || !bundles.getBundleNames().contains(TRUST_BUNDLE)) {
+            return null;
+        }
+        SSLContext context = bundles.getBundle(TRUST_BUNDLE).createSslContext();
+        log.info("Requests to the OIDC issuer trust the '{}' SSL bundle", TRUST_BUNDLE);
+        return new RestTemplate(new JdkClientHttpRequestFactory(
+                HttpClient.newBuilder().sslContext(context).build()));
     }
 
     @Bean
@@ -329,6 +366,11 @@ public class SecurityConfig {
      * deliberate, stricter choice, and it needs the mapper on the Keycloak side.
      */
     static JwtDecoder decoder(PipelineConfig.Security security) {
+        return decoder(security, null);
+    }
+
+    /** As {@link #decoder(PipelineConfig.Security)}, with every request to the issuer over {@code rest} when it is given. */
+    static JwtDecoder decoder(PipelineConfig.Security security, RestOperations rest) {
         String issuer = value(security, ISSUER);
         if (issuer == null || issuer.isBlank()) {
             // Unreachable while ConfigLoader does its job, said out loud for the day it does not.
@@ -337,13 +379,43 @@ public class SecurityConfig {
         String jwkSetUri = value(security, JWK_SET_URI);
         NimbusJwtDecoder decoder;
         if (jwkSetUri == null || jwkSetUri.isBlank()) {
-            decoder = JwtDecoders.fromIssuerLocation(issuer);
+            decoder = rest == null
+                    ? JwtDecoders.fromIssuerLocation(issuer)
+                    : NimbusJwtDecoder.withJwkSetUri(discoverKeySet(issuer, rest))
+                            .restOperations(rest)
+                            .build();
         } else {
             log.info("Signing keys fetched from {} rather than discovered at {}", jwkSetUri, issuer);
-            decoder = NimbusJwtDecoder.withJwkSetUri(jwkSetUri).build();
+            var builder = NimbusJwtDecoder.withJwkSetUri(jwkSetUri);
+            decoder = (rest == null ? builder : builder.restOperations(rest)).build();
         }
         decoder.setJwtValidator(validator(security));
         return decoder;
+    }
+
+    /**
+     * The key set the issuer's discovery document names, asked at startup over {@code rest}.
+     *
+     * <p>By hand rather than through {@code withIssuerLocation}, which asks on the first token: the
+     * decoder built without a bundle stops the application when the issuer cannot be reached, and
+     * one built with a bundle must not quietly start with authentication that cannot work. The
+     * document has to name the configured issuer, as {@code JwtDecoders} checks too.
+     */
+    static String discoverKeySet(String issuer, RestOperations rest) {
+        String location = issuer.replaceFirst("/$", "") + "/.well-known/openid-configuration";
+        Map<?, ?> document;
+        try {
+            document = rest.getForObject(location, Map.class);
+        } catch (RestClientException e) {
+            throw new IllegalArgumentException("Unable to resolve the OIDC configuration of the issuer " + issuer, e);
+        }
+        if (document == null
+                || !issuer.equals(document.get("issuer"))
+                || !(document.get("jwks_uri") instanceof String jwks)) {
+            throw new IllegalArgumentException(
+                    "The discovery document at " + location + " does not describe the issuer " + issuer);
+        }
+        return jwks;
     }
 
     /**

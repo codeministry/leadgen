@@ -10,6 +10,8 @@ package de.codeministry.leadgen.security;
 
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 import de.codeministry.leadgen.Databases;
 import de.codeministry.leadgen.config.ConfigFixtures;
@@ -28,6 +30,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.http.MediaType;
 import org.springframework.security.oauth2.core.OAuth2TokenValidator;
 import org.springframework.security.oauth2.jwt.BadJwtException;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -35,7 +38,9 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
+import org.springframework.web.client.RestTemplate;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -204,6 +209,44 @@ class SecurityConfigTest {
 
             Assertions.assertThatCode(() -> SecurityConfig.decoder(security(oidc)))
                     .doesNotThrowAnyException();
+        }
+
+        /*
+         * Operator, 2026-09-30: a local run against a private-CA issuer. With the `oidc` SSL bundle
+         * configured, discovery goes through the bundle's requests, still at startup.
+         */
+        @Test
+        void discoversTheKeySetOverTheTrustBundlesRequestsAtStartup() {
+            RestTemplate rest = new RestTemplate();
+            MockRestServiceServer issuer = MockRestServiceServer.bindTo(rest).build();
+            issuer.expect(requestTo(ISSUER + "/.well-known/openid-configuration"))
+                    .andRespond(withSuccess(
+                            "{\"issuer\":\"" + ISSUER + "\",\"jwks_uri\":\"" + ISSUER
+                                    + "/protocol/openid-connect/certs\"}",
+                            MediaType.APPLICATION_JSON));
+
+            Assertions.assertThatCode(() -> SecurityConfig.decoder(security(Map.of("issuer", ISSUER)), rest))
+                    .doesNotThrowAnyException();
+            issuer.verify();
+        }
+
+        @Test
+        void refusesADiscoveryDocumentForAnotherIssuer() {
+            RestTemplate rest = new RestTemplate();
+            MockRestServiceServer issuer = MockRestServiceServer.bindTo(rest).build();
+            issuer.expect(requestTo(ISSUER + "/.well-known/openid-configuration"))
+                    .andRespond(withSuccess(
+                            "{\"issuer\":\"https://elsewhere.example\",\"jwks_uri\":\"https://elsewhere.example/certs\"}",
+                            MediaType.APPLICATION_JSON));
+
+            Assertions.assertThatThrownBy(() -> SecurityConfig.decoder(security(Map.of("issuer", ISSUER)), rest))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("does not describe the issuer");
+        }
+
+        @Test
+        void usesTheJdkTrustWithoutAnOidcBundle() {
+            Assertions.assertThat(SecurityConfig.trusting(null)).isNull();
         }
 
         @Test
