@@ -543,6 +543,34 @@ describe('FlowCanvas in a browser', () => {
             }
         });
 
+        // Operator, 2026-09-30: with the sheet open the pan bounds are the part of the box it leaves
+        // free, recomputed as it opens and closes. Measured against the whole box, the fitted graph
+        // counted as contained and its right end could never come out from under the sheet.
+        it('pans the graph\'s right end out from under an open sheet, and takes the whole box back once it closes', async () => {
+            const {fixture, host} = await mount();
+            const stand = sheet();
+            fixture.componentRef.setInput('occluder', stand);
+            await settle(fixture);
+            const svg = host.querySelector('svg')!;
+            const push = async (dx: number): Promise<void> => {
+                for (let i = 0; i < 20; i++) svg.dispatchEvent(new WheelEvent('wheel', {bubbles: true, cancelable: true, deltaX: -dx / 20, deltaY: 0}));
+                await settle(fixture);
+            };
+            const right = (): number => Math.max(...Array.from(host.querySelectorAll('[data-node]'), (n) => n.getBoundingClientRect().right));
+            const left = (): number => Math.min(...Array.from(host.querySelectorAll('[data-node]'), (n) => n.getBoundingClientRect().left));
+            expect(right()).toBeGreaterThan(stand.getBoundingClientRect().left);
+
+            await push(-4000);
+            expect(right()).toBeLessThanOrEqual(stand.getBoundingClientRect().left + 1);
+
+            fixture.componentRef.setInput('occluder', null);
+            stand.remove();
+            await push(4000);
+            const box = host.getBoundingClientRect();
+            expect(left()).toBeGreaterThanOrEqual(box.left - 1);
+            expect(right()).toBeLessThanOrEqual(box.right + 1);
+        });
+
         it('does not move a selected node the sheet leaves visible', async () => {
             const {fixture, host} = await mount();
             fixture.componentRef.setInput('occluder', sheet());

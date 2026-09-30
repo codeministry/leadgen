@@ -202,6 +202,38 @@ function shiftInto(start: number, end: number, min: number, max: number): number
     return max - end;
 }
 
+/** A span of the box in its own px, on each axis. */
+interface FreeArea {
+    readonly left: number;
+    readonly right: number;
+    readonly top: number;
+    readonly bottom: number;
+}
+
+/**
+ * The part of `box` that `cover` leaves free, in the box's own px (operator, 2026-09-30). A sheet
+ * docked at the right edge over at least half the box's height takes its width off the right; one
+ * docked at the bottom over half the width takes its height off the bottom. Anything else, and a
+ * cover that would leave less than `min` px, leaves the whole box: a phone's full-width sheet hides
+ * the canvas entirely, and bounds squeezed to nothing would pin the graph instead of freeing it.
+ */
+export function freeArea(box: DOMRect, cover: DOMRect | null, min: number): FreeArea {
+    const whole = {left: 0, right: box.width, top: 0, bottom: box.height};
+    if (cover === null || cover.width === 0 || cover.height === 0) return whole;
+    const overlapX = Math.min(box.right, cover.right) - Math.max(box.left, cover.left);
+    const overlapY = Math.min(box.bottom, cover.bottom) - Math.max(box.top, cover.top);
+    if (overlapX <= 0 || overlapY <= 0) return whole;
+    if (cover.right >= box.right - 1 && cover.left > box.left + 1 && overlapY >= box.height / 2) {
+        const right = cover.left - box.left;
+        return right >= min ? {...whole, right} : whole;
+    }
+    if (cover.bottom >= box.bottom - 1 && cover.top > box.top + 1 && overlapX >= box.width / 2) {
+        const bottom = cover.top - box.top;
+        return bottom >= min ? {...whole, bottom} : whole;
+    }
+    return whole;
+}
+
 type FlowNodeData = StageNodeData | SubNodeData;
 
 /**
@@ -629,24 +661,34 @@ export class FlowCanvas {
      * sub-nodes included. Never further out than `from`: a reveal may leave the fitted graph
      * partly outside, and the next gesture must be free to bring it back rather than jump.
      * Unclamped where the box has no size (jsdom) or there is no graph.
+     *
+     * <p>"The box" is the part of it the occluder leaves free, read at every call (operator,
+     * 2026-09-30). The sheet lies over the canvas rather than beside it, so bounds measured against
+     * the whole box let a fitted graph count as contained while its right end sat under the sheet,
+     * out of reach until the sheet was closed. Read live, the bounds follow the sheet as it opens
+     * and closes, with nothing to recompute on either.
      */
     private clamp(next: ViewportState, from: ViewportState | null, contain: boolean): ViewportState {
         const nodes = this.layout().nodes;
         const box = this.wheelBox().nativeElement;
         if (nodes.length === 0 || box.clientWidth === 0 || box.clientHeight === 0) return next;
+        // The client box, inside the border: the viewport's origin is there, not on the border's edge.
+        const outer = box.getBoundingClientRect();
+        const rect = new DOMRect(outer.left + box.clientLeft, outer.top + box.clientTop, box.clientWidth, box.clientHeight);
+        const free = freeArea(rect, this.occluder()?.getBoundingClientRect() ?? null, 4 * FLOW_PAN_MARGIN);
         const zoom = next.zoom;
-        const axis = (pos: number, before: number | null, lo: number, hi: number, size: number): number => {
+        const axis = (pos: number, before: number | null, lo: number, hi: number, near: number, far: number): number => {
             const start = lo * zoom;
             const end = hi * zoom;
             let min: number;
             let max: number;
-            if (contain && end - start <= size) {
-                min = -start;
-                max = size - end;
+            if (contain && end - start <= far - near) {
+                min = near - start;
+                max = far - end;
             } else {
                 const keep = Math.min(FLOW_PAN_MARGIN, end - start);
-                min = keep - end;
-                max = size - keep - start;
+                min = near + keep - end;
+                max = far - keep - start;
             }
             if (before !== null) {
                 min = Math.min(min, before);
@@ -661,8 +703,8 @@ export class FlowCanvas {
         const y1 = Math.max(...nodes.map((n) => n.y + n.height));
         return {
             zoom,
-            x: axis(next.x, sameZoom ? from.x : null, x0, x1, box.clientWidth),
-            y: axis(next.y, sameZoom ? from.y : null, y0, y1, box.clientHeight),
+            x: axis(next.x, sameZoom ? from.x : null, x0, x1, free.left, free.right),
+            y: axis(next.y, sameZoom ? from.y : null, y0, y1, free.top, free.bottom),
         };
     }
 
