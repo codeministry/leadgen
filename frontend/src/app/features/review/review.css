@@ -36,6 +36,9 @@
     flex-direction: column;
   max-height: calc(100svh - var(--lg-sticky-top) - var(--lg-gutter));
     min-height: 0;
+
+  /* The pane below reads whether this column is pinned yet, see `.queue-pane`. */
+  container-type: scroll-state;
 }
 
 /* A focus ring at `outline-offset: 2px` on a row at the pane's edge is otherwise clipped by
@@ -50,9 +53,18 @@
     min-height: 0;
     overflow-y: auto;
 
-  /* A flick through the queue does not throw the document behind it. */
-    overscroll-behavior: contain;
+  /* A flick through the queue does not throw the document behind it, once the column is pinned.
+     Before that its bottom hangs below the viewport (the max-height assumes the pinned
+     position), and contained from the start the last row could not be reached. The same
+     reasoning as the shortlist's `.list-pane`. */
+    overscroll-behavior: auto;
     scrollbar-gutter: stable;
+}
+
+@container scroll-state(stuck: top) {
+  .queue-pane {
+    overscroll-behavior: contain;
+  }
 }
 
 .queue {

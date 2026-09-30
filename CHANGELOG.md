@@ -180,6 +180,12 @@ may change in any release. See the status note in the README.
 
 ### Fixed
 
+- **The shortlist's last card can be scrolled into view.** Before the page had scrolled far enough to
+  pin the list column, the column's bottom hung below the window (39px at 1440×900), and a wheel over
+  the list never moved the page, so the last card stayed out of reach. The list now hands its scroll
+  to the page until the column is pinned, and keeps it to itself from then on (a scroll-state
+  container query; a browser without one always hands it on). The parked review screen got the same.
+
 - **The browser tests no longer fail on a cold CI runner.** Vite bundles their dependencies on the
   first run, and on a slow runner Chromium asked for the setup file before it was done, so every spec
   file failed to import. CI now runs one spec file first to fill the cache.

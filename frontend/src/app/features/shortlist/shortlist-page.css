@@ -39,6 +39,9 @@
     flex-direction: column;
   max-height: calc(100svh - var(--lg-sticky-top) - var(--lg-gutter));
     min-height: 0;
+
+  /* The pane below reads whether this column is pinned yet, see `.list-pane`. */
+  container-type: scroll-state;
 }
 
 /* A focus ring at `outline-offset: 2px` on a card at the pane's edge is otherwise clipped by
@@ -61,11 +64,23 @@
      card keeps from the top edge when the list scrolls to it. */
   padding-block: 4px;
 
-  /* A flick through the list does not throw the advert behind it. */
-    overscroll-behavior: contain;
+  /* A flick through the list does not throw the advert behind it, but only once the column is
+     pinned. The max-height above is sized for the pinned position; before the page has
+     scrolled that far the column starts lower and its bottom hangs below the viewport by the
+     difference. Contained from the start, a wheel over the list never scrolled the page, and
+     the last card could not be reached at all (measured: 39px short at 1440x900). Unpinned,
+     the scroll chains to the page, which pins the column and brings its bottom into view; a
+     browser without scroll-state queries keeps chaining, the safe half. */
+    overscroll-behavior: auto;
 
   /* No layout shift the first time the list is long enough to scroll. */
     scrollbar-gutter: stable;
+}
+
+@container scroll-state(stuck: top) {
+  .list-pane {
+    overscroll-behavior: contain;
+  }
 }
 
 /* The query container for the detail's own panel grid, and it no longer scrolls: the
