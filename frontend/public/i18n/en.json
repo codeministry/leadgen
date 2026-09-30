@@ -31,7 +31,13 @@
   "shell": {
     "connecting": "connecting…",
     "settings": "Settings and version",
-    "help": "Help"
+    "help": "Help",
+    "run": {
+      "title": "Workflow run",
+      "running": "A run is going",
+      "idle": "No run yet — start one",
+      "details": "Open in workflow"
+    }
   },
   "user": {
     "menu": "Account",

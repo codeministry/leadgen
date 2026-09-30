@@ -9,9 +9,9 @@
   and losing that race leaves the first one showing while the run uses another.
 -->
 @if (models.selectable()) {
-    <label class="sr-only" for="scoring-model">{{ 'rules.runControl.model' | transloco }}</label>
+    <label class="sr-only" [attr.for]="selectId">{{ 'rules.runControl.model' | transloco }}</label>
     <select
-            id="scoring-model"
+            [id]="selectId"
             class="select select-sm type-mono-data run-model"
             [disabled]="ingest.busy()"
             (change)="chooseModel($event)"

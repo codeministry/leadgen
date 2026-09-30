@@ -31,7 +31,13 @@
   "shell": {
     "connecting": "verbinde…",
     "settings": "Einstellungen und Version",
-    "help": "Hilfe"
+    "help": "Hilfe",
+    "run": {
+      "title": "Workflow-Lauf",
+      "running": "Ein Lauf läuft",
+      "idle": "Noch kein Lauf — jetzt starten",
+      "details": "Im Workflow öffnen"
+    }
   },
   "user": {
     "menu": "Konto",
