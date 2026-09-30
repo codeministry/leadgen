@@ -57,7 +57,7 @@ export class RunStatus {
         this.lang();
         const run = this.ingest.current();
         if (run !== null) {
-            return run.stagePosition !== null && run.stageTotal !== null
+            return run.stagePosition && run.stageTotal
                 ? this.transloco.translate('rules.status.ariaRunning', {position: run.stagePosition, total: run.stageTotal})
                 : this.transloco.translate('shell.run.running');
         }
@@ -70,14 +70,14 @@ export class RunStatus {
     });
 
     protected readonly startedAt = computed((): string | null => {
-        const run = this.ingest.current();
-        return run === null ? null : new Intl.DateTimeFormat(this.lang(), {timeStyle: 'short'}).format(new Date(run.startedAt));
+        const at = instant(this.ingest.current()?.startedAt);
+        return at === null ? null : new Intl.DateTimeFormat(this.lang(), {timeStyle: 'short'}).format(at);
     });
 
     /** Seconds since the pass in flight started; read only while one is, so the clock costs nothing idle. */
     protected readonly elapsed = computed((): number | null => {
-        const run = this.ingest.current();
-        return run === null ? null : Math.max(0, Math.floor((this.tick() - Date.parse(run.startedAt)) / 1000));
+        const at = instant(this.ingest.current()?.startedAt);
+        return at === null ? null : Math.max(0, Math.floor((this.tick() - at.getTime()) / 1000));
     });
 
     /** Stages behind the running one: step 3 of 9 means two are done. */
@@ -88,11 +88,10 @@ export class RunStatus {
 
     /** When the last run finished: a time of day today, a date with it otherwise. */
     protected readonly finishedAt = computed((): string | null => {
-        const finished = this.ingest.lastRun()?.finishedAt;
-        if (!finished) {
+        const at = instant(this.ingest.lastRun()?.finishedAt);
+        if (at === null) {
             return null;
         }
-        const at = new Date(finished);
         const today = at.toDateString() === new Date().toDateString();
         return new Intl.DateTimeFormat(this.lang(), today ? {timeStyle: 'short'} : {dateStyle: 'short', timeStyle: 'short'}).format(at);
     });
@@ -127,4 +126,15 @@ export class RunStatus {
     protected close(panel: HTMLElement): void {
         panel.hidePopover?.();
     }
+}
+
+/**
+ * A timestamp as a date, or null when there is none or it does not parse. `Intl` throws a
+ * RangeError on an invalid date, and one missing field in a payload would take the whole header
+ * down with it rather than leave a line out.
+ */
+function instant(value: string | null | undefined): Date | null {
+    if (!value) return null;
+    const at = new Date(value);
+    return Number.isNaN(at.getTime()) ? null : at;
 }

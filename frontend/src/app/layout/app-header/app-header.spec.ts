@@ -98,6 +98,15 @@ describe('AppHeader', () => {
             expect(panel().textContent).toContain('ENRICH');
         });
 
+        it('leaves a line out rather than throw when a pass arrives without its start or its step', () => {
+            // A payload missing a field once took the header down with an Intl RangeError.
+            current({id: 8, startedAt: null, scoreModel: null, stage: null, stagePosition: null, stageTotal: undefined, stageStartedAt: null});
+
+            expect(button().classList).toContain('is-running');
+            expect(button().getAttribute('aria-label')).toBe(en.shell.run.running);
+            expect(panel().querySelector('progress')).toBeNull();
+        });
+
         it('paints a failed last run, and a pass in flight outranks it', () => {
             current(null);
             lastRun({status: 'FAILED', startedAt: '2026-09-30T08:00:00Z', finishedAt: '2026-09-30T08:05:00Z', stages: [], sources: []});

@@ -42,7 +42,7 @@
                 <span class="type-mono-data text-muted">{{ 'rules.status.soFar' | transloco: {time: clock(seconds)} }}</span>
             }
         </p>
-        @if (run.stagePosition !== null && run.stageTotal !== null) {
+        @if (run.stagePosition && run.stageTotal) {
             <progress
                     class="progress run-status-progress"
                     [value]="done() ?? 0"
