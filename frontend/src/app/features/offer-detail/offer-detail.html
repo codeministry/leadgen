@@ -230,6 +230,10 @@
             @if (store.rescoreError(); as refusal) {
                 <p class="type-small rescore-refusal">{{ refusal | transloco }}</p>
             }
+            <!-- An archive or restore refused for this offer, unless its row on screen says it. -->
+            @if (store.detailArchiveError(); as refusal) {
+                <p class="type-small rescore-refusal" role="alert">{{ refusal | transloco }}</p>
+            }
             <div class="score-row">
                 <lg-score [value]="entry.score.value" [size]="72"/>
                 <p class="type-small text-muted">

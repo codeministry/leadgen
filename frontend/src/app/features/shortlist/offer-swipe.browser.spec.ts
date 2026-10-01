@@ -78,6 +78,8 @@ let writes: {id: number; archived: boolean}[] = [];
 
 /** While true the server refuses every archive or restore, after it was counted in `writes`. */
 let refuseWrites = false;
+/** The reason a refused write gives, as the server words it; null for none. */
+let refusal: string | null = null;
 
 function answer(request: TestRequest): unknown {
     const url = request.request.url;
@@ -129,6 +131,7 @@ describe('a shortlist row swiped to the left (ISC-492)', () => {
         offersPayload = WORKING;
         writes = [];
         refuseWrites = false;
+        refusal = null;
     });
 
     const frame = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
@@ -140,7 +143,7 @@ describe('a shortlist row swiped to the left (ISC-492)', () => {
                 if (request.cancelled) continue;
                 const body = answer(request);
                 if (refuseWrites && request.request.method === 'PATCH') {
-                    request.flush(null, {status: 500, statusText: 'Refused'});
+                    request.flush(refusal, {status: 500, statusText: 'Refused'});
                 } else if (body === undefined) {
                     request.flush(null, {status: 404, statusText: 'Not in this spec'});
                 } else {
@@ -481,6 +484,22 @@ describe('a shortlist row swiped to the left (ISC-492)', () => {
             fixture.detectChanges();
             expect(li.querySelectorAll('[role="alert"]').length, 'the next touch clears it').toBe(0);
             fire(target, 'pointercancel', 'touch', 10, 10, pointerId);
+        });
+    });
+
+    describe('a refused write with a reason (review finding 7)', () => {
+        it("says the server's reason in the row rather than the catalog sentence", async () => {
+            await open('/shortlist/1', 1440);
+            refuseWrites = true;
+            refusal = 'Offer 2 is locked by a running pass.';
+            const li = row(1);
+            await swipe(li, 13 * 16);
+            await settle();
+            await expect.poll(() => translateX(li), {timeout: 2000}).toBe(0);
+
+            const alerts = li.querySelectorAll('[role="alert"]');
+            expect(alerts.length).toBe(1);
+            expect(alerts[0].textContent?.trim()).toBe('Offer 2 is locked by a running pass.');
         });
     });
 

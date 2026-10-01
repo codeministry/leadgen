@@ -264,10 +264,123 @@ describe('ShortlistStore', () => {
         http.expectOne('/api/v1/offers/1').flush('boom', {status: 500, statusText: 'Server Error'});
         expect(store.archiving()).toBeNull();
         expect(store.rescoreError()).toBeNull();
+        expect(store.archiveError()).toEqual({id: 1, message: 'boom', inline: true});
+        expect(store.inlineArchiveError()).toEqual({id: 1, message: 'boom', inline: true});
+        expect(store.detailArchiveError()).toBeNull();
 
         dispatch.archiveRequested({id: 1, archived: true});
         http.expectOne('/api/v1/offers/1').flush('boom', {status: 500, statusText: 'Server Error'});
-        expect(store.rescoreError(), 'the detail button still reads its own').toBe('boom');
+        expect(store.detailArchiveError(), 'the detail button still reads its own').toBe('boom');
+        expect(store.inlineArchiveError()).toBeNull();
+        expect(store.rescoreError(), 'an archive refusal is not a rescore refusal').toBeNull();
+    });
+
+    describe('a refused restore from the archive toast (review findings 5, 8)', () => {
+        function refuseRestore(id: number): void {
+            dispatch.archiveRequested({id, archived: false, inline: true});
+            http.expectOne(`/api/v1/offers/${id}`).flush('locked', {status: 409, statusText: 'Conflict'});
+        }
+
+        it('is never shown under another offer', () => {
+            openList([entry(1), entry(2)]);
+            dispatch.offerRequested(1);
+            http.expectOne('/api/v1/offers/1').flush(entry(1));
+
+            refuseRestore(7);
+
+            expect(store.archiveError()).toEqual({id: 7, message: 'locked', inline: true});
+            expect(store.detailArchiveError(), 'the detail shows offer 1').toBeNull();
+            expect(store.inlineArchiveError(), 'offer 7 has no row on screen').toBeNull();
+            expect(store.rescoreError()).toBeNull();
+        });
+
+        it('falls back to the detail when the detail shows that offer and its row is not on screen', () => {
+            openList([entry(1), entry(2)]);
+            dispatch.offerRequested(7);
+            http.expectOne('/api/v1/offers/7').flush(entry(7));
+
+            refuseRestore(7);
+
+            expect(store.detailArchiveError()).toBe('locked');
+            expect(store.inlineArchiveError()).toBeNull();
+        });
+
+        it('stands in the row when the row is on screen', () => {
+            openList([entry(1), entry(7)]);
+            dispatch.offerRequested(7);
+            http.expectOne('/api/v1/offers/7').flush(entry(7));
+
+            refuseRestore(7);
+
+            expect(store.inlineArchiveError()?.id).toBe(7);
+            expect(store.detailArchiveError(), 'said once, in the row').toBeNull();
+        });
+    });
+
+    describe('a second single write while one is out (review finding 1)', () => {
+        it('is queued behind the first rather than dropped, and the state names the write in flight', () => {
+            openList([entry(1), entry(2)]);
+            dispatch.archiveRequested({id: 1, archived: true});
+            const first = http.expectOne('/api/v1/offers/1');
+
+            dispatch.archiveRequested({id: 9, archived: false, inline: true});
+            expect(store.archiving(), 'still the write that is out').toBe(1);
+            http.expectNone('/api/v1/offers/9');
+
+            const one = entry(1);
+            first.flush({...one, offer: {...one.offer, archivedAt: '2026-09-06T08:00:00Z'}});
+            const second = http.expectOne('/api/v1/offers/9');
+            expect(second.request.body).toEqual({archived: false});
+            expect(store.archiving()).toBe(9);
+            second.flush(entry(9));
+            expect(store.archiving()).toBeNull();
+        });
+
+        it('still sends a repeat of the write that is out only once', () => {
+            openList([entry(1), entry(2)]);
+            dispatch.archiveRequested({id: 1, archived: true});
+            dispatch.archiveRequested({id: 1, archived: true});
+
+            const requests = http.match('/api/v1/offers/1');
+            expect(requests.length).toBe(1);
+            requests[0].flush(entry(1));
+            http.expectNone('/api/v1/offers/1');
+        });
+    });
+
+    describe('the counts after a single answer (review finding 4)', () => {
+        const archivedAt = '2026-09-06T08:00:00Z';
+
+        it('moves no count for an answer whose row was not on the list', () => {
+            openList([entry(1), entry(2), entry(3)]);
+            dispatch.archiveRequested({id: 9, archived: true});
+            const nine = entry(9);
+            http.expectOne('/api/v1/offers/9').flush({...nine, offer: {...nine.offer, archivedAt}});
+
+            expect(store.matched()).toBe(3);
+            expect(store.total()).toBe(3);
+        });
+
+        it('never lowers the working list for a restore', () => {
+            openList([entry(1), entry(2), entry(3)]);
+            dispatch.archiveRequested({id: 2, archived: false});
+            http.expectOne('/api/v1/offers/2').flush(entry(2));
+
+            expect(store.entries().map((row) => row.offer.id)).toEqual([1, 2, 3]);
+            expect(store.matched()).toBe(3);
+        });
+
+        it('takes a restored row off the archive side, with the count', () => {
+            dispatch.opened({...NO_FILTERS, archived: true});
+            const archivedRows = [entry(1), entry(2)].map((row) => ({...row, offer: {...row.offer, archivedAt}}));
+            http.expectOne((request) => request.url === '/api/v1/offers').flush(page(archivedRows));
+
+            dispatch.archiveRequested({id: 2, archived: false});
+            http.expectOne('/api/v1/offers/2').flush(entry(2));
+
+            expect(store.entries().map((row) => row.offer.id)).toEqual([1]);
+            expect(store.matched()).toBe(1);
+        });
     });
 
     describe('a restore from the archive toast', () => {

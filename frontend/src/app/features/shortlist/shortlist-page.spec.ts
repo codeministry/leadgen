@@ -840,6 +840,23 @@ describe('ShortlistPage', () => {
       expect(navigate).not.toHaveBeenCalled();
     });
 
+    it('stays on the offer when the write is refused after a reload took its row (review finding 2)', () => {
+      widthAllowsBothColumns(false);
+      const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+      const fixture = render();
+      open(fixture, ENTRIES[0]!);
+
+      press(fixture, 'a');
+      const request = patch(ENTRIES[0]!.offer.id);
+      // A reload lands while the write is out, and the row is not in it.
+      TestBed.inject(Dispatcher).dispatch(shortlistEvents.loaded(page({entries: [ENTRIES[1]!, ENTRIES[2]!]})));
+      fixture.detectChanges();
+      request.flush('nope', {status: 500, statusText: 'Server Error'});
+      fixture.detectChanges();
+
+      expect(navigate).not.toHaveBeenCalled();
+    });
+
     it('asks first when the offer has a package, and writes only on confirm', () => {
       widthAllowsBothColumns(false);
       const fixture = render();

@@ -1,7 +1,7 @@
 import {computed, inject} from '@angular/core';
 import {signalStore, withComputed, withState} from '@ngrx/signals';
 import {Events, on, withEventHandlers, withReducer} from '@ngrx/signals/events';
-import {catchError, exhaustMap, filter, map, of, switchMap} from 'rxjs';
+import {catchError, concat, concatMap, exhaustMap, filter, finalize, map, of, switchMap, tap} from 'rxjs';
 import {ShortlistApi} from '@core/api/shortlist.api';
 import {serverMessage} from '@core/api/server-message';
 import {refreshEvents} from '@core/refresh/refresh.events';
@@ -10,7 +10,7 @@ import {FunnelView} from '@core/model/funnel';
 import {ShortlistEntry} from '@core/model/shortlist-entry';
 import {RelatedCoverage, ShortlistFilters} from '@core/model/shortlist-page';
 import {ScoringModelStore} from './scoring-model.store';
-import {shortlistEvents} from './shortlist.events';
+import {ArchiveRefusal, shortlistEvents} from './shortlist.events';
 import {withAppDevtools} from '@core/store/devtools';
 
 interface ShortlistState {
@@ -64,8 +64,12 @@ interface ShortlistState {
     fetchError: string | null;
     /** The offer being archived or restored, not a boolean. One button waits, not the page. */
     archiving: number | null;
-    /** The write in flight shows its own refusal (a swipe's row), so `rescoreError` stays clear. */
-    archivingInline: boolean;
+    /**
+     * The last single archive or restore the server refused, keyed by its offer so it is never read
+     * under another one. Apart from `rescoreError`, which is the detail's own rescore. Where it is
+     * shown is `inlineArchiveError` and `detailArchiveError` below.
+     */
+    archiveError: ArchiveRefusal | null;
   /**
    * The offers ticked for a bulk decision. Ids and not indices: `entries` is appended to by
    * paging and shortened by an archive, and an index silently points at a different offer
@@ -151,7 +155,7 @@ const initialState: ShortlistState = {
     fetching: null,
     fetchError: null,
     archiving: null,
-    archivingInline: false,
+    archiveError: null,
   picked: [],
   pickAnchor: null,
   bulkArchiving: false,
@@ -163,8 +167,10 @@ const initialState: ShortlistState = {
 /**
  * The `archived` answer's effect on the list. An archive drops the row and remembers where it
  * stood; a restore of exactly the remembered offer puts the server's row back at that index,
- * with the counts it took away. Every other answer drops the row as before: on the archive
- * side a restore is what takes it off the side being read.
+ * with the counts it took away. Otherwise a row leaves only when it is on the list and the answer
+ * moved it to the other side — on the archive side a restore is what takes it off — and only a
+ * row that left lowers the counts. An answer for an offer the list does not hold, or one that
+ * keeps it on this side, moves no count.
  */
 function afterArchive(
   state: ShortlistState,
@@ -186,11 +192,20 @@ function afterArchive(
     };
   }
   const index = state.entries.findIndex((entry) => entry.offer.id === id);
+  const archived = answer.offer.archivedAt !== null;
+  if (index < 0 || archived === state.filters.archived) {
+    return {
+      entries: index < 0 ? state.entries : state.entries.map((entry) => (entry.offer.id === id ? answer : entry)),
+      matched: state.matched,
+      total: state.total,
+      lastArchived: state.lastArchived,
+    };
+  }
   return {
     entries: state.entries.filter((entry) => entry.offer.id !== id),
     matched: Math.max(0, state.matched - 1),
     total: Math.max(0, state.total - 1),
-    lastArchived: answer.offer.archivedAt !== null && index >= 0 ? {id, index} : null,
+    lastArchived: archived ? {id, index} : null,
   };
 }
 
@@ -198,7 +213,7 @@ export const ShortlistStore = signalStore(
     {providedIn: 'root'},
     withState(initialState),
     withAppDevtools('shortlist'),
-  withComputed(({cursor, picked}) => ({
+  withComputed(({cursor, picked, archiveError, entries, selected}) => ({
         // Both the portals and the unscored count come from the server now. Derived from the
         // loaded entries, the dropdown offered fewer choices and the count told a smaller
         // truth the further you scrolled — and both sit beside a sentence about the whole list.
@@ -207,6 +222,27 @@ export const ShortlistStore = signalStore(
     // scan per row over the selection is quadratic in a list that pages to hundreds.
     pickedIds: computed(() => new Set(picked())),
     pickedCount: computed(() => picked().length),
+    /**
+     * A refusal that belongs in a row: an inline write's (a swipe, the toast's Restore) whose row
+     * is on screen. The row compares the id.
+     */
+    inlineArchiveError: computed(() => {
+      const refusal = archiveError();
+      return refusal?.inline === true && entries().some((entry) => entry.offer.id === refusal.id) ? refusal : null;
+    }),
+    /**
+     * A refusal that belongs to the detail: the detail shows that same offer, and the write was
+     * the detail's own (`a`, the button) or an inline one whose row is not on screen. Never
+     * under another offer.
+     */
+    detailArchiveError: computed(() => {
+      const refusal = archiveError();
+      if (refusal === null || selected()?.offer.id !== refusal.id) {
+        return null;
+      }
+      const inRow = refusal.inline && entries().some((entry) => entry.offer.id === refusal.id);
+      return inRow ? null : refusal.message;
+    }),
     })),
     withReducer(
         // A filter change is a new list, not a longer one: the entries go before the request
@@ -318,10 +354,12 @@ export const ShortlistStore = signalStore(
             fetching: null,
             fetchError: payload,
         })),
-        on(shortlistEvents.archiveRequested, ({payload}) => ({
-            archiving: payload.id,
-            archivingInline: payload.inline === true,
-            rescoreError: null,
+        // Set when the queue begins the write, not when it is asked for: a request that waits
+        // behind another must not name itself as the one in flight. A new write for an offer
+        // clears that offer's old refusal and nobody else's.
+        on(shortlistEvents.archiveStarted, ({payload}, state) => ({
+            archiving: payload,
+            archiveError: state.archiveError?.id === payload ? null : state.archiveError,
         })),
         // The row is dropped from the list rather than replaced: archiving is what takes an
         // offer off the side being read, so leaving it there would show the working list with
@@ -335,12 +373,14 @@ export const ShortlistStore = signalStore(
             selected: state.selected?.offer.id === payload.offer.id ? payload : state.selected,
             ...afterArchive(state, payload),
             archiving: null,
-            archivingInline: false,
+            archiveError: state.archiveError?.id === payload.offer.id ? null : state.archiveError,
         })),
-        on(shortlistEvents.archiveFailed, ({payload}, state) => ({
+        on(shortlistEvents.archiveFailed, ({payload}) => ({
             archiving: null,
-            archivingInline: false,
-            rescoreError: state.archivingInline ? null : payload,
+            archiveError: payload,
+        })),
+        on(shortlistEvents.archiveErrorDismissed, ({payload}, state) => ({
+            archiveError: state.archiveError?.id === payload ? null : state.archiveError,
         })),
       // The anchor moves on an untick as well: "tick 5, untick 5, shift-click 12" means
       // 5 through 12, not a reach back to whatever happened to be ticked before that.
@@ -393,6 +433,8 @@ export const ShortlistStore = signalStore(
         const api = inject(ShortlistApi);
         // The rescore spends money too, so it asks the same judge the run would.
         const models = inject(ScoringModelStore);
+        /** Offers whose single write is out or waiting, so a repeat of one is not sent twice. */
+        const archivePending = new Set<number>();
 
         return [
             // Switched, not exhausted: typing in the search box replaces the question, and the
@@ -444,16 +486,30 @@ export const ShortlistStore = signalStore(
                     ),
                 ),
             ),
-            // Exhausted, not switched: a second click while the first call is out would write
-            // the same decision twice, and the second answer would arrive after the row is gone.
+            // Queued, not exhausted: a second click on the same offer while its call is out or
+            // waiting would write the same decision twice, so a repeat is dropped; a request for
+            // another offer — the archive toast's Restore while a swipe is out — is a different
+            // decision, and exhausting it lost it silently (review finding 1). One write at a time,
+            // in order, and `archiveStarted` names the one out.
             events.on(shortlistEvents.archiveRequested).pipe(
-                exhaustMap(({payload}) =>
-                    api.setArchived(payload.id, payload.archived).pipe(
-                        map((entry) => shortlistEvents.archived(entry)),
-                        catchError((error) =>
-                            of(shortlistEvents.archiveFailed(serverMessage(error, 'error.archive'))),
+                filter(({payload}) => !archivePending.has(payload.id)),
+                tap(({payload}) => archivePending.add(payload.id)),
+                concatMap(({payload}) =>
+                    concat(
+                        of(shortlistEvents.archiveStarted(payload.id)),
+                        api.setArchived(payload.id, payload.archived).pipe(
+                            map((entry) => shortlistEvents.archived(entry)),
+                            catchError((error) =>
+                                of(
+                                    shortlistEvents.archiveFailed({
+                                        id: payload.id,
+                                        message: serverMessage(error, 'error.archive'),
+                                        inline: payload.inline === true,
+                                    }),
+                                ),
+                            ),
                         ),
-                    ),
+                    ).pipe(finalize(() => archivePending.delete(payload.id))),
                 ),
             ),
           // Exhausted, not switched: a second confirmation while the first call is out would

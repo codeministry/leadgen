@@ -314,7 +314,7 @@ describe('ToastStore', () => {
 
     describe('a failure', () => {
         it('raises no toast at all — the inline alert beside the control is the message', () => {
-            shortlist.archiveFailed('error.archive');
+            shortlist.archiveFailed({id: 7, message: 'error.archive', inline: false});
             shortlist.bulkArchiveFailed('error.bulkArchive');
             shortlist.rescoreFailed('error.rescore');
             shortlist.fetchFailed('error.fetch');
@@ -359,6 +359,18 @@ describe('ToastStore', () => {
             expect(archived.standing).toBeUndefined();
         });
 
+        it('offers Open and no Restore when the archived offer kept its package (review finding 3)', () => {
+            // A package that survived the archive was sent; a restore resets its application to NEW,
+            // which every other restore path confirms first. The toast cannot ask, so it only opens.
+            const answer = archiveAnswer(7, 'Senior Java Entwickler (m/w/d)', '2026-09-23T10:00:00Z');
+            shortlist.archived({...answer, offer: {...answer.offer, packageDir: 'packages/2026-09-23_acme_java'}});
+
+            const [archived] = store.toasts();
+            expect(archived.action).toBeUndefined();
+            expect(archived.link).toBe('/shortlist/7');
+            expect(archived).toMatchObject({tone: 'warning', key: 'toast.archived'});
+        });
+
         it('offers no Restore on a restore, which keeps its link, nor on a bulk archive', () => {
             shortlist.archived(archiveAnswer(9, 'Angular Frontend Developer', null));
             shortlist.bulkArchived({ids: [1, 2], archived: 2, unscored: 0});
@@ -385,7 +397,7 @@ describe('ToastStore', () => {
             }
             dispatch.dismissed(archived.id);
 
-            expect(requests).toEqual([{id: 7, archived: false}]);
+            expect(requests).toEqual([{id: 7, archived: false, inline: true}]);
             expect(store.toasts()).toEqual([]);
         });
     });

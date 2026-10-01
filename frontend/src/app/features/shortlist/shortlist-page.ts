@@ -17,7 +17,7 @@ import {
 import {takeUntilDestroyed, toSignal} from '@angular/core/rxjs-interop';
 import {ActivatedRoute, NavigationEnd, Params, Router, RouterLink, RouterOutlet} from '@angular/router';
 import {debounceTime, filter, map, Subject} from 'rxjs';
-import {injectDispatch} from '@ngrx/signals/events';
+import {Events, injectDispatch} from '@ngrx/signals/events';
 import {TranslocoPipe} from '@jsverse/transloco';
 import {shortlistEvents} from '@core/store/shortlist.events';
 import {chatEvents} from '@core/store/chat.events';
@@ -149,9 +149,6 @@ export class ShortlistPage {
   private readonly afterSwipe = signal<{ readonly id: number; readonly row: Swipe; readonly next: number | null } | null>(
     null,
   );
-
-  /** The row whose swipe the server refused; it says so under its card until its next touch. */
-  protected readonly refusedRow = signal<number | null>(null);
 
   /**
    * The offer `a` just took off this side of the list, and the one to open once it is gone.
@@ -515,42 +512,18 @@ export class ShortlistPage {
             });
         });
 
-        // After `a`: the write settled when `archiving` is clear again. Gone from the list means it
-        // worked, and the neighbour opens the way j/k would open it; still listed means it failed.
-        effect(() => {
-            const pending = this.afterArchive();
-            if (pending === null || this.store.archiving() !== null) {
-                return;
-            }
-            this.afterArchive.set(null);
-            const stillListed = this.visible().some((entry) => entry.offer.id === pending.id);
-            if (stillListed || pending.next === null) {
-                return;
-            }
-            this.focusStep = 1;
-            this.keyedId = pending.next;
-            this.focusWanted.set(pending.next);
-            void this.router.navigate(['/shortlist', pending.next], {queryParamsHandling: 'preserve'});
-        });
-
-        // After a swipe, by the same test: still listed means refused, and the row comes back with
-        // its line; gone means it worked, and only the open row hands the detail on. No focus
-        // follows, because a finger, not a key, asked.
-        effect(() => {
-            const pending = this.afterSwipe();
-            if (pending === null || this.store.archiving() !== null) {
-                return;
-            }
-            this.afterSwipe.set(null);
-            if (this.visible().some((entry) => entry.offer.id === pending.id)) {
-                pending.row.settle('return');
-                this.refusedRow.set(pending.id);
-                return;
-            }
-            if (pending.next !== null) {
-                void this.router.navigate(['/shortlist', pending.next], {queryParamsHandling: 'preserve'});
-            }
-        });
+        // After `a` or a swipe, from the store's answer for that offer and never from list
+        // membership: a reload that lands while the write is out would flip that test (review
+        // finding 2). The line a refusal shows is the store's `archiveError`, not this page's.
+        const events = inject(Events);
+        events
+            .on(shortlistEvents.archived)
+            .pipe(takeUntilDestroyed())
+            .subscribe(({payload}) => this.archiveAnswered(payload.offer.id, true));
+        events
+            .on(shortlistEvents.archiveFailed)
+            .pipe(takeUntilDestroyed())
+            .subscribe(({payload}) => this.archiveAnswered(payload.id, false));
 
         // The focus follows a key press. `afterNextRender` because `aria-current` is on the new
         // card only after the change detection the navigation triggers. The browser's own
@@ -1119,19 +1092,41 @@ export class ShortlistPage {
     return index === -1 ? null : (entries[index + 1] ?? entries[index - 1])?.offer.id ?? null;
   }
 
+  /**
+   * The request the detail's button sends: one PATCH through the store, which drops the row once
+   * the server answered. Where the selection goes afterwards is the answer's business, below.
+   */
   private archiveOne(id: number, archived: boolean): void {
     const next = this.neighbourOf(id);
-    this.requestArchive(id, archived);
+    this.dispatch.archiveRequested({id, archived, inline: false});
     this.afterArchive.set({id, next});
   }
 
   /**
-   * The write the detail's button sends: one PATCH through the store, which drops the row once
-   * the server answered. `a` and a swipe both come through here; where the selection goes
-   * afterwards is each caller's own rule. `inline`: the caller shows a refusal in the row itself.
+   * The store answered for one offer. After `a`, success opens the neighbour the way j/k would;
+   * after a swipe, a refusal brings the row back (its line is the store's) and success hands the
+   * detail on only when the open row was swiped — no focus follows, because a finger asked.
    */
-  private requestArchive(id: number, archived: boolean, inline = false): void {
-    this.dispatch.archiveRequested(inline ? {id, archived, inline} : {id, archived});
+  private archiveAnswered(id: number, ok: boolean): void {
+    const key = this.afterArchive();
+    if (key?.id === id) {
+      this.afterArchive.set(null);
+      if (ok && key.next !== null) {
+        this.focusStep = 1;
+        this.keyedId = key.next;
+        this.focusWanted.set(key.next);
+        void this.router.navigate(['/shortlist', key.next], {queryParamsHandling: 'preserve'});
+      }
+    }
+    const swipe = this.afterSwipe();
+    if (swipe?.id === id) {
+      this.afterSwipe.set(null);
+      if (!ok) {
+        swipe.row.settle('return');
+      } else if (swipe.next !== null) {
+        void this.router.navigate(['/shortlist', swipe.next], {queryParamsHandling: 'preserve'});
+      }
+    }
   }
 
   /**
@@ -1167,16 +1162,15 @@ export class ShortlistPage {
    */
   private swipeArchive(id: number, archived: boolean, row: Swipe): void {
     const next = this.bothColumns() && this.selectedId() === id ? this.neighbourOf(id) : null;
-    this.refusedRow.set(null);
     row.settle('leave');
-    this.requestArchive(id, archived, true);
+    this.dispatch.archiveRequested({id, archived, inline: true});
     this.afterSwipe.set({id, row, next});
   }
 
   /** A refused row's line goes with its next gesture or tap. */
   protected clearRefused(id: number): void {
-    if (this.refusedRow() === id) {
-      this.refusedRow.set(null);
+    if (this.store.inlineArchiveError()?.id === id) {
+      this.dispatch.archiveErrorDismissed(id);
     }
   }
 

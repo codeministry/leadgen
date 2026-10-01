@@ -105,17 +105,25 @@ export const ToastStore = signalStore(
             // rules. The answer to it is a restore and raises the green line with Open and no
             // reverse action; a symmetrical undo would invite ping-pong. The toast keeps the timer:
             // the permanent way back is the archive view.
+            //
+            // Not when the offer kept its package: then it was sent, a restore resets its
+            // application to NEW, and every other restore path asks first (ISC-495). The question
+            // is a dialog on the screen, and a toast never writes on its own, so this one keeps
+            // Open and leaves the restore to the detail, which asks (review finding 3). Its
+            // Restore is `inline`: a refusal stands in the row once the row is back on screen.
             events.on(shortlistEvents.archived).pipe(
                 map(({payload}) =>
                     toastEvents.raised(
                         payload.offer.archivedAt === null
                             ? toast('success', 'toast.restored', {title: payload.offer.title}, `/shortlist/${payload.offer.id}`)
+                            : payload.offer.packageDir
+                            ? toast('warning', 'toast.archived', {title: payload.offer.title}, `/shortlist/${payload.offer.id}`)
                             : actionToast(
                                 'warning',
                                 'toast.archived',
                                 {
                                     key: 'toast.restore',
-                                    event: shortlistEvents.archiveRequested({id: payload.offer.id, archived: false}),
+                                    event: shortlistEvents.archiveRequested({id: payload.offer.id, archived: false, inline: true}),
                                 },
                                 {title: payload.offer.title},
                             ),

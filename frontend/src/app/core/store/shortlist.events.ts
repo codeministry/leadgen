@@ -4,6 +4,18 @@ import {FunnelView} from '@core/model/funnel';
 import {ShortlistEntry} from '@core/model/shortlist-entry';
 import {ShortlistFilters, ShortlistPage} from '@core/model/shortlist-page';
 
+/**
+ * A single archive or restore the server refused, tied to the offer it was about. `inline`: the
+ * write came from the row (a swipe) or from the archive toast, so the refusal belongs in that row
+ * while it is on screen; otherwise it belongs to the detail, and only while the detail shows that
+ * offer.
+ */
+export interface ArchiveRefusal {
+  readonly id: number;
+  readonly message: string;
+  readonly inline: boolean;
+}
+
 export const shortlistEvents = eventGroup({
   source: 'Shortlist',
   events: {
@@ -46,12 +58,19 @@ export const shortlistEvents = eventGroup({
     /**
      * Off the working list, or back onto it. The one thing about an offer a person owns —
      * everything else here is written by a run and rewritten by the next one.
-     * `inline`: the caller shows a refusal itself, inside the row a swipe came from, so the
-     * detail does not repeat it beside that row (spec 024).
+     * `inline`: a refusal belongs in the offer's row while that row is on screen — a swipe, or the
+     * archive toast's Restore — rather than beside the detail's button (spec 024).
+     *
+     * <p>Queued, never dropped: a request for another offer while one is out waits its turn, and
+     * only a repeat of an offer already out or waiting is ignored.
      */
     archiveRequested: type<{ id: number; archived: boolean; inline?: boolean }>(),
+    /** The queue began the write for this offer; `archiving` names it from here to the answer. */
+    archiveStarted: type<number>(),
     archived: type<ShortlistEntry>(),
-    archiveFailed: type<string>(),
+    archiveFailed: type<ArchiveRefusal>(),
+    /** The refusal's line was read: the row it stands in was touched again. */
+    archiveErrorDismissed: type<number>(),
     /**
      * Every event above is about one offer. These are not, and the reason is that clearing
      * the working list is the one thing done in bulk — reading an advert never is.

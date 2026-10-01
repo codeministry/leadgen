@@ -381,10 +381,12 @@
                             (pickToggled)="onPick($event.id, $event.range)"
                             (pointerdown)="clearRefused(entry.offer.id)"
                           />
-                          <!-- A swipe the server refused: the row is back in place and says so here, the
-                               only place beside the control that can retry. Its next touch clears it. -->
-                          @if (refusedRow() === entry.offer.id) {
-                            <p class="type-small error px-3 pt-1" role="alert">{{ 'error.archive' | transloco }}</p>
+                          <!-- A swipe or a toast's Restore the server refused: the row is in place and says
+                               so here, in the server's words when it gave any. Its next touch clears it. -->
+                          @if (store.inlineArchiveError(); as refusal) {
+                            @if (refusal.id === entry.offer.id) {
+                              <p class="type-small error px-3 pt-1" role="alert">{{ refusal.message | transloco }}</p>
+                            }
                           }
                         </li>
                     }

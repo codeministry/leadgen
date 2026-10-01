@@ -1,4 +1,4 @@
-import {computed, DestroyRef, Directive, ElementRef, inject, input, output, signal} from '@angular/core';
+import {DestroyRef, Directive, ElementRef, inject, input, output} from '@angular/core';
 
 /** Horizontal travel a touch must make, and win over vertical travel, before the row follows it. */
 const SLOP_PX = 10;
@@ -47,6 +47,11 @@ type Phase = 'rest' | 'drag' | 'held' | 'returning' | 'leaving';
  * Under touch the browser captures the pointer to the element it landed on implicitly, so the
  * moves keep bubbling to this host without `setPointerCapture`.
  *
+ * <p>Only `pointerdown` is a host listener. Move, up and cancel are attached with
+ * `addEventListener` once a touch starts a track and removed when it ends, and the state below is
+ * written straight onto the element: a host listener or a signal read by a host binding schedules
+ * change detection, and a mouse moving over the list would run it on every move.
+ *
  * <p>The state is written onto the host as `--lg-swipe-x` (the offset, px, absent at rest),
  * `--lg-swipe-uncovered` (0 → 1 over the first 3rem uncovered), `.is-swiping` while the row is
  * off its place and `.is-armed` while a release would count. `swipe.css` turns those into the
@@ -72,17 +77,7 @@ type Phase = 'rest' | 'drag' | 'held' | 'returning' | 'leaving';
     host: {
         class: 'lg-swipe',
         '[style.touch-action]': '"pan-y"',
-        '[style.--lg-swipe-x]': 'swiping() ? offset() + "px" : null',
-        '[style.--lg-swipe-uncovered]': 'swiping() ? uncovered() : null',
-        '[style.--lg-swipe-height]': 'leaveHeight() === null ? null : leaveHeight() + "px"',
-        '[class.is-swiping]': 'swiping()',
-        '[class.is-armed]': 'armed()',
-        '[class.is-returning]': 'phase() === "returning"',
-        '[class.is-leaving]': 'phase() === "leaving"',
         '(pointerdown)': 'onDown($event)',
-        '(pointermove)': 'onMove($event)',
-        '(pointerup)': 'onEnd($event)',
-        '(pointercancel)': 'onEnd($event)',
     },
 })
 export class Swipe {
@@ -94,26 +89,14 @@ export class Swipe {
     private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
 
     /** The row's horizontal offset in px: 0 at rest, negative to the left, never positive. */
-    protected readonly offset = signal(0);
-    protected readonly phase = signal<Phase>('rest');
-    /** The row's height as it starts to leave, so the collapse has a length to close from. */
-    protected readonly leaveHeight = signal<number | null>(null);
-    private readonly threshold = signal(Number.POSITIVE_INFINITY);
-    private readonly rem = signal(16);
-
-    /** Off its place, or on its way back to it: the transform, the clip and the reveal apply. */
-    protected readonly swiping = computed(() => {
-        const phase = this.phase();
-        return this.offset() !== 0 || phase === 'returning' || phase === 'leaving';
-    });
-    /** A released row that counted stays armed, a fling short of the threshold included. */
-    protected readonly armed = computed(() => {
-        const phase = this.phase();
-        return phase === 'held' || phase === 'leaving' || (this.offset() < 0 && -this.offset() >= this.threshold());
-    });
-    protected readonly uncovered = computed(() => Math.min(1, -this.offset() / (FADE_IN_REM * this.rem())));
+    private offset = 0;
+    private phase: Phase = 'rest';
+    private threshold = Number.POSITIVE_INFINITY;
+    private rem = 16;
 
     private track: Track | null = null;
+    private readonly move = (event: PointerEvent): void => this.onMove(event);
+    private readonly end = (event: PointerEvent): void => this.onEnd(event);
     private returnTimer: ReturnType<typeof setTimeout> | null = null;
     private clickTimer: ReturnType<typeof setTimeout> | null = null;
     /**
@@ -128,6 +111,7 @@ export class Swipe {
 
     constructor() {
         inject(DestroyRef).onDestroy(() => {
+            this.untrack();
             this.clearReturnTimer();
             this.releaseClick();
         });
@@ -135,22 +119,23 @@ export class Swipe {
 
     /** The host decides what a completed swipe means; the directive only moves. */
     settle(how: 'leave' | 'return'): void {
-        this.track = null;
+        this.untrack();
         if (how === 'return') {
             this.springBack();
             return;
         }
         this.clearReturnTimer();
-        this.leaveHeight.set(this.host.offsetHeight);
-        this.phase.set('leaving');
+        this.host.style.setProperty('--lg-swipe-height', `${this.host.offsetHeight}px`);
+        this.phase = 'leaving';
         // Off the row's own edge and one gap further, holding the armed state until the row goes.
-        this.offset.set(-(this.host.clientWidth + this.rem()));
+        this.offset = -(this.host.clientWidth + this.rem);
+        this.paint();
     }
 
     protected onDown(event: PointerEvent): void {
         // A new touch is a new gesture: a click from here on is its own, never the last one's.
         this.releaseClick();
-        const phase = this.phase();
+        const phase = this.phase;
         if (event.pointerType !== 'touch' || this.swipeDisabled() || this.track !== null) {
             return;
         }
@@ -164,12 +149,16 @@ export class Swipe {
         }
         if (phase === 'returning') {
             this.clearReturnTimer();
-            this.phase.set('rest');
+            this.phase = 'rest';
+            this.paint();
         }
         this.track = {pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, engaged: false, samples: []};
+        this.host.addEventListener('pointermove', this.move);
+        this.host.addEventListener('pointerup', this.end);
+        this.host.addEventListener('pointercancel', this.end);
     }
 
-    protected onMove(event: PointerEvent): void {
+    private onMove(event: PointerEvent): void {
         const track = this.track;
         if (track === null || event.pointerId !== track.pointerId) {
             return;
@@ -180,11 +169,11 @@ export class Swipe {
             const horizontal = Math.abs(dx) > SLOP_PX && Math.abs(dx) > Math.abs(dy);
             if (horizontal && dx < 0) {
                 track.engaged = true;
-                this.phase.set('drag');
+                this.phase = 'drag';
                 this.measure();
             } else if (horizontal || Math.abs(dy) > SLOP_PX) {
                 // Rightward, or the list is being scrolled: this touch is not a swipe.
-                this.track = null;
+                this.untrack();
                 return;
             } else {
                 return;
@@ -192,25 +181,27 @@ export class Swipe {
         }
         // Minus the slop, so the row does not jump by it on engaging; clamped at 0 with no give.
         const offset = Math.min(0, dx + SLOP_PX);
-        this.offset.set(offset);
+        this.offset = offset;
+        this.paint();
         track.samples.push([event.timeStamp, offset]);
         while (track.samples[0][0] < event.timeStamp - VELOCITY_WINDOW_MS) {
             track.samples.shift();
         }
     }
 
-    protected onEnd(event: PointerEvent): void {
+    private onEnd(event: PointerEvent): void {
         const track = this.track;
         if (track === null || event.pointerId !== track.pointerId) {
             return;
         }
-        this.track = null;
+        this.untrack();
         if (track.engaged) {
             this.holdClick();
         }
         // Only a finger that lifted counts; a cancelled pointer (a scroll took over, a call came in) never does.
         if (event.type === 'pointerup' && track.engaged && this.counts(track, event.timeStamp)) {
-            this.phase.set('held');
+            this.phase = 'held';
+            this.paint();
             this.swiped.emit();
             return;
         }
@@ -219,11 +210,11 @@ export class Swipe {
 
     /** Past the threshold, or flung to the left fast enough once the fling floor is uncovered. */
     private counts(track: Track, releasedAt: number): boolean {
-        const uncovered = -this.offset();
-        if (uncovered >= this.threshold()) {
+        const uncovered = -this.offset;
+        if (uncovered >= this.threshold) {
             return true;
         }
-        return uncovered >= FLING_FLOOR_REM * this.rem() && this.velocity(track, releasedAt) <= -FLING_SPEED;
+        return uncovered >= FLING_FLOOR_REM * this.rem && this.velocity(track, releasedAt) <= -FLING_SPEED;
     }
 
     /**
@@ -231,7 +222,7 @@ export class Swipe {
      * sample: a finger that stopped before it lifted has no speed left, however fast it came.
      */
     private velocity(track: Track, releasedAt: number): number {
-        const release: [number, number] = [releasedAt, this.offset()];
+        const release: [number, number] = [releasedAt, this.offset];
         const samples = [...track.samples, release].filter(([t]) => t >= releasedAt - VELOCITY_WINDOW_MS);
         if (samples.length < 2) {
             return 0;
@@ -244,23 +235,60 @@ export class Swipe {
     /** Back to 0 on the drag pair, then at rest; at once when the row never left or motion is reduced. */
     private springBack(): void {
         this.clearReturnTimer();
-        this.leaveHeight.set(null);
-        if (this.offset() === 0) {
-            this.phase.set('rest');
+        this.host.style.removeProperty('--lg-swipe-height');
+        if (this.offset === 0) {
+            this.phase = 'rest';
+            this.paint();
             return;
         }
-        this.phase.set('returning');
-        this.offset.set(0);
+        this.phase = 'returning';
+        this.offset = 0;
+        this.paint();
         const duration = this.returnDuration();
         if (duration <= 0) {
-            this.phase.set('rest');
+            this.phase = 'rest';
+            this.paint();
             return;
         }
         // A timer rather than `transitionend`, which never fires for a transition that was cut short.
         this.returnTimer = setTimeout(() => {
             this.returnTimer = null;
-            this.phase.set('rest');
+            this.phase = 'rest';
+            this.paint();
         }, duration);
+    }
+
+    /**
+     * The offset and the phase, written onto the element directly: `--lg-swipe-x` and
+     * `--lg-swipe-uncovered` while the row is off its place or on its way back, and the four state
+     * classes. No signal and no host binding, so a gesture never schedules change detection.
+     */
+    private paint(): void {
+        const phase = this.phase;
+        const swiping = this.offset !== 0 || phase === 'returning' || phase === 'leaving';
+        const style = this.host.style;
+        if (swiping) {
+            style.setProperty('--lg-swipe-x', `${this.offset}px`);
+            style.setProperty('--lg-swipe-uncovered', String(Math.min(1, -this.offset / (FADE_IN_REM * this.rem))));
+        } else {
+            style.removeProperty('--lg-swipe-x');
+            style.removeProperty('--lg-swipe-uncovered');
+        }
+        // A released row that counted stays armed, a fling short of the threshold included.
+        const armed = phase === 'held' || phase === 'leaving' || (this.offset < 0 && -this.offset >= this.threshold);
+        const classes = this.host.classList;
+        classes.toggle('is-swiping', swiping);
+        classes.toggle('is-armed', armed);
+        classes.toggle('is-returning', phase === 'returning');
+        classes.toggle('is-leaving', phase === 'leaving');
+    }
+
+    /** The track ends, and with it the three listeners its touch attached. */
+    private untrack(): void {
+        this.track = null;
+        this.host.removeEventListener('pointermove', this.move);
+        this.host.removeEventListener('pointerup', this.end);
+        this.host.removeEventListener('pointercancel', this.end);
     }
 
     /** Swallows the one click an engaged gesture may still produce. */
@@ -302,7 +330,7 @@ export class Swipe {
     private measure(): void {
         const rootSize = parseFloat(getComputedStyle(this.host.ownerDocument.documentElement).fontSize);
         const rem = Number.isFinite(rootSize) && rootSize > 0 ? rootSize : 16;
-        this.rem.set(rem);
-        this.threshold.set(Math.min(THRESHOLD_SHARE * this.host.clientWidth, THRESHOLD_CAP_REM * rem));
+        this.rem = rem;
+        this.threshold = Math.min(THRESHOLD_SHARE * this.host.clientWidth, THRESHOLD_CAP_REM * rem);
     }
 }
