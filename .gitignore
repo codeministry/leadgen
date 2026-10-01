@@ -110,3 +110,7 @@ specs/*/report.html
 # logs. Local working state like the master, not part of the published repository (the
 # operator's call, 2026-09-24). The files stay on disk; git stops tracking them.
 specs/
+
+# Archify diagram output: candidate JSON, rendered HTML and browser evidence per request.
+# Regenerated from the source on demand, so it stays local like specs/ above.
+.archify/
