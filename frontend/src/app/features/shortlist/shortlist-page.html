@@ -316,7 +316,7 @@
           [disabled]="store.bulkArchiving()"
           (click)="askToArchivePicked()"
         >
-          <lg-icon name="archive-restore" [size]="14"/>
+          <lg-icon name="archive" [size]="14"/>
           {{ 'shortlist.archiveSelected' | transloco }}
         </button>
         <button type="button" class="btn btn-sm btn-ghost" (click)="clearPicks()">
@@ -345,7 +345,31 @@
             } @else if (visible().length > 0) {
                 <ul class="offer-list">
                     @for (entry of visible(); track entry.offer.id) {
-                        <li>
+                        <!-- A touch drags the row left to take it off the side being read (spec 024):
+                             archive here, restore on the archive side. -->
+                        <!-- Still while a single write is out, and in select mode: Select pressed or
+                             any row picked, never merely `pickable()`, which every fine pointer is (ISC-497). -->
+                        <li
+                          lgSwipe
+                          #swipe="lgSwipe"
+                          [swipeDisabled]="store.archiving() !== null || selecting() || store.pickedCount() > 0"
+                          animate.leave="lg-swipe-collapse"
+                          (swiped)="onSwiped(entry, swipe)"
+                        >
+                          <!-- What letting go will do, painted only while the row is off its place.
+                               Never a button and never read out: the detail's button, the `a` key and
+                               bulk archive stay the accessible paths. The ellipsis says a package
+                               asks first. -->
+                          <div class="lg-swipe-reveal swipe-reveal" [class.is-restore]="archived()" aria-hidden="true">
+                            <span class="swipe-cluster type-small">
+                              @if (archived()) {
+                                <lg-icon name="archive-restore" [size]="density.density() === 'compact' ? 16 : 20"/>
+                              } @else {
+                                <lg-icon name="archive" [size]="density.density() === 'compact' ? 16 : 20"/>
+                              }
+                              {{ swipeLabel(entry) | transloco }}
+                            </span>
+                          </div>
                           <lg-offer-card
                             [entry]="entry"
                             [selected]="entry.offer.id === selectedId()"
@@ -355,7 +379,13 @@
                             [pickDisabled]="store.bulkArchiving()"
                             [density]="density.density()"
                             (pickToggled)="onPick($event.id, $event.range)"
+                            (pointerdown)="clearRefused(entry.offer.id)"
                           />
+                          <!-- A swipe the server refused: the row is back in place and says so here, the
+                               only place beside the control that can retry. Its next touch clears it. -->
+                          @if (refusedRow() === entry.offer.id) {
+                            <p class="type-small error px-3 pt-1" role="alert">{{ 'error.archive' | transloco }}</p>
+                          }
                         </li>
                     }
                 </ul>

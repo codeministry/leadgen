@@ -22,11 +22,13 @@ export type ToastTone = 'success' | 'warning' | 'info';
  * The one thing a toast may offer besides a link: a button that dispatches an event.
  *
  * <p>It carries the event instance itself rather than a creator, so the stack dispatches
- * what it was handed and never learns a payload. A toast with an action has no lifetime —
- * the person decides, and an offer that vanished while they read it is the offer never
- * made — but the close button and the cap still remove it. The first and so far only
- * producer is the update store's "a new version is ready", whose action is the reload.
- * Still never an undo: the event goes to a store that acts under its own rules.
+ * what it was handed and never learns a payload. An action says nothing about how long the
+ * toast stands: that is `Toast.standing`, and an action toast without it leaves on the
+ * timer like any other. Two producers so far: the update store's "a new version is ready",
+ * whose action is the reload, and the single archive's "Archived", whose action is Restore.
+ * Not an undo: an action is a second write under the store's own rules, never a client-side revert.
+ * The event goes to the store that would have taken the same request from any screen, and
+ * whatever that store refuses stays refused; nothing here rolls a row back by itself.
  */
 export interface ToastAction {
     /** A catalog key under `toast.`, the button's label. */
@@ -50,8 +52,16 @@ export interface Toast {
      * encoded into the path, so `/workflow?stage=run` would name a route that does not exist.
      */
     readonly query?: Readonly<Record<string, string>>;
-    /** A button that dispatches an event. Exempt from the timer; see `ToastAction`. */
+    /** A button that dispatches an event; see `ToastAction`. It does not exempt the toast from the timer. */
     readonly action?: ToastAction;
+    /**
+     * The one exemption from the timer: the toast stands until the person closes it, takes its
+     * action, or the cap pushes it out. Only the update store's reload sets it — an offer that
+     * vanished while somebody read it is the offer never made. The archive toast's Restore does
+     * not: the permanent way back is the archive view, and a warning that never leaves would
+     * crowd the corner after a few swipes.
+     */
+    readonly standing?: true;
 }
 
 /**

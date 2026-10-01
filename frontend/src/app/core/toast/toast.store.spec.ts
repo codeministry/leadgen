@@ -1,5 +1,5 @@
 import {TestBed} from '@angular/core/testing';
-import {injectDispatch} from '@ngrx/signals/events';
+import {Dispatcher, Events, injectDispatch} from '@ngrx/signals/events';
 import {IngestReport} from '@core/api/ingest.api';
 import {ApplicationView} from '@core/model/application';
 import {CurrentRunView} from '@core/model/current-run';
@@ -328,7 +328,7 @@ describe('ToastStore', () => {
     });
 
     describe('an archive or a restore', () => {
-        it('raises one toast per answer, naming the direction and the offer, linking to it', () => {
+        it('raises one toast per answer, naming the direction and the offer', () => {
             shortlist.archived(archiveAnswer(7, 'Senior Java Entwickler (m/w/d)', '2026-09-23T10:00:00Z'));
             shortlist.archived(archiveAnswer(9, 'Angular Frontend Developer', null));
 
@@ -338,7 +338,6 @@ describe('ToastStore', () => {
                 tone: 'warning',
                 key: 'toast.archived',
                 params: {title: 'Senior Java Entwickler (m/w/d)'},
-                link: '/shortlist/7',
             });
             expect(restored).toMatchObject({
                 tone: 'success',
@@ -346,6 +345,48 @@ describe('ToastStore', () => {
                 params: {title: 'Angular Frontend Developer'},
                 link: '/shortlist/9',
             });
+        });
+
+        it('offers Restore on a single archive, in place of the link, as that offer\'s restore request', () => {
+            shortlist.archived(archiveAnswer(7, 'Senior Java Entwickler (m/w/d)', '2026-09-23T10:00:00Z'));
+
+            const [archived] = store.toasts();
+            expect(archived.link).toBeUndefined();
+            expect(archived.action).toMatchObject({
+                key: 'toast.restore',
+                event: {type: shortlistEvents.archiveRequested.type, payload: {id: 7, archived: false}},
+            });
+            expect(archived.standing).toBeUndefined();
+        });
+
+        it('offers no Restore on a restore, which keeps its link, nor on a bulk archive', () => {
+            shortlist.archived(archiveAnswer(9, 'Angular Frontend Developer', null));
+            shortlist.bulkArchived({ids: [1, 2], archived: 2, unscored: 0});
+
+            const [restored, bulk] = store.toasts();
+            expect(restored.action).toBeUndefined();
+            expect(restored.link).toBe('/shortlist/9');
+            expect(bulk.action).toBeUndefined();
+        });
+
+        it('sends exactly one restore request for that offer when Restore is pressed', () => {
+            const requests: { id: number; archived: boolean }[] = [];
+            TestBed.inject(Events)
+                .on(shortlistEvents.archiveRequested)
+                .subscribe(({payload}) => requests.push(payload));
+            shortlist.archived(archiveAnswer(7, 'Senior Java Entwickler (m/w/d)', '2026-09-23T10:00:00Z'));
+
+            // What the stack does with a pressed action: the event it was handed, then the close.
+            const [archived] = store.toasts();
+            const restore = archived.action;
+            expect(restore).toBeDefined();
+            if (restore !== undefined) {
+                TestBed.inject(Dispatcher).dispatch(restore.event);
+            }
+            dispatch.dismissed(archived.id);
+
+            expect(requests).toEqual([{id: 7, archived: false}]);
+            expect(store.toasts()).toEqual([]);
         });
     });
 
@@ -390,8 +431,30 @@ describe('ToastStore', () => {
             expect(store.toasts().length).toBe(0);
         });
 
-        it('stands until closed when it carries an action, and a release starts no timer either', () => {
-            const offered = actionToast('info', 'toast.update.ready', {key: 'toast.update.reload', event: updateEvents.activate()});
+        it('lets a single archive toast leave after the lifetime, although it carries Restore', () => {
+            shortlist.archived(archiveAnswer(7, 'Senior Java Entwickler (m/w/d)', '2026-09-23T10:00:00Z'));
+            expect(store.toasts()[0].action).toBeDefined();
+
+            vi.advanceTimersByTime(TOAST_LIFETIME_MS - 1);
+            expect(store.toasts().length).toBe(1);
+            vi.advanceTimersByTime(1);
+            expect(store.toasts().length).toBe(0);
+        });
+
+        it('keeps the reload toast standing past any lifetime', () => {
+            const update = TestBed.runInInjectionContext(() => injectDispatch(updateEvents));
+            update.versionReady('a1');
+            expect(store.toasts()[0].standing).toBe(true);
+
+            vi.advanceTimersByTime(TOAST_LIFETIME_MS * 10);
+            expect(store.toasts().length).toBe(1);
+        });
+
+        it('stands until closed when it is standing, and a release starts no timer either', () => {
+            const offered = {
+                ...actionToast('info', 'toast.update.ready', {key: 'toast.update.reload', event: updateEvents.activate()}),
+                standing: true as const,
+            };
             dispatch.raised(offered);
             vi.advanceTimersByTime(TOAST_LIFETIME_MS * 10);
             expect(store.toasts().length).toBe(1);

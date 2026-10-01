@@ -14,8 +14,9 @@ import {Icon} from '@shared/icon/icon';
  * one toast that carries one — the action's own event, exactly as the toast handed it
  * over, followed by the same `dismissed`. The hold and the release are the pointer's and
  * the focus's, and go to the store's timer; navigation is a `routerLink`. Nothing here
- * writes, which is the whole of "a toast carries a link and never an undo": the action's
- * event goes to a store that acts under its own rules.
+ * writes: an action is a second write under the store's own rules, never a client-side
+ * revert. The action's event goes to the store that would have taken the same request from
+ * any screen, and whatever that store refuses stays refused.
  */
 @Component({
     selector: 'lg-toast-stack',

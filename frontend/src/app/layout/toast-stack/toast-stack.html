@@ -27,20 +27,23 @@
       (focusin)="hold(toast.id)"
       (focusout)="release(toast.id)"
     >
-      <span class="type-small line">{{ toast.key | transloco: toast.params }}</span>
+      <!-- Beside an action the sentence is clamped to two lines: with Restore and the close on
+           its row a phone leaves about 214px for it, and a title from this corpus runs to four.
+           The clamp is visual only; the DOM keeps the whole sentence for the live region. -->
+      <span class="type-small line" [class.line-clamp-2]="toast.action !== undefined">{{ toast.key | transloco: toast.params }}</span>
       @if (toast.link; as link) {
         <a [class]="linkClass[toast.tone]" [routerLink]="link" [queryParams]="toast.query ?? null">{{ 'toast.open' | transloco }}</a>
       }
       <!-- The action wears the link's class: it is the one thing this toast offers, and the
            filled button in the tone is what "the one thing offered" looks like here. -->
       @if (toast.action; as action) {
-        <button type="button" [class]="linkClass[toast.tone]" (click)="act(toast.id, action)">
+        <button type="button" [class]="linkClass[toast.tone] + ' lg-toast-hit'" (click)="act(toast.id, action)">
           {{ action.key | transloco }}
         </button>
       }
       <button
         type="button"
-        class="btn btn-ghost btn-xs btn-square"
+        class="btn btn-ghost btn-xs btn-square lg-toast-hit"
         [attr.aria-label]="'toast.close' | transloco"
         [attr.title]="'toast.close' | transloco"
         (click)="dismiss(toast.id)"

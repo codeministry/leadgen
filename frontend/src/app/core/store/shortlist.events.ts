@@ -46,8 +46,10 @@ export const shortlistEvents = eventGroup({
     /**
      * Off the working list, or back onto it. The one thing about an offer a person owns —
      * everything else here is written by a run and rewritten by the next one.
+     * `inline`: the caller shows a refusal itself, inside the row a swipe came from, so the
+     * detail does not repeat it beside that row (spec 024).
      */
-    archiveRequested: type<{ id: number; archived: boolean }>(),
+    archiveRequested: type<{ id: number; archived: boolean; inline?: boolean }>(),
     archived: type<ShortlistEntry>(),
     archiveFailed: type<string>(),
     /**

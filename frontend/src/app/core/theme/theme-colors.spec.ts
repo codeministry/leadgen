@@ -29,8 +29,21 @@ const TOOLCHAIN_PREFIXES = ['--color-', '--radius-', '--size-', '--font-', '--te
 const TOOLCHAIN_NAMES = ['--border', '--depth', '--noise'];
 
 /** Written on the element at runtime by `shared/popover/anchor-for.ts`, never declared in CSS. */
-/** Set from script at runtime: the popover's anchor, and the chat list's measured search height. */
-const RUNTIME_ALLOWLIST = ['--lg-anchor-x', '--lg-anchor-y', '--lg-chat-search-h'];
+/**
+ * Set from script at runtime: the popover's anchor, the chat list's measured search height, and a
+ * swiped row's offset and how much of its reveal is uncovered (`shared/swipe/swipe.ts`).
+ */
+// `--lg-swipe-x`, `-uncovered` and `-height` are written onto the row by the `lgSwipe` directive;
+// `--lg-swipe-gap` is the list gap a screen hosting it names for the collapse, beside that gap.
+const RUNTIME_ALLOWLIST = [
+    '--lg-anchor-x',
+    '--lg-anchor-y',
+    '--lg-chat-search-h',
+    '--lg-swipe-x',
+    '--lg-swipe-uncovered',
+    '--lg-swipe-height',
+    '--lg-swipe-gap',
+];
 
 /** The seven navigation destinations, in the order the nav lists them. */
 const SECTIONS = ['dashboard', 'shortlist', 'pipeline', 'analytics', 'sources', 'review', 'workflow'] as const;

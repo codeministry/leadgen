@@ -644,3 +644,23 @@ describe.each(THEMES)('%s: the living mark reads on every ground it stands on (I
         expect(failures).toEqual([]);
     });
 });
+
+describe.each(THEMES)('%s: the swipe reveal reads in both of its states (ISC-492)', theme => {
+    beforeEach(() => useTheme(theme));
+    afterEach(() => document.documentElement.removeAttribute('data-theme'));
+
+    // The label is text and the glyph beside it takes the same colour, so the text floor covers
+    // both. The tint is a mix of two opaque theme colours, so it is opaque and measured as it is.
+    it('the label and the glyph are ≥ 4.5:1 on the tint and on the fill, on either side', () => {
+        const failures: string[] = [];
+        for (const side of ['archive', 'restore']) {
+            for (const state of ['', '-armed']) {
+                const ink = `--lg-swipe-${side}-ink${state}`;
+                const ground = `--lg-swipe-${side}-ground${state}`;
+                const r = ratio(token(ink), token(ground));
+                if (r < TEXT_FLOOR) failures.push(`${ink} on ${ground}: ${r.toFixed(2)}`);
+            }
+        }
+        expect(failures).toEqual([]);
+    });
+});

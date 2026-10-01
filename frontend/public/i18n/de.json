@@ -110,6 +110,7 @@
     "region": "Benachrichtigungen",
     "close": "Schließen",
     "open": "Öffnen",
+    "restore": "Wiederherstellen",
     "archived": "Archiviert: {title}",
     "restored": "Wiederhergestellt: {title}",
     "countArchived": "{count, plural, =0 {Nichts archiviert} one {1 Offer archiviert} other {# Offers archiviert}}",
@@ -265,6 +266,12 @@
     "emptyHint": "Der Lauf liest die Quellen, der harte Filter dünnt sie aus. Starte ihn oben im Kopf, dann füllt sich diese Liste.",
     "loadingMore": "Lädt weitere…",
     "archive": "Archiv",
+    "swipe": {
+      "archive": "Archivieren",
+      "archivePackage": "Archivieren…",
+      "restore": "Wiederherstellen",
+      "restorePackage": "Wiederherstellen…"
+    },
     "countArchived": "{matched} von {total} archiviert",
     "emptyArchiveTitle": "Noch nichts archiviert",
     "emptyArchiveHint": "Angebote verlassen die Arbeitsliste, wenn sie älter als das Frischefenster werden oder wenn du sie selbst herausnimmst.",

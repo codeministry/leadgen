@@ -55,6 +55,26 @@
     min-width: 0;
 }
 
+/* The visual `btn-xs` stays; a finger gets a 44px target through a transparent `::after`
+   centred on the button, so Restore and the close keep their size and the row its height.
+   At least as wide as the button and at least 44px wide: the close is a 24px square, and
+   the 0.75rem gap between it and the action is what keeps the two targets from meeting. */
+@media (pointer: coarse) {
+    .lg-toast-hit {
+        position: relative;
+    }
+
+    .lg-toast-hit::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: max(100%, 44px);
+        height: 44px;
+        translate: -50% -50%;
+    }
+}
+
 /* DaisyUI's own reveal, on the repo's motion tokens, and off under reduced motion. Written
    unlayered, so it beats the layered rule the plugin ships. There is no leave animation:
    the element is removed, and removing is the one motion nobody has to wait for. */

@@ -9,6 +9,26 @@ may change in any release. See the status note in the README.
 
 ## [Unreleased]
 
+### Added
+
+- **Swiping a shortlist row to the archive.** On a touch screen, at every width, a row dragged to
+  the left follows the finger and uncovers what letting go will do: Archive on the working side,
+  Restore on the archive side. Released past `min(40 % of the row, 12rem)`, or flung once 3rem are
+  uncovered, it sends the same request the detail's button sends; released short, it springs back
+  and nothing happened. A row with a package asks first, as the `a` key does. Scrolling still
+  scrolls, a tap still opens the offer, a drag to the right does nothing, and a mouse, a trackpad
+  or a pen never starts it. Where list and detail are both on screen, swiping the open offer moves
+  on to its neighbour. The detail's button and the bulk bar now show the same glyphs, `archive`
+  to archive and `archive-restore` to restore.
+
+### Changed
+
+- **Restore on the archive toast.** The toast of a single archive, from the swipe, the `a` key or
+  the detail's button, carries Restore in place of Open. It sends the offer's restore request, a
+  second write under the store's own rules and never a client-side revert, and the row comes back
+  where it stood on an unchanged list. The toast keeps an archive toast's six seconds; the bulk
+  archive's count toast is unchanged.
+
 ## [0.5.2] — 2026-09-30
 
 A run starts and shows itself from every screen, the machine room reads at a glance, the workflow

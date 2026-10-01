@@ -110,6 +110,7 @@
     "region": "Notifications",
     "close": "Dismiss",
     "open": "Open",
+    "restore": "Restore",
     "archived": "Archived: {title}",
     "restored": "Restored: {title}",
     "countArchived": "{count, plural, =0 {Nothing was archived} one {1 offer archived} other {# offers archived}}",
@@ -265,6 +266,12 @@
     "emptyHint": "Ingest reads the sources and the hard filter thins them out. Run it from the header to fill this list.",
     "loadingMore": "Loading more…",
     "archive": "Archive",
+    "swipe": {
+      "archive": "Archive",
+      "archivePackage": "Archive…",
+      "restore": "Restore",
+      "restorePackage": "Restore…"
+    },
     "countArchived": "{matched} of {total} archived",
     "emptyArchiveTitle": "Nothing archived yet",
     "emptyArchiveHint": "Offers leave the working list when they age past the freshness window, or when you take them off it yourself.",

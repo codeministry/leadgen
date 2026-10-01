@@ -22,6 +22,7 @@
                     [routerLink]="['/shortlist', entry().offer.id]"
                     queryParamsHandling="preserve"
                     [attr.aria-current]="selected() ? 'true' : null"
+                    draggable="false"
             >{{ entry().offer.title }}</a
             >
         </h3>

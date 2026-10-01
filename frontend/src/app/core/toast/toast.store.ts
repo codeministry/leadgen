@@ -74,15 +74,16 @@ export const ToastStore = signalStore(
              * the remainder: the person just read it, and a line that vanishes the instant
              * the pointer leaves is the thing the hold exists to prevent.
              *
-             * A toast with an action gets no timer on either path: the offer stands until the
-             * person takes it or closes it. The raise carries the toast; a release carries only
+             * A `standing` toast gets no timer on either path: the offer stands until the person
+             * takes it or closes it. An action alone is no exemption — the archive toast's
+             * Restore leaves with the toast. The raise carries the toast; a release carries only
              * the id, and the toast it names has stood in the state since its raise.
              */
             events.on(toastEvents.raised, toastEvents.released).pipe(
                 map(({payload}) =>
                     typeof payload === 'number' ? store.toasts().find((standing) => standing.id === payload) : payload,
                 ),
-                filter((standing): standing is Toast => standing !== undefined && standing.action === undefined),
+                filter((standing): standing is Toast => standing !== undefined && standing.standing !== true),
                 map(({id}) => id),
                 mergeMap((id) =>
                     timer(TOAST_LIFETIME_MS).pipe(
@@ -94,14 +95,30 @@ export const ToastStore = signalStore(
 
             // ── The mappings. One per answer event; the key names the catalog line. ──
 
-            // Raised from the answer, so whichever screen wrote it produces the same toast.
-            // The direction is read off the row the server returned, not off the request.
+            // Raised from the answer, so whichever screen wrote it — the swipe, the `a` key, the
+            // detail's button — produces the same toast. The direction is read off the row the
+            // server returned, not off the request.
+            //
+            // An archive offers Restore in place of Open: Open on an archived offer only leads to
+            // a detail whose main action is the same restore, one tap further away. Restore is the
+            // existing restore request, a second write the shortlist store handles under its own
+            // rules. The answer to it is a restore and raises the green line with Open and no
+            // reverse action; a symmetrical undo would invite ping-pong. The toast keeps the timer:
+            // the permanent way back is the archive view.
             events.on(shortlistEvents.archived).pipe(
                 map(({payload}) =>
                     toastEvents.raised(
                         payload.offer.archivedAt === null
                             ? toast('success', 'toast.restored', {title: payload.offer.title}, `/shortlist/${payload.offer.id}`)
-                            : toast('warning', 'toast.archived', {title: payload.offer.title}, `/shortlist/${payload.offer.id}`),
+                            : actionToast(
+                                'warning',
+                                'toast.archived',
+                                {
+                                    key: 'toast.restore',
+                                    event: shortlistEvents.archiveRequested({id: payload.offer.id, archived: false}),
+                                },
+                                {title: payload.offer.title},
+                            ),
                     ),
                 ),
             ),
@@ -256,7 +273,7 @@ export const ToastStore = signalStore(
                 ),
             ),
             // A new version the worker holds, once per hash — the update store keys that. The
-            // one toast with an action: the reload is the person's call and it stands until they
+            // one `standing` toast: the reload is the person's call and it stands until they
             // take it or close it. Info, because nobody in this browser asked for a deploy; and no
             // link, because there is no page for it. Never raised while the worker is disabled,
             // since the event then never fires. A standing update toast goes first: it describes
@@ -267,12 +284,13 @@ export const ToastStore = signalStore(
                         .toasts()
                         .filter((standing) => standing.key === UPDATE_READY_KEY)
                         .map((standing) => toastEvents.dismissed(standing.id)),
-                    toastEvents.raised(
-                        actionToast('info', UPDATE_READY_KEY, {
+                    toastEvents.raised({
+                        ...actionToast('info', UPDATE_READY_KEY, {
                             key: 'toast.update.reload',
                             event: updateEvents.activate(),
                         }),
-                    ),
+                        standing: true,
+                    }),
                 ]),
             ),
         ];

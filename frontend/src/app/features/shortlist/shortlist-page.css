@@ -277,8 +277,78 @@
 .offer-list {
     display: flex;
     flex-direction: column;
-    gap: 0.625rem;
+
+    /* Named for the swipe's collapse, which closes a leaving row's gap together with its height. */
+    --lg-swipe-gap: 0.625rem;
+
+    gap: var(--lg-swipe-gap);
     list-style: none;
+}
+
+/* The swipe (spec 024). The `<li>` is the track `lgSwipe` moves; `swipe.css` owns the transform,
+   the clip and when the reveal is painted, this file only what it looks like. No tap highlight:
+   iOS would flash the stretched title link's at the start of every swipe. */
+.offer-list > li {
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* A transform does nothing to an inline box, and a component host is inline by default. */
+.offer-list lg-offer-card {
+    display: block;
+}
+
+/* The archive toast's tone on the working side, the restore toast's on the archive side: a tint
+   while letting go would change nothing, the solid fill once it would count. */
+.swipe-reveal {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-inline-end: var(--lg-gutter);
+    border-radius: var(--radius-box);
+    background-color: var(--lg-swipe-archive-ground);
+    color: var(--lg-swipe-archive-ink);
+    transition: background-color var(--lg-hover-duration) var(--lg-hover-ease),
+    color var(--lg-hover-duration) var(--lg-hover-ease);
+}
+
+.swipe-reveal.is-restore {
+    background-color: var(--lg-swipe-restore-ground);
+    color: var(--lg-swipe-restore-ink);
+}
+
+.is-armed > .swipe-reveal {
+    background-color: var(--lg-swipe-archive-ground-armed);
+    color: var(--lg-swipe-archive-ink-armed);
+}
+
+.is-armed > .swipe-reveal.is-restore {
+    background-color: var(--lg-swipe-restore-ground-armed);
+    color: var(--lg-swipe-restore-ink-armed);
+}
+
+/* Inline and pinned to the end, where the finger uncovers it first; it fades in over the first
+   3rem uncovered, which the directive writes as a 0-1 figure. */
+.swipe-cluster {
+    display: inline-flex;
+    gap: 0.5rem;
+    align-items: center;
+    font-weight: 600;
+    white-space: nowrap;
+    opacity: var(--lg-swipe-uncovered, 0);
+}
+
+@media (forced-colors: active) {
+    .swipe-reveal,
+    .swipe-reveal.is-restore {
+        background-color: Canvas;
+        color: CanvasText;
+    }
+
+    .is-armed > .swipe-reveal,
+    .is-armed > .swipe-reveal.is-restore {
+        background-color: Highlight;
+        color: HighlightText;
+    }
 }
 
 .error {

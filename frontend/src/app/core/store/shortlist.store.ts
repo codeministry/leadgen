@@ -64,6 +64,8 @@ interface ShortlistState {
     fetchError: string | null;
     /** The offer being archived or restored, not a boolean. One button waits, not the page. */
     archiving: number | null;
+    /** The write in flight shows its own refusal (a swipe's row), so `rescoreError` stays clear. */
+    archivingInline: boolean;
   /**
    * The offers ticked for a bulk decision. Ids and not indices: `entries` is appended to by
    * paging and shortened by an archive, and an index silently points at a different offer
@@ -99,6 +101,14 @@ interface ShortlistState {
    * not ask about. Every other screen re-reads silently because nothing there is lost.
    */
   stale: boolean;
+  /**
+   * Where the last single archive took its row from, so the archive toast's Restore can put it
+   * back in the same place without a refetch or a scroll. An index is safe here only because
+   * everything that replaces `entries` wholesale — a load, a filter, a sort, a side — clears it,
+   * and so does a bulk archive, which shortens the list in front of it. A restore that finds
+   * no memory, or the memory of another offer, inserts nothing; the next load shows the row.
+   */
+  lastArchived: { id: number; index: number } | null;
 }
 
 const NO_FILTERS: ShortlistFilters = {
@@ -141,12 +151,48 @@ const initialState: ShortlistState = {
     fetching: null,
     fetchError: null,
     archiving: null,
+    archivingInline: false,
   picked: [],
   pickAnchor: null,
   bulkArchiving: false,
   bulkArchiveError: null,
   stale: false,
+  lastArchived: null,
 };
+
+/**
+ * The `archived` answer's effect on the list. An archive drops the row and remembers where it
+ * stood; a restore of exactly the remembered offer puts the server's row back at that index,
+ * with the counts it took away. Every other answer drops the row as before: on the archive
+ * side a restore is what takes it off the side being read.
+ */
+function afterArchive(
+  state: ShortlistState,
+  answer: ShortlistEntry,
+): Pick<ShortlistState, 'entries' | 'matched' | 'total' | 'lastArchived'> {
+  const id = answer.offer.id;
+  const remembered = state.lastArchived;
+  if (
+    answer.offer.archivedAt === null &&
+    remembered?.id === id &&
+    remembered.index <= state.entries.length &&
+    !state.entries.some((entry) => entry.offer.id === id)
+  ) {
+    return {
+      entries: [...state.entries.slice(0, remembered.index), answer, ...state.entries.slice(remembered.index)],
+      matched: state.matched + 1,
+      total: state.total + 1,
+      lastArchived: null,
+    };
+  }
+  const index = state.entries.findIndex((entry) => entry.offer.id === id);
+  return {
+    entries: state.entries.filter((entry) => entry.offer.id !== id),
+    matched: Math.max(0, state.matched - 1),
+    total: Math.max(0, state.total - 1),
+    lastArchived: answer.offer.archivedAt !== null && index >= 0 ? {id, index} : null,
+  };
+}
 
 export const ShortlistStore = signalStore(
     {providedIn: 'root'},
@@ -179,12 +225,14 @@ export const ShortlistStore = signalStore(
           picked: [],
           pickAnchor: null,
           bulkArchiveError: null,
+          lastArchived: null,
         })),
       // `stale` is cleared by a page arriving, whatever asked for it. Self-correcting, and
       // it is what stops the reader's own run from leaving the hint behind: the reload that
       // `ingestEvents.finished` starts clears it without anyone having to sequence the two.
         on(shortlistEvents.loaded, ({payload}) => ({
           stale: false,
+          lastArchived: null,
             entries: payload.entries,
             cursor: payload.nextCursor,
             matched: payload.matched,
@@ -272,22 +320,27 @@ export const ShortlistStore = signalStore(
         })),
         on(shortlistEvents.archiveRequested, ({payload}) => ({
             archiving: payload.id,
+            archivingInline: payload.inline === true,
             rescoreError: null,
         })),
         // The row is dropped from the list rather than replaced: archiving is what takes an
         // offer off the side being read, so leaving it there would show the working list with
         // something on it that is no longer part of it — until a reload said otherwise. The
         // detail keeps the entry, because that screen shows either side.
+        // The one exception is the archive toast's Restore, answered while the list is still the
+        // one the row left: it comes back where it was — see `afterArchive`.
+        // The detail only when it shows that offer: a swipe archives any row, and the answer for
+        // another one would put its ad under the open offer's title (spec 024, ISC-499).
         on(shortlistEvents.archived, ({payload}, state) => ({
-            selected: payload,
-            entries: state.entries.filter((entry) => entry.offer.id !== payload.offer.id),
-            matched: Math.max(0, state.matched - 1),
-            total: Math.max(0, state.total - 1),
+            selected: state.selected?.offer.id === payload.offer.id ? payload : state.selected,
+            ...afterArchive(state, payload),
             archiving: null,
+            archivingInline: false,
         })),
-        on(shortlistEvents.archiveFailed, ({payload}) => ({
+        on(shortlistEvents.archiveFailed, ({payload}, state) => ({
             archiving: null,
-            rescoreError: payload,
+            archivingInline: false,
+            rescoreError: state.archivingInline ? null : payload,
         })),
       // The anchor moves on an untick as well: "tick 5, untick 5, shift-click 12" means
       // 5 through 12, not a reach back to whatever happened to be ticked before that.
@@ -327,6 +380,7 @@ export const ShortlistStore = signalStore(
           picked: [],
           pickAnchor: null,
           bulkArchiving: false,
+          lastArchived: null,
         };
       }),
       on(shortlistEvents.bulkArchiveFailed, ({payload}) => ({

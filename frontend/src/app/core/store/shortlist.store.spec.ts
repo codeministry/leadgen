@@ -236,6 +236,103 @@ describe('ShortlistStore', () => {
         expect(store.matched()).toBe(1);
     });
 
+    it('leaves the detail on its own offer when another row is archived (ISC-499)', () => {
+        // A swipe archives any row, not only the open one; the detail keeps what it shows.
+        openList();
+        dispatch.offerRequested(1);
+        http.expectOne('/api/v1/offers/1').flush(entry(1));
+
+        dispatch.archiveRequested({id: 2, archived: true});
+        const archived = entry(2);
+        http.expectOne('/api/v1/offers/2').flush({
+            ...archived,
+            offer: {...archived.offer, archivedAt: '2026-09-06T08:00:00Z', archiveSource: 'MANUAL'},
+        });
+
+        expect(store.entries().map((row) => row.offer.id)).toEqual([1]);
+        expect(store.selected()?.offer.id).toBe(1);
+        expect(store.selected()?.offer.archivedAt).toBeNull();
+    });
+
+    it('keeps a refused inline write out of the detail (ISC-495)', () => {
+        // A swipe shows its refusal inside the row; the detail must not repeat it beside it.
+        openList();
+        dispatch.offerRequested(1);
+        http.expectOne('/api/v1/offers/1').flush(entry(1));
+
+        dispatch.archiveRequested({id: 1, archived: true, inline: true});
+        http.expectOne('/api/v1/offers/1').flush('boom', {status: 500, statusText: 'Server Error'});
+        expect(store.archiving()).toBeNull();
+        expect(store.rescoreError()).toBeNull();
+
+        dispatch.archiveRequested({id: 1, archived: true});
+        http.expectOne('/api/v1/offers/1').flush('boom', {status: 500, statusText: 'Server Error'});
+        expect(store.rescoreError(), 'the detail button still reads its own').toBe('boom');
+    });
+
+    describe('a restore from the archive toast', () => {
+        const archivedAt = '2026-09-06T08:00:00Z';
+
+        /** Archive one offer through the store's own request, answered as the server would. */
+        function archive(id: number): void {
+            dispatch.archiveRequested({id, archived: true});
+            const answer = entry(id);
+            http.expectOne(`/api/v1/offers/${id}`).flush({
+                ...answer,
+                offer: {...answer.offer, archivedAt, archiveSource: 'MANUAL'},
+            });
+        }
+
+        function restore(id: number): void {
+            dispatch.archiveRequested({id, archived: false});
+            http.expectOne(`/api/v1/offers/${id}`).flush(entry(id));
+        }
+
+        it('puts the row back where it was, with the counts, while the list is unchanged', () => {
+            openList([entry(1), entry(2), entry(3)]);
+            archive(2);
+            expect(store.entries().map((row) => row.offer.id)).toEqual([1, 3]);
+            expect(store.matched()).toBe(2);
+
+            restore(2);
+
+            expect(store.entries().map((row) => row.offer.id)).toEqual([1, 2, 3]);
+            expect(store.entries()[1].offer.archivedAt).toBeNull();
+            expect(store.matched()).toBe(3);
+            expect(store.total()).toBe(3);
+        });
+
+        it('inserts nothing once the list was loaded again', () => {
+            openList([entry(1), entry(2), entry(3)]);
+            archive(2);
+            openList([entry(1), entry(3)]);
+
+            restore(2);
+
+            expect(store.entries().map((row) => row.offer.id)).toEqual([1, 3]);
+        });
+
+        it('inserts nothing once the filters changed', () => {
+            openList([entry(1), entry(2), entry(3)]);
+            archive(2);
+            dispatch.opened({...NO_FILTERS, q: 'java'});
+            http.expectOne((request) => request.url === '/api/v1/offers').flush(page([entry(1), entry(3)]));
+
+            restore(2);
+
+            expect(store.entries().map((row) => row.offer.id)).toEqual([1, 3]);
+        });
+
+        it('inserts nothing for another offer\'s restore', () => {
+            openList([entry(1), entry(2), entry(3)]);
+            archive(2);
+
+            restore(5);
+
+            expect(store.entries().map((row) => row.offer.id)).toEqual([1, 3]);
+        });
+    });
+
     it('keeps a fetch that lands late off the offer the reader moved on to', () => {
         // A fetch runs a portal request and three model stages, so the reader may well open
         // another offer before it answers. The list row is still replaced; the detail is not,

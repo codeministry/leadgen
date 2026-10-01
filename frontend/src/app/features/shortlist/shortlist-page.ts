@@ -38,6 +38,8 @@ import {LoadMore} from '@shared/load-more/load-more';
 import {Icon} from '@shared/icon/icon';
 import {LgIconName} from '@shared/icon/lucide-icons';
 import {PageHeader} from '@shared/page-header/page-header';
+import {Swipe} from '@shared/swipe/swipe';
+import {ShortlistEntry} from '@core/model/shortlist-entry';
 import {OfferCard} from './offer-card/offer-card';
 import {FacetPanel} from './facet-panel/facet-panel';
 import {SavedViews} from './saved-views/saved-views';
@@ -72,6 +74,7 @@ interface FacetChip {
       PageHeader,
       SavedViews,
       SortMenu,
+      Swipe,
         RouterLink,
         RouterOutlet,
         TranslocoPipe,
@@ -128,8 +131,27 @@ export class ShortlistPage {
   private readonly confirmArchive = viewChild<ElementRef<HTMLDialogElement>>('confirmArchive');
   private readonly confirmOne = viewChild<ElementRef<HTMLDialogElement>>('confirmOne');
 
-  /** The single-offer write `a` is waiting to have confirmed, because the offer has a package. */
-  protected readonly pendingOne = signal<{ readonly id: number; readonly archived: boolean } | null>(null);
+  /**
+   * The single-offer write `a` or a swipe is waiting to have confirmed, because the offer has a
+   * package. `row` is the swiped row, absent for the key.
+   */
+  protected readonly pendingOne = signal<{
+    readonly id: number;
+    readonly archived: boolean;
+    readonly row?: Swipe;
+  } | null>(null);
+
+  /**
+   * A swipe's write in flight: the row that sent it, to spring back if the server refuses, and
+   * the offer to open once it landed — only set when the swiped row was the open one and both
+   * columns show (spec 024, ISC-499).
+   */
+  private readonly afterSwipe = signal<{ readonly id: number; readonly row: Swipe; readonly next: number | null } | null>(
+    null,
+  );
+
+  /** The row whose swipe the server refused; it says so under its card until its next touch. */
+  protected readonly refusedRow = signal<number | null>(null);
 
   /**
    * The offer `a` just took off this side of the list, and the one to open once it is gone.
@@ -509,6 +531,25 @@ export class ShortlistPage {
             this.keyedId = pending.next;
             this.focusWanted.set(pending.next);
             void this.router.navigate(['/shortlist', pending.next], {queryParamsHandling: 'preserve'});
+        });
+
+        // After a swipe, by the same test: still listed means refused, and the row comes back with
+        // its line; gone means it worked, and only the open row hands the detail on. No focus
+        // follows, because a finger, not a key, asked.
+        effect(() => {
+            const pending = this.afterSwipe();
+            if (pending === null || this.store.archiving() !== null) {
+                return;
+            }
+            this.afterSwipe.set(null);
+            if (this.visible().some((entry) => entry.offer.id === pending.id)) {
+                pending.row.settle('return');
+                this.refusedRow.set(pending.id);
+                return;
+            }
+            if (pending.next !== null) {
+                void this.router.navigate(['/shortlist', pending.next], {queryParamsHandling: 'preserve'});
+            }
         });
 
         // The focus follows a key press. `afterNextRender` because `aria-current` is on the new
@@ -1033,6 +1074,18 @@ export class ShortlistPage {
   }
 
   /**
+   * The swipe reveal's label: the side being read decides the verb, and a package adds the
+   * ellipsis that says letting go asks first. Catalog keys, spelled out, never assembled.
+   */
+  protected swipeLabel(entry: ShortlistEntry): string {
+    const packaged = entry.offer.packageDir !== null;
+    if (this.archived()) {
+      return packaged ? 'shortlist.swipe.restorePackage' : 'shortlist.swipe.restore';
+    }
+    return packaged ? 'shortlist.swipe.archivePackage' : 'shortlist.swipe.archive';
+  }
+
+  /**
    * `a`: the open offer leaves the side being read — archived from the working list, restored
    * from the archive, by the same rule as the detail's button.
    *
@@ -1060,19 +1113,81 @@ export class ShortlistPage {
    * The neighbour is decided before the row goes: below, or above when it was the last. Like a
    * mail client, triage continues where the reader already is.
    */
-  private archiveOne(id: number, archived: boolean): void {
+  private neighbourOf(id: number): number | null {
     const entries = this.visible();
     const index = entries.findIndex((entry) => entry.offer.id === id);
-    const next = index === -1 ? null : (entries[index + 1] ?? entries[index - 1])?.offer.id ?? null;
-    this.dispatch.archiveRequested({id, archived});
+    return index === -1 ? null : (entries[index + 1] ?? entries[index - 1])?.offer.id ?? null;
+  }
+
+  private archiveOne(id: number, archived: boolean): void {
+    const next = this.neighbourOf(id);
+    this.requestArchive(id, archived);
     this.afterArchive.set({id, next});
+  }
+
+  /**
+   * The write the detail's button sends: one PATCH through the store, which drops the row once
+   * the server answered. `a` and a swipe both come through here; where the selection goes
+   * afterwards is each caller's own rule. `inline`: the caller shows a refusal in the row itself.
+   */
+  private requestArchive(id: number, archived: boolean, inline = false): void {
+    this.dispatch.archiveRequested(inline ? {id, archived, inline} : {id, archived});
+  }
+
+  /**
+   * A row released past the swipe's threshold (spec 024, ISC-493): it leaves the side being
+   * read — archived from the working list, restored from the archive — by the same request as the
+   * detail's button. The row slides off and holds there; the store's answer takes it off the
+   * list, and the row's leave animation closes the slot.
+   *
+   * <p>A row whose offer has a package springs back and asks first, with the confirmation `a`
+   * opens (ISC-495). Any release while another single write is in flight springs back and does
+   * nothing, because the store would drop it.
+   */
+  protected onSwiped(entry: ShortlistEntry, row: Swipe): void {
+    if (this.store.archiving() !== null) {
+      row.settle('return');
+      return;
+    }
+    const id = entry.offer.id;
+    const archived = entry.offer.archivedAt === null;
+    if (entry.offer.packageDir !== null) {
+      row.settle('return');
+      this.pendingOne.set({id, archived, row});
+      this.confirmOne()?.nativeElement.showModal?.();
+      return;
+    }
+    this.swipeArchive(id, archived, row);
+  }
+
+  /**
+   * The split-view rule (ISC-499): where list and detail both show, the open row hands the
+   * detail to its neighbour as `a` does; any other row leaves the selection, the detail and its
+   * scroll alone. In one column a swipe never navigates.
+   */
+  private swipeArchive(id: number, archived: boolean, row: Swipe): void {
+    const next = this.bothColumns() && this.selectedId() === id ? this.neighbourOf(id) : null;
+    this.refusedRow.set(null);
+    row.settle('leave');
+    this.requestArchive(id, archived, true);
+    this.afterSwipe.set({id, row, next});
+  }
+
+  /** A refused row's line goes with its next gesture or tap. */
+  protected clearRefused(id: number): void {
+    if (this.refusedRow() === id) {
+      this.refusedRow.set(null);
+    }
   }
 
   protected confirmOneArchive(): void {
     const pending = this.pendingOne();
     this.confirmOne()?.nativeElement.close?.();
     this.pendingOne.set(null);
-    if (pending !== null) {
+    if (pending?.row) {
+      // From rest, the same leave, hold and collapse as a swipe without a package.
+      this.swipeArchive(pending.id, pending.archived, pending.row);
+    } else if (pending !== null) {
       this.archiveOne(pending.id, pending.archived);
     }
     this.listPane()?.nativeElement.focus?.();
