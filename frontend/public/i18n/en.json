@@ -270,7 +270,9 @@
       "archive": "Archive",
       "archivePackage": "Archive…",
       "restore": "Restore",
-      "restorePackage": "Restore…"
+      "restorePackage": "Restore…",
+      "packageArchive": "Its package will be discarded.",
+      "packageRestore": "Its package is not rebuilt."
     },
     "countArchived": "{matched} of {total} archived",
     "emptyArchiveTitle": "Nothing archived yet",

@@ -269,6 +269,9 @@ describe('a shortlist row that must not swipe', () => {
             const end = await drag(first, -Math.round(0.45 * first.clientWidth) - 10);
             await release(first, end);
             await settle();
+            // The release opens the row on its confirmation (ISC-501); its Archive sends the write.
+            first.querySelector<HTMLButtonElement>('.swipe-commit')!.click();
+            await settle();
             expect(store().archiving(), 'the archive is still out').toBe(1);
 
             const second = row(1);
@@ -330,6 +333,12 @@ describe('a shortlist row that must not swipe', () => {
                 const end = await drag(li, -Math.round(0.45 * li.clientWidth) - 10);
                 expect(translateX(li), 'the row still follows').toBeLessThan(-100);
                 await release(li, end);
+                await settle();
+                // Settled open in the same frame, then sent off by its Archive (ISC-501).
+                expect(li.classList.contains('is-open'), 'the row settled open').toBe(true);
+                expect(getComputedStyle(card(li)).transitionDuration).toBe('0s');
+                li.querySelector<HTMLButtonElement>('.swipe-commit')!.click();
+                fixture.detectChanges();
                 expect(li.classList.contains('is-leaving'), 'the row is leaving').toBe(true);
                 expect(getComputedStyle(card(li)).transitionDuration).toBe('0s');
             });

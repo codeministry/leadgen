@@ -337,7 +337,62 @@
     opacity: var(--lg-swipe-uncovered, 0);
 }
 
+/* The open row's confirmation (ISC-501), on the armed ground the row settled with: the package
+   line above, Cancel and the commit beside each other below, pinned to the end like the preview.
+   The commit is the armed pair turned round — the ground's ink as its fill, the ground as its
+   text — so it reads filled in the side's own tone on a ground of that tone, and the pair it uses
+   is the one `contrast.browser.spec.ts` already holds. The cluster never claims the last 3rem of the
+   row, which stay the card the directive keeps covered there; its buttons wrap before that. */
+.swipe-confirm {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    align-items: flex-end;
+    max-width: calc(100% - 3rem);
+}
+
+.swipe-confirm-line {
+    margin: 0;
+    font-weight: 600;
+    text-align: end;
+}
+
+.swipe-confirm-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    justify-content: flex-end;
+}
+
+.swipe-cancel {
+    --btn-fg: currentcolor;
+    --btn-color: color-mix(in oklab, currentcolor 14%, transparent);
+
+    color: inherit;
+}
+
+.swipe-commit {
+    --btn-color: var(--lg-swipe-archive-ink-armed);
+    --btn-fg: var(--lg-swipe-archive-ground-armed);
+}
+
+.swipe-reveal.is-restore .swipe-commit {
+    --btn-color: var(--lg-swipe-restore-ink-armed);
+    --btn-fg: var(--lg-swipe-restore-ground-armed);
+}
+
+/* A finger needs 44px to hit; a mouse never opens a row, but keeps btn-sm's size if one is open. */
+@media (pointer: coarse) {
+    .swipe-confirm .btn {
+        --size: 2.75rem;
+    }
+}
+
 @media (forced-colors: active) {
+    .swipe-confirm .btn {
+        border-color: ButtonText;
+    }
+
     .swipe-reveal,
     .swipe-reveal.is-restore {
         background-color: Canvas;

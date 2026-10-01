@@ -19,6 +19,8 @@ const VELOCITY_WINDOW_MS = 100;
  * keeps a swallower that found no click from eating a keyboard Enter on the title much later.
  */
 const CLICK_GRACE_MS = 400;
+/** How much of an open row stays covered at least, so the card is still there to tap closed. */
+const OPEN_KEEP_REM = 3;
 
 interface Track {
     readonly pointerId: number;
@@ -31,10 +33,11 @@ interface Track {
 
 /**
  * Where the row is between gestures. `held`: released past the threshold, waiting for the host's
- * `settle`; `returning`: springing back to 0; `leaving`: sliding off, and holding there until the
- * host takes the row away.
+ * `settle`; `open`: held aside on what the reveal's hold needs uncovered, until the host settles
+ * again or a tap on the row closes it; `returning`: springing back to 0; `leaving`: sliding off,
+ * and holding there until the host takes the row away.
  */
-type Phase = 'rest' | 'drag' | 'held' | 'returning' | 'leaving';
+type Phase = 'rest' | 'drag' | 'held' | 'open' | 'returning' | 'leaving';
 
 /**
  * A row that follows a finger to the left (spec 024). Generic on purpose: it knows a pointer
@@ -62,6 +65,10 @@ type Phase = 'rest' | 'drag' | 'held' | 'returning' | 'leaving';
  * host answers with `settle` (ISC-493). A release short of it, or a cancelled pointer, springs
  * back (`.is-returning`). `settle('leave')` slides the row off (`.is-leaving`) and writes its
  * height as `--lg-swipe-height`, the length the collapse on the host's leave animation closes.
+ * `settle('open')` holds the row aside on what the reveal's `.lg-swipe-hold` needs uncovered plus a
+ * rem, keeping 3rem of the row covered, armed and `.is-open`; from there `settle` again, or a
+ * touch or click on the row outside its reveal closes it — that click swallowed, and `closed`
+ * emitted so the host can forget it (ISC-501).
  *
  * <p>A touch engages only once its horizontal travel passes the 10px slop and beats its vertical
  * travel; until then nothing moves, and a touch that went vertical first is the list's for good.
@@ -69,7 +76,8 @@ type Phase = 'rest' | 'drag' | 'held' | 'returning' | 'leaving';
  * host, so a swipe never opens the offer; a tap without travel still does (ISC-494). While
  * `swipeDisabled` is set a touch starts nothing at all (ISC-497).
  *
- * <p>Markup contract: the reveal is a child with `.lg-swipe-reveal`; every other child moves.
+ * <p>Markup contract: the reveal is a child with `.lg-swipe-reveal`; every other child moves. A
+ * host that settles open marks what the open row uncovers with `.lg-swipe-hold` inside the reveal.
  */
 @Directive({
     selector: '[lgSwipe]',
@@ -85,6 +93,8 @@ export class Swipe {
     readonly swipeDisabled = input(false);
     /** Released past the threshold, or flung. The host answers with `settle`. */
     readonly swiped = output<void>();
+    /** An open row closed itself, on a tap outside its reveal; a host's own `settle` emits nothing. */
+    readonly closed = output<void>();
 
     private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
 
@@ -104,6 +114,11 @@ export class Swipe {
      * it: the click after an engaged gesture never opens the offer and never ticks a box (ISC-494).
      */
     private readonly swallowClick = (event: Event): void => {
+        // A press on an open row's reveal is a button's own click, never the gesture's: the reveal
+        // takes no pointer while the finger is down, so the gesture's click cannot land there.
+        if (event.target instanceof Element && event.target.closest('.lg-swipe-reveal') !== null) {
+            return;
+        }
         event.preventDefault();
         event.stopPropagation();
         this.releaseClick();
@@ -118,10 +133,14 @@ export class Swipe {
     }
 
     /** The host decides what a completed swipe means; the directive only moves. */
-    settle(how: 'leave' | 'return'): void {
+    settle(how: 'leave' | 'return' | 'open'): void {
         this.untrack();
         if (how === 'return') {
             this.springBack();
+            return;
+        }
+        if (how === 'open') {
+            this.open();
             return;
         }
         this.clearReturnTimer();
@@ -136,6 +155,10 @@ export class Swipe {
         // A new touch is a new gesture: a click from here on is its own, never the last one's.
         this.releaseClick();
         const phase = this.phase;
+        if (phase === 'open') {
+            this.onDownOpen(event);
+            return;
+        }
         if (event.pointerType !== 'touch' || this.swipeDisabled() || this.track !== null) {
             return;
         }
@@ -232,6 +255,37 @@ export class Swipe {
         return t1 > t0 ? (x1 - x0) / (t1 - t0) : 0;
     }
 
+    /**
+     * Held aside on the hold's width plus a rem, never more than leaves 3rem of the row covered,
+     * on the spring-back's motion. Without a hold the row stays where the finger left it.
+     */
+    private open(): void {
+        this.clearReturnTimer();
+        this.host.style.removeProperty('--lg-swipe-height');
+        this.measure();
+        const hold = this.host.querySelector<HTMLElement>(':scope > .lg-swipe-reveal .lg-swipe-hold');
+        if (hold !== null) {
+            const needed = this.host.getBoundingClientRect().right - hold.getBoundingClientRect().left + this.rem;
+            const most = this.host.clientWidth - OPEN_KEEP_REM * this.rem;
+            this.offset = -Math.max(0, Math.min(needed, most));
+        }
+        this.phase = 'open';
+        this.paint();
+    }
+
+    /**
+     * A pointer on an open row: on its reveal it belongs to the buttons there; anywhere else it
+     * closes the row, and the click it makes opens nothing.
+     */
+    private onDownOpen(event: PointerEvent): void {
+        if (event.target instanceof Element && event.target.closest('.lg-swipe-reveal') !== null) {
+            return;
+        }
+        this.holdClick();
+        this.springBack();
+        this.closed.emit();
+    }
+
     /** Back to 0 on the drag pair, then at rest; at once when the row never left or motion is reduced. */
     private springBack(): void {
         this.clearReturnTimer();
@@ -275,10 +329,11 @@ export class Swipe {
             style.removeProperty('--lg-swipe-uncovered');
         }
         // A released row that counted stays armed, a fling short of the threshold included.
-        const armed = phase === 'held' || phase === 'leaving' || (this.offset < 0 && -this.offset >= this.threshold);
+        const armed = phase === 'held' || phase === 'open' || phase === 'leaving' || (this.offset < 0 && -this.offset >= this.threshold);
         const classes = this.host.classList;
         classes.toggle('is-swiping', swiping);
         classes.toggle('is-armed', armed);
+        classes.toggle('is-open', phase === 'open');
         classes.toggle('is-returning', phase === 'returning');
         classes.toggle('is-leaving', phase === 'leaving');
     }

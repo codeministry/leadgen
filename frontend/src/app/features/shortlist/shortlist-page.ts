@@ -132,14 +132,21 @@ export class ShortlistPage {
   private readonly confirmOne = viewChild<ElementRef<HTMLDialogElement>>('confirmOne');
 
   /**
-   * The single-offer write `a` or a swipe is waiting to have confirmed, because the offer has a
-   * package. `row` is the swiped row, absent for the key.
+   * The single-offer write `a` is waiting to have confirmed, because the offer has a package. A
+   * swipe never asks here: its row opens on its own confirmation (ISC-495).
    */
   protected readonly pendingOne = signal<{
     readonly id: number;
     readonly archived: boolean;
-    readonly row?: Swipe;
   } | null>(null);
+
+  /**
+   * The one row a swipe left open on its inline confirmation (spec 024, ISC-501): which offer, which
+   * write its Archive or Restore button sends, and the row to close or send off. At most one.
+   */
+  protected readonly openRow = signal<{ readonly id: number; readonly archived: boolean; readonly row: Swipe } | null>(
+    null,
+  );
 
   /**
    * A swipe's write in flight: the row that sent it, to spring back if the server refuses, and
@@ -511,6 +518,16 @@ export class ShortlistPage {
                 replaceUrl: true,
             });
         });
+
+        // An open row closes when the list or the page scrolls under it (ISC-501). Capture, because
+        // a scroll does not bubble; passive, because nothing here ever cancels one.
+        const closeOnScroll = (event: Event): void => {
+            if (this.openRow() !== null && (event.target === this.document || event.target === this.listPane()?.nativeElement)) {
+                this.closeOpenRow();
+            }
+        };
+        this.document.addEventListener('scroll', closeOnScroll, {capture: true, passive: true});
+        this.destroyRef.onDestroy(() => this.document.removeEventListener('scroll', closeOnScroll, {capture: true}));
 
         // After `a` or a swipe, from the store's answer for that offer and never from list
         // membership: a reload that lands while the write is out would flip that test (review
@@ -1130,29 +1147,75 @@ export class ShortlistPage {
   }
 
   /**
-   * A row released past the swipe's threshold (spec 024, ISC-493): it leaves the side being
-   * read — archived from the working list, restored from the archive — by the same request as the
-   * detail's button. The row slides off and holds there; the store's answer takes it off the
-   * list, and the row's leave animation closes the slot.
-   *
-   * <p>A row whose offer has a package springs back and asks first, with the confirmation `a`
-   * opens (ISC-495). Any release while another single write is in flight springs back and does
-   * nothing, because the store would drop it.
+   * A row released past the swipe's threshold (spec 024, ISC-493): it sends nothing yet and opens
+   * on its inline confirmation, Cancel and Archive — Restore on the archive side — with one line
+   * more when the offer has a package (ISC-495, no modal on this path). The confirmation is
+   * rendered first and the row settles open once it is there, because the directive measures it.
+   * Opening a row closes any other; a release while a single write is in flight springs back,
+   * because the store would drop a second one.
    */
   protected onSwiped(entry: ShortlistEntry, row: Swipe): void {
     if (this.store.archiving() !== null) {
       row.settle('return');
       return;
     }
-    const id = entry.offer.id;
-    const archived = entry.offer.archivedAt === null;
-    if (entry.offer.packageDir !== null) {
-      row.settle('return');
-      this.pendingOne.set({id, archived, row});
-      this.confirmOne()?.nativeElement.showModal?.();
+    this.closeOpenRow();
+    const open = {id: entry.offer.id, archived: entry.offer.archivedAt === null, row};
+    this.openRow.set(open);
+    afterNextRender(
+      () => {
+        if (this.openRow() === open) {
+          row.settle('open');
+        }
+      },
+      {injector: this.injector},
+    );
+  }
+
+  /**
+   * The open row's Archive (or Restore): the request the detail's button sends, once, and the row
+   * slides off from where it stands. Focus goes to the list, which the row is about to leave.
+   */
+  protected confirmOpenRow(): void {
+    const open = this.openRow();
+    if (open === null || this.store.archiving() !== null) {
       return;
     }
-    this.swipeArchive(id, archived, row);
+    this.openRow.set(null);
+    this.listPane()?.nativeElement.focus?.({preventScroll: true});
+    this.swipeArchive(open.id, open.archived, open.row);
+  }
+
+  /** Cancel, Escape, a scroll, a touch elsewhere in the list or another row opening: back, nothing sent. */
+  protected closeOpenRow(): void {
+    const open = this.openRow();
+    if (open === null) {
+      return;
+    }
+    this.openRow.set(null);
+    open.row.settle('return');
+    const focused = this.document.activeElement;
+    if (focused instanceof HTMLElement && focused.closest('.swipe-confirm') !== null) {
+      this.listPane()?.nativeElement.focus?.({preventScroll: true});
+    }
+  }
+
+  /** The row closed itself on a tap outside its reveal; forget it if it is the open one. */
+  protected onRowClosed(id: number): void {
+    if (this.openRow()?.id === id) {
+      this.openRow.set(null);
+    }
+  }
+
+  /** A touch or click anywhere in the list but on the open row closes it. */
+  protected onListPointerDown(event: PointerEvent): void {
+    if (this.openRow() === null) {
+      return;
+    }
+    if (event.target instanceof Element && event.target.closest('li.is-open') !== null) {
+      return;
+    }
+    this.closeOpenRow();
   }
 
   /**
@@ -1178,10 +1241,7 @@ export class ShortlistPage {
     const pending = this.pendingOne();
     this.confirmOne()?.nativeElement.close?.();
     this.pendingOne.set(null);
-    if (pending?.row) {
-      // From rest, the same leave, hold and collapse as a swipe without a package.
-      this.swipeArchive(pending.id, pending.archived, pending.row);
-    } else if (pending !== null) {
+    if (pending !== null) {
       this.archiveOne(pending.id, pending.archived);
     }
     this.listPane()?.nativeElement.focus?.();
@@ -1366,6 +1426,19 @@ export class ShortlistPage {
      */
     protected onListKey(event: KeyboardEvent): void {
         if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) {
+            return;
+        }
+        // Inside an open row's confirmation the keys are its buttons'; Escape closes it.
+        if (event.target instanceof Element && event.target.closest('.swipe-confirm') !== null) {
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                this.closeOpenRow();
+            }
+            return;
+        }
+        if (event.key === 'Escape' && this.openRow() !== null) {
+            event.preventDefault();
+            this.closeOpenRow();
             return;
         }
         if (event.key === 'a') {

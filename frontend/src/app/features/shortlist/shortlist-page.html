@@ -339,6 +339,7 @@
                 tabindex="0"
                 [attr.aria-label]="'shortlist.listLabel' | transloco"
                 (keydown)="onListKey($event)"
+                (pointerdown)="onListPointerDown($event)"
         >
             @if (store.listError(); as error) {
                 <p class="type-small error" role="alert">{{ error | transloco }}</p>
@@ -355,20 +356,51 @@
                           [swipeDisabled]="store.archiving() !== null || selecting() || store.pickedCount() > 0"
                           animate.leave="lg-swipe-collapse"
                           (swiped)="onSwiped(entry, swipe)"
+                          (closed)="onRowClosed(entry.offer.id)"
                         >
-                          <!-- What letting go will do, painted only while the row is off its place.
-                               Never a button and never read out: the detail's button, the `a` key and
-                               bulk archive stay the accessible paths. The ellipsis says a package
-                               asks first. -->
-                          <div class="lg-swipe-reveal swipe-reveal" [class.is-restore]="archived()" aria-hidden="true">
-                            <span class="swipe-cluster type-small">
-                              @if (archived()) {
-                                <lg-icon name="archive-restore" [size]="density.density() === 'compact' ? 16 : 20"/>
-                              } @else {
-                                <lg-icon name="archive" [size]="density.density() === 'compact' ? 16 : 20"/>
-                              }
-                              {{ swipeLabel(entry) | transloco }}
-                            </span>
+                          <!-- While the finger is down: what letting go will do, painted only while the
+                               row is off its place, never a button and never read out. Once a release
+                               counted the row settles open on the confirmation instead (ISC-501): Cancel
+                               and Archive — Restore on the archive side — read out and focusable, with a
+                               line more when the offer has a package (ISC-495). Nothing is sent before
+                               its Archive is pressed. The `a` key, the detail's button and bulk archive
+                               stay as they were. -->
+                          <div
+                            class="lg-swipe-reveal swipe-reveal"
+                            [class.is-restore]="archived()"
+                            [attr.aria-hidden]="openRow()?.id === entry.offer.id ? null : 'true'"
+                          >
+                            @if (openRow()?.id === entry.offer.id) {
+                              <div class="lg-swipe-hold swipe-confirm">
+                                @if (entry.offer.packageDir !== null) {
+                                  <p class="swipe-confirm-line type-small">
+                                    {{ (archived() ? 'shortlist.swipe.packageRestore' : 'shortlist.swipe.packageArchive') | transloco }}
+                                  </p>
+                                }
+                                <div class="swipe-confirm-actions">
+                                  <button type="button" class="btn btn-sm btn-ghost swipe-cancel" (click)="closeOpenRow()">
+                                    {{ 'common.cancel' | transloco }}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    class="btn btn-sm btn-primary swipe-commit"
+                                    [disabled]="store.archiving() !== null"
+                                    (click)="confirmOpenRow()"
+                                  >
+                                    {{ (archived() ? 'shortlist.swipe.restore' : 'shortlist.swipe.archive') | transloco }}
+                                  </button>
+                                </div>
+                              </div>
+                            } @else {
+                              <span class="swipe-cluster type-small">
+                                @if (archived()) {
+                                  <lg-icon name="archive-restore" [size]="density.density() === 'compact' ? 16 : 20"/>
+                                } @else {
+                                  <lg-icon name="archive" [size]="density.density() === 'compact' ? 16 : 20"/>
+                                }
+                                {{ swipeLabel(entry) | transloco }}
+                              </span>
+                            }
                           </div>
                           <lg-offer-card
                             [entry]="entry"

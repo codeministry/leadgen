@@ -270,7 +270,9 @@
       "archive": "Archivieren",
       "archivePackage": "Archivieren…",
       "restore": "Wiederherstellen",
-      "restorePackage": "Wiederherstellen…"
+      "restorePackage": "Wiederherstellen…",
+      "packageArchive": "Das Paket wird verworfen.",
+      "packageRestore": "Das Paket wird nicht neu gebaut."
     },
     "countArchived": "{matched} von {total} archiviert",
     "emptyArchiveTitle": "Noch nichts archiviert",

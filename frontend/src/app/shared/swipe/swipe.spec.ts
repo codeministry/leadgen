@@ -6,8 +6,8 @@ import {Swipe} from './swipe';
     imports: [Swipe],
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
-        <div lgSwipe [swipeDisabled]="disabled()" (swiped)="swiped = swiped + 1" data-testid="track">
-            <div class="lg-swipe-reveal"></div>
+        <div lgSwipe [swipeDisabled]="disabled()" (swiped)="swiped = swiped + 1" (closed)="closed = closed + 1" data-testid="track">
+            <div class="lg-swipe-reveal"><span class="lg-swipe-hold"></span></div>
             <p class="body">row <span class="pick"><input type="checkbox"/></span></p>
         </div>
     `,
@@ -16,6 +16,7 @@ class Host {
     readonly disabled = signal(false);
     readonly swipe = viewChild.required(Swipe);
     swiped = 0;
+    closed = 0;
 }
 
 type Pointer = 'touch' | 'mouse' | 'pen';
@@ -180,6 +181,71 @@ describe('lgSwipe', () => {
             expect(x()).toBe('-316px');
             expect(track.classList).toContain('is-leaving');
             expect(track.classList).toContain('is-armed');
+        });
+
+        /** Lays the host out at 300px wide, its hold starting `left` px from the host's left edge. */
+        function layout(left: number): void {
+            width(300);
+            track.getBoundingClientRect = () => ({left: 0, right: 300, top: 0, bottom: 100, width: 300, height: 100}) as DOMRect;
+            const hold = track.querySelector<HTMLElement>('.lg-swipe-hold')!;
+            hold.getBoundingClientRect = () => ({left, right: 284, top: 0, bottom: 100, width: 284 - left, height: 100}) as DOMRect;
+        }
+
+        it("holds open on settle('open') where the hold is uncovered with a rem to spare, armed, taking no new touch", () => {
+            layout(180);
+            const pointerId = drag('touch', -150);
+            lift(pointerId, 140);
+            fixture.componentInstance.swipe().settle('open');
+            fixture.detectChanges();
+            expect(x()).toBe('-136px');
+            expect(track.classList).toContain('is-open');
+            expect(track.classList).toContain('is-armed');
+
+            // A touch on the reveal belongs to its buttons: nothing moves, nothing closes.
+            const hold = track.querySelector('.lg-swipe-hold')!;
+            const touch = ++id;
+            fire(hold, 'pointerdown', 'touch', 250, 50, touch);
+            fire(hold, 'pointermove', 'touch', 150, 50, touch);
+            expect(x()).toBe('-136px');
+            expect(fixture.componentInstance.closed).toBe(0);
+        });
+
+        it('keeps 3rem of the row covered on a hold wider than the row allows', () => {
+            layout(0);
+            const pointerId = drag('touch', -150);
+            lift(pointerId, 140);
+            fixture.componentInstance.swipe().settle('open');
+            expect(x()).toBe('-252px');
+        });
+
+        it('closes on a tap on the open row, emits closed and swallows the click', () => {
+            layout(180);
+            const pointerId = drag('touch', -150);
+            lift(pointerId, 140);
+            fixture.componentInstance.swipe().settle('open');
+            const body = track.querySelector('.body')!;
+            fire(body, 'pointerdown', 'touch', 20, 50, ++id);
+            fire(body, 'pointerup', 'touch', 20, 50, id);
+            const click = new MouseEvent('click', {bubbles: true, cancelable: true});
+            body.dispatchEvent(click);
+            fixture.detectChanges();
+            expect(fixture.componentInstance.closed).toBe(1);
+            expect(click.defaultPrevented, 'the tap that closed it opens nothing').toBe(true);
+            expect(track.classList).not.toContain('is-open');
+            expect(x()).toBe('');
+        });
+
+        it("springs back from open on settle('return') without emitting closed", () => {
+            layout(180);
+            const pointerId = drag('touch', -150);
+            lift(pointerId, 140);
+            const swipe = fixture.componentInstance.swipe();
+            swipe.settle('open');
+            swipe.settle('return');
+            fixture.detectChanges();
+            expect(x()).toBe('');
+            expect(track.classList).not.toContain('is-open');
+            expect(fixture.componentInstance.closed).toBe(0);
         });
 
         it('caps the threshold at 12rem on a wide row', () => {

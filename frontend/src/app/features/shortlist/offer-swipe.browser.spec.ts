@@ -2,7 +2,7 @@ import {provideHttpClient} from '@angular/common/http';
 import {HttpTestingController, provideHttpClientTesting, TestRequest} from '@angular/common/http/testing';
 import {ComponentFixture, TestBed} from '@angular/core/testing';
 import {provideRouter, Router, withComponentInputBinding} from '@angular/router';
-import {page} from 'vitest/browser';
+import {page, userEvent} from 'vitest/browser';
 import {ShortlistEntry} from '@core/model/shortlist-entry';
 import {ShortlistPage as ShortlistPayload} from '@core/model/shortlist-page';
 import {TRANSITIONS} from '@core/model/transitions.fixture';
@@ -364,6 +364,37 @@ describe('a shortlist row swiped to the left (ISC-492)', () => {
         expect(titles()).toHaveLength(2);
     }
 
+    /** The confirmation an open row uncovers (ISC-501); null while the row is not open. */
+    const confirmation = (li: HTMLElement) => li.querySelector<HTMLElement>('.swipe-confirm');
+    const buttons = (li: HTMLElement) => [...(confirmation(li)?.querySelectorAll<HTMLButtonElement>('button') ?? [])];
+    const button = (li: HTMLElement, name: string) => buttons(li).find((b) => b.textContent?.trim() === name)!;
+    const openRows = () => document.querySelectorAll('lg-shortlist-page .offer-list > li.is-open').length;
+
+    /**
+     * Settled open: the card holds left of its place, the reveal is a live region of two buttons
+     * the card no longer covers, and nothing was sent.
+     */
+    async function expectOpen(li: HTMLElement, names: readonly string[] = ['Cancel', 'Archive']): Promise<void> {
+        await settle();
+        expect(li.classList.contains('is-open'), 'the row settled open').toBe(true);
+        expect(buttons(li).map((b) => b.textContent?.trim()), "the confirmation's two buttons").toEqual(names);
+        await expect
+            .poll(() => card(li).getBoundingClientRect().right - buttons(li)[0].getBoundingClientRect().left, {timeout: 2000})
+            .toBeLessThanOrEqual(1);
+        expect(translateX(li), 'held open, not off the row').toBeGreaterThan(-li.clientWidth);
+        expect(reveal(li)!.getAttribute('aria-hidden'), 'the open reveal is read out').toBeNull();
+        expect(writes, 'nothing was sent').toEqual([]);
+        expect(document.querySelectorAll('lg-shortlist-page .offer-list > li').length, 'every row is still listed').toBe(3);
+    }
+
+    /** Swipes a row open and presses its confirm button. */
+    async function swipeAndConfirm(li: HTMLElement, uncovered: number, name = 'Archive'): Promise<void> {
+        await swipe(li, uncovered);
+        await settle();
+        button(li, name).click();
+        await settle();
+    }
+
     describe('released (ISC-493)', () => {
         it('springs back and sends nothing at 30 % of a 390 row', async () => {
             await open('/shortlist', 390);
@@ -372,19 +403,11 @@ describe('a shortlist row swiped to the left (ISC-492)', () => {
             await expectBack(li);
         });
 
-        it('slides out and archives exactly once at 45 % of a 390 row', async () => {
+        it('settles open on the confirmation and sends nothing at 45 % of a 390 row', async () => {
             await open('/shortlist', 390);
             const li = row(0);
             await swipe(li, Math.round(0.45 * li.clientWidth));
-            await expectGone(li, true);
-        });
-
-        it('slides out and restores exactly once at 45 % of a 390 row on the archive side', async () => {
-            offersPayload = ARCHIVE;
-            await open('/shortlist?archived=1', 390);
-            const li = row(0);
-            await swipe(li, Math.round(0.45 * li.clientWidth));
-            await expectGone(li, false);
+            await expectOpen(li);
         });
 
         describe('on an 820 row, where 12rem caps the threshold', () => {
@@ -399,10 +422,10 @@ describe('a shortlist row swiped to the left (ISC-492)', () => {
                 await expectBack(li);
             });
 
-            it('slides out and archives exactly once at 13rem', async () => {
+            it('settles open and sends nothing at 13rem', async () => {
                 const li = row(0);
                 await swipe(li, 13 * 16);
-                await expectGone(li, true);
+                await expectOpen(li);
             });
         });
 
@@ -417,48 +440,119 @@ describe('a shortlist row swiped to the left (ISC-492)', () => {
                 await expectBack(li);
             });
 
-            it('slides out and archives exactly once with 4rem uncovered', async () => {
+            it('settles open and sends nothing with 4rem uncovered', async () => {
                 const li = row(0);
                 await swipe(li, 4 * 16, 4);
-                await expectGone(li, true);
+                await expectOpen(li);
             });
         });
     });
 
-    /** The single-offer confirmation, the one `a` opens for an offer with a package. */
-    const confirmOne = () => document.querySelector<HTMLDialogElement>('dialog[aria-labelledby="lg-confirm-one-title"]')!;
-    const dialogButton = (name: string) =>
-        [...confirmOne().querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent?.trim() === name)!;
+    describe('the inline confirmation (ISC-501)', () => {
+        it('offers Cancel and Archive, focusable and named from the catalogs; Archive sends once and the row leaves', async () => {
+            await open('/shortlist', 390);
+            const li = row(0);
+            await swipe(li, Math.round(0.45 * li.clientWidth));
+            await expectOpen(li);
+
+            const [cancel, archive] = buttons(li);
+            cancel.focus();
+            expect(document.activeElement, 'Cancel takes focus').toBe(cancel);
+            await userEvent.tab();
+            expect(document.activeElement, 'Tab reaches Archive').toBe(archive);
+
+            archive.click();
+            await expectGone(li, true);
+        });
+
+        it('says Restore on the archive side, and Restore sends the restore once', async () => {
+            offersPayload = ARCHIVE;
+            await open('/shortlist?archived=1', 390);
+            const li = row(0);
+            await swipe(li, Math.round(0.45 * li.clientWidth));
+            await expectOpen(li, ['Cancel', 'Restore']);
+            button(li, 'Restore').click();
+            await expectGone(li, false);
+        });
+
+        it('closes on Cancel, a tap on the row, a scroll, another row and Escape, sending nothing and holding one row open at most', async () => {
+            await open('/shortlist', 390);
+            const path = () => router.url.split('?')[0];
+            const first = row(0);
+            const open45 = (li: HTMLElement) => swipe(li, Math.round(0.45 * li.clientWidth));
+
+            await open45(first);
+            await expectOpen(first);
+            button(first, 'Cancel').click();
+            await expectBack(first);
+
+            // A tap on the open card closes it and does not open the offer.
+            await open45(first);
+            await expectOpen(first);
+            const target = first.querySelector('.offer')!;
+            fire(target, 'pointerdown', 'touch', 20, 20, ++pointerId);
+            fire(target, 'pointerup', 'touch', 20, 20, pointerId);
+            first.querySelector<HTMLAnchorElement>('a')!.click();
+            await expectBack(first);
+            expect(path(), 'the tap that closed it opened nothing').toBe('/shortlist');
+
+            // Scrolling the list pane, then the document.
+            for (const scroller of [document.querySelector('lg-shortlist-page .list-pane')!, document]) {
+                await open45(first);
+                await expectOpen(first);
+                scroller.dispatchEvent(new Event('scroll'));
+                await expectBack(first);
+            }
+
+            // Opening a second row closes the first; one row open at most.
+            await open45(first);
+            await expectOpen(first);
+            const second = row(1);
+            await open45(second);
+            await expectOpen(second);
+            expect(first.classList.contains('is-open'), 'the first closed').toBe(false);
+            expect(openRows(), 'one open row at most').toBe(1);
+            await expect.poll(() => translateX(first), {timeout: 2000}).toBe(0);
+
+            // Escape from inside the confirmation closes it.
+            button(second, 'Cancel').focus();
+            button(second, 'Cancel').dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true, cancelable: true}));
+            await expectBack(second);
+            expect(openRows()).toBe(0);
+            expect(writes, 'no close path sent anything').toEqual([]);
+        });
+    });
 
     describe('released past the threshold on a row whose offer has a package (ISC-495)', () => {
         beforeEach(async () => {
             await open('/shortlist', 390);
         });
 
-        it('springs back and asks first; Cancel changes nothing; confirm archives once', async () => {
+        it('opens inline with the package line and no dialog; Cancel changes nothing; Archive sends once', async () => {
             let li = row(2);
             await swipe(li, Math.round(0.45 * li.clientWidth));
-            await expectBack(li);
-            expect(confirmOne().open, 'the confirmation `a` opens is open').toBe(true);
-            expect(confirmOne().textContent).toContain('Archive this offer and its package?');
+            await expectOpen(li);
+            expect(confirmation(li)!.textContent, 'one line about the package').toContain('Its package will be discarded.');
+            expect(document.querySelector('dialog[open]'), 'no modal dialog').toBeNull();
 
-            dialogButton('Cancel').click();
-            await settle();
-            expect(confirmOne().open, 'Cancel closed it').toBe(false);
-            expect(writes, 'Cancel sent nothing').toEqual([]);
-            expect(titles()).toHaveLength(3);
+            button(li, 'Cancel').click();
+            await expectBack(li);
             expect(titles()[2]).toContain('(m/w/d) 3');
             expect(translateX(row(2))).toBe(0);
 
             li = row(2);
-            await swipe(li, Math.round(0.45 * li.clientWidth));
-            await settle();
-            expect(confirmOne().open).toBe(true);
-            dialogButton('Archive').click();
-            await settle();
-            expect(writes, 'exactly one request after confirming').toEqual([{id: 3, archived: true}]);
+            await swipeAndConfirm(li, Math.round(0.45 * li.clientWidth));
+            expect(document.querySelector('dialog[open]'), 'still no modal dialog').toBeNull();
+            expect(writes, 'exactly one request after Archive').toEqual([{id: 3, archived: true}]);
             await expect.poll(() => li.isConnected, {timeout: 2000}).toBe(false);
             expect(titles()).toHaveLength(2);
+        });
+
+        it('reads no package line on a row without a package', async () => {
+            const li = row(0);
+            await swipe(li, Math.round(0.45 * li.clientWidth));
+            await expectOpen(li);
+            expect(confirmation(li)!.textContent).not.toContain('Its package will be discarded.');
         });
     });
 
@@ -467,7 +561,7 @@ describe('a shortlist row swiped to the left (ISC-492)', () => {
             await open('/shortlist/1', 1440);
             refuseWrites = true;
             const li = row(0);
-            await swipe(li, 13 * 16);
+            await swipeAndConfirm(li, 13 * 16);
             await settle();
             expect(writes).toEqual([{id: 1, archived: true}]);
             await expect.poll(() => translateX(li), {timeout: 2000}).toBe(0);
@@ -493,7 +587,7 @@ describe('a shortlist row swiped to the left (ISC-492)', () => {
             refuseWrites = true;
             refusal = 'Offer 2 is locked by a running pass.';
             const li = row(1);
-            await swipe(li, 13 * 16);
+            await swipeAndConfirm(li, 13 * 16);
             await settle();
             await expect.poll(() => translateX(li), {timeout: 2000}).toBe(0);
 
@@ -521,7 +615,7 @@ describe('a shortlist row swiped to the left (ISC-492)', () => {
             await settle();
             expect(detailPane().textContent).toContain('(m/w/d) 2');
 
-            await swipe(row(1), 13 * 16);
+            await swipeAndConfirm(row(1), 13 * 16);
             await settle();
             expect(writes).toEqual([{id: 2, archived: true}]);
             await expect.poll(() => path(), {timeout: 2000}).toBe('/shortlist/3');
@@ -536,8 +630,10 @@ describe('a shortlist row swiped to the left (ISC-492)', () => {
             expect(pane.scrollHeight, 'the detail can scroll').toBeGreaterThan(pane.clientHeight + 150);
             pane.scrollTop = 150;
             const scrolled = pane.scrollTop;
+            // Its scroll event lands a frame later; a row opened before it would close on it (ISC-501).
+            await frame();
 
-            await swipe(row(4), 13 * 16);
+            await swipeAndConfirm(row(4), 13 * 16);
             await settle();
             expect(writes).toEqual([
                 {id: 2, archived: true},
@@ -551,7 +647,7 @@ describe('a shortlist row swiped to the left (ISC-492)', () => {
 
         it('in one column a swipe never navigates', async () => {
             await open('/shortlist', 390);
-            await swipe(row(0), Math.round(0.45 * row(0).clientWidth));
+            await swipeAndConfirm(row(0), Math.round(0.45 * row(0).clientWidth));
             await settle();
             expect(writes).toEqual([{id: 1, archived: true}]);
             expect(path()).toBe('/shortlist');

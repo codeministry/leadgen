@@ -43,6 +43,17 @@
   transition: transform var(--lg-swipe-return-duration) var(--lg-drag-ease);
 }
 
+/* Past it, and the host said open: the row moves to where its hold is uncovered on the same pair
+   as the spring-back, and the reveal stops being a preview and becomes the place to answer — it
+   takes pointers, and the host stops hiding it from assistive technology. */
+.lg-swipe.is-open > :not(.lg-swipe-reveal) {
+  transition: transform var(--lg-swipe-return-duration) var(--lg-drag-ease);
+}
+
+.lg-swipe.is-open > .lg-swipe-reveal {
+  pointer-events: auto;
+}
+
 /* Past it, and the host said leave: off the row's own edge on the accelerating curve, where it
    holds, the armed slot behind it reading as "archiving" until the store answers. The height is
    pinned to what it was, so the collapse below has a length to close from. */
