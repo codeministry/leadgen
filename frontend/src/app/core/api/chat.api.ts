@@ -2,7 +2,7 @@ import {HttpClient, HttpErrorResponse} from '@angular/common/http';
 import {inject, Injectable, Injector} from '@angular/core';
 import {createParser, EventSourceMessage} from 'eventsource-parser';
 import {Observable} from 'rxjs';
-import {AuthService} from '@core/auth/auth.service';
+import {AuthService, SessionEnded} from '@core/auth/auth.service';
 import {
     BulkDeleted,
     ChatCapability,
@@ -32,8 +32,9 @@ const EVENT_NAMES: ReadonlySet<string> = new Set<keyof ChatEventMap>(['turn', 's
  * else goes through `HttpClient` like every other API here.
  *
  * <p>**`fetch` passes no interceptor, so the bearer is added here** from the same
- * `AuthService.token()` that `bearerInterceptor` reads. The interceptor's same-origin rule holds
- * without restating it: every URL this class builds starts with `/api/`.
+ * `AuthService.bearer()` that `bearerInterceptor` falls back to — renewed first when it lapsed —
+ * and a refusal goes to the same `AuthService.refused` rule. The interceptor's same-origin rule
+ * holds without restating it: every URL this class builds starts with `/api/`.
  */
 @Injectable({providedIn: 'root'})
 export class ChatApi {
@@ -138,15 +139,25 @@ export class ChatApi {
                 },
             });
             const headers: Record<string, string> = {Accept: 'text/event-stream', 'Content-Type': 'application/json'};
-            const token = this.injector.get(AuthService).token();
-            if (token) headers['Authorization'] = `Bearer ${token}`;
+            const auth = this.injector.get(AuthService);
 
             const read = async (): Promise<void> => {
+                // As `bearerInterceptor` does: under oidc a lapsed token is renewed first, and a turn
+                // with no token to be had is never sent anonymously (ISC-503).
+                let token: string | null = null;
+                if (auth.isOidc()) {
+                    try {
+                        token = await auth.bearer();
+                    } catch (error) {
+                        if (!(error instanceof SessionEnded)) throw error;
+                        throw new HttpErrorResponse({status: 401, statusText: 'Session ended', url});
+                    }
+                    headers['Authorization'] = `Bearer ${token}`;
+                }
                 const response = await fetch(url, {method: 'POST', headers, body: JSON.stringify(body), signal: abort.signal});
                 if (!response.ok || response.body === null) {
-                    // The stream bypasses `bearerInterceptor`, so it reports an ended session itself,
-                    // by the interceptor's rule: a 401 on a request that carried the bearer (ISC-503).
-                    if (response.status === 401 && token) this.injector.get(AuthService).sessionExpired();
+                    // The stream bypasses `bearerInterceptor`, so it hands its refusal to the same rule.
+                    if (!response.ok) auth.refused(response.status, token !== null);
                     const error = response.ok ? null : await refusal(response);
                     throw new HttpErrorResponse({error, status: response.status, statusText: response.statusText, url});
                 }

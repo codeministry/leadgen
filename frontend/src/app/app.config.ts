@@ -14,6 +14,7 @@ import {provideOidcClient} from '@core/auth/oidc-client';
 import {CatalogTitleStrategy} from '@core/i18n/title.strategy';
 import {provideI18n} from '@core/i18n/transloco.providers';
 import {UpdateStore} from '@core/pwa/update.store';
+import {ToastStore} from '@core/toast/toast.store';
 import {provideChartPalette} from '@core/theme/chart-theme';
 import {provideScoreThresholds} from '@core/store/score-thresholds.provider';
 import {routes} from './app.routes';
@@ -36,6 +37,12 @@ export const appConfig: ApplicationConfig = {
         provideHttpClient(withFetch(), withInterceptors([bearerInterceptor])),
         // The library's client with the tokens kept in memory, not in its sessionStorage default.
         provideOidcClient(),
+        // Constructed before the sign-in runs: a sign-in that failed on the way back reports the
+        // ended session from inside the initializer below, before any component has asked for the
+        // toast store, and an event nobody is listening to yet is an event lost.
+        provideAppInitializer(() => {
+            inject(ToastStore);
+        }),
         // Before the first route, because a screen that renders and then redirects has
         // already made requests that will come back 401. Under `auth: none` this resolves
         // after one request and does nothing else.

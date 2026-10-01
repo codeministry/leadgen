@@ -1,5 +1,5 @@
 import {EnvironmentProviders, makeEnvironmentProviders} from '@angular/core';
-import {OAuthStorage, provideOAuthClient} from 'angular-oauth2-oidc';
+import {MemoryStorage, OAuthStorage, provideOAuthClient} from 'angular-oauth2-oidc';
 
 /**
  * The two keys that must outlive the page: the code flow writes them before the browser leaves
@@ -16,21 +16,21 @@ const ROUND_TRIP_KEYS: ReadonlySet<string> = new Set(['PKCE_verifier', 'nonce'])
  * PKCE verifier and the nonce have to survive the redirect to the identity provider, and a
  * sign-in that loses them fails every time. So those two, and only those, go to this tab's
  * `sessionStorage`; neither is a credential without the code, and the library removes the
- * verifier once the code is exchanged. Everything else lives and dies with the page, which is
- * why a reload runs the code flow again.
+ * verifier once the code is exchanged. Everything else goes to the library's own
+ * `MemoryStorage` and lives and dies with the page, which is why a reload runs the code flow again.
  */
 export class TokenStorage implements OAuthStorage {
-    private readonly memory = new Map<string, string>();
+    private readonly memory = new MemoryStorage();
 
     getItem(key: string): string | null {
-        return ROUND_TRIP_KEYS.has(key) ? window.sessionStorage.getItem(key) : (this.memory.get(key) ?? null);
+        return (ROUND_TRIP_KEYS.has(key) ? window.sessionStorage.getItem(key) : this.memory.getItem(key)) ?? null;
     }
 
     setItem(key: string, data: string): void {
         if (ROUND_TRIP_KEYS.has(key)) {
             window.sessionStorage.setItem(key, data);
         } else {
-            this.memory.set(key, data);
+            this.memory.setItem(key, data);
         }
     }
 
@@ -38,7 +38,7 @@ export class TokenStorage implements OAuthStorage {
         if (ROUND_TRIP_KEYS.has(key)) {
             window.sessionStorage.removeItem(key);
         } else {
-            this.memory.delete(key);
+            this.memory.removeItem(key);
         }
     }
 }

@@ -1,7 +1,8 @@
 import {HttpErrorResponse} from '@angular/common/http';
 import {computed, inject} from '@angular/core';
 import {NavigationEnd, Router} from '@angular/router';
-import {signalStore, withComputed, withState} from '@ngrx/signals';
+import {signalStore, withComputed, withHooks, withState} from '@ngrx/signals';
+import {UnsavedWork} from '@core/unsaved/unsaved-work';
 import {Events, on, withEventHandlers, withReducer} from '@ngrx/signals/events';
 import {
     catchError,
@@ -817,5 +818,12 @@ export const ChatStore = signalStore(
                 }),
             ),
         ];
+    }),
+    // A turn still streaming is work the page would lose by leaving: an ended session holds its
+    // redirect while one runs (`UnsavedWork`). A root store, so tracked for the page's lifetime.
+    withHooks({
+        onInit(store) {
+            inject(UnsavedWork).track(store.streaming);
+        },
     }),
 );

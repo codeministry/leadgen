@@ -412,7 +412,7 @@ describe('ToastStore', () => {
             // sign-in starts by itself after the notice, and no link, because there is no page for it.
             const auth = TestBed.runInInjectionContext(() => injectDispatch(authEvents));
 
-            auth.sessionExpired();
+            auth.sessionExpired({unsaved: false});
 
             expect(store.toasts()).toHaveLength(1);
             const [standing] = store.toasts();
@@ -423,6 +423,30 @@ describe('ToastStore', () => {
 
             vi.advanceTimersByTime(TOAST_LIFETIME_MS);
             expect(store.toasts()).toHaveLength(0);
+        });
+
+        it('with unsaved work on the page it stands, and its action is the sign-in the redirect waits for', () => {
+            // No timer: the sign-in waits for the person, so the line that offers it must not leave first.
+            const auth = TestBed.runInInjectionContext(() => injectDispatch(authEvents));
+
+            auth.sessionExpired({unsaved: true});
+            vi.advanceTimersByTime(TOAST_LIFETIME_MS * 10);
+
+            const [standing] = store.toasts();
+            expect(standing).toMatchObject({tone: 'warning', key: 'toast.sessionExpiredUnsaved', standing: true});
+            expect(standing?.action?.key).toBe('toast.signInNow');
+            expect(standing?.action?.event).toEqual(authEvents.signInRequested());
+        });
+
+        it('a server that still refuses right after a sign-in gets a standing line, not another redirect', () => {
+            const auth = TestBed.runInInjectionContext(() => injectDispatch(authEvents));
+
+            auth.sessionRefused();
+            vi.advanceTimersByTime(TOAST_LIFETIME_MS * 10);
+
+            const [standing] = store.toasts();
+            expect(standing).toMatchObject({tone: 'warning', key: 'toast.sessionRefused', standing: true});
+            expect(standing?.action).toBeUndefined();
         });
     });
 

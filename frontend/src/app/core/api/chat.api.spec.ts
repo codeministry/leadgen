@@ -2,7 +2,7 @@ import {HttpErrorResponse, provideHttpClient} from '@angular/common/http';
 import {HttpTestingController, provideHttpClientTesting} from '@angular/common/http/testing';
 import {TestBed} from '@angular/core/testing';
 import {firstValueFrom, toArray} from 'rxjs';
-import {AuthService} from '@core/auth/auth.service';
+import {AuthService, SessionEnded} from '@core/auth/auth.service';
 import {ChatEvent, ConversationView, formatChatCtx, parseChatCtx} from '@core/model/chat';
 import {ChatApi} from './chat.api';
 
@@ -24,17 +24,23 @@ describe('ChatApi', () => {
     let api: ChatApi;
     let http: HttpTestingController;
     let token: string | null;
-    let expired: number;
+    let ended: boolean;
+    let refusals: [number, boolean][];
 
     beforeEach(() => {
         token = null;
-        expired = 0;
+        ended = false;
+        refusals = [];
+        // `bearer()` is the renewal-aware token; `refused` the one rule, specified on AuthService.
+        const auth: Partial<AuthService> = {
+            isOidc: () => token !== null || ended,
+            bearer: () => (ended ? Promise.reject(new SessionEnded()) : Promise.resolve(token ?? '')),
+            refused: (status: number, sentBearer: boolean) => {
+                refusals.push([status, sentBearer]);
+            },
+        };
         TestBed.configureTestingModule({
-            providers: [
-                provideHttpClient(),
-                provideHttpClientTesting(),
-                {provide: AuthService, useValue: {token: () => token, sessionExpired: () => (expired += 1)}},
-            ],
+            providers: [provideHttpClient(), provideHttpClientTesting(), {provide: AuthService, useValue: auth}],
         });
         api = TestBed.inject(ChatApi);
         http = TestBed.inject(HttpTestingController);
@@ -210,24 +216,38 @@ describe('ChatApi', () => {
         expect((failure as HttpErrorResponse).status).toBe(404);
     });
 
-    it('reports an ended session on a 401 to a stream that carried the bearer, as the interceptor would (ISC-503)', async () => {
+    it('hands a refusal to the same rule the interceptor uses, with whether the bearer went along (ISC-503)', async () => {
         token = 'abc';
         vi.stubGlobal('fetch', vi.fn().mockResolvedValue(streamed([], 401)));
 
         const failure = await firstValueFrom(api.ask(4, 'q')).catch((error: unknown) => error);
 
         expect((failure as HttpErrorResponse).status).toBe(401);
-        expect(expired).toBe(1);
+        expect(refusals).toEqual([[401, true]]);
     });
 
-    it('reports nothing for a 401 without a bearer, or for any other refusal', async () => {
-        vi.stubGlobal('fetch', vi.fn().mockResolvedValue(streamed([], 401)));
-        await firstValueFrom(api.ask(4, 'q')).catch(() => undefined);
-        token = 'abc';
-        vi.stubGlobal('fetch', vi.fn().mockResolvedValue(streamed([], 403)));
+    it('under none sends no bearer and asks for none', async () => {
+        const fetched = vi.fn().mockResolvedValue(streamed([], 401));
+        vi.stubGlobal('fetch', fetched);
+
         await firstValueFrom(api.ask(4, 'q')).catch(() => undefined);
 
-        expect(expired).toBe(0);
+        expect((fetched.mock.calls[0]![1] as RequestInit).headers).not.toHaveProperty('Authorization');
+        expect(refusals).toEqual([[401, false]]);
+    });
+
+    it('with a lapsed token it streams with the renewed bearer, and with none to be had it sends nothing', async () => {
+        token = 'renewed';
+        const fetched = vi.fn().mockResolvedValue(streamed(['event: done\ndata: {"state":"DONE"}\n\n']));
+        vi.stubGlobal('fetch', fetched);
+        await firstValueFrom(api.ask(4, 'q').pipe(toArray()));
+        expect((fetched.mock.calls[0]![1] as RequestInit).headers).toHaveProperty('Authorization', 'Bearer renewed');
+
+        ended = true;
+        fetched.mockClear();
+        const failure = await firstValueFrom(api.ask(4, 'q')).catch((error: unknown) => error);
+        expect(fetched).not.toHaveBeenCalled();
+        expect((failure as HttpErrorResponse).status).toBe(401);
     });
 
     it('carries the refusal the server wrote, as JSON `detail`, JSON `message` or plain text', async () => {

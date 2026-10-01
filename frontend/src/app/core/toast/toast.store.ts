@@ -286,8 +286,27 @@ export const ToastStore = signalStore(
             // burst of failures is one line. Warning, the "taken away" tone: what was taken is the
             // session. No action, since nothing waits on the person; no link, since there is no
             // page for it; the normal timer, because the page is gone well before it runs out.
+            // With unsaved work on the page the sign-in waits for the person instead, so the line
+            // stands and carries the sign-in as its action: the redirect has no timer to leave on.
             events.on(authEvents.sessionExpired).pipe(
-                map(() => toastEvents.raised(toast('warning', 'toast.sessionExpired'))),
+                map(({payload}) =>
+                    toastEvents.raised(
+                        payload.unsaved
+                            ? {
+                                  ...actionToast('warning', 'toast.sessionExpiredUnsaved', {
+                                      key: 'toast.signInNow',
+                                      event: authEvents.signInRequested(),
+                                  }),
+                                  standing: true,
+                              }
+                            : toast('warning', 'toast.sessionExpired'),
+                    ),
+                ),
+            ),
+            // The loop brake: signed in moments ago and the server still refuses. Nothing redirects
+            // and nothing will get better on its own, so the line stands until it is closed.
+            events.on(authEvents.sessionRefused).pipe(
+                map(() => toastEvents.raised({...toast('warning', 'toast.sessionRefused'), standing: true})),
             ),
             // A new version the worker holds, once per hash — the update store keys that. The
             // one `standing` toast: the reload is the person's call and it stands until they
