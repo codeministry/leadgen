@@ -24,14 +24,16 @@ describe('ChatApi', () => {
     let api: ChatApi;
     let http: HttpTestingController;
     let token: string | null;
+    let expired: number;
 
     beforeEach(() => {
         token = null;
+        expired = 0;
         TestBed.configureTestingModule({
             providers: [
                 provideHttpClient(),
                 provideHttpClientTesting(),
-                {provide: AuthService, useValue: {token: () => token}},
+                {provide: AuthService, useValue: {token: () => token, sessionExpired: () => (expired += 1)}},
             ],
         });
         api = TestBed.inject(ChatApi);
@@ -206,6 +208,26 @@ describe('ChatApi', () => {
 
         expect(failure).toBeInstanceOf(HttpErrorResponse);
         expect((failure as HttpErrorResponse).status).toBe(404);
+    });
+
+    it('reports an ended session on a 401 to a stream that carried the bearer, as the interceptor would (ISC-503)', async () => {
+        token = 'abc';
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValue(streamed([], 401)));
+
+        const failure = await firstValueFrom(api.ask(4, 'q')).catch((error: unknown) => error);
+
+        expect((failure as HttpErrorResponse).status).toBe(401);
+        expect(expired).toBe(1);
+    });
+
+    it('reports nothing for a 401 without a bearer, or for any other refusal', async () => {
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValue(streamed([], 401)));
+        await firstValueFrom(api.ask(4, 'q')).catch(() => undefined);
+        token = 'abc';
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValue(streamed([], 403)));
+        await firstValueFrom(api.ask(4, 'q')).catch(() => undefined);
+
+        expect(expired).toBe(0);
     });
 
     it('carries the refusal the server wrote, as JSON `detail`, JSON `message` or plain text', async () => {

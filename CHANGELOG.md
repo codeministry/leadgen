@@ -25,6 +25,12 @@ may change in any release. See the status note in the README.
 
 ### Changed
 
+- **The session renews itself and says when it ends.** Under `oidc` the access token is renewed
+  with the refresh-token grant before it expires, so a page left open keeps working. When renewal
+  fails or a request answers 401, one toast says the session has expired and the sign-in starts,
+  returning to the same page afterwards. Tokens now live in memory only, as the auth service always
+  claimed: they had been in `sessionStorage`. A reload therefore passes through the identity provider
+  once, silently on its session cookie.
 - **Restore on the archive toast.** The toast of a single archive, from the swipe, the `a` key or
   the detail's button, carries Restore in place of Open. It sends the offer's restore request, a
   second write under the store's own rules and never a client-side revert, and the row comes back

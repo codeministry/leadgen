@@ -12,6 +12,7 @@ import {ingestEvents} from '@core/store/ingest.events';
 import {manualEvents} from '@core/store/manual.events';
 import {shortlistEvents} from '@core/store/shortlist.events';
 import {updateEvents} from '@core/pwa/update.events';
+import {authEvents} from '@core/auth/auth.events';
 import {toastEvents} from './toast.events';
 import {actionToast, TOAST_CAP, TOAST_LIFETIME_MS, toast} from './toast.model';
 import {ToastStore} from './toast.store';
@@ -399,6 +400,29 @@ describe('ToastStore', () => {
 
             expect(requests).toEqual([{id: 7, archived: false, inline: true}]);
             expect(store.toasts()).toEqual([]);
+        });
+    });
+
+    describe('an expired session (ISC-503)', () => {
+        beforeEach(() => vi.useFakeTimers());
+        afterEach(() => vi.useRealTimers());
+
+        it('says so once, in the warning tone, with no action and no link, and leaves on the normal timer', () => {
+            // Warning, the "taken away" tone: the session is what was taken. No action, because the
+            // sign-in starts by itself after the notice, and no link, because there is no page for it.
+            const auth = TestBed.runInInjectionContext(() => injectDispatch(authEvents));
+
+            auth.sessionExpired();
+
+            expect(store.toasts()).toHaveLength(1);
+            const [standing] = store.toasts();
+            expect(standing).toMatchObject({tone: 'warning', key: 'toast.sessionExpired'});
+            expect(standing?.action).toBeUndefined();
+            expect(standing?.link).toBeUndefined();
+            expect(standing?.standing).toBeUndefined();
+
+            vi.advanceTimersByTime(TOAST_LIFETIME_MS);
+            expect(store.toasts()).toHaveLength(0);
         });
     });
 

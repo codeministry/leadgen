@@ -127,6 +127,7 @@
     "letterSaved": "Cover letter saved, the package carries the edit",
     "letterDrafted": "New cover letter drafted",
     "letterDraftedTemplate": "The model's draft did not pass, so the template wrote this letter",
+    "sessionExpired": "Your session has expired. Signing you in again…",
     "update": {
       "ready": "A new version is ready",
       "reload": "Reload"

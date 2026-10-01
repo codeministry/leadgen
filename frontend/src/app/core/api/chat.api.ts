@@ -144,6 +144,9 @@ export class ChatApi {
             const read = async (): Promise<void> => {
                 const response = await fetch(url, {method: 'POST', headers, body: JSON.stringify(body), signal: abort.signal});
                 if (!response.ok || response.body === null) {
+                    // The stream bypasses `bearerInterceptor`, so it reports an ended session itself,
+                    // by the interceptor's rule: a 401 on a request that carried the bearer (ISC-503).
+                    if (response.status === 401 && token) this.injector.get(AuthService).sessionExpired();
                     const error = response.ok ? null : await refusal(response);
                     throw new HttpErrorResponse({error, status: response.status, statusText: response.statusText, url});
                 }

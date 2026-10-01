@@ -127,6 +127,7 @@
     "letterSaved": "Anschreiben gespeichert, das Paket enthält die Änderung",
     "letterDrafted": "Neues Anschreiben entworfen",
     "letterDraftedTemplate": "Der Entwurf des Modells kam nicht durch, deshalb stammt dieses Anschreiben aus der Vorlage",
+    "sessionExpired": "Deine Sitzung ist abgelaufen. Du wirst neu angemeldet …",
     "update": {
       "ready": "Eine neue Version ist bereit",
       "reload": "Neu laden"

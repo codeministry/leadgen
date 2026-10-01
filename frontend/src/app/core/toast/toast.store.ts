@@ -12,6 +12,7 @@ import {RUN_STATUS} from '@core/model/workflow';
 import {manualEvents} from '@core/store/manual.events';
 import {shortlistEvents} from '@core/store/shortlist.events';
 import {updateEvents} from '@core/pwa/update.events';
+import {authEvents} from '@core/auth/auth.events';
 import {toastEvents} from './toast.events';
 import {actionToast, TOAST_CAP, TOAST_LIFETIME_MS, Toast, toast} from './toast.model';
 import {withAppDevtools} from '@core/store/devtools';
@@ -279,6 +280,14 @@ export const ToastStore = signalStore(
                             : toast('success', 'toast.letterDrafted'),
                     ),
                 ),
+            ),
+            // The session ended — a renewal refused or a bearer answered 401 — and the sign-in starts
+            // by itself after a short notice. `AuthService` dispatches this once per page, so a
+            // burst of failures is one line. Warning, the "taken away" tone: what was taken is the
+            // session. No action, since nothing waits on the person; no link, since there is no
+            // page for it; the normal timer, because the page is gone well before it runs out.
+            events.on(authEvents.sessionExpired).pipe(
+                map(() => toastEvents.raised(toast('warning', 'toast.sessionExpired'))),
             ),
             // A new version the worker holds, once per hash — the update store keys that. The
             // one `standing` toast: the reload is the person's call and it stands until they

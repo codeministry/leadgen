@@ -1,7 +1,10 @@
-import {inject, Injectable, signal} from '@angular/core';
+import {DestroyRef, inject, Injectable, signal} from '@angular/core';
+import {takeUntilDestroyed} from '@angular/core/rxjs-interop';
+import {Dispatcher} from '@ngrx/signals/events';
 import {AuthConfig as OidcConfig, OAuthService} from 'angular-oauth2-oidc';
-import {firstValueFrom} from 'rxjs';
+import {filter, firstValueFrom} from 'rxjs';
 import {AuthConfig, AuthConfigApi} from './auth-config.api';
+import {authEvents} from './auth.events';
 import {SignedInState} from './signed-in.state';
 
 /**
@@ -16,9 +19,23 @@ import {SignedInState} from './signed-in.state';
  * interceptor header. That is the shipped default and the path most runs take, so it must
  * not depend on an identity provider being up.
  *
- * <p>**The token lives in memory only.** `angular-oauth2-oidc` would keep it in
+ * <p>**The tokens live in memory only.** `angular-oauth2-oidc` would keep them in
  * `sessionStorage` by default; a token in storage survives an XSS long enough to be read,
- * and nothing here needs it to survive a reload. A reload re-runs the silent flow instead.
+ * and nothing here needs it to survive a reload. `TokenStorage` (`oidc-client.ts`) is what
+ * enforces this — the library default was in place until spec 024 noticed. A reload runs the
+ * code flow again, which the identity provider's SSO cookie answers without a form, and the
+ * sign-in brings the browser back to the URL it was reloaded on.
+ *
+ * <p>**The access token renews itself** with the refresh-token grant, at 75 % of its lifetime:
+ * `useSilentRefresh: false` plus the code flow makes the library's automatic refresh POST the
+ * refresh token to the token endpoint — no iframe, no silent-refresh page, no reload. The
+ * refresh token is the ordinary one bound to the SSO session; `offline_access` is not asked
+ * for, because a token that outlives the logout is the opposite of what a browser tab needs.
+ *
+ * <p>**When the session is over** — a renewal the identity provider refused, or a request that
+ * carried the bearer and came back 401 — the app says so once (`authEvents.sessionExpired`,
+ * which the toast store maps to a line) and, after `SESSION_EXPIRED_NOTICE_MS`, starts the
+ * sign-in with the current URL as the place to come back to. Under `none` none of it runs.
  */
 @Injectable({providedIn: 'root'})
 export class AuthService {
@@ -26,6 +43,11 @@ export class AuthService {
     private readonly api = inject(AuthConfigApi);
 
     private readonly enabled = signal(false);
+    private readonly dispatcher = inject(Dispatcher);
+    private readonly destroyRef = inject(DestroyRef);
+
+    /** Set by the first sign of an ended session; the page is left shortly after, so it never resets. */
+    private expiring = false;
 
     /** True once the mode is known and, under `oidc`, somebody is actually signed in. */
     readonly authenticated = signal(false);
@@ -59,8 +81,22 @@ export class AuthService {
         }
         this.enabled.set(true);
         this.oauth.configure(this.oidcConfig(config.issuer, config.clientId));
+        this.oauth.events
+            .pipe(
+                filter((event) => event.type === 'token_refresh_error'),
+                takeUntilDestroyed(this.destroyRef),
+            )
+            .subscribe(() => this.sessionExpired());
         try {
-            await this.oauth.loadDiscoveryDocumentAndLogin();
+            // The URL this load started on travels through the identity provider as the
+            // additional state; when it comes back with a code, `state` holds it again.
+            const signedIn = await this.oauth.loadDiscoveryDocumentAndLogin({state: currentPath()});
+            if (!signedIn) {
+                // The browser is on its way to the identity provider; nothing here outlives that.
+                return;
+            }
+            this.returnToStartingPoint();
+            this.oauth.setupAutomaticSilentRefresh();
             this.authenticated.set(this.oauth.hasValidAccessToken());
             const user = signedInUser(this.oauth.getIdentityClaims() as IdentityClaims | null, config.issuer);
             this.signedIn.user.set(this.authenticated() ? user : null);
@@ -82,6 +118,24 @@ export class AuthService {
     }
 
     /**
+     * The session is over: say so once, then sign in again and come back here.
+     *
+     * <p>Called by the library's `token_refresh_error` and by `bearerInterceptor` for a 401 on a
+     * request that carried the bearer. A burst — four screens refreshing at once, a renewal failing
+     * while their requests come back — is one session ending, so everything after the first call
+     * is dropped. The notice is what makes the toast readable before the page leaves.
+     */
+    sessionExpired(): void {
+        if (!this.enabled() || this.expiring) {
+            return;
+        }
+        this.expiring = true;
+        this.oauth.stopAutomaticRefresh();
+        this.dispatcher.dispatch(authEvents.sessionExpired());
+        setTimeout(() => this.oauth.initCodeFlow(currentPath()), SESSION_EXPIRED_NOTICE_MS);
+    }
+
+    /**
      * Ends the Keycloak session too, not only this tab's tokens: RP-initiated logout at the
      * issuer's `end_session_endpoint`, with the ID token as the hint and back to this origin.
      * A local-only logout would be undone by the next load, which signs in silently again.
@@ -89,6 +143,17 @@ export class AuthService {
     logout(): void {
         if (this.enabled()) {
             this.oauth.logOut();
+        }
+    }
+
+    /**
+     * After a sign-in, put the browser back on the URL it left from, before the router's first
+     * navigation reads it. `returnPath` refuses anything but a same-origin path.
+     */
+    private returnToStartingPoint(): void {
+        const path = returnPath(this.oauth.state);
+        if (path !== null && path !== currentPath()) {
+            window.history.replaceState(window.history.state, '', path);
         }
     }
 
@@ -103,6 +168,9 @@ export class AuthService {
             // PKCE is not optional for a public client: there is no secret to prove the
             // code came back to whoever asked for it.
             useSilentRefresh: false,
+            // The renewal fires at 75 % of the access token's lifetime — the library default,
+            // spelled out because ISC-502 names it and a default can move under an upgrade.
+            timeoutFactor: 0.75,
             showDebugInformation: false,
             // `remoteOnly` and not `false`: the dev server is plain HTTP on localhost and
             // has to work, but anywhere else a code flow over HTTP puts the token on the
@@ -111,6 +179,41 @@ export class AuthService {
             requireHttps: 'remoteOnly',
         };
     }
+}
+
+/**
+ * How long the session-expired toast stands before the sign-in takes the page away: long enough
+ * to read one sentence, short enough not to look stuck. A mark, unmeasured.
+ */
+export const SESSION_EXPIRED_NOTICE_MS = 2_500;
+
+/** The URL as the router sees it — path, query and fragment — on this path-located app. */
+function currentPath(): string {
+    return window.location.pathname + window.location.search + window.location.hash;
+}
+
+/**
+ * The path to come back to after a sign-in, or null when `state` is not one.
+ *
+ * <p>The library hands the additional state back still URL-encoded once. **Only a same-origin
+ * path passes**: it starts with one `/`, and neither `//host` nor `/\\host` (which browsers
+ * read as protocol-relative) nor any scheme. The state comes back through a URL anybody can
+ * craft, so without this the sign-in would be an open redirect.
+ */
+export function returnPath(state: string | null | undefined): string | null {
+    if (!state) {
+        return null;
+    }
+    let path: string;
+    try {
+        path = decodeURIComponent(state);
+    } catch {
+        return null;
+    }
+    if (!path.startsWith('/') || path.startsWith('//') || path.startsWith('/\\')) {
+        return null;
+    }
+    return new URL(path, window.location.origin).origin === window.location.origin ? path : null;
 }
 
 /** The ID token claims the user menu reads; every one of them optional, as the realm decides. */

@@ -8,9 +8,9 @@ import {
 import {provideHttpClient, withFetch, withInterceptors} from '@angular/common/http';
 import {provideRouter, TitleStrategy, withComponentInputBinding} from '@angular/router';
 import {provideServiceWorker} from '@angular/service-worker';
-import {provideOAuthClient} from 'angular-oauth2-oidc';
 import {AuthService} from '@core/auth/auth.service';
 import {bearerInterceptor} from '@core/auth/bearer.interceptor';
+import {provideOidcClient} from '@core/auth/oidc-client';
 import {CatalogTitleStrategy} from '@core/i18n/title.strategy';
 import {provideI18n} from '@core/i18n/transloco.providers';
 import {UpdateStore} from '@core/pwa/update.store';
@@ -34,7 +34,8 @@ export const appConfig: ApplicationConfig = {
     providers: [
         provideBrowserGlobalErrorListeners(),
         provideHttpClient(withFetch(), withInterceptors([bearerInterceptor])),
-        provideOAuthClient(),
+        // The library's client with the tokens kept in memory, not in its sessionStorage default.
+        provideOidcClient(),
         // Before the first route, because a screen that renders and then redirects has
         // already made requests that will come back 401. Under `auth: none` this resolves
         // after one request and does nothing else.
