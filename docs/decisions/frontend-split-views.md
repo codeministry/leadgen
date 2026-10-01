@@ -448,8 +448,12 @@ the most frequent decision on the screen, on exactly the devices where the list 
   between a swipe and a scroll, and the row sets `touch-action: pan-y` so vertical panning stays
   the browser's and the gesture only ever sees one axis. These are design-pass numbers, to be
   confirmed on a phone and a tablet.
-- **A full swipe only, and nothing uncovered is a button.** The row never rests half-open. The
-  reveal is `aria-hidden` with `pointer-events: none`: it previews what letting go will do, in
+- **The swipe asks inline before it writes.** The first build archived on release, as a mail
+  client does. On the iPad the operator wanted a confirmation in the row instead ("inline mit
+  buttons confirmed"): released past the threshold, the row settles open on Cancel and Archive,
+  Restore on the archive side, and only that button writes. Cancel, a tap on the row, a scroll,
+  Escape or opening another row closes it, so one row is open at a time. While the finger is
+  down the reveal is `aria-hidden` with `pointer-events: none`: it previews what letting go will do, in
   the archive toast's amber on the working side and the restore toast's green on the archive
   side, so the gesture and its confirmation say the same thing in the same colour. It arms as a
   switch from tint to fill without a dead band, so the colour is always exactly what the release
@@ -462,10 +466,11 @@ the most frequent decision on the screen, on exactly the devices where the list 
   `archive-restore` for Archive and `archive-x` for Restore, the reverse of what the glyphs
   draw; the swipe would have put a third reading beside those two. `archive-x` left the icon
   registry with its last template.
-- **A package asks first.** Released past the threshold, a row whose offer has a package springs
-  back and the confirmation the `a` key opens asks instead, by the same rule: a package on disk
-  stands in for "maybe sent". The reveal's label carries an ellipsis in that case — Archive…,
-  Restore… — so the dialog is expected rather than a surprise.
+- **A package is named in the same confirmation.** A row whose offer has a package settles open
+  on the same Cancel and Archive with one line saying the package will be discarded: a package on
+  disk stands in for "maybe sent". The swipe no longer opens the modal the `a` key and the
+  detail keep, because the row already asks. The reveal's label keeps its ellipsis there —
+  Archive…, Restore… — as the cue that one more line is coming.
 - **Nothing moves while a write is in flight or in select mode.** Select mode is Select pressed on
   a coarse pointer or any row picked. It is never "checkboxes shown": a touch laptop's primary
   pointer is fine, so the checkboxes stand on every row there, and counting them as select mode
@@ -504,7 +509,9 @@ exactly what the archive view's button sends, and whatever the store refuses sta
   carries no reverse action of its own: a symmetrical undo would invite ping-pong, and a mistaken
   restore is one swipe away. It holds for every single archive — the swipe, the `a` key and the
   detail's button — because it is raised from the store's answer, not from the screen that wrote.
-  The bulk archive's count toast gets none.
+  The bulk archive's count toast gets none, and neither does the toast of an offer that kept its
+  package: one tap there would reset a sent application to `NEW` without the confirmation every
+  other restore path asks, so that toast keeps Open.
 - **Six seconds, like any archive toast, held under pointer and focus.** Standing until dismissed
   stays the reload toast's exemption alone: the permanent way back is the archive view, not the toast.
 - **The row comes back where it stood, without a refetch or a scroll.** The `archived` answer
