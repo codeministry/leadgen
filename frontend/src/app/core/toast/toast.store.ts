@@ -12,6 +12,7 @@ import {RUN_STATUS} from '@core/model/workflow';
 import {manualEvents} from '@core/store/manual.events';
 import {shortlistEvents} from '@core/store/shortlist.events';
 import {updateEvents} from '@core/pwa/update.events';
+import {authEvents} from '@core/auth/auth.events';
 import {toastEvents} from './toast.events';
 import {actionToast, TOAST_CAP, TOAST_LIFETIME_MS, Toast, toast} from './toast.model';
 import {withAppDevtools} from '@core/store/devtools';
@@ -74,15 +75,16 @@ export const ToastStore = signalStore(
              * the remainder: the person just read it, and a line that vanishes the instant
              * the pointer leaves is the thing the hold exists to prevent.
              *
-             * A toast with an action gets no timer on either path: the offer stands until the
-             * person takes it or closes it. The raise carries the toast; a release carries only
+             * A `standing` toast gets no timer on either path: the offer stands until the person
+             * takes it or closes it. An action alone is no exemption — the archive toast's
+             * Restore leaves with the toast. The raise carries the toast; a release carries only
              * the id, and the toast it names has stood in the state since its raise.
              */
             events.on(toastEvents.raised, toastEvents.released).pipe(
                 map(({payload}) =>
                     typeof payload === 'number' ? store.toasts().find((standing) => standing.id === payload) : payload,
                 ),
-                filter((standing): standing is Toast => standing !== undefined && standing.action === undefined),
+                filter((standing): standing is Toast => standing !== undefined && standing.standing !== true),
                 map(({id}) => id),
                 mergeMap((id) =>
                     timer(TOAST_LIFETIME_MS).pipe(
@@ -94,14 +96,38 @@ export const ToastStore = signalStore(
 
             // ── The mappings. One per answer event; the key names the catalog line. ──
 
-            // Raised from the answer, so whichever screen wrote it produces the same toast.
-            // The direction is read off the row the server returned, not off the request.
+            // Raised from the answer, so whichever screen wrote it — the swipe, the `a` key, the
+            // detail's button — produces the same toast. The direction is read off the row the
+            // server returned, not off the request.
+            //
+            // An archive offers Restore in place of Open: Open on an archived offer only leads to
+            // a detail whose main action is the same restore, one tap further away. Restore is the
+            // existing restore request, a second write the shortlist store handles under its own
+            // rules. The answer to it is a restore and raises the green line with Open and no
+            // reverse action; a symmetrical undo would invite ping-pong. The toast keeps the timer:
+            // the permanent way back is the archive view.
+            //
+            // Not when the offer kept its package: then it was sent, a restore resets its
+            // application to NEW, and every other restore path asks first (ISC-495). The question
+            // is a dialog on the screen, and a toast never writes on its own, so this one keeps
+            // Open and leaves the restore to the detail, which asks (review finding 3). Its
+            // Restore is `inline`: a refusal stands in the row once the row is back on screen.
             events.on(shortlistEvents.archived).pipe(
                 map(({payload}) =>
                     toastEvents.raised(
                         payload.offer.archivedAt === null
                             ? toast('success', 'toast.restored', {title: payload.offer.title}, `/shortlist/${payload.offer.id}`)
-                            : toast('warning', 'toast.archived', {title: payload.offer.title}, `/shortlist/${payload.offer.id}`),
+                            : payload.offer.packageDir
+                            ? toast('warning', 'toast.archived', {title: payload.offer.title}, `/shortlist/${payload.offer.id}`)
+                            : actionToast(
+                                'warning',
+                                'toast.archived',
+                                {
+                                    key: 'toast.restore',
+                                    event: shortlistEvents.archiveRequested({id: payload.offer.id, archived: false, inline: true}),
+                                },
+                                {title: payload.offer.title},
+                            ),
                     ),
                 ),
             ),
@@ -255,8 +281,35 @@ export const ToastStore = signalStore(
                     ),
                 ),
             ),
+            // The session ended — a renewal refused or a bearer answered 401 — and the sign-in starts
+            // by itself after a short notice. `AuthService` dispatches this once per page, so a
+            // burst of failures is one line. Warning, the "taken away" tone: what was taken is the
+            // session. No action, since nothing waits on the person; no link, since there is no
+            // page for it; the normal timer, because the page is gone well before it runs out.
+            // With unsaved work on the page the sign-in waits for the person instead, so the line
+            // stands and carries the sign-in as its action: the redirect has no timer to leave on.
+            events.on(authEvents.sessionExpired).pipe(
+                map(({payload}) =>
+                    toastEvents.raised(
+                        payload.unsaved
+                            ? {
+                                  ...actionToast('warning', 'toast.sessionExpiredUnsaved', {
+                                      key: 'toast.signInNow',
+                                      event: authEvents.signInRequested(),
+                                  }),
+                                  standing: true,
+                              }
+                            : toast('warning', 'toast.sessionExpired'),
+                    ),
+                ),
+            ),
+            // The loop brake: signed in moments ago and the server still refuses. Nothing redirects
+            // and nothing will get better on its own, so the line stands until it is closed.
+            events.on(authEvents.sessionRefused).pipe(
+                map(() => toastEvents.raised({...toast('warning', 'toast.sessionRefused'), standing: true})),
+            ),
             // A new version the worker holds, once per hash — the update store keys that. The
-            // one toast with an action: the reload is the person's call and it stands until they
+            // one `standing` toast: the reload is the person's call and it stands until they
             // take it or close it. Info, because nobody in this browser asked for a deploy; and no
             // link, because there is no page for it. Never raised while the worker is disabled,
             // since the event then never fires. A standing update toast goes first: it describes
@@ -267,12 +320,13 @@ export const ToastStore = signalStore(
                         .toasts()
                         .filter((standing) => standing.key === UPDATE_READY_KEY)
                         .map((standing) => toastEvents.dismissed(standing.id)),
-                    toastEvents.raised(
-                        actionToast('info', UPDATE_READY_KEY, {
+                    toastEvents.raised({
+                        ...actionToast('info', UPDATE_READY_KEY, {
                             key: 'toast.update.reload',
                             event: updateEvents.activate(),
                         }),
-                    ),
+                        standing: true,
+                    }),
                 ]),
             ),
         ];

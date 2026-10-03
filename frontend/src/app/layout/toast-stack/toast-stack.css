@@ -55,6 +55,56 @@
     min-width: 0;
 }
 
+/* The visual `btn-xs` stays; a finger gets a 44px target through a transparent `::after`
+   centred on the button, so Restore and the close keep their size and the row its height.
+   At least as wide as the button and at least 44px wide: the close is a 24px square, and
+   the 0.75rem gap between it and the action is what keeps the two targets from meeting. */
+@media (pointer: coarse) {
+    .lg-toast-hit {
+        position: relative;
+    }
+
+    .lg-toast-hit::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: max(100%, 44px);
+        height: 44px;
+        translate: -50% -50%;
+    }
+
+    /* ISC-500: on a touch screen the toast is read at arm's length, so it is sized like the
+       body text it interrupts rather than like a desktop footnote. Tested on an iPad: at
+       `type-small` with a `btn-xs` action and a 24px close every toast read as small print.
+       The sentence takes `type-body`'s size and leading, and both controls take DaisyUI's
+       `sm` size, written over the `xs` the literal class map names (unlayered beats the
+       plugin's layer), so the tone classes stay the single source of the tone. The 44px
+       hit areas above stay as they are. */
+    .alert {
+        gap: 1rem;
+        padding-block: 0.875rem;
+    }
+
+    .line {
+        font-size: 0.9375rem;
+        line-height: 1.5;
+    }
+
+    .alert .btn {
+        --size: max(2.25rem, 32px);
+        --fontsize: 0.875rem;
+        --btn-p: 0.75rem;
+    }
+}
+
+/* The wider box only where the box is not already the full width under the bottom bar. */
+@media (pointer: coarse) and (width >= 48rem) {
+    .alert {
+        width: min(32rem, calc(100vw - 2rem));
+    }
+}
+
 /* DaisyUI's own reveal, on the repo's motion tokens, and off under reduced motion. Written
    unlayered, so it beats the layered rule the plugin ships. There is no leave animation:
    the element is removed, and removing is the one motion nobody has to wait for. */

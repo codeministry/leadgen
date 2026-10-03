@@ -46,7 +46,7 @@
                 aria-keyshortcuts="a"
                 (click)="setArchived(entry.offer.id, entry.offer.archivedAt === null)"
         >
-            <lg-icon [name]="entry.offer.archivedAt ? 'archive-x' : 'archive-restore'" [size]="16"/>
+            <lg-icon [name]="entry.offer.archivedAt ? 'archive-restore' : 'archive'" [size]="16"/>
             {{ (entry.offer.archivedAt ? 'detail.restore' : 'detail.archive') | transloco }}
         </button>
     </lg-page-header>
@@ -229,6 +229,10 @@
             </div>
             @if (store.rescoreError(); as refusal) {
                 <p class="type-small rescore-refusal">{{ refusal | transloco }}</p>
+            }
+            <!-- An archive or restore refused for this offer, unless its row on screen says it. -->
+            @if (store.detailArchiveError(); as refusal) {
+                <p class="type-small rescore-refusal" role="alert">{{ refusal | transloco }}</p>
             }
             <div class="score-row">
                 <lg-score [value]="entry.score.value" [size]="72"/>

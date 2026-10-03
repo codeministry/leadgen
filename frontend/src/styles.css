@@ -124,6 +124,7 @@
     --lg-signal-text: oklch(50% 0.2 345); /* #AA167D, 6.7:1 on white */
     --lg-accent-text: var(--lg-signal-text); /* alias for one stage; removed in Stage 2 */
     --lg-warning-text: oklch(50% 0.1 75); /* #845A0F, 6.1:1 on white */
+    --lg-success-text: oklch(48% 0.13 150); /* #067132, 5.1:1 on the swipe's green tint, where the fill read 4.28 */
     --lg-code-string: oklch(48% 0.12 150); /* #197037 */
     --lg-code-number: oklch(50% 0.1 235); /* #136B94 */
 
@@ -185,6 +186,7 @@
     --lg-signal-text: oklch(76% 0.17 345); /* #FB80CA, the fill itself passes as text at night */
     --lg-accent-text: var(--lg-signal-text);
     --lg-warning-text: oklch(80% 0.15 80); /* #F0B135 */
+    --lg-success-text: oklch(76% 0.15 150); /* #61CB7C, the fill itself passes as text at night */
     --lg-code-string: oklch(78% 0.13 150); /* #76CF8A */
     --lg-code-number: oklch(78% 0.11 235); /* #6BC3F4 */
 
@@ -231,6 +233,7 @@
         --lg-signal-text: oklch(76% 0.17 345);
         --lg-accent-text: var(--lg-signal-text);
         --lg-warning-text: oklch(80% 0.15 80);
+        --lg-success-text: oklch(76% 0.15 150);
         --lg-code-string: oklch(78% 0.13 150);
         --lg-code-number: oklch(78% 0.11 235);
         --lg-ai: oklch(78% 0.12 300);
@@ -289,6 +292,8 @@
 @import './styles/tokens.css';
 @import './styles/primitives.css';
 @import './styles/motion.css';
+/* A directive has no stylesheet of its own; the swipe's transform, clip and reveal live beside it. */
+@import './app/shared/swipe/swipe.css';
 
 html,
 body {

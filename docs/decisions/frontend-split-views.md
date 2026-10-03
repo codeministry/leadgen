@@ -411,3 +411,113 @@ preference kept in this browser like the theme (`DensityStore`, `lg-list-density
 written to the URL or into a saved view: a link says what the list is, not how dense this
 reader likes it. Compact is two rows a card (53px): the title with the status, then the facts
 with the lift and a warning glyph when a flag is set.
+
+
+## The swipe on a shortlist row, and Restore on the archive toast
+
+`shared/swipe/` plus `features/shortlist/`, spec 024. At a desk, triage is one key: `a` archives
+the open offer and moves on. On a phone or a tablet there was no key, and archiving meant opening
+the offer and finding the button, or Select, a tick and a bulk archive of one — several taps for
+the most frequent decision on the screen, on exactly the devices where the list is read in passing.
+
+- **Touch input decides, never the width.** The gesture starts on a pointer of type touch at
+  every width and on nothing else. Keyed on a breakpoint it would miss a tablet held landscape,
+  which crosses 72rem into the split view, and every touch laptop; and it would hand a phone-width
+  desktop window a mouse drag nobody asked for. A mouse, a trackpad or a
+  pen sees the row exactly as before: nothing painted underneath at rest, no clip, no
+  `cursor: grab`, which would promise a mouse drag that does not exist.
+- **Left only, and the row leaves the side being read.** On the working side a left swipe
+  archives, on the archive side the same swipe restores: in both directions the row goes away
+  from the set on screen, which is what `a` means, and one direction keeps one muscle memory. A
+  drag to the right clamps at 0 with no rubber band, because elastic give would suggest an
+  action on that side. Right was offered at the goal lock and not chosen; it is out of scope,
+  not reserved.
+- **No delete behind the swipe, because there is no delete.** The obvious second action of a
+  mail client has nothing to call here, and one added for it would not stay done: the next
+  ingest brings the advert back as new, because deduplication keys against the rows that exist.
+  Archiving is this tool's delete, and the swipe inherits its rules unchanged — a package nobody
+  sent is discarded, a restore comes back at `NEW`. It reaches the store through the existing
+  `archiveRequested`, never a request of its own.
+- **The threshold is `min(40 % of the row, 12rem)`, and a fling counts only after 3rem are
+  uncovered.** The numbers came out of the row's width at the three design widths rather than
+  out of taste. At 390 the card is about 352px, so 40 % is about 141px, under the cap, and the
+  percentage decides; at 820 the one-column card is 766px and 40 % would be 306px, more than a
+  thumb sweeps with the tablet upright; the split view's 36rem column would ask 216px. The cap
+  gives both the same 12rem. The fling floor is what keeps a flick made while scrolling from ever
+  archiving. A 10px slop, which horizontal travel must also win over vertical travel, decides
+  between a swipe and a scroll, and the row sets `touch-action: pan-y` so vertical panning stays
+  the browser's and the gesture only ever sees one axis. These are design-pass numbers, to be
+  confirmed on a phone and a tablet.
+- **The swipe asks inline before it writes.** The first build archived on release, as a mail
+  client does. On the iPad the operator wanted a confirmation in the row instead ("inline mit
+  buttons confirmed"): released past the threshold, the row settles open on Cancel and Archive,
+  Restore on the archive side, and only that button writes. Cancel, a tap on the row, a scroll,
+  Escape or opening another row closes it, so one row is open at a time. While the finger is
+  down the reveal is `aria-hidden` with `pointer-events: none`: it previews what letting go will do, in
+  the archive toast's amber on the working side and the restore toast's green on the archive
+  side, so the gesture and its confirmation say the same thing in the same colour. It arms as a
+  switch from tint to fill without a dead band, so the colour is always exactly what the release
+  will do. The accessible path is the one that already existed — the detail's button, the `a`
+  key and bulk archive — which is why the swipe needed no keyboard equivalent of its own. Green
+  text on its tint in the light theme measured 4.28:1 before the `--lg-success-text` twin was
+  added to `styles.css`, the fix amber already had.
+- **One glyph per action, with Lucide's meaning.** `archive` archives and `archive-restore`
+  restores, on the reveal, the detail's button and the bulk bar alike. The detail had shown
+  `archive-restore` for Archive and `archive-x` for Restore, the reverse of what the glyphs
+  draw; the swipe would have put a third reading beside those two. `archive-x` left the icon
+  registry with its last template.
+- **A package is named in the same confirmation.** A row whose offer has a package settles open
+  on the same Cancel and Archive with one line saying the package will be discarded: a package on
+  disk stands in for "maybe sent". The swipe no longer opens the modal the `a` key and the
+  detail keep, because the row already asks. The reveal's label keeps its ellipsis there —
+  Archive…, Restore… — as the cue that one more line is coming.
+- **Nothing moves while a write is in flight or in select mode.** Select mode is Select pressed on
+  a coarse pointer or any row picked. It is never "checkboxes shown": a touch laptop's primary
+  pointer is fine, so the checkboxes stand on every row there, and counting them as select mode
+  would switch the swipe off on the very device the wide layout serves. A touch that starts on
+  the checkbox belongs to the checkbox. A gesture that engaged suppresses the click that
+  follows, so it never opens the offer and never ticks a box; a tap without travel still opens
+  it. Under reduced motion the row still follows the finger, which is direct manipulation, and
+  only the spring-back, the slide-out and the collapse drop to 0.
+- **The split-view rule is `a`'s rule.** Where list and detail are both on screen, a swipe on
+  the offer the detail shows moves the selection to its neighbour below, or above when it was
+  the last; a swipe on any other row leaves the selection, the detail and its scroll position
+  alone. The rule had to be written down because the `archived` reducer, left alone, would point
+  the detail at whatever row was swiped — a reader triaging row five would lose the offer they
+  were reading. In one column a swipe never navigates: there the detail is its own route, and
+  following a swipe into it would take the reader off the list being triaged.
+- **No gesture library.** Pointer events cover one axis and one direction; Angular's HammerJS
+  integration is deprecated, and a library would be a dependency to answer a problem the
+  platform already solves. `shared/swipe/` knows a pointer stream, an offset and a threshold, and
+  nothing of what a completed swipe means — the shortlist decides archive or restore, which is
+  the layering rule, not a preference. The title's stretched link carries `draggable="false"`:
+  without it a press on the anchor starts the browser's native link drag, which cancels the
+  pointer stream mid-gesture. Found in the prototype with a mouse; iOS starts the same drag on a
+  long press.
+
+**The archive toast carries Restore, in place of Open.** A swipe is the gesture most easily made
+by accident, and every mail client answers a mis-swipe from the toast. The toast used to link
+and never act, and the reason was sound: "Restore" reads as a lossless undo and is not one, since
+the archive discards a package nobody sent. That reason is about a client-side revert, not about
+a button, so the rule was reworded rather than broken: an action is a second write under the
+store's own rules, never a client-side revert. Restore dispatches the existing restore request,
+exactly what the archive view's button sends, and whatever the store refuses stays refused.
+
+- **Restore replaces Open rather than joining it.** One filled button per toast is the house rule,
+  and Open on an archived offer only leads to a detail whose main action is the same restore, one
+  tap further away. Every other toast keeps Open, the green "Restored" toast included, which
+  carries no reverse action of its own: a symmetrical undo would invite ping-pong, and a mistaken
+  restore is one swipe away. It holds for every single archive — the swipe, the `a` key and the
+  detail's button — because it is raised from the store's answer, not from the screen that wrote.
+  The bulk archive's count toast gets none, and neither does the toast of an offer that kept its
+  package: one tap there would reset a sent application to `NEW` without the confirmation every
+  other restore path asks, so that toast keeps Open.
+- **Six seconds, like any archive toast, held under pointer and focus.** Standing until dismissed
+  stays the reload toast's exemption alone: the permanent way back is the archive view, not the toast.
+- **The row comes back where it stood, without a refetch or a scroll.** The `archived` answer
+  records the index a single archive took its row from, and a restore of exactly that offer puts
+  the server's row back there. An index is safe only because everything that replaces the list
+  wholesale — a load, a filter, a sort, a side — clears it, and so does a bulk archive, which
+  shortens the list in front of it. A restore that finds no memory inserts nothing and the next
+  load shows the row. A refetch was the obvious alternative and was not taken: it returns a
+  reader forty rows down to the top of page one, for an action taken to stay exactly there.

@@ -607,11 +607,14 @@ One line at the edge of the screen after a write or a run, and the decisions tha
   beside the control that can retry it, and each placement was argued for when it was made.
   A toast beside that paragraph is one failure said twice. The stack is a `role="status"`
   region with `aria-live="polite"`, and nothing in it is an error.
-- **A link, never an undo.** "Restore" on an archive toast reads as a lossless undo and is
-  not one: the package is discarded on archive unless the application was ever sent, and
-  a status change back over `PACKAGED` is a 409. The toast links to the offer, the card or
-  the dashboard, and the reversal happens there under the rules that already hold. That is
-  also what keeps the stack free of a second write path — its one control closes it.
+- **A second write, never an undo.** A toast links to the offer, the card or the dashboard,
+  and at most one toast carries an action. The single archive's toast offers Restore in
+  place of Open (spec 024). Restore is not a lossless undo: the package is discarded on
+  archive unless the application was ever sent, and the restore comes back at `NEW`. So the
+  action only dispatches the store's own restore request, and that request runs under the
+  rules that already hold; the stack reverts nothing on the client. Only the reload toast
+  is `standing` and waits for the person. Every other toast, Restore included, leaves after
+  its lifetime.
 - **One toast per run, whoever started it.** The operator's own run fires both paths, the
   report and the `run-ended` read-back; both carry `finishedAt`, and the stream keys on it.
   The start is keyed on the run id and raised only from the heartbeat, which `IngestStore`

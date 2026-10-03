@@ -18,7 +18,7 @@ Carried over from a sibling Angular project, which is the house style:
   siblings. **No barrels** (`index.ts`).
 - **`shared/` imports nothing from the layers above it**, not even types.
 - **A toast is raised in `core/toast/` from a store's answer event, never from a screen.**
-  Failures stay inline; the toast links and never undoes — `docs/decisions/frontend-design-system.md` § Toasts.
+  Failures stay inline; an action is a second write under the store's own rules, never a client-side revert.
 - **Three action tiers, one signal, seven section colours.** `btn-primary` once per area,
   `btn-soft btn-primary` for the rest, `btn-ghost` for close/back/clear; the signal (`--lg-signal`)
   means "survived the filter" and the brand, nothing else; `--lg-section` is orientation and

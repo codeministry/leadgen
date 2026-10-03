@@ -56,9 +56,14 @@
 /* No hover of its own (operator, 2026-09-26): the whole card is the link and the card already
    answers the pointer with its border, so an underline appearing only over the title made the
    same one click look like two different targets. The anchor keeps its focus ring — that one is
-   about where the keyboard is, not about where the pointer is. */
+   about where the keyboard is, not about where the pointer is.
+
+   Never dragged away as a link either: a long press on the card would otherwise lift the title's
+   URL off the row instead of letting the swipe have it (spec 024, ISC-494). With
+   `draggable="false"` on the anchor. */
 .title a {
     text-decoration: none;
+    -webkit-user-drag: none;
 }
 
 /* The whole card is the link, and the title anchor stays the only interactive element in

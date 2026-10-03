@@ -208,6 +208,21 @@
        dark one, where the ink is the light colour. For text only: fills and edges keep the primary. */
     --lg-primary-text: color-mix(in oklab, var(--color-primary) 80%, var(--color-base-content));
 
+    /* The swipe's reveal behind a shortlist row (spec 024). The archive toast's warning on the
+       working side and the restore toast's success on the archive side, so the gesture and its
+       answer say the same thing in the same colour; never the signal, a section colour, the
+       primary or error red. A soft tint while a release would change nothing, the solid fill
+       once it would count: the colour is always what letting go will do. Every pair is held to
+       4.5:1 in both themes by contrast.browser.spec. */
+    --lg-swipe-archive-ground: color-mix(in oklab, var(--color-warning) 14%, var(--color-base-100));
+    --lg-swipe-archive-ink: var(--lg-warning-text);
+    --lg-swipe-archive-ground-armed: var(--color-warning);
+    --lg-swipe-archive-ink-armed: var(--color-warning-content);
+    --lg-swipe-restore-ground: color-mix(in oklab, var(--color-success) 14%, var(--color-base-100));
+    --lg-swipe-restore-ink: var(--lg-success-text);
+    --lg-swipe-restore-ground-armed: var(--color-success);
+    --lg-swipe-restore-ink-armed: var(--color-success-content);
+
     /* Tailwind spells this `--font-mono--font-feature-settings`, which stylelint's
        custom-property-pattern rejects for the double dash. One name, ours. */
     --lg-mono-features: 'tnum' 1;

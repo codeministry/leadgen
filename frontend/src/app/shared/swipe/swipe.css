@@ -1,0 +1,79 @@
+/* The row a `lgSwipe` host moves (shared/swipe/swipe.ts). Global because a directive carries no
+   stylesheet of its own; imported once from `styles.css`.
+
+   At rest nothing here paints or clips: the reveal is hidden and the moving children carry no
+   transform, so a row reads exactly as it did before the gesture existed and its 2px focus ring
+   stays whole. Everything below keys on `.is-swiping`, which the directive sets only while the
+   row is off its place.
+
+   The contract: the reveal is a child with `.lg-swipe-reveal`, every other child moves, and a
+   moving child must be a block box — a transform does nothing to an inline one, which is what a
+   component host is by default. Colours belong to the screen that paints the reveal. */
+.lg-swipe {
+  position: relative;
+}
+
+/* Only while swiping: a card translated past the pane's edge must not widen the scroller, and a
+   clip at rest would cut the focus ring. */
+.lg-swipe.is-swiping {
+  overflow: clip;
+}
+
+/* Behind the row, and unpainted at x = 0: a coloured layer under a card of the same radius shows a
+   hairline at its anti-aliased corners. It previews what letting go will do; it is never a target. */
+.lg-swipe > .lg-swipe-reveal {
+  position: absolute;
+  inset: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.lg-swipe.is-swiping > .lg-swipe-reveal {
+  visibility: visible;
+}
+
+/* One compositor property per frame and no layout while the finger is down. The transform also
+   makes the moving child a stacking context painted after the reveal, so the reveal stays behind. */
+.lg-swipe.is-swiping > :not(.lg-swipe-reveal) {
+  transform: translate3d(var(--lg-swipe-x, 0), 0, 0);
+}
+
+/* Let go short of the threshold: back to its place on the drag pair, without overshoot. */
+.lg-swipe.is-returning > :not(.lg-swipe-reveal) {
+  transition: transform var(--lg-swipe-return-duration) var(--lg-drag-ease);
+}
+
+/* Past it, and the host said open: the row moves to where its hold is uncovered on the same pair
+   as the spring-back, and the reveal stops being a preview and becomes the place to answer — it
+   takes pointers, and the host stops hiding it from assistive technology. */
+.lg-swipe.is-open > :not(.lg-swipe-reveal) {
+  transition: transform var(--lg-swipe-return-duration) var(--lg-drag-ease);
+}
+
+.lg-swipe.is-open > .lg-swipe-reveal {
+  pointer-events: auto;
+}
+
+/* Past it, and the host said leave: off the row's own edge on the accelerating curve, where it
+   holds, the armed slot behind it reading as "archiving" until the store answers. The height is
+   pinned to what it was, so the collapse below has a length to close from. */
+.lg-swipe.is-leaving {
+  height: var(--lg-swipe-height);
+}
+
+.lg-swipe.is-leaving > :not(.lg-swipe-reveal) {
+  transition: transform var(--lg-swipe-leave-duration) var(--lg-swipe-leave-ease);
+}
+
+/* The store took the row off the list: the host's leave animation adds `.lg-swipe-collapse` and
+   removes the element once this has run. The slot and the list's gap close together, so the
+   neighbours rise by exactly one row with no final hop; the host names its gap as
+   `--lg-swipe-gap`. Only a row that left by a swipe collapses — a row a reload drops has no
+   transition here and goes at once. */
+.lg-swipe.is-leaving.lg-swipe-collapse {
+  height: 0;
+  margin-block-end: calc(-1 * var(--lg-swipe-gap, 0px));
+  transition:
+    height var(--lg-swipe-collapse-duration) var(--lg-drag-ease),
+    margin-block-end var(--lg-swipe-collapse-duration) var(--lg-drag-ease);
+}

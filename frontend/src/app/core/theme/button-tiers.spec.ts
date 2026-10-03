@@ -92,10 +92,11 @@ describe('the button tiers (ISC-231)', () => {
     });
 
     it('keeps the primary tier rare: at most one filled button per template, dialogs aside', () => {
-        // A dialog's confirm is a primary of its own; the shortlist has two dialogs and a
-        // bulk bar, the saved views a save and a dialog. Everything else: one.
+        // A dialog's confirm is a primary of its own; the shortlist has two dialogs, a bulk bar
+        // and the open row's inline confirmation (spec 024, ISC-501), a confirm like a dialog's
+        // that only one row shows at a time; the saved views a save and a dialog. Everything else: one.
         const allowance: Record<string, number> = {
-            'features/shortlist/shortlist-page.html': 4,
+            'features/shortlist/shortlist-page.html': 5,
             'features/shortlist/saved-views/saved-views.html': 2,
             // Save in the editor, Copy in the reading view: two branches of one @if, never both on screen.
             'features/offer-detail/application-panel/cover-letter/cover-letter.html': 2,

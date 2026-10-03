@@ -110,6 +110,7 @@
     "region": "Benachrichtigungen",
     "close": "Schließen",
     "open": "Öffnen",
+    "restore": "Wiederherstellen",
     "archived": "Archiviert: {title}",
     "restored": "Wiederhergestellt: {title}",
     "countArchived": "{count, plural, =0 {Nichts archiviert} one {1 Offer archiviert} other {# Offers archiviert}}",
@@ -126,6 +127,10 @@
     "letterSaved": "Anschreiben gespeichert, das Paket enthält die Änderung",
     "letterDrafted": "Neues Anschreiben entworfen",
     "letterDraftedTemplate": "Der Entwurf des Modells kam nicht durch, deshalb stammt dieses Anschreiben aus der Vorlage",
+    "sessionExpired": "Deine Sitzung ist abgelaufen. Du wirst neu angemeldet …",
+    "sessionExpiredUnsaved": "Deine Sitzung ist abgelaufen. Kopiere, was noch nicht gespeichert ist, und melde dich dann neu an.",
+    "signInNow": "Jetzt anmelden",
+    "sessionRefused": "Angemeldet, aber der Server verweigert weiterhin den Zugriff. Versuche es später erneut oder wende dich an den Admin.",
     "update": {
       "ready": "Eine neue Version ist bereit",
       "reload": "Neu laden"
@@ -265,6 +270,14 @@
     "emptyHint": "Der Lauf liest die Quellen, der harte Filter dünnt sie aus. Starte ihn oben im Kopf, dann füllt sich diese Liste.",
     "loadingMore": "Lädt weitere…",
     "archive": "Archiv",
+    "swipe": {
+      "archive": "Archivieren",
+      "archivePackage": "Archivieren…",
+      "restore": "Wiederherstellen",
+      "restorePackage": "Wiederherstellen…",
+      "packageArchive": "Das Paket wird verworfen.",
+      "packageRestore": "Das Paket wird nicht neu gebaut."
+    },
     "countArchived": "{matched} von {total} archiviert",
     "emptyArchiveTitle": "Noch nichts archiviert",
     "emptyArchiveHint": "Angebote verlassen die Arbeitsliste, wenn sie älter als das Frischefenster werden oder wenn du sie selbst herausnimmst.",

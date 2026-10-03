@@ -1,5 +1,5 @@
 import {TestBed} from '@angular/core/testing';
-import {injectDispatch} from '@ngrx/signals/events';
+import {Dispatcher, Events, injectDispatch} from '@ngrx/signals/events';
 import {IngestReport} from '@core/api/ingest.api';
 import {ApplicationView} from '@core/model/application';
 import {CurrentRunView} from '@core/model/current-run';
@@ -12,6 +12,7 @@ import {ingestEvents} from '@core/store/ingest.events';
 import {manualEvents} from '@core/store/manual.events';
 import {shortlistEvents} from '@core/store/shortlist.events';
 import {updateEvents} from '@core/pwa/update.events';
+import {authEvents} from '@core/auth/auth.events';
 import {toastEvents} from './toast.events';
 import {actionToast, TOAST_CAP, TOAST_LIFETIME_MS, toast} from './toast.model';
 import {ToastStore} from './toast.store';
@@ -314,7 +315,7 @@ describe('ToastStore', () => {
 
     describe('a failure', () => {
         it('raises no toast at all — the inline alert beside the control is the message', () => {
-            shortlist.archiveFailed('error.archive');
+            shortlist.archiveFailed({id: 7, message: 'error.archive', inline: false});
             shortlist.bulkArchiveFailed('error.bulkArchive');
             shortlist.rescoreFailed('error.rescore');
             shortlist.fetchFailed('error.fetch');
@@ -328,7 +329,7 @@ describe('ToastStore', () => {
     });
 
     describe('an archive or a restore', () => {
-        it('raises one toast per answer, naming the direction and the offer, linking to it', () => {
+        it('raises one toast per answer, naming the direction and the offer', () => {
             shortlist.archived(archiveAnswer(7, 'Senior Java Entwickler (m/w/d)', '2026-09-23T10:00:00Z'));
             shortlist.archived(archiveAnswer(9, 'Angular Frontend Developer', null));
 
@@ -338,7 +339,6 @@ describe('ToastStore', () => {
                 tone: 'warning',
                 key: 'toast.archived',
                 params: {title: 'Senior Java Entwickler (m/w/d)'},
-                link: '/shortlist/7',
             });
             expect(restored).toMatchObject({
                 tone: 'success',
@@ -346,6 +346,107 @@ describe('ToastStore', () => {
                 params: {title: 'Angular Frontend Developer'},
                 link: '/shortlist/9',
             });
+        });
+
+        it('offers Restore on a single archive, in place of the link, as that offer\'s restore request', () => {
+            shortlist.archived(archiveAnswer(7, 'Senior Java Entwickler (m/w/d)', '2026-09-23T10:00:00Z'));
+
+            const [archived] = store.toasts();
+            expect(archived.link).toBeUndefined();
+            expect(archived.action).toMatchObject({
+                key: 'toast.restore',
+                event: {type: shortlistEvents.archiveRequested.type, payload: {id: 7, archived: false}},
+            });
+            expect(archived.standing).toBeUndefined();
+        });
+
+        it('offers Open and no Restore when the archived offer kept its package (review finding 3)', () => {
+            // A package that survived the archive was sent; a restore resets its application to NEW,
+            // which every other restore path confirms first. The toast cannot ask, so it only opens.
+            const answer = archiveAnswer(7, 'Senior Java Entwickler (m/w/d)', '2026-09-23T10:00:00Z');
+            shortlist.archived({...answer, offer: {...answer.offer, packageDir: 'packages/2026-09-23_acme_java'}});
+
+            const [archived] = store.toasts();
+            expect(archived.action).toBeUndefined();
+            expect(archived.link).toBe('/shortlist/7');
+            expect(archived).toMatchObject({tone: 'warning', key: 'toast.archived'});
+        });
+
+        it('offers no Restore on a restore, which keeps its link, nor on a bulk archive', () => {
+            shortlist.archived(archiveAnswer(9, 'Angular Frontend Developer', null));
+            shortlist.bulkArchived({ids: [1, 2], archived: 2, unscored: 0});
+
+            const [restored, bulk] = store.toasts();
+            expect(restored.action).toBeUndefined();
+            expect(restored.link).toBe('/shortlist/9');
+            expect(bulk.action).toBeUndefined();
+        });
+
+        it('sends exactly one restore request for that offer when Restore is pressed', () => {
+            const requests: { id: number; archived: boolean }[] = [];
+            TestBed.inject(Events)
+                .on(shortlistEvents.archiveRequested)
+                .subscribe(({payload}) => requests.push(payload));
+            shortlist.archived(archiveAnswer(7, 'Senior Java Entwickler (m/w/d)', '2026-09-23T10:00:00Z'));
+
+            // What the stack does with a pressed action: the event it was handed, then the close.
+            const [archived] = store.toasts();
+            const restore = archived.action;
+            expect(restore).toBeDefined();
+            if (restore !== undefined) {
+                TestBed.inject(Dispatcher).dispatch(restore.event);
+            }
+            dispatch.dismissed(archived.id);
+
+            expect(requests).toEqual([{id: 7, archived: false, inline: true}]);
+            expect(store.toasts()).toEqual([]);
+        });
+    });
+
+    describe('an expired session (ISC-503)', () => {
+        beforeEach(() => vi.useFakeTimers());
+        afterEach(() => vi.useRealTimers());
+
+        it('says so once, in the warning tone, with no action and no link, and leaves on the normal timer', () => {
+            // Warning, the "taken away" tone: the session is what was taken. No action, because the
+            // sign-in starts by itself after the notice, and no link, because there is no page for it.
+            const auth = TestBed.runInInjectionContext(() => injectDispatch(authEvents));
+
+            auth.sessionExpired({unsaved: false});
+
+            expect(store.toasts()).toHaveLength(1);
+            const [standing] = store.toasts();
+            expect(standing).toMatchObject({tone: 'warning', key: 'toast.sessionExpired'});
+            expect(standing?.action).toBeUndefined();
+            expect(standing?.link).toBeUndefined();
+            expect(standing?.standing).toBeUndefined();
+
+            vi.advanceTimersByTime(TOAST_LIFETIME_MS);
+            expect(store.toasts()).toHaveLength(0);
+        });
+
+        it('with unsaved work on the page it stands, and its action is the sign-in the redirect waits for', () => {
+            // No timer: the sign-in waits for the person, so the line that offers it must not leave first.
+            const auth = TestBed.runInInjectionContext(() => injectDispatch(authEvents));
+
+            auth.sessionExpired({unsaved: true});
+            vi.advanceTimersByTime(TOAST_LIFETIME_MS * 10);
+
+            const [standing] = store.toasts();
+            expect(standing).toMatchObject({tone: 'warning', key: 'toast.sessionExpiredUnsaved', standing: true});
+            expect(standing?.action?.key).toBe('toast.signInNow');
+            expect(standing?.action?.event).toEqual(authEvents.signInRequested());
+        });
+
+        it('a server that still refuses right after a sign-in gets a standing line, not another redirect', () => {
+            const auth = TestBed.runInInjectionContext(() => injectDispatch(authEvents));
+
+            auth.sessionRefused();
+            vi.advanceTimersByTime(TOAST_LIFETIME_MS * 10);
+
+            const [standing] = store.toasts();
+            expect(standing).toMatchObject({tone: 'warning', key: 'toast.sessionRefused', standing: true});
+            expect(standing?.action).toBeUndefined();
         });
     });
 
@@ -390,8 +491,30 @@ describe('ToastStore', () => {
             expect(store.toasts().length).toBe(0);
         });
 
-        it('stands until closed when it carries an action, and a release starts no timer either', () => {
-            const offered = actionToast('info', 'toast.update.ready', {key: 'toast.update.reload', event: updateEvents.activate()});
+        it('lets a single archive toast leave after the lifetime, although it carries Restore', () => {
+            shortlist.archived(archiveAnswer(7, 'Senior Java Entwickler (m/w/d)', '2026-09-23T10:00:00Z'));
+            expect(store.toasts()[0].action).toBeDefined();
+
+            vi.advanceTimersByTime(TOAST_LIFETIME_MS - 1);
+            expect(store.toasts().length).toBe(1);
+            vi.advanceTimersByTime(1);
+            expect(store.toasts().length).toBe(0);
+        });
+
+        it('keeps the reload toast standing past any lifetime', () => {
+            const update = TestBed.runInInjectionContext(() => injectDispatch(updateEvents));
+            update.versionReady('a1');
+            expect(store.toasts()[0].standing).toBe(true);
+
+            vi.advanceTimersByTime(TOAST_LIFETIME_MS * 10);
+            expect(store.toasts().length).toBe(1);
+        });
+
+        it('stands until closed when it is standing, and a release starts no timer either', () => {
+            const offered = {
+                ...actionToast('info', 'toast.update.ready', {key: 'toast.update.reload', event: updateEvents.activate()}),
+                standing: true as const,
+            };
             dispatch.raised(offered);
             vi.advanceTimersByTime(TOAST_LIFETIME_MS * 10);
             expect(store.toasts().length).toBe(1);

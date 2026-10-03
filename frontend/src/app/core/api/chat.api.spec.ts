@@ -2,7 +2,7 @@ import {HttpErrorResponse, provideHttpClient} from '@angular/common/http';
 import {HttpTestingController, provideHttpClientTesting} from '@angular/common/http/testing';
 import {TestBed} from '@angular/core/testing';
 import {firstValueFrom, toArray} from 'rxjs';
-import {AuthService} from '@core/auth/auth.service';
+import {AuthService, SessionEnded} from '@core/auth/auth.service';
 import {ChatEvent, ConversationView, formatChatCtx, parseChatCtx} from '@core/model/chat';
 import {ChatApi} from './chat.api';
 
@@ -24,15 +24,23 @@ describe('ChatApi', () => {
     let api: ChatApi;
     let http: HttpTestingController;
     let token: string | null;
+    let ended: boolean;
+    let refusals: [number, boolean][];
 
     beforeEach(() => {
         token = null;
+        ended = false;
+        refusals = [];
+        // `bearer()` is the renewal-aware token; `refused` the one rule, specified on AuthService.
+        const auth: Partial<AuthService> = {
+            isOidc: () => token !== null || ended,
+            bearer: () => (ended ? Promise.reject(new SessionEnded()) : Promise.resolve(token ?? '')),
+            refused: (status: number, sentBearer: boolean) => {
+                refusals.push([status, sentBearer]);
+            },
+        };
         TestBed.configureTestingModule({
-            providers: [
-                provideHttpClient(),
-                provideHttpClientTesting(),
-                {provide: AuthService, useValue: {token: () => token}},
-            ],
+            providers: [provideHttpClient(), provideHttpClientTesting(), {provide: AuthService, useValue: auth}],
         });
         api = TestBed.inject(ChatApi);
         http = TestBed.inject(HttpTestingController);
@@ -206,6 +214,40 @@ describe('ChatApi', () => {
 
         expect(failure).toBeInstanceOf(HttpErrorResponse);
         expect((failure as HttpErrorResponse).status).toBe(404);
+    });
+
+    it('hands a refusal to the same rule the interceptor uses, with whether the bearer went along (ISC-503)', async () => {
+        token = 'abc';
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValue(streamed([], 401)));
+
+        const failure = await firstValueFrom(api.ask(4, 'q')).catch((error: unknown) => error);
+
+        expect((failure as HttpErrorResponse).status).toBe(401);
+        expect(refusals).toEqual([[401, true]]);
+    });
+
+    it('under none sends no bearer and asks for none', async () => {
+        const fetched = vi.fn().mockResolvedValue(streamed([], 401));
+        vi.stubGlobal('fetch', fetched);
+
+        await firstValueFrom(api.ask(4, 'q')).catch(() => undefined);
+
+        expect((fetched.mock.calls[0]![1] as RequestInit).headers).not.toHaveProperty('Authorization');
+        expect(refusals).toEqual([[401, false]]);
+    });
+
+    it('with a lapsed token it streams with the renewed bearer, and with none to be had it sends nothing', async () => {
+        token = 'renewed';
+        const fetched = vi.fn().mockResolvedValue(streamed(['event: done\ndata: {"state":"DONE"}\n\n']));
+        vi.stubGlobal('fetch', fetched);
+        await firstValueFrom(api.ask(4, 'q').pipe(toArray()));
+        expect((fetched.mock.calls[0]![1] as RequestInit).headers).toHaveProperty('Authorization', 'Bearer renewed');
+
+        ended = true;
+        fetched.mockClear();
+        const failure = await firstValueFrom(api.ask(4, 'q')).catch((error: unknown) => error);
+        expect(fetched).not.toHaveBeenCalled();
+        expect((failure as HttpErrorResponse).status).toBe(401);
     });
 
     it('carries the refusal the server wrote, as JSON `detail`, JSON `message` or plain text', async () => {

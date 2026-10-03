@@ -7,6 +7,7 @@ import {ShortlistApi} from '@core/api/shortlist.api';
 import {ChatContextItem, MAX_PINNED_OFFERS, pinnedOfferCount, QUESTION_MAX_LENGTH, questionFits} from '@core/model/chat';
 import {ShortlistEntry} from '@core/model/shortlist-entry';
 import {chatEvents} from '@core/store/chat.events';
+import {trackUnsavedWork} from '@core/unsaved/unsaved-work';
 import {ChatStore} from '@core/store/chat.store';
 import {DayPipe} from '@shared/date/day.pipe';
 import {Icon} from '@shared/icon/icon';
@@ -117,6 +118,8 @@ export class ChatComposer {
     private readonly searches = new Subject<string>();
 
     constructor() {
+        // A question typed and not yet sent is lost by a redirect to the sign-in; it holds one.
+        trackUnsavedWork(() => this.draft().trim() !== '');
         this.searches
             .pipe(
                 debounceTime(MENTION_DEBOUNCE_MS),

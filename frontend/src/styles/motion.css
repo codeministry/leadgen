@@ -52,4 +52,25 @@
     --lg-mark-intro-duration: 900ms;
     --lg-mark-turn-duration: 800ms;
     --lg-mark-idle-period: 24s;
+
+    /* The swipe on a shortlist row (spec 024). Let go short of the threshold, the row springs
+       back on the drag pair, which already means "a card let go returns to its place"; the
+       return is named here only so reduced motion can take it to 0 without touching the CDK's
+       drop. Past the threshold it leaves: off its own edge on an accelerating curve, because it
+       is going and not arriving. Once the store has taken it off the list, the slot and the
+       list's gap close together on the drag ease, so the neighbours rise by exactly one row. */
+    --lg-swipe-return-duration: var(--lg-drag-duration);
+    --lg-swipe-leave-duration: 180ms;
+    --lg-swipe-leave-ease: cubic-bezier(0.4, 0, 1, 1);
+    --lg-swipe-collapse-duration: 200ms;
+}
+
+/* The swipe's three motions are instant under reduced motion; the row still follows the finger,
+   which is not an animation but the gesture itself. */
+@media (prefers-reduced-motion: reduce) {
+    :root {
+        --lg-swipe-return-duration: 0ms;
+        --lg-swipe-leave-duration: 0ms;
+        --lg-swipe-collapse-duration: 0ms;
+    }
 }

@@ -2,6 +2,7 @@ import {ChangeDetectionStrategy, Component, computed, input, linkedSignal, outpu
 import {TranslocoPipe} from '@jsverse/transloco';
 import {ApplicationStatus} from '@core/model/application';
 import {CoverLetter, CoverLetterAuthor, hasLetter, letterEditable} from '@core/model/cover-letter';
+import {trackUnsavedWork} from '@core/unsaved/unsaved-work';
 import {Badge, BadgeTone} from '@shared/badge/badge';
 import {DayPipe} from '@shared/date/day.pipe';
 import {Icon} from '@shared/icon/icon';
@@ -61,6 +62,11 @@ export class CoverLetterSection {
         const letter = this.letter();
         return letter !== null && this.draft() !== letter.text;
     });
+
+    constructor() {
+        // An edit not yet saved is lost by a redirect to the sign-in; it holds one (`UnsavedWork`).
+        trackUnsavedWork(this.dirty);
+    }
 
     protected readonly tone = computed(() => AUTHOR_TONE[this.letter()?.author ?? 'template']);
 

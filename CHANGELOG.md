@@ -9,6 +9,36 @@ may change in any release. See the status note in the README.
 
 ## [Unreleased]
 
+### Added
+
+- **Swiping a shortlist row to the archive.** On a touch screen, at every width, a row dragged to
+  the left follows the finger and uncovers what letting go will do: Archive on the working side,
+  Restore on the archive side. Released past `min(40 % of the row, 12rem)`, or flung once 3rem are
+  uncovered, the row settles open on an inline confirmation, Cancel and Archive (Restore on the
+  archive side), and only that button sends the request the detail's button sends; released short,
+  it springs back and nothing happened. A row with a package says in the same place that its
+  package will be discarded. Cancel, a tap, a scroll, Escape or another row closes it. Scrolling still
+  scrolls, a tap still opens the offer, a drag to the right does nothing, and a mouse, a trackpad
+  or a pen never starts it. Where list and detail are both on screen, swiping the open offer moves
+  on to its neighbour. The detail's button and the bulk bar now show the same glyphs, `archive`
+  to archive and `archive-restore` to restore.
+
+### Changed
+
+- **The session renews itself and says when it ends.** Under `oidc` the access token is renewed
+  with the refresh-token grant before it expires, so a page left open keeps working. When renewal
+  fails or a request answers 401, one toast says the session has expired and the sign-in starts,
+  returning to the same page afterwards. Tokens now live in memory only, as the auth service always
+  claimed: they had been in `sessionStorage`. A reload therefore passes through the identity provider
+  once, silently on its session cookie.
+- **Restore on the archive toast.** The toast of a single archive, from the swipe, the `a` key or
+  the detail's button, carries Restore in place of Open. It sends the offer's restore request, a
+  second write under the store's own rules and never a client-side revert, and the row comes back
+  where it stood on an unchanged list. An offer that kept its package gets Open instead, so a sent
+  application is never reset from a toast. The toast keeps an archive toast's six seconds; the
+  bulk archive's count toast is unchanged. On a touch screen every toast now reads at the body
+  size with finger-sized buttons.
+
 ## [0.5.2] — 2026-09-30
 
 A run starts and shows itself from every screen, the machine room reads at a glance, the workflow
