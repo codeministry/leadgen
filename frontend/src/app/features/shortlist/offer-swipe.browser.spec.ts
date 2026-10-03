@@ -112,7 +112,10 @@ describe('a shortlist row swiped to the left (ISC-492)', () => {
     let pointerId = 10;
 
     beforeEach(() => {
+        // Animations on, as in the app: TestBed switches them off by default, and then a row the
+        // store drops leaves at once instead of a frame later, which hid a lost focus (`a` below).
         TestBed.configureTestingModule({
+            animationsEnabled: true,
             providers: [
                 provideHttpClient(),
                 provideHttpClientTesting(),
@@ -621,6 +624,8 @@ describe('a shortlist row swiped to the left (ISC-492)', () => {
             await expect.poll(() => path(), {timeout: 2000}).toBe('/shortlist/3');
             await settle();
             expect(detailPane().textContent, 'the detail shows the neighbour below').toContain('(m/w/d) 3');
+            // The swiped row collapses before it leaves; until then it still counts as a row.
+            await expect.poll(() => document.querySelectorAll('lg-shortlist-page .offer-list > li').length, {timeout: 2000}).toBe(5);
 
             // Whatever box scrolls the detail, its own or one of its ancestors.
             let pane: HTMLElement = document.querySelector<HTMLElement>('lg-shortlist-page lg-offer-detail')!;
@@ -652,5 +657,39 @@ describe('a shortlist row swiped to the left (ISC-492)', () => {
             expect(writes).toEqual([{id: 1, archived: true}]);
             expect(path()).toBe('/shortlist');
         });
+    });
+
+    describe('`a` on the open row', () => {
+        const path = () => router.url.split('?')[0];
+        const focusedCard = () => (document.activeElement as HTMLElement | null)?.closest('lg-offer-card')?.textContent ?? '';
+
+        for (const s of [
+            {where: 'above its neighbour', open: 1, key: '{ArrowDown}', then: '/shortlist/4'},
+            {where: 'as the last row', open: 4, key: '{ArrowUp}', then: '/shortlist/1'},
+        ] as const) {
+            it(`${s.where}: the focus lands on the neighbour, not on the leaving row, and the arrows walk on`, async () => {
+                offersPayload = payload([1, 2, 4].map((id) => entry(id, false)));
+                await page.viewport(1440, 900);
+                await router.navigateByUrl(`/shortlist/${s.open}`);
+                await settle();
+                document.querySelector<HTMLElement>('lg-shortlist-page [aria-current="true"]')!.focus();
+
+                await userEvent.keyboard('a');
+                await settle();
+                expect(writes).toEqual([{id: s.open, archived: true}]);
+                await expect.poll(() => path(), {timeout: 2000}).toBe('/shortlist/2');
+                expect(document.querySelector('lg-toast-stack .alert'), 'the toast is up').not.toBeNull();
+                expect(focusedCard(), 'the focus is on the neighbour').toContain('(m/w/d) 2');
+
+                // The leaving row is gone by now, a frame after the answer; the focus did not go with it.
+                await new Promise((resolve) => setTimeout(resolve, 600));
+                await settle();
+                expect(document.activeElement?.closest('lg-shortlist-page .offer-list'), 'the focus is still in the list').not.toBeNull();
+
+                await userEvent.keyboard(s.key);
+                await settle();
+                await expect.poll(() => path(), {timeout: 2000}).toBe(s.then);
+            });
+        }
     });
 });

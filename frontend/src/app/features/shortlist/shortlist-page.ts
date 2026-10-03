@@ -556,8 +556,8 @@ export class ShortlistPage {
             afterNextRender(
                 () => {
                     const pane = this.listPane()?.nativeElement;
-                    const card = pane?.querySelector<HTMLAnchorElement>('[aria-current="true"]');
-                    if (pane === undefined || !card) {
+                    const card = pane === undefined ? null : this.cardOf(pane, wanted);
+                    if (pane === undefined || card === null) {
                         return;
                     }
                     // The pane scrolls only while it is a scroller (both columns fit); below
@@ -602,8 +602,8 @@ export class ShortlistPage {
                         return;
                     }
                     this.landWanted.set(null);
-                    const card = pane.querySelector<HTMLElement>('[aria-current="true"]');
-                    if (card && pane.scrollHeight > pane.clientHeight) {
+                    const card = this.cardOf(pane, wanted);
+                    if (card !== null && pane.scrollHeight > pane.clientHeight) {
                         this.bringIntoPane(pane, card);
                     }
                 },
@@ -628,6 +628,18 @@ export class ShortlistPage {
             scroller.scrollTop = 0;
             }
         });
+    }
+
+    /**
+     * The title link of one offer's card, by its id — never simply the first `aria-current` in the
+     * pane. A row the store dropped stays in the DOM until its leave animation has run, at least one
+     * frame, and a leaving view keeps its last bindings, so for that frame the archived card still
+     * says it is current. After `a` it stands above its neighbour, the focus landed on it, and went
+     * to the body with it a frame later: the arrow keys were dead until the next click.
+     */
+    private cardOf(pane: HTMLElement, id: number): HTMLAnchorElement | null {
+        const cards = pane.querySelectorAll<HTMLAnchorElement>('a[aria-current="true"]');
+        return Array.from(cards).find((card) => card.pathname === `/shortlist/${id}`) ?? null;
     }
 
     /**
