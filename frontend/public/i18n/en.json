@@ -128,7 +128,7 @@
     "letterDrafted": "New cover letter drafted",
     "letterDraftedTemplate": "The model's draft did not pass, so the template wrote this letter",
     "sessionExpired": "Your session has expired. Signing you in again…",
-    "sessionExpiredUnsaved": "Your session has expired. Copy anything you have not saved. The sign-in follows once nothing is left to lose.",
+    "sessionExpiredUnsaved": "Your session has expired, and nothing can be saved until you sign in again. Copy anything you have not saved, then sign in.",
     "signInNow": "Sign in now",
     "sessionRefused": "Signed in, but the server still refuses. Try again later or contact the admin.",
     "issuerUnreachable": "The sign-in server cannot be reached, so nothing can load.",

@@ -328,9 +328,9 @@ describe('ChatStore', () => {
         expect(store.live()?.failure).toBe('no chat model is configured');
     });
 
-    it('counts a turn as unsaved work only once the server has named it (spec 024, review finding 3)', async () => {
-        // A question whose POST waits on a lapsed session has nothing the page would lose by leaving,
-        // so it must not hold the sign-in that the same lapsed session is about to need.
+    it('counts a turn as unsaved work while it streams, and a question the server never stored until it is (spec 024, code review 5, finding 4)', async () => {
+        // The composer is emptied on send, so a question waiting on a renewal exists only in the
+        // live turn: a redirect would take it along. Once the server named the turn it is stored.
         await open(4);
         const stream = new Subject<ChatEvent>();
         vi.spyOn(api, 'ask').mockReturnValue(stream);
@@ -338,7 +338,7 @@ describe('ChatStore', () => {
 
         dispatch.asked('What came in?');
         expect(store.streaming()).toBe(true);
-        expect(unsaved.any()).toBe(false);
+        expect(unsaved.any()).toBe(true);
 
         stream.next({event: 'turn', data: {turnId: 7}});
         expect(unsaved.any()).toBe(true);
@@ -346,6 +346,20 @@ describe('ChatStore', () => {
         stream.next({event: 'done', data: {state: 'DONE'}});
         stream.complete();
         expect(unsaved.any()).toBe(false);
+    });
+
+    it('a question refused before the server stored it stays unsaved work after the stream ends (code review 5, finding 4)', async () => {
+        await open(4);
+        const stream = new Subject<ChatEvent>();
+        vi.spyOn(api, 'ask').mockReturnValue(stream);
+        const unsaved = TestBed.inject(UnsavedWork);
+
+        dispatch.asked('What came in?');
+        stream.error(new HttpErrorResponse({status: 401, statusText: 'Session ended'}));
+
+        await vi.waitFor(() => expect(store.streaming()).toBe(false));
+        expect(store.live()?.question).toBe('What came in?');
+        expect(unsaved.any()).toBe(true);
     });
 
     it('asks the server to stop the live turn and lets the stream say how it ended', async () => {

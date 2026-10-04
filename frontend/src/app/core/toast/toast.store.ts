@@ -287,8 +287,10 @@ export const ToastStore = signalStore(
             // burst of failures is one line. Warning, the "taken away" tone: what was taken is the
             // session. No action, since nothing waits on the person; no link, since there is no
             // page for it; the normal timer, because the page is gone well before it runs out.
-            // With unsaved work on the page the sign-in waits for the person instead, so the line
-            // stands and carries the sign-in as its action: the redirect has no timer to leave on.
+            // With unsaved work on the page the sign-in waits instead, so the line stands and carries
+            // the sign-in as its action. It waits for the person or for the work to go, whichever is
+            // first: `AuthService` leaves by itself once nothing is left to lose. Nothing can be saved
+            // meanwhile, since every request needs the session that ended, and the line says so.
             events.on(authEvents.sessionExpired).pipe(
                 map(({payload}) =>
                     toastEvents.raised(

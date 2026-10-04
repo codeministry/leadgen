@@ -3,6 +3,7 @@ import {HttpTestingController, provideHttpClientTesting} from '@angular/common/h
 import {signal} from '@angular/core';
 import {TestBed} from '@angular/core/testing';
 import {Dispatcher, Events} from '@ngrx/signals/events';
+import {firstValueFrom} from 'rxjs';
 import {AuthConfig as OidcConfig, OAuthService, OAuthStorage} from 'angular-oauth2-oidc';
 import {UnsavedWork} from '@core/unsaved/unsaved-work';
 import {AuthConfig} from './auth-config.api';
@@ -19,6 +20,7 @@ import {
     SESSION_EXPIRED_NOTICE_MS,
     SIGN_IN_LOOP_WINDOW_MS,
     SIGN_IN_MARKER,
+    SIGN_IN_START_TIMEOUT_MS,
 } from './auth.service';
 import {bearerInterceptor} from './bearer.interceptor';
 import {provideOidcClient} from './oidc-client';
@@ -264,7 +266,7 @@ describe('AuthService', () => {
 });
 
 describe('AuthService — a load that has to sign in (review finding 1)', () => {
-    it('never resolves, leaves once, and nothing renders or requests on the way out', async () => {
+    it('does not resolve while it leaves, leaves once, and nothing renders or requests on the way out', async () => {
         window.history.replaceState(null, '', '/shortlist/5?q=java');
         const stub = oauth();
         stub.valid = false;
@@ -940,6 +942,125 @@ describe('AuthService — unsaved work holds the redirect (review finding 2)', (
 
     it('waits long enough for the toast to be read', () => {
         expect(SESSION_EXPIRED_NOTICE_MS).toBe(2_500);
+    });
+});
+
+describe('AuthService — code review 5', () => {
+    it('a 5xx proves nothing about the bearer: a gateway answered it, so the brake stays (finding 1)', async () => {
+        window.sessionStorage.setItem(SIGN_IN_MARKER, String(Date.now()));
+        const {service, backend, http} = setUp();
+        await initialised(service, backend, OIDC);
+
+        for (const status of [502, 503]) {
+            const outcome = request(http, '/api/v1/offers');
+            backend.expectOne('/api/v1/offers').flush(null, {status, statusText: 'Bad Gateway'});
+            expect(outcome).toEqual([status]);
+        }
+
+        expect(window.sessionStorage.getItem(SIGN_IN_MARKER)).not.toBeNull();
+        const refused = seen(authEvents.sessionRefused);
+        request(http, '/api/v1/offers');
+        backend.expectOne('/api/v1/offers').flush(null, UNAUTHORIZED);
+        (await sent(backend, '/api/v1/offers')).flush(null, UNAUTHORIZED);
+        expect(refused).toHaveLength(1);
+        expect(service.phase()).toBe('refused');
+    });
+
+    it('a token lapsed on arrival does not bounce back to the identity provider: the sign-in failed (finding 2)', async () => {
+        window.sessionStorage.setItem(SIGN_IN_MARKER, String(Date.now()));
+        window.history.replaceState(null, '', '/?code=X&state=nonce%3B%252Fpipeline&session_state=s');
+        const stub = oauth();
+        stub.valid = false;
+        const {service, backend, spy} = setUp(stub);
+        const failed = seen(authEvents.signInFailed);
+
+        await initialised(service, backend, OIDC);
+
+        expect(service.phase()).toBe('failed');
+        expect(failed).toHaveLength(1);
+        expect(spy.calls).not.toContain('sign-in');
+    });
+
+    it('a plain load right after a sign-in still signs in: only a callback can have failed (finding 2)', async () => {
+        window.sessionStorage.setItem(SIGN_IN_MARKER, String(Date.now()));
+        window.history.replaceState(null, '', '/pipeline/3');
+        const stub = oauth();
+        stub.valid = false;
+        const {service, backend, spy} = setUp(stub);
+
+        void service.initialise();
+        backend.expectOne('/api/v1/auth-config').flush(OIDC);
+        await vi.waitFor(() => expect(spy.calls).toContain('sign-in'));
+
+        expect(service.phase()).toBe('leaving');
+        expect(spy.signInStates).toEqual(['/pipeline/3']);
+    });
+
+    it('a sign-in that throws before it leaves renders the page with the failure, not a blank one (finding 3)', async () => {
+        const stub = oauth();
+        stub.valid = false;
+        stub.initCodeFlow = () => {
+            throw new Error("loginUrl  must use HTTPS (with TLS)");
+        };
+        const {service, backend} = setUp(stub);
+        const failed = seen(authEvents.signInFailed);
+
+        await initialised(service, backend, OIDC);
+
+        expect(service.phase()).toBe('failed');
+        expect(failed).toHaveLength(1);
+    });
+
+    it('a sign-in the browser never leaves for resolves the start as failed after the wait (finding 3)', async () => {
+        vi.useFakeTimers();
+        const stub = oauth();
+        stub.valid = false;
+        const {service, backend, spy} = setUp(stub);
+        const failed = seen(authEvents.signInFailed);
+        let resolved = false;
+
+        void service.initialise().then(() => (resolved = true));
+        backend.expectOne('/api/v1/auth-config').flush(OIDC);
+        await vi.advanceTimersByTimeAsync(0);
+        expect(spy.calls).toContain('sign-in');
+        await vi.advanceTimersByTimeAsync(SIGN_IN_START_TIMEOUT_MS - 1);
+        expect(resolved).toBe(false);
+        expect(service.phase()).toBe('leaving');
+
+        await vi.advanceTimersByTimeAsync(1);
+
+        expect(resolved).toBe(true);
+        expect(service.phase()).toBe('failed');
+        expect(failed).toHaveLength(1);
+        TestBed.inject(Dispatcher).dispatch(authEvents.signInRequested());
+        expect(spy.signInStates).toHaveLength(2);
+    });
+
+    it('a caller that takes only the first value still lifts the brake (finding 6)', async () => {
+        window.sessionStorage.setItem(SIGN_IN_MARKER, String(Date.now()));
+        const {service, backend, http} = setUp();
+        await initialised(service, backend, OIDC);
+
+        const answer = firstValueFrom(http.get('/api/v1/offers'));
+        backend.expectOne('/api/v1/offers').flush([]);
+        await answer;
+
+        expect(window.sessionStorage.getItem(SIGN_IN_MARKER)).toBeNull();
+    });
+
+    it('the error an identity provider sent back does not come back after the next sign-in (finding 7)', async () => {
+        // As the library leaves a callback it consumed: `code` and `state` gone, the error still there.
+        window.history.replaceState(null, '', '/pipeline?error=login_required&error_description=Login%20required');
+        const stub = oauth();
+        stub.valid = false;
+        stub.exchange = 'fail';
+        const {service, backend, spy} = setUp(stub);
+
+        void service.initialise();
+        backend.expectOne('/api/v1/auth-config').flush(OIDC);
+        await vi.waitFor(() => expect(spy.calls).toContain('sign-in'));
+
+        expect(spy.signInStates).toEqual(['/pipeline']);
     });
 });
 

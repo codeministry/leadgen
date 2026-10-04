@@ -12,8 +12,9 @@ import {eventGroup} from '@ngrx/signals/events';
  * the loop brake: a sign-in happened moments ago and the server still says no, so a second
  * redirect would only start a loop. `AuthService` dispatches at most one of the two per page; a
  * burst of failures is one event. `sessionAccepted` lifts the brake again: a request went through.
- * `issuerUnreachable` is the start finding no identity provider, and `signInFailed` a code that came
- * back and could not be exchanged moments after the last attempt, so a redirect would only bounce.
+ * `issuerUnreachable` is the start finding no identity provider, and `signInFailed` a sign-in that went
+ * nowhere: a code that came back and could not be exchanged, or a token lapsed on arrival, moments after
+ * the last attempt, so a redirect would only bounce — or a browser that never left for the identity provider.
  */
 export const authEvents = eventGroup({
     source: 'Auth',

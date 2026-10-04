@@ -1,5 +1,5 @@
-import {HttpErrorResponse, HttpStatusCode} from '@angular/common/http';
-import {effect, inject, Injectable, signal, untracked} from '@angular/core';
+import {HttpErrorResponse, HttpEventType, HttpStatusCode} from '@angular/common/http';
+import {DestroyRef, effect, inject, Injectable, signal, untracked} from '@angular/core';
 import {Dispatcher, Events} from '@ngrx/signals/events';
 import {AuthConfig as OidcConfig, OAuthService} from 'angular-oauth2-oidc';
 import {catchError, defer, firstValueFrom, Observable, of, switchMap, tap, throwError} from 'rxjs';
@@ -21,6 +21,7 @@ import {SignedInState} from './signed-in.state';
  *          ├─▶ leaving                  a plain load, or a code that could not be exchanged
  *          ├─▶ failed ──────▶ leaving   a sign-in failed moments after the last; the person retries
  *          └─▶ unreachable ─▶ leaving   the issuer did not answer; the person retries
+ * leaving ───▶ failed                   the browser never left for the identity provider
  * ```
  */
 export type AuthPhase = 'off' | 'booting' | 'signedIn' | 'refused' | 'held' | 'leaving' | 'failed' | 'unreachable';
@@ -74,7 +75,11 @@ export type AuthPhase = 'off' | 'booting' | 'signedIn' | 'refused' | 'held' | 'l
  * would only bounce: `authEvents.sessionRefused` says so and the page stays, still sending its
  * bearer, until a request goes through or the person signs in again. A code that comes back and
  * cannot be exchanged is no ended session, since nobody was signed in: the load goes straight back to
- * the identity provider, and inside that same window stops at `authEvents.signInFailed` instead.
+ * the identity provider, and inside that same window stops at `authEvents.signInFailed` instead —
+ * as does a callback whose token is lapsed on arrival, and a sign-in the browser never left for.
+ *
+ * <p>**Held means nothing can be saved.** The session is over, so every request fails as a 401 until
+ * the person signs in again; the line says so, and asks them to copy what they have first.
  */
 @Injectable({providedIn: 'root'})
 export class AuthService {
@@ -92,6 +97,8 @@ export class AuthService {
     private renewal: Promise<boolean> | null = null;
     /** The timer that renews the access token at `RENEW_AT` of its lifetime. */
     private renewalTimer: ReturnType<typeof setTimeout> | undefined;
+    /** The notice before a sign-in, or the wait for the browser to have left for it. */
+    private leaveTimer: ReturnType<typeof setTimeout> | undefined;
     /** Whether a bearer request has gone through on this page, which lifts the loop brake. */
     private accepted = false;
     private issuer = '';
@@ -108,6 +115,10 @@ export class AuthService {
                 untracked(() => this.leave());
             }
         });
+        inject(DestroyRef).onDestroy(() => {
+            clearTimeout(this.renewalTimer);
+            clearTimeout(this.leaveTimer);
+        });
     }
 
     /**
@@ -117,7 +128,8 @@ export class AuthService {
      * blank page rather than a screen with an error on it. An API that is down ends as `off`, and
      * the screens report their own failures. An identity provider that is down ends as
      * `unreachable`, with a standing line that offers to try again. A load that has to sign in
-     * **never resolves**: the browser leaves, and nothing should render on the way out.
+     * **does not resolve while the browser leaves**, since nothing should render on the way out; it
+     * resolves as `failed` only when the browser is still here after `SIGN_IN_START_TIMEOUT_MS`.
      */
     async initialise(): Promise<void> {
         let config: AuthConfig;
@@ -138,6 +150,8 @@ export class AuthService {
         if (!(await this.discovered())) {
             return;
         }
+        // Read before `tryLogin`, which takes `code` and `state` out of the address bar.
+        const callback = isCallback();
         try {
             // Exchanges the code when the browser comes back with one; does nothing on a plain load.
             await this.oauth.tryLogin();
@@ -147,16 +161,19 @@ export class AuthService {
             // server has refused nothing: straight back to the identity provider, unless that is
             // where the last attempt came from moments ago, which would only bounce.
             if (signedInMomentsAgo()) {
-                this.phase.set('failed');
-                this.dispatcher.dispatch(authEvents.signInFailed());
+                this.fail();
                 return;
             }
-            this.leaveNow();
-            return new Promise<void>(() => undefined);
+            return this.leaveNow();
         }
         if (!this.oauth.hasValidAccessToken()) {
-            this.leaveNow();
-            return new Promise<void>(() => undefined);
+            // A token lapsed the moment it arrived — one that lives less than `EXPIRY_MARGIN_S` — would
+            // send every return from the identity provider straight back to it.
+            if (callback && signedInMomentsAgo()) {
+                this.fail();
+                return;
+            }
+            return this.leaveNow();
         }
         this.returnToStartingPoint();
         this.phase.set('signedIn');
@@ -182,19 +199,23 @@ export class AuthService {
      * <p>`attempt` sends with the token it is handed and fails with an `HttpErrorResponse` when
      * the server refuses. A valid token is handed over synchronously; a lapsed one is renewed
      * first. A 401 is answered with one renewal and one replay, and a second 401 ends the session;
-     * under the loop brake a 401 is handed on as it is. Any other answer lifts the brake.
+     * under the loop brake a 401 is handed on as it is. The first answer that proves the bearer was
+     * taken lifts the brake: a response, or an error that is neither a 401 nor a 5xx.
      * When no token can be had the request is never sent: it fails as a 401 `url` never saw, or
      * as status 0 when the renewal outlasted `REQUEST_RENEWAL_TIMEOUT_MS`. A 403 is a signed-in
      * person without the right and passes through untouched.
      */
     call<T>(url: string, attempt: (token: string) => Observable<T>): Observable<T> {
-        // Any answer but a 401 says the server took the bearer — a 403, a 404, a 409 included.
+        // On the response itself rather than on `complete`: a caller that takes the first value
+        // (`firstValueFrom`, `take(1)`) unsubscribes before the completion ever reaches this.
         const send = (token: string) =>
             attempt(token).pipe(
                 tap({
-                    complete: () => this.accept(),
+                    next: (value: T) => {
+                        if (isAnswer(value)) this.accept();
+                    },
                     error: (error: unknown) => {
-                        if (answeredWithBearer(error)) this.accept();
+                        if (error instanceof HttpErrorResponse && tookTheBearer(error.status)) this.accept();
                     },
                 }),
             );
@@ -336,7 +357,7 @@ export class AuthService {
     private signInRequested(): void {
         const phase = this.phase();
         if (phase === 'held' || phase === 'refused' || phase === 'failed') {
-            this.leaveNow();
+            void this.leaveNow();
         } else if (phase === 'unreachable') {
             void this.retry();
         }
@@ -346,7 +367,7 @@ export class AuthService {
     private async retry(): Promise<void> {
         this.phase.set('booting');
         if (await this.discovered()) {
-            this.leaveNow();
+            void this.leaveNow();
         }
     }
 
@@ -370,18 +391,45 @@ export class AuthService {
     /** Leaves after the notice, so the line that says why can be read. */
     private leave(): void {
         this.phase.set('leaving');
-        setTimeout(() => this.signIn(currentPath()), SESSION_EXPIRED_NOTICE_MS);
+        this.leaveTimer = setTimeout(() => void this.signIn(currentPath()), SESSION_EXPIRED_NOTICE_MS);
     }
 
-    private leaveNow(path = currentPath()): void {
+    /** Leaves at once; the promise settles only when the browser did not go (see `signIn`). */
+    private leaveNow(path = currentPath()): Promise<void> {
         this.phase.set('leaving');
-        this.signIn(path);
+        return this.signIn(path);
     }
 
-    /** Leaves for the identity provider, and leaves the marker the loop brake reads on the way back. */
-    private signIn(path: string): void {
+    /**
+     * Leaves for the identity provider, and leaves the marker the loop brake reads on the way back.
+     *
+     * <p>The library builds the URL asynchronously and only logs it when that fails — no
+     * `crypto.subtle` for PKCE on plain HTTP off localhost, an issuer `requireHttps` refuses — so the
+     * one sign that the browser did not leave is that it is still here. After
+     * `SIGN_IN_START_TIMEOUT_MS` the sign-in counts as failed and the promise settles, which lets a
+     * pending initializer render the page with that line instead of a blank one.
+     */
+    private signIn(path: string): Promise<void> {
         markSignIn();
-        this.oauth.initCodeFlow(path);
+        return new Promise<void>((resolve) => {
+            const stayed = () => {
+                if (this.phase() === 'leaving') this.fail();
+                resolve();
+            };
+            try {
+                this.oauth.initCodeFlow(path);
+            } catch {
+                stayed();
+                return;
+            }
+            this.leaveTimer = setTimeout(stayed, SIGN_IN_START_TIMEOUT_MS);
+        });
+    }
+
+    /** A sign-in that did not complete, or did not start: say so, and let the person try again. */
+    private fail(): void {
+        this.phase.set('failed');
+        this.dispatcher.dispatch(authEvents.signInFailed());
     }
 
     /** A bearer request went through: the server takes this sign-in's tokens, so the brake is lifted. */
@@ -456,9 +504,26 @@ function refusedBearer(error: unknown): boolean {
     return error instanceof HttpErrorResponse && error.status === HttpStatusCode.Unauthorized;
 }
 
-/** Whether the server answered a bearer request with anything but a 401: it took the token. */
-function answeredWithBearer(error: unknown): boolean {
-    return error instanceof HttpErrorResponse && error.status !== 0 && error.status !== HttpStatusCode.Unauthorized;
+/**
+ * Whether an answer with `status` proves the server took the bearer. A 401 refused it and status 0
+ * never reached anybody; a 5xx may come from a gateway or proxy that never read the token, so it
+ * proves nothing either. A 403, a 404, a 409 do: the API checked the token before it said no.
+ */
+function tookTheBearer(status: number): boolean {
+    return status !== 0 && status !== HttpStatusCode.Unauthorized && status < HttpStatusCode.InternalServerError;
+}
+
+/**
+ * Whether a value a request emits is the server's answer rather than the request's own progress:
+ * an `HttpClient` `Sent` or upload-progress event is not, a header or a response with a status
+ * that proves nothing is not, and anything else — a body, a fetch `Response` — is.
+ */
+function isAnswer(value: unknown): boolean {
+    const {type, status} = (value ?? {}) as {type?: unknown; status?: unknown};
+    if (type === HttpEventType.Sent || type === HttpEventType.UploadProgress) {
+        return false;
+    }
+    return typeof status !== 'number' || tookTheBearer(status);
 }
 
 /** The error a request fails with when it was never sent, or null when `error` is the server's own. */
@@ -517,6 +582,13 @@ export const REQUEST_RENEWAL_TIMEOUT_MS = 10_000;
 
 /** How long the start waits for the issuer's discovery document before it calls the issuer unreachable. */
 export const DISCOVERY_TIMEOUT_MS = 10_000;
+
+/**
+ * How long the page waits to be gone after starting a sign-in before it calls the sign-in failed. A
+ * navigation to the identity provider that takes longer still goes through, under that line. A mark,
+ * unmeasured.
+ */
+export const SIGN_IN_START_TIMEOUT_MS = 10_000;
 
 /**
  * The waits between renewal attempts, the last one repeated: quick at first, because a dropped
@@ -582,18 +654,28 @@ export const SESSION_EXPIRED_NOTICE_MS = 2_500;
  * The URL as the router sees it — path, query and fragment — on this path-located app, without the
  * parameters an authorization response put there. A callback the library has not consumed yet (an
  * issuer that did not answer, an exchange that failed) still carries `code` and `state`, and sent
- * along as the place to come back to they would come back too, to be exchanged a second time.
+ * along as the place to come back to they would come back too, to be exchanged a second time. One it
+ * has consumed lost `code` and `state` but kept `error` and `error_description`, which would
+ * otherwise be restored into the address bar after the next sign-in.
  */
 function currentPath(): string {
     const {pathname, search, hash} = window.location;
     const query = new URLSearchParams(search);
-    if (!query.has('state') || !(query.has('code') || query.has('error'))) {
+    if (!isCallback(query)) {
         // Untouched, so the query keeps its own spelling rather than `URLSearchParams`' re-encoding.
         return pathname + search + hash;
     }
     for (const key of CALLBACK_PARAMS) query.delete(key);
     const rest = query.toString();
     return pathname + (rest ? `?${rest}` : '') + hash;
+}
+
+/**
+ * Whether the query is an authorization response's: it carries a `code` or an `error`. `state` alone
+ * is not enough, since a screen may use a parameter of that name.
+ */
+function isCallback(query = new URLSearchParams(window.location.search)): boolean {
+    return query.has('code') || query.has('error');
 }
 
 /** What an authorization response adds to the redirect URI's query (RFC 6749 § 4.1.2, RFC 9207). */

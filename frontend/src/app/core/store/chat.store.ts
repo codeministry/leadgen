@@ -819,13 +819,17 @@ export const ChatStore = signalStore(
             ),
         ];
     }),
-    // A turn the server accepted and is still streaming is work the page would lose by leaving: an
-    // ended session holds its redirect while one runs (`UnsavedWork`). Not before the server named
-    // the turn — a question whose POST was refused for want of a session has nothing to wait for.
-    // A root store, so tracked for the page's lifetime.
+    // Work the page would lose by leaving, which holds an ended session's redirect (`UnsavedWork`): a
+    // turn still streaming, and a question the server never stored. The composer is emptied on send,
+    // so a question waiting on a renewal, or refused for want of a session, exists only here. A
+    // regeneration asks a question that is already stored. A root store, so tracked for the page's lifetime.
     withHooks({
         onInit(store) {
-            inject(UnsavedWork).track(() => store.streaming() && store.live()?.turnId !== null);
+            inject(UnsavedWork).track(() => {
+                const live = store.live();
+                const unstored = live !== null && live.turnId === null && live.replacesTurnId === null && live.question.trim() !== '';
+                return store.streaming() || unstored;
+            });
         },
     }),
 );
