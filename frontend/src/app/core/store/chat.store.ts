@@ -819,11 +819,13 @@ export const ChatStore = signalStore(
             ),
         ];
     }),
-    // A turn still streaming is work the page would lose by leaving: an ended session holds its
-    // redirect while one runs (`UnsavedWork`). A root store, so tracked for the page's lifetime.
+    // A turn the server accepted and is still streaming is work the page would lose by leaving: an
+    // ended session holds its redirect while one runs (`UnsavedWork`). Not before the server named
+    // the turn — a question whose POST was refused for want of a session has nothing to wait for.
+    // A root store, so tracked for the page's lifetime.
     withHooks({
         onInit(store) {
-            inject(UnsavedWork).track(store.streaming);
+            inject(UnsavedWork).track(() => store.streaming() && store.live()?.turnId !== null);
         },
     }),
 );

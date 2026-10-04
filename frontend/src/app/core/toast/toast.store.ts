@@ -50,10 +50,11 @@ export const ToastStore = signalStore(
     withState(initialState),
     withAppDevtools('toast'),
     withReducer(
-        // The cap drops the oldest, never refuses the newest: the newest is the one that
-        // just happened, and the one the person is most likely looking for.
+        // The cap drops the oldest passing line: the newest is the one that just happened, and
+        // the one the person is most likely looking for — unless every line before it stands and
+        // waits for an answer, which outranks a line that would have left by itself anyway.
         on(toastEvents.raised, ({payload}, state) => ({
-            toasts: [...state.toasts, payload].slice(-TOAST_CAP),
+            toasts: capped([...state.toasts, payload]),
         })),
         on(toastEvents.dismissed, toastEvents.expired, ({payload}, state) => ({
             toasts: state.toasts.filter((standing) => standing.id !== payload),
@@ -304,9 +305,44 @@ export const ToastStore = signalStore(
                 ),
             ),
             // The loop brake: signed in moments ago and the server still refuses. Nothing redirects
-            // and nothing will get better on its own, so the line stands until it is closed.
+            // by itself, so the line stands and offers the sign-in for when the person wants to try.
             events.on(authEvents.sessionRefused).pipe(
-                map(() => toastEvents.raised({...toast('warning', 'toast.sessionRefused'), standing: true})),
+                map(() =>
+                    toastEvents.raised({
+                        ...actionToast('warning', 'toast.sessionRefused', {key: 'toast.signInNow', event: authEvents.signInRequested()}),
+                        standing: true,
+                    }),
+                ),
+            ),
+            // The brake lifted: a request went through after all. The refusal line is wrong now, and
+            // its Sign in now would do nothing, so it goes the way the button would take it.
+            events.on(authEvents.sessionAccepted).pipe(
+                mergeMap(() =>
+                    store
+                        .toasts()
+                        .filter((standing) => standing.key === 'toast.sessionRefused')
+                        .map((standing) => toastEvents.dismissed(standing.id)),
+                ),
+            ),
+            // A code came back and could not be exchanged, moments after the last attempt: another
+            // redirect would only bounce, so the line stands and its action is the next attempt.
+            events.on(authEvents.signInFailed).pipe(
+                map(() =>
+                    toastEvents.raised({
+                        ...actionToast('warning', 'toast.signInFailed', {key: 'toast.tryAgain', event: authEvents.signInRequested()}),
+                        standing: true,
+                    }),
+                ),
+            ),
+            // The identity provider did not answer at the start. Nothing loads without it, so the
+            // line stands and its action asks the issuer again — and signs in once it answers.
+            events.on(authEvents.issuerUnreachable).pipe(
+                map(() =>
+                    toastEvents.raised({
+                        ...actionToast('warning', 'toast.issuerUnreachable', {key: 'toast.tryAgain', event: authEvents.signInRequested()}),
+                        standing: true,
+                    }),
+                ),
             ),
             // A new version the worker holds, once per hash — the update store keys that. The
             // one `standing` toast: the reload is the person's call and it stands until they
@@ -332,3 +368,18 @@ export const ToastStore = signalStore(
         ];
     }),
 );
+
+/**
+ * The toasts that fit under `TOAST_CAP`. The oldest passing line leaves first — the newest one too,
+ * when every line before it stands — and a standing one only when nothing but standing lines is left,
+ * because a standing line is one the person still has to answer — the sign-in a held redirect waits
+ * for, the reload a new version waits for — and a burst of archive toasts must not take that answer away.
+ */
+function capped(toasts: readonly Toast[]): Toast[] {
+    const kept = [...toasts];
+    while (kept.length > TOAST_CAP) {
+        const passing = kept.findIndex((candidate) => !candidate.standing);
+        kept.splice(passing === -1 ? 0 : passing, 1);
+    }
+    return kept;
+}

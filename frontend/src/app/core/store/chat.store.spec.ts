@@ -8,6 +8,7 @@ import {Subject, throwError} from 'rxjs';
 import {ChatApi} from '@core/api/chat.api';
 import {RECORDED_TURN, replayTurn} from '@core/api/chat-stub';
 import {ChatEvent, ConversationView} from '@core/model/chat';
+import {UnsavedWork} from '@core/unsaved/unsaved-work';
 import {chatEvents} from './chat.events';
 import {ChatStore} from './chat.store';
 
@@ -325,6 +326,26 @@ describe('ChatStore', () => {
 
         await vi.waitFor(() => expect(store.live()?.state).toBe('INCOMPLETE'));
         expect(store.live()?.failure).toBe('no chat model is configured');
+    });
+
+    it('counts a turn as unsaved work only once the server has named it (spec 024, review finding 3)', async () => {
+        // A question whose POST waits on a lapsed session has nothing the page would lose by leaving,
+        // so it must not hold the sign-in that the same lapsed session is about to need.
+        await open(4);
+        const stream = new Subject<ChatEvent>();
+        vi.spyOn(api, 'ask').mockReturnValue(stream);
+        const unsaved = TestBed.inject(UnsavedWork);
+
+        dispatch.asked('What came in?');
+        expect(store.streaming()).toBe(true);
+        expect(unsaved.any()).toBe(false);
+
+        stream.next({event: 'turn', data: {turnId: 7}});
+        expect(unsaved.any()).toBe(true);
+
+        stream.next({event: 'done', data: {state: 'DONE'}});
+        stream.complete();
+        expect(unsaved.any()).toBe(false);
     });
 
     it('asks the server to stop the live turn and lets the stream say how it ended', async () => {

@@ -128,9 +128,12 @@
     "letterDrafted": "Neues Anschreiben entworfen",
     "letterDraftedTemplate": "Der Entwurf des Modells kam nicht durch, deshalb stammt dieses Anschreiben aus der Vorlage",
     "sessionExpired": "Deine Sitzung ist abgelaufen. Du wirst neu angemeldet …",
-    "sessionExpiredUnsaved": "Deine Sitzung ist abgelaufen. Kopiere, was noch nicht gespeichert ist, und melde dich dann neu an.",
+    "sessionExpiredUnsaved": "Deine Sitzung ist abgelaufen. Kopiere, was noch nicht gespeichert ist. Die Anmeldung folgt, sobald nichts mehr verloren gehen kann.",
     "signInNow": "Jetzt anmelden",
     "sessionRefused": "Angemeldet, aber der Server verweigert weiterhin den Zugriff. Versuche es später erneut oder wende dich an den Admin.",
+    "issuerUnreachable": "Der Anmeldeserver ist nicht erreichbar, deshalb kann nichts laden.",
+    "signInFailed": "Die Anmeldung wurde nicht abgeschlossen. Versuche es erneut oder wende dich an den Admin, wenn es weiter scheitert.",
+    "tryAgain": "Erneut versuchen",
     "update": {
       "ready": "Eine neue Version ist bereit",
       "reload": "Neu laden"

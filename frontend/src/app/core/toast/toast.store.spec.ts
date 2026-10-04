@@ -444,9 +444,46 @@ describe('ToastStore', () => {
             auth.sessionRefused();
             vi.advanceTimersByTime(TOAST_LIFETIME_MS * 10);
 
+            // It stands and offers the sign-in for when the person wants to try (review finding 7):
+            // the page keeps working meanwhile, so nothing starts on its own.
             const [standing] = store.toasts();
             expect(standing).toMatchObject({tone: 'warning', key: 'toast.sessionRefused', standing: true});
-            expect(standing?.action).toBeUndefined();
+            expect(standing?.action?.key).toBe('toast.signInNow');
+            expect(standing?.action?.event).toEqual(authEvents.signInRequested());
+        });
+
+        it('the refusal line goes once the brake lifts, and only that line (code review 4, finding 4)', () => {
+            const auth = TestBed.runInInjectionContext(() => injectDispatch(authEvents));
+            dispatch.raised(toast('warning', 'toast.archived'));
+            auth.sessionRefused();
+
+            auth.sessionAccepted();
+
+            expect(store.toasts().map((line) => line.key)).toEqual(['toast.archived']);
+        });
+
+        it('a sign-in that failed moments after the last gets a standing line whose action is the next attempt (code review 4, finding 7)', () => {
+            const auth = TestBed.runInInjectionContext(() => injectDispatch(authEvents));
+
+            auth.signInFailed();
+            vi.advanceTimersByTime(TOAST_LIFETIME_MS * 10);
+
+            const [standing] = store.toasts();
+            expect(standing).toMatchObject({tone: 'warning', key: 'toast.signInFailed', standing: true});
+            expect(standing?.action?.key).toBe('toast.tryAgain');
+            expect(standing?.action?.event).toEqual(authEvents.signInRequested());
+        });
+
+        it('an identity provider that does not answer at the start gets a standing line whose action asks it again (review finding 5)', () => {
+            const auth = TestBed.runInInjectionContext(() => injectDispatch(authEvents));
+
+            auth.issuerUnreachable();
+            vi.advanceTimersByTime(TOAST_LIFETIME_MS * 10);
+
+            const [standing] = store.toasts();
+            expect(standing).toMatchObject({tone: 'warning', key: 'toast.issuerUnreachable', standing: true});
+            expect(standing?.action?.key).toBe('toast.tryAgain');
+            expect(standing?.action?.event).toEqual(authEvents.signInRequested());
         });
     });
 
@@ -537,6 +574,37 @@ describe('ToastStore', () => {
 
             expect(store.toasts().length).toBe(TOAST_CAP);
             expect(store.toasts().some((standing) => standing.id === offered.id)).toBe(false);
+        });
+
+        it('lets every passing line go before a standing one: a burst of archives cannot take the sign-in away (review finding 2)', () => {
+            const signIn = {...actionToast('warning', 'toast.sessionExpiredUnsaved', {key: 'toast.signInNow', event: authEvents.signInRequested()}), standing: true as const};
+            dispatch.raised(signIn);
+            for (let i = 0; i < TOAST_CAP * 3; i += 1) {
+                dispatch.raised(toast('info', 'toast.restored'));
+            }
+
+            expect(store.toasts().length).toBe(TOAST_CAP);
+            expect(store.toasts()[0]?.id).toBe(signIn.id);
+        });
+
+        it('a passing line that finds only standing lines before it is the one that goes (code review 4, finding 6)', () => {
+            const lines = Array.from({length: TOAST_CAP}, () => ({...toast('warning', 'toast.sessionRefused'), standing: true as const}));
+            for (const line of lines) {
+                dispatch.raised(line);
+            }
+
+            dispatch.raised(toast('info', 'toast.archived'));
+
+            expect(store.toasts().map((line) => line.id)).toEqual(lines.map((line) => line.id));
+        });
+
+        it('with nothing but standing lines, the oldest of them leaves', () => {
+            const lines = Array.from({length: TOAST_CAP + 1}, () => ({...toast('warning', 'toast.sessionRefused'), standing: true as const}));
+            for (const line of lines) {
+                dispatch.raised(line);
+            }
+
+            expect(store.toasts().map((line) => line.id)).toEqual(lines.slice(1).map((line) => line.id));
         });
 
         it('keeps no more than the cap, the oldest leaving first', () => {

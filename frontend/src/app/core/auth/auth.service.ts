@@ -1,12 +1,29 @@
-import {HttpStatusCode} from '@angular/common/http';
-import {inject, Injectable, signal} from '@angular/core';
+import {HttpErrorResponse, HttpStatusCode} from '@angular/common/http';
+import {effect, inject, Injectable, signal, untracked} from '@angular/core';
 import {Dispatcher, Events} from '@ngrx/signals/events';
-import {AuthConfig as OidcConfig, OAuthErrorEvent, OAuthService} from 'angular-oauth2-oidc';
-import {filter, firstValueFrom} from 'rxjs';
+import {AuthConfig as OidcConfig, OAuthService} from 'angular-oauth2-oidc';
+import {catchError, defer, firstValueFrom, Observable, of, switchMap, tap, throwError} from 'rxjs';
 import {UnsavedWork} from '@core/unsaved/unsaved-work';
 import {AuthConfig, AuthConfigApi} from './auth-config.api';
 import {authEvents} from './auth.events';
 import {SignedInState} from './signed-in.state';
+
+/**
+ * Where the sign-in stands. One value, so that every question — may a request go out, may the
+ * page leave, has the person been told — is answered by reading it rather than by combining flags.
+ *
+ * ```
+ * off                                   none, or the mode is unknown: nothing here runs
+ * booting ─┬─▶ signedIn ◀──▶ refused    a token in hand; refused = the loop brake spoke
+ *          │      │
+ *          │      ├─▶ held ──▶ leaving  unsaved work holds the redirect until it clears
+ *          │      └─────────▶ leaving   the notice stands, then the page leaves
+ *          ├─▶ leaving                  a plain load, or a code that could not be exchanged
+ *          ├─▶ failed ──────▶ leaving   a sign-in failed moments after the last; the person retries
+ *          └─▶ unreachable ─▶ leaving   the issuer did not answer; the person retries
+ * ```
+ */
+export type AuthPhase = 'off' | 'booting' | 'signedIn' | 'refused' | 'held' | 'leaving' | 'failed' | 'unreachable';
 
 /**
  * Whether anybody has to log in, and the token if they did.
@@ -28,26 +45,36 @@ import {SignedInState} from './signed-in.state';
  * sign-in brings the browser back to the URL it was reloaded on. The one thing this class puts
  * in `sessionStorage` itself is `SIGN_IN_MARKER`, a time and not a credential.
  *
- * <p>**The access token renews itself** with the refresh-token grant, at 75 % of its lifetime:
- * `useSilentRefresh: false` plus the code flow makes the library's automatic refresh POST the
- * refresh token to the token endpoint — no iframe, no silent-refresh page, no reload. The
- * refresh token is the ordinary one bound to the SSO session; `offline_access` is not asked
- * for, because a token that outlives the logout is the opposite of what a browser tab needs.
- * **A renewal that fails for a while is not an ended session**: a network failure or an
- * identity provider answering 5xx is retried with `RENEWAL_BACKOFF_MS`, and offline the retry
- * waits for the `online` event. Only a 400 or 401 from the token endpoint — Keycloak's
- * `invalid_grant` — says the refresh token is dead. A token that lapsed anyway (a laptop that
- * slept through the renewal) is renewed before the next request goes out: `bearer()`.
+ * <p>**A load that has to sign in renders nothing.** `initialise()` runs as an app initializer
+ * and stays pending while the browser is on its way to the identity provider, so no screen
+ * renders and no request goes out that would come back 401 — a request from a page that is
+ * leaving is what used to raise a false "session expired" on every reload.
  *
- * <p>**When the session is over** — a renewal refused, a request that carried the bearer and came
- * back 401, or a sign-in that failed on the way back — the app says so once
- * (`authEvents.sessionExpired`, which the toast store maps to a line) and, after
- * `SESSION_EXPIRED_NOTICE_MS`, starts the sign-in with the current URL as the place to come back
- * to. Two exceptions. Unsaved work on the page (`UnsavedWork`) holds the redirect until the person
- * asks for it from the toast. And a sign-in for an expired session less than
- * `SIGN_IN_LOOP_WINDOW_MS` ago means the server refuses a fresh token too, so another redirect
- * would only bounce: `authEvents.sessionRefused` says so and the page stays. Under `none` none of
- * it runs.
+ * <p>**The access token renews itself** with the refresh-token grant, at `RENEW_AT` of its
+ * lifetime, on a timer this class owns: the library's automatic refresh is not set up, so one
+ * place and one slot (`renewal`) send every refresh-token grant, and two grants can never race
+ * each other into an `invalid_grant` under refresh-token rotation. No iframe, no silent-refresh
+ * page, no reload; `offline_access` is not asked for, because a token that outlives the logout
+ * is the opposite of what a browser tab needs. **A renewal that fails for a while is not an
+ * ended session**: a network failure or an identity provider answering 5xx is retried with
+ * `RENEWAL_BACKOFF_MS`, and offline the retry waits for the `online` event. Only a 400 or 401
+ * from the token endpoint — Keycloak's `invalid_grant` — says the refresh token is dead.
+ *
+ * <p>**A request waits for a renewal, but not for ever.** `call()` is the one way a request
+ * goes out under `oidc`: a lapsed token is renewed first, a 401 to a bearer is answered with one
+ * renewal and one replay (a token that expired in flight), and a renewal that takes longer than
+ * `REQUEST_RENEWAL_TIMEOUT_MS` fails the request as unreachable while the renewal carries on.
+ *
+ * <p>**When the session is over** — a renewal refused, or a replayed request still answered 401
+ * — the app says so once (`authEvents.sessionExpired`)
+ * and, after `SESSION_EXPIRED_NOTICE_MS`, starts the sign-in with the current URL as the place to
+ * come back to. Unsaved work on the page (`UnsavedWork`) holds the redirect until it clears or
+ * the person asks for it. And a sign-in less than `SIGN_IN_LOOP_WINDOW_MS` ago whose token the
+ * API has not yet accepted once means the server refuses a fresh token too, so another redirect
+ * would only bounce: `authEvents.sessionRefused` says so and the page stays, still sending its
+ * bearer, until a request goes through or the person signs in again. A code that comes back and
+ * cannot be exchanged is no ended session, since nobody was signed in: the load goes straight back to
+ * the identity provider, and inside that same window stops at `authEvents.signInFailed` instead.
  */
 @Injectable({providedIn: 'root'})
 export class AuthService {
@@ -55,46 +82,42 @@ export class AuthService {
     private readonly api = inject(AuthConfigApi);
     private readonly dispatcher = inject(Dispatcher);
     private readonly unsaved = inject(UnsavedWork);
-
-    private readonly enabled = signal(false);
-
-    /** Set by the first sign of an ended session; the page is left after it, so it never resets. */
-    private expiring = false;
-    /** The redirect waits for the person's "Sign in now", because unsaved work was on the page. */
-    private held = false;
-    /** The renewal in flight, shared by every request that arrives while it runs. */
-    private renewal: Promise<boolean> | null = null;
-
-    /** True once the mode is known and, under `oidc`, somebody is actually signed in. */
-    readonly authenticated = signal(false);
-
-    /** The signed-in subject's display name, or null under `none`. */
-    readonly name = signal<string | null>(null);
-
     /** Who is signed in and whether an avatar may be loaded, for the header to read. */
     private readonly signedIn = inject(SignedInState);
+
+    /** The one piece of state; see `AuthPhase`. */
+    readonly phase = signal<AuthPhase>('off');
+
+    /** The renewal in flight, shared by every caller that arrives while it runs. */
+    private renewal: Promise<boolean> | null = null;
+    /** The timer that renews the access token at `RENEW_AT` of its lifetime. */
+    private renewalTimer: ReturnType<typeof setTimeout> | undefined;
+    /** Whether a bearer request has gone through on this page, which lifts the loop brake. */
+    private accepted = false;
+    private issuer = '';
+    private gravatar = false;
 
     constructor() {
         // A root singleton for the page's lifetime: nothing to unsubscribe from.
         inject(Events)
             .on(authEvents.signInRequested)
-            .subscribe(() => {
-                if (this.held) {
-                    this.held = false;
-                    this.signIn();
-                }
-            });
+            .subscribe(() => this.signInRequested());
+        // A held redirect goes as soon as nothing on the page would be lost by it.
+        effect(() => {
+            if (this.phase() === 'held' && !this.unsaved.any()) {
+                untracked(() => this.leave());
+            }
+        });
     }
 
     /**
      * Runs once, before the first route, and **never rejects**.
      *
-     * <p>An initializer that rejects stops Angular bootstrapping, so every failure in here
-     * is a blank page rather than a screen with an error on it. An API that is down ends as
-     * "not signed in" under an unknown mode, and the screens report their own failures. Under
-     * `oidc`, a sign-in that did not produce a token — an unreachable issuer, a failed code
-     * exchange, a state that does not match — is an ended session, reported as one, so the
-     * operator is never left with a page whose every request silently comes back 401.
+     * <p>An initializer that rejects stops Angular bootstrapping, so every failure in here is a
+     * blank page rather than a screen with an error on it. An API that is down ends as `off`, and
+     * the screens report their own failures. An identity provider that is down ends as
+     * `unreachable`, with a standing line that offers to try again. A load that has to sign in
+     * **never resolves**: the browser leaves, and nothing should render on the way out.
      */
     async initialise(): Promise<void> {
         let config: AuthConfig;
@@ -108,103 +131,96 @@ export class AuthService {
         if (config.mode !== 'oidc' || !config.issuer || !config.clientId) {
             return;
         }
-        this.enabled.set(true);
+        this.issuer = config.issuer;
+        this.gravatar = config.gravatar !== false;
         this.oauth.configure(this.oidcConfig(config.issuer, config.clientId));
-        this.oauth.events
-            .pipe(filter((event) => event.type === 'token_refresh_error'))
-            .subscribe((event) => this.renewalFailed((event as OAuthErrorEvent).reason));
+        this.phase.set('booting');
+        if (!(await this.discovered())) {
+            return;
+        }
         try {
-            // The URL this load started on travels through the identity provider as the
-            // additional state; when it comes back with a code, `state` holds it again.
-            const signedIn = await this.oauth.loadDiscoveryDocumentAndLogin({state: currentPath()});
-            if (!signedIn) {
-                // The browser is on its way to the identity provider; nothing here outlives that.
+            // Exchanges the code when the browser comes back with one; does nothing on a plain load.
+            await this.oauth.tryLogin();
+        } catch {
+            // A code that came back and could not be exchanged — a failed exchange, a state that
+            // does not match, an error from the identity provider. Nobody is signed in, so the
+            // server has refused nothing: straight back to the identity provider, unless that is
+            // where the last attempt came from moments ago, which would only bounce.
+            if (signedInMomentsAgo()) {
+                this.phase.set('failed');
+                this.dispatcher.dispatch(authEvents.signInFailed());
                 return;
             }
-            this.returnToStartingPoint();
-            this.oauth.setupAutomaticSilentRefresh();
-            this.authenticated.set(this.oauth.hasValidAccessToken());
-            const user = signedInUser(this.oauth.getIdentityClaims() as IdentityClaims | null, config.issuer);
-            this.signedIn.user.set(this.authenticated() ? user : null);
-            this.name.set(user?.name ?? null);
-            this.signedIn.gravatar.set(config.gravatar !== false);
-        } catch {
-            this.authenticated.set(false);
+            this.leaveNow();
+            return new Promise<void>(() => undefined);
         }
         if (!this.oauth.hasValidAccessToken()) {
-            this.sessionExpired();
+            this.leaveNow();
+            return new Promise<void>(() => undefined);
         }
+        this.returnToStartingPoint();
+        this.phase.set('signedIn');
+        this.scheduleRenewal();
+        const user = signedInUser(this.oauth.getIdentityClaims() as IdentityClaims | null, this.issuer);
+        this.signedIn.user.set(user);
+        this.signedIn.gravatar.set(this.gravatar);
     }
 
     /** Whether this instance signs in at all; false under `none` and until the mode is known. */
     isOidc(): boolean {
-        return this.enabled();
+        return this.phase() !== 'off';
     }
 
     /** The bearer to send right now, or null when there is no valid one in hand. Synchronous. */
     token(): string | null {
-        if (!this.enabled()) {
-            return null;
-        }
-        return this.oauth.hasValidAccessToken() ? this.oauth.getAccessToken() : null;
+        return this.live() && this.oauth.hasValidAccessToken() ? this.oauth.getAccessToken() : null;
     }
 
     /**
-     * The bearer to send under `oidc`, renewed first when it lapsed; one renewal for every caller
-     * that arrives while it runs. Rejects with `SessionEnded` — after reporting the ended session —
-     * when no token can be had. Callers ask `isOidc()` first; under `none` there is nothing to send.
-     */
-    async bearer(): Promise<string> {
-        const valid = this.token();
-        if (valid !== null) {
-            return valid;
-        }
-        if (await this.renew()) {
-            const renewed = this.token();
-            if (renewed !== null) {
-                return renewed;
-            }
-        }
-        this.sessionExpired();
-        throw new SessionEnded();
-    }
-
-    /**
-     * **The one rule for "this answer ended the session"**: a 401 to a request that carried the
-     * bearer. Used by `bearerInterceptor` and by the chat stream, which bypasses it. A 403 is a
-     * signed-in person without the right; a 401 without a bearer is the API's business.
-     */
-    refused(status: number, sentBearer: boolean): void {
-        if (sentBearer && status === HttpStatusCode.Unauthorized) {
-            this.sessionExpired();
-        }
-    }
-
-    /**
-     * The session is over: say so once, then sign in again and come back here.
+     * **The one way a request goes out under `oidc`**, for `bearerInterceptor` and the chat stream.
      *
-     * <p>A burst — four screens refreshing at once, a renewal failing while their requests come
-     * back — is one session ending, so everything after the first call is dropped. The notice is
-     * what makes the toast readable before the page leaves; unsaved work turns it into a wait for
-     * the person, and a sign-in moments ago turns it into `sessionRefused` and no redirect at all.
+     * <p>`attempt` sends with the token it is handed and fails with an `HttpErrorResponse` when
+     * the server refuses. A valid token is handed over synchronously; a lapsed one is renewed
+     * first. A 401 is answered with one renewal and one replay, and a second 401 ends the session;
+     * under the loop brake a 401 is handed on as it is. Any other answer lifts the brake.
+     * When no token can be had the request is never sent: it fails as a 401 `url` never saw, or
+     * as status 0 when the renewal outlasted `REQUEST_RENEWAL_TIMEOUT_MS`. A 403 is a signed-in
+     * person without the right and passes through untouched.
      */
-    sessionExpired(): void {
-        if (!this.enabled() || this.expiring) {
-            return;
-        }
-        this.expiring = true;
-        this.oauth.stopAutomaticRefresh();
-        if (signedInMomentsAgo()) {
-            this.dispatcher.dispatch(authEvents.sessionRefused());
-            return;
-        }
-        const unsaved = this.unsaved.any();
-        this.dispatcher.dispatch(authEvents.sessionExpired({unsaved}));
-        if (unsaved) {
-            this.held = true;
-        } else {
-            setTimeout(() => this.signIn(), SESSION_EXPIRED_NOTICE_MS);
-        }
+    call<T>(url: string, attempt: (token: string) => Observable<T>): Observable<T> {
+        // Any answer but a 401 says the server took the bearer — a 403, a 404, a 409 included.
+        const send = (token: string) =>
+            attempt(token).pipe(
+                tap({
+                    complete: () => this.accept(),
+                    error: (error: unknown) => {
+                        if (answeredWithBearer(error)) this.accept();
+                    },
+                }),
+            );
+        const valid = this.token();
+        const token$ = valid !== null ? of(valid) : defer(() => this.renewedToken());
+        return token$.pipe(
+            switchMap((token) =>
+                send(token).pipe(
+                    catchError((error: unknown) =>
+                        // Under the loop brake a 401 is what the brake already reported: a renewal
+                        // would only send the identity provider one more grant per screen and poll.
+                        refusedBearer(error) && this.phase() !== 'refused'
+                            ? defer(() => this.renewedToken(token)).pipe(
+                                  switchMap(send),
+                                  tap({
+                                      error: (again: unknown) => {
+                                          if (refusedBearer(again)) this.expire();
+                                      },
+                                  }),
+                              )
+                            : throwError(() => error),
+                    ),
+                ),
+            ),
+            catchError((error: unknown) => throwError(() => notSent(error, url) ?? error)),
+        );
     }
 
     /**
@@ -213,62 +229,171 @@ export class AuthService {
      * A local-only logout would be undone by the next load, which signs in silently again.
      */
     logout(): void {
-        if (this.enabled()) {
+        if (this.isOidc()) {
             this.oauth.logOut();
         }
     }
 
-    /** Leaves for the identity provider, and leaves the marker the loop brake reads on the way back. */
-    private signIn(): void {
-        markSignIn();
-        this.oauth.initCodeFlow(currentPath());
-    }
-
-    /** One renewal at a time; true once a fresh access token is in hand. */
-    private renew(): Promise<boolean> {
-        if (this.expiring || !this.oauth.getRefreshToken()) {
-            return Promise.resolve(false);
-        }
-        this.renewal ??= this.renewUntilSettled(false).finally(() => (this.renewal = null));
-        return this.renewal;
+    /** Whether a token is in hand and requests may carry it. */
+    private live(): boolean {
+        const phase = this.phase();
+        return phase === 'signedIn' || phase === 'refused';
     }
 
     /**
-     * The library's automatic renewal failed. A dead refresh token ends the session here and now;
-     * anything else is retried. While a renewal of ours runs, its own failures arrive here too
-     * (the library announces every one) and are already that loop's to handle.
+     * A token for a request that has none: renewed, within `REQUEST_RENEWAL_TIMEOUT_MS`. After a
+     * refusal, `stale` is the token that was refused — when somebody else renewed meanwhile, the
+     * fresh one is used without a second grant.
      */
-    private renewalFailed(reason: unknown): void {
-        if (this.renewal !== null) {
-            return;
+    private async renewedToken(stale?: string): Promise<string> {
+        const current = this.token();
+        if (current !== null && current !== stale) {
+            return current;
         }
-        if (endsSession(reason)) {
-            this.sessionExpired();
-            return;
+        if (!this.live()) {
+            throw new SessionEnded();
         }
-        this.renewal = this.renewUntilSettled(true).finally(() => (this.renewal = null));
-        void this.renewal.then((renewed) => {
-            if (!renewed) this.sessionExpired();
-        });
+        const renewed = await within(this.startRenewal(), REQUEST_RENEWAL_TIMEOUT_MS);
+        if (renewed === 'late') {
+            throw new RenewalTimedOut();
+        }
+        const token = renewed ? this.token() : null;
+        if (token === null) {
+            this.expire();
+            throw new SessionEnded();
+        }
+        return token;
     }
 
-    /** Tries the refresh-token grant until it succeeds or the token endpoint says the session is over. */
-    private async renewUntilSettled(justFailed: boolean): Promise<boolean> {
+    /** The timer's renewal, and the one place a timer-driven failure ends the session. */
+    private scheduleRenewal(): void {
+        clearTimeout(this.renewalTimer);
+        const expiresAt = this.oauth.getAccessTokenExpiration();
+        if (expiresAt === null) {
+            return;
+        }
+        const delay = Math.max(0, (expiresAt - Date.now()) * RENEW_AT);
+        this.renewalTimer = setTimeout(() => {
+            void this.startRenewal().then((renewed) => {
+                if (!renewed) this.expire();
+            });
+        }, delay);
+    }
+
+    /** One renewal at a time; true once a fresh access token is in hand. */
+    private startRenewal(): Promise<boolean> {
+        this.renewal ??= this.renewUntilSettled().finally(() => (this.renewal = null));
+        return this.renewal;
+    }
+
+    /** Tries the refresh-token grant until it succeeds, the token endpoint says no, or the page leaves. */
+    private async renewUntilSettled(): Promise<boolean> {
         for (let attempt = 0; ; attempt++) {
-            if (justFailed || attempt > 0) {
-                await pause(attempt);
+            if (attempt > 0) {
+                await pause(attempt - 1);
             }
-            if (this.expiring) {
+            if (!this.live() || !this.oauth.getRefreshToken()) {
                 return false;
             }
             try {
                 await this.oauth.refreshToken();
+                this.scheduleRenewal();
                 return true;
             } catch (failure) {
                 if (endsSession(failure)) {
                     return false;
                 }
             }
+        }
+    }
+
+    /**
+     * The session is over: say so once, then sign in again and come back here.
+     *
+     * <p>Only `signedIn` can expire; every other phase has either no session to end or already said
+     * what it had to say, which is what turns a burst — four screens refreshing at once — into one line.
+     */
+    private expire(): void {
+        if (this.phase() !== 'signedIn') {
+            return;
+        }
+        if (!this.accepted && signedInMomentsAgo()) {
+            this.phase.set('refused');
+            this.dispatcher.dispatch(authEvents.sessionRefused());
+            return;
+        }
+        clearTimeout(this.renewalTimer);
+        const unsaved = this.unsaved.any();
+        this.dispatcher.dispatch(authEvents.sessionExpired({unsaved}));
+        if (unsaved) {
+            this.phase.set('held');
+        } else {
+            this.leave();
+        }
+    }
+
+    /** The person asked to sign in: from a held redirect, after the loop brake or a failed sign-in, or to retry the issuer. */
+    private signInRequested(): void {
+        const phase = this.phase();
+        if (phase === 'held' || phase === 'refused' || phase === 'failed') {
+            this.leaveNow();
+        } else if (phase === 'unreachable') {
+            void this.retry();
+        }
+    }
+
+    /** Asks the issuer again, and leaves for it when it answers — back to wherever the person is now. */
+    private async retry(): Promise<void> {
+        this.phase.set('booting');
+        if (await this.discovered()) {
+            this.leaveNow();
+        }
+    }
+
+    /**
+     * Loads the discovery document within `DISCOVERY_TIMEOUT_MS`. Without it the library's sign-in
+     * waits for an event that never comes, so an issuer that does not answer has to be a phase.
+     */
+    private async discovered(): Promise<boolean> {
+        try {
+            if ((await within(this.oauth.loadDiscoveryDocument(), DISCOVERY_TIMEOUT_MS)) !== 'late') {
+                return true;
+            }
+        } catch {
+            // Refused, unparseable or unreachable: all the same to the person.
+        }
+        this.phase.set('unreachable');
+        this.dispatcher.dispatch(authEvents.issuerUnreachable());
+        return false;
+    }
+
+    /** Leaves after the notice, so the line that says why can be read. */
+    private leave(): void {
+        this.phase.set('leaving');
+        setTimeout(() => this.signIn(currentPath()), SESSION_EXPIRED_NOTICE_MS);
+    }
+
+    private leaveNow(path = currentPath()): void {
+        this.phase.set('leaving');
+        this.signIn(path);
+    }
+
+    /** Leaves for the identity provider, and leaves the marker the loop brake reads on the way back. */
+    private signIn(path: string): void {
+        markSignIn();
+        this.oauth.initCodeFlow(path);
+    }
+
+    /** A bearer request went through: the server takes this sign-in's tokens, so the brake is lifted. */
+    private accept(): void {
+        if (!this.accepted) {
+            this.accepted = true;
+            clearSignInMarker();
+        }
+        if (this.phase() === 'refused') {
+            this.phase.set('signedIn');
+            // The line that said the server refuses is wrong now, and its Sign in now would do nothing.
+            this.dispatcher.dispatch(authEvents.sessionAccepted());
         }
     }
 
@@ -294,9 +419,12 @@ export class AuthService {
             // PKCE is not optional for a public client: there is no secret to prove the
             // code came back to whoever asked for it.
             useSilentRefresh: false,
-            // The renewal fires at 75 % of the access token's lifetime — the library default,
-            // spelled out because ISC-502 names it and a default can move under an upgrade.
-            timeoutFactor: 0.75,
+            // A token this close to its expiry counts as lapsed, so it is renewed before it
+            // goes out rather than expiring on the way to the API. Despite its name the library
+            // subtracts this from a time in milliseconds, and it adds the clock skew back on, so
+            // both go in here: a token is valid until `EXPIRY_MARGIN_S` before it expires.
+            clockSkewInSec: CLOCK_SKEW_S,
+            decreaseExpirationBySec: (EXPIRY_MARGIN_S + CLOCK_SKEW_S) * 1000,
             showDebugInformation: false,
             // `remoteOnly` and not `false`: the dev server is plain HTTP on localhost and
             // has to work, but anywhere else a code flow over HTTP puts the token on the
@@ -307,12 +435,41 @@ export class AuthService {
     }
 }
 
-/** What `bearer()` rejects with when no token can be had; the ended session is already reported. */
-export class SessionEnded extends Error {
+/** What a request fails with internally when no token can be had; `call` turns it into a 401. */
+class SessionEnded extends Error {
     constructor() {
         super('The session has ended');
         this.name = 'SessionEnded';
     }
+}
+
+/** What a request fails with internally when its renewal outlasted the limit; `call` turns it into status 0. */
+class RenewalTimedOut extends Error {
+    constructor() {
+        super('The session renewal took too long');
+        this.name = 'RenewalTimedOut';
+    }
+}
+
+/** Whether a request carried the bearer and the server answered 401 to it. */
+function refusedBearer(error: unknown): boolean {
+    return error instanceof HttpErrorResponse && error.status === HttpStatusCode.Unauthorized;
+}
+
+/** Whether the server answered a bearer request with anything but a 401: it took the token. */
+function answeredWithBearer(error: unknown): boolean {
+    return error instanceof HttpErrorResponse && error.status !== 0 && error.status !== HttpStatusCode.Unauthorized;
+}
+
+/** The error a request fails with when it was never sent, or null when `error` is the server's own. */
+function notSent(error: unknown, url: string): HttpErrorResponse | null {
+    if (error instanceof SessionEnded) {
+        return new HttpErrorResponse({status: HttpStatusCode.Unauthorized, statusText: 'Session ended', url});
+    }
+    if (error instanceof RenewalTimedOut) {
+        return new HttpErrorResponse({status: 0, statusText: 'Session renewal timed out', url});
+    }
+    return null;
 }
 
 /**
@@ -328,6 +485,38 @@ function endsSession(reason: unknown): boolean {
     }
     return status === HttpStatusCode.BadRequest || status === HttpStatusCode.Unauthorized;
 }
+
+/** Settles with `promise`, or with `'late'` once `ms` have passed; the timer never outlives it. */
+function within<T>(promise: Promise<T>, ms: number): Promise<T | 'late'> {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const late = new Promise<'late'>((resolve) => (timer = setTimeout(() => resolve('late'), ms)));
+    return Promise.race([promise, late]).finally(() => clearTimeout(timer));
+}
+
+/**
+ * When the access token is renewed, as a fraction of its lifetime: early enough that a slow
+ * identity provider still answers in time, late enough not to renew every minute. ISC-502 names it.
+ */
+export const RENEW_AT = 0.75;
+
+/** Seconds before its expiry that a token counts as lapsed: one request's flight, generously. */
+export const EXPIRY_MARGIN_S = 30;
+
+/**
+ * How far this browser's clock may be off the identity provider's, in seconds, when the library
+ * checks an ID token's times. Its default is ten minutes, which also kept an access token "valid"
+ * ten minutes past its expiry. A mark, unmeasured.
+ */
+export const CLOCK_SKEW_S = 60;
+
+/**
+ * How long a request waits for a renewal before it fails as unreachable. The renewal itself
+ * carries on; only this request gives up, so a screen shows its failure instead of spinning.
+ */
+export const REQUEST_RENEWAL_TIMEOUT_MS = 10_000;
+
+/** How long the start waits for the issuer's discovery document before it calls the issuer unreachable. */
+export const DISCOVERY_TIMEOUT_MS = 10_000;
 
 /**
  * The waits between renewal attempts, the last one repeated: quick at first, because a dropped
@@ -345,11 +534,11 @@ function pause(attempt: number): Promise<void> {
 }
 
 /**
- * The `sessionStorage` key of the loop brake: when this tab last left for the identity provider
- * because a session ended. A time in milliseconds, never a token — it has to survive the redirect,
- * which memory does not, and it carries nothing an XSS could use.
+ * The `sessionStorage` key of the loop brake: when this tab last left for the identity provider.
+ * A time in milliseconds, never a token — it has to survive the redirect, which memory does not,
+ * and it carries nothing an XSS could use. The first bearer request the API accepts removes it.
  */
-export const SIGN_IN_MARKER = 'leadgen.auth.signInForExpiredSessionAt';
+export const SIGN_IN_MARKER = 'leadgen.auth.signInAt';
 
 /**
  * How recent that sign-in has to be for the next expiry to count as a loop: a round trip through
@@ -362,6 +551,14 @@ function markSignIn(): void {
         window.sessionStorage.setItem(SIGN_IN_MARKER, String(Date.now()));
     } catch {
         // Storage refused (a private window, a quota): the brake is off, the sign-in still works.
+    }
+}
+
+function clearSignInMarker(): void {
+    try {
+        window.sessionStorage.removeItem(SIGN_IN_MARKER);
+    } catch {
+        // Storage refused: there was no marker to clear.
     }
 }
 
@@ -381,10 +578,26 @@ function signedInMomentsAgo(): boolean {
  */
 export const SESSION_EXPIRED_NOTICE_MS = 2_500;
 
-/** The URL as the router sees it — path, query and fragment — on this path-located app. */
+/**
+ * The URL as the router sees it — path, query and fragment — on this path-located app, without the
+ * parameters an authorization response put there. A callback the library has not consumed yet (an
+ * issuer that did not answer, an exchange that failed) still carries `code` and `state`, and sent
+ * along as the place to come back to they would come back too, to be exchanged a second time.
+ */
 function currentPath(): string {
-    return window.location.pathname + window.location.search + window.location.hash;
+    const {pathname, search, hash} = window.location;
+    const query = new URLSearchParams(search);
+    if (!query.has('state') || !(query.has('code') || query.has('error'))) {
+        // Untouched, so the query keeps its own spelling rather than `URLSearchParams`' re-encoding.
+        return pathname + search + hash;
+    }
+    for (const key of CALLBACK_PARAMS) query.delete(key);
+    const rest = query.toString();
+    return pathname + (rest ? `?${rest}` : '') + hash;
 }
+
+/** What an authorization response adds to the redirect URI's query (RFC 6749 § 4.1.2, RFC 9207). */
+const CALLBACK_PARAMS: readonly string[] = ['code', 'state', 'session_state', 'iss', 'error', 'error_description', 'error_uri'];
 
 /**
  * The path to come back to after a sign-in, or null when `state` is not one.

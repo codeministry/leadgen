@@ -1,18 +1,22 @@
 import {HttpClient, HttpParams, provideHttpClient, withInterceptors} from '@angular/common/http';
 import {HttpTestingController, provideHttpClientTesting} from '@angular/common/http/testing';
+import {signal} from '@angular/core';
 import {TestBed} from '@angular/core/testing';
 import {Dispatcher, Events} from '@ngrx/signals/events';
-import {AuthConfig as OidcConfig, OAuthErrorEvent, OAuthEvent, OAuthService, OAuthStorage} from 'angular-oauth2-oidc';
-import {Subject} from 'rxjs';
+import {AuthConfig as OidcConfig, OAuthService, OAuthStorage} from 'angular-oauth2-oidc';
 import {UnsavedWork} from '@core/unsaved/unsaved-work';
 import {AuthConfig} from './auth-config.api';
 import {authEvents} from './auth.events';
 import {
     AuthService,
+    CLOCK_SKEW_S,
+    DISCOVERY_TIMEOUT_MS,
+    EXPIRY_MARGIN_S,
+    RENEW_AT,
     RENEWAL_BACKOFF_MS,
+    REQUEST_RENEWAL_TIMEOUT_MS,
     returnPath,
     SESSION_EXPIRED_NOTICE_MS,
-    SessionEnded,
     SIGN_IN_LOOP_WINDOW_MS,
     SIGN_IN_MARKER,
 } from './auth.service';
@@ -24,51 +28,55 @@ const ISSUER = 'https://auth.example/realms/x';
 const OIDC: AuthConfig = {mode: 'oidc', issuer: ISSUER, clientId: 'leadgen-web', gravatar: true};
 const NONE: AuthConfig = {mode: 'none', issuer: null, clientId: null, gravatar: false};
 
-/** Every method this service reaches for, a record of what was called, and the library's event stream. */
+/** Every method this service reaches for, and a record of what was called. */
 interface Stub extends Partial<OAuthService> {
     calls: string[];
     config: OidcConfig | null;
-    loginOptions: unknown;
     signInStates: string[];
-    stream: Subject<OAuthEvent>;
-    loggedIn: boolean;
     /** Whether the access token is still inside its lifetime; a laptop that slept flips it. */
     valid: boolean;
     accessToken: string;
     refresh: string | null;
-    /** What each `refreshToken()` answers, in order: `'ok'`, or the failure the library would reject with. */
+    /** When the access token expires, in ms; null sets no renewal timer. */
+    expiresAt: number | null;
+    /** What each `refreshToken()` answers, in order: `'ok'`, `'hang'`, or the failure the library would reject with. */
     refreshAnswers: unknown[];
+    /** What `loadDiscoveryDocument()` does: answer, never answer, or refuse. */
+    discovery: 'ok' | 'hang' | 'fail';
+    /** What `tryLogin()` does: nothing to exchange, or a code that could not be exchanged. */
+    exchange: 'ok' | 'fail';
 }
 
 function oauth(): Stub {
-    const stream = new Subject<OAuthEvent>();
     const stub: Stub = {
         calls: [],
         config: null,
-        loginOptions: null,
         signInStates: [],
-        stream,
-        loggedIn: true,
         valid: true,
         accessToken: 'a-token',
         refresh: 'refresh-1',
+        expiresAt: null,
         refreshAnswers: [],
+        discovery: 'ok',
+        exchange: 'ok',
         state: '',
-        events: stream.asObservable(),
         configure: (config: OidcConfig) => {
             stub.config = config;
             stub.calls.push('configure');
         },
-        loadDiscoveryDocumentAndLogin: async (options) => {
-            stub.loginOptions = options;
-            stub.calls.push('login');
-            return stub.loggedIn;
+        loadDiscoveryDocument: () => {
+            stub.calls.push('discovery');
+            if (stub.discovery === 'hang') return new Promise(() => undefined);
+            if (stub.discovery === 'fail') return Promise.reject(new Error('unreachable'));
+            return Promise.resolve({} as never);
+        },
+        tryLogin: async () => {
+            stub.calls.push('exchange');
+            if (stub.exchange === 'fail') throw new Error('invalid_nonce_in_state');
+            return true;
         },
         setupAutomaticSilentRefresh: () => {
-            stub.calls.push('refresh');
-        },
-        stopAutomaticRefresh: () => {
-            stub.calls.push('stop');
+            stub.calls.push('library-refresh');
         },
         initCodeFlow: (additionalState?: string) => {
             stub.signInStates.push(additionalState ?? '');
@@ -76,17 +84,15 @@ function oauth(): Stub {
         },
         hasValidAccessToken: () => stub.valid,
         getAccessToken: () => stub.accessToken,
+        getAccessTokenExpiration: () => stub.expiresAt as number,
         // The library types it `string`, and answers null without one.
         getRefreshToken: () => stub.refresh as string,
-        // As the library does: a failure is announced on the event stream and then rejected.
         refreshToken: async () => {
             stub.calls.push('renew');
             await Promise.resolve();
             const answer = stub.refreshAnswers.shift() ?? 'ok';
-            if (answer !== 'ok') {
-                stream.next(new OAuthErrorEvent('token_refresh_error', answer as object));
-                throw answer;
-            }
+            if (answer === 'hang') return new Promise(() => undefined);
+            if (answer !== 'ok') throw answer;
             stub.valid = true;
             stub.accessToken = 'renewed-token';
             return {} as never;
@@ -112,32 +118,84 @@ function setUp(stub = oauth()): {service: AuthService; backend: HttpTestingContr
     };
 }
 
-function answer(backend: HttpTestingController, config: AuthConfig): void {
-    backend.expectOne('/api/v1/auth-config').flush(config);
-}
-
 async function initialised(service: AuthService, backend: HttpTestingController, config: AuthConfig): Promise<void> {
     const done = service.initialise();
-    answer(backend, config);
+    backend.expectOne('/api/v1/auth-config').flush(config);
     await done;
 }
 
-/** Every `sessionExpired` the service dispatches, in order. */
-function expiries(): unknown[] {
-    const seen: unknown[] = [];
-    TestBed.inject(Events).on(authEvents.sessionExpired).subscribe((event) => seen.push(event));
-    return seen;
-}
-
-/** Every `sessionRefused` the service dispatches: the loop brake's answer. */
-function refusals(): unknown[] {
-    const seen: unknown[] = [];
-    TestBed.inject(Events).on(authEvents.sessionRefused).subscribe((event) => seen.push(event));
-    return seen;
+/** Every payload of `event` the service dispatches, in order. */
+function seen<P>(event: {type: string} & ((...args: never[]) => {payload: P})): P[] {
+    const payloads: P[] = [];
+    TestBed.inject(Events)
+        .on(event as never)
+        .subscribe((dispatched: {payload: P}) => payloads.push(dispatched.payload));
+    return payloads;
 }
 
 function renewals(spy: Stub): number {
     return spy.calls.filter((call) => call === 'renew').length;
+}
+
+/** Sends one request and records how it ended: a status, or `'ok'`. */
+function request(http: HttpClient, url: string): (number | 'ok')[] {
+    const outcome: (number | 'ok')[] = [];
+    http.get(url).subscribe({next: () => outcome.push('ok'), error: (error: {status: number}) => outcome.push(error.status)});
+    return outcome;
+}
+
+const UNAUTHORIZED = {status: 401, statusText: 'Unauthorized'};
+
+/** The next request to `url`, once it has gone out: a replay waits for its renewal first. */
+async function sent(backend: HttpTestingController, url: string) {
+    return vi.waitFor(() => backend.expectOne(url));
+}
+
+/**
+ * The real library, with a session as the code flow leaves it seeded where the client keeps it,
+ * signed in through `initialise`. Fake time from 2026-10-01 10:00; the token expires `lifetime` ms on.
+ */
+async function realClient(lifetime: number) {
+    vi.useFakeTimers({now: new Date('2026-10-01T10:00:00Z'), toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date']});
+    // Start from empty storages: specs share one worker, and another one's preference (the
+    // theme, say) left behind would read as a token this test never wrote.
+    window.sessionStorage.clear();
+    window.localStorage.clear();
+    const written = vi.spyOn(Storage.prototype, 'setItem');
+    TestBed.configureTestingModule({
+        providers: [provideHttpClient(withInterceptors([bearerInterceptor])), provideHttpClientTesting(), provideOidcClient()],
+    });
+    const now = Date.now();
+    // A session as the code flow leaves it, put where the client keeps it.
+    const storage = TestBed.inject(OAuthStorage);
+    storage.setItem('access_token', 'first-token');
+    storage.setItem('access_token_stored_at', String(now));
+    storage.setItem('expires_at', String(now + lifetime));
+    storage.setItem('refresh_token', 'refresh-1');
+    storage.setItem('id_token', 'header.payload.signature');
+    storage.setItem('id_token_claims_obj', JSON.stringify({name: 'Somebody'}));
+    storage.setItem('id_token_stored_at', String(now));
+    storage.setItem('id_token_expires_at', String(now + lifetime));
+    const service = TestBed.inject(AuthService);
+    const backend = TestBed.inject(HttpTestingController);
+    const http = TestBed.inject(HttpClient);
+
+    const done = service.initialise();
+    backend.expectOne('/api/v1/auth-config').flush(OIDC);
+    await vi.waitFor(() =>
+        backend.expectOne(`${ISSUER}/.well-known/openid-configuration`).flush({
+            issuer: ISSUER,
+            authorization_endpoint: `${ISSUER}/protocol/openid-connect/auth`,
+            token_endpoint: `${ISSUER}/protocol/openid-connect/token`,
+            end_session_endpoint: `${ISSUER}/protocol/openid-connect/logout`,
+            userinfo_endpoint: `${ISSUER}/protocol/openid-connect/userinfo`,
+            revocation_endpoint: `${ISSUER}/protocol/openid-connect/revoke`,
+            jwks_uri: `${ISSUER}/protocol/openid-connect/certs`,
+        }),
+    );
+    await vi.waitFor(() => backend.expectOne(`${ISSUER}/protocol/openid-connect/certs`).flush({keys: []}));
+    await done;
+    return {service, backend, http, storage, written, now};
 }
 
 afterEach(() => {
@@ -156,20 +214,20 @@ describe('AuthService', () => {
         await initialised(service, backend, NONE);
 
         expect(spy.calls).toEqual([]);
+        expect(service.phase()).toBe('off');
+        expect(service.isOidc()).toBe(false);
         expect(service.token()).toBeNull();
-        expect(service.authenticated()).toBe(false);
         backend.verify();
     });
 
-    it('configures the flow, signs in and sets up the renewal when the instance says oidc', async () => {
+    it('configures the flow, loads the discovery document, exchanges a code and is signed in when the instance says oidc', async () => {
         const {service, backend, spy} = setUp();
 
         await initialised(service, backend, OIDC);
 
-        expect(spy.calls).toEqual(['configure', 'login', 'refresh']);
-        expect(service.authenticated()).toBe(true);
+        expect(spy.calls).toEqual(['configure', 'discovery', 'exchange']);
+        expect(service.phase()).toBe('signedIn');
         expect(service.token()).toBe('a-token');
-        expect(service.name()).toBe('Somebody');
         // The user menu reads these two: the claims as a user, and the avatar switch from the config.
         const signedIn = TestBed.inject(SignedInState);
         expect(signedIn.user()).toMatchObject({name: 'Somebody', issuer: ISSUER});
@@ -205,79 +263,134 @@ describe('AuthService', () => {
     });
 });
 
+describe('AuthService — a load that has to sign in (review finding 1)', () => {
+    it('never resolves, leaves once, and nothing renders or requests on the way out', async () => {
+        window.history.replaceState(null, '', '/shortlist/5?q=java');
+        const stub = oauth();
+        stub.valid = false;
+        const {service, backend, http, spy} = setUp(stub);
+        const expired = seen(authEvents.sessionExpired);
+        let resolved = false;
+
+        void service.initialise().then(() => (resolved = true));
+        backend.expectOne('/api/v1/auth-config').flush(OIDC);
+        await vi.waitFor(() => expect(spy.calls).toContain('sign-in'));
+        // Whatever a screen would send while the browser leaves goes nowhere and ends nothing.
+        const outcome = request(http, '/api/v1/offers');
+        await vi.waitFor(() => expect(outcome).toEqual([401]));
+
+        expect(resolved).toBe(false);
+        expect(service.phase()).toBe('leaving');
+        expect(spy.signInStates).toEqual(['/shortlist/5?q=java']);
+        expect(renewals(spy)).toBe(0);
+        expect(expired).toEqual([]);
+        backend.verify();
+    });
+});
+
+describe('AuthService — an issuer that does not answer at the start (review finding 5)', () => {
+    for (const discovery of ['hang', 'fail'] as const) {
+        it(`${discovery === 'hang' ? 'silent' : 'refusing'}: the page renders, says so once, and "Try again" asks again and leaves when it answers`, async () => {
+            window.history.replaceState(null, '', '/pipeline/3');
+            vi.useFakeTimers();
+            const stub = oauth();
+            stub.valid = false;
+            stub.discovery = discovery;
+            const {service, backend, spy} = setUp(stub);
+            const unreachable = seen(authEvents.issuerUnreachable);
+
+            const done = service.initialise();
+            backend.expectOne('/api/v1/auth-config').flush(OIDC);
+            await vi.advanceTimersByTimeAsync(DISCOVERY_TIMEOUT_MS);
+            await done;
+
+            expect(service.phase()).toBe('unreachable');
+            expect(unreachable).toHaveLength(1);
+            expect(spy.calls).not.toContain('sign-in');
+
+            stub.discovery = 'ok';
+            TestBed.inject(Dispatcher).dispatch(authEvents.signInRequested());
+            await vi.advanceTimersByTimeAsync(0);
+            expect(spy.signInStates).toEqual(['/pipeline/3']);
+        });
+    }
+});
+
+describe('AuthService — the place to come back to (code review 4, finding 5)', () => {
+    it('an unanswered callback load retries without its code and state, and from wherever the person is now', async () => {
+        window.history.replaceState(null, '', '/shortlist?code=X&state=nonce%3B%252Fshortlist&session_state=s&iss=https%3A%2F%2Fauth');
+        vi.useFakeTimers();
+        const stub = oauth();
+        stub.discovery = 'fail';
+        const {service, backend, spy} = setUp(stub);
+        await initialised(service, backend, OIDC);
+        expect(service.phase()).toBe('unreachable');
+
+        window.history.replaceState(null, '', '/pipeline/3?view=board&code=X&state=nonce');
+        stub.discovery = 'ok';
+        TestBed.inject(Dispatcher).dispatch(authEvents.signInRequested());
+        await vi.advanceTimersByTimeAsync(0);
+
+        expect(spy.signInStates).toEqual(['/pipeline/3?view=board']);
+    });
+
+    it('leaves a query that is no callback exactly as it is spelled', async () => {
+        window.history.replaceState(null, '', '/shortlist/5?q=java%20remote&state=open#ad');
+        const stub = oauth();
+        stub.valid = false;
+        const {service, backend, spy} = setUp(stub);
+
+        void service.initialise();
+        backend.expectOne('/api/v1/auth-config').flush(OIDC);
+        await vi.waitFor(() => expect(spy.calls).toContain('sign-in'));
+
+        expect(spy.signInStates).toEqual(['/shortlist/5?q=java%20remote&state=open#ad']);
+    });
+});
+
 describe('AuthService — the renewal (ISC-502)', () => {
-    it('renews with the refresh-token grant: no iframe, no silent-refresh page, at 75 % of the lifetime, no offline_access', async () => {
+    it('renews with the refresh-token grant on its own timer: no iframe, no library refresh, a margin, no offline_access', async () => {
         const {service, backend, spy} = setUp();
 
         await initialised(service, backend, OIDC);
 
-        // With `useSilentRefresh: false` and the code flow, the library's automatic refresh calls
-        // `refreshToken()` — a POST to the token endpoint — instead of loading a hidden iframe.
-        expect(spy.calls).toContain('refresh');
-        expect(spy.config).toMatchObject({responseType: 'code', useSilentRefresh: false, timeoutFactor: 0.75});
+        expect(spy.config).toMatchObject({responseType: 'code', useSilentRefresh: false});
         expect(spy.config?.silentRefreshRedirectUri).toBeUndefined();
+        expect(spy.config?.decreaseExpirationBySec).toBeGreaterThan(0);
+        // One place sends every refresh-token grant (review finding 6): the library's own refresh stays off.
+        expect(spy.calls).not.toContain('library-refresh');
         // A refresh token bound to the SSO session is enough; an offline token would outlive the logout.
         expect(spy.config?.scope?.split(' ')).not.toContain('offline_access');
     });
 
-    it('sets up no renewal when the sign-in sent the browser to the identity provider', async () => {
-        // `false` means the redirect is under way; there is no token whose expiry could be watched.
+    it('renews at 75 % of the lifetime, and again after that', async () => {
+        vi.useFakeTimers({now: new Date('2026-10-01T10:00:00Z')});
+        const lifetime = 300_000;
         const stub = oauth();
-        stub.loggedIn = false;
+        stub.expiresAt = Date.now() + lifetime;
         const {service, backend, spy} = setUp(stub);
-
         await initialised(service, backend, OIDC);
 
-        expect(spy.calls).toEqual(['configure', 'login']);
+        await vi.advanceTimersByTimeAsync(lifetime * RENEW_AT - 1);
+        expect(renewals(spy)).toBe(0);
+        stub.expiresAt = Date.now() + 1 + lifetime;
+        await vi.advanceTimersByTimeAsync(1);
+        expect(renewals(spy)).toBe(1);
+        await vi.advanceTimersByTimeAsync(lifetime * RENEW_AT);
+        expect(renewals(spy)).toBe(2);
+        expect(service.token()).toBe('renewed-token');
     });
 
     it('renews before expiry with the real client, and the next request carries the renewed bearer; nothing reaches storage', async () => {
-        vi.useFakeTimers({now: new Date('2026-10-01T10:00:00Z'), toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date']});
-        // Start from empty storages: specs share one worker, and another one's preference (the
-        // theme, say) left behind would read as a token this test never wrote.
-        window.sessionStorage.clear();
-        window.localStorage.clear();
-        const written = vi.spyOn(Storage.prototype, 'setItem');
-        TestBed.configureTestingModule({
-            providers: [provideHttpClient(withInterceptors([bearerInterceptor])), provideHttpClientTesting(), provideOidcClient()],
-        });
         const lifetime = 300_000;
-        const now = Date.now();
-        // A session as the code flow leaves it, put where the client keeps it.
-        const storage = TestBed.inject(OAuthStorage);
-        storage.setItem('access_token', 'first-token');
-        storage.setItem('access_token_stored_at', String(now));
-        storage.setItem('expires_at', String(now + lifetime));
-        storage.setItem('refresh_token', 'refresh-1');
-        storage.setItem('id_token', 'header.payload.signature');
-        storage.setItem('id_token_claims_obj', JSON.stringify({name: 'Somebody'}));
-        storage.setItem('id_token_stored_at', String(now));
-        storage.setItem('id_token_expires_at', String(now + lifetime));
-        const service = TestBed.inject(AuthService);
-        const backend = TestBed.inject(HttpTestingController);
-        const http = TestBed.inject(HttpClient);
-
-        const done = service.initialise();
-        answer(backend, OIDC);
-        await vi.waitFor(() =>
-            backend.expectOne(`${ISSUER}/.well-known/openid-configuration`).flush({
-                issuer: ISSUER,
-                authorization_endpoint: `${ISSUER}/protocol/openid-connect/auth`,
-                token_endpoint: `${ISSUER}/protocol/openid-connect/token`,
-                end_session_endpoint: `${ISSUER}/protocol/openid-connect/logout`,
-                userinfo_endpoint: `${ISSUER}/protocol/openid-connect/userinfo`,
-                revocation_endpoint: `${ISSUER}/protocol/openid-connect/revoke`,
-                jwks_uri: `${ISSUER}/protocol/openid-connect/certs`,
-            }),
-        );
-        await vi.waitFor(() => backend.expectOne(`${ISSUER}/protocol/openid-connect/certs`).flush({keys: []}));
-        await done;
+        const {service, backend, http, storage, written, now} = await realClient(lifetime);
         expect(service.token()).toBe('first-token');
 
-        // Not before 75 % of the lifetime, and the library debounces the expiry by one second.
-        await vi.advanceTimersByTimeAsync(lifetime * 0.75 - 1);
+        // Around 75 % of the lifetime: the start itself took a few fake milliseconds, so the exact
+        // instant is the stubbed spec's to pin, and this one asks for the window.
+        await vi.advanceTimersByTimeAsync(now + lifetime * 0.74 - Date.now());
         expect(backend.match(`${ISSUER}/protocol/openid-connect/token`)).toEqual([]);
-        await vi.advanceTimersByTimeAsync(1_000 + 1);
+        await vi.advanceTimersByTimeAsync(lifetime * 0.02);
         const renewal = backend.expectOne(`${ISSUER}/protocol/openid-connect/token`);
         expect(renewal.request.method).toBe('POST');
         const body = renewal.request.body as HttpParams;
@@ -299,192 +412,98 @@ describe('AuthService — the renewal (ISC-502)', () => {
     });
 });
 
-describe('AuthService — an expired session (ISC-503)', () => {
-    it('a refused renewal raises one event and, after the notice, signs in again from the current URL', async () => {
-        window.history.replaceState(null, '', '/shortlist/5?q=java#ad');
-        const {service, backend, spy} = setUp();
+describe('AuthService — the expiry margin, against the real library (code review 4, finding 1)', () => {
+    it('sets the margin in the unit the library reads it in, with a clock skew of its own', async () => {
+        const {spy} = await (async () => {
+            const ctx = setUp();
+            await initialised(ctx.service, ctx.backend, OIDC);
+            return ctx;
+        })();
+
+        expect(spy.config?.clockSkewInSec).toBe(CLOCK_SKEW_S);
+        expect(spy.config?.decreaseExpirationBySec).toBe((EXPIRY_MARGIN_S + CLOCK_SKEW_S) * 1000);
+    });
+
+    it('a token counts as lapsed EXPIRY_MARGIN_S before it expires, not ten minutes after', async () => {
+        const lifetime = 120_000;
+        const {service, now} = await realClient(lifetime);
+
+        await vi.advanceTimersByTimeAsync(now + lifetime - (EXPIRY_MARGIN_S + 1) * 1000 - Date.now());
+        expect(service.token()).toBe('first-token');
+        await vi.advanceTimersByTimeAsync(2_000);
+        expect(service.token()).toBeNull();
+    });
+});
+
+describe('AuthService — a 401 to a request that carried the bearer (review finding 8)', () => {
+    it('is answered with one renewal and one replay: a token that lapsed in flight ends nothing', async () => {
+        const {service, backend, http, spy} = setUp();
         await initialised(service, backend, OIDC);
-        const seen = expiries();
-        vi.useFakeTimers();
+        const expired = seen(authEvents.sessionExpired);
 
-        spy.stream.next(new OAuthErrorEvent('token_refresh_error', {status: 400}));
+        const outcome = request(http, '/api/v1/offers');
+        backend.expectOne('/api/v1/offers').flush(null, UNAUTHORIZED);
+        const replay = await sent(backend, '/api/v1/offers');
+        expect(replay.request.headers.get('Authorization')).toBe('Bearer renewed-token');
+        replay.flush([]);
 
-        expect(seen).toHaveLength(1);
-        expect(spy.calls).not.toContain('sign-in');
-        await vi.advanceTimersByTimeAsync(SESSION_EXPIRED_NOTICE_MS - 1);
-        expect(spy.calls).not.toContain('sign-in');
-
-        // A second failure while the notice stands is the same session ending, not a new one.
-        spy.stream.next(new OAuthErrorEvent('token_refresh_error', {status: 400}));
-        service.sessionExpired();
-        await vi.advanceTimersByTimeAsync(1);
-
-        expect(seen).toHaveLength(1);
-        expect(spy.signInStates).toEqual(['/shortlist/5?q=java#ad']);
-        expect(spy.calls).toContain('stop');
+        expect(outcome).toEqual(['ok']);
+        expect(renewals(spy)).toBe(1);
+        expect(expired).toEqual([]);
+        expect(service.phase()).toBe('signedIn');
     });
 
-    it('waits long enough for the toast to be read', () => {
-        expect(SESSION_EXPIRED_NOTICE_MS).toBe(2_500);
-    });
-
-    it('a 401 on a request that carried the bearer does the same, once for the whole burst', async () => {
+    it('a replay still answered 401 ends the session: one event for the burst, then the sign-in from the current URL', async () => {
         window.history.replaceState(null, '', '/pipeline/3');
         const {service, backend, http, spy} = setUp();
         await initialised(service, backend, OIDC);
-        const seen = expiries();
+        const expired = seen(authEvents.sessionExpired);
         vi.useFakeTimers();
 
-        http.get('/api/v1/offers').subscribe({error: () => undefined});
-        http.get('/api/v1/applications').subscribe({error: () => undefined});
-        backend.expectOne('/api/v1/offers').flush(null, {status: 401, statusText: 'Unauthorized'});
-        backend.expectOne('/api/v1/applications').flush(null, {status: 401, statusText: 'Unauthorized'});
-        await vi.advanceTimersByTimeAsync(SESSION_EXPIRED_NOTICE_MS);
+        const offers = request(http, '/api/v1/offers');
+        const applications = request(http, '/api/v1/applications');
+        backend.expectOne('/api/v1/offers').flush(null, UNAUTHORIZED);
+        backend.expectOne('/api/v1/applications').flush(null, UNAUTHORIZED);
+        await vi.advanceTimersByTimeAsync(0);
+        // One renewal for both: the second refusal joins the first one's grant.
+        expect(renewals(spy)).toBe(1);
+        backend.expectOne('/api/v1/offers').flush(null, UNAUTHORIZED);
+        backend.expectOne('/api/v1/applications').flush(null, UNAUTHORIZED);
 
-        expect(seen).toHaveLength(1);
+        expect(offers).toEqual([401]);
+        expect(applications).toEqual([401]);
+        expect(expired).toEqual([{unsaved: false}]);
+        expect(spy.calls).not.toContain('sign-in');
+        await vi.advanceTimersByTimeAsync(SESSION_EXPIRED_NOTICE_MS);
         expect(spy.signInStates).toEqual(['/pipeline/3']);
+    });
+
+    it('a 403 is a signed-in person without the right: it passes through, renews nothing and ends nothing', async () => {
+        const {service, backend, http, spy} = setUp();
+        await initialised(service, backend, OIDC);
+        const expired = seen(authEvents.sessionExpired);
+
+        const outcome = request(http, '/api/v1/offers');
+        backend.expectOne('/api/v1/offers').flush(null, {status: 403, statusText: 'Forbidden'});
+
+        expect(outcome).toEqual([403]);
+        expect(renewals(spy)).toBe(0);
+        expect(expired).toEqual([]);
     });
 
     it('does nothing under none, whatever answers 401', async () => {
         const {service, backend, http, spy} = setUp();
         await initialised(service, backend, NONE);
-        const seen = expiries();
-        vi.useFakeTimers();
+        const expired = seen(authEvents.sessionExpired);
 
-        http.get('/api/v1/offers').subscribe({error: () => undefined});
-        backend.expectOne('/api/v1/offers').flush(null, {status: 401, statusText: 'Unauthorized'});
-        service.sessionExpired();
-        await vi.advanceTimersByTimeAsync(SESSION_EXPIRED_NOTICE_MS * 2);
+        const outcome = request(http, '/api/v1/offers');
+        const sent = backend.expectOne('/api/v1/offers');
+        expect(sent.request.headers.has('Authorization')).toBe(false);
+        sent.flush(null, UNAUTHORIZED);
 
-        expect(seen).toEqual([]);
+        expect(outcome).toEqual([401]);
+        expect(expired).toEqual([]);
         expect(spy.calls).toEqual([]);
-    });
-
-    it('asks the sign-in to come back to the URL it started from, and goes there afterwards', async () => {
-        window.history.replaceState(null, '', '/shortlist/5?q=java');
-        const stub = oauth();
-        // What the library leaves in `state` after the code exchange: the additional state, still encoded once.
-        stub.state = encodeURIComponent('/pipeline/3?view=board');
-        const {service, backend} = setUp(stub);
-
-        await initialised(service, backend, OIDC);
-
-        expect(stub.loginOptions).toEqual({state: '/shortlist/5?q=java'});
-        expect(window.location.pathname + window.location.search).toBe('/pipeline/3?view=board');
-    });
-
-    it('never returns to another origin, whatever the state says', async () => {
-        window.history.replaceState(null, '', '/');
-        const stub = oauth();
-        stub.state = encodeURIComponent('//evil.example/phish');
-        const {service, backend} = setUp(stub);
-
-        await initialised(service, backend, OIDC);
-
-        expect(window.location.origin + window.location.pathname).toBe(`${window.location.origin}/`);
-    });
-});
-
-describe('AuthService — the loop brake (a server that keeps answering 401)', () => {
-    it('a sign-in for an expired session leaves a marker, and a 401 within the minute after raises the refusal instead of a second redirect', async () => {
-        window.history.replaceState(null, '', '/pipeline/3');
-        vi.useFakeTimers();
-        const first = setUp();
-        await initialised(first.service, first.backend, OIDC);
-        first.service.sessionExpired();
-        await vi.advanceTimersByTimeAsync(SESSION_EXPIRED_NOTICE_MS);
-        expect(first.spy.signInStates).toEqual(['/pipeline/3']);
-        // The marker is a time, not a token: ISC-502's "tokens in memory only" still holds.
-        expect(window.sessionStorage.getItem(SIGN_IN_MARKER)).toBe(String(Date.now()));
-
-        // The browser comes back from the identity provider: a fresh page, a fresh service.
-        TestBed.resetTestingModule();
-        await vi.advanceTimersByTimeAsync(20_000);
-        const second = setUp();
-        await initialised(second.service, second.backend, OIDC);
-        const seen = expiries();
-        const refused = refusals();
-        second.http.get('/api/v1/offers').subscribe({error: () => undefined});
-        second.backend.expectOne('/api/v1/offers').flush(null, {status: 401, statusText: 'Unauthorized'});
-        await vi.advanceTimersByTimeAsync(SESSION_EXPIRED_NOTICE_MS * 10);
-
-        expect(second.spy.signInStates).toEqual([]);
-        expect(seen).toEqual([]);
-        expect(refused).toHaveLength(1);
-        // Once per page, like the expiry it stands in for.
-        second.service.sessionExpired();
-        expect(refused).toHaveLength(1);
-    });
-
-    it('a marker older than the window is no loop: the next expiry signs in again as usual', async () => {
-        vi.useFakeTimers();
-        window.sessionStorage.setItem(SIGN_IN_MARKER, String(Date.now() - SIGN_IN_LOOP_WINDOW_MS - 1));
-        const {service, backend, spy} = setUp();
-        await initialised(service, backend, OIDC);
-        const refused = refusals();
-
-        service.sessionExpired();
-        await vi.advanceTimersByTimeAsync(SESSION_EXPIRED_NOTICE_MS);
-
-        expect(refused).toEqual([]);
-        expect(spy.calls).toContain('sign-in');
-    });
-});
-
-describe('AuthService — a renewal that fails for a while', () => {
-    it('a network failure or a 5xx keeps the session and retries with backoff until one succeeds', async () => {
-        const stub = oauth();
-        stub.refreshAnswers = [{status: 503}, 'ok'];
-        const {service, backend, spy} = setUp(stub);
-        await initialised(service, backend, OIDC);
-        const seen = expiries();
-        vi.useFakeTimers();
-
-        spy.stream.next(new OAuthErrorEvent('token_refresh_error', {status: 0}));
-        expect(seen).toEqual([]);
-        await vi.advanceTimersByTimeAsync(RENEWAL_BACKOFF_MS[0]!);
-        expect(renewals(spy)).toBe(1);
-        await vi.advanceTimersByTimeAsync(RENEWAL_BACKOFF_MS[1]!);
-        expect(renewals(spy)).toBe(2);
-        await vi.advanceTimersByTimeAsync(120_000);
-
-        expect(renewals(spy)).toBe(2);
-        expect(seen).toEqual([]);
-        expect(spy.calls).not.toContain('sign-in');
-        expect(service.token()).toBe('renewed-token');
-    });
-
-    it('offline, it waits for the online event before it tries again', async () => {
-        const {service, backend, spy} = setUp();
-        await initialised(service, backend, OIDC);
-        const online = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
-        vi.useFakeTimers();
-
-        spy.stream.next(new OAuthErrorEvent('token_refresh_error', {status: 0}));
-        await vi.advanceTimersByTimeAsync(600_000);
-        expect(renewals(spy)).toBe(0);
-
-        online.mockReturnValue(true);
-        window.dispatchEvent(new Event('online'));
-        await vi.advanceTimersByTimeAsync(0);
-        expect(renewals(spy)).toBe(1);
-    });
-
-    it('an invalid_grant from the token endpoint during the retries ends the session', async () => {
-        const stub = oauth();
-        stub.refreshAnswers = [{status: 400, error: {error: 'invalid_grant'}}];
-        const {service, backend, spy} = setUp(stub);
-        await initialised(service, backend, OIDC);
-        const seen = expiries();
-        vi.useFakeTimers();
-
-        spy.stream.next(new OAuthErrorEvent('token_refresh_error', {status: 502}));
-        expect(seen).toEqual([]);
-        await vi.advanceTimersByTimeAsync(RENEWAL_BACKOFF_MS[0]!);
-
-        expect(seen).toHaveLength(1);
-        await vi.advanceTimersByTimeAsync(SESSION_EXPIRED_NOTICE_MS);
-        expect(spy.calls).toContain('sign-in');
     });
 });
 
@@ -498,89 +517,416 @@ describe('AuthService — an access token that lapsed while a refresh token stan
         http.get('/api/v1/applications').subscribe();
         expect(backend.match('/api/v1/offers')).toEqual([]);
 
-        await vi.waitFor(() => expect(backend.match(() => true)).toHaveLength(2));
+        const offers = await sent(backend, '/api/v1/offers');
+        const applications = await sent(backend, '/api/v1/applications');
         expect(renewals(spy)).toBe(1);
-        backend.match(() => true).forEach((request) => expect(request.request.headers.get('Authorization')).toBe('Bearer renewed-token'));
+        for (const one of [offers, applications]) {
+            expect(one.request.headers.get('Authorization')).toBe('Bearer renewed-token');
+        }
     });
 
     it('with no renewal possible it reports the ended session and sends nothing', async () => {
-        const stub = oauth();
-        const {service, backend, http, spy} = setUp(stub);
+        const {service, backend, http, spy} = setUp();
         await initialised(service, backend, OIDC);
-        const seen = expiries();
+        const expired = seen(authEvents.sessionExpired);
+        vi.useFakeTimers();
         spy.valid = false;
         spy.refresh = null;
-        const errors: number[] = [];
 
-        http.get('/api/v1/offers').subscribe({error: (error: {status: number}) => errors.push(error.status)});
-        await vi.waitFor(() => expect(errors).toEqual([401]));
+        const outcome = request(http, '/api/v1/offers');
+        await vi.advanceTimersByTimeAsync(0);
 
+        expect(outcome).toEqual([401]);
         expect(backend.match(() => true)).toEqual([]);
-        expect(seen).toHaveLength(1);
+        expect(expired).toHaveLength(1);
     });
 
-    it('bearer() hands the chat stream the same renewed token, or rejects with SessionEnded', async () => {
-        const {service, backend, spy} = setUp();
+    it('a request waits for a renewal that keeps failing only so long, then fails as unreachable while the renewal carries on (review finding 4)', async () => {
+        const stub = oauth();
+        stub.refreshAnswers = Array.from({length: 20}, () => ({status: 503}));
+        const {service, backend, http, spy} = setUp(stub);
         await initialised(service, backend, OIDC);
+        const expired = seen(authEvents.sessionExpired);
+        vi.useFakeTimers();
         spy.valid = false;
 
-        await expect(service.bearer()).resolves.toBe('renewed-token');
-        spy.valid = false;
-        spy.refreshAnswers = [{status: 401}];
-        await expect(service.bearer()).rejects.toBeInstanceOf(SessionEnded);
+        const outcome = request(http, '/api/v1/offers');
+        await vi.advanceTimersByTimeAsync(REQUEST_RENEWAL_TIMEOUT_MS - 1);
+        expect(outcome).toEqual([]);
+        await vi.advanceTimersByTimeAsync(1);
+
+        expect(outcome).toEqual([0]);
+        expect(backend.match(() => true)).toEqual([]);
+        expect(expired).toEqual([]);
+        const attempts = renewals(spy);
+        await vi.advanceTimersByTimeAsync(RENEWAL_BACKOFF_MS.at(-1)!);
+        expect(renewals(spy)).toBeGreaterThan(attempts);
+        expect(service.phase()).toBe('signedIn');
     });
 });
 
-describe('AuthService — a sign-in that failed on the way back', () => {
-    it('a failed code exchange leaves no dead app: it reports the ended session and signs in again', async () => {
-        window.history.replaceState(null, '', '/shortlist');
+describe('AuthService — one refresh-token grant at a time (review findings 6 and 10)', () => {
+    it('a request that finds the token lapsed while the timer renews joins that renewal', async () => {
+        vi.useFakeTimers({now: new Date('2026-10-01T10:00:00Z')});
         const stub = oauth();
-        stub.valid = false;
-        stub.loadDiscoveryDocumentAndLogin = () => Promise.reject(new OAuthErrorEvent('invalid_nonce_in_state', {}));
+        stub.expiresAt = Date.now() + 100_000;
+        stub.refreshAnswers = ['hang'];
+        const {service, backend, http, spy} = setUp(stub);
+        await initialised(service, backend, OIDC);
+
+        await vi.advanceTimersByTimeAsync(100_000 * RENEW_AT);
+        expect(renewals(spy)).toBe(1);
+        spy.valid = false;
+        request(http, '/api/v1/offers');
+        await vi.advanceTimersByTimeAsync(0);
+
+        expect(renewals(spy)).toBe(1);
+        expect(service.phase()).toBe('signedIn');
+    });
+
+    it('a 401 to a token somebody else has already renewed replays with the fresh one, without a second grant', async () => {
+        const {service, backend, http, spy} = setUp();
+        await initialised(service, backend, OIDC);
+
+        const outcome = request(http, '/api/v1/offers');
+        const first = backend.expectOne('/api/v1/offers');
+        spy.accessToken = 'renewed-elsewhere';
+        first.flush(null, UNAUTHORIZED);
+        const replay = await sent(backend, '/api/v1/offers');
+        replay.flush([]);
+
+        expect(replay.request.headers.get('Authorization')).toBe('Bearer renewed-elsewhere');
+        expect(outcome).toEqual(['ok']);
+        expect(renewals(spy)).toBe(0);
+    });
+});
+
+describe('AuthService — a renewal that fails for a while', () => {
+    it('a network failure or a 5xx keeps the session and retries with backoff until one succeeds', async () => {
+        vi.useFakeTimers({now: new Date('2026-10-01T10:00:00Z')});
+        const stub = oauth();
+        stub.expiresAt = Date.now() + 100_000;
+        stub.refreshAnswers = [{status: 0}, {status: 503}, 'ok'];
         const {service, backend, spy} = setUp(stub);
-        const seen = expiries();
-        vi.useFakeTimers();
+        await initialised(service, backend, OIDC);
+        const expired = seen(authEvents.sessionExpired);
+
+        await vi.advanceTimersByTimeAsync(100_000 * RENEW_AT);
+        expect(renewals(spy)).toBe(1);
+        stub.expiresAt = null;
+        await vi.advanceTimersByTimeAsync(RENEWAL_BACKOFF_MS[0]!);
+        expect(renewals(spy)).toBe(2);
+        await vi.advanceTimersByTimeAsync(RENEWAL_BACKOFF_MS[1]!);
+        expect(renewals(spy)).toBe(3);
+        await vi.advanceTimersByTimeAsync(120_000);
+
+        expect(renewals(spy)).toBe(3);
+        expect(expired).toEqual([]);
+        expect(spy.calls).not.toContain('sign-in');
+        expect(service.token()).toBe('renewed-token');
+    });
+
+    it('offline, it waits for the online event before it tries again', async () => {
+        vi.useFakeTimers({now: new Date('2026-10-01T10:00:00Z')});
+        const stub = oauth();
+        stub.expiresAt = Date.now() + 100_000;
+        stub.refreshAnswers = [{status: 0}];
+        const {service, backend, spy} = setUp(stub);
+        await initialised(service, backend, OIDC);
+        const online = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+
+        await vi.advanceTimersByTimeAsync(100_000 * RENEW_AT);
+        stub.expiresAt = null;
+        await vi.advanceTimersByTimeAsync(600_000);
+        expect(renewals(spy)).toBe(1);
+
+        online.mockReturnValue(true);
+        window.dispatchEvent(new Event('online'));
+        await vi.advanceTimersByTimeAsync(0);
+        expect(renewals(spy)).toBe(2);
+    });
+
+    it('an invalid_grant from the token endpoint during the retries ends the session', async () => {
+        vi.useFakeTimers({now: new Date('2026-10-01T10:00:00Z')});
+        const stub = oauth();
+        stub.expiresAt = Date.now() + 100_000;
+        stub.refreshAnswers = [{status: 502}, {status: 400, error: {error: 'invalid_grant'}}];
+        const {service, backend, spy} = setUp(stub);
+        await initialised(service, backend, OIDC);
+        const expired = seen(authEvents.sessionExpired);
+
+        await vi.advanceTimersByTimeAsync(100_000 * RENEW_AT);
+        expect(expired).toEqual([]);
+        await vi.advanceTimersByTimeAsync(RENEWAL_BACKOFF_MS[0]!);
+
+        expect(expired).toHaveLength(1);
+        await vi.advanceTimersByTimeAsync(SESSION_EXPIRED_NOTICE_MS);
+        expect(spy.calls).toContain('sign-in');
+    });
+});
+
+describe('AuthService — the way back from the identity provider', () => {
+    it('asks the sign-in to come back to the URL it started from, and goes there afterwards', async () => {
+        window.history.replaceState(null, '', '/shortlist/5?q=java');
+        const stub = oauth();
+        // What the library leaves in `state` after the code exchange: the additional state, still encoded once.
+        stub.state = encodeURIComponent('/pipeline/3?view=board');
+        const {service, backend} = setUp(stub);
 
         await initialised(service, backend, OIDC);
-        expect(seen).toHaveLength(1);
-        await vi.advanceTimersByTimeAsync(SESSION_EXPIRED_NOTICE_MS);
+
+        expect(window.location.pathname + window.location.search).toBe('/pipeline/3?view=board');
+    });
+
+    it('never returns to another origin, whatever the state says', async () => {
+        window.history.replaceState(null, '', '/');
+        const stub = oauth();
+        stub.state = encodeURIComponent('//evil.example/phish');
+        const {service, backend} = setUp(stub);
+
+        await initialised(service, backend, OIDC);
+
+        expect(window.location.origin + window.location.pathname).toBe(`${window.location.origin}/`);
+    });
+
+    it('a failed code exchange leaves no dead app: it goes straight back to the identity provider and renders nothing on the way (code review 4, finding 3)', async () => {
+        window.history.replaceState(null, '', '/shortlist?code=used&state=nonce%3B%252Fshortlist&session_state=s');
+        const stub = oauth();
+        stub.valid = false;
+        stub.exchange = 'fail';
+        const {service, backend, spy} = setUp(stub);
+        const expired = seen(authEvents.sessionExpired);
+        let resolved = false;
+
+        void service.initialise().then(() => (resolved = true));
+        backend.expectOne('/api/v1/auth-config').flush(OIDC);
+        await vi.waitFor(() => expect(spy.calls).toContain('sign-in'));
+
+        expect(resolved).toBe(false);
+        // Nobody was signed in, so no session ended; and the used code does not go along.
+        expect(expired).toEqual([]);
         expect(spy.signInStates).toEqual(['/shortlist']);
     });
 
-    it('and inside the loop window it says the server refuses instead of bouncing again', async () => {
-        vi.useFakeTimers();
+    it('inside the loop window it says the sign-in failed — not that the server refuses — and Try again is the next attempt (code review 4, finding 7)', async () => {
         window.sessionStorage.setItem(SIGN_IN_MARKER, String(Date.now()));
+        window.history.replaceState(null, '', '/pipeline?error=access_denied&state=nonce');
         const stub = oauth();
         stub.valid = false;
-        stub.loadDiscoveryDocumentAndLogin = () => Promise.reject(new OAuthErrorEvent('code_error', {}));
-        const {service, backend, spy} = setUp(stub);
-        const refused = refusals();
+        stub.refresh = null;
+        stub.exchange = 'fail';
+        const {service, backend, http, spy} = setUp(stub);
+        const failed = seen(authEvents.signInFailed);
+        const refused = seen(authEvents.sessionRefused);
 
         await initialised(service, backend, OIDC);
-        await vi.advanceTimersByTimeAsync(SESSION_EXPIRED_NOTICE_MS * 10);
+        expect(service.phase()).toBe('failed');
+        expect(failed).toHaveLength(1);
+        expect(refused).toEqual([]);
 
-        expect(refused).toHaveLength(1);
+        // Nothing is signed in: a request goes nowhere and tries no renewal.
+        const outcome = request(http, '/api/v1/offers');
+        await vi.waitFor(() => expect(outcome).toEqual([401]));
+        expect(renewals(spy)).toBe(0);
         expect(spy.calls).not.toContain('sign-in');
+
+        TestBed.inject(Dispatcher).dispatch(authEvents.signInRequested());
+        expect(spy.signInStates).toEqual(['/pipeline']);
     });
 });
 
-describe('AuthService — unsaved work holds the redirect', () => {
-    it('with unsaved work the notice says so and the sign-in waits for the person, however long', async () => {
-        window.history.replaceState(null, '', '/shortlist/5');
-        const {service, backend, spy} = setUp();
-        await initialised(service, backend, OIDC);
-        const seen: {payload: unknown}[] = [];
-        TestBed.inject(Events).on(authEvents.sessionExpired).subscribe((event) => seen.push(event));
-        TestBed.inject(UnsavedWork).track(() => true);
+describe('AuthService — the loop brake (a server that keeps answering 401)', () => {
+    it('a sign-in leaves a marker, and a refused replay within the minute after raises the refusal instead of a second redirect', async () => {
+        window.history.replaceState(null, '', '/pipeline/3');
         vi.useFakeTimers();
+        const first = setUp(Object.assign(oauth(), {valid: false}));
+        void first.service.initialise();
+        first.backend.expectOne('/api/v1/auth-config').flush(OIDC);
+        await vi.advanceTimersByTimeAsync(0);
+        expect(first.spy.signInStates).toEqual(['/pipeline/3']);
+        // The marker is a time, not a token: ISC-502's "tokens in memory only" still holds.
+        expect(window.sessionStorage.getItem(SIGN_IN_MARKER)).toBe(String(Date.now()));
 
-        service.sessionExpired();
+        // The browser comes back from the identity provider: a fresh page, a fresh service.
+        TestBed.resetTestingModule();
+        await vi.advanceTimersByTimeAsync(20_000);
+        const second = setUp();
+        await initialised(second.service, second.backend, OIDC);
+        const expired = seen(authEvents.sessionExpired);
+        const refused = seen(authEvents.sessionRefused);
+        const outcome = request(second.http, '/api/v1/offers');
+        second.backend.expectOne('/api/v1/offers').flush(null, UNAUTHORIZED);
+        await vi.advanceTimersByTimeAsync(0);
+        second.backend.expectOne('/api/v1/offers').flush(null, UNAUTHORIZED);
+        await vi.advanceTimersByTimeAsync(SESSION_EXPIRED_NOTICE_MS * 10);
+
+        expect(outcome).toEqual([401]);
+        expect(second.spy.signInStates).toEqual([]);
+        expect(expired).toEqual([]);
+        expect(refused).toHaveLength(1);
+        expect(second.service.phase()).toBe('refused');
+    });
+
+    it('the brake keeps the page alive: it still sends its bearer, and the first request let through lifts it and clears the marker (review finding 7)', async () => {
+        window.sessionStorage.setItem(SIGN_IN_MARKER, String(Date.now()));
+        const {service, backend, http, spy} = setUp();
+        await initialised(service, backend, OIDC);
+        const refused = seen(authEvents.sessionRefused);
+        const accepted = seen(authEvents.sessionAccepted);
+
+        request(http, '/api/v1/offers');
+        backend.expectOne('/api/v1/offers').flush(null, UNAUTHORIZED);
+        (await sent(backend, '/api/v1/offers')).flush(null, UNAUTHORIZED);
+        expect(refused).toHaveLength(1);
+        expect(accepted).toEqual([]);
+        expect(service.phase()).toBe('refused');
+
+        const later = request(http, '/api/v1/applications');
+        const applications = backend.expectOne('/api/v1/applications');
+        expect(applications.request.headers.get('Authorization')).toBe(`Bearer ${spy.accessToken}`);
+        applications.flush([]);
+
+        expect(later).toEqual(['ok']);
+        expect(service.phase()).toBe('signedIn');
+        // So the refusal line can go (code review 4, finding 4).
+        expect(accepted).toHaveLength(1);
+        expect(window.sessionStorage.getItem(SIGN_IN_MARKER)).toBeNull();
+    });
+
+    it('under the brake a 401 is handed on as it is: no refresh grant, no replay (code review 4, finding 2)', async () => {
+        window.sessionStorage.setItem(SIGN_IN_MARKER, String(Date.now()));
+        const {service, backend, http, spy} = setUp();
+        await initialised(service, backend, OIDC);
+        request(http, '/api/v1/offers');
+        backend.expectOne('/api/v1/offers').flush(null, UNAUTHORIZED);
+        (await sent(backend, '/api/v1/offers')).flush(null, UNAUTHORIZED);
+        expect(service.phase()).toBe('refused');
+        const before = renewals(spy);
+
+        for (const screen of ['/api/v1/offers', '/api/v1/applications', '/api/v1/rules']) {
+            const outcome = request(http, screen);
+            backend.expectOne(screen).flush(null, UNAUTHORIZED);
+            expect(outcome).toEqual([401]);
+        }
+        await Promise.resolve();
+
+        expect(renewals(spy)).toBe(before);
+        backend.verify();
+    });
+
+    it('any answer but a 401 proves the bearer was taken: a 403 clears the marker too (code review 4, finding 8)', async () => {
+        window.sessionStorage.setItem(SIGN_IN_MARKER, String(Date.now()));
+        const {service, backend, http} = setUp();
+        await initialised(service, backend, OIDC);
+
+        const outcome = request(http, '/api/v1/rules');
+        backend.expectOne('/api/v1/rules').flush(null, {status: 403, statusText: 'Forbidden'});
+
+        expect(outcome).toEqual([403]);
+        expect(window.sessionStorage.getItem(SIGN_IN_MARKER)).toBeNull();
+    });
+
+    it('the first request the API accepts clears the marker, so a later expiry signs in as usual', async () => {
+        vi.useFakeTimers();
+        window.sessionStorage.setItem(SIGN_IN_MARKER, String(Date.now()));
+        const {service, backend, http, spy} = setUp();
+        await initialised(service, backend, OIDC);
+        const refused = seen(authEvents.sessionRefused);
+
+        request(http, '/api/v1/offers');
+        backend.expectOne('/api/v1/offers').flush([]);
+        expect(window.sessionStorage.getItem(SIGN_IN_MARKER)).toBeNull();
+        request(http, '/api/v1/offers');
+        backend.expectOne('/api/v1/offers').flush(null, UNAUTHORIZED);
+        await vi.advanceTimersByTimeAsync(0);
+        backend.expectOne('/api/v1/offers').flush(null, UNAUTHORIZED);
+        await vi.advanceTimersByTimeAsync(SESSION_EXPIRED_NOTICE_MS);
+
+        expect(refused).toEqual([]);
+        expect(spy.calls).toContain('sign-in');
+    });
+
+    it('a marker older than the window is no loop: the next expiry signs in again as usual', async () => {
+        vi.useFakeTimers();
+        window.sessionStorage.setItem(SIGN_IN_MARKER, String(Date.now() - SIGN_IN_LOOP_WINDOW_MS - 1));
+        const {service, backend, http, spy} = setUp();
+        await initialised(service, backend, OIDC);
+        const refused = seen(authEvents.sessionRefused);
+        spy.valid = false;
+        spy.refresh = null;
+
+        request(http, '/api/v1/offers');
+        await vi.advanceTimersByTimeAsync(SESSION_EXPIRED_NOTICE_MS);
+
+        expect(refused).toEqual([]);
+        expect(spy.calls).toContain('sign-in');
+    });
+
+    it('"Sign in now" after the brake leaves at once', async () => {
+        window.sessionStorage.setItem(SIGN_IN_MARKER, String(Date.now()));
+        window.history.replaceState(null, '', '/shortlist');
+        const {service, backend, http, spy} = setUp();
+        await initialised(service, backend, OIDC);
+        spy.valid = false;
+        spy.refresh = null;
+        const outcome = request(http, '/api/v1/offers');
+        await vi.waitFor(() => expect(outcome).toEqual([401]));
+        expect(service.phase()).toBe('refused');
+
+        TestBed.inject(Dispatcher).dispatch(authEvents.signInRequested());
+
+        expect(spy.signInStates).toEqual(['/shortlist']);
+    });
+});
+
+describe('AuthService — unsaved work holds the redirect (review finding 2)', () => {
+    async function expiredWith(dirty: () => boolean) {
+        window.history.replaceState(null, '', '/shortlist/5');
+        const ctx = setUp();
+        await initialised(ctx.service, ctx.backend, OIDC);
+        const expired = seen(authEvents.sessionExpired);
+        TestBed.inject(UnsavedWork).track(dirty);
+        vi.useFakeTimers();
+        ctx.spy.valid = false;
+        ctx.spy.refresh = null;
+        request(ctx.http, '/api/v1/offers');
+        await vi.advanceTimersByTimeAsync(0);
+        return {...ctx, expired};
+    }
+
+    it('the notice says so, and the sign-in waits for the person, however long', async () => {
+        const {service, spy, expired} = await expiredWith(() => true);
+
         await vi.advanceTimersByTimeAsync(SESSION_EXPIRED_NOTICE_MS * 100);
-        expect(seen.map((event) => event.payload)).toEqual([{unsaved: true}]);
+        expect(expired).toEqual([{unsaved: true}]);
+        expect(service.phase()).toBe('held');
         expect(spy.calls).not.toContain('sign-in');
 
         TestBed.inject(Dispatcher).dispatch(authEvents.signInRequested());
         expect(spy.signInStates).toEqual(['/shortlist/5']);
+    });
+
+    it('leaves by itself once nothing is left to lose, with no toast needed', async () => {
+        const dirty = signal(true);
+        const {service, spy} = await expiredWith(() => dirty());
+        expect(service.phase()).toBe('held');
+
+        dirty.set(false);
+        TestBed.tick();
+        await vi.advanceTimersByTimeAsync(SESSION_EXPIRED_NOTICE_MS);
+
+        expect(spy.signInStates).toEqual(['/shortlist/5']);
+    });
+
+    it('while held, a request is not sent and fails as the 401 it would have got', async () => {
+        const {backend, http, expired} = await expiredWith(() => true);
+
+        const outcome = request(http, '/api/v1/applications');
+        await vi.advanceTimersByTimeAsync(0);
+
+        expect(outcome).toEqual([401]);
+        expect(backend.match(() => true)).toEqual([]);
+        expect(expired).toHaveLength(1);
     });
 
     it('a sign-in request with no session ending is ignored', async () => {
@@ -591,20 +937,9 @@ describe('AuthService — unsaved work holds the redirect', () => {
 
         expect(spy.calls).not.toContain('sign-in');
     });
-});
 
-describe('AuthService.refused — the one rule for "this answer ended the session"', () => {
-    it('is a 401 to a request that carried the bearer, under oidc, and nothing else', async () => {
-        const {service, backend} = setUp();
-        await initialised(service, backend, OIDC);
-        const seen = expiries();
-
-        service.refused(403, true);
-        service.refused(500, true);
-        service.refused(401, false);
-        expect(seen).toEqual([]);
-        service.refused(401, true);
-        expect(seen).toHaveLength(1);
+    it('waits long enough for the toast to be read', () => {
+        expect(SESSION_EXPIRED_NOTICE_MS).toBe(2_500);
     });
 });
 
