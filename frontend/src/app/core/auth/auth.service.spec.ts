@@ -1,4 +1,4 @@
-import {HttpClient, HttpParams, provideHttpClient, withInterceptors} from '@angular/common/http';
+import {HttpClient, HttpEventType, HttpHeaderResponse, HttpParams, provideHttpClient, withInterceptors} from '@angular/common/http';
 import {HttpTestingController, provideHttpClientTesting} from '@angular/common/http/testing';
 import {signal} from '@angular/core';
 import {TestBed} from '@angular/core/testing';
@@ -20,11 +20,12 @@ import {
     SESSION_EXPIRED_NOTICE_MS,
     SIGN_IN_LOOP_WINDOW_MS,
     SIGN_IN_MARKER,
-    SIGN_IN_START_TIMEOUT_MS,
+    SIGN_IN_STALLED_MS,
 } from './auth.service';
 import {bearerInterceptor} from './bearer.interceptor';
 import {provideOidcClient} from './oidc-client';
 import {SignedInState} from './signed-in.state';
+import {keepUnsent, unsentQuestion} from '@core/unsaved/unsent-question';
 
 const ISSUER = 'https://auth.example/realms/x';
 const OIDC: AuthConfig = {mode: 'oidc', issuer: ISSUER, clientId: 'leadgen-web', gravatar: true};
@@ -62,6 +63,7 @@ function oauth(): Stub {
         discovery: 'ok',
         exchange: 'ok',
         state: '',
+        loginUrl: `${ISSUER}/protocol/openid-connect/auth`,
         configure: (config: OidcConfig) => {
             stub.config = config;
             stub.calls.push('configure');
@@ -816,16 +818,53 @@ describe('AuthService — the loop brake (a server that keeps answering 401)', (
         backend.verify();
     });
 
-    it('any answer but a 401 proves the bearer was taken: a 403 clears the marker too (code review 4, finding 8)', async () => {
+    it('no refusal proves the bearer was taken, a 403 or a 404 included: only a success lifts the brake (code review 7, findings 3 and 4)', async () => {
+        // A 404 may be Traefik's own for a route it does not know; a 403 or the API's own 429 look
+        // the same from outside. Too strict costs a minute of the refusal line, too generous a loop.
         window.sessionStorage.setItem(SIGN_IN_MARKER, String(Date.now()));
         const {service, backend, http} = setUp();
         await initialised(service, backend, OIDC);
 
-        const outcome = request(http, '/api/v1/rules');
-        backend.expectOne('/api/v1/rules').flush(null, {status: 403, statusText: 'Forbidden'});
+        for (const status of [403, 404, 409, 422]) {
+            const outcome = request(http, '/api/v1/rules');
+            backend.expectOne('/api/v1/rules').flush(null, {status, statusText: 'Refused'});
+            expect(outcome).toEqual([status]);
+        }
+        expect(window.sessionStorage.getItem(SIGN_IN_MARKER)).not.toBeNull();
 
-        expect(outcome).toEqual([403]);
+        request(http, '/api/v1/rules');
+        backend.expectOne('/api/v1/rules').flush([]);
         expect(window.sessionStorage.getItem(SIGN_IN_MARKER)).toBeNull();
+    });
+
+    it('a discovery document without an authorization endpoint does not start a sign-in that waits for ever (code review 10, finding 4)', async () => {
+        const stub = oauth();
+        stub.valid = false;
+        stub.loginUrl = '';
+        const {service, backend, spy} = setUp(stub);
+        const failed = seen(authEvents.signInFailed);
+
+        await initialised(service, backend, OIDC);
+
+        expect(service.phase()).toBe('failed');
+        expect(failed).toHaveLength(1);
+        expect(spy.calls).not.toContain('sign-in');
+    });
+
+    it('a sign-in that cannot keep its nonce does not start: the page renders with the failure (code review 7, finding 2)', async () => {
+        const stub = oauth();
+        stub.valid = false;
+        const {service, backend, spy} = setUp(stub);
+        const failed = seen(authEvents.signInFailed);
+        vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+            throw new DOMException('quota', 'QuotaExceededError');
+        });
+
+        await initialised(service, backend, OIDC);
+
+        expect(service.phase()).toBe('failed');
+        expect(failed).toHaveLength(1);
+        expect(spy.calls).not.toContain('sign-in');
     });
 
     it('the first request the API accepts clears the marker, so a later expiry signs in as usual', async () => {
@@ -996,7 +1035,7 @@ describe('AuthService — code review 5', () => {
         expect(spy.signInStates).toEqual(['/pipeline/3']);
     });
 
-    it('a sign-in that throws before it leaves renders the page with the failure, not a blank one (finding 3)', async () => {
+    it('a sign-in that throws before it leaves renders the page with the failure, and counts as no round trip (finding 3; code review 6, finding 8)', async () => {
         const stub = oauth();
         stub.valid = false;
         stub.initCodeFlow = () => {
@@ -1009,31 +1048,98 @@ describe('AuthService — code review 5', () => {
 
         expect(service.phase()).toBe('failed');
         expect(failed).toHaveLength(1);
+        expect(window.sessionStorage.getItem(SIGN_IN_MARKER)).toBeNull();
     });
 
-    it('a sign-in the browser never leaves for resolves the start as failed after the wait (finding 3)', async () => {
+    it('a start whose sign-in the page is still here for renders with the failure rather than blank for good (final review, finding 2)', async () => {
         vi.useFakeTimers();
+        window.history.replaceState(null, '', '/pipeline/3');
         const stub = oauth();
         stub.valid = false;
         const {service, backend, spy} = setUp(stub);
         const failed = seen(authEvents.signInFailed);
+        const stalled = seen(authEvents.signInStalled);
         let resolved = false;
 
         void service.initialise().then(() => (resolved = true));
         backend.expectOne('/api/v1/auth-config').flush(OIDC);
-        await vi.advanceTimersByTimeAsync(0);
-        expect(spy.calls).toContain('sign-in');
-        await vi.advanceTimersByTimeAsync(SIGN_IN_START_TIMEOUT_MS - 1);
+        await vi.advanceTimersByTimeAsync(SIGN_IN_STALLED_MS - 1);
         expect(resolved).toBe(false);
         expect(service.phase()).toBe('leaving');
-
         await vi.advanceTimersByTimeAsync(1);
 
         expect(resolved).toBe(true);
         expect(service.phase()).toBe('failed');
         expect(failed).toHaveLength(1);
+        expect(stalled).toEqual([]);
         TestBed.inject(Dispatcher).dispatch(authEvents.signInRequested());
-        expect(spy.signInStates).toHaveLength(2);
+        expect(spy.signInStates).toEqual(['/pipeline/3', '/pipeline/3']);
+    });
+
+    it('a running page still here after a sign-in says so and offers it again, and leaves the phase alone (code review 11, finding 1)', async () => {
+        window.history.replaceState(null, '', '/pipeline/3');
+        const {service, backend, http, spy} = setUp();
+        await initialised(service, backend, OIDC);
+        vi.useFakeTimers();
+        const stalled = seen(authEvents.signInStalled);
+        spy.valid = false;
+        spy.refresh = null;
+        request(http, '/api/v1/offers');
+        await vi.advanceTimersByTimeAsync(SESSION_EXPIRED_NOTICE_MS);
+        expect(spy.signInStates).toEqual(['/pipeline/3']);
+
+        await vi.advanceTimersByTimeAsync(SIGN_IN_STALLED_MS);
+
+        expect(stalled).toHaveLength(1);
+        expect(service.phase()).toBe('leaving');
+        TestBed.inject(Dispatcher).dispatch(authEvents.signInRequested());
+        expect(spy.signInStates).toEqual(['/pipeline/3', '/pipeline/3']);
+        await vi.advanceTimersByTimeAsync(SIGN_IN_STALLED_MS);
+        expect(stalled).toHaveLength(2);
+    });
+
+    it("a logout forgets the kept chat question, which is the person's own text (final security review)", () => {
+        const {service} = setUp();
+        keepUnsent('What came in?');
+
+        service.logout();
+
+        expect(unsentQuestion()).toBeNull();
+    });
+
+    it("a 4xx of a proxy's own proves nothing about the bearer either (code review 6, finding 6)", async () => {
+        window.sessionStorage.setItem(SIGN_IN_MARKER, String(Date.now()));
+        const {service, backend, http} = setUp();
+        await initialised(service, backend, OIDC);
+
+        for (const status of [413, 429]) {
+            const outcome = request(http, '/api/v1/offers');
+            backend.expectOne('/api/v1/offers').flush(null, {status, statusText: 'Proxy'});
+            expect(outcome).toEqual([status]);
+        }
+
+        expect(window.sessionStorage.getItem(SIGN_IN_MARKER)).not.toBeNull();
+    });
+
+    it('the header and the download progress of a 401 are no success: the brake holds (code review 6, finding 4)', async () => {
+        window.sessionStorage.setItem(SIGN_IN_MARKER, String(Date.now()));
+        const {service, backend, http} = setUp();
+        await initialised(service, backend, OIDC);
+        const accepted = seen(authEvents.sessionAccepted);
+
+        http.get('/api/v1/offers', {reportProgress: true, observe: 'events'}).subscribe({error: () => undefined});
+        const first = backend.expectOne('/api/v1/offers');
+        first.event(new HttpHeaderResponse({status: 401, statusText: 'Unauthorized'}));
+        first.event({type: HttpEventType.DownloadProgress, loaded: 10});
+        first.flush({title: 'Unauthorized'}, UNAUTHORIZED);
+        const replay = await sent(backend, '/api/v1/offers');
+        replay.event(new HttpHeaderResponse({status: 401, statusText: 'Unauthorized'}));
+        replay.event({type: HttpEventType.DownloadProgress, loaded: 10});
+        replay.flush({title: 'Unauthorized'}, UNAUTHORIZED);
+
+        expect(service.phase()).toBe('refused');
+        expect(accepted).toEqual([]);
+        expect(window.sessionStorage.getItem(SIGN_IN_MARKER)).not.toBeNull();
     });
 
     it('a caller that takes only the first value still lifts the brake (finding 6)', async () => {

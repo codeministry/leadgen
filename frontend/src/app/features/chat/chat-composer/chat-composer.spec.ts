@@ -1,14 +1,16 @@
-import {provideHttpClient} from '@angular/common/http';
+import {HttpErrorResponse, provideHttpClient} from '@angular/common/http';
 import {provideHttpClientTesting} from '@angular/common/http/testing';
 import {ComponentFixture, TestBed} from '@angular/core/testing';
 import {provideRouter, Router} from '@angular/router';
 import {Dispatcher, Events} from '@ngrx/signals/events';
-import {Observable, of, Subject, Subscription} from 'rxjs';
+import {Observable, of, Subject, Subscription, throwError} from 'rxjs';
 import {ChatApi} from '@core/api/chat.api';
 import {replayTurn} from '@core/api/chat-stub';
 import {ChatEvent, ConversationView} from '@core/model/chat';
 import {chatEvents} from '@core/store/chat.events';
 import {ChatStore} from '@core/store/chat.store';
+import {UnsavedWork} from '@core/unsaved/unsaved-work';
+import {unsentQuestion} from '@core/unsaved/unsent-question';
 import {ChatComposer} from './chat-composer';
 
 const CREATED: ConversationView = {id: 9, title: 'Kafka', pinnedOfferId: null, turns: [], updatedAt: '2026-09-27T08:00:00Z'};
@@ -61,7 +63,10 @@ describe('ChatComposer (ISC-436)', () => {
         fixture.detectChanges();
     });
 
-    afterEach(() => (fixture.nativeElement as HTMLElement).remove());
+    afterEach(() => {
+        (fixture.nativeElement as HTMLElement).remove();
+        window.sessionStorage.clear();
+    });
 
     const input = () => fixture.nativeElement.querySelector('textarea') as HTMLTextAreaElement | null;
     const region = () => fixture.nativeElement.querySelector('[aria-live="polite"]') as HTMLElement | null;
@@ -129,6 +134,156 @@ describe('ChatComposer (ISC-436)', () => {
         type('Kafka');
         input()!.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', bubbles: true, cancelable: true, isComposing: true}));
         expect(asked).toEqual([]);
+    });
+
+    describe('a question the server never stored comes back (spec 024, code review 7)', () => {
+        function failingAsk(): Subject<ChatEvent> {
+            const stream = new Subject<ChatEvent>();
+            vi.spyOn(TestBed.inject(ChatApi), 'ask').mockReturnValue(stream);
+            return stream;
+        }
+
+        async function settled(): Promise<void> {
+            await vi.waitFor(() => expect(store.streaming()).toBe(false));
+            fixture.detectChanges();
+        }
+
+        for (const [why, status] of [
+            ['refused for want of a session', 401],
+            ['timed out on its renewal', 0],
+            ['refused for having no model', 503],
+        ] as const) {
+            it(`${why}: into the empty field, kept beyond the page, so it holds no redirect`, async () => {
+                const stream = failingAsk();
+                type('Which offers asked for Kafka?');
+                press('Enter');
+                expect(input()!.value).toBe('');
+
+                stream.error(new HttpErrorResponse({status}));
+                await settled();
+
+                expect(input()!.value).toBe('Which offers asked for Kafka?');
+                expect(TestBed.inject(UnsavedWork).any()).toBe(false);
+            });
+        }
+
+        it('a question the server named stays sent, whatever happens to its answer', async () => {
+            const stream = failingAsk();
+            type('Which offers asked for Kafka?');
+            press('Enter');
+            stream.next({event: 'turn', data: {turnId: 31}});
+            stream.error(new HttpErrorResponse({status: 0}));
+            await settled();
+
+            expect(input()!.value).toBe('');
+            expect(TestBed.inject(UnsavedWork).any()).toBe(false);
+            expect(unsentQuestion()).toBeNull();
+        });
+
+        it('ahead of one typed meanwhile, kept as typed, so neither is lost (code review 8, finding 6; review 11, finding 2)', async () => {
+            const stream = failingAsk();
+            type('Which offers asked for Kafka?');
+            press('Enter');
+            type('And for ');
+            stream.error(new HttpErrorResponse({status: 401}));
+            await settled();
+
+            expect(input()!.value).toBe('Which offers asked for Kafka?\n\nAnd for ');
+        });
+
+        it('into the conversation open now, which may not be the one it was asked in (code review 10, finding 1)', async () => {
+            // Under an ended session the thread it was asked in may never load again; shown here it
+            // is still the person's to move, held for that thread it would be lost.
+            const stream = failingAsk();
+            type('Which offers asked for Kafka?');
+            press('Enter');
+            await vi.waitFor(() => expect(store.view()).toBe('conversation'));
+            await TestBed.inject(Router).navigateByUrl('/?chat=new');
+            fixture.detectChanges();
+
+            stream.error(new HttpErrorResponse({status: 401}));
+            await settled();
+
+            expect(input()!.value).toBe('Which offers asked for Kafka?');
+        });
+
+        it('holds the redirect when the tab refused to keep it, and once it is edited (final review, finding 1)', async () => {
+            const stream = failingAsk();
+            const write = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+                throw new DOMException('quota', 'QuotaExceededError');
+            });
+            type('Which offers asked for Kafka?');
+            press('Enter');
+            stream.error(new HttpErrorResponse({status: 401}));
+            await settled();
+            write.mockRestore();
+
+            expect(input()!.value).toBe('Which offers asked for Kafka?');
+            expect(TestBed.inject(UnsavedWork).any()).toBe(true);
+        });
+
+        it('not while the composer stands where no question is taken', async () => {
+            const stream = failingAsk();
+            type('Which offers asked for Kafka?');
+            press('Enter');
+            await vi.waitFor(() => expect(store.view()).toBe('conversation'));
+            await TestBed.inject(Router).navigateByUrl('/?chat=abc');
+            fixture.detectChanges();
+
+            stream.error(new HttpErrorResponse({status: 401}));
+            await settled();
+
+            expect(input()!.value).toBe('');
+            expect(unsentQuestion()).toBe('Which offers asked for Kafka?');
+        });
+
+        it('after the sign-in an ended session took the page through: a new composer brings it back (code review 11)', async () => {
+            const stream = failingAsk();
+            type('Which offers asked for Kafka?');
+            press('Enter');
+            stream.error(new HttpErrorResponse({status: 401}));
+            await settled();
+            // The page leaves before anybody copies it.
+            fixture.destroy();
+
+            fixture = TestBed.createComponent(ChatComposer);
+            document.body.appendChild(fixture.nativeElement);
+            fixture.detectChanges();
+
+            expect(input()!.value).toBe('Which offers asked for Kafka?');
+        });
+
+        it('emptying the field forgets it, and the next send keeps the next one', async () => {
+            const stream = failingAsk();
+            type('Which offers asked for Kafka?');
+            press('Enter');
+            stream.error(new HttpErrorResponse({status: 503}));
+            await settled();
+            expect(input()!.value).toBe('Which offers asked for Kafka?');
+
+            type('');
+            expect(unsentQuestion()).toBeNull();
+        });
+
+        it('not a follow-up or a suggestion, which is a click away from being asked again (code review 11, finding 5)', async () => {
+            const stream = failingAsk();
+            type('my own draft');
+            TestBed.inject(Dispatcher).dispatch(chatEvents.asked('A suggested question?'));
+            stream.error(new HttpErrorResponse({status: 503}));
+            await settled();
+
+            expect(input()!.value).toBe('my own draft');
+            expect(unsentQuestion()).toBeNull();
+        });
+
+        it('one whose conversation could not be created', async () => {
+            vi.spyOn(TestBed.inject(ChatApi), 'create').mockReturnValue(throwError(() => new HttpErrorResponse({status: 401})));
+            type('Which offers asked for Kafka?');
+            press('Enter');
+            await settled();
+
+            expect(input()!.value).toBe('Which offers asked for Kafka?');
+        });
     });
 
     it('announces a finished answer once, politely, and nothing per chunk', async () => {

@@ -326,12 +326,23 @@ export const ToastStore = signalStore(
                         .map((standing) => toastEvents.dismissed(standing.id)),
                 ),
             ),
-            // A code came back and could not be exchanged, moments after the last attempt: another
-            // redirect would only bounce, so the line stands and its action is the next attempt.
+            // A sign-in that went nowhere: a code that could not be exchanged, or a token lapsed on
+            // arrival, moments after the last attempt, so another redirect would only bounce; or a
+            // sign-in that could not start at all. The line stands and its action is the next attempt.
             events.on(authEvents.signInFailed).pipe(
                 map(() =>
                     toastEvents.raised({
                         ...actionToast('warning', 'toast.signInFailed', {key: 'toast.tryAgain', event: authEvents.signInRequested()}),
+                        standing: true,
+                    }),
+                ),
+            ),
+            // A sign-in started and the page is still here a while later: the navigation was stopped
+            // or failed quietly. The page keeps waiting, so the line only offers the next attempt.
+            events.on(authEvents.signInStalled).pipe(
+                map(() =>
+                    toastEvents.raised({
+                        ...actionToast('warning', 'toast.signInStalled', {key: 'toast.tryAgain', event: authEvents.signInRequested()}),
                         standing: true,
                     }),
                 ),

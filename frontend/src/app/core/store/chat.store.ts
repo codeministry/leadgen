@@ -2,6 +2,7 @@ import {HttpErrorResponse} from '@angular/common/http';
 import {computed, inject} from '@angular/core';
 import {NavigationEnd, Router} from '@angular/router';
 import {signalStore, withComputed, withHooks, withState} from '@ngrx/signals';
+import {forgetUnsent} from '@core/unsaved/unsent-question';
 import {UnsavedWork} from '@core/unsaved/unsaved-work';
 import {Events, on, withEventHandlers, withReducer} from '@ngrx/signals/events';
 import {
@@ -585,6 +586,12 @@ export const ChatStore = signalStore(
             );
 
         return [
+            // A fresh question the server named is stored: nothing for the composer to bring back.
+            events.on(chatEvents.streamed).pipe(
+                filter(({payload}) => payload.event === 'turn' && store.live()?.replacesTurnId === null),
+                tap(() => forgetUnsent(store.live()?.question)),
+                ignoreElements(),
+            ),
             // The URL, read once at start and again after every navigation. A navigation that arrives
             // without `chat` while the chat is open, and that the chat did not start, is followed by one
             // that puts it back, replacing the entry (ISC-444): one rule for every link in the shell and
@@ -819,17 +826,13 @@ export const ChatStore = signalStore(
             ),
         ];
     }),
-    // Work the page would lose by leaving, which holds an ended session's redirect (`UnsavedWork`): a
-    // turn still streaming, and a question the server never stored. The composer is emptied on send,
-    // so a question waiting on a renewal, or refused for want of a session, exists only here. A
-    // regeneration asks a question that is already stored. A root store, so tracked for the page's lifetime.
+    // A turn still streaming is work the page would lose by leaving: an ended session holds its
+    // redirect while one runs (`UnsavedWork`). A question the server never stored is not tracked
+    // here: it is kept in the tab's storage (`unsent-question.ts`) and comes back into the composer,
+    // on this page or after the sign-in. A root store, so tracked for the page's lifetime.
     withHooks({
         onInit(store) {
-            inject(UnsavedWork).track(() => {
-                const live = store.live();
-                const unstored = live !== null && live.turnId === null && live.replacesTurnId === null && live.question.trim() !== '';
-                return store.streaming() || unstored;
-            });
+            inject(UnsavedWork).track(store.streaming);
         },
     }),
 );

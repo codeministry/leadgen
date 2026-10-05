@@ -14,7 +14,7 @@ import {eventGroup} from '@ngrx/signals/events';
  * burst of failures is one event. `sessionAccepted` lifts the brake again: a request went through.
  * `issuerUnreachable` is the start finding no identity provider, and `signInFailed` a sign-in that went
  * nowhere: a code that came back and could not be exchanged, or a token lapsed on arrival, moments after
- * the last attempt, so a redirect would only bounce — or a browser that never left for the identity provider.
+ * the last attempt, so a redirect would only bounce — or a sign-in that could not start at all.
  */
 export const authEvents = eventGroup({
     source: 'Auth',
@@ -24,6 +24,8 @@ export const authEvents = eventGroup({
         sessionAccepted: type<void>(),
         issuerUnreachable: type<void>(),
         signInFailed: type<void>(),
+        /** A sign-in started a while ago and the page is still here: stopped, or failing quietly. */
+        signInStalled: type<void>(),
         /** A toast's "Sign in now" or "Try again": the person asks for the sign-in themselves. */
         signInRequested: type<void>(),
     },
