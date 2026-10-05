@@ -9,6 +9,11 @@ may change in any release. See the status note in the README.
 
 ## [Unreleased]
 
+## [0.5.3] — 2026-10-05
+
+A shortlist row swipes to the archive on a touch screen, and under `oidc` the session renews itself
+and ends without loops, blank pages or lost work. Nothing changes for an instance under `none`.
+
 ### Added
 
 - **Swiping a shortlist row to the archive.** On a touch screen, at every width, a row dragged to
@@ -38,6 +43,20 @@ may change in any release. See the status note in the README.
   application is never reset from a toast. The toast keeps an archive toast's six seconds; the
   bulk archive's count toast is unchanged. On a touch screen every toast now reads at the body
   size with finger-sized buttons.
+
+### Fixed
+
+- **A reload no longer reports an expired session.** The start waits while the browser leaves for the
+  identity provider, so no screen renders and no request goes out that would come back 401. A code
+  that cannot be exchanged goes straight back to the identity provider instead of leaving a dead app.
+- **No sign-in loop against a server that refuses a fresh token.** A 401 the API repeats within a
+  minute of a sign-in says "Signed in, but the server still refuses" and offers Sign in now instead of
+  redirecting again; only a successful request lifts it.
+- **A sign-in that does not open says so.** A navigation to the identity provider that was stopped
+  shows a line with Try again; at the start the page renders with it instead of staying blank.
+- **A chat question is not lost to the sign-in.** A question the server never stored comes back into
+  the composer, on the page or after the sign-in. Unsaved work holds the redirect, and the line says
+  that nothing can be saved until the person signs in again.
 
 ## [0.5.2] — 2026-09-30
 
@@ -1653,7 +1672,8 @@ Found while building the demo, all of them in paths only a container exercises:
   left six.
 - The shortlist card printed the description's Markdown syntax in its teaser.
 
-[Unreleased]: https://github.com/codeministry/leadgen/compare/v0.5.2...HEAD
+[Unreleased]: https://github.com/codeministry/leadgen/compare/v0.5.3...HEAD
+[0.5.3]: https://github.com/codeministry/leadgen/releases/tag/v0.5.3
 [0.5.2]: https://github.com/codeministry/leadgen/releases/tag/v0.5.2
 [0.5.1]: https://github.com/codeministry/leadgen/releases/tag/v0.5.1
 [0.5.0]: https://github.com/codeministry/leadgen/releases/tag/v0.5.0
