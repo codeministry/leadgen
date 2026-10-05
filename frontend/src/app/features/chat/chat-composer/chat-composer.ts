@@ -1,4 +1,4 @@
-import {ChangeDetectionStrategy, Component, computed, effect, ElementRef, inject, signal, viewChild} from '@angular/core';
+import {ChangeDetectionStrategy, Component, computed, effect, ElementRef, inject, signal, untracked, viewChild} from '@angular/core';
 import {takeUntilDestroyed} from '@angular/core/rxjs-interop';
 import {TranslocoPipe, TranslocoService} from '@jsverse/transloco';
 import {injectDispatch} from '@ngrx/signals/events';
@@ -8,6 +8,7 @@ import {ChatContextItem, MAX_PINNED_OFFERS, pinnedOfferCount, QUESTION_MAX_LENGT
 import {ShortlistEntry} from '@core/model/shortlist-entry';
 import {chatEvents} from '@core/store/chat.events';
 import {trackUnsavedWork} from '@core/unsaved/unsaved-work';
+import {forgetUnsent, keepUnsent, keptBeyondThePage, unsentQuestion} from '@core/unsaved/unsent-question';
 import {ChatStore} from '@core/store/chat.store';
 import {DayPipe} from '@shared/date/day.pipe';
 import {Icon} from '@shared/icon/icon';
@@ -47,6 +48,14 @@ const GROWS_ITSELF = typeof CSS !== 'undefined' && typeof CSS.supports === 'func
  * <p>**Enter sends, Shift+Enter breaks the line**, and Enter during an input method's composition
  * does neither: a Japanese or Chinese reader confirms a candidate with Enter, and that must not
  * post a half-typed question that costs a model call.
+ *
+ * <p>**A question the server never stored comes back.** The field is emptied on send, so the question
+ * is kept in the tab's storage (`unsent-question.ts`) until its `turn` event names it. Refused, timed
+ * out or broken off before that, it comes back into the composer that next takes a question — on this
+ * page once the stream is closed, or after the sign-in an ended session took the page through. Ahead
+ * of anything typed meanwhile, so neither is lost; into the conversation open then, which is still
+ * the person's to move. A merge longer than the server takes shows the counter over its limit and
+ * waits to be cut, as nothing typed is cut for the person. Emptying the field forgets it.
  *
  * <p>**Announced once, never per token.** The thread carries no `aria-live` and no `role="log"`,
  * either of which would read every chunk aloud. This region stays empty while a turn streams and
@@ -95,6 +104,8 @@ export class ChatComposer {
     protected readonly removable = computed(() => this.store.view() === 'new' || this.store.view() === 'conversation');
     protected readonly announcement = signal('');
     private announced: number | null = null;
+    /** The kept question this composer has put back, so it is put back once and not after every send. */
+    private restored: string | null = null;
 
     /** The offers pinned now; from eight on the chip row counts them against the ten (ISC-453). */
     protected readonly offerCount = computed(() => pinnedOfferCount(this.store.contextItems()));
@@ -118,8 +129,12 @@ export class ChatComposer {
     private readonly searches = new Subject<string>();
 
     constructor() {
-        // A question typed and not yet sent is lost by a redirect to the sign-in; it holds one.
-        trackUnsavedWork(() => this.draft().trim() !== '');
+        // A question typed and not yet sent is lost by a redirect to the sign-in; it holds one. Not the
+        // kept question put back here: it outlives the redirect and comes back after the sign-in.
+        trackUnsavedWork(() => {
+            const draft = this.draft().trim();
+            return draft !== '' && !keptBeyondThePage(draft);
+        });
         this.searches
             .pipe(
                 debounceTime(MENTION_DEBOUNCE_MS),
@@ -139,6 +154,20 @@ export class ChatComposer {
             });
 
         effect(() => {
+            if (!this.store.takesQuestion()) return;
+            untracked(() => {
+                const question = unsentQuestion();
+                if (question === null || question === this.restored) return;
+                this.restored = question;
+                // A field that still holds the question — refused before the send let it go — keeps it
+                // once. What was typed meanwhile is kept as typed, trailing space and all.
+                const draft = this.draft();
+                const kept = draft.trim() === '' || draft.trim() === question;
+                this.setDraft(kept ? question : `${question}\n\n${draft}`);
+            });
+        });
+
+        effect(() => {
             const live = this.store.live();
             if (live === null) return;
             if (live.state === 'STREAMING') {
@@ -153,6 +182,10 @@ export class ChatComposer {
     protected onInput(event: Event): void {
         const field = event.target as HTMLTextAreaElement;
         this.draft.set(field.value);
+        if (this.restored !== null && field.value.trim() === '') {
+            forgetUnsent(this.restored);
+            this.restored = null;
+        }
         this.grow(field);
         this.findMention(field);
     }
@@ -182,10 +215,16 @@ export class ChatComposer {
         if (!questionFits(question) || !this.store.takesQuestion()) return;
         this.dispatch.asked(question);
         if (this.store.live()?.question !== question || !this.store.streamOpen()) return;
-        this.draft.set('');
+        this.setDraft('');
+        keepUnsent(question);
+        this.restored = null;
+    }
+
+    private setDraft(text: string): void {
+        this.draft.set(text);
         const field = this.input()?.nativeElement;
         if (field) {
-            field.value = '';
+            field.value = text;
             this.grow(field);
         }
     }
@@ -211,14 +250,8 @@ export class ChatComposer {
         this.dispatch.contextPinned({kind: 'OFFER', offerId: entry.offer.id});
         if (mention === null || this.store.contextRefused()) return;
         const draft = this.draft();
-        const next = draft.slice(0, mention.start) + draft.slice(mention.start + 1 + mention.query.length);
-        this.draft.set(next);
-        const field = this.input()?.nativeElement;
-        if (field) {
-            field.value = next;
-            field.setSelectionRange(mention.start, mention.start);
-            this.grow(field);
-        }
+        this.setDraft(draft.slice(0, mention.start) + draft.slice(mention.start + 1 + mention.query.length));
+        this.input()?.nativeElement.setSelectionRange(mention.start, mention.start);
     }
 
     /** ↑/↓ move, Enter or Tab pick, Escape closes and keeps the typed text; anything else types on. */

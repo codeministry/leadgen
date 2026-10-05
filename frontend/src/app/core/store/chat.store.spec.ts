@@ -8,6 +8,8 @@ import {Subject, throwError} from 'rxjs';
 import {ChatApi} from '@core/api/chat.api';
 import {RECORDED_TURN, replayTurn} from '@core/api/chat-stub';
 import {ChatEvent, ConversationView} from '@core/model/chat';
+import {UnsavedWork} from '@core/unsaved/unsaved-work';
+import {keepUnsent, unsentQuestion} from '@core/unsaved/unsent-question';
 import {chatEvents} from './chat.events';
 import {ChatStore} from './chat.store';
 
@@ -325,6 +327,43 @@ describe('ChatStore', () => {
 
         await vi.waitFor(() => expect(store.live()?.state).toBe('INCOMPLETE'));
         expect(store.live()?.failure).toBe('no chat model is configured');
+    });
+
+    it('counts a turn as unsaved work while it streams, and forgets the kept question once the server names it (spec 024, code review 11)', async () => {
+        // The composer is emptied on send, so a question waiting on a renewal exists only in the
+        // live turn: a redirect would take it along. Once the server named the turn it is stored.
+        await open(4);
+        const stream = new Subject<ChatEvent>();
+        vi.spyOn(api, 'ask').mockReturnValue(stream);
+        const unsaved = TestBed.inject(UnsavedWork);
+
+        keepUnsent('What came in?');
+        dispatch.asked('What came in?');
+        expect(store.streaming()).toBe(true);
+        expect(unsaved.any()).toBe(true);
+
+        stream.next({event: 'turn', data: {turnId: 7}});
+        // Named, so stored: the composer has nothing to bring back.
+        expect(unsentQuestion()).toBeNull();
+        expect(unsaved.any()).toBe(true);
+
+        stream.next({event: 'done', data: {state: 'DONE'}});
+        stream.complete();
+        expect(unsaved.any()).toBe(false);
+    });
+
+    it('a refused question holds nothing here once its stream ends: the tab keeps it for the composer (code review 11)', async () => {
+        await open(4);
+        const stream = new Subject<ChatEvent>();
+        vi.spyOn(api, 'ask').mockReturnValue(stream);
+        const unsaved = TestBed.inject(UnsavedWork);
+
+        dispatch.asked('What came in?');
+        stream.error(new HttpErrorResponse({status: 401, statusText: 'Session ended'}));
+
+        await vi.waitFor(() => expect(store.streaming()).toBe(false));
+        expect(store.live()?.question).toBe('What came in?');
+        expect(unsaved.any()).toBe(false);
     });
 
     it('asks the server to stop the live turn and lets the stream say how it ended', async () => {

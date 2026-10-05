@@ -1,7 +1,6 @@
-import {HttpErrorResponse, HttpInterceptorFn, HttpRequest, HttpStatusCode} from '@angular/common/http';
+import {HttpInterceptorFn} from '@angular/common/http';
 import {inject} from '@angular/core';
-import {catchError, defer, Observable, switchMap, tap, throwError} from 'rxjs';
-import {AuthService, SessionEnded} from './auth.service';
+import {AuthService} from './auth.service';
 
 /**
  * Adds the bearer, and only where it belongs.
@@ -14,14 +13,10 @@ import {AuthService, SessionEnded} from './auth.service';
  * this existed. **`/api/v1/auth-config` passes untouched too**: it answers without a token by
  * design, and it is the request that decides the mode in the first place.
  *
- * <p>**Under `oidc` nothing goes out without the bearer.** A valid token is attached at once; a
- * lapsed one (a laptop that slept through the renewal) is renewed first and the request waits
- * for it (`AuthService.bearer`). When no token can be had the request is not sent at all: it
- * fails as a 401 here, and the ended session is already reported.
- *
- * <p>**Whether an answer ended the session is `AuthService.refused`'s call**, the one rule this
- * interceptor and the chat stream share. The error still reaches the caller; the screen reports
- * its own failure the way it always did.
+ * <p>**Under `oidc` the request goes through `AuthService.call`**, the one path it shares with
+ * the chat stream: a lapsed token is renewed first, a 401 gets one renewal and one replay, and
+ * nothing goes out without the bearer. The error still reaches the caller; the screen reports its
+ * own failure the way it always did.
  */
 const AUTH_CONFIG = '/api/v1/auth-config';
 
@@ -33,27 +28,5 @@ export const bearerInterceptor: HttpInterceptorFn = (request, next) => {
     if (!auth.isOidc()) {
         return next(request);
     }
-    const send = (token: string) =>
-        next(request.clone({setHeaders: {Authorization: `Bearer ${token}`}})).pipe(
-            tap({
-                error: (error: unknown) => {
-                    if (error instanceof HttpErrorResponse) auth.refused(error.status, true);
-                },
-            }),
-        );
-    const token = auth.token();
-    if (token !== null) {
-        return send(token);
-    }
-    return defer(() => auth.bearer()).pipe(
-        catchError((error: unknown) => (error instanceof SessionEnded ? notSent(request) : throwError(() => error))),
-        switchMap(send),
-    );
+    return auth.call(request.url, (token) => next(request.clone({setHeaders: {Authorization: `Bearer ${token}`}})));
 };
-
-/** The 401 a request fails with when the session ended before it could be sent. */
-function notSent(request: HttpRequest<unknown>): Observable<never> {
-    return throwError(
-        () => new HttpErrorResponse({status: HttpStatusCode.Unauthorized, statusText: 'Session ended', url: request.url}),
-    );
-}

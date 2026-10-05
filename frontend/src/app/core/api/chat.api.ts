@@ -1,8 +1,8 @@
 import {HttpClient, HttpErrorResponse} from '@angular/common/http';
 import {inject, Injectable, Injector} from '@angular/core';
 import {createParser, EventSourceMessage} from 'eventsource-parser';
-import {Observable} from 'rxjs';
-import {AuthService, SessionEnded} from '@core/auth/auth.service';
+import {defer, lastValueFrom, Observable} from 'rxjs';
+import {AuthService} from '@core/auth/auth.service';
 import {
     BulkDeleted,
     ChatCapability,
@@ -31,10 +31,10 @@ const EVENT_NAMES: ReadonlySet<string> = new Set<keyof ChatEventMap>(['turn', 's
  * `eventsource-parser`, pinned in `package.json` — the one SSE client of ISC-435. Everything
  * else goes through `HttpClient` like every other API here.
  *
- * <p>**`fetch` passes no interceptor, so the bearer is added here** from the same
- * `AuthService.bearer()` that `bearerInterceptor` falls back to — renewed first when it lapsed —
- * and a refusal goes to the same `AuthService.refused` rule. The interceptor's same-origin rule
- * holds without restating it: every URL this class builds starts with `/api/`.
+ * <p>**`fetch` passes no interceptor, so the POST goes through `AuthService.call`** like every
+ * request `bearerInterceptor` handles: the same renewal, the same one replay after a 401, and no
+ * turn sent without the bearer. The interceptor's same-origin rule holds without restating it:
+ * every URL this class builds starts with `/api/`.
  */
 @Injectable({providedIn: 'root'})
 export class ChatApi {
@@ -141,25 +141,21 @@ export class ChatApi {
             const headers: Record<string, string> = {Accept: 'text/event-stream', 'Content-Type': 'application/json'};
             const auth = this.injector.get(AuthService);
 
-            const read = async (): Promise<void> => {
-                // As `bearerInterceptor` does: under oidc a lapsed token is renewed first, and a turn
-                // with no token to be had is never sent anonymously (ISC-503).
-                let token: string | null = null;
-                if (auth.isOidc()) {
-                    try {
-                        token = await auth.bearer();
-                    } catch (error) {
-                        if (!(error instanceof SessionEnded)) throw error;
-                        throw new HttpErrorResponse({status: 401, statusText: 'Session ended', url});
-                    }
-                    headers['Authorization'] = `Bearer ${token}`;
+            const post = async (token: string | null): Promise<Response> => {
+                const sent = token === null ? headers : {...headers, Authorization: `Bearer ${token}`};
+                const response = await fetch(url, {method: 'POST', headers: sent, body: JSON.stringify(body), signal: abort.signal});
+                if (!response.ok) {
+                    throw new HttpErrorResponse({error: await refusal(response), status: response.status, statusText: response.statusText, url});
                 }
-                const response = await fetch(url, {method: 'POST', headers, body: JSON.stringify(body), signal: abort.signal});
-                if (!response.ok || response.body === null) {
-                    // The stream bypasses `bearerInterceptor`, so it hands its refusal to the same rule.
-                    if (!response.ok) auth.refused(response.status, token !== null);
-                    const error = response.ok ? null : await refusal(response);
-                    throw new HttpErrorResponse({error, status: response.status, statusText: response.statusText, url});
+                return response;
+            };
+
+            const read = async (): Promise<void> => {
+                const response = await lastValueFrom(
+                    auth.isOidc() ? auth.call(url, (token) => defer(() => post(token))) : defer(() => post(null)),
+                );
+                if (response.body === null) {
+                    throw new HttpErrorResponse({status: response.status, statusText: response.statusText, url});
                 }
                 const reader = response.body.getReader();
                 // `stream: true` holds back a character cut between two chunks until its last byte arrives.

@@ -56,8 +56,9 @@ export interface Toast {
     readonly action?: ToastAction;
     /**
      * The one exemption from the timer: the toast stands until the person closes it, takes its
-     * action, or the cap pushes it out. Only the update store's reload sets it — an offer that
-     * vanished while somebody read it is the offer never made. The archive toast's Restore does
+     * action, or the cap pushes it out — and the cap takes every passing line first. The update
+     * store's reload sets it, because an offer that vanished while somebody read it is the offer
+     * never made, and so do the sign-in lines that wait for the person. The archive toast's Restore does
      * not: the permanent way back is the archive view, and a warning that never leaves would
      * crowd the corner after a few swipes.
      */
