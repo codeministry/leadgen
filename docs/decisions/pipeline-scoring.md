@@ -397,7 +397,14 @@ before the stage stops waiting for it.
   check, date window and weight-table clamp the stage applies — so the script compares objects
   of one shape, and `raw` keeps the unparsed reply beside it, because a smaller model's
   malformed answer is exactly what a measurement has to see. An unreadable reply becomes the
-  empty shape and counts as a disagreement.
+  empty shape and counts as a disagreement. The script's `unreadable` column counts every empty
+  shape with a reply behind it, so an empty answer stated on purpose is in it too: an upper bound,
+  read beside the agreement. Telling the two apart needs the reader's own verdict from the server.
+- **A run of hours signs in as a client.** Against an `oidc` instance an access token lives
+  minutes, so the script takes the client-credentials grant the ingest CronJob uses
+  (`LEADGEN_TOKEN_URL`, `LEADGEN_CLIENT_ID`, `LEADGEN_CLIENT_SECRET`), signs in before the first
+  call, renews at half the token's life or a minute before it lapses, whichever is later, and asks
+  once more when the API refuses a token early.
 - **The fields question gets the patterns' reading, not the row's.** The stage hands the
   model what enrichment's patterns read and then overwrites those columns with its own answer;
   passing the row as it is now would put the incumbent's answer inside the question, and the

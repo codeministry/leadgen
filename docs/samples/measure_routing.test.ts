@@ -13,7 +13,7 @@
 
 import { afterEach, describe, expect, test } from "bun:test";
 import { join } from "node:path";
-import { clientCredentials, parseArgs, readable, render, RENEW_BEFORE_MS, run, type Question } from "./measure_routing";
+import { clientCredentials, DEFAULT_LIFETIME_MS, parseArgs, render, RENEW_BEFORE_MS, run, type Question } from "./measure_routing";
 
 const KINDS = ["CONTENT", "CHROME", "FORM", "TAXONOMY", "AGENCY", "LEGAL"];
 const FACTORS = ["role_fit", "stack_mismatch_dominant", "role_mismatch", "vague_description"];
@@ -79,8 +79,8 @@ function stub(
     unreadable?: { id: number; question: Question };
     /** Stored blocks: ten per advert, nine CONTENT and one CHROME. */
     contentHeavy?: boolean;
-    /** This advert and question: strong states the empty shape, as JSON a reader can parse. */
-    statedEmpty?: { id: number; question: Question };
+    /** A bearer the API refuses with 401, as it would one revoked before its expiry. */
+    refuseToken?: string;
   } = {},
 ): Stub {
   let calls = 0;
@@ -90,6 +90,9 @@ function stub(
       const url = new URL(request.url);
       const match = url.pathname.match(/^\/api\/v1\/offers\/(\d+)\/answer$/);
       if (request.method !== "POST" || !match) return new Response("not found", { status: 404 });
+      if (opts.refuseToken && request.headers.get("authorization") === `Bearer ${opts.refuseToken}`) {
+        return new Response(null, { status: 401 });
+      }
       calls += 1;
       const id = Number(match[1]);
       const question = url.searchParams.get("question") as Question;
@@ -117,11 +120,6 @@ function stub(
           : model === "weak" && id % 2 === 1
             ? wrong(question, id)
             : stored(question, id, heavy);
-      const stated = model === "strong" && opts.statedEmpty?.id === id && opts.statedEmpty.question === question;
-      if (stated) {
-        const answer = empty(question, id, heavy);
-        return Response.json({ question, model, answer, stored: stored(question, id, heavy), raw: JSON.stringify(answer), millis: 100 });
-      }
       const raw = garbled ? "I cannot tell from this advert." : "{}";
       // strong: 100..119 ms, weak: 200..219 ms, by the advert's position in the sample.
       const millis = silent ? 900_000 : (model === "weak" ? 200 : 100) + (id - 101);
@@ -416,7 +414,8 @@ describe("measure_routing — signing in for a long run", () => {
     const report = await run({ ...options(server.url), bearer: async () => `token-${++asked}` });
 
     expect(report.stoppedOnError).toBe(false);
-    expect(asked).toBe(server.calls());
+    // Once to sign in before the first call, then once per call.
+    expect(asked).toBe(server.calls() + 1);
   });
 
   test("a grant refused before the first call stops the run with the realm's sentence and no table", async () => {
@@ -424,8 +423,11 @@ describe("measure_routing — signing in for a long run", () => {
     const tokens = realm(300, true);
     try {
       const bearer = clientCredentials({ tokenUrl: tokens.url, clientId: "leadgen-ingest", clientSecret: "wrong" });
-      await expect(run({ ...options(server.url), bearer })).rejects.toThrow("HTTP 401");
+      const progress: string[] = [];
+      await expect(run({ ...options(server.url), bearer, progress: (line) => progress.push(line) })).rejects.toThrow("HTTP 401");
       expect(server.calls()).toBe(0);
+      // Nothing that reads as if an advert had been asked.
+      expect(progress).toEqual([]);
     } finally {
       tokens.stop();
     }
@@ -440,7 +442,7 @@ describe("measure_routing — signing in for a long run", () => {
       const report = await run({
         ...options(server.url),
         bearer: async () => {
-          if (++granted > 5) throw new Error(`token from ${tokens.url}: HTTP 401 unauthorized_client`);
+          if (++granted > 6) throw new Error(`token from ${tokens.url}: HTTP 401 unauthorized_client`);
           return good();
         },
       });
@@ -467,20 +469,60 @@ describe("measure_routing — signing in for a long run", () => {
   });
 });
 
-describe("measure_routing — what counts as unreadable", () => {
-  test("an empty shape the model stated as JSON is an answer, not an unreadable reply", async () => {
-    server = stub({ statedEmpty: { id: 104, question: "fields" } });
-    const report = await run({ ...options(server.url), models: ["strong", "silent"], questions: ["fields"] });
-
-    expect(report.tables.fields[0].parts.unreadable).toBe(0);
-    expect(report.tables.fields[1].parts.unreadable).toBe(20);
+describe("measure_routing — a token the run can live with", () => {
+  test("a short-lived token is renewed at half its life, not before every call", async () => {
+    const tokens = realm(40);
+    let clock = 0;
+    const bearer = clientCredentials({ tokenUrl: tokens.url, clientId: "c", clientSecret: "s" }, () => clock);
+    try {
+      await bearer();
+      clock = 19_999;
+      await bearer();
+      expect(tokens.grants).toHaveLength(1);
+      clock = 20_000;
+      await bearer();
+      expect(tokens.grants).toHaveLength(2);
+    } finally {
+      tokens.stop();
+    }
   });
 
-  test("a stated empty shape is an answer, prose or a broken object is not", () => {
-    expect(readable('{"blocks":[]}')).toBe(true);
-    expect(readable('<think>every block is the advert</think>\n{"blocks":[]}')).toBe(true);
-    expect(readable('Here you go:\n```json\n{"start":null}\n```')).toBe(true);
-    expect(readable("I cannot tell from this advert.")).toBe(false);
-    expect(readable('{"blocks":[{"index":0,')).toBe(false);
+  test("a realm that names no lifetime is taken to give one minute", async () => {
+    const grants: number[] = [];
+    const server = Bun.serve({ port: 0, fetch: () => (grants.push(1), Response.json({ access_token: "t" })) });
+    let clock = 0;
+    const bearer = clientCredentials({ tokenUrl: `http://localhost:${server.port}`, clientId: "c", clientSecret: "s" }, () => clock);
+    try {
+      await bearer();
+      clock = DEFAULT_LIFETIME_MS / 2 - 1;
+      await bearer();
+      expect(grants).toHaveLength(1);
+    } finally {
+      server.stop(true);
+    }
+  });
+
+  test("a token the API refuses before its time is asked for again once, and the run goes on", async () => {
+    server = stub({ refuseToken: "token-1" });
+    const tokens = realm(900);
+    try {
+      const report = await run({
+        ...options(server.url),
+        bearer: clientCredentials({ tokenUrl: tokens.url, clientId: "c", clientSecret: "s" }),
+      });
+      expect(report.stoppedOnError).toBe(false);
+      expect(tokens.grants).toHaveLength(2);
+      expect(report.tables.blocks[0].n).toBe(20);
+    } finally {
+      tokens.stop();
+    }
+  });
+
+  test("a fixed token beside part of a client names the conflict; an empty one beside a whole client is no token", () => {
+    const argv = ["--models=strong", ...IDS.map(String)];
+    expect(() => parseArgs(argv, { LEADGEN_TOKEN: "t", LEADGEN_TOKEN_URL: "http://realm/token" })).toThrow("not both");
+    const whole = { LEADGEN_TOKEN_URL: "http://realm/token", LEADGEN_CLIENT_ID: "c", LEADGEN_CLIENT_SECRET: "s", LEADGEN_TOKEN: "" };
+    expect(parseArgs(argv, whole).token).toBeUndefined();
+    expect(parseArgs(argv, whole).bearer).toBeDefined();
   });
 });

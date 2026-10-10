@@ -12,8 +12,9 @@
 // each judge factor gives (judge). For adverts the current configuration already answered, this
 // script asks each candidate the same question again and compares the answer with the stored
 // one. It prints one table per question, one row per candidate: how many adverts were compared,
-// the agreement, the parts behind it, how many calls brought no answer and how many brought a
-// reply nobody could read, p50 and p95 latency, and a verdict.
+// the agreement, the parts behind it, how many calls brought no answer and how many came back as
+// the empty shape with a reply behind it — unreadable, or an empty answer stated on purpose, which
+// look the same from here: an upper bound —, p50 and p95 latency, and a verdict.
 //
 // Agreement is built so that saying nothing cannot win it. Most blocks are the advert, most
 // fields are not stated and most factors give 0 points, so a plain share of equal answers would
@@ -93,15 +94,21 @@ type Answered = { answer: unknown; stored: unknown; raw?: string | null; millis:
 /** The client-credentials grant a long run signs in with (LEADGEN_TOKEN_URL, _CLIENT_ID, _CLIENT_SECRET). */
 export type ClientCredentials = { tokenUrl: string; clientId: string; clientSecret: string };
 
-/** How long before its expiry a token counts as lapsed: one call's flight, generously. */
+/**
+ * The latest a token is renewed before it expires: one call's flight, generously. For a token
+ * living two minutes or less, half its life comes later and decides instead (`clientCredentials`).
+ */
 export const RENEW_BEFORE_MS = 60_000;
+
+/** The lifetime assumed when the realm names none. */
+export const DEFAULT_LIFETIME_MS = 60_000;
 
 export type Options = {
   api: string;
   /** A fixed bearer; only for a run shorter than the token's life. */
   token?: string;
-  /** The bearer for the next call, renewed as it lapses; wins over `token`. */
-  bearer?: () => Promise<string>;
+  /** The bearer for the next call, renewed as it lapses, or at once with `fresh`; wins over `token`. */
+  bearer?: (fresh?: boolean) => Promise<string>;
   ids: number[];
   models: string[];
   questions: Question[];
@@ -262,23 +269,6 @@ function isEmpty(question: Question, answer: unknown): boolean {
   }
 }
 
-/**
- * Whether a reply holds a JSON object the server could read: the outermost braces, as
- * `Answers.objectIn` takes them, parse. An empty shape with a readable reply is an answer — "every
- * block is the advert" is often right — and only one without counts as unreadable.
- */
-export function readable(raw: string): boolean {
-  const start = raw.indexOf("{");
-  const end = raw.lastIndexOf("}");
-  if (start < 0 || end <= start) return false;
-  try {
-    JSON.parse(raw.slice(start, end + 1));
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 function verdictOf(n: number, agreement: number, floor: number): Row["verdict"] {
   if (n < MIN_SAMPLE) return "too few";
   if (Number.isNaN(agreement)) return "no data";
@@ -287,15 +277,12 @@ function verdictOf(n: number, agreement: number, floor: number): Row["verdict"] 
 
 function row(question: Question, candidate: string, answered: Answered[], skipped: number, floor: number): Row {
   const unanswered = answered.filter((a) => a.answer == null).length;
-  // The server parses an unreadable reply into the empty shape and keeps the reply in raw; an
-  // empty shape the model actually stated is no failure, so the reply itself is read again.
+  // The server parses an unreadable reply into the empty shape and keeps the reply in raw. The
+  // count is an upper bound: an empty shape the model stated on purpose ("every block is the
+  // advert" is often right) looks the same from here, and only the stage's own reader could tell
+  // the two apart. Read the column beside the agreement, never on its own.
   const unreadable = answered.filter(
-    (a) =>
-      a.answer != null &&
-      isEmpty(question, a.answer) &&
-      typeof a.raw === "string" &&
-      a.raw.trim() !== "" &&
-      !readable(a.raw),
+    (a) => a.answer != null && isEmpty(question, a.answer) && typeof a.raw === "string" && a.raw.trim() !== "",
   ).length;
   const answers = answered.map((a) => (a.answer == null ? { ...a, answer: NOTHING[question] } : a));
   const scored = SCORE[question](answers);
@@ -341,15 +328,20 @@ async function detail(response: Response): Promise<string> {
 }
 
 /**
- * A bearer source that signs in with the client-credentials grant and keeps the token until
- * `RENEW_BEFORE_MS` before it expires, then asks again. One request at a time, as the run makes
- * its calls in sequence. A refused grant throws, which ends the run like any other error.
+ * A bearer source that signs in with the client-credentials grant and keeps the token until it
+ * is due: at half its lifetime, or `RENEW_BEFORE_MS` before it expires, whichever is later — so
+ * a token living a minute or less is not fetched again for every call. `fresh` asks at once,
+ * for a token the API refused before its time. One request at a time, as the run makes its calls
+ * in sequence. A refused grant throws, which ends the run like any other error.
  */
-export function clientCredentials(grant: ClientCredentials, now: () => number = Date.now): () => Promise<string> {
+export function clientCredentials(
+  grant: ClientCredentials,
+  now: () => number = Date.now,
+): (fresh?: boolean) => Promise<string> {
   let token: string | null = null;
-  let expiresAt = 0;
-  return async () => {
-    if (token !== null && now() < expiresAt - RENEW_BEFORE_MS) return token;
+  let renewAt = 0;
+  return async (fresh = false) => {
+    if (!fresh && token !== null && now() < renewAt) return token;
     let response: Response;
     try {
       response = await fetch(grant.tokenUrl, {
@@ -368,7 +360,8 @@ export function clientCredentials(grant: ClientCredentials, now: () => number = 
     const body = (await response.json()) as { access_token?: string; expires_in?: number };
     if (!body.access_token) throw new Error(`token from ${grant.tokenUrl}: no access_token in the answer`);
     token = body.access_token;
-    expiresAt = now() + (body.expires_in ?? 0) * 1000;
+    const lifetime = body.expires_in !== undefined && body.expires_in > 0 ? body.expires_in * 1000 : DEFAULT_LIFETIME_MS;
+    renewAt = now() + Math.max(lifetime / 2, lifetime - RENEW_BEFORE_MS);
     return token;
   };
 }
@@ -376,15 +369,23 @@ export function clientCredentials(grant: ClientCredentials, now: () => number = 
 /** One call; null when the advert is to be skipped for this question. */
 async function ask(options: Options, id: number, question: Question, model: string): Promise<Answered | null> {
   const url = `${options.api.replace(/\/$/, "")}/api/v1/offers/${id}/answer?question=${question}&model=${encodeURIComponent(model)}`;
-  const token = options.bearer ? await options.bearer() : options.token;
-  let response: Response;
-  try {
-    response = await fetch(url, {
-      method: "POST",
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    });
-  } catch (error) {
-    throw new Error(`offer ${id}, ${question}, ${model}: ${(error as Error).message}`);
+  const send = async (fresh: boolean) => {
+    const token = options.bearer ? await options.bearer(fresh) : options.token;
+    try {
+      return await fetch(url, {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+    } catch (error) {
+      throw new Error(`offer ${id}, ${question}, ${model}: ${(error as Error).message}`);
+    }
+  };
+  let response = await send(false);
+  // A token the API refuses before its own expiry — a skewed clock, a revoked session — is asked
+  // for again once, rather than ending a run of hours. A second 401 is the API's real answer.
+  if (response.status === 401 && options.bearer) {
+    await response.body?.cancel();
+    response = await send(true);
   }
   if (response.ok) return (await response.json()) as Answered;
   if (response.status === 404 || response.status === 409) return null;
@@ -402,6 +403,9 @@ export async function run(options: Options): Promise<Report> {
     );
   }
   if (options.models.length === 0) throw new Error("no candidate: pass --models=<a>,<b>.");
+  // Signed in before the first call is announced, so a wrong secret ends the run with nothing
+  // that reads as if an advert had been asked.
+  if (options.bearer) await options.bearer();
   const report: Report = {
     floor: options.floor,
     tables: { blocks: [], fields: [], judge: [] },
@@ -519,17 +523,17 @@ export function parseArgs(argv: string[], env: Record<string, string | undefined
   }
   const floor = Number(flags.get("floor") ?? DEFAULT_FLOOR);
   if (!(floor >= 0 && floor <= 1)) throw new Error(`--floor must be between 0 and 1, got "${flags.get("floor")}"`);
-  const client = [env.LEADGEN_TOKEN_URL, env.LEADGEN_CLIENT_ID, env.LEADGEN_CLIENT_SECRET];
-  const named = client.filter((value) => value !== undefined && value !== "").length;
+  const set = (value: string | undefined) => value !== undefined && value !== "";
+  const named = [env.LEADGEN_TOKEN_URL, env.LEADGEN_CLIENT_ID, env.LEADGEN_CLIENT_SECRET].filter(set).length;
+  if (named > 0 && set(env.LEADGEN_TOKEN)) {
+    throw new Error("set LEADGEN_TOKEN or the client to sign in as, not both.");
+  }
   if (named > 0 && named < 3) {
     throw new Error("to sign in as a client, set all three: LEADGEN_TOKEN_URL, LEADGEN_CLIENT_ID, LEADGEN_CLIENT_SECRET.");
   }
-  if (named === 3 && env.LEADGEN_TOKEN) {
-    throw new Error("set LEADGEN_TOKEN or the client to sign in as, not both.");
-  }
   return {
     api: env.LEADGEN_API ?? "http://localhost:8080",
-    token: env.LEADGEN_TOKEN,
+    token: set(env.LEADGEN_TOKEN) ? env.LEADGEN_TOKEN : undefined,
     bearer:
       named === 3
         ? clientCredentials({
