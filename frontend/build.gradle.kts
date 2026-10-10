@@ -69,5 +69,16 @@ val buildFrontend by tasks.registering(Exec::class) {
 }
 
 tasks.named("check") { dependsOn(lint, test, testBrowser) }
+
+/**
+ * The three suites that measure time take turns: the backend's Testcontainers suite, then the
+ * unit tier, then the browser tier. Under `org.gradle.parallel` they ran side by side, and each
+ * starved the others into failing on a clock rather than on a bug — a chat stream that ended
+ * without `done`, a browser run aborted mid-import, a Chromium session that never connected
+ * (measured 2026-10-10: two full builds red on two different tests, the backend suite alone green
+ * every time). Lint and the production build still run beside them; they wait on nothing.
+ */
+test { mustRunAfter(":backend:test") }
+testBrowser { mustRunAfter(":backend:test", test) }
 tasks.named("assemble") { dependsOn(buildFrontend) }
 tasks.named<Delete>("clean") { delete(frontendDir.dir("dist"), frontendDir.dir(".angular")) }
