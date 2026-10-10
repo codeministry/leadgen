@@ -13,7 +13,7 @@
 
 import { afterEach, describe, expect, test } from "bun:test";
 import { join } from "node:path";
-import { render, run, type Question } from "./measure_routing";
+import { clientCredentials, DEFAULT_LIFETIME_MS, parseArgs, render, RENEW_BEFORE_MS, run, type Question } from "./measure_routing";
 
 const KINDS = ["CONTENT", "CHROME", "FORM", "TAXONOMY", "AGENCY", "LEGAL"];
 const FACTORS = ["role_fit", "stack_mismatch_dominant", "role_mismatch", "vague_description"];
@@ -79,6 +79,8 @@ function stub(
     unreadable?: { id: number; question: Question };
     /** Stored blocks: ten per advert, nine CONTENT and one CHROME. */
     contentHeavy?: boolean;
+    /** A bearer the API refuses with 401, as it would one revoked before its expiry. */
+    refuseToken?: string;
   } = {},
 ): Stub {
   let calls = 0;
@@ -88,6 +90,9 @@ function stub(
       const url = new URL(request.url);
       const match = url.pathname.match(/^\/api\/v1\/offers\/(\d+)\/answer$/);
       if (request.method !== "POST" || !match) return new Response("not found", { status: 404 });
+      if (opts.refuseToken && request.headers.get("authorization") === `Bearer ${opts.refuseToken}`) {
+        return new Response(null, { status: 401 });
+      }
       calls += 1;
       const id = Number(match[1]);
       const question = url.searchParams.get("question") as Question;
@@ -363,5 +368,161 @@ describe("measure_routing", () => {
     expect(await cli.exited).toBe(1);
     expect(await new Response(cli.stdout).text()).toContain("p50 ms");
     expect(await new Response(cli.stderr).text()).toContain("HTTP 500 the model runtime did not answer");
+  });
+});
+
+/** A realm's token endpoint that hands out numbered tokens living `lifetime` seconds, or refuses. */
+function realm(lifetime: number, refuse = false) {
+  const grants: URLSearchParams[] = [];
+  const server = Bun.serve({
+    port: 0,
+    async fetch(request) {
+      grants.push(new URLSearchParams(await request.text()));
+      if (refuse) return Response.json({ error: "unauthorized_client" }, { status: 401 });
+      return Response.json({ access_token: `token-${grants.length}`, expires_in: lifetime });
+    },
+  });
+  return { url: `http://localhost:${server.port}/token`, grants, stop: () => server.stop(true) };
+}
+
+describe("measure_routing — signing in for a long run", () => {
+  test("a client-credentials token is kept until a minute before it lapses, then asked for again", async () => {
+    const tokens = realm(300);
+    let clock = 0;
+    const bearer = clientCredentials({ tokenUrl: tokens.url, clientId: "leadgen-ingest", clientSecret: "s3cret" }, () => clock);
+    try {
+      expect(await bearer()).toBe("token-1");
+      clock = 300_000 - RENEW_BEFORE_MS - 1;
+      expect(await bearer()).toBe("token-1");
+      clock = 300_000 - RENEW_BEFORE_MS;
+      expect(await bearer()).toBe("token-2");
+
+      expect(tokens.grants).toHaveLength(2);
+      expect(Object.fromEntries(tokens.grants[0])).toEqual({
+        grant_type: "client_credentials",
+        client_id: "leadgen-ingest",
+        client_secret: "s3cret",
+      });
+    } finally {
+      tokens.stop();
+    }
+  });
+
+  test("every call asks the bearer source, so a token renewed mid-run is the one sent", async () => {
+    server = stub();
+    let asked = 0;
+    const report = await run({ ...options(server.url), bearer: async () => `token-${++asked}` });
+
+    expect(report.stoppedOnError).toBe(false);
+    // Once to sign in before the first call, then once per call.
+    expect(asked).toBe(server.calls() + 1);
+  });
+
+  test("a grant refused before the first call stops the run with the realm's sentence and no table", async () => {
+    server = stub();
+    const tokens = realm(300, true);
+    try {
+      const bearer = clientCredentials({ tokenUrl: tokens.url, clientId: "leadgen-ingest", clientSecret: "wrong" });
+      const progress: string[] = [];
+      await expect(run({ ...options(server.url), bearer, progress: (line) => progress.push(line) })).rejects.toThrow("HTTP 401");
+      expect(server.calls()).toBe(0);
+      // Nothing that reads as if an advert had been asked.
+      expect(progress).toEqual([]);
+    } finally {
+      tokens.stop();
+    }
+  });
+
+  test("a grant refused mid-run ends it like any other error: what was measured, then the sentence", async () => {
+    server = stub();
+    const tokens = realm(300);
+    let granted = 0;
+    const good = clientCredentials({ tokenUrl: tokens.url, clientId: "leadgen-ingest", clientSecret: "s" });
+    try {
+      const report = await run({
+        ...options(server.url),
+        bearer: async () => {
+          if (++granted > 6) throw new Error(`token from ${tokens.url}: HTTP 401 unauthorized_client`);
+          return good();
+        },
+      });
+      expect(report.stoppedOnError).toBe(true);
+      expect(report.stopReason).toContain("HTTP 401");
+      expect(report.tables.blocks[0].n).toBe(5);
+    } finally {
+      tokens.stop();
+    }
+  });
+
+  test("the client comes from three variables, all or none, and never beside a fixed token", () => {
+    const client = { LEADGEN_TOKEN_URL: "http://realm/token", LEADGEN_CLIENT_ID: "leadgen-ingest", LEADGEN_CLIENT_SECRET: "s" };
+    const argv = ["--models=strong", ...IDS.map(String)];
+
+    const signedIn = parseArgs(argv, client);
+    expect(signedIn.bearer).toBeDefined();
+    expect(signedIn.token).toBeUndefined();
+    expect(parseArgs(argv, { LEADGEN_TOKEN: "t" }).bearer).toBeUndefined();
+    expect(() => parseArgs(argv, { LEADGEN_TOKEN_URL: "http://realm/token", LEADGEN_CLIENT_ID: "leadgen-ingest" })).toThrow(
+      "set all three",
+    );
+    expect(() => parseArgs(argv, { ...client, LEADGEN_TOKEN: "t" })).toThrow("not both");
+  });
+});
+
+describe("measure_routing — a token the run can live with", () => {
+  test("a short-lived token is renewed at half its life, not before every call", async () => {
+    const tokens = realm(40);
+    let clock = 0;
+    const bearer = clientCredentials({ tokenUrl: tokens.url, clientId: "c", clientSecret: "s" }, () => clock);
+    try {
+      await bearer();
+      clock = 19_999;
+      await bearer();
+      expect(tokens.grants).toHaveLength(1);
+      clock = 20_000;
+      await bearer();
+      expect(tokens.grants).toHaveLength(2);
+    } finally {
+      tokens.stop();
+    }
+  });
+
+  test("a realm that names no lifetime is taken to give one minute", async () => {
+    const grants: number[] = [];
+    const server = Bun.serve({ port: 0, fetch: () => (grants.push(1), Response.json({ access_token: "t" })) });
+    let clock = 0;
+    const bearer = clientCredentials({ tokenUrl: `http://localhost:${server.port}`, clientId: "c", clientSecret: "s" }, () => clock);
+    try {
+      await bearer();
+      clock = DEFAULT_LIFETIME_MS / 2 - 1;
+      await bearer();
+      expect(grants).toHaveLength(1);
+    } finally {
+      server.stop(true);
+    }
+  });
+
+  test("a token the API refuses before its time is asked for again once, and the run goes on", async () => {
+    server = stub({ refuseToken: "token-1" });
+    const tokens = realm(900);
+    try {
+      const report = await run({
+        ...options(server.url),
+        bearer: clientCredentials({ tokenUrl: tokens.url, clientId: "c", clientSecret: "s" }),
+      });
+      expect(report.stoppedOnError).toBe(false);
+      expect(tokens.grants).toHaveLength(2);
+      expect(report.tables.blocks[0].n).toBe(20);
+    } finally {
+      tokens.stop();
+    }
+  });
+
+  test("a fixed token beside part of a client names the conflict; an empty one beside a whole client is no token", () => {
+    const argv = ["--models=strong", ...IDS.map(String)];
+    expect(() => parseArgs(argv, { LEADGEN_TOKEN: "t", LEADGEN_TOKEN_URL: "http://realm/token" })).toThrow("not both");
+    const whole = { LEADGEN_TOKEN_URL: "http://realm/token", LEADGEN_CLIENT_ID: "c", LEADGEN_CLIENT_SECRET: "s", LEADGEN_TOKEN: "" };
+    expect(parseArgs(argv, whole).token).toBeUndefined();
+    expect(parseArgs(argv, whole).bearer).toBeDefined();
   });
 });

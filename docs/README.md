@@ -124,7 +124,10 @@ script guards is [EMBEDDINGS.md § 6](EMBEDDINGS.md#6-thresholds-and-how-they-ar
 `measure_routing.ts` is what `llm.models.content` and `llm.models.fields` are chosen with: it asks
 each candidate the pipeline's own bounded questions through `POST /api/v1/offers/{id}/answer` and
 prints its agreement with the stored answers beside an empty-answer baseline; the reasoning is in
-[decisions/pipeline-scoring.md](decisions/pipeline-scoring.md#measuring-a-candidate).
+[decisions/pipeline-scoring.md](decisions/pipeline-scoring.md#measuring-a-candidate). Against an
+`oidc` instance a run of several hours outlives any access token, so it signs in as a client
+instead: `LEADGEN_TOKEN_URL`, `LEADGEN_CLIENT_ID` and `LEADGEN_CLIENT_SECRET`, the
+client-credentials grant the ingest CronJob uses, renewed before each token lapses.
 
 `screenshots/` holds what the root README renders; the light and dark ones are chosen per
 screen there, not by theme. `bun run docs:shots` in `frontend/` retakes all of them from the English
