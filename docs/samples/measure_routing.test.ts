@@ -13,7 +13,7 @@
 
 import { afterEach, describe, expect, test } from "bun:test";
 import { join } from "node:path";
-import { render, run, type Question } from "./measure_routing";
+import { clientCredentials, parseArgs, readable, render, RENEW_BEFORE_MS, run, type Question } from "./measure_routing";
 
 const KINDS = ["CONTENT", "CHROME", "FORM", "TAXONOMY", "AGENCY", "LEGAL"];
 const FACTORS = ["role_fit", "stack_mismatch_dominant", "role_mismatch", "vague_description"];
@@ -79,6 +79,8 @@ function stub(
     unreadable?: { id: number; question: Question };
     /** Stored blocks: ten per advert, nine CONTENT and one CHROME. */
     contentHeavy?: boolean;
+    /** This advert and question: strong states the empty shape, as JSON a reader can parse. */
+    statedEmpty?: { id: number; question: Question };
   } = {},
 ): Stub {
   let calls = 0;
@@ -115,6 +117,11 @@ function stub(
           : model === "weak" && id % 2 === 1
             ? wrong(question, id)
             : stored(question, id, heavy);
+      const stated = model === "strong" && opts.statedEmpty?.id === id && opts.statedEmpty.question === question;
+      if (stated) {
+        const answer = empty(question, id, heavy);
+        return Response.json({ question, model, answer, stored: stored(question, id, heavy), raw: JSON.stringify(answer), millis: 100 });
+      }
       const raw = garbled ? "I cannot tell from this advert." : "{}";
       // strong: 100..119 ms, weak: 200..219 ms, by the advert's position in the sample.
       const millis = silent ? 900_000 : (model === "weak" ? 200 : 100) + (id - 101);
@@ -363,5 +370,117 @@ describe("measure_routing", () => {
     expect(await cli.exited).toBe(1);
     expect(await new Response(cli.stdout).text()).toContain("p50 ms");
     expect(await new Response(cli.stderr).text()).toContain("HTTP 500 the model runtime did not answer");
+  });
+});
+
+/** A realm's token endpoint that hands out numbered tokens living `lifetime` seconds, or refuses. */
+function realm(lifetime: number, refuse = false) {
+  const grants: URLSearchParams[] = [];
+  const server = Bun.serve({
+    port: 0,
+    async fetch(request) {
+      grants.push(new URLSearchParams(await request.text()));
+      if (refuse) return Response.json({ error: "unauthorized_client" }, { status: 401 });
+      return Response.json({ access_token: `token-${grants.length}`, expires_in: lifetime });
+    },
+  });
+  return { url: `http://localhost:${server.port}/token`, grants, stop: () => server.stop(true) };
+}
+
+describe("measure_routing — signing in for a long run", () => {
+  test("a client-credentials token is kept until a minute before it lapses, then asked for again", async () => {
+    const tokens = realm(300);
+    let clock = 0;
+    const bearer = clientCredentials({ tokenUrl: tokens.url, clientId: "leadgen-ingest", clientSecret: "s3cret" }, () => clock);
+    try {
+      expect(await bearer()).toBe("token-1");
+      clock = 300_000 - RENEW_BEFORE_MS - 1;
+      expect(await bearer()).toBe("token-1");
+      clock = 300_000 - RENEW_BEFORE_MS;
+      expect(await bearer()).toBe("token-2");
+
+      expect(tokens.grants).toHaveLength(2);
+      expect(Object.fromEntries(tokens.grants[0])).toEqual({
+        grant_type: "client_credentials",
+        client_id: "leadgen-ingest",
+        client_secret: "s3cret",
+      });
+    } finally {
+      tokens.stop();
+    }
+  });
+
+  test("every call asks the bearer source, so a token renewed mid-run is the one sent", async () => {
+    server = stub();
+    let asked = 0;
+    const report = await run({ ...options(server.url), bearer: async () => `token-${++asked}` });
+
+    expect(report.stoppedOnError).toBe(false);
+    expect(asked).toBe(server.calls());
+  });
+
+  test("a grant refused before the first call stops the run with the realm's sentence and no table", async () => {
+    server = stub();
+    const tokens = realm(300, true);
+    try {
+      const bearer = clientCredentials({ tokenUrl: tokens.url, clientId: "leadgen-ingest", clientSecret: "wrong" });
+      await expect(run({ ...options(server.url), bearer })).rejects.toThrow("HTTP 401");
+      expect(server.calls()).toBe(0);
+    } finally {
+      tokens.stop();
+    }
+  });
+
+  test("a grant refused mid-run ends it like any other error: what was measured, then the sentence", async () => {
+    server = stub();
+    const tokens = realm(300);
+    let granted = 0;
+    const good = clientCredentials({ tokenUrl: tokens.url, clientId: "leadgen-ingest", clientSecret: "s" });
+    try {
+      const report = await run({
+        ...options(server.url),
+        bearer: async () => {
+          if (++granted > 5) throw new Error(`token from ${tokens.url}: HTTP 401 unauthorized_client`);
+          return good();
+        },
+      });
+      expect(report.stoppedOnError).toBe(true);
+      expect(report.stopReason).toContain("HTTP 401");
+      expect(report.tables.blocks[0].n).toBe(5);
+    } finally {
+      tokens.stop();
+    }
+  });
+
+  test("the client comes from three variables, all or none, and never beside a fixed token", () => {
+    const client = { LEADGEN_TOKEN_URL: "http://realm/token", LEADGEN_CLIENT_ID: "leadgen-ingest", LEADGEN_CLIENT_SECRET: "s" };
+    const argv = ["--models=strong", ...IDS.map(String)];
+
+    const signedIn = parseArgs(argv, client);
+    expect(signedIn.bearer).toBeDefined();
+    expect(signedIn.token).toBeUndefined();
+    expect(parseArgs(argv, { LEADGEN_TOKEN: "t" }).bearer).toBeUndefined();
+    expect(() => parseArgs(argv, { LEADGEN_TOKEN_URL: "http://realm/token", LEADGEN_CLIENT_ID: "leadgen-ingest" })).toThrow(
+      "set all three",
+    );
+    expect(() => parseArgs(argv, { ...client, LEADGEN_TOKEN: "t" })).toThrow("not both");
+  });
+});
+
+describe("measure_routing — what counts as unreadable", () => {
+  test("an empty shape the model stated as JSON is an answer, not an unreadable reply", async () => {
+    server = stub({ statedEmpty: { id: 104, question: "fields" } });
+    const report = await run({ ...options(server.url), models: ["strong", "silent"], questions: ["fields"] });
+
+    expect(report.tables.fields[0].parts.unreadable).toBe(0);
+    expect(report.tables.fields[1].parts.unreadable).toBe(20);
+  });
+
+  test("a stated empty shape is an answer, prose or a broken object is not", () => {
+    expect(readable('{"blocks":[]}')).toBe(true);
+    expect(readable('<think>every block is the advert</think>\n{"blocks":[]}')).toBe(true);
+    expect(readable('Here you go:\n```json\n{"start":null}\n```')).toBe(true);
+    expect(readable("I cannot tell from this advert.")).toBe(false);
+    expect(readable('{"blocks":[{"index":0,')).toBe(false);
   });
 });

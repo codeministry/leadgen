@@ -62,8 +62,12 @@
 // It writes no file. Each call is announced on stderr as `[n/total] question model offer id`,
 // so a run of several hours can be followed while the tables wait for the end.
 //
-// Reads LEADGEN_API (default http://localhost:8080) and, when the API asks for one,
-// LEADGEN_TOKEN as a bearer token.
+// Reads LEADGEN_API (default http://localhost:8080) and, when the API asks for a bearer, either
+// LEADGEN_TOKEN or a client to sign in as: LEADGEN_TOKEN_URL (the realm's token endpoint),
+// LEADGEN_CLIENT_ID and LEADGEN_CLIENT_SECRET, the client-credentials grant the ingest CronJob
+// uses. A run takes hours and an access token lives minutes, so a fixed LEADGEN_TOKEN only fits a
+// short run; with a client the script asks for a new token whenever the last one is about to
+// lapse. The secret is read from the environment and written nowhere.
 
 import { readFileSync } from "node:fs";
 
@@ -86,9 +90,18 @@ type FieldsAnswer = {
 type JudgeAnswer = { reasons: { factor: string; points: number }[] };
 type Answered = { answer: unknown; stored: unknown; raw?: string | null; millis: number };
 
+/** The client-credentials grant a long run signs in with (LEADGEN_TOKEN_URL, _CLIENT_ID, _CLIENT_SECRET). */
+export type ClientCredentials = { tokenUrl: string; clientId: string; clientSecret: string };
+
+/** How long before its expiry a token counts as lapsed: one call's flight, generously. */
+export const RENEW_BEFORE_MS = 60_000;
+
 export type Options = {
   api: string;
+  /** A fixed bearer; only for a run shorter than the token's life. */
   token?: string;
+  /** The bearer for the next call, renewed as it lapses; wins over `token`. */
+  bearer?: () => Promise<string>;
   ids: number[];
   models: string[];
   questions: Question[];
@@ -249,6 +262,23 @@ function isEmpty(question: Question, answer: unknown): boolean {
   }
 }
 
+/**
+ * Whether a reply holds a JSON object the server could read: the outermost braces, as
+ * `Answers.objectIn` takes them, parse. An empty shape with a readable reply is an answer — "every
+ * block is the advert" is often right — and only one without counts as unreadable.
+ */
+export function readable(raw: string): boolean {
+  const start = raw.indexOf("{");
+  const end = raw.lastIndexOf("}");
+  if (start < 0 || end <= start) return false;
+  try {
+    JSON.parse(raw.slice(start, end + 1));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function verdictOf(n: number, agreement: number, floor: number): Row["verdict"] {
   if (n < MIN_SAMPLE) return "too few";
   if (Number.isNaN(agreement)) return "no data";
@@ -257,9 +287,15 @@ function verdictOf(n: number, agreement: number, floor: number): Row["verdict"] 
 
 function row(question: Question, candidate: string, answered: Answered[], skipped: number, floor: number): Row {
   const unanswered = answered.filter((a) => a.answer == null).length;
-  // The server parses an unreadable reply into the empty shape and keeps the reply in raw.
+  // The server parses an unreadable reply into the empty shape and keeps the reply in raw; an
+  // empty shape the model actually stated is no failure, so the reply itself is read again.
   const unreadable = answered.filter(
-    (a) => a.answer != null && isEmpty(question, a.answer) && typeof a.raw === "string" && a.raw.trim() !== "",
+    (a) =>
+      a.answer != null &&
+      isEmpty(question, a.answer) &&
+      typeof a.raw === "string" &&
+      a.raw.trim() !== "" &&
+      !readable(a.raw),
   ).length;
   const answers = answered.map((a) => (a.answer == null ? { ...a, answer: NOTHING[question] } : a));
   const scored = SCORE[question](answers);
@@ -304,14 +340,48 @@ async function detail(response: Response): Promise<string> {
   }
 }
 
+/**
+ * A bearer source that signs in with the client-credentials grant and keeps the token until
+ * `RENEW_BEFORE_MS` before it expires, then asks again. One request at a time, as the run makes
+ * its calls in sequence. A refused grant throws, which ends the run like any other error.
+ */
+export function clientCredentials(grant: ClientCredentials, now: () => number = Date.now): () => Promise<string> {
+  let token: string | null = null;
+  let expiresAt = 0;
+  return async () => {
+    if (token !== null && now() < expiresAt - RENEW_BEFORE_MS) return token;
+    let response: Response;
+    try {
+      response = await fetch(grant.tokenUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          grant_type: "client_credentials",
+          client_id: grant.clientId,
+          client_secret: grant.clientSecret,
+        }),
+      });
+    } catch (error) {
+      throw new Error(`token from ${grant.tokenUrl}: ${(error as Error).message}`);
+    }
+    if (!response.ok) throw new Error(`token from ${grant.tokenUrl}: HTTP ${response.status} ${await detail(response)}`);
+    const body = (await response.json()) as { access_token?: string; expires_in?: number };
+    if (!body.access_token) throw new Error(`token from ${grant.tokenUrl}: no access_token in the answer`);
+    token = body.access_token;
+    expiresAt = now() + (body.expires_in ?? 0) * 1000;
+    return token;
+  };
+}
+
 /** One call; null when the advert is to be skipped for this question. */
 async function ask(options: Options, id: number, question: Question, model: string): Promise<Answered | null> {
   const url = `${options.api.replace(/\/$/, "")}/api/v1/offers/${id}/answer?question=${question}&model=${encodeURIComponent(model)}`;
+  const token = options.bearer ? await options.bearer() : options.token;
   let response: Response;
   try {
     response = await fetch(url, {
       method: "POST",
-      headers: options.token ? { Authorization: `Bearer ${options.token}` } : {},
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
   } catch (error) {
     throw new Error(`offer ${id}, ${question}, ${model}: ${(error as Error).message}`);
@@ -426,7 +496,7 @@ export function render(report: Report): string {
   return out.join("\n");
 }
 
-function parseArgs(argv: string[]): Options {
+export function parseArgs(argv: string[], env: Record<string, string | undefined> = process.env): Options {
   const flags = new Map<string, string>();
   const ids: number[] = [];
   for (const arg of argv) {
@@ -449,9 +519,25 @@ function parseArgs(argv: string[]): Options {
   }
   const floor = Number(flags.get("floor") ?? DEFAULT_FLOOR);
   if (!(floor >= 0 && floor <= 1)) throw new Error(`--floor must be between 0 and 1, got "${flags.get("floor")}"`);
+  const client = [env.LEADGEN_TOKEN_URL, env.LEADGEN_CLIENT_ID, env.LEADGEN_CLIENT_SECRET];
+  const named = client.filter((value) => value !== undefined && value !== "").length;
+  if (named > 0 && named < 3) {
+    throw new Error("to sign in as a client, set all three: LEADGEN_TOKEN_URL, LEADGEN_CLIENT_ID, LEADGEN_CLIENT_SECRET.");
+  }
+  if (named === 3 && env.LEADGEN_TOKEN) {
+    throw new Error("set LEADGEN_TOKEN or the client to sign in as, not both.");
+  }
   return {
-    api: process.env.LEADGEN_API ?? "http://localhost:8080",
-    token: process.env.LEADGEN_TOKEN,
+    api: env.LEADGEN_API ?? "http://localhost:8080",
+    token: env.LEADGEN_TOKEN,
+    bearer:
+      named === 3
+        ? clientCredentials({
+            tokenUrl: env.LEADGEN_TOKEN_URL as string,
+            clientId: env.LEADGEN_CLIENT_ID as string,
+            clientSecret: env.LEADGEN_CLIENT_SECRET as string,
+          })
+        : undefined,
     ids,
     models: (flags.get("models") ?? "").split(",").filter(Boolean),
     questions: questions as Question[],
