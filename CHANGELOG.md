@@ -9,6 +9,36 @@ may change in any release. See the status note in the README.
 
 ## [Unreleased]
 
+## [0.5.4] — 2026-10-11
+
+The workflow screen's live run holds through a dropped heartbeat and a skewed clock, links in the
+chat and the adverts open only what they say they open, and the build stops failing on its own
+timing. Nothing changes in the configuration or the API.
+
+### Fixed
+
+- **A live run survives a blip.** One failed heartbeat no longer reads as "the pass ended": the run
+  stays drawn as it was last known, and only three failures in a row let it go, so a pass is never
+  shown running forever either.
+- **The end of a pass holds until its numbers arrive.** The graph and the run panel keep the pass
+  that just ended until the newly finished run comes back, a reload fails, or fifteen seconds pass;
+  an unrelated refresh no longer lets the old run's numbers in, and the held stage's seconds stop
+  where the pass ended.
+- **Elapsed times follow the server's clock.** A stage's seconds are measured against the server's
+  time, read from the heartbeat, so a reader whose machine is minutes off sees the right figure.
+- **The status chip says a pass is starting** before its first stage, in place of nothing.
+- **Escape on the workflow screen** leaves a dialog's Escape to the dialog, and shrinks the
+  whole-window canvas first, from the stage sheet too.
+- **Zero strong matches is shown** on the dashboard instead of an empty tile.
+- **Links render only what they say.** A Markdown link opens `http`, `https`, `mailto` and relative
+  addresses only, its address is encoded and its attributes quoted, and its label renders as
+  Markdown.
+- **Manual uploads refuse an absurd name early.** A name over 4096 characters, or a file name over
+  255 once its path is gone, is refused before any pattern runs; a refusal answers as plain text.
+- **The build no longer fails on its own timing.** The backend, unit and browser suites run one after
+  the other instead of starving each other, and a unit spec no longer leaks a reduced-motion stub
+  into the next.
+
 ## [0.5.3] — 2026-10-05
 
 A shortlist row swipes to the archive on a touch screen, and under `oidc` the session renews itself
@@ -1672,7 +1702,8 @@ Found while building the demo, all of them in paths only a container exercises:
   left six.
 - The shortlist card printed the description's Markdown syntax in its teaser.
 
-[Unreleased]: https://github.com/codeministry/leadgen/compare/v0.5.3...HEAD
+[Unreleased]: https://github.com/codeministry/leadgen/compare/v0.5.4...HEAD
+[0.5.4]: https://github.com/codeministry/leadgen/releases/tag/v0.5.4
 [0.5.3]: https://github.com/codeministry/leadgen/releases/tag/v0.5.3
 [0.5.2]: https://github.com/codeministry/leadgen/releases/tag/v0.5.2
 [0.5.1]: https://github.com/codeministry/leadgen/releases/tag/v0.5.1
