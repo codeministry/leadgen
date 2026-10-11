@@ -56,10 +56,8 @@ interface StageNodeData {
     readonly width: number;
     readonly height: number;
     readonly handles: readonly FlowHandle[];
-    /** This stage's place against the run in flight, from `run().states`; null without a pass. */
-    readonly state: StageRunState | null;
-    /** Seconds spent in the running stage (ISC-412); null on every node but the running one. */
-    readonly elapsed: number | null;
+    // No run state and no elapsed seconds here: both are read per node in the template
+    // (`stateOf`, `elapsedOf`), so a tick or a stage change never rebuilds the node array.
 }
 
 /**
@@ -311,7 +309,7 @@ export class FlowCanvas {
     /**
      * How long the running stage has been running, in whole seconds (ISC-412); null when no
      * stage is running or the elapsed time has not reached this component yet. Reaches only the
-     * node whose own state is `running` — `dataOf` reads `run().running` for that, never this
+     * node whose own state is `running` — `elapsedOf` reads that node's state for it, never this
      * input's presence alone, since a run with no stage placed yet leaves every state null too.
      */
     readonly elapsed = input<number | null>(null);
@@ -380,6 +378,12 @@ export class FlowCanvas {
         return new Map(this.layout().nodes.map((node) => [node.id, node.kind === 'stage' ? (states?.get(node.stageId) ?? null) : null]));
     });
 
+    /**
+     * The nodes vflow draws, rebuilt only when the layout is. The run's states and the running
+     * stage's seconds are deliberately not read here: ISC-412 ticks once a second, and every
+     * read here handed vflow a fresh array of fresh node objects each second for one number on
+     * one card. The template asks `stateOf` and `elapsedOf` per node instead.
+     */
     readonly nodes = computed((): HtmlTemplateNode<FlowNodeData>[] => {
         const stages = new Map<string, {stage: WorkflowStage; phaseId: string}>();
         for (const phase of this.workflow().phases) {
@@ -387,8 +391,6 @@ export class FlowCanvas {
         }
         const layout = this.layout();
         const handles = handlesOf(layout);
-        const nodeStates = this.nodeStates();
-        const elapsed = this.elapsed();
         return layout.nodes.flatMap((node) => {
             const owner = stages.get(node.stageId);
             if (owner === undefined) return [];
@@ -400,9 +402,7 @@ export class FlowCanvas {
                     width: signal(node.width),
                     height: signal(node.height),
                     draggable: signal(false),
-                    data: signal(
-                        this.dataOf(node, owner.stage, owner.phaseId, handles.get(node.id) ?? [], nodeStates.get(node.id) ?? null, elapsed),
-                    ),
+                    data: signal(this.dataOf(node, owner.stage, owner.phaseId, handles.get(node.id) ?? [])),
                 },
             ];
         });
@@ -556,6 +556,16 @@ export class FlowCanvas {
 
     protected failed(stageId: string): boolean {
         return this.failedIds().has(stageId);
+    }
+
+    /** A node's place against the run in flight, by layout node id; null without a pass. */
+    protected stateOf(nodeId: string): StageRunState | null {
+        return this.nodeStates().get(nodeId) ?? null;
+    }
+
+    /** The running stage's seconds (ISC-412) on the node whose state is `running`; null on every other. */
+    protected elapsedOf(nodeId: string): number | null {
+        return this.stateOf(nodeId) === 'running' ? this.elapsed() : null;
     }
 
     fit(): void {
@@ -723,11 +733,9 @@ export class FlowCanvas {
         stage: WorkflowStage,
         phaseId: string,
         handles: readonly FlowHandle[],
-        state: StageRunState | null,
-        elapsed: number | null,
     ): FlowNodeData {
         const box = {id: node.id, width: node.width, height: node.height, handles};
-        if (node.kind === 'stage') return {...box, kind: 'stage', stage, phaseId, state, elapsed: state === 'running' ? elapsed : null};
+        if (node.kind === 'stage') return {...box, kind: 'stage', stage, phaseId};
         // A sub-node links to its stage's sheet at the section its id names (ISC-406).
         const sub = {...box, kind: 'sub' as const, stageId: stage.id, icon: subIcon(node.id)};
         switch (node.kind) {

@@ -1,6 +1,6 @@
 import {HttpClient} from '@angular/common/http';
 import {inject, Injectable} from '@angular/core';
-import {Observable} from 'rxjs';
+import {map, Observable} from 'rxjs';
 import {CurrentRunView} from '@core/model/current-run';
 import {LastRunView} from '@core/model/last-run';
 import {scoringModelParams} from './scoring-model-param';
@@ -130,6 +130,13 @@ export interface IngestReport {
     readonly packaged: PackageReport;
 }
 
+/** One heartbeat answer: the pass in flight, and the server's clock when it answered. */
+export interface CurrentRunReading {
+    readonly run: CurrentRunView | null;
+    /** The response's `Date` header as sent, or null without one. */
+    readonly serverDate: string | null;
+}
+
 @Injectable({providedIn: 'root'})
 export class IngestApi {
     private readonly http = inject(HttpClient);
@@ -150,9 +157,15 @@ export class IngestApi {
    * run in flight", which Angular hands over as a null body — the same distinction
    * `last()` relies on, and for the same reason: "nothing is running" is not "a run with no
    * stage yet".
+   *
+   * The answer's `Date` header comes along: it is the one reading of the server's clock the API
+   * already sends, and the run's instants are on that clock, not the browser's. Null when a
+   * proxy stripped it.
    */
-  current(): Observable<CurrentRunView | null> {
-    return this.http.get<CurrentRunView | null>('/api/v1/ingest/current');
+  current(): Observable<CurrentRunReading> {
+    return this.http
+      .get<CurrentRunView | null>('/api/v1/ingest/current', {observe: 'response'})
+      .pipe(map((response) => ({run: response.body, serverDate: response.headers.get('Date')})));
   }
 
     /**

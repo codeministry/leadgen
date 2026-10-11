@@ -14,7 +14,7 @@ import {PromptView} from '@core/model/prompt-view';
 import {filter, firstValueFrom} from 'rxjs';
 import {RulesView} from '@core/model/rules-view';
 import {WorkflowStage, WorkflowView} from '@core/model/workflow';
-import {PIPE_BELOW_PX, Rules} from './rules';
+import {HOLD_AT_MOST_MS, PIPE_BELOW_PX, Rules} from './rules';
 
 /**
  * A ResizeObserver that reports one content width at once, so jsdom, which has neither layout nor
@@ -613,6 +613,115 @@ describe('Rules', () => {
         }
     });
 
+    // A refresh that answers before the pass's row is written brings back the run already on screen:
+    // drawn as this pass's chips, it showed the run before it as if the pass had produced it. The
+    // hold stays; the bound below ends it if no new run ever answers.
+    it('holds through a reload that brings back the run that stood during the pass', () => {
+        const {fixture} = render(WORKFLOW, false, undefined, LAST_RUN, inFlight('DEDUPE'));
+        const page = element(fixture);
+
+        poll(fixture, null);
+        expect(nodeState(page, 'DEDUPE')).toBe('Running now');
+
+        reloaded(fixture, {...LAST_RUN});
+        expect(nodeState(page, 'DEDUPE')).toBe('Running now');
+        expect(nodeChip(page, 'SCORE')).toBeNull();
+    });
+
+    // The reload can land in the same change detection as the end of the pass; the hold would then
+    // wait for a second answer that never comes.
+    it('holds nothing when the new run arrives together with the end of the pass', () => {
+        const {fixture} = render(WORKFLOW, false, undefined, LAST_RUN, inFlight('DEDUPE'));
+        const page = element(fixture);
+        const dispatch = TestBed.inject(Dispatcher);
+
+        dispatch.dispatch(ingestEvents.currentLoaded(null));
+        dispatch.dispatch(ingestEvents.lastRunLoaded({...LAST_RUN, finishedAt: '2026-09-26T00:11:00Z'}));
+        fixture.detectChanges();
+
+        for (const s of STAGES) {
+            expect(nodeState(page, s.id), s.id).toBeNull();
+        }
+    });
+
+    it('returns to the chips after a bounded hold when no reload ever arrives', () => {
+        vi.useFakeTimers({toFake: ['setInterval', 'clearInterval', 'Date']});
+        try {
+            vi.setSystemTime(Date.parse('2026-09-26T00:01:00Z'));
+            const {fixture} = render(WORKFLOW, false, undefined, LAST_RUN, inFlight('DEDUPE'));
+            const page = element(fixture);
+
+            poll(fixture, null);
+            vi.advanceTimersByTime(HOLD_AT_MOST_MS - 2_000);
+            fixture.detectChanges();
+            expect(nodeState(page, 'DEDUPE'), 'still inside the hold').toBe('Running now');
+
+            vi.advanceTimersByTime(3_000);
+            fixture.detectChanges();
+            for (const s of STAGES) {
+                expect(nodeState(page, s.id), s.id).toBeNull();
+            }
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    // The panel and the graph beside it answer the same question; while the graph holds the pass
+    // that just ended, a panel already showing the run before it disagreed with it.
+    it('keeps the run panel on the held pass for exactly as long as the graph holds it', () => {
+        const {fixture} = render(WORKFLOW, false, 'run', LAST_RUN, inFlight('DEDUPE'));
+        const page = element(fixture);
+        const panel = (): Element => page.querySelector('lg-stage-sheet lg-run-detail')!;
+        expect(panel().querySelector('.run-head.is-running')).not.toBeNull();
+
+        poll(fixture, null);
+        expect(nodeState(page, 'DEDUPE')).toBe('Running now');
+        expect(panel().querySelector('.run-head.is-running'), 'the panel holds with the graph').not.toBeNull();
+        expect(panel().querySelector('[data-stage="DEDUPE"][data-state="running"]')).not.toBeNull();
+
+        reloaded(fixture, {...LAST_RUN, finishedAt: '2026-09-26T00:11:00Z'});
+        expect(panel().querySelector('.run-head.is-running')).toBeNull();
+        expect(panel().querySelector('[data-section="numbers"]')).not.toBeNull();
+        // The budget is asked again as the pass moves; answered so `verify` speaks about this test.
+        answer(http);
+    });
+
+    // ISC-412's seconds are the server's `stageStartedAt` against a clock; the browser's own is off
+    // by however far the reader's machine is, which showed a five-minute-old stage as 0:00.
+    it("counts the running stage's seconds on the server's clock, not the browser's", () => {
+        // The browser believes the stage started this instant; the server is five minutes on. Real
+        // clocks rather than a faked `Date`: d3's transition timer reads it and stalls in jsdom.
+        const startedHere: CurrentRunView = {...inFlight('DEDUPE'), stageStartedAt: new Date().toISOString()};
+        const {fixture} = render(WORKFLOW, false, undefined, LAST_RUN, startedHere);
+        const page = element(fixture);
+
+        TestBed.inject(Dispatcher).dispatch(ingestEvents.currentRequested());
+        http.expectOne('/api/v1/ingest/current').flush(startedHere, {headers: {Date: new Date(Date.now() + 300_000).toUTCString()}});
+        fixture.detectChanges();
+
+        // The header's one-second grain leaves the estimate within a second either way.
+        const elapsed = stageLink(page, 'lg-flow-canvas lg-flow-node', 'DEDUPE').querySelector('.flow-node-elapsed');
+        expect(elapsed?.textContent?.trim()).toMatch(/^(4:59|5:00)$/);
+    });
+
+    it("stops the held pass's seconds where the pass ended", () => {
+        const startedHere: CurrentRunView = {...inFlight('DEDUPE'), stageStartedAt: new Date(Date.now() - 65_000).toISOString()};
+        const {fixture} = render(WORKFLOW, false, undefined, LAST_RUN, startedHere);
+        const page = element(fixture);
+        const elapsed = (): string | undefined =>
+            stageLink(page, 'lg-flow-canvas lg-flow-node', 'DEDUPE').querySelector('.flow-node-elapsed')?.textContent?.trim();
+
+        poll(fixture, null);
+        const atEnd = elapsed();
+        expect(atEnd).toMatch(/^1:0[5-6]$/);
+
+        // The server's "now" moves a minute on — by the clock offset, not by waiting, which would let
+        // d3's zoom timer fire in jsdom — and the held node still reads the moment the pass ended.
+        TestBed.inject(Dispatcher).dispatch(ingestEvents.clockRead(60_000));
+        fixture.detectChanges();
+        expect(elapsed()).toBe(atEnd);
+    });
+
     // ISC-398: the canvas legend names every marker a node can carry, drawn as the node draws it.
 
     it('gives every marker a rendered node carries a legend entry with its icon and a label', () => {
@@ -794,6 +903,17 @@ describe('Rules', () => {
 
         expect(chip.classList).toContain('has-failed');
         expect(chip.getAttribute('aria-label')).toContain('failed');
+    });
+
+    // Between opening its row and entering the first stage a pass reports no stage at all. The
+    // chip was already painted running then, while its name still described the run before it.
+    it('names a pass that has not yet entered a stage as starting, not as the last run', () => {
+        const starting: CurrentRunView = {...CURRENT_RUN, stage: null, stagePosition: null, stageTotal: null, stageStartedAt: null};
+        const page = element(render(WORKFLOW, false, undefined, LAST_RUN, starting).fixture);
+        const chip = page.querySelector<HTMLAnchorElement>('lg-page-header a[data-stage="run"]')!;
+
+        expect(chip.classList).toContain('is-running');
+        expect(chip.getAttribute('aria-label')).toBe('Status: a pass is starting');
     });
 
     it('lets a pass in flight outrank the failed run on the chip', () => {
@@ -1115,6 +1235,40 @@ describe('Rules — the stage query parameter', () => {
         } finally {
             dialog.remove();
         }
+    });
+
+    // ISC-407's Escape shrinks the whole-window box, but only an Escape nothing else owns: one a
+    // dialog, a popover or the sheet answered also shrank the canvas behind it.
+    it('leaves Escape to an open dialog while the canvas takes the whole window (ISC-403, ISC-407)', async () => {
+        await attached('/workflow?stage=filter');
+        page().querySelector<HTMLButtonElement>('lg-flow-canvas button[data-action="fullscreen"]')!.click();
+        await settle();
+        expect(page().querySelector('.rules-stage')?.classList).toContain('is-filling');
+        const dialog = document.createElement('dialog');
+        dialog.setAttribute('open', '');
+        document.body.appendChild(dialog);
+        try {
+            dialog.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true}));
+            await settle();
+
+            expect(page().querySelector('.rules-stage')?.classList).toContain('is-filling');
+            expect(sheet()).not.toBeNull();
+        } finally {
+            dialog.remove();
+        }
+    });
+
+    // The sheet answers its own Escape as well (its close button's), so only the canvas half is this screen's.
+    it('shrinks the whole-window canvas on an Escape from inside the sheet too (ISC-403, ISC-407)', async () => {
+        await attached('/workflow?stage=filter');
+        page().querySelector<HTMLButtonElement>('lg-flow-canvas button[data-action="fullscreen"]')!.click();
+        await settle();
+        expect(page().querySelector('.rules-stage')?.classList).toContain('is-filling');
+
+        sheet()!.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true}));
+        await settle();
+
+        expect(page().querySelector('.rules-stage')?.classList).not.toContain('is-filling');
     });
 
     it('closes on a click outside the sheet and the canvas (ISC-403)', async () => {

@@ -24,6 +24,10 @@ export const ingestEvents = eventGroup({
       currentRequested: type<void>(),
       /** A pass in flight, or null when none is. */
       currentLoaded: type<CurrentRunView | null>(),
+      /** The heartbeat did not answer. No news about the run: what was last known stands. */
+      currentFailed: type<void>(),
+      /** How far the server's clock is ahead of this browser's, in ms, read off the heartbeat. */
+      clockRead: type<number>(),
         /** Null when nothing has ever run — the server's 204, not an error. */
         lastRunLoaded: type<LastRunView | null>(),
         lastRunFailed: type<string>(),

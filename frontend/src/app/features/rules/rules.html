@@ -112,10 +112,10 @@
     @if (detail(); as stage) {
         <lg-stage-sheet
                 [stage]="stage"
-                [current]="ingest.current()"
+                [current]="shownCurrent()"
                 [lastRun]="lastRun()"
                 [elapsed]="elapsedSeconds()"
-                [runState]="runState()"
+                [runState]="shownRun()"
                 [runElapsed]="runElapsedSeconds()"
                 [budget]="budget.budget()"
                 [removalLabels]="removalLabels()"

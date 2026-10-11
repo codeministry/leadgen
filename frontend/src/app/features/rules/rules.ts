@@ -1,8 +1,10 @@
-import {ChangeDetectionStrategy, Component, computed, DestroyRef, effect, ElementRef, inject, input, OnInit, signal, viewChild} from '@angular/core';
+import {ChangeDetectionStrategy, Component, computed, DestroyRef, effect, ElementRef, inject, input, OnInit, signal, untracked, viewChild} from '@angular/core';
 import {toSignal} from '@angular/core/rxjs-interop';
 import {ActivatedRoute, Router, RouterLink} from '@angular/router';
 import {injectDispatch} from '@ngrx/signals/events';
 import {TranslocoPipe, TranslocoService} from '@jsverse/transloco';
+import {CurrentRunView} from '@core/model/current-run';
+import {LastRunView} from '@core/model/last-run';
 import {WorkflowStage} from '@core/model/workflow';
 import {injectTick} from '@core/time/tick';
 import {configEvents} from '@core/store/config.events';
@@ -32,6 +34,31 @@ import {RunControl} from '@layout/run-control/run-control';
  * the fit that shrinks the cards works in pixels too.
  */
 export const PIPE_BELOW_PX = 704;
+
+/**
+ * The longest ISC-418 holds a finished pass on screen while it waits for the reloaded last run.
+ * That reload leaves the moment the pass ends and answers within a second on the deployed
+ * instance; the bound is for the reload that never comes, which otherwise left a finished pass
+ * drawn as running until somebody reloaded the page. Measured on the shared clock, not a timer of
+ * this screen's own (ISC-419).
+ */
+export const HOLD_AT_MOST_MS = 15_000;
+
+/** What ISC-418 holds after a pass: its encoding, its run, when the hold began and the last run then. */
+interface HeldPass {
+    readonly run: RunState | null;
+    readonly current: CurrentRunView;
+    readonly since: number;
+    /** The server's "now" when the hold began: the held pass's seconds stop there. */
+    readonly frozenAt: number;
+    /** The last run as it stood during the pass, which the reload after it replaces. */
+    readonly lastRun: LastRunView | null;
+}
+
+/** Whether `lastRun` is a run other than `before`: told apart by when each finished. */
+function isNewRun(lastRun: LastRunView | null, before: LastRunView | null): boolean {
+    return lastRun !== null && lastRun.finishedAt !== before?.finishedAt;
+}
 
 /** How far a pointer may travel between down and up and still count as a click rather than a pan. */
 const PAN_SLOP_PX = 4;
@@ -100,8 +127,14 @@ export class Rules implements OnInit {
      */
     protected readonly ingest = inject(IngestStore);
     private readonly shortlist = inject(ShortlistStore);
-    /** The shared one-second clock (ISC-412), read for the running stage's elapsed seconds. */
-    private readonly tick = injectTick();
+    /**
+     * The shared one-second clock (ISC-412), read for the running stage's elapsed seconds — and
+     * needed only while a pass is reported or held, so an idle screen runs no interval.
+     */
+    private readonly tick = injectTick(() => this.ingest.current() !== null || this.heldRun() !== null);
+
+    /** "Now" on the server's clock, which the run's instants are on; see `IngestStore.clockOffset`. */
+    private readonly serverNow = computed((): number => this.tick() + this.ingest.clockOffset());
     private readonly router = inject(Router);
     private readonly route = inject(ActivatedRoute);
     private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
@@ -138,9 +171,14 @@ export class Rules implements OnInit {
      * its trailing pill carry it visually, and neither reaches a screen reader.
      */
     protected readonly statusLabel = computed((): string => {
+        // Running whenever a pass is reported, the way the chip is painted: between opening its row
+        // and entering the first stage a pass carries no position, and the name then described the
+        // run before it while the chip already showed this one.
         const run = this.ingest.current();
-        if (run !== null && run.stagePosition !== null && run.stageTotal !== null) {
-            return this.transloco.translate('rules.status.ariaRunning', {position: run.stagePosition, total: run.stageTotal});
+        if (run !== null) {
+            return run.stagePosition !== null && run.stageTotal !== null
+                ? this.transloco.translate('rules.status.ariaRunning', {position: run.stagePosition, total: run.stageTotal})
+                : this.transloco.translate('rules.status.ariaStarting');
         }
         const finished = this.finishedAtLabel();
         if (finished === null) {
@@ -205,24 +243,27 @@ export class Rules implements OnInit {
     private readonly reportedStage = computed((): string | null => this.ingest.current()?.stage ?? null);
     private readonly passReported = computed((): boolean => this.ingest.current() !== null);
 
-    /** The last run's finish time, as one string: what the reload after a pass has to differ from. */
-    private readonly finishedAt = computed((): string | null => this.ingest.lastRun()?.finishedAt ?? null);
-
     /** The stage the region has already named, and whether the previous answer carried a pass. */
     private announcedStage: string | null = null;
     private passWasReported = false;
+    /** The last run as it stood while a pass was reported; what its reload is told apart from. */
+    private lastRunDuringPass: LastRunView | null = null;
 
-    /** The encoding the pass had while it was still reported, and what `lastRun` said back then. */
-    private liveRun: RunState | null = null;
-    private finishedBeforeRun: string | null = null;
+    /** The encoding and the run the pass had while it was still reported. */
+    private liveRun: {run: RunState | null; current: CurrentRunView} | null = null;
 
     /**
-     * That encoding, held after the pass is gone from the heartbeat (ISC-418). The heartbeat drops
-     * the run the moment it ends, while `lastRun` still holds the run *before* it for as long as
-     * the reload `RefreshStore` asks for takes — a graph reading only the heartbeat would show the
+     * That pass, held after it is gone from the heartbeat (ISC-418). The heartbeat drops the run
+     * the moment it ends, while `lastRun` still holds the run *before* it for as long as the
+     * reload `RefreshStore` asks for takes — a graph reading only the heartbeat would show the
      * previous run's chips for that moment, which reads as the pass having produced them.
+     *
+     * <p>Released by the first last-run answer after the end, whatever it says — a newer finish,
+     * the same one again, or a failed reload's null — and in any case after
+     * {@link HOLD_AT_MOST_MS}. A release keyed on a *newer* finish time alone held forever when
+     * the reload brought back the run already on screen, or never came.
      */
-    private readonly heldRun = signal<RunState | null>(null);
+    private readonly heldRun = signal<HeldPass | null>(null);
 
     /**
      * The one sentence the polite live region holds (ISC-416): which stage the pass has reached,
@@ -252,7 +293,7 @@ export class Rules implements OnInit {
         effect(() => {
             const stage = this.reportedStage();
             const reported = this.passReported();
-            const finishedAt = this.finishedAt();
+            const lastRun = this.ingest.lastRun();
             const wasReported = this.passWasReported;
             this.passWasReported = reported;
 
@@ -261,8 +302,11 @@ export class Rules implements OnInit {
                     this.announcement.set({key: 'rules.run.reached', params: {stage}});
                     this.announcedStage = stage;
                 }
-                this.liveRun = this.runState();
-                this.finishedBeforeRun = finishedAt;
+                // Untracked: the stage and the report already wake this effect, and every heartbeat
+                // is a new object that would rebuild the snapshot for nothing.
+                const current = untracked(() => this.ingest.current());
+                this.liveRun = current === null ? null : {run: untracked(() => this.runState()), current};
+                this.lastRunDuringPass = lastRun;
                 this.heldRun.set(null);
                 return;
             }
@@ -270,16 +314,31 @@ export class Rules implements OnInit {
             if (wasReported) {
                 this.announcement.set({key: 'rules.run.ended', params: {}});
                 this.announcedStage = null;
-                // ISC-418: hold what the pass left. The release is judged on the next answer,
-                // never on this one — the reload cannot have arrived before the pass ended.
-                this.heldRun.set(this.liveRun);
+                // ISC-418: hold what the pass left, unless its reload already came with the end.
+                const before = this.lastRunDuringPass;
+                const frozenAt = untracked(() => this.serverNow());
+                this.heldRun.set(
+                    this.liveRun === null || isNewRun(lastRun, before)
+                        ? null
+                        : {...this.liveRun, since: Date.now(), frozenAt, lastRun: before},
+                );
                 return;
             }
 
-            // The reload that follows a pass, recognised by a finish time that is not the one this
-            // run started against; `lastRunFailed` clears the run, and a null is the same signal —
-            // a graph waiting for a reload that never comes would show a finished pass as running.
-            if (finishedAt === null || finishedAt !== this.finishedBeforeRun) {
+            // The reload that follows a pass: a run other than the one standing during it, or a
+            // reload that failed (`lastRunFailed` leaves null), which is final. The same run again —
+            // an unrelated refresh that answered before the pass's row was written — holds on, and
+            // HOLD_AT_MOST_MS below is what ends a hold no new run ever answers.
+            const held = untracked(() => this.heldRun());
+            if (held !== null && (lastRun === null || isNewRun(lastRun, held.lastRun))) {
+                this.heldRun.set(null);
+            }
+        });
+
+        // ISC-418's bound: the reload that never comes. Reads the clock only while holding.
+        effect(() => {
+            const held = this.heldRun();
+            if (held !== null && this.tick() - held.since >= HOLD_AT_MOST_MS) {
                 this.heldRun.set(null);
             }
         });
@@ -365,30 +424,43 @@ export class Rules implements OnInit {
         if (live !== null && live.running !== null) {
             return live;
         }
-        return this.heldRun() ?? live;
+        return this.heldRun()?.run ?? live;
     });
+
+    /**
+     * The run the status panel shows, held exactly as long as {@link shownRun} is: the panel and
+     * the graph beside it answer one question, and a panel already on the run before the pass
+     * while the graph still drew the pass disagreed with it.
+     */
+    protected readonly shownCurrent = computed((): CurrentRunView | null => this.ingest.current() ?? this.heldRun()?.current ?? null);
 
     /**
      * How long the in-flight stage has been running, in whole seconds (ISC-410.2): null with no
      * pass running or before that pass has entered a stage. `injectTick()` answers epoch
-     * milliseconds, so the subtraction against `stageStartedAt` is this consumer's, as documented
-     * on {@link injectTick}.
+     * milliseconds on the browser's clock, so the subtraction against `stageStartedAt` is this
+     * consumer's, on the server's clock ({@link serverNow}).
      */
     protected readonly elapsedSeconds = computed((): number | null => {
-        const current = this.ingest.current();
+        const current = this.shownCurrent();
         if (current === null || current.stageStartedAt === null) {
             return null;
         }
-        return Math.floor((this.tick() - Date.parse(current.stageStartedAt)) / 1000);
+        return Math.max(0, Math.floor((this.shownNow() - Date.parse(current.stageStartedAt)) / 1000));
+    });
+
+    /** "Now" for the shown run: the server's while a pass is reported, frozen at its end while held. */
+    private readonly shownNow = computed((): number => {
+        const held = this.heldRun();
+        return this.ingest.current() === null && held !== null ? held.frozenAt : this.serverNow();
     });
 
     /** How long the pass in flight has been going as a whole, in whole seconds; null with none. */
     protected readonly runElapsedSeconds = computed((): number | null => {
-        const current = this.ingest.current();
+        const current = this.shownCurrent();
         if (current === null) {
             return null;
         }
-        return Math.max(0, Math.floor((this.tick() - Date.parse(current.startedAt)) / 1000));
+        return Math.max(0, Math.floor((this.shownNow() - Date.parse(current.startedAt)) / 1000));
     });
 
     /**
@@ -487,13 +559,22 @@ export class Rules implements OnInit {
      * one key would push two history entries. An open dialog or popover owns its Escape.
      */
     protected escapeAnywhere(event: Event): void {
+        // An Escape a dialog or popover owns first: one it answered also shrank the canvas behind it
+        // while this check came second.
+        if (event.defaultPrevented || otherOverlayOpen()) {
+            return;
+        }
         // The wrapper before the sheet, the order the browser keeps for its own full screen: an
-        // Escape out of the whole-window size is about the size, and the sheet stays where it was.
+        // Escape out of the whole-window size is about the size, from the sheet too; from outside it
+        // the sheet stays where it was, from inside it the sheet also answers its own Escape.
         if (this.wholeWindow()) {
             this.wholeWindow.set(false);
             return;
         }
-        if (this.detail() === null || event.defaultPrevented || this.inSheet(event.target) || otherOverlayOpen()) {
+        if (this.inSheet(event.target)) {
+            return;
+        }
+        if (this.detail() === null) {
             return;
         }
         void this.closeSheet();

@@ -1,7 +1,7 @@
 import {computed, inject, Injector} from '@angular/core';
 import {signalStore, withComputed, withHooks, withState} from '@ngrx/signals';
 import {Dispatcher, Events, on, withEventHandlers, withReducer} from '@ngrx/signals/events';
-import {catchError, exhaustMap, map, of, switchMap, timer} from 'rxjs';
+import {catchError, exhaustMap, map, merge, mergeMap, of, switchMap, timer} from 'rxjs';
 import {IngestApi, IngestReport} from '@core/api/ingest.api';
 import {serverMessage} from '@core/api/server-message';
 import {CurrentRunView} from '@core/model/current-run';
@@ -28,7 +28,29 @@ interface IngestState {
   current: CurrentRunView | null;
     error: string | null;
     running: boolean;
+    /**
+     * How far the server's clock is ahead of this browser's, in ms, from the heartbeat's `Date`
+     * header. The run's instants are the server's (`stage_started_at = now()`), so an elapsed
+     * time measured against the browser's own clock is off by however far the reader's machine
+     * is — a five-minute skew showed a five-minute-old stage as 0:00. Zero until a header is read.
+     */
+    clockOffset: number;
+    /** Whether a header has been read yet: the first reading is taken whatever its size. */
+    clockKnown: boolean;
+    /** Heartbeats failed in a row; see {@link FAILED_BEATS_ARE_NO_RUN}. */
+    failedBeats: number;
 }
+
+/** The `Date` header's grain: a reading inside it is noise, not a skew worth moving for. */
+const CLOCK_GRAIN_MS = 1000;
+
+/**
+ * How many heartbeats in a row may fail before the run they last saw counts as gone. One blip is
+ * no news about the run; a minute of them — an expired session, an api that went away — is, or a
+ * pass that ended meanwhile would stay drawn as running and keep the fast cadence and the clock
+ * going for as long as the page stays open.
+ */
+export const FAILED_BEATS_ARE_NO_RUN = 3;
 
 const initialState: IngestState = {
   report: null,
@@ -36,6 +58,9 @@ const initialState: IngestState = {
   current: null,
   error: null,
   running: false,
+  clockOffset: 0,
+  clockKnown: false,
+  failedBeats: 0,
 };
 
 /**
@@ -86,7 +111,19 @@ export const IngestStore = signalStore(
         on(ingestEvents.finished, ({payload}) => ({report: payload, running: false})),
         on(ingestEvents.failed, ({payload}) => ({error: payload, running: false})),
         on(ingestEvents.lastRunLoaded, ({payload}) => ({lastRun: payload})),
-      on(ingestEvents.currentLoaded, ({payload}) => ({current: payload})),
+      on(ingestEvents.currentLoaded, ({payload}) => ({current: payload, failedBeats: 0})),
+      on(ingestEvents.currentFailed, (_, state) =>
+        state.failedBeats + 1 >= FAILED_BEATS_ARE_NO_RUN
+          ? {current: null, failedBeats: state.failedBeats + 1}
+          : {failedBeats: state.failedBeats + 1},
+      ),
+      // Moved only by more than the header's own grain: every answer moving it by its rounding
+      // would make the running stage's seconds stutter back and forth every five seconds.
+      on(ingestEvents.clockRead, ({payload}, state) =>
+        state.clockKnown && Math.abs(payload - state.clockOffset) < CLOCK_GRAIN_MS
+          ? {}
+          : {clockOffset: payload, clockKnown: true},
+      ),
         // Deliberately not written into `error`: that one blanks the run panel, and a
         // dashboard that cannot reach the history is still a dashboard. The tiles fall back to
         // the archive totals, exactly as they did before this existed.
@@ -141,11 +178,19 @@ export const IngestStore = signalStore(
           events.on(ingestEvents.currentRequested).pipe(
             switchMap(() =>
               api.current().pipe(
-                map((run) => ingestEvents.currentLoaded(run)),
-                // Silent: a heartbeat that cannot reach the API must not put an error
-                // on a dashboard that is otherwise fine. `null` is also the honest
-                // answer — nothing is known to be running.
-                catchError(() => of(ingestEvents.currentLoaded(null))),
+                // The clock first, so the run lands with the offset it is measured by.
+                mergeMap(({run, serverDate}) => {
+                  const server = serverDate === null ? Number.NaN : Date.parse(serverDate);
+                  // The header truncates to the second, so the middle of that second.
+                  const clock = Number.isFinite(server) ? [ingestEvents.clockRead(server + CLOCK_GRAIN_MS / 2 - Date.now())] : [];
+                  return [...clock, ingestEvents.currentLoaded(run)];
+                }),
+                // Silent: a heartbeat that cannot reach the API must not put an error on a
+                // dashboard that is otherwise fine. And not `null` either: one blip or one 502
+                // from the proxy is no news about the run, and read as "nothing is running" it
+                // announced the end of a pass still going and set off the reload a real end
+                // asks for. Only an answer ends a pass; a failure keeps what was last known.
+                catchError(() => of(ingestEvents.currentFailed())),
               ),
             ),
           ),
@@ -156,12 +201,16 @@ export const IngestStore = signalStore(
            * is what makes a stage change visible, the slow one is what keeps an idle
            * browser from talking to the API twelve times a minute forever.
            */
-          events.on(ingestEvents.currentLoaded).pipe(
-            switchMap(({payload}) =>
+          // A failed beat restarts the timer too, at the cadence of what was last known.
+          merge(
+            events.on(ingestEvents.currentLoaded).pipe(map(({payload}) => payload)),
+            events.on(ingestEvents.currentFailed).pipe(map(() => store.current())),
+          ).pipe(
+            switchMap((known) =>
               // Fast while a pass is going *or while this browser is waiting on its own*: the
               // request has left and the row is about to open, and thirty seconds is how late
               // the operator's own run toast would otherwise be.
-              timer(payload === null && !store.running() ? 30_000 : 5_000).pipe(map(() => ingestEvents.currentRequested())),
+              timer(known === null && !store.running() ? 30_000 : 5_000).pipe(map(() => ingestEvents.currentRequested())),
             ),
           ),
           /*

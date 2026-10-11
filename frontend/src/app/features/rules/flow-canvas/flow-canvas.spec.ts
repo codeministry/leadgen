@@ -220,6 +220,41 @@ describe('FlowCanvas', () => {
         expect(host.querySelectorAll('.flow-node-count')).toHaveLength(0);
     });
 
+    // ISC-412 ticks the running stage's seconds once a second. A node array rebuilt on every tick
+    // handed vflow fourteen new node objects a second for one changed number on one card.
+    it("keeps every node object across a tick of the running stage's clock and across a stage change", async () => {
+        TestBed.configureTestingModule({imports: [FlowCanvas], providers: [provideRouter([])]});
+        const fixture = TestBed.createComponent(FlowCanvas);
+        const pass = (stageId: string) =>
+            runState(WORKFLOW, {
+                id: 1,
+                startedAt: '2026-09-26T00:00:00Z',
+                scoreModel: null,
+                stage: stageId,
+                stagePosition: null,
+                stageTotal: null,
+                stageStartedAt: '2026-09-26T00:00:00Z',
+            });
+        fixture.componentRef.setInput('workflow', WORKFLOW);
+        fixture.componentRef.setInput('run', pass('DEDUPE'));
+        fixture.componentRef.setInput('elapsed', 5);
+        await fixture.whenStable();
+        const host = fixture.nativeElement as HTMLElement;
+        const before = fixture.componentInstance.nodes();
+
+        fixture.componentRef.setInput('elapsed', 6);
+        await fixture.whenStable();
+        expect(fixture.componentInstance.nodes()).toBe(before);
+        expect(host.querySelector('lg-flow-node [data-stage="DEDUPE"] .flow-node-elapsed')?.textContent?.trim()).toBe('0:06');
+
+        fixture.componentRef.setInput('run', pass('FILTER'));
+        fixture.componentRef.setInput('elapsed', 0);
+        await fixture.whenStable();
+        expect(fixture.componentInstance.nodes()).toBe(before);
+        expect(host.querySelector('lg-flow-node [data-stage="FILTER"] .flow-node-elapsed')?.textContent?.trim()).toBe('0:00');
+        expect(host.querySelector('lg-flow-node [data-stage="DEDUPE"] .flow-node-elapsed')).toBeNull();
+    });
+
     it('marks the stage the last run failed at, and only that one', async () => {
         const failedAt = {position: 3, stage: 'ENRICH', startedAt: '', endedAt: '', millis: 1, status: 'FAILED', note: null, width: null};
         const host = await render({...LAST_RUN, status: 'FAILED', stages: [failedAt]});

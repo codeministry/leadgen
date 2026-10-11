@@ -715,6 +715,7 @@
     "status": {
       "title": "Status",
       "ariaRunning": "Status: Ein Lauf läuft, Schritt {position} von {total}",
+      "ariaStarting": "Status: Ein Lauf startet",
       "ariaFinished": "Status: Der letzte Lauf endete um {time}",
       "ariaFailed": "Status: Der letzte Lauf ist um {time} fehlgeschlagen",
       "ariaNone": "Status: Noch kein Lauf",
