@@ -57,6 +57,34 @@ describe('Markdown', () => {
         expect(html).not.toContain('<script');
     });
 
+    it('keeps a quote in a link address or title inside its attribute (CodeQL #10, #11)', () => {
+        // The override drops what Marked's own link renderer does first, so the escaping is ours.
+        const parse = (text: string) => new DOMParser().parseFromString(render(text), 'text/html').querySelector('a')!;
+
+        const address = parse('[x](<https://example.invalid/a" onmouseover="alert(1)>)');
+        expect(address.getAttributeNames().sort()).toEqual(['href', 'rel', 'target']);
+        expect(address.getAttribute('href')).toBe('https://example.invalid/a%22%20onmouseover=%22alert(1)');
+
+        const titled = parse(`[x](https://example.invalid 't" onclick="alert(2)')`);
+        expect(titled.getAttributeNames().sort()).toEqual(['href', 'rel', 'target', 'title']);
+        expect(titled.getAttribute('title')).toBe('t" onclick="alert(2)');
+    });
+
+    it('renders a link that would run code as its label alone', () => {
+        const html = render('[klick](javascript:alert(1)) und [daten](data:text/html,x) und [datei](file:///etc/passwd)');
+
+        expect(html).not.toContain('<a');
+        expect(html).toContain('klick');
+        expect(html).toContain('daten');
+        expect(html).toContain('datei');
+    });
+
+    it('renders the label of a link as Markdown, not as raw markup', () => {
+        const html = render('[**fett**](https://example.invalid)');
+
+        expect(html).toContain('<strong>fett</strong>');
+    });
+
     it('renders nothing at all for an offer with no text', () => {
         expect(render('')).not.toContain('<p');
     });

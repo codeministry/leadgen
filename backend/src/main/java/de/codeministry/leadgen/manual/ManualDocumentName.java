@@ -27,6 +27,20 @@ public final class ManualDocumentName {
     public static final String EXTENSION = ".md";
 
     private static final int MAX_LENGTH = 96;
+
+    /**
+     * The longest name accepted once its directory part is gone: the common file-system limit
+     * for one name. A client that sends its whole local path is not refused for the path.
+     */
+    private static final int MAX_NAME_LENGTH = 255;
+
+    /**
+     * The longest input read at all, path included, before any pattern runs over it. The path
+     * variable that carries a name back is bounded only by the request header, and a pattern
+     * over eight kilobytes of hyphens is work nobody asked for.
+     */
+    private static final int MAX_RAW_LENGTH = 4096;
+
     private static final String FALLBACK = "offer";
 
     private ManualDocumentName() {}
@@ -52,8 +66,14 @@ public final class ManualDocumentName {
         if (raw == null || raw.isBlank()) {
             throw new Rejected("the upload states no file name");
         }
+        if (raw.length() > MAX_RAW_LENGTH) {
+            throw new Rejected("an upload name is at most " + MAX_RAW_LENGTH + " characters, not " + raw.length());
+        }
         String name = raw.replace('\\', '/');
         name = name.substring(name.lastIndexOf('/') + 1);
+        if (name.length() > MAX_NAME_LENGTH) {
+            throw new Rejected("a file name is at most " + MAX_NAME_LENGTH + " characters, not " + name.length());
+        }
 
         if (!name.toLowerCase(Locale.ROOT).endsWith(EXTENSION)) {
             // An allowlist and not a denylist: this directory is read by a source that
@@ -62,14 +82,28 @@ public final class ManualDocumentName {
         }
 
         String stem = name.substring(0, name.length() - EXTENSION.length());
-        stem = stem.replaceAll("[^A-Za-z0-9._-]+", "-").replaceAll("^[-.]+", "").replaceAll("[-.]+$", "");
-        if (stem.isEmpty()) {
-            stem = FALLBACK;
-        }
+        stem = stem.replaceAll("[^A-Za-z0-9._-]+", "-").replaceAll("^[-.]+", "");
+        // Cut before the trailing separators go, or the cut leaves new ones: "a-.-.….md" at 96.
         if (stem.length() > MAX_LENGTH) {
             stem = stem.substring(0, MAX_LENGTH);
         }
+        stem = stripTrailingSeparators(stem);
+        if (stem.isEmpty()) {
+            stem = FALLBACK;
+        }
         return stem + EXTENSION;
+    }
+
+    /**
+     * Drops trailing hyphens and dots. A loop and not `[-.]+$`: the pattern retries from every
+     * position inside a run that does not reach the end, which is quadratic in the run's length.
+     */
+    private static String stripTrailingSeparators(String stem) {
+        int end = stem.length();
+        while (end > 0 && (stem.charAt(end - 1) == '-' || stem.charAt(end - 1) == '.')) {
+            end--;
+        }
+        return stem.substring(0, end);
     }
 
     /**
@@ -81,8 +115,11 @@ public final class ManualDocumentName {
      * being enforced the first time construction changes.
      */
     public static Path resolve(Path directory, String name) {
-        Path resolved = directory.resolve(sanitize(name)).normalize();
-        if (!resolved.getParent().equals(directory.normalize())) {
+        // Two checks that say the same thing: the parent is what this means, startsWith is the form
+        // static analysis recognises as a guard. Neither is trusted to hold for the other.
+        Path base = directory.normalize();
+        Path resolved = base.resolve(sanitize(name)).normalize();
+        if (!resolved.startsWith(base) || !base.equals(resolved.getParent())) {
             throw new Rejected("'" + name + "' resolves outside the inbox");
         }
         return resolved;

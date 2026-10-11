@@ -76,7 +76,8 @@ tasks.named("check") { dependsOn(lint, test, testBrowser) }
  * starved the others into failing on a clock rather than on a bug — a chat stream that ended
  * without `done`, a browser run aborted mid-import, a Chromium session that never connected
  * (measured 2026-10-10: two full builds red on two different tests, the backend suite alone green
- * every time). Lint and the production build still run beside them; they wait on nothing.
+ * every time). Lint and the production build still run beside them. Reasoning:
+ * docs/decisions/build-and-ci.md.
  */
 test { mustRunAfter(":backend:test") }
 testBrowser { mustRunAfter(":backend:test", test) }

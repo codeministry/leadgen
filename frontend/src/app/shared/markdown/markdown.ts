@@ -1,6 +1,6 @@
 import {ChangeDetectionStrategy, Component, computed, input} from '@angular/core';
 import {Marked} from 'marked';
-import {escapeHtml, hljs} from './highlight';
+import {escapeAttribute, escapeHtml, hljs} from './highlight';
 
 /**
  * Its own parser instance rather than the module-level `marked`, whose options are global:
@@ -43,6 +43,24 @@ export class Markdown {
 }
 
 /**
+ * The address a link may carry, or null when it should be its label alone. Overriding Marked's
+ * `link` renderer also drops what its own one does first — `encodeURI` on the address — so it is
+ * done here. An allowlist and not a denylist, as the chat's renderer has it: web and mail
+ * addresses and relative ones open, any other scheme (`javascript:`, `data:`, `file:`,
+ * `intent:`) is its label alone rather than left to the sanitizer.
+ */
+function safeHref(href: string): string | null {
+    if (/^\s*(?!(?:https?|mailto):)[a-z][a-z0-9+.-]*:/i.test(href)) {
+        return null;
+    }
+    try {
+        return encodeURI(href).replace(/%25/g, '%');
+    } catch {
+        return null;
+    }
+}
+
+/**
  * Highlighting runs as a Marked extension rather than after the fact, so the parser hands
  * over the code and its language and nothing has to be found again in the output.
  */
@@ -55,9 +73,14 @@ parser.use({
          * a page opened with `target="_blank"` can otherwise reach back through
          * `window.opener`, and this markup came off a portal.
          */
-        link({href, title, text}) {
-            const label = title ? ` title="${escapeHtml(title)}"` : '';
-            return `<a href="${escapeHtml(href)}"${label} target="_blank" rel="noopener noreferrer">${text}</a>`;
+        link({href, title, tokens}) {
+            const label = this.parser.parseInline(tokens);
+            const target = safeHref(href);
+            if (target === null) {
+                return label;
+            }
+            const hint = title ? ` title="${escapeAttribute(title)}"` : '';
+            return `<a href="${escapeAttribute(target)}"${hint} target="_blank" rel="noopener noreferrer">${label}</a>`;
         },
 
         /**

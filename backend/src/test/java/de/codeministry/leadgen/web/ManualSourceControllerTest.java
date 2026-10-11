@@ -90,6 +90,22 @@ class ManualSourceControllerTest {
     }
 
     @Test
+    void answersARefusedNameAsPlainTextEvenToAClientAskingForHtml() {
+        // The reason quotes the uploaded name; served as HTML, a name would be markup.
+        willThrow(new ManualDocumentName.Rejected("only .md documents are accepted, not <img src=x onerror=alert(1)>"))
+                .given(uploads)
+                .store(anyString(), any());
+
+        assertThat(mvc.post()
+                        .uri("/api/v1/sources/manual/documents")
+                        .accept(MediaType.TEXT_HTML)
+                        .multipart()
+                        .file(file("payload.sh")))
+                .hasStatus(400)
+                .hasContentTypeCompatibleWith(MediaType.TEXT_PLAIN);
+    }
+
+    @Test
     void answers409WhenNoInboxIsConfiguredAtAll() {
         // Not the client's mistake, and not a 500: the source is switched off.
         willThrow(new ManualUploadService.NoInbox()).given(uploads).pending();
