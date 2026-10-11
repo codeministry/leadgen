@@ -240,7 +240,8 @@ function percentile(share: number): number {
 
 const PERCENTILES = [0.5, 0.9, 0.99, 0.999, 0.9999];
 
-const cell = (value: string) => value.replace(/\|/g, "\\|").replace(/\n/g, " ").slice(0, 110);
+// Cut before escaping, or the cut can leave a lone backslash that escapes the next delimiter.
+const cell = (value: string) => value.replace(/\n/g, " ").slice(0, 110).replace(/[\\|]/g, "\\$&");
 const lines = [
   `# Observed pair similarities — \`${MODEL}\`, ${MODE} text (${dimensions} dims${TRUNCATE > 0 ? ", truncated and renormalised" : ""})`,
   "",

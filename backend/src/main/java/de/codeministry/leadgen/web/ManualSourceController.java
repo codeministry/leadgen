@@ -17,6 +17,8 @@ import java.io.UncheckedIOException;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -78,9 +80,10 @@ class ManualSourceController {
      * matters: "only .md documents are accepted" is actionable, a bare 400 is not.
      */
     @ExceptionHandler(ManualDocumentName.Rejected.class)
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
-    String rejected(ManualDocumentName.Rejected e) {
-        return e.getMessage();
+    ResponseEntity<String> rejected(ManualDocumentName.Rejected e) {
+        // Plain text, whatever the client accepts: the reason can quote the uploaded name, and
+        // served as HTML that name would be markup.
+        return ResponseEntity.badRequest().contentType(MediaType.TEXT_PLAIN).body(e.getMessage());
     }
 
     /**

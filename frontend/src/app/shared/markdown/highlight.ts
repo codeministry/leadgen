@@ -40,3 +40,12 @@ export {hljs};
 export function escapeHtml(text: string): string {
     return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
+
+/**
+ * Text for a quoted attribute value: the three of `escapeHtml` and both quotes, so a value can
+ * never close its attribute and open another. Angular's sanitizer would drop the attribute it
+ * opened; this keeps the markup from depending on that alone.
+ */
+export function escapeAttribute(text: string): string {
+    return escapeHtml(text).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}

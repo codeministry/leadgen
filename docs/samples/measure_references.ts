@@ -208,9 +208,9 @@ for (let index = 0; index < offers.length; index++) {
   if (lexical.map((s) => s.project.id).join() !== blended.map((s) => s.project.id).join()) changed++;
 
   const cell = (list: typeof scored) =>
-    list.length === 0 ? "_none_" : list.map((s) => title(s.project)).join(", ").replace(/\|/g, "\\|");
+    list.length === 0 ? "_none_" : list.map((s) => title(s.project)).join(", ").replace(/[\\|]/g, "\\$&");
   rows.push(
-    `| ${(offer.title ?? "").replace(/\|/g, "\\|").slice(0, 70)} | ${cell(lexical)} | ${cell(semantic)} | ${cell(blended)} |`,
+    `| ${(offer.title ?? "").slice(0, 70).replace(/[\\|]/g, "\\$&")} | ${cell(lexical)} | ${cell(semantic)} | ${cell(blended)} |`,
   );
 }
 
