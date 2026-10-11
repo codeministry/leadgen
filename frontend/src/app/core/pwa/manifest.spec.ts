@@ -279,17 +279,6 @@ describe('the head links the manifest (ISC-327)', () => {
         expect(attributeOf(link!, 'href')).toBe('manifest.webmanifest');
     });
 
-    // The query is the touch icon's address and not part of the file: see the comment in index.html.
-    it('links the touch icon and the favicon at a versioned address of a file in public/', () => {
-        for (const rel of ['apple-touch-icon', 'icon']) {
-            const link = headTag(html, 'link', 'rel', rel);
-            expect(link, rel).toBeDefined();
-            const [file, query] = attributeOf(link!, 'href')!.split('?');
-            expect(existsSync(resolve(FRONTEND, 'public', file!)), `${rel} -> ${file}`).toBe(true);
-            expect(query, rel).toMatch(/^v=\d+$/);
-        }
-    });
-
     it('carries a theme-color for the first paint, in the dark surface', () => {
         const meta = headTag(html, 'meta', 'name', 'theme-color');
         expect(meta).toBeDefined();

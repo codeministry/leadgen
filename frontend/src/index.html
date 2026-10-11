@@ -16,12 +16,9 @@
        which recolours the ring and the dots by group id and puts the mark on a round plate
        (the tab icon, the manifest's `any` icons) or an opaque square one (the touch icon,
        the manifest's maskable icon). Regenerate, never hand-edit. The header draws the same
-       paths inline in `shared/brand-mark/`.
-       The `?v=` is a new address for the same file, not a cache buster for browsers: iOS keeps a
-       touch icon it once failed to read per URL, past a cleared website data and a restart, and
-       draws a letter for good. Bump it when a home screen keeps a letter while the files are fine. -->
-    <link rel="icon" type="image/x-icon" href="favicon.ico?v=2" sizes="16x16 32x32 48x48"/>
-    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=2"/>
+       paths inline in `shared/brand-mark/`. -->
+    <link rel="icon" type="image/x-icon" href="favicon.ico" sizes="16x16 32x32 48x48"/>
+    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png"/>
     <script>
         // Runs before the stylesheet resolves, so the page never paints in the wrong
         // theme and then corrects itself. "System" is the *absence* of the attribute:
