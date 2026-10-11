@@ -75,6 +75,14 @@ function page(over: Partial<ShortlistPayload> = {}): ShortlistPayload {
     };
 }
 
+// Every matchMedia stub below is taken back after each test: jsdom has none, and one left behind
+// answers yes to every query in the next spec of the worker, reduced motion included.
+const MATCH_MEDIA = Object.getOwnPropertyDescriptor(window, 'matchMedia');
+afterEach(() => {
+    if (MATCH_MEDIA) Object.defineProperty(window, 'matchMedia', MATCH_MEDIA);
+    else delete (window as {matchMedia?: unknown}).matchMedia;
+});
+
 describe('ShortlistPage', () => {
     let http: HttpTestingController;
 

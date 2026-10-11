@@ -715,6 +715,7 @@
     "status": {
       "title": "Status",
       "ariaRunning": "Status: a pass is running, step {position} of {total}",
+      "ariaStarting": "Status: a pass is starting",
       "ariaFinished": "Status: the last run finished at {time}",
       "ariaFailed": "Status: the last run failed at {time}",
       "ariaNone": "Status: no run yet",

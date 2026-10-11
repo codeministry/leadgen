@@ -33,7 +33,8 @@ import {RunControl} from '../run-control/run-control';
 })
 export class RunStatus {
     protected readonly ingest = inject(IngestStore);
-    private readonly tick = injectTick();
+    /** Needed only while a pass is reported: this header is on every screen, idle most of the day. */
+    private readonly tick = injectTick(() => this.ingest.current() !== null);
     private readonly transloco = inject(TranslocoService);
     private readonly lang = toSignal(this.transloco.langChanges$, {initialValue: this.transloco.getActiveLang()});
 
@@ -74,10 +75,13 @@ export class RunStatus {
         return at === null ? null : new Intl.DateTimeFormat(this.lang(), {timeStyle: 'short'}).format(at);
     });
 
-    /** Seconds since the pass in flight started; read only while one is, so the clock costs nothing idle. */
+    /**
+     * Seconds since the pass in flight started; read only while one is, so the clock costs nothing
+     * idle. On the server's clock, which `startedAt` is on, as the workflow screen counts it.
+     */
     protected readonly elapsed = computed((): number | null => {
         const at = instant(this.ingest.current()?.startedAt);
-        return at === null ? null : Math.max(0, Math.floor((this.tick() - at.getTime()) / 1000));
+        return at === null ? null : Math.max(0, Math.floor((this.tick() + this.ingest.clockOffset() - at.getTime()) / 1000));
     });
 
     /** Stages behind the running one: step 3 of 9 means two are done. */

@@ -1,3 +1,4 @@
+import {signal} from '@angular/core';
 import {TestBed} from '@angular/core/testing';
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import {injectTick, TICK_INTERVAL_MS} from './tick';
@@ -63,6 +64,47 @@ describe('injectTick', () => {
 
         expect(clearIntervalSpy).toHaveBeenCalledTimes(1);
         expect(clearIntervalSpy).toHaveBeenCalledWith(id);
+    });
+
+    // The header reads the clock on every screen for the app's lifetime; an idle browser must not
+    // wake once a second for a number nobody is shown.
+    it('runs no interval while no consumer needs the clock', () => {
+        const setIntervalSpy = vi.spyOn(globalThis, 'setInterval');
+        const needed = signal(false);
+
+        TestBed.runInInjectionContext(() => injectTick(needed));
+        TestBed.tick();
+
+        expect(setIntervalSpy).not.toHaveBeenCalled();
+    });
+
+    it('starts the interval when a consumer needs it, at the current time, and clears it when none does', () => {
+        const setIntervalSpy = vi.spyOn(globalThis, 'setInterval');
+        const clearIntervalSpy = vi.spyOn(globalThis, 'clearInterval');
+        const first = signal(false);
+        const second = signal(false);
+        vi.setSystemTime(1_000);
+        const tick = TestBed.runInInjectionContext(() => injectTick(first));
+        TestBed.runInInjectionContext(() => injectTick(second));
+        TestBed.tick();
+
+        vi.setSystemTime(60_000);
+        first.set(true);
+        second.set(true);
+        TestBed.tick();
+        expect(setIntervalSpy).toHaveBeenCalledTimes(1);
+        // Not the reading from when the clock last stopped: a pass that appears after an idle
+        // hour must not start an hour in the past.
+        expect(tick()).toBe(60_000);
+
+        first.set(false);
+        TestBed.tick();
+        expect(clearIntervalSpy).not.toHaveBeenCalled();
+
+        second.set(false);
+        TestBed.tick();
+        expect(clearIntervalSpy).toHaveBeenCalledTimes(1);
+        expect(clearIntervalSpy).toHaveBeenCalledWith(setIntervalSpy.mock.results[0].value);
     });
 
     it('starts a fresh clock, at the current time, for the next injector', () => {

@@ -6,8 +6,10 @@
                 <span class="type-display-xl figure">{{ survived() }}</span>
                 <span class="type-h1 sentence">{{ 'dashboard.heroSentence' | transloco: {survived: survived(), total: total()} }}</span>
             </p>
-            @if (strong(); as strong) {
-                <p class="type-body strong">{{ 'dashboard.heroStrong' | transloco: {count: strong} }}</p>
+            <!-- Null is "not loaded yet"; zero is an answer and is said. -->
+            @let strongCount = strong();
+            @if (strongCount !== null) {
+                <p class="type-body strong">{{ 'dashboard.heroStrong' | transloco: {count: strongCount} }}</p>
             }
         } @else {
             <p class="type-h1 sentence">{{ 'dashboard.nothingFiltered' | transloco }}</p>

@@ -13,6 +13,22 @@ const STAGES: readonly FunnelStage[] = [
 ];
 
 describe('FunnelRail', () => {
+    // Motion stated, not inherited: another spec in the same worker may leave a `matchMedia` behind
+    // that answers yes to everything, reduced motion included, and the rail then never starts wide.
+    let original: PropertyDescriptor | undefined;
+    beforeEach(() => {
+        original = Object.getOwnPropertyDescriptor(window, 'matchMedia');
+        Object.defineProperty(window, 'matchMedia', {
+            configurable: true,
+            writable: true,
+            value: (query: string) => ({matches: false, media: query, addEventListener: () => undefined, removeEventListener: () => undefined}),
+        });
+    });
+    afterEach(() => {
+        if (original) Object.defineProperty(window, 'matchMedia', original);
+        else delete (window as {matchMedia?: unknown}).matchMedia;
+    });
+
     it('reproduces the measured baseline: 1289 in, 239 out', () => {
         const fixture = TestBed.createComponent(FunnelRail);
         fixture.componentRef.setInput('stages', STAGES);

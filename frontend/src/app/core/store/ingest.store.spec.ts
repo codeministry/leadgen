@@ -6,7 +6,7 @@ import {IngestReport} from '@core/api/ingest.api';
 import {LastRunView} from '@core/model/last-run';
 import {refreshEvents} from '@core/refresh/refresh.events';
 import {ingestEvents} from './ingest.events';
-import {IngestStore} from './ingest.store';
+import {IngestStore, FAILED_BEATS_ARE_NO_RUN} from './ingest.store';
 import {ScoringModelStore} from './scoring-model.store';
 
 /** A run this browser started, carrying the one thing a recorded run cannot: the document. */
@@ -232,6 +232,94 @@ describe('IngestStore', () => {
 
     expect(store.busy()).toBe(true);
     expect(store.current()?.stage).toBe('ENRICH');
+  });
+
+  // One failed heartbeat is a network blip or a 502 from the proxy, not news about the run. Read
+  // as "nothing is running" it announced the end of a pass that was still going, froze the
+  // graph's encoding and set off the reload a real end asks for.
+  it('keeps the pass it knows about through a failed heartbeat, and lets only an answer end it', () => {
+    vi.useFakeTimers();
+    http.expectOne('/api/v1/ingest/last').flush(null, {status: 204, statusText: 'No Content'});
+    const run = {
+      id: 31,
+      startedAt: '2026-09-15T07:17:35Z',
+      scoreModel: null,
+      stage: 'ENRICH',
+      stagePosition: 4,
+      stageTotal: 9,
+      stageStartedAt: '2026-09-15T07:20:00Z',
+    };
+    dispatch.currentLoaded(run);
+
+    vi.advanceTimersByTime(5_000);
+    http.expectOne('/api/v1/ingest/current').flush('bad gateway', {status: 502, statusText: 'Bad Gateway'});
+    expect(store.current()).toEqual(run);
+
+    // Still the fast cadence: the pass is still the last thing known.
+    vi.advanceTimersByTime(5_000);
+    http.expectOne('/api/v1/ingest/current').flush(null, {status: 204, statusText: 'No Content'});
+    expect(store.current()).toBeNull();
+  });
+
+  it('lets a run go after FAILED_BEATS_ARE_NO_RUN heartbeats in a row fail, so a pass is never drawn running forever', () => {
+    vi.useFakeTimers();
+    http.expectOne('/api/v1/ingest/last').flush(null, {status: 204, statusText: 'No Content'});
+    dispatch.currentLoaded({
+      id: 31,
+      startedAt: '2026-09-15T07:17:35Z',
+      scoreModel: null,
+      stage: 'ENRICH',
+      stagePosition: 4,
+      stageTotal: 9,
+      stageStartedAt: '2026-09-15T07:20:00Z',
+    });
+
+    for (let beat = 1; beat <= FAILED_BEATS_ARE_NO_RUN; beat++) {
+      expect(store.current(), `before failure ${beat}`).not.toBeNull();
+      vi.advanceTimersByTime(5_000);
+      http.expectOne('/api/v1/ingest/current').flush('unauthorized', {status: 401, statusText: 'Unauthorized'});
+    }
+    expect(store.current()).toBeNull();
+    // And back to the idle cadence: nothing goes out within the fast one.
+    vi.advanceTimersByTime(5_000);
+    http.expectNone('/api/v1/ingest/current');
+  });
+
+  // ISC-412's seconds subtract the server's `stageStartedAt` from a clock; the browser's own is
+  // off by however far the reader's machine is, so the answer's `Date` header is read alongside.
+  it("reads the server's clock off the heartbeat's Date header, and nothing without one", () => {
+    vi.useFakeTimers({toFake: ['Date']});
+    vi.setSystemTime(Date.parse('2026-09-26T00:00:00Z'));
+    http.expectOne('/api/v1/ingest/last').flush(null, {status: 204, statusText: 'No Content'});
+    expect(store.clockOffset()).toBe(0);
+
+    dispatch.currentRequested();
+    http.expectOne('/api/v1/ingest/current').flush(null, {status: 204, statusText: 'No Content'});
+    expect(store.clockOffset()).toBe(0);
+
+    // Five minutes ahead of the browser; the header truncates to the second, so the middle of it.
+    dispatch.currentRequested();
+    http.expectOne('/api/v1/ingest/current').flush(null, {status: 204, statusText: 'No Content', headers: {Date: 'Sat, 26 Sep 2026 00:05:00 GMT'}});
+    expect(store.clockOffset()).toBe(300_500);
+
+    // A reading inside the header's own one-second grain is noise and moves nothing — after the
+    // first, which is taken whatever its size (below).
+    vi.setSystemTime(Date.parse('2026-09-26T00:00:00.400Z'));
+    dispatch.currentRequested();
+    http.expectOne('/api/v1/ingest/current').flush(null, {status: 204, statusText: 'No Content', headers: {Date: 'Sat, 26 Sep 2026 00:05:00 GMT'}});
+    expect(store.clockOffset()).toBe(300_500);
+  });
+
+  it('takes the first clock reading even when it is under a second', () => {
+    vi.useFakeTimers({toFake: ['Date']});
+    vi.setSystemTime(Date.parse('2026-09-26T00:00:00Z'));
+    http.expectOne('/api/v1/ingest/last').flush(null, {status: 204, statusText: 'No Content'});
+
+    // 0.3 s behind once the middle of the header's second is taken: under the grain, and still read.
+    vi.setSystemTime(Date.parse('2026-09-26T00:00:00.200Z'));
+    dispatch.currentRequested();
+    http.expectOne('/api/v1/ingest/current').flush(null, {status: 204, statusText: 'No Content', headers: {Date: 'Sat, 26 Sep 2026 00:00:00 GMT'}});
+    expect(store.clockOffset()).toBe(300);
   });
 
   it('reads what a pass left behind when something says the data moved', () => {

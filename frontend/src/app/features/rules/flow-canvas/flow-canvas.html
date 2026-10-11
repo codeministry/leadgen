@@ -34,8 +34,8 @@
               [selected]="selected() === d.stage.id"
               [expandable]="expandable(d.stage)"
               [expanded]="isExpanded(d.stage.id)"
-              [state]="d.state"
-              [elapsed]="d.elapsed"
+              [state]="stateOf(d.id)"
+              [elapsed]="elapsedOf(d.id)"
               [lit]="lit() === null ? null : lit()!.has(d.stage.id)"
               (toggled)="toggle($event)"
             />
