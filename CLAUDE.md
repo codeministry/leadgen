@@ -65,6 +65,7 @@ Violating one of these is expensive, and most of them fail silently.
   native image, not an error. `LeadGenRuntimeHintsTest` fails when a new one has none.
 - **An MCP tool reads leadgen's services in-process, never writes, and its answer passes `ToolOutputMasker` at the tool list.** — reasoning in `docs/decisions/mcp.md`.
 - **Under `AUTH_MODE=none` `RebindingGuard` is the access control, and every proxy in front of the api overwrites `X-Forwarded-Host`, never passes a client's on.** — reasoning in `docs/decisions/mcp.md`.
+- **The backend, unit and browser suites take turns, and dropping the `mustRunAfter` edges to speed up the build brings the flakes back.** — reasoning in `docs/decisions/build-and-ci.md`.
 - **Never commit.** Do the work, leave it uncommitted, offer the commit — the maintainer
   reviews the diff and decides what lands.
 
@@ -119,7 +120,8 @@ there**, which is what keeps this file readable.
 | The sixteen steps this tool was built in, and what each had to prove        | `docs/decisions/order-of-work.md`           |
 | The AOT cache, the native image, the hints, and pre-1.0 versioning          | `docs/decisions/native-image.md`            |
 | The chat: grounding, tools, budget, the drawer                              | `docs/decisions/chat.md`                    |
-| The MCP server: ten tools, the masker, the protected-resource metadata    | `docs/decisions/mcp.md`                   |
+| The MCP server: ten tools, the masker, the protected-resource metadata      | `docs/decisions/mcp.md`                     |
+| The build's own rules: why the three test suites take turns                 | `docs/decisions/build-and-ci.md`            |
 
 The conventions and the traps for each half sit beside the code, in `backend/CLAUDE.md` and
 `frontend/CLAUDE.md`. A nested file is loaded when a file in that tree is read, never at
