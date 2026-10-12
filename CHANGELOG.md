@@ -9,6 +9,13 @@ may change in any release. See the status note in the README.
 
 ## [Unreleased]
 
+## [0.5.5] — 2026-10-12
+
+The chat can answer with another model per question — a local one or, through an optional second
+connection, a hosted one with a daily ceiling of its own — and an iPad gets its home-screen icon.
+The configuration gains the optional `chat.connection` block and `llm.billed`; an installation without
+them runs as before.
+
 ### Added
 
 - **The chat's model is picked per question.** A select beside the composer lists the models each configured
@@ -20,6 +27,18 @@ may change in any release. See the status note in the README.
   (`CHAT_LLM_MAX_CALLS_PER_DAY`, default 50) on top of the chat's. `LLM_BILLED` and `CHAT_LLM_BILLED` decide
   the billed marker. New endpoint `GET /api/v1/chat/models`; `GET /api/v1/chat/status` names the second
   connection's calls.
+
+### Changed
+
+- **The chat panel loads on its first open.** The drawer's content and its libraries left the initial bundle
+  (1.00 MB → 868 kB); the header button, its living mark and the minibar stay in the shell, and a reload with
+  `?chat=…` still opens the drawer with its content.
+
+### Fixed
+
+- **Every apple-touch-icon variant answers with the touch icon.** iOS asks for fixed root paths, an iPad's
+  152 and 167 sizes among them; nginx handed those to the SPA fallback, and an iPad's home-screen icon fell
+  back to a letter.
 
 ## [0.5.4] — 2026-10-11
 
@@ -1714,7 +1733,8 @@ Found while building the demo, all of them in paths only a container exercises:
   left six.
 - The shortlist card printed the description's Markdown syntax in its teaser.
 
-[Unreleased]: https://github.com/codeministry/leadgen/compare/v0.5.4...HEAD
+[Unreleased]: https://github.com/codeministry/leadgen/compare/v0.5.5...HEAD
+[0.5.5]: https://github.com/codeministry/leadgen/releases/tag/v0.5.5
 [0.5.4]: https://github.com/codeministry/leadgen/releases/tag/v0.5.4
 [0.5.3]: https://github.com/codeministry/leadgen/releases/tag/v0.5.3
 [0.5.2]: https://github.com/codeministry/leadgen/releases/tag/v0.5.2
