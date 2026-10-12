@@ -393,6 +393,15 @@ full-screen modal sheet there, and following a source collapses it into a bar ab
 navigation that names the conversation, marks a streaming turn, and expands back on a tap — with
 `?chat` still in the URL, so "a change of screen keeps it open" holds literally on every width.
 
+**The panel loads on the drawer's first open, not with the page.** Hosted in the root, the whole
+drawer — its components, DOMPurify and the answer renderer — sat in the initial bundle on every
+screen, and spec 025's model select pushed that bundle past its 1 MB budget (1.00 MB, 3.55 kB over).
+The root wraps `lg-chat-panel` in `@defer (when …)` on the store's open state and keeps it once
+loaded: the initial total fell to 867 kB, and the panel is its own 140 kB chunk. The budget stays;
+the header button, its living mark and the store remain eager, and the panel seeds its "followed a
+source" comparison from the URL it was built under, because the navigation that opened it has
+already ended by then.
+
 ## The living mark: four frames of one turn
 
 The assistant's glyph beside each answer is the brand's living mark, and its frame is a pure

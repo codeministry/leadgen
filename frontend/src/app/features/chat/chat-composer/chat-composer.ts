@@ -206,8 +206,9 @@ export class ChatComposer {
 
     constructor() {
         // The catalog each time the drawer opens, so a connection that went away or came back is seen. Not
-        // when the composer is built: it stands in the closed drawer on every page, and a page load is no
-        // reason to ask each connection for its models. Without a chat model nothing is asked (ISC-513).
+        // when the composer is built: a page load is no reason to ask each connection for its models. The
+        // panel is deferred to the drawer's first open, so the composer is usually built already open —
+        // `wasOpen` starts false, and that first open asks once. Without a chat model nothing is asked (ISC-513).
         let wasOpen = false;
         effect(() => {
             const open = this.store.present() === true && this.store.view() !== 'closed';

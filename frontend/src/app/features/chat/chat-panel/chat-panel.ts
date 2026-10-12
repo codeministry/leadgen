@@ -204,7 +204,10 @@ export class ChatPanel {
         // Following a source: a change of screen that keeps `?chat` as it was, while the sheet
         // covers the window. The page it opened is what the reader went for, so the sheet folds.
         const router = inject(Router);
-        let previous: {path: string; chat: string | null} | null = null;
+        // The panel is built on the drawer's first open (deferred in the root), after the navigation
+        // that opened it: that screen is the one the next change of screen is compared against.
+        const opened = router.parseUrl(router.url).queryParamMap.get('chat');
+        let previous: {path: string; chat: string | null} | null = opened === null ? null : {path: router.url.split(/[?#]/)[0], chat: opened};
         router.events
             .pipe(
                 filter((event) => event instanceof NavigationEnd),

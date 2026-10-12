@@ -1,3 +1,12 @@
 <lg-app-shell>
-  <lg-chat-panel lgShellAside/>
+  <!-- The chat panel and its libraries load on the drawer's first open, never with the page: the
+       drawer would otherwise sit in the initial bundle on every screen (docs/decisions/chat.md
+       § A docked drawer). Once loaded it stays, so closing and reopening keep its state. No
+       placeholder: closed, the drawer draws nothing, and the service worker's prefetch of every
+       `*.js` already holds the chunk on an installed client. -->
+  <ng-container ngProjectAs="[lgShellAside]">
+    @defer (when chatOpen()) {
+      <lg-chat-panel lgShellAside/>
+    }
+  </ng-container>
 </lg-app-shell>

@@ -1,5 +1,6 @@
-import {ChangeDetectionStrategy, Component, inject} from '@angular/core';
+import {ChangeDetectionStrategy, Component, computed, inject} from '@angular/core';
 import {RefreshStore} from '@core/refresh/refresh.store';
+import {ChatStore} from '@core/store/chat.store';
 import {IngestStore} from '@core/store/ingest.store';
 import {ChatPanel} from '@features/chat/chat-panel/chat-panel';
 import {AppShell} from '@layout/app-shell/app-shell';
@@ -16,6 +17,10 @@ import {AppShell} from '@layout/app-shell/app-shell';
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class App {
+    private readonly chat = inject(ChatStore);
+    /** The drawer is open, by the URL's `?chat`: the deferred panel is created then, and stays. */
+    protected readonly chatOpen = computed(() => this.chat.present() === true && this.chat.view() !== 'closed');
+
   /**
    * `RefreshStore` is injected for its existence and for nothing it returns.
    *
