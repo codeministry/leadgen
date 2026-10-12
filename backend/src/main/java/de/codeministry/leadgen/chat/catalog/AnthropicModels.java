@@ -47,14 +47,19 @@ final class AnthropicModels implements ChatModelCatalog.Lister {
     public List<String> list(PipelineConfig.Llm llm) throws IOException, InterruptedException {
         String root = ChatModelCatalog.Discovery.trimSlash(llm.baseUrl());
         String models = (root.endsWith("/v1") ? root : root + "/v1") + "/models?limit=" + PAGE_SIZE;
-        String key = llm.apiKey() == null ? "" : llm.apiKey();
+        // The URI first, so a malformed base URL reads as one whatever the key holds; then the
+        // header's precondition, enforced where it is built: a key that fits a header.
+        URI first = ChatModelCatalog.Discovery.uri(models);
+        String key = ChatModelCatalog.Discovery.key(llm.apiKey());
         List<String> names = new ArrayList<>();
         String after = null;
         for (int page = 0; page < MAX_PAGES; page++) {
-            String url =
-                    after == null ? models : models + "&after_id=" + URLEncoder.encode(after, StandardCharsets.UTF_8);
+            URI url = after == null
+                    ? first
+                    : ChatModelCatalog.Discovery.uri(
+                            models + "&after_id=" + URLEncoder.encode(after, StandardCharsets.UTF_8));
             JsonNode body = discovery.send(discovery
-                    .request(URI.create(url))
+                    .request(url)
                     .header("x-api-key", key)
                     .header("anthropic-version", API_VERSION)
                     .GET()

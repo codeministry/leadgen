@@ -966,6 +966,8 @@
       "billed": "billed",
       "billedOption": "{name} · billed",
       "none": "No models",
+      "default": "Default · {name}",
+      "defaultBare": "Default",
       "groupUnavailable": "{connection} · {reason}",
       "note": "{connection}: {reason}",
       "spent": "No calls left today",
@@ -1075,7 +1077,8 @@
       "secondCallsValue": "{{used}} of {{limit}}",
       "rounds": "Tool rounds per answer",
       "chatLoading": "Loading…",
-      "chatFailed": "The status did not load."
+      "chatFailed": "The status did not load.",
+      "refreshFailed": "The last refresh failed; these numbers may be out of date."
     },
     "select": {
       "action": "Select",

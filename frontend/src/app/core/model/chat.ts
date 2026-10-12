@@ -320,6 +320,14 @@ export interface BulkDeleted {
 /** Which configured connection a model sits on — never its base URL. */
 export type ChatConnectionName = 'PRIMARY' | 'SECOND';
 
+/**
+ * The connection a turn was answered on (ISC-511). A turn stored before the select (V37) carries none,
+ * and every turn then ran on the primary connection, so none reads as `PRIMARY`.
+ */
+export function answeredOn(turn: {readonly connection?: ChatConnectionName | null}): ChatConnectionName {
+    return turn.connection ?? 'PRIMARY';
+}
+
 /** One model a connection offers the chat — `ModelView` on the server. */
 export interface ChatModel {
     /** The name as the connection reported it. */
@@ -347,6 +355,11 @@ export interface ChatConnection {
 /** `GET /api/v1/chat/models` — what the model select offers, the primary connection first (ISC-505). */
 export interface ChatModels {
     readonly connections: readonly ChatConnection[];
+    /**
+     * The model a turn without a pick takes: the configured chat model on the primary connection, as
+     * configured — listed or not. Null without a chat model; absent from a server older than the field.
+     */
+    readonly defaultModelName?: string | null;
 }
 
 /**
@@ -368,4 +381,33 @@ export interface ChatStatus {
     readonly secondCalls?: number | null;
     /** The second connection's own daily ceiling; null without a second connection (ISC-510). */
     readonly secondLimit?: number | null;
+}
+
+/**
+ * Whether the status says the second connection's day is spent (ISC-510): its calls have reached its own
+ * ceiling. False while either number is unknown — without a status, or without a second connection.
+ */
+export function secondSpent(status: ChatStatus | null): boolean {
+    const calls = status?.secondCalls;
+    const limit = status?.secondLimit;
+    return calls != null && limit != null && calls >= limit;
+}
+
+/** Why a connection's models cannot be picked now: a catalog key and what it interpolates. */
+export interface ChatPickReason {
+    readonly key: string;
+    readonly params: Readonly<Record<string, string>>;
+}
+
+/**
+ * Why a connection's models cannot be picked now, or null when they can (ISC-510, ISC-511): it did not
+ * answer the catalog, the catalog named a reason, or — for the second connection — the status says its
+ * day is spent. The one rule: the select disables by it, and the store drops a pick by it.
+ */
+export function unpickableReason(connection: ChatConnection, status: ChatStatus | null): ChatPickReason | null {
+    const said = connection.reason?.trim() ?? '';
+    if (!connection.reachable) return said === '' ? {key: 'chat.model.unreachableBare', params: {}} : {key: 'chat.model.unreachable', params: {reason: said}};
+    if (said !== '') return {key: 'chat.model.unavailable', params: {reason: said}};
+    if (connection.name === 'SECOND' && secondSpent(status)) return {key: 'chat.model.spent', params: {}};
+    return null;
 }

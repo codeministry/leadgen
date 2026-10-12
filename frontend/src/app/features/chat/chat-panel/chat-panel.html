@@ -206,7 +206,7 @@
         [last]="last"
         [conversationId]="store.conversation()?.id ?? null"
         [model]="turn.model ?? null"
-        [billed]="store.billedConnections().includes(turn.connection)"
+        [billed]="billed(turn)"
       />
     </div>
   </article>

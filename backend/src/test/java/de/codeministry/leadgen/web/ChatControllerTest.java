@@ -249,15 +249,23 @@ class ChatControllerTest {
     void theModelsListEachConnectionWithItsModelsAndFlags() {
         given(capability.model()).willReturn(Optional.of("model-a"));
         given(catalog.models())
-                .willReturn(new ChatModelsView(List.of(
-                        new ConnectionView(
-                                "PRIMARY",
-                                "ollama",
-                                false,
-                                true,
-                                null,
-                                List.of(new ModelView("model-a", true), new ModelView("model-b", false))),
-                        new ConnectionView("SECOND", "anthropic", true, false, "answered HTTP 500", List.of()))));
+                .willReturn(new ChatModelsView(
+                        List.of(
+                                new ConnectionView(
+                                        "PRIMARY",
+                                        "ollama",
+                                        false,
+                                        true,
+                                        null,
+                                        List.of(new ModelView("model-a", true), new ModelView("model-b", false))),
+                                new ConnectionView(
+                                        "SECOND",
+                                        "anthropic",
+                                        true,
+                                        false,
+                                        "the model list answered HTTP 500",
+                                        List.of())),
+                        "model-a"));
 
         var models =
                 assertThat(mvc.get().uri("/api/v1/chat/models")).hasStatusOk().bodyJson();
@@ -270,8 +278,37 @@ class ChatControllerTest {
         models.extractingPath("$.connections[1].name").isEqualTo("SECOND");
         models.extractingPath("$.connections[1].billed").isEqualTo(true);
         models.extractingPath("$.connections[1].reachable").isEqualTo(false);
-        models.extractingPath("$.connections[1].reason").isEqualTo("answered HTTP 500");
+        models.extractingPath("$.connections[1].reason").isEqualTo("the model list answered HTTP 500");
         models.extractingPath("$.connections[1].models").asArray().isEmpty();
+        models.extractingPath("$.defaultModelName").isEqualTo("model-a");
+    }
+
+    /**
+     * The model a turn without a pick takes travels on its own, verbatim as configured, so the select
+     * can name it even when the primary lists it under another spelling or not at all; and as an
+     * explicit null when there is none.
+     */
+    @Test
+    void theModelsNameTheDefaultEvenWhenNoListedModelCarriesTheFlag() {
+        given(capability.model()).willReturn(Optional.of("model-a"));
+        given(catalog.models())
+                .willReturn(new ChatModelsView(
+                        List.of(new ConnectionView("PRIMARY", "ollama", false, false, "x", List.of())), "model-a"));
+
+        assertThat(mvc.get().uri("/api/v1/chat/models"))
+                .hasStatusOk()
+                .bodyJson()
+                .extractingPath("$.defaultModelName")
+                .isEqualTo("model-a");
+
+        given(catalog.models())
+                .willReturn(new ChatModelsView(
+                        List.of(new ConnectionView("PRIMARY", "ollama", false, true, null, List.of())), null));
+
+        assertThat(mvc.get().uri("/api/v1/chat/models"))
+                .hasStatusOk()
+                .bodyText()
+                .contains("\"defaultModelName\":null");
     }
 
     /** ISC-505: like the status, the list is absent where no chat model is configured, and nobody is asked. */
@@ -288,16 +325,23 @@ class ChatControllerTest {
         given(capability.model()).willReturn(Optional.of("model-a"));
         given(conversations.exists(1L)).willReturn(true);
         given(catalog.models())
-                .willReturn(new ChatModelsView(List.of(
-                        new ConnectionView(
-                                "PRIMARY", "ollama", false, true, null, List.of(new ModelView("model-a", true))),
-                        new ConnectionView(
-                                "SECOND",
-                                "openai-compatible",
-                                true,
-                                true,
-                                null,
-                                List.of(new ModelView("model-b", false))))));
+                .willReturn(new ChatModelsView(
+                        List.of(
+                                new ConnectionView(
+                                        "PRIMARY",
+                                        "ollama",
+                                        false,
+                                        true,
+                                        null,
+                                        List.of(new ModelView("model-a", true))),
+                                new ConnectionView(
+                                        "SECOND",
+                                        "openai-compatible",
+                                        true,
+                                        true,
+                                        null,
+                                        List.of(new ModelView("model-b", false)))),
+                        "model-a"));
         given(catalog.contains("PRIMARY", "model-a")).willReturn(true);
         given(catalog.contains("SECOND", "model-b")).willReturn(true);
     }

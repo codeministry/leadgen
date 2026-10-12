@@ -6,8 +6,10 @@ import {provideRouter, Router} from '@angular/router';
 import {page} from 'vitest/browser';
 import {TranslocoTestingModule} from '@jsverse/transloco';
 import {provideTranslocoMessageformat} from '@jsverse/transloco-messageformat';
+import {injectDispatch} from '@ngrx/signals/events';
 import {of, Subject} from 'rxjs';
 import {ChatApi} from '@core/api/chat.api';
+import {chatEvents} from '@core/store/chat.events';
 import {ChatEvent, ChatModels, ChatStatus, ConversationView, TurnView} from '@core/model/chat';
 import {App} from '../../app';
 import en from '../../../../public/i18n/en.json';
@@ -181,6 +183,43 @@ describe('the chat model select (ISC-511)', () => {
         expect(note.textContent!.trim()).toBe('Second connection: Not reachable: connection refused');
     });
 
+    it('keeps a spent second connection disabled while the status is asked again after a turn', async () => {
+        await open(CATALOG, SPENT);
+
+        await askQuestion('What came in today?');
+        server.next({event: 'turn', data: {turnId: 33, model: 'model-a', connection: 'PRIMARY'}});
+        server.next({event: 'done', data: {state: 'DONE'}});
+        await settle();
+
+        // The turn may have spent the second connection's day, so the status is asked again; until it
+        // answers, the last one known still holds.
+        const refresh = http.expectOne('/api/v1/chat/status');
+        const [, second] = groups();
+        expect(second.label).toBe('Second connection · No calls left today');
+        expect(options(second).every((o) => o.disabled), 'still disabled while the status is asked again').toBe(true);
+
+        refresh.flush({...SPENT, secondCalls: 3});
+        await settle();
+        expect(options(groups()[1]).every((o) => !o.disabled), 'enabled once the new status says so').toBe(true);
+    });
+
+    it('keeps a spent second connection disabled while the status popover asks again', async () => {
+        await open(CATALOG, SPENT);
+
+        // Opening the empty chat's status popover asks the status again; the one known so far holds.
+        document.querySelector<HTMLButtonElement>('.lg-chat-plate .lg-chat-status-trigger')!.dispatchEvent(new FocusEvent('focus'));
+        await settle();
+        const reload = http.expectOne('/api/v1/chat/status');
+        const [, second] = groups();
+        expect(second.label).toBe('Second connection · No calls left today');
+        expect(options(second).every((o) => o.disabled), 'still disabled while the popover asks again').toBe(true);
+        expect(document.querySelector('.lg-chat-status-second-calls')?.textContent?.trim(), 'the popover shows the status it has').toBe('20 of 20');
+
+        reload.flush(SPENT);
+        await settle();
+        expect(options(groups()[1]).every((o) => o.disabled)).toBe(true);
+    });
+
     it('draws no select when the catalog offers one model in all', async () => {
         await open({connections: [{...CATALOG.connections[0], models: [{name: 'model-a', defaultModel: true}]}]}, null);
 
@@ -230,9 +269,9 @@ function conversation(id: number, turns: readonly TurnView[]): ConversationView 
     return {id, title: `Conversation ${id}`, pinnedOfferId: null, turns, updatedAt: '2026-10-12T08:00:00Z'};
 }
 
-/** What the stubbed API answers: the catalog, the status, and each stored conversation by id. */
+/** What the stubbed API answers: the catalog — null fails it — the status, and each stored conversation by id. */
 interface StubServer {
-    readonly catalog: ChatModels;
+    readonly catalog: ChatModels | null;
     readonly status: ChatStatus | null;
     readonly conversations: Readonly<Record<number, ConversationView>>;
 }
@@ -270,6 +309,9 @@ class Tab {
         document.body.appendChild(this.fixture.nativeElement);
     }
 
+    /** How often the chat asked for the model catalog. */
+    catalogReads = 0;
+
     static async open(url: string, server: StubServer): Promise<Tab> {
         await page.viewport(1280, 800);
         const tab = new Tab(server);
@@ -288,7 +330,11 @@ class Tab {
     /** Whatever the chat asked the stubbed server, answered; nothing else the app asks is. */
     private answer(): void {
         this.http.match('/api/v1/chat/capability').forEach((r) => r.flush({present: true}));
-        this.http.match('/api/v1/chat/models').forEach((r) => r.flush(this.server.catalog));
+        this.http.match('/api/v1/chat/models').forEach((r) => {
+            this.catalogReads++;
+            if (this.server.catalog === null) r.flush('down', {status: 503, statusText: 'Service Unavailable'});
+            else r.flush(this.server.catalog);
+        });
         this.http.match('/api/v1/chat/status').forEach((r) => r.flush(this.server.status));
         this.http
             .match((r) => /^\/api\/v1\/chat\/conversations\/\d+$/.test(r.url))
@@ -297,6 +343,12 @@ class Tab {
 
     async go(url: string): Promise<void> {
         await TestBed.inject(Router).navigateByUrl(url);
+        await this.settle();
+    }
+
+    /** The catalog asked again, as the App root does each time the drawer opens. */
+    async reloadCatalog(): Promise<void> {
+        TestBed.runInInjectionContext(() => injectDispatch(chatEvents)).modelsRequested();
         await this.settle();
     }
 
@@ -436,6 +488,187 @@ describe('the pick a conversation opens on (ISC-512)', () => {
         await tab.askQuestion('Anything new?');
         expect(tab.ask.mock.calls.at(-1)).toEqual([13, 'Anything new?']);
     });
+
+    it('falls back to the default when the catalog reloads without the picked model', async () => {
+        const server = {
+            catalog: {
+                connections: [
+                    BILLED_SECOND.connections[0],
+                    {
+                        ...BILLED_SECOND.connections[1],
+                        models: [
+                            {name: 'model-b', defaultModel: false},
+                            {name: 'model-c', defaultModel: false},
+                        ],
+                    },
+                ],
+            } as ChatModels,
+            status: CALLS_LEFT,
+            conversations: {10: conversation(10, [])},
+        };
+        tab = await Tab.open('/dashboard?chat=10', server);
+        await tab.pick('SECOND:model-b');
+        expect(tab.select().value).toBe('SECOND:model-b');
+
+        // The catalog asked again no longer lists the pick.
+        server.catalog = BILLED_SECOND;
+        await tab.reloadCatalog();
+        expect(tab.select().value, 'a pick the catalog no longer lists shows the default').toBe('PRIMARY:model-a');
+        await tab.askQuestion('Anything new?');
+        expect(tab.ask.mock.calls.at(-1), 'and the next question sends no pick').toEqual([10, 'Anything new?']);
+
+        // A connection that became unreachable takes its pick with it the same way.
+        await tab.answerWith(50, 'model-a', 'PRIMARY');
+        await tab.pick('SECOND:model-c');
+        expect(tab.select().value).toBe('SECOND:model-c');
+        server.catalog = {connections: [BILLED_SECOND.connections[0], {...BILLED_SECOND.connections[1], reachable: false, reason: 'timed out'}]};
+        await tab.reloadCatalog();
+        expect(tab.select().value, 'a pick on an unreachable connection shows the default').toBe('PRIMARY:model-a');
+        await tab.askQuestion('And in Berlin?');
+        expect(tab.ask.mock.calls.at(-1)).toEqual([10, 'And in Berlin?']);
+    });
+
+    it('falls back to the default when the status says the picked connection is spent, and brings the pick back the next day', async () => {
+        const server = {catalog: BILLED_SECOND, status: CALLS_LEFT as ChatStatus, conversations: {10: conversation(10, [])}};
+        tab = await Tab.open('/dashboard?chat=10', server);
+        await tab.pick('SECOND:model-c');
+        expect(tab.select().value).toBe('SECOND:model-c');
+
+        // The turn on the second connection spends its day; the status asked after it says so.
+        await tab.askQuestion('Which offers want Kafka?');
+        expect(tab.ask.mock.calls.at(-1)).toEqual([10, 'Which offers want Kafka?', {connection: 'SECOND', model: 'model-c'}]);
+        server.status = {...CALLS_LEFT, secondCalls: 20};
+        await tab.answerWith(51, 'model-c', 'SECOND');
+
+        expect(tab.select().value, 'a pick on a spent connection shows the default').toBe('PRIMARY:model-a');
+        await tab.askQuestion('And in Berlin?');
+        expect(tab.ask.mock.calls.at(-1), 'and the next question sends no pick').toEqual([10, 'And in Berlin?']);
+        await tab.answerWith(52, 'model-a', 'PRIMARY');
+
+        // The day turns: the pick itself was kept, so it comes back.
+        server.status = CALLS_LEFT;
+        await tab.reloadCatalog();
+        expect(tab.select().value, 'the kept pick is back once calls are left').toBe('SECOND:model-c');
+    });
+
+    it('keeps the explicit pick when the catalog asked again fails, and leaves judging it to the server', async () => {
+        const server = {catalog: BILLED_SECOND as ChatModels | null, status: CALLS_LEFT, conversations: {10: conversation(10, [])}};
+        tab = await Tab.open('/dashboard?chat=10', server);
+        await tab.pick('SECOND:model-c');
+        expect(tab.select().value).toBe('SECOND:model-c');
+
+        // The catalog asked again fails: nothing is left to judge the pick by, so it is not dropped.
+        server.catalog = null;
+        await tab.reloadCatalog();
+        await tab.askQuestion('Anything new?');
+        expect(tab.ask.mock.calls.at(-1), 'the pick is still sent').toEqual([10, 'Anything new?', {connection: 'SECOND', model: 'model-c'}]);
+    });
+});
+
+/**
+ * The configured chat model is not among the listed ones (ISC-511, ISC-512): "the default" is then an
+ * option of its own, first, which sends no pick, and every listed model — the first included — is an
+ * explicit pick that is sent.
+ */
+describe('the select when no listed model is the default', () => {
+    let tab: Tab | null = null;
+
+    beforeEach(() => {
+        localStorage.clear();
+        sessionStorage.clear();
+    });
+
+    afterEach(() => tab?.close());
+
+    const UNFLAGGED: ChatModels = {
+        connections: [
+            {
+                ...BILLED_SECOND.connections[0],
+                models: [
+                    {name: 'model-a', defaultModel: false},
+                    {name: 'model-b', defaultModel: false},
+                ],
+            },
+            BILLED_SECOND.connections[1],
+        ],
+        defaultModelName: 'model-x',
+    };
+    const SERVER = {catalog: UNFLAGGED, status: CALLS_LEFT, conversations: {10: conversation(10, [])}};
+
+    it('shows the default first and selected, and asks a new question without a pick', async () => {
+        tab = await Tab.open('/dashboard?chat=10', SERVER);
+
+        const first = tab.select().options[0];
+        expect(first.parentElement, 'the default stands outside the connection groups').toBe(tab.select());
+        expect(first.textContent!.trim()).toBe('Default · model-x');
+        expect(tab.select().selectedOptions[0], 'a conversation without a turn on the default').toBe(first);
+
+        await tab.askQuestion('What came in today?');
+        expect(tab.ask.mock.calls.at(-1), 'the default is asked without a pick').toEqual([10, 'What came in today?']);
+    });
+
+    it("sends the primary connection's first listed model as the explicit pick it is", async () => {
+        tab = await Tab.open('/dashboard?chat=10', SERVER);
+
+        await tab.pick('PRIMARY:model-a');
+        expect(tab.select().value).toBe('PRIMARY:model-a');
+        await tab.askQuestion('What came in today?');
+        expect(tab.ask).toHaveBeenLastCalledWith(10, 'What came in today?', {connection: 'PRIMARY', model: 'model-a'});
+
+        // And the default picked back sends none again.
+        await tab.answerWith(49, 'model-a', 'PRIMARY');
+        await tab.pick(tab.select().options[0].value);
+        await tab.askQuestion('And in Berlin?');
+        expect(tab.ask.mock.calls.at(-1), 'the default picked back asks without a pick').toEqual([10, 'And in Berlin?']);
+    });
+
+    it('disables the default with the reason when the primary connection it runs on is unreachable', async () => {
+        const [primary, second] = UNFLAGGED.connections;
+        tab = await Tab.open('/dashboard?chat=10', {
+            ...SERVER,
+            catalog: {...UNFLAGGED, connections: [{...primary, reachable: false, reason: 'connection refused', models: []}, second]},
+        });
+
+        const first = tab.select().options[0];
+        expect(first.parentElement, 'the default stands outside the connection groups').toBe(tab.select());
+        expect(first.textContent!.trim()).toBe('Default · model-x');
+        expect(first.disabled, 'the default runs on the unreachable primary connection').toBe(true);
+        const note = document.getElementById(tab.select().getAttribute('aria-describedby')!)!;
+        expect(note.textContent, 'the reason in words, the select described by it').toContain('Primary connection: Not reachable: connection refused');
+        const other = Array.from(tab.select().options).find((o) => o.value === 'SECOND:model-c')!;
+        expect(other.disabled, 'the reachable connection can still be picked').toBe(false);
+        // Never moved onto another connection by itself — that one may be billed; the person picks it.
+        expect(tab.select().value).toBe('default');
+    });
+
+    it('opens a new conversation on the default, named without a model when the server names none', async () => {
+        tab = await Tab.open('/dashboard?chat=new', {...SERVER, catalog: {...UNFLAGGED, defaultModelName: null}});
+
+        const first = tab.select().options[0];
+        expect(first.textContent!.trim()).toBe('Default');
+        expect(tab.select().selectedOptions[0]).toBe(first);
+        await tab.askQuestion('What came in today?');
+        expect(tab.ask.mock.calls.at(-1)).toEqual([77, 'What came in today?']);
+    });
+});
+
+/** A turn stored before the select has no connection; it was answered on the primary one (ISC-511). */
+describe('the billed marker under a turn stored before the select', () => {
+    let tab: Tab | null = null;
+
+    afterEach(() => tab?.close());
+
+    it('reads a stored turn without a connection as answered on the billed primary connection', async () => {
+        tab = await Tab.open('/dashboard?chat=11', {
+            catalog: CATALOG,
+            status: {...SPENT, secondCalls: 0},
+            conversations: {11: conversation(11, [storedTurn(45, 'model-old', null)])},
+        });
+
+        const line = document.querySelector('.lg-chat-answer-model')!;
+        expect(line.querySelector('.lg-chat-answer-model-name')!.textContent!.trim()).toBe('model-old');
+        expect(line.querySelector('.lg-chat-billed'), 'the primary connection is billed').not.toBeNull();
+    });
 });
 
 /** Anti (ISC-513): one connection is one group, and an unbilled primary draws no marker anywhere. */
@@ -464,5 +697,30 @@ describe('the select with the primary connection alone (ISC-513)', () => {
         expect(document.querySelector('.lg-chat-answer-model-name')!.textContent!.trim()).toBe('model-b');
         expect(document.querySelector('.lg-chat-billed'), 'no billed marker anywhere').toBeNull();
         expect(document.body.textContent).not.toContain('billed');
+    });
+});
+
+/** The catalog is asked each time the drawer opens, not only the first time (ISC-511). */
+describe('the catalog on reopening the drawer', () => {
+    let tab: Tab | null = null;
+
+    afterEach(() => tab?.close());
+
+    it('asks for the catalog again when the drawer is closed and opened again', async () => {
+        tab = await Tab.open('/dashboard?chat=10', {
+            catalog: CATALOG,
+            status: CALLS_LEFT,
+            conversations: {10: conversation(10, [])},
+        });
+        expect(tab.catalogReads, 'the first open').toBe(1);
+
+        // Closed the way the drawer's ✕ closes it: a navigation without `chat` alone is put back (ISC-444).
+        TestBed.runInInjectionContext(() => injectDispatch(chatEvents)).closeRequested();
+        await tab.settle();
+        expect(tab.select(), 'the drawer is closed').toBeNull();
+        expect(tab.catalogReads, 'closed, nothing asked').toBe(1);
+
+        await tab.go('/dashboard?chat=10');
+        expect(tab.catalogReads, 'reopened').toBe(2);
     });
 });

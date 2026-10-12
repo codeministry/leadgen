@@ -115,14 +115,6 @@ public class ConversationRepository {
             RETURNING id
             """;
 
-    private static final String LAST_PICK = """
-            SELECT connection, model
-              FROM chat_turn
-             WHERE conversation_id = :conversation
-             ORDER BY ordinal DESC
-             LIMIT 1
-            """;
-
     private static final String TOUCH = """
             UPDATE chat_conversation
                SET title = CASE WHEN title = '' THEN :title ELSE title END,
@@ -454,20 +446,6 @@ public class ConversationRepository {
     }
 
     /** The question a turn of this conversation asked; empty for a turn of another one. */
-    /**
-     * The pick the conversation's last turn was asked with, so a reopened conversation stays on its
-     * model (spec 025, ISC-512). The default when the conversation has no turn yet, or when its last
-     * turn was stored before V37 gave a turn its connection.
-     */
-    public ModelPick lastPick(long conversationId) {
-        return jdbc.sql(LAST_PICK)
-                .param("conversation", conversationId)
-                .query((rs, index) -> new ModelPick(rs.getString("connection"), rs.getString("model")))
-                .optional()
-                .filter(pick -> !pick.isPartial())
-                .orElse(ModelPick.DEFAULT);
-    }
-
     public Optional<String> question(long conversationId, long turnId) {
         return jdbc.sql("SELECT question FROM chat_turn WHERE id = :turn AND conversation_id = :conversation")
                 .param("turn", turnId)

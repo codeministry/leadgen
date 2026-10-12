@@ -12,7 +12,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import de.codeministry.leadgen.config.model.PipelineConfig;
 import java.io.IOException;
 import java.net.URI;
-import java.net.http.HttpRequest;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -34,13 +33,15 @@ final class OpenAiCompatibleModels implements ChatModelCatalog.Lister {
 
     @Override
     public List<String> list(PipelineConfig.Llm llm) throws IOException, InterruptedException {
-        HttpRequest.Builder request =
-                discovery.request(URI.create(ChatModelCatalog.Discovery.trimSlash(llm.baseUrl()) + "/models"));
-        // A local server wants no key, and an empty bearer is a header some of them refuse.
-        if (llm.apiKey() != null && !llm.apiKey().isBlank()) {
-            request.header("Authorization", "Bearer " + llm.apiKey());
-        }
-        JsonNode body = discovery.send(request.GET().build());
+        // The URI first, so a malformed base URL reads as one whatever the key holds; then the
+        // header's precondition, enforced where it is built: a key that fits a header.
+        URI models = ChatModelCatalog.Discovery.uri(ChatModelCatalog.Discovery.trimSlash(llm.baseUrl()) + "/models");
+        String key = ChatModelCatalog.Discovery.key(llm.apiKey());
+        JsonNode body = discovery.send(discovery
+                .request(models)
+                .header("Authorization", "Bearer " + key)
+                .GET()
+                .build());
         List<String> names = new ArrayList<>();
         for (JsonNode model : body.path("data")) {
             String id = model.path("id").asText("");

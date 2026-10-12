@@ -20,7 +20,7 @@ import {TranslocoPipe, TranslocoService} from '@jsverse/transloco';
 import {injectDispatch} from '@ngrx/signals/events';
 import {filter} from 'rxjs';
 import {ChatApi} from '@core/api/chat.api';
-import {ChatSuggestion, conversationTitle, formatChatCtx, SuggestionsFor, TITLE_MAX, TurnView} from '@core/model/chat';
+import {answeredOn, ChatConnectionName, ChatSuggestion, conversationTitle, formatChatCtx, SuggestionsFor, TITLE_MAX, TurnView} from '@core/model/chat';
 import {chatEvents} from '@core/store/chat.events';
 import {ChatStore} from '@core/store/chat.store';
 import {Icon} from '@shared/icon/icon';
@@ -300,6 +300,11 @@ export class ChatPanel {
     /** The living mark beside an answer (ISC-465): a stored turn and the live one read the same way. */
     protected frameOf(turn: Pick<TurnView, 'state' | 'steps'>): LivingMarkFrame {
         return turnFrame(turn.state, turn.steps);
+    }
+
+    /** Whether an answer ran on a billed connection (ISC-511): a stored turn without one ran on the primary. */
+    protected billed(turn: {readonly connection?: ChatConnectionName | null}): boolean {
+        return this.store.billedConnections().includes(answeredOn(turn));
     }
 
     /** What the ring beside an answer says on hover or focus (ISC-474), for a stored and a live turn alike. */

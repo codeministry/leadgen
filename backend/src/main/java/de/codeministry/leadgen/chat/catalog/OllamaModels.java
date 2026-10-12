@@ -16,6 +16,10 @@ import java.net.URI;
 import java.net.http.HttpRequest;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -24,41 +28,90 @@ import lombok.extern.slf4j.Slf4j;
  *
  * <p>The chat talks to Ollama on its OpenAI-compatible path, so the configured base URL ends in
  * {@code /v1}; the native API lives at the root beside it. {@code /api/tags} lists what is
- * pulled, and {@code /api/show} is asked per model, because only it names the capabilities: a
- * model without {@code tools} among them would refuse the chat's first tool round, so it is not
- * offered at all.
+ * pulled, and {@code /api/show} is asked per model, at most {@link #SHOW_PARALLELISM} at a time,
+ * because only it names the capabilities: a model without {@code tools} among them would refuse
+ * the chat's first tool round, so it is not offered at all.
  */
 @Slf4j
 @RequiredArgsConstructor
 final class OllamaModels implements ChatModelCatalog.Lister {
+
+    /** How many {@code /api/show} requests run at once. */
+    static final int SHOW_PARALLELISM = 4;
 
     private final ChatModelCatalog.Discovery discovery;
 
     @Override
     public List<String> list(PipelineConfig.Llm llm) throws IOException, InterruptedException {
         String root = nativeRoot(llm.baseUrl());
-        JsonNode tags = discovery.send(
-                discovery.request(URI.create(root + "/api/tags")).GET().build());
-        List<String> capable = new ArrayList<>();
+        URI showUri = ChatModelCatalog.Discovery.uri(root + "/api/show");
+        JsonNode tags = discovery.send(discovery
+                .request(ChatModelCatalog.Discovery.uri(root + "/api/tags"))
+                .GET()
+                .build());
+        List<String> names = new ArrayList<>();
         for (JsonNode entry : tags.path("models")) {
             String name = entry.path("name").asText("");
-            if (!name.isBlank() && callsTools(root, name)) {
-                capable.add(name);
+            if (!name.isBlank()) {
+                names.add(name);
             }
         }
-        return capable;
+        if (names.isEmpty()) {
+            return List.of();
+        }
+        // A few descriptions at a time: one after the other, forty pulled models are forty round
+        // trips before the select opens; all at once, they are forty requests against one local server.
+        ExecutorService executor = Executors.newFixedThreadPool(
+                Math.min(SHOW_PARALLELISM, names.size()), Thread.ofVirtual().factory());
+        try {
+            List<Future<Boolean>> described = new ArrayList<>(names.size());
+            for (String name : names) {
+                described.add(executor.submit(() -> callsTools(showUri, name)));
+            }
+            List<String> capable = new ArrayList<>();
+            for (int i = 0; i < names.size(); i++) {
+                if (answer(names.get(i), described.get(i))) {
+                    capable.add(names.get(i));
+                }
+            }
+            return capable;
+        } finally {
+            // Every description is in on the way out; on an interrupt or an Error, the queued ones never start.
+            executor.shutdownNow();
+        }
+    }
+
+    /**
+     * The answer of one description. A failure the task did not catch itself skips that one model
+     * with a WARN as well — the list it came from did answer. An {@link Error} is not a model.
+     */
+    private static boolean answer(String name, Future<Boolean> described) throws InterruptedException {
+        try {
+            return described.get();
+        } catch (ExecutionException e) {
+            if (e.getCause() instanceof Error error) {
+                throw error;
+            }
+            // The class only: a message or a stack can quote a request header.
+            Throwable failure = e.getCause() == null ? e : e.getCause();
+            log.warn(
+                    "Ollama could not describe model '{}', so it is not offered to the chat ({})",
+                    name,
+                    failure.getClass().getName());
+            return false;
+        }
     }
 
     /**
      * Whether {@code /api/show} lists {@code tools} for {@code name}. One model the server cannot
-     * describe is left out with a WARN rather than taking the whole connection down: the list it
-     * came from did answer.
+     * describe — whatever went wrong, checked or not — is left out with a WARN rather than taking the
+     * whole connection down: the list it came from did answer.
      */
-    private boolean callsTools(String root, String name) throws InterruptedException {
+    private boolean callsTools(URI showUri, String name) throws InterruptedException {
         String body = JsonNodeFactory.instance.objectNode().put("model", name).toString();
         try {
             JsonNode show = discovery.send(discovery
-                    .request(URI.create(root + "/api/show"))
+                    .request(showUri)
                     .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(body))
                     .build());
@@ -68,9 +121,12 @@ final class OllamaModels implements ChatModelCatalog.Lister {
                 }
             }
             return false;
-        } catch (IOException e) {
+        } catch (IOException | RuntimeException e) {
+            // The class only: a message or a stack can quote a request header.
             log.warn(
-                    "Ollama could not describe model '{}', so it is not offered to the chat: {}", name, e.getMessage());
+                    "Ollama could not describe model '{}', so it is not offered to the chat ({})",
+                    name,
+                    e.getClass().getName());
             return false;
         }
     }

@@ -33,6 +33,7 @@ export const RECORDED_MODELS: ChatModels = {
             ],
         },
     ],
+    defaultModelName: 'model-a',
 };
 
 /** What `GET …/followups` answers under a finished turn (ISC-457): two or three questions. */

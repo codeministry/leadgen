@@ -415,4 +415,43 @@ describe('the status popovers (ISC-474, ISC-475, ISC-476)', () => {
         expect(second.textContent!.trim()).toBe('3 of 20');
         expect(second.previousElementSibling!.textContent!.trim()).toBe('Calls on the second connection today');
     });
+
+    it('keeps the numbers it has when a refresh fails, with a note beside them, and says failed only with none', async () => {
+        await TestBed.inject(Router).navigateByUrl('/dashboard?chat=new');
+        await settle();
+        http.match((r) => r.url === '/api/v1/chat/capability').forEach((r) => r.flush({present: true}));
+        await settle();
+        http.match(() => true).forEach((r) => r.flush([]));
+        await settle();
+        const plate = () => document.querySelector<HTMLButtonElement>('.lg-chat-plate .lg-chat-status-trigger')!;
+
+        // The first read fails: no status at all, so the bare failed state.
+        await hover(plate());
+        http.expectOne('/api/v1/chat/status').flush('down', {status: 503, statusText: 'Service Unavailable'});
+        await settle();
+        expect(openPanel()!.textContent).toContain('The status did not load.');
+        expect(openPanel()!.querySelector('.lg-chat-status-calls')).toBeNull();
+        await leave(plate());
+
+        // The next read answers: the numbers, no note.
+        await hover(plate());
+        http.expectOne('/api/v1/chat/status')
+            .flush({model: 'chat-model', callsUsed: 12, callsLimit: 200, toolRounds: 6, secondCalls: 3, secondLimit: 20});
+        await settle();
+        expect(openPanel()!.querySelector('.lg-chat-status-calls')!.textContent!.trim()).toBe('12 of 200');
+        expect(openPanel()!.querySelector('.lg-chat-status-stale')).toBeNull();
+        await leave(plate());
+
+        // A refresh fails over a kept status: the numbers stay, the note says the refresh failed.
+        await hover(plate());
+        http.expectOne('/api/v1/chat/status').flush('down', {status: 503, statusText: 'Service Unavailable'});
+        await settle();
+        const panel = openPanel()!;
+        expect(panel.querySelector('.lg-chat-status-calls')!.textContent!.trim(), 'the kept numbers').toBe('12 of 200');
+        expect(panel.querySelector('.lg-chat-status-second-calls')!.textContent!.trim()).toBe('3 of 20');
+        expect(panel.querySelector('.lg-chat-status-stale')?.textContent?.trim(), 'the note beside them').toBe(
+            'The last refresh failed; these numbers may be out of date.',
+        );
+        expect(panel.textContent).not.toContain('The status did not load.');
+    });
 });

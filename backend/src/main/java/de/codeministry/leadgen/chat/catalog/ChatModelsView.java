@@ -15,6 +15,11 @@ import java.util.List;
  * connection rather than from a list in {@code .env} (spec 025, ISC-505). A turn may name only a
  * model this answer listed (ISC-506).
  *
- * @param connections the primary connection first, then the second one when it is configured.
+ * @param connections      the primary connection first, then the second one when it is configured.
+ * @param defaultModelName the name of the model a turn without a pick takes — {@code llm.models.chat},
+ *                         else {@code scoring}, on the primary connection — verbatim as configured,
+ *                         whether or not the primary listed it under that exact name; {@code null}
+ *                         when no chat model is configured. Not {@link ModelView#defaultModel}, which
+ *                         flags one listed model.
  */
-public record ChatModelsView(List<ConnectionView> connections) {}
+public record ChatModelsView(List<ConnectionView> connections, String defaultModelName) {}

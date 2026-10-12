@@ -50,6 +50,7 @@ import {
     sameContext,
     questionFits,
     TurnView,
+    unpickableReason,
     withPins,
 } from '@core/model/chat';
 import {withAppDevtools} from '@core/store/devtools';
@@ -138,21 +139,27 @@ interface ChatState {
      * (ISC-453): the composer says why under the chips. Cleared by the next pin taken, an unpin, and a route.
      */
     contextRefused: boolean;
-    /** The chat's own state for the empty chat's ring (ISC-476); null while it loads. */
+    /**
+     * The chat's own state for the empty chat's ring (ISC-476); null until the first read answers. A read
+     * asked again keeps it until the new one arrives (ISC-510): a spent second connection stays disabled.
+     */
     status: ChatStatus | null;
+    /** Whether a status read is in flight; the popover says "loading" only while there is no status yet. */
+    statusLoading: boolean;
     statusFailed: boolean;
     /**
      * A bulk delete from request to its last batch (ISC-478). The list keeps its select mode and its
      * ticks until this says `idle` again, so a failed delete can be sent once more as it stood.
      */
     bulk: 'idle' | 'deleting' | 'failed';
-    /** What each configured connection offers the chat (ISC-505, ISC-511); null until asked, or unreadable. */
+    /** What each configured connection offers the chat and the default's name (ISC-505, ISC-511); null until asked, or unreadable. */
     models: ChatModels | null;
     /**
-     * The pick per conversation opened in this tab (ISC-511), by id. In memory only, never in storage:
-     * a billed model is reached by a pick in that conversation and by nothing else (ISC-512).
+     * The pick per conversation opened in this tab (ISC-511), by id; null is the default picked back,
+     * which holds over the last turn's model. In memory only, never in storage: a billed model is
+     * reached by a pick in that conversation and by nothing else (ISC-512).
      */
-    picks: Readonly<Record<number, ChatModelPick>>;
+    picks: Readonly<Record<number, ChatModelPick | null>>;
     /** The pick under `?chat=new`, moved to the conversation its first question creates. */
     newPick: ChatModelPick | null;
 }
@@ -178,6 +185,7 @@ const initialState: ChatState = {
     error: null,
     contextRefused: false,
     status: null,
+    statusLoading: false,
     statusFailed: false,
     bulk: 'idle',
     models: null,
@@ -357,26 +365,50 @@ function named<C extends ConversationView | null>(
     };
 }
 
-/** The default the select shows on a new conversation: the primary connection's default model. */
+/**
+ * The listed model that is the default — the one a turn without a pick takes — or null when the catalog
+ * flags none. Never a stand-in: with none flagged, the default is not among the listed models, the select
+ * shows it as an option of its own, and every listed model is an explicit pick that is sent.
+ */
 function defaultPickOf(models: ChatModels | null): ChatModelPick | null {
-    const primary = models?.connections.find((c) => c.name === 'PRIMARY');
-    const model = primary?.models.find((m) => m.defaultModel) ?? primary?.models[0];
-    return primary === undefined || model === undefined ? null : {connection: primary.name, model: model.name};
+    for (const connection of models?.connections ?? []) {
+        const model = connection.models.find((m) => m.defaultModel);
+        if (model !== undefined) return {connection: connection.name, model: model.name};
+    }
+    return null;
 }
 
 /**
  * The pick a stored conversation reopens on (ISC-512): the connection and model of its last turn, while
  * the catalog still lists that model there. Null — the default — for a conversation without a turn,
- * for a last turn stored before the select (no connection), and for a model the catalog no longer has.
+ * for a last turn stored before the select (no connection), for a model the catalog no longer has, and
+ * without a catalog: a pick nobody made in this tab is only taken up where the catalog vouches for it.
  * Read off the conversation the server sends, never off storage: nothing outside it carries a pick.
  */
-function lastTurnPick(conversation: ConversationView | null, models: ChatModels | null): ChatModelPick | null {
+function lastTurnPick(conversation: ConversationView | null, models: ChatModels | null, status: ChatStatus | null): ChatModelPick | null {
     const last = conversation?.turns.at(-1);
     const connection = last?.connection ?? null;
     const model = last?.model ?? null;
-    if (connection === null || model === null) return null;
-    const listed = models?.connections.some((c) => c.name === connection && c.models.some((m) => m.name === model)) ?? false;
-    return listed ? {connection, model} : null;
+    if (connection === null || model === null || models === null) return null;
+    return pickable({connection, model}, models, status);
+}
+
+/**
+ * The pick itself while it can be asked on, else null, the default. Only a loaded catalog drops it: for
+ * a model it does not list on that connection, or a connection `unpickableReason` names a reason for —
+ * unreachable, given a reason, or the second one's day spent by the current status (ISC-510). A pick the
+ * select shows disabled is never sent: the server would refuse it, or end the turn on BUDGET.
+ *
+ * <p>Without a catalog — not loaded yet, or `modelsFailed` — there is nothing to judge by, and the pick
+ * the person made is kept and sent: the server validates it anyway and answers 400 for one that is gone.
+ * Only the effective pick falls back; the stored one is kept, so a connection that comes back, or a day
+ * that turns, brings it back.
+ */
+function pickable(pick: ChatModelPick | null, models: ChatModels | null, status: ChatStatus | null): ChatModelPick | null {
+    if (pick === null || models === null) return pick;
+    const connection = models.connections.find((c) => c.name === pick.connection);
+    const offered = connection !== undefined && unpickableReason(connection, status) === null && connection.models.some((m) => m.name === pick.model);
+    return offered ? pick : null;
 }
 
 function samePick(a: ChatModelPick | null, b: ChatModelPick | null): boolean {
@@ -416,20 +448,25 @@ export const ChatStore = signalStore(
     {providedIn: 'root'},
     withState(initialState),
     withAppDevtools('chat'),
-    withComputed(({live, conversation, view, loading, streamOpen, context, models, picks, newPick, openId}) => ({
+    withComputed(({live, conversation, view, loading, streamOpen, context, models, picks, newPick, openId, status}) => ({
+        /** The listed model flagged as the default, or null when the catalog lists it nowhere. */
         defaultPick: computed(() => defaultPickOf(models())),
         /**
          * The model the open conversation's next question is asked on (ISC-511, ISC-512): its own pick in
-         * this tab, else — for a stored conversation — the model of its last turn, else the default. A new
-         * conversation has only its own pick, so it opens on the default whatever was picked elsewhere.
-         * Null without a catalog, which leaves the server's default to answer.
+         * this tab, else — for a stored conversation — the model of its last turn, else null, the default.
+         * A new conversation has only its own pick, so it opens on the default whatever was picked elsewhere.
+         * Either is the default again while the current catalog does not offer it or the current status says
+         * its connection's day is spent; the pick itself is kept, so a connection that comes back, or a day
+         * that turns, brings it back.
          */
         pick: computed<ChatModelPick | null>(() => {
             const id = openId();
-            if (view() === 'new') return newPick() ?? defaultPickOf(models());
-            if (view() !== 'conversation' || id === null) return defaultPickOf(models());
+            if (view() === 'new') return pickable(newPick(), models(), status());
+            if (view() !== 'conversation' || id === null) return null;
+            const own = picks()[id];
+            if (own !== undefined) return pickable(own, models(), status());
             const open = conversation();
-            return picks()[id] ?? (open?.id === id ? lastTurnPick(open, models()) : null) ?? defaultPickOf(models());
+            return open?.id === id ? lastTurnPick(open, models(), status()) : null;
         }),
         /** The connections a call on is paid for, so an answer can carry the marker (ISC-511). */
         billedConnections: computed<readonly ChatConnectionName[]>(() =>
@@ -476,9 +513,10 @@ export const ChatStore = signalStore(
     withReducer(
         on(chatEvents.routed, ({payload: {chat, ctx}}, state) => ({...routedState(chat, ctx, state), contextRefused: false})),
         on(chatEvents.capabilityLoaded, ({payload}) => ({present: payload})),
-        on(chatEvents.statusRequested, () => ({status: null, statusFailed: false})),
-        on(chatEvents.statusLoaded, ({payload}) => ({status: payload})),
-        on(chatEvents.statusFailed, () => ({statusFailed: true})),
+        // No read clears the status it has: it holds until the answer, so nothing flickers back to enabled.
+        on(chatEvents.statusRequested, () => ({statusLoading: true, statusFailed: false})),
+        on(chatEvents.statusLoaded, ({payload}) => ({status: payload, statusLoading: false, statusFailed: false})),
+        on(chatEvents.statusFailed, () => ({statusLoading: false, statusFailed: true})),
         on(chatEvents.modelsLoaded, ({payload}) => ({models: payload})),
         on(chatEvents.modelsFailed, () => ({models: null})),
         // Into the open conversation's pick, or the one `?chat=new` holds until its first question creates it.
@@ -665,8 +703,9 @@ export const ChatStore = signalStore(
             );
 
         /**
-         * The pick a request carries (ISC-508): none for the default, so a turn on it is asked exactly
-         * as before the select existed, and both halves of any other.
+         * The pick a request carries (ISC-508): none for the default — no pick, or the listed model the
+         * catalog flags as it — so a turn on it is asked exactly as before the select existed, and both
+         * halves of any other, the primary connection's first listed model included.
          */
         const sentPick = (): [] | [ChatModelPick] => {
             const pick = store.pick();
@@ -674,18 +713,27 @@ export const ChatStore = signalStore(
         };
 
         return [
-            // The catalog each time the composer opens (ISC-511): a connection that went away or came back
-            // since is seen then. Deferred, so a stand-in API without `models` fails into `modelsFailed`.
+            // The catalog each time the drawer opens (ISC-511), asked by the App root's effect on `chatOpen`
+            // (app.ts): a connection that went away or came back since is seen then. Not from the composer,
+            // because the drawer stops checking its projected content while closed, so an effect in there
+            // never saw it close and asked only on the first open. Deferred, so a stand-in API without
+            // `models` fails into `modelsFailed`.
             events.on(chatEvents.modelsRequested).pipe(
                 exhaustMap(() =>
                     defer(() => api.models()).pipe(
-                        map((catalog) => chatEvents.modelsLoaded({connections: Array.isArray(catalog?.connections) ? catalog.connections : []})),
+                        map((catalog) =>
+                            chatEvents.modelsLoaded({
+                                connections: Array.isArray(catalog?.connections) ? catalog.connections : [],
+                                defaultModelName: catalog?.defaultModelName ?? null,
+                            }),
+                        ),
                         catchError(() => of(chatEvents.modelsFailed())),
                     ),
                 ),
             ),
             // Whether the second connection's day is spent is the status's to say (ISC-510): asked with a
-            // catalog that names one, and again after each turn, which may have spent it.
+            // catalog that names one, and again after each turn, which may have spent it. A refresh, not a
+            // first read: the status known so far holds until the answer, so nothing flickers back to enabled.
             merge(
                 events.on(chatEvents.modelsLoaded),
                 events.on(chatEvents.streamEnded),
@@ -849,8 +897,9 @@ export const ChatStore = signalStore(
                 ),
             ),
 
-            // The latest open wins: a quick hover off and on again asks twice, and the older answer,
-            // if it comes back last, is dropped rather than shown over the newer one.
+            // The latest read wins: a quick hover off and on again, or a popover opened while a turn's
+            // refresh is in flight, asks twice, and the older answer is dropped rather than shown over the
+            // newer one. Dropping it loses nothing: the status held meanwhile is the last one known.
             events.on(chatEvents.statusRequested).pipe(
                 switchMap(() =>
                     api.status().pipe(

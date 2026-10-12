@@ -966,6 +966,8 @@
       "billed": "kostenpflichtig",
       "billedOption": "{name} · kostenpflichtig",
       "none": "Keine Modelle",
+      "default": "Standard · {name}",
+      "defaultBare": "Standard",
       "groupUnavailable": "{connection} · {reason}",
       "note": "{connection}: {reason}",
       "spent": "Heute keine Aufrufe mehr übrig",
@@ -1075,7 +1077,8 @@
       "secondCallsValue": "{{used}} von {{limit}}",
       "rounds": "Werkzeugrunden pro Antwort",
       "chatLoading": "Wird geladen…",
-      "chatFailed": "Der Status wurde nicht geladen."
+      "chatFailed": "Der Status wurde nicht geladen.",
+      "refreshFailed": "Die letzte Aktualisierung ist fehlgeschlagen; die Zahlen sind womöglich veraltet."
     },
     "select": {
       "action": "Auswählen",

@@ -46,9 +46,10 @@ export class ChatStatusPopover {
 
     protected readonly panelId = `lg-chat-status-${++instances}`;
     protected readonly open = signal(false);
-    /** The chat's status, asked through the store on each open; null while it loads. */
+    /** The chat's status, asked through the store on each open; null until the first read answers. */
     protected readonly chat = this.store.status;
     protected readonly chatFailed = this.store.statusFailed;
+    protected readonly chatLoading = this.store.statusLoading;
     /**
      * The second connection's calls of its own ceiling (ISC-510), or null without a second connection.
      * A ceiling of 0 is still a ceiling and still shown, so the test is for absence, not falsiness.

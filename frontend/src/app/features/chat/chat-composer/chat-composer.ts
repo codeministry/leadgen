@@ -5,14 +5,14 @@ import {injectDispatch} from '@ngrx/signals/events';
 import {catchError, debounceTime, map, of, Subject, switchMap} from 'rxjs';
 import {ShortlistApi} from '@core/api/shortlist.api';
 import {
-    ChatConnection,
     ChatConnectionName,
     ChatContextItem,
-    ChatStatus,
+    ChatPickReason,
     MAX_PINNED_OFFERS,
     pinnedOfferCount,
     QUESTION_MAX_LENGTH,
     questionFits,
+    unpickableReason,
 } from '@core/model/chat';
 import {ShortlistEntry} from '@core/model/shortlist-entry';
 import {chatEvents} from '@core/store/chat.events';
@@ -47,17 +47,11 @@ function mentionAt(text: string, caret: number): Mention | null {
     return {start: before.length - match[2].length - 1, query: match[2]};
 }
 
-/** A catalog key and what it interpolates: why a connection's models cannot be picked now. */
-interface Reason {
-    readonly key: string;
-    readonly params: Readonly<Record<string, string>>;
-}
-
 /** One `<optgroup>` of the model select: a connection, its options, and why they are disabled if they are. */
 interface ModelGroup {
     readonly name: ChatConnectionName;
     readonly labelKey: string;
-    readonly reason: Reason | null;
+    readonly reason: ChatPickReason | null;
     readonly options: readonly {readonly value: string; readonly model: string; readonly billed: boolean}[];
 }
 
@@ -67,23 +61,27 @@ const CONNECTION_KEYS: Record<ChatConnectionName, string> = {
     SECOND: 'chat.model.connection.SECOND',
 };
 
+/**
+ * The option standing for the default when the catalog lists it nowhere (ISC-511): picking it sends no
+ * pick. Holds no colon, so it is never read as a connection and a model.
+ */
+const DEFAULT_OPTION = 'default';
+
+/**
+ * The default's own option: its label as a catalog key, whether the primary connection it runs on is
+ * billed, and why that connection cannot be asked now — which disables the option, the way it disables
+ * the connection's group — or null.
+ */
+interface DefaultOption {
+    readonly key: string;
+    readonly params: Readonly<Record<string, string>>;
+    readonly billed: boolean;
+    readonly reason: ChatPickReason | null;
+}
+
 /** A pick as an option's value. The connection name holds no colon, so the first one splits it. */
 function optionValue(connection: ChatConnectionName, model: string): string {
     return `${connection}:${model}`;
-}
-
-/**
- * Why a connection's models cannot be picked, or null when they can (ISC-511): it did not answer the
- * catalog, the catalog named a reason, or — for the second connection — the status says its day is spent.
- */
-function reasonOf(connection: ChatConnection, status: ChatStatus | null): Reason | null {
-    const said = connection.reason?.trim() ?? '';
-    if (!connection.reachable) return said === '' ? {key: 'chat.model.unreachableBare', params: {}} : {key: 'chat.model.unreachable', params: {reason: said}};
-    if (said !== '') return {key: 'chat.model.unavailable', params: {reason: said}};
-    const calls = status?.secondCalls;
-    const limit = status?.secondLimit;
-    if (connection.name === 'SECOND' && calls != null && limit != null && calls >= limit) return {key: 'chat.model.spent', params: {}};
-    return null;
 }
 
 let nextModelSelectId = 0;
@@ -172,7 +170,7 @@ export class ChatComposer {
         (this.store.models()?.connections ?? []).map((connection) => ({
             name: connection.name,
             labelKey: CONNECTION_KEYS[connection.name],
-            reason: reasonOf(connection, this.store.status()),
+            reason: unpickableReason(connection, this.store.status()),
             options: connection.models.map((model) => ({
                 value: optionValue(connection.name, model.name),
                 model: model.name,
@@ -180,12 +178,37 @@ export class ChatComposer {
             })),
         })),
     );
+    /**
+     * The default as an option of its own, first and outside the groups, when no listed model is flagged
+     * as it: the configured model by name, or just "Default" when the server names none. Null when a
+     * listed model is the default, which then stands for it.
+     *
+     * <p>Disabled while the primary connection it runs on has a reason not to be asked; that reason is in
+     * the note the select is described by already, as the primary connection's group carries it. It stays
+     * selected while it is the effective pick: the store never moves a question onto another connection by
+     * itself, which may be billed, so the person picks one — and a disabled default left unselected would
+     * have the browser show the first enabled option while the question still went to the default.
+     */
+    protected readonly defaultOption = computed<DefaultOption | null>(() => {
+        const models = this.store.models();
+        if (models === null || this.store.defaultPick() !== null) return null;
+        const name = models.defaultModelName?.trim() ?? '';
+        const primary = models.connections.find((c) => c.name === 'PRIMARY');
+        const billed = primary?.billed ?? false;
+        const reason = primary === undefined ? null : unpickableReason(primary, this.store.status());
+        const option: DefaultOption =
+            name === '' ? {key: 'chat.model.defaultBare', params: {}, billed, reason} : {key: 'chat.model.default', params: {name}, billed, reason};
+        return option;
+    });
+    protected readonly defaultValue = DEFAULT_OPTION;
     /** One model in all is no choice: the select appears only when there is something to pick. */
-    protected readonly showModels = computed(() => this.modelGroups().reduce((sum, group) => sum + group.options.length, 0) > 1);
+    protected readonly showModels = computed(
+        () => this.modelGroups().reduce((sum, group) => sum + group.options.length, this.defaultOption() === null ? 0 : 1) > 1,
+    );
     protected readonly unavailable = computed(() => this.modelGroups().filter((group) => group.reason !== null));
     protected readonly pickValue = computed(() => {
-        const pick = this.store.pick();
-        return pick === null ? null : optionValue(pick.connection, pick.model);
+        const pick = this.store.pick() ?? this.store.defaultPick();
+        return pick === null ? DEFAULT_OPTION : optionValue(pick.connection, pick.model);
     });
 
     /**
@@ -205,16 +228,6 @@ export class ChatComposer {
     private readonly searches = new Subject<string>();
 
     constructor() {
-        // The catalog each time the drawer opens, so a connection that went away or came back is seen. Not
-        // when the composer is built: a page load is no reason to ask each connection for its models. The
-        // panel is deferred to the drawer's first open, so the composer is usually built already open —
-        // `wasOpen` starts false, and that first open asks once. Without a chat model nothing is asked (ISC-513).
-        let wasOpen = false;
-        effect(() => {
-            const open = this.store.present() === true && this.store.view() !== 'closed';
-            if (open && !wasOpen) untracked(() => this.dispatch.modelsRequested());
-            wasOpen = open;
-        });
         // A question typed and not yet sent is lost by a redirect to the sign-in; it holds one. Not the
         // kept question put back here: it outlives the redirect and comes back after the sign-in.
         trackUnsavedWork(() => {
@@ -385,6 +398,10 @@ export class ChatComposer {
     /** The pick for this conversation's next question and regenerate (ISC-508, ISC-511). */
     protected chooseModel(event: Event): void {
         const value = (event.target as HTMLSelectElement).value;
+        if (value === DEFAULT_OPTION) {
+            this.dispatch.modelPicked(null);
+            return;
+        }
         const split = value.indexOf(':');
         const connection = value.slice(0, split);
         if (split < 0 || !(connection in CONNECTION_KEYS)) return;

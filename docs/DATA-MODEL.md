@@ -9,7 +9,7 @@ is *where does this value live* or *who is allowed to change it*. The reasoning 
 column belongs to the decision records; each section links the one that carries it.
 
 > [!NOTE]
-> Derived from `V1` to `V35`. When this document and a migration disagree, the migration wins,
+> Derived from `V1` to `V37`. When this document and a migration disagree, the migration wins,
 > and the fix is here. There is no ORM: every write is a plain SQL statement in the service
 > that owns it, so "who writes this" has one answer per column and it is worth writing down.
 
@@ -383,10 +383,10 @@ overwrite themselves. Primary key `(run_id, position)`, cascades from `pipeline_
 The three cache and counter tables, `fetched_page`, `content_block_label` and
 `llm_call_budget`, and the `instance` row the package folders are owned by, are in § 2.
 
-## 5. The chat's five tables
+## 5. The chat's six tables
 
-Five tables that the chat writes alone and no pipeline stage reads (`ChatIsolationTest` fails on
-a pipeline source naming one of them). Dropping all five loses the stored conversations and
+Six tables that the chat writes alone and no pipeline stage reads (`ChatIsolationTest` fails on
+a pipeline source naming one of them). Dropping all six loses the stored conversations and
 nothing else; the rollback is in [decisions/chat.md](decisions/chat.md), with the reasoning
 behind every column below.
 
@@ -424,6 +424,7 @@ erDiagram
         bigint replaces_turn_id FK
         jsonb citations
         text end_reason
+        text connection
     }
     chat_tool_call {
         bigint id PK
@@ -437,9 +438,14 @@ erDiagram
         date day PK
         int calls
     }
+    chat_connection_call_budget {
+        date day PK
+        text connection PK
+        int calls
+    }
 ```
 
-Every write is a statement in `chat/ConversationRepository`, except the budget's, which is
+Every write is a statement in `chat/ConversationRepository`, except the two budgets', which are
 `chat/ChatBudget`'s.
 
 **`chat_conversation`** (`V32`). One row per conversation. `create` inserts it with an empty
@@ -456,9 +462,11 @@ it after `create`, `startTurn` and `rename`, the migration filled it once with `
 is the first offer of `chat_context`, mirrored by `create` and `replaceContext`, and still read by
 `pinnedOffer` for the turn's pinned lookup; a later release drops it.
 
-**`chat_turn`** (`V32`, `V34`, `V36`). One row per question asked, including every regenerated one.
+**`chat_turn`** (`V32`, `V34`, `V36`, `V37`). One row per question asked, including every regenerated one.
 `startTurn` writes `conversation_id`, the next `ordinal` in the conversation (unique with it),
-`question`, `model` — the chat model the turn was sent to — and, on a regenerate,
+`question`, `model` — the chat model the turn was sent to — `connection` (`V37`), the connection it
+was sent on by name, `PRIMARY` or `SECOND` and never a base URL, with a `CHECK` holding it to those two
+and `NULL` for every turn stored before it (spec 025) — and, on a regenerate,
 `replaces_turn_id`, the turn this one answers again; both stay. `answer_md` starts empty and
 `append` concatenates each piece of text as it leaves for the browser, citations already resolved
 to `[n](cite:offer/ID)` or `⟨unverified:ID⟩`, so a stopped or failed turn keeps exactly what the
@@ -502,6 +510,14 @@ same guarded upsert, against `chat.max_calls_per_day`. A table of its own becaus
 `llm_call_budget` is keyed by the day alone and a shared counter would let questions starve the
 nightly run. No key points at it, and emptying it hands the day's allowance out again.
 
+**`chat_connection_call_budget`** (`V37`). Beside `chat_call_budget`, never instead of it: one row per
+calendar day and connection, primary key `(day, connection)`, `connection` held to `PRIMARY` or
+`SECOND` by a `CHECK`, with a `calls` counter. `ChatBudget.take(SECOND)` takes it with the same
+guarded upsert against `chat.connection.max_calls_per_day`, after `chat_call_budget`, so a call on the
+second connection counts against both; a primary call writes no row here. Read for `secondCalls` in
+`GET /chat/status`. No key points at it, and emptying it hands the second connection's day out again
+(spec 025, ISC-510).
+
 ## 6. Status-like columns and their values
 
 Every state in the schema is a `TEXT` column, and with one exception nothing in the database
@@ -523,6 +539,7 @@ the transitions.
 | `content_block_label.kind` and the `kind` inside `offer.content_blocks` | `CONTENT`, `CHROME`, `FORM`, `TAXONOMY`, `AGENCY`, `LEGAL` | `content/ContentKind` | |
 | `content_block_label.decided_by` and the `by` inside `offer.content_blocks` | `RULE`, `CACHE`, `MODEL` | `content/Decider` | |
 | `source.kind` | `file`, `imap` | each connector's `type()` | |
+| `chat_turn.connection`, `chat_connection_call_budget.connection` | `PRIMARY`, `SECOND`; `chat_turn.connection` null before `V37` | `llm/Connections.Name`, an enum, and a `CHECK` in `V37` on each column | not a state machine: written once per turn or counter row |
 | `chat_context.kind` | `OFFER`, `SHORTLIST_VIEW`, `ANALYTICS_WINDOW` | `chat/ChatContextKind`, an enum, and a `CHECK` in `V35` with one per kind for its columns | not a state machine: a chip is replaced, never moved |
 
 Two values a reader will look for and not find as columns: `ScoreState` (`ANY`, `SCORED`,
@@ -547,7 +564,7 @@ services. It misses a statement assembled from strings and a CTE's alias, so the
 checklist to walk, not an answer:
 
 ```bash
-rg -n -o -i -e "(FROM|INTO|UPDATE|JOIN|DELETE FROM)\s+(offer_score_reason|offer|source_run|source|score_batch|pipeline_run_stage|pipeline_run|pipeline_stage|application_event|application|fetched_page|content_block_label|llm_call_budget|chat_conversation|chat_turn|chat_tool_call|chat_context|chat_call_budget)\b" \
+rg -n -o -i -e "(FROM|INTO|UPDATE|JOIN|DELETE FROM)\s+(offer_score_reason|offer|source_run|source|score_batch|pipeline_run_stage|pipeline_run|pipeline_stage|application_event|application|fetched_page|content_block_label|llm_call_budget|chat_conversation|chat_turn|chat_tool_call|chat_context|chat_connection_call_budget|chat_call_budget)\b" \
    backend/src/main/java -g '*.java' | sort | uniq -c
 ```
 

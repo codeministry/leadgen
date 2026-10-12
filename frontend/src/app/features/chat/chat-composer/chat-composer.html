@@ -71,7 +71,9 @@
       <!-- The model the next question is asked on (ISC-511), grouped by connection. A native option
            holds no icon, so "billed" is a word in its label; a spent or unreachable connection's options
            are disabled, with the reason in the group's label and, in words, in the note it is described by.
-           Selected per option, not with `[value]`, for the run control's reason: the options must exist first. -->
+           Selected per option, not with `[value]`, for the run control's reason: the options must exist first.
+           When no listed model is the default, the default is an option of its own, first, sending no pick,
+           and disabled while the primary connection it runs on is — its reason is in the same note. -->
       @if (showModels()) {
         <label class="sr-only" [attr.for]="modelSelectId">{{ 'chat.model.label' | transloco }}</label>
         <select
@@ -80,6 +82,13 @@
           [attr.aria-describedby]="unavailable().length > 0 ? modelNoteId : null"
           (change)="chooseModel($event)"
         >
+          @if (defaultOption(); as fallback) {
+            <option [value]="defaultValue" [selected]="defaultValue === pickValue()" [disabled]="fallback.reason !== null">
+              {{ fallback.billed
+                ? ('chat.model.billedOption' | transloco: { name: (fallback.key | transloco: fallback.params) })
+                : (fallback.key | transloco: fallback.params) }}
+            </option>
+          }
           @for (group of modelGroups(); track group.name) {
             <optgroup
               [label]="group.reason === null
