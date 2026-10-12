@@ -957,6 +957,24 @@
       "done": "Answer ready, {count, plural, =0 {no sources} one {1 source} other {# sources}}"
     },
     "stop": "Stop",
+    "model": {
+      "label": "Model",
+      "connection": {
+        "PRIMARY": "Primary connection",
+        "SECOND": "Second connection"
+      },
+      "billed": "billed",
+      "billedOption": "{name} · billed",
+      "none": "No models",
+      "default": "Default · {name}",
+      "defaultBare": "Default",
+      "groupUnavailable": "{connection} · {reason}",
+      "note": "{connection}: {reason}",
+      "spent": "No calls left today",
+      "unreachable": "Not reachable: {reason}",
+      "unreachableBare": "Not reachable",
+      "unavailable": "{reason}"
+    },
     "minibar": {
       "expand": "Back to the chat"
     },
@@ -964,7 +982,8 @@
       "copy": "Copy the answer with its sources",
       "copied": "Copied",
       "regenerate": "Write this answer again",
-      "unverified": "unverified"
+      "unverified": "unverified",
+      "model": "Written by"
     },
     "steps": {
       "summary": "Used {tools, plural, one {1 tool} other {# tools}} · {rows, plural, one {1 row} other {# rows}}",
@@ -1054,9 +1073,12 @@
       "chatTitle": "The chat",
       "calls": "Model calls today",
       "callsValue": "{{used}} of {{limit}}",
+      "secondCalls": "Calls on the second connection today",
+      "secondCallsValue": "{{used}} of {{limit}}",
       "rounds": "Tool rounds per answer",
       "chatLoading": "Loading…",
-      "chatFailed": "The status did not load."
+      "chatFailed": "The status did not load.",
+      "refreshFailed": "The last refresh failed; these numbers may be out of date."
     },
     "select": {
       "action": "Select",

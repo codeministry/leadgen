@@ -15,6 +15,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.node.TextNode;
+import de.codeministry.leadgen.llm.Connections;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.text.Normalizer;
@@ -82,8 +83,8 @@ public class ConversationRepository {
             """;
 
     private static final String TURNS = """
-            SELECT id, question, answer_md, state, replaces_turn_id, model, created_at, citations,
-                   end_reason, finished_at
+            SELECT id, question, answer_md, state, replaces_turn_id, model, connection, created_at,
+                   citations, end_reason, finished_at
               FROM chat_turn
              WHERE conversation_id = :id
              ORDER BY ordinal
@@ -107,10 +108,10 @@ public class ConversationRepository {
             """;
 
     private static final String START_TURN = """
-            INSERT INTO chat_turn (conversation_id, ordinal, question, model, replaces_turn_id)
+            INSERT INTO chat_turn (conversation_id, ordinal, question, model, connection, replaces_turn_id)
             VALUES (:conversation,
                     (SELECT coalesce(max(ordinal), 0) + 1 FROM chat_turn WHERE conversation_id = :conversation),
-                    :question, :model, CAST(:replaces AS bigint))
+                    :question, :model, :connection, CAST(:replaces AS bigint))
             RETURNING id
             """;
 
@@ -372,7 +373,14 @@ public class ConversationRepository {
         return startTurn(conversationId, question, model, null);
     }
 
+    /** A turn on the primary connection, as every turn was started before spec 025. */
+    @Transactional
+    public long startTurn(long conversationId, String question, String model, Long replaces) {
+        return startTurn(conversationId, question, model, Connections.Name.PRIMARY, replaces);
+    }
+
     /**
+     * @param connection the connection the turn is asked on, stored by its name (spec 025, ISC-507).
      * @param replaces the turn this one answers again, set by regenerate; null for a new question.
      *
      * <p>The conversation is touched <em>before</em> the turn is inserted, and that order is the
@@ -382,7 +390,8 @@ public class ConversationRepository {
      * max(ordinal)} and the second would fail on {@code UNIQUE (conversation_id, ordinal)}.
      */
     @Transactional
-    public long startTurn(long conversationId, String question, String model, Long replaces) {
+    public long startTurn(
+            long conversationId, String question, String model, Connections.Name connection, Long replaces) {
         jdbc.sql(TOUCH)
                 .param("conversation", conversationId)
                 .param("title", title(question))
@@ -391,6 +400,7 @@ public class ConversationRepository {
                 .param("conversation", conversationId)
                 .param("question", question)
                 .param("model", model)
+                .param("connection", connection == null ? null : connection.name())
                 .param("replaces", replaces)
                 .query(Long.class)
                 .single();
@@ -670,6 +680,7 @@ public class ConversationRepository {
                 ChatTurnState.valueOf(rs.getString("state")),
                 (Long) rs.getObject("replaces_turn_id"),
                 rs.getString("model"),
+                rs.getString("connection"),
                 rs.getTimestamp("created_at").toInstant(),
                 citations(rs.getString("citations")),
                 rs.getString("end_reason") == null ? null : ChatErrorReason.valueOf(rs.getString("end_reason")),
@@ -932,6 +943,7 @@ public class ConversationRepository {
             ChatTurnState state,
             Long replaces,
             String model,
+            String connection,
             java.time.Instant createdAt,
             List<TurnLedger.Citation> citations,
             ChatErrorReason endReason,
@@ -939,7 +951,18 @@ public class ConversationRepository {
 
         TurnView view(List<ChatStep> steps, List<ChatSourceItem> sources) {
             return new TurnView(
-                    id, question, answer, state, steps, sources, replaces, model, createdAt, endReason, finishedAt);
+                    id,
+                    question,
+                    answer,
+                    state,
+                    steps,
+                    sources,
+                    replaces,
+                    model,
+                    connection,
+                    createdAt,
+                    endReason,
+                    finishedAt);
         }
     }
 }

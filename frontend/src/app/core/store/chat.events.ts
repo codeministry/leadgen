@@ -1,6 +1,6 @@
 import {type} from '@ngrx/signals';
 import {eventGroup} from '@ngrx/signals/events';
-import {ChatContextItem, ChatEvent, ChatStatus, ConversationSummary, ConversationView} from '@core/model/chat';
+import {ChatContextItem, ChatEvent, ChatModelPick, ChatModels, ChatStatus, ConversationSummary, ConversationView} from '@core/model/chat';
 
 /**
  * The chat drawer's events.
@@ -63,10 +63,25 @@ export const chatEvents = eventGroup({
         /** After the last batch landed; not after a failed one. */
         bulkDeleteDone: type<void>(),
 
-        /** The chat's own state for the empty chat's ring (ISC-476), asked each time its popover opens. */
+        /**
+         * The chat's own state, asked each time the empty chat's popover opens (ISC-476) and after a turn
+         * or a catalog that names a second connection (ISC-510). It keeps the status it has until the new
+         * one arrives: a spent second connection stays disabled, and an open popover keeps its numbers.
+         */
         statusRequested: type<void>(),
         statusLoaded: type<ChatStatus>(),
         statusFailed: type<void>(),
+
+        /** The model catalog, asked each time the drawer's composer opens (ISC-511). */
+        modelsRequested: type<void>(),
+        modelsLoaded: type<ChatModels>(),
+        /** An unreadable catalog offers no select: the default answers as before. */
+        modelsFailed: type<void>(),
+        /**
+         * The model the open conversation's next question and regenerate are asked on (ISC-508, ISC-511);
+         * null is the default, picked back, which sends no pick.
+         */
+        modelPicked: type<ChatModelPick | null>(),
 
         /** A new title; an empty one clears the name back to the derived one (ISC-449). */
         renameRequested: type<{id: number; title: string}>(),

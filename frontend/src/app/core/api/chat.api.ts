@@ -10,6 +10,8 @@ import {
     ChatEvent,
     ChatEventMap,
     ChatFollowUp,
+    ChatModelPick,
+    ChatModels,
     ChatStatus,
     ChatSuggestion,
     ConversationSummary,
@@ -83,6 +85,14 @@ export class ChatApi {
     }
 
     /**
+     * The models each configured connection offers the chat, read from the connection itself (ISC-505).
+     * A connection that did not answer comes back with its reason and no models, not as a failed request.
+     */
+    models(): Observable<ChatModels> {
+        return this.http.get<ChatModels>(`${BASE}/models`);
+    }
+
+    /**
      * Up to four questions the data suggests (ISC-455): for a stored conversation, or for pins not
      * stored yet, passed as the `?chatCtx` string the URL carries.
      */
@@ -111,14 +121,20 @@ export class ChatApi {
         return this.http.post<void>(`${BASE}/conversations/${conversationId}/turns/${turnId}/stop`, null);
     }
 
-    /** Asks a question; the observable is the turn's event stream, and unsubscribing aborts it. */
-    ask(conversationId: number, question: string): Observable<ChatEvent> {
-        return this.stream(`${BASE}/conversations/${conversationId}/turns`, {question});
+    /**
+     * Asks a question; the observable is the turn's event stream, and unsubscribing aborts it. A pick
+     * names the model it is asked on (ISC-508); without one the default on the primary connection answers.
+     */
+    ask(conversationId: number, question: string, pick?: ChatModelPick | null): Observable<ChatEvent> {
+        return this.stream(`${BASE}/conversations/${conversationId}/turns`, {question, ...pickBody(pick)});
     }
 
-    /** The same question again, as a new turn that replaces the given one — a stream like `ask`. */
-    regenerate(conversationId: number, turnId: number): Observable<ChatEvent> {
-        return this.stream(`${BASE}/conversations/${conversationId}/turns/${turnId}/regenerate`, {});
+    /**
+     * The same question again, as a new turn that replaces the given one — a stream like `ask`, and
+     * like it on the picked model, which may be another than the replaced turn's (ISC-508).
+     */
+    regenerate(conversationId: number, turnId: number, pick?: ChatModelPick | null): Observable<ChatEvent> {
+        return this.stream(`${BASE}/conversations/${conversationId}/turns/${turnId}/regenerate`, pickBody(pick));
     }
 
     /**
@@ -200,6 +216,11 @@ async function refusal(response: Response): Promise<string | null> {
         // Not JSON: the body is the sentence.
     }
     return text;
+}
+
+/** The pick as a request's fields: both halves or neither, never one alone. */
+function pickBody(pick: ChatModelPick | null | undefined): {connection?: string; model?: string} {
+    return pick == null ? {} : {connection: pick.connection, model: pick.model};
 }
 
 /** `?context=` for pins not stored yet, in the URL's own `chatCtx` form; no pins, no parameter. */

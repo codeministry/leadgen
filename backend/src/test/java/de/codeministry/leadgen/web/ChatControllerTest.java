@@ -26,13 +26,20 @@ import de.codeministry.leadgen.chat.ChatContextItem;
 import de.codeministry.leadgen.chat.ChatContextKind;
 import de.codeministry.leadgen.chat.ChatTurnService;
 import de.codeministry.leadgen.chat.ConversationRepository;
+import de.codeministry.leadgen.chat.ModelPick;
+import de.codeministry.leadgen.chat.catalog.ChatModelCatalog;
+import de.codeministry.leadgen.chat.catalog.ChatModelsView;
+import de.codeministry.leadgen.chat.catalog.ConnectionView;
+import de.codeministry.leadgen.chat.catalog.ModelView;
 import de.codeministry.leadgen.chat.suggest.FollowUp;
 import de.codeministry.leadgen.chat.suggest.FollowUps;
 import de.codeministry.leadgen.chat.suggest.Suggestion;
 import de.codeministry.leadgen.chat.suggest.SuggestionScope;
 import de.codeministry.leadgen.chat.suggest.SuggestionService;
+import de.codeministry.leadgen.llm.Connections;
 import java.util.List;
 import java.util.Optional;
+import java.util.OptionalInt;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -69,6 +76,9 @@ class ChatControllerTest {
     @MockitoBean
     private ChatBudget budget;
 
+    @MockitoBean
+    private ChatModelCatalog catalog;
+
     @Test
     void saysPresentWhenAModelAnswers() {
         given(capability.view()).willReturn(new ChatCapabilityView(true));
@@ -101,11 +111,11 @@ class ChatControllerTest {
         given(conversations.exists(1L)).willReturn(true);
         given(capability.model()).willReturn(Optional.of("chat-model"));
         willAnswer(call -> {
-                    call.<Runnable>getArgument(3).run();
+                    call.<Runnable>getArgument(4).run();
                     return null;
                 })
                 .given(turns)
-                .start(eq(1L), anyString(), any(), any());
+                .start(eq(1L), anyString(), any(ModelPick.class), any(), any());
 
         var result = mvc.post()
                 .uri("/api/v1/chat/conversations/1/turns")
@@ -181,11 +191,11 @@ class ChatControllerTest {
     void aRegeneratedTurnTellsEveryProxyNotToBufferTheStream() {
         given(capability.model()).willReturn(Optional.of("chat-model"));
         willAnswer(call -> {
-                    call.<Runnable>getArgument(3).run();
+                    call.<Runnable>getArgument(4).run();
                     return true;
                 })
                 .given(turns)
-                .regenerate(eq(1L), eq(2L), any(), any());
+                .regenerate(eq(1L), eq(2L), any(ModelPick.class), any(), any());
 
         var result = mvc.post()
                 .uri("/api/v1/chat/conversations/1/turns/2/regenerate")
@@ -209,6 +219,232 @@ class ChatControllerTest {
         status.extractingPath("$.callsUsed").isEqualTo(12);
         status.extractingPath("$.callsLimit").isEqualTo(200);
         status.extractingPath("$.toolRounds").isEqualTo(6);
+        status.extractingPath("$.secondCalls").isNull();
+        status.extractingPath("$.secondLimit").isNull();
+    }
+
+    /** ISC-510: with a second connection the status names its counter and ceiling beside the chat's. */
+    @Test
+    void theStatusNamesTheSecondConnectionsCounterBesideTheChats() {
+        given(capability.model()).willReturn(Optional.of("chat-model"));
+        given(budget.used()).willReturn(3);
+        given(budget.limit()).willReturn(10);
+        given(budget.toolRounds()).willReturn(6);
+        given(budget.secondLimit()).willReturn(OptionalInt.of(2));
+        given(budget.used(Connections.Name.SECOND)).willReturn(2);
+
+        var status =
+                assertThat(mvc.get().uri("/api/v1/chat/status")).hasStatusOk().bodyJson();
+        status.extractingPath("$.callsUsed").isEqualTo(3);
+        status.extractingPath("$.callsLimit").isEqualTo(10);
+        status.extractingPath("$.secondCalls").isEqualTo(2);
+        status.extractingPath("$.secondLimit").isEqualTo(2);
+    }
+
+    /**
+     * ISC-505: the model select's list, per connection, with its kind, billing, reachability and
+     * the default flagged — the catalog's answer as it is, on the wire.
+     */
+    @Test
+    void theModelsListEachConnectionWithItsModelsAndFlags() {
+        given(capability.model()).willReturn(Optional.of("model-a"));
+        given(catalog.models())
+                .willReturn(new ChatModelsView(
+                        List.of(
+                                new ConnectionView(
+                                        "PRIMARY",
+                                        "ollama",
+                                        false,
+                                        true,
+                                        null,
+                                        List.of(new ModelView("model-a", true), new ModelView("model-b", false))),
+                                new ConnectionView(
+                                        "SECOND",
+                                        "anthropic",
+                                        true,
+                                        false,
+                                        "the model list answered HTTP 500",
+                                        List.of())),
+                        "model-a"));
+
+        var models =
+                assertThat(mvc.get().uri("/api/v1/chat/models")).hasStatusOk().bodyJson();
+        models.extractingPath("$.connections[0].name").isEqualTo("PRIMARY");
+        models.extractingPath("$.connections[0].billed").isEqualTo(false);
+        models.extractingPath("$.connections[0].reachable").isEqualTo(true);
+        models.extractingPath("$.connections[0].models[0].name").isEqualTo("model-a");
+        models.extractingPath("$.connections[0].models[0].defaultModel").isEqualTo(true);
+        models.extractingPath("$.connections[0].models[1].defaultModel").isEqualTo(false);
+        models.extractingPath("$.connections[1].name").isEqualTo("SECOND");
+        models.extractingPath("$.connections[1].billed").isEqualTo(true);
+        models.extractingPath("$.connections[1].reachable").isEqualTo(false);
+        models.extractingPath("$.connections[1].reason").isEqualTo("the model list answered HTTP 500");
+        models.extractingPath("$.connections[1].models").asArray().isEmpty();
+        models.extractingPath("$.defaultModelName").isEqualTo("model-a");
+    }
+
+    /**
+     * The model a turn without a pick takes travels on its own, verbatim as configured, so the select
+     * can name it even when the primary lists it under another spelling or not at all; and as an
+     * explicit null when there is none.
+     */
+    @Test
+    void theModelsNameTheDefaultEvenWhenNoListedModelCarriesTheFlag() {
+        given(capability.model()).willReturn(Optional.of("model-a"));
+        given(catalog.models())
+                .willReturn(new ChatModelsView(
+                        List.of(new ConnectionView("PRIMARY", "ollama", false, false, "x", List.of())), "model-a"));
+
+        assertThat(mvc.get().uri("/api/v1/chat/models"))
+                .hasStatusOk()
+                .bodyJson()
+                .extractingPath("$.defaultModelName")
+                .isEqualTo("model-a");
+
+        given(catalog.models())
+                .willReturn(new ChatModelsView(
+                        List.of(new ConnectionView("PRIMARY", "ollama", false, true, null, List.of())), null));
+
+        assertThat(mvc.get().uri("/api/v1/chat/models"))
+                .hasStatusOk()
+                .bodyText()
+                .contains("\"defaultModelName\":null");
+    }
+
+    /** ISC-505: like the status, the list is absent where no chat model is configured, and nobody is asked. */
+    @Test
+    void theModelsAreNotFoundWithoutAChatModel() {
+        given(capability.model()).willReturn(Optional.empty());
+
+        assertThat(mvc.get().uri("/api/v1/chat/models")).hasStatus(404);
+        verify(catalog, never()).models();
+    }
+
+    /** The catalog the two connections offer in the ISC-506 cases: model-a on the primary, model-b on the second. */
+    private void catalogOffersModelAOnThePrimaryAndModelBOnTheSecond() {
+        given(capability.model()).willReturn(Optional.of("model-a"));
+        given(conversations.exists(1L)).willReturn(true);
+        given(catalog.models())
+                .willReturn(new ChatModelsView(
+                        List.of(
+                                new ConnectionView(
+                                        "PRIMARY",
+                                        "ollama",
+                                        false,
+                                        true,
+                                        null,
+                                        List.of(new ModelView("model-a", true))),
+                                new ConnectionView(
+                                        "SECOND",
+                                        "openai-compatible",
+                                        true,
+                                        true,
+                                        null,
+                                        List.of(new ModelView("model-b", false)))),
+                        "model-a"));
+        given(catalog.contains("PRIMARY", "model-a")).willReturn(true);
+        given(catalog.contains("SECOND", "model-b")).willReturn(true);
+    }
+
+    /** Picks the server did not discover itself, and a pick that names one half only. */
+    private static final List<String> REFUSED_PICKS = List.of(
+            "\"connection\":\"SECOND\",\"model\":\"model-unlisted\"",
+            "\"connection\":\"PRIMARY\",\"model\":\"model-b\"",
+            "\"connection\":\"THIRD\",\"model\":\"model-a\"",
+            "\"model\":\"model-b\"",
+            "\"connection\":\"SECOND\"");
+
+    /**
+     * ISC-506: a turn asked with a model and connection the catalog never listed together — or with
+     * half a pick — is a 400 before anything starts: no turn, so no row, no counter and no model call.
+     */
+    @Test
+    void aTurnOnAPickTheServerDidNotDiscoverIsABadRequestAndStartsNothing() {
+        catalogOffersModelAOnThePrimaryAndModelBOnTheSecond();
+
+        for (String pick : REFUSED_PICKS) {
+            assertThat(mvc.post()
+                            .uri("/api/v1/chat/conversations/1/turns")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"question\":\"Anything?\"," + pick + "}"))
+                    .as(pick)
+                    .hasStatus(400);
+        }
+        verify(turns, never()).start(anyLong(), anyString(), any(), any(), any());
+        verify(turns, never()).start(anyLong(), anyString(), any(), any());
+    }
+
+    /** ISC-506: the same refusals on a regenerate, which carries its pick in an optional body. */
+    @Test
+    void aRegenerateOnAPickTheServerDidNotDiscoverIsABadRequestAndStartsNothing() {
+        catalogOffersModelAOnThePrimaryAndModelBOnTheSecond();
+
+        for (String pick : REFUSED_PICKS) {
+            assertThat(mvc.post()
+                            .uri("/api/v1/chat/conversations/1/turns/2/regenerate")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{" + pick + "}"))
+                    .as(pick)
+                    .hasStatus(400);
+        }
+        verify(turns, never()).regenerate(anyLong(), anyLong(), any(), any(), any());
+        verify(turns, never()).regenerate(anyLong(), anyLong(), any(), any());
+    }
+
+    /**
+     * ISC-506/507: a discovered pick reaches the turn as sent, and the default is never checked
+     * against the catalog — a turn without a pick asks nobody's list.
+     */
+    @Test
+    void aDiscoveredPickAndTheDefaultBothStartTheirTurn() {
+        catalogOffersModelAOnThePrimaryAndModelBOnTheSecond();
+        willAnswer(call -> {
+                    call.<Runnable>getArgument(4).run();
+                    return null;
+                })
+                .given(turns)
+                .start(eq(1L), anyString(), any(ModelPick.class), any(), any());
+
+        assertThat(mvc.post()
+                        .uri("/api/v1/chat/conversations/1/turns")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"question\":\"By default?\"}"))
+                .hasStatusOk();
+        verify(turns).start(eq(1L), eq("By default?"), eq(ModelPick.DEFAULT), any(), any());
+        verify(catalog, never()).contains(any(), any());
+        verify(catalog, never()).models();
+
+        assertThat(mvc.post()
+                        .uri("/api/v1/chat/conversations/1/turns")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"question\":\"Anything?\",\"connection\":\"SECOND\",\"model\":\"model-b\"}"))
+                .hasStatusOk();
+        verify(turns).start(eq(1L), eq("Anything?"), eq(new ModelPick("SECOND", "model-b")), any(), any());
+    }
+
+    /**
+     * ISC-506: right after a restart nothing has been listed under the current configuration, and
+     * {@code contains} answers false for that reason alone. The controller then reads the list once
+     * and checks against it, so a pick the connection does offer is not refused.
+     */
+    @Test
+    void aPickIsCheckedAgainstAListReadOnceWhenNoneWasReadYet() {
+        catalogOffersModelAOnThePrimaryAndModelBOnTheSecond();
+        given(catalog.contains("SECOND", "model-b")).willReturn(false);
+        willAnswer(call -> {
+                    call.<Runnable>getArgument(4).run();
+                    return true;
+                })
+                .given(turns)
+                .regenerate(eq(1L), eq(2L), any(ModelPick.class), any(), any());
+
+        assertThat(mvc.post()
+                        .uri("/api/v1/chat/conversations/1/turns/2/regenerate")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"connection\":\"SECOND\",\"model\":\"model-b\"}"))
+                .hasStatusOk();
+        verify(catalog).models();
+        verify(turns).regenerate(eq(1L), eq(2L), eq(new ModelPick("SECOND", "model-b")), any(), any());
     }
 
     /** ISC-476: absent where no chat model is configured, as the rest of the chat is. */

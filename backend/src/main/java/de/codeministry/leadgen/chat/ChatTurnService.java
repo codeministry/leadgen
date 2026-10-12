@@ -22,6 +22,7 @@ import de.codeministry.leadgen.chat.tools.StatisticsTool;
 import de.codeministry.leadgen.config.ConfigProperties;
 import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.llm.ChatModels;
+import de.codeministry.leadgen.llm.Connections;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import java.io.IOException;
@@ -212,7 +213,18 @@ public class ChatTurnService {
      * @throws java.util.concurrent.RejectedExecutionException when the pool and its queue are full
      */
     public void start(long conversationId, String question, Consumer<ChatEvent> sink, Runnable finished) {
-        start(conversationId, question, null, sink, finished);
+        start(conversationId, question, ModelPick.DEFAULT, sink, finished);
+    }
+
+    /**
+     * Starts a turn on {@code pick} — the model and connection the drawer's select named, or the
+     * default — exactly as {@link #start(long, String, Consumer, Runnable)} does (spec 025, ISC-507).
+     *
+     * @throws java.util.concurrent.RejectedExecutionException when the pool and its queue are full
+     */
+    public void start(
+            long conversationId, String question, ModelPick pick, Consumer<ChatEvent> sink, Runnable finished) {
+        start(conversationId, question, pick, null, sink, finished);
     }
 
     /**
@@ -224,8 +236,17 @@ public class ChatTurnService {
      * @throws java.util.concurrent.RejectedExecutionException when the pool and its queue are full
      */
     public boolean regenerate(long conversationId, long turnId, Consumer<ChatEvent> sink, Runnable finished) {
+        return regenerate(conversationId, turnId, ModelPick.DEFAULT, sink, finished);
+    }
+
+    /**
+     * {@link #regenerate(long, long, Consumer, Runnable)} on {@code pick}: the new turn names the
+     * model it was asked of, and the replaced turn keeps its own (spec 025, ISC-508).
+     */
+    public boolean regenerate(
+            long conversationId, long turnId, ModelPick pick, Consumer<ChatEvent> sink, Runnable finished) {
         Optional<String> question = conversations.question(conversationId, turnId);
-        question.ifPresent(asked -> start(conversationId, asked, turnId, sink, finished));
+        question.ifPresent(asked -> start(conversationId, asked, pick, turnId, sink, finished));
         return question.isPresent();
     }
 
@@ -306,29 +327,60 @@ public class ChatTurnService {
     }
 
     private void start(
-            long conversationId, String question, Long replaces, Consumer<ChatEvent> sink, Runnable finished) {
+            long conversationId,
+            String question,
+            ModelPick pick,
+            Long replaces,
+            Consumer<ChatEvent> sink,
+            Runnable finished) {
         turns.execute(() -> {
             try {
-                ask(conversationId, question, replaces, sink);
+                ask(conversationId, question, pick, replaces, sink);
             } finally {
                 finished.run();
             }
         });
     }
 
-    /** Runs one turn on the calling thread. {@link #start} is the way in from a request. */
+    /** Runs one turn on the default model, on the calling thread. {@link #start} is the way in from a request. */
     public void ask(long conversationId, String question, Consumer<ChatEvent> sink) {
-        ask(conversationId, question, null, sink);
+        ask(conversationId, question, ModelPick.DEFAULT, sink);
     }
 
-    private void ask(long conversationId, String question, Long replaces, Consumer<ChatEvent> sink) {
+    /** Runs one turn on {@code pick}, on the calling thread. {@link #start} is the way in from a request. */
+    public void ask(long conversationId, String question, ModelPick pick, Consumer<ChatEvent> sink) {
+        ask(conversationId, question, pick, null, sink);
+    }
+
+    /**
+     * Who answers a turn asked with {@code pick}: the pick itself, or for the default the chat model
+     * on the primary connection — {@code llm.models.chat}, else {@code scoring} (spec 025, ISC-507).
+     * Checking a non-default pick against what the connection listed is the controller's, before a
+     * turn exists; a connection name that is neither of the two is refused here as a broken start.
+     */
+    private Answerer answerer(ModelPick pick) {
+        if (pick == null || pick.isDefault()) {
+            String model = capability.model().orElse(null);
+            return new Answerer(model == null ? null : Connections.Name.PRIMARY, model);
+        }
+        return new Answerer(Connections.Name.valueOf(pick.connection()), pick.model());
+    }
+
+    /** The connection and the model a turn is asked of, resolved; both null when no model is configured. */
+    private record Answerer(Connections.Name connection, String model) {}
+
+    private void ask(long conversationId, String question, ModelPick pick, Long replaces, Consumer<ChatEvent> sink) {
         Turn turn = null;
         try {
-            String modelName = capability.model().orElse(null);
-            long turnId = conversations.startTurn(conversationId, question, modelName, replaces);
-            turn = new Turn(turnId, conversationId, question, modelName, sink);
+            Answerer answerer = answerer(pick);
+            long turnId = conversations.startTurn(
+                    conversationId, question, answerer.model(), answerer.connection(), replaces);
+            turn = new Turn(turnId, conversationId, question, answerer, sink);
             running.put(turnId, turn);
-            sink.accept(new ChatTurnStarted(turnId, modelName));
+            sink.accept(new ChatTurnStarted(
+                    turnId,
+                    answerer.model(),
+                    answerer.connection() == null ? null : answerer.connection().name()));
             turn.run();
         } catch (RuntimeException e) {
             if (turn == null) {
@@ -365,7 +417,7 @@ public class ChatTurnService {
         private final long id;
         private final long conversationId;
         private final String question;
-        private final String modelName;
+        private final Answerer answerer;
         private final Consumer<ChatEvent> sink;
         private final TurnLedger ledger = new TurnLedger();
         private final CitationFilter filter;
@@ -401,11 +453,11 @@ public class ChatTurnService {
 
         private final Sinks.Empty<Void> stopSignal = Sinks.empty();
 
-        Turn(long id, long conversationId, String question, String modelName, Consumer<ChatEvent> sink) {
+        Turn(long id, long conversationId, String question, Answerer answerer, Consumer<ChatEvent> sink) {
             this.id = id;
             this.conversationId = conversationId;
             this.question = question;
-            this.modelName = modelName;
+            this.answerer = answerer;
             this.sink = sink;
             this.filter = new CitationFilter(ledger, this::reachable);
         }
@@ -424,13 +476,19 @@ public class ChatTurnService {
         }
 
         void run() {
-            ChatModel model = modelName == null
+            // Exactly the connection and the model the turn was asked with, and no other: a model
+            // that cannot be built ends the turn, it is never swapped for one that can (ISC-509).
+            ChatModel model = answerer.model() == null
                     ? null
-                    : chatModels
-                            .of(config.snapshot().application().llm(), modelName)
+                    : Connections.of(config.snapshot().application(), answerer.connection())
+                            .flatMap(connection -> chatModels.of(connection.llm(), answerer.model()))
                             .orElse(null);
             if (model == null) {
-                end(ChatErrorReason.MODEL, "no chat model can be reached with the configured llm block");
+                end(
+                        ChatErrorReason.MODEL,
+                        answerer.connection() == Connections.Name.SECOND
+                                ? "no chat model can be reached with the configured chat.connection block"
+                                : "no chat model can be reached with the configured llm block");
                 return;
             }
             ChatOptions options = options(model);
@@ -452,8 +510,10 @@ public class ChatTurnService {
                     outOfTime();
                     return;
                 }
-                if (!budget.take()) {
-                    end(ChatErrorReason.BUDGET, "chat.max_calls_per_day is spent for today");
+                // Each round on the connection the turn was asked of: the second connection's
+                // own ceiling beside the chat's, the primary's against the chat's alone (ISC-510).
+                if (!budget.take(answerer.connection())) {
+                    end(ChatErrorReason.BUDGET, spent());
                     return;
                 }
                 StringBuilder said = new StringBuilder();
@@ -536,6 +596,13 @@ public class ChatTurnService {
                 messages.add(ToolResponseMessage.builder().responses(responses).build());
             }
             complete(ChatTurnState.DONE);
+        }
+
+        /** Which ceiling refused the call: the chat's own, or else the second connection's. */
+        private String spent() {
+            return answerer.connection() == Connections.Name.SECOND && budget.used() < budget.limit()
+                    ? "chat.connection.max_calls_per_day is spent for today"
+                    : "chat.max_calls_per_day is spent for today";
         }
 
         void stop() {

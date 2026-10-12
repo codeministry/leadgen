@@ -87,8 +87,8 @@ class ChatStreamQueueWaitTest {
         given(conversations.exists(1L)).willReturn(true);
         given(capability.model()).willReturn(Optional.of("chat-model"));
         willAnswer(call -> {
-                    Consumer<ChatEvent> sink = call.getArgument(2);
-                    Runnable finished = call.getArgument(3);
+                    Consumer<ChatEvent> sink = call.getArgument(3);
+                    Runnable finished = call.getArgument(4);
                     Thread.ofVirtual().start(() -> {
                         try {
                             Thread.sleep(QUEUED);
@@ -103,7 +103,7 @@ class ChatStreamQueueWaitTest {
                     return null;
                 })
                 .given(turns)
-                .start(eq(1L), anyString(), any(), any());
+                .start(eq(1L), anyString(), any(ModelPick.class), any(), any());
 
         List<TurnStream.Event> events = TurnStream.ask(port, 1L, "Queued?");
 

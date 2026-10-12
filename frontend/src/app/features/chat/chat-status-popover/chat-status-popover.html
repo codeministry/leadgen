@@ -45,18 +45,27 @@
     </dl>
   } @else {
     <p class="type-small lg-chat-status-state">{{ 'chat.status.chatTitle' | transloco }}</p>
+    <!-- Kept numbers stay shown, with a note when the last refresh failed; the bare failed state only
+         with no status at all, and "loading" only while there is none yet. -->
     @if (chat(); as c) {
       <dl class="lg-chat-status-facts">
         <dt>{{ 'chat.status.model' | transloco }}</dt>
         <dd class="type-mono-data lg-chat-status-model">{{ c.model }}</dd>
         <dt>{{ 'chat.status.calls' | transloco }}</dt>
         <dd class="type-mono-data lg-chat-status-calls">{{ 'chat.status.callsValue' | transloco: {used: c.callsUsed, limit: c.callsLimit} }}</dd>
+        @if (second(); as s) {
+          <dt>{{ 'chat.status.secondCalls' | transloco }}</dt>
+          <dd class="type-mono-data lg-chat-status-second-calls">{{ 'chat.status.secondCallsValue' | transloco: s }}</dd>
+        }
         <dt>{{ 'chat.status.rounds' | transloco }}</dt>
         <dd class="type-mono-data lg-chat-status-rounds">{{ c.toolRounds }}</dd>
       </dl>
+      @if (chatFailed()) {
+        <p class="type-small text-muted lg-chat-status-stale">{{ 'chat.status.refreshFailed' | transloco }}</p>
+      }
     } @else if (chatFailed()) {
       <p class="type-small text-muted">{{ 'chat.status.chatFailed' | transloco }}</p>
-    } @else {
+    } @else if (chatLoading()) {
       <p class="type-small text-muted">{{ 'chat.status.chatLoading' | transloco }}</p>
     }
   }

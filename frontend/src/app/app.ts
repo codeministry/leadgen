@@ -1,5 +1,8 @@
-import {ChangeDetectionStrategy, Component, inject} from '@angular/core';
+import {ChangeDetectionStrategy, Component, computed, effect, inject, untracked} from '@angular/core';
+import {injectDispatch} from '@ngrx/signals/events';
 import {RefreshStore} from '@core/refresh/refresh.store';
+import {chatEvents} from '@core/store/chat.events';
+import {ChatStore} from '@core/store/chat.store';
 import {IngestStore} from '@core/store/ingest.store';
 import {ChatPanel} from '@features/chat/chat-panel/chat-panel';
 import {AppShell} from '@layout/app-shell/app-shell';
@@ -16,6 +19,11 @@ import {AppShell} from '@layout/app-shell/app-shell';
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class App {
+    private readonly chat = inject(ChatStore);
+    private readonly dispatch = injectDispatch(chatEvents);
+    /** The drawer is open, by the URL's `?chat`: the deferred panel is created then, and stays. */
+    protected readonly chatOpen = computed(() => this.chat.present() === true && this.chat.view() !== 'closed');
+
   /**
    * `RefreshStore` is injected for its existence and for nothing it returns.
    *
@@ -37,5 +45,15 @@ export class App {
     // it on every screen; since that control moved to the workflow screen, nothing did anywhere
     // else, and a run ending on /pipeline refreshed nothing and said nothing.
     inject(IngestStore);
+    // The model catalog each time the drawer opens, so a connection that went away or came back is
+    // seen (spec 025, ISC-511). Here and not in the composer: the drawer stops checking its projected
+    // content while closed, so an effect in there never saw it close and asked only on the first open.
+    // Not on a page load, and nothing without a chat model (ISC-513).
+    let wasOpen = false;
+    effect(() => {
+      const open = this.chatOpen();
+      if (open && !wasOpen) untracked(() => this.dispatch.modelsRequested());
+      wasOpen = open;
+    });
   }
 }

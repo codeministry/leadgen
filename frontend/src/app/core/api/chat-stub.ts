@@ -1,6 +1,6 @@
 import {Observable} from 'rxjs';
 
-import type {ChatEvent, ChatFollowUp, ChatStatus, ChatSuggestion} from '../model/chat';
+import type {ChatEvent, ChatFollowUp, ChatModels, ChatStatus, ChatSuggestion} from '../model/chat';
 
 /**
  * What `GET /suggestions` answers for an empty chat once the server does (ISC-455): at most four,
@@ -14,6 +14,27 @@ export const RECORDED_SUGGESTIONS: readonly ChatSuggestion[] = [
 
 /** What `GET /status` answers on an instance with a chat model (ISC-476). */
 export const RECORDED_STATUS: ChatStatus = {model: 'chat-model', callsUsed: 12, callsLimit: 200, toolRounds: 6};
+
+/**
+ * What `GET /models` answers on an instance with one unbilled connection (ISC-505): two models that
+ * can call tools, the first of them the default. Neutral names, no provider and no vendor.
+ */
+export const RECORDED_MODELS: ChatModels = {
+    connections: [
+        {
+            name: 'PRIMARY',
+            kind: 'local',
+            billed: false,
+            reachable: true,
+            reason: null,
+            models: [
+                {name: 'model-a', defaultModel: true},
+                {name: 'model-b', defaultModel: false},
+            ],
+        },
+    ],
+    defaultModelName: 'model-a',
+};
 
 /** What `GET …/followups` answers under a finished turn (ISC-457): two or three questions. */
 export const RECORDED_FOLLOWUPS: readonly ChatFollowUp[] = [{text: 'Only the remote ones?'}, {text: 'Which of them pay the most?'}];

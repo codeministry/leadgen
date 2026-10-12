@@ -213,6 +213,41 @@ model has to call tools, which not every model a judge runs on does well; which 
 it reliably enough is a measurement against a real instance, open in spec 019 as fog, the way the
 routing bake-off was measured for the stages.
 
+## A second connection, discovered, not allowlisted
+
+**The chat may ask a model on a second connection beside `llm`, and only the chat reads it** (spec 025).
+`llm.provider`, `base_url` and `api_key` are one block every stage shares, so a hard question for a stronger
+hosted model used to mean reconfiguring the whole instance, and the nightly judge with it. `chat.connection` is a
+second block of the same shape, under `chat:` rather than `llm:` so that `llm` stays the pipeline's single
+provider; per-stage connections were offered and not taken. `llm/Connections` names the two `PRIMARY` and
+`SECOND` and maps each onto the shape `ChatModels.of` already takes, so a model on the second connection is built
+by the same call, and a stored turn names its connection, never a URL (`chat_turn.connection`, `V37`).
+
+**The model list is read from each connection, not written in `.env` — the one place the chat departs from the
+run button.** `scoring_options` is an allowlist because a name arriving in a request decides what gets bought
+([pipeline-scoring.md](pipeline-scoring.md)). The operator chose discovery here: Ollama's own `/api/tags`, kept
+where `/api/show` lists `tools`; the `/v1/models` of the hosted and the `openai-compatible` kinds, every model
+counted as tool-capable because neither publishes the capability. The check survives in another form. The server
+accepts a pick only when its own list holds it (`ChatModelCatalog.contains`), so a request still cannot name an
+arbitrary model; a list not read yet under the current configuration is read once rather than refusing every pick
+after a restart; a partial pick is a 400. The list is cached for 60 s per configuration snapshot, a connection that
+does not answer is listed with its reason and no models, and the other still answers. The price: a model pulled or
+published tomorrow is selectable without a configuration change.
+
+**A ceiling of its own, taken with the chat's in one transaction.** A call on the second connection counts against
+`chat.max_calls_per_day` and `chat.connection.max_calls_per_day` (`chat_connection_call_budget`); when either
+refuses, the other is rolled back, so a refused call counts on neither. Absent is 50, never no ceiling, for the
+reason the chat's own ceilings have one. `billed` is a key on each connection, because an `openai-compatible`
+endpoint may be a local server or a paid one; empty means billed for `anthropic` only.
+
+**Picked per turn, never inherited, never a fallback.** The select sits beside the composer; the next model reads
+the conversation as the turns before it left it — question and answer per turn, never an earlier tool result — under
+the same masker, ledger and round bound. A new conversation always starts on `llm.models.chat` on the primary
+connection and the pick lives in memory, never in `localStorage`, so a billed model is reached only by a pick in
+that conversation; a reopened one starts on its last turn's model. A model that fails, times out or is refused ends
+its turn with its reason and is never retried elsewhere. The suggestions and the semantic tool's query vector stay
+on the primary connection whichever model a turn uses.
+
 ## Streaming: server-sent events over a `fetch` POST
 
 **`SseEmitter` on the server, `fetch` plus `eventsource-parser` in the browser.** A turn is a
@@ -357,6 +392,15 @@ operator can close it.
 full-screen modal sheet there, and following a source collapses it into a bar above the bottom
 navigation that names the conversation, marks a streaming turn, and expands back on a tap — with
 `?chat` still in the URL, so "a change of screen keeps it open" holds literally on every width.
+
+**The panel loads on the drawer's first open, not with the page.** Hosted in the root, the whole
+drawer — its components, DOMPurify and the answer renderer — sat in the initial bundle on every
+screen, and spec 025's model select pushed that bundle past its 1 MB budget (1.00 MB, 3.55 kB over).
+The root wraps `lg-chat-panel` in `@defer (when …)` on the store's open state and keeps it once
+loaded: the initial total fell to 867 kB, and the panel is its own 140 kB chunk. The budget stays;
+the header button, its living mark and the store remain eager, and the panel seeds its "followed a
+source" comparison from the URL it was built under, because the navigation that opened it has
+already ended by then.
 
 ## The living mark: four frames of one turn
 

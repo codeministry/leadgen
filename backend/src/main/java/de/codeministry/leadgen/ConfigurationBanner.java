@@ -14,6 +14,7 @@ import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.config.DotEnv;
 import de.codeministry.leadgen.config.Secrets;
 import de.codeministry.leadgen.config.model.PipelineConfig;
+import de.codeministry.leadgen.llm.Connections;
 import de.codeministry.leadgen.llm.ModelChoice;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -170,6 +171,7 @@ public class ConfigurationBanner {
                         + (Files.isDirectory(properties.configDirectory()) ? "" : "  (missing, defaults apply)"),
                 Origin.RESOLVED));
         entries.addAll(modelChoices());
+        entries.addAll(secondConnection());
 
         return render(entries, dotenv, ignored);
     }
@@ -197,6 +199,36 @@ public class ConfigurationBanner {
                 chosen("llm.models.content", ModelChoice.content(models), models == null ? null : models.content()),
                 chosen("llm.models.fields", ModelChoice.fields(models), models == null ? null : models.fields()),
                 chosen("llm.models.chat", ModelChoice.chat(models), models == null ? null : models.chat()));
+    }
+
+    /**
+     * Three rows for the chat's second connection when {@code chat.connection} names a kind, and
+     * none otherwise: the kind and whether it is billed as {@link Connections} resolves it, where
+     * the requests go, and whether a key is set. The base URL loses any {@code user:password@} and the
+     * key is only ever {@link Secrets#mask masked} — a hosted connection's key is exactly what this
+     * box must not print, and "is one set" is the question it answers instead.
+     */
+    private List<Entry> secondConnection() {
+        Optional<Connections.Connection> second;
+        try {
+            second = Connections.second(config.snapshot().application());
+        } catch (RuntimeException e) {
+            return List.of();
+        }
+        return second.map(connection -> List.of(
+                        new Entry(
+                                "chat.connection → llm",
+                                connection.kind() + " · " + (connection.billed() ? "billed" : "not billed"),
+                                Origin.CHOSEN),
+                        new Entry(
+                                "chat.connection → llm url",
+                                Secrets.mask("base_url", connection.llm().baseUrl()),
+                                Origin.CHOSEN),
+                        new Entry(
+                                "chat.connection → llm key",
+                                Secrets.mask("api_key", connection.llm().apiKey()),
+                                Origin.CHOSEN)))
+                .orElse(List.of());
     }
 
     private static Entry chosen(String key, Optional<String> model, String configured) {

@@ -22,14 +22,19 @@ import de.codeministry.leadgen.chat.ChatText;
 import de.codeministry.leadgen.chat.ChatTurnStarted;
 import de.codeministry.leadgen.chat.ConversationSummary;
 import de.codeministry.leadgen.chat.ConversationView;
+import de.codeministry.leadgen.chat.ModelPick;
 import de.codeministry.leadgen.chat.NewContext;
 import de.codeministry.leadgen.chat.NewConversation;
 import de.codeministry.leadgen.chat.NewTurn;
 import de.codeministry.leadgen.chat.PastTurn;
+import de.codeministry.leadgen.chat.RegenerateTurn;
 import de.codeministry.leadgen.chat.RenameConversation;
 import de.codeministry.leadgen.chat.StatisticsSource;
 import de.codeministry.leadgen.chat.TurnLedger;
 import de.codeministry.leadgen.chat.TurnView;
+import de.codeministry.leadgen.chat.catalog.ChatModelsView;
+import de.codeministry.leadgen.chat.catalog.ConnectionView;
+import de.codeministry.leadgen.chat.catalog.ModelView;
 import de.codeministry.leadgen.chat.suggest.FollowUp;
 import de.codeministry.leadgen.chat.suggest.Suggestion;
 import de.codeministry.leadgen.chat.suggest.SuggestionCandidate;
@@ -126,6 +131,9 @@ public class LeadGenRuntimeHints implements RuntimeHintsRegistrar {
                 BulkDeleted.class,
                 ChatCapabilityView.class,
                 ChatContextItem.class,
+                ChatModelsView.class,
+                ConnectionView.class,
+                ModelView.class,
                 ChatDone.class,
                 ChatError.class,
                 ChatSource.class,
@@ -143,8 +151,10 @@ public class LeadGenRuntimeHints implements RuntimeHintsRegistrar {
                 SuggestionScope.class,
                 SuggestionThresholds.class,
                 NewConversation.class,
+                ModelPick.class,
                 NewTurn.class,
                 PastTurn.class,
+                RegenerateTurn.class,
                 RenameConversation.class,
                 StatisticsSource.class,
                 StatisticsSource.Row.class,

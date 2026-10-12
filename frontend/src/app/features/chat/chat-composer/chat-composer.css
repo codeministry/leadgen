@@ -81,6 +81,38 @@
   background-color: currentcolor;
 }
 
+/* The model select (ISC-511), capped like the run control's: a model name is arbitrary text from the
+   connection, and one long enough would push send off a narrow screen. It takes the free space's
+   margin, so the count and send sit right beside it. */
+.lg-chat-model {
+  flex: 0 1 auto;
+  width: auto;
+  min-width: 0;
+  max-width: 14rem;
+  margin-inline-start: auto;
+}
+
+/* Beside the select the hint gives way first: one line, cut, never pushing the select out. */
+.lg-chat-field-foot:has(.lg-chat-model) .lg-chat-hint {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lg-chat-model ~ .lg-chat-count,
+.lg-chat-model ~ .lg-chat-send {
+  margin-inline-start: 0;
+}
+
+/* Why a connection's models cannot be picked, in words, under the foot the select sits in. */
+.lg-chat-model-note {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  text-align: end;
+}
+
 /* The key hint helps a keyboard; a touch screen has no Shift to press. */
 @media (pointer: coarse) {
   .lg-chat-hint {

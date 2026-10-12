@@ -20,7 +20,7 @@ import {TranslocoPipe, TranslocoService} from '@jsverse/transloco';
 import {injectDispatch} from '@ngrx/signals/events';
 import {filter} from 'rxjs';
 import {ChatApi} from '@core/api/chat.api';
-import {ChatSuggestion, conversationTitle, formatChatCtx, SuggestionsFor, TITLE_MAX, TurnView} from '@core/model/chat';
+import {answeredOn, ChatConnectionName, ChatSuggestion, conversationTitle, formatChatCtx, SuggestionsFor, TITLE_MAX, TurnView} from '@core/model/chat';
 import {chatEvents} from '@core/store/chat.events';
 import {ChatStore} from '@core/store/chat.store';
 import {Icon} from '@shared/icon/icon';
@@ -204,7 +204,10 @@ export class ChatPanel {
         // Following a source: a change of screen that keeps `?chat` as it was, while the sheet
         // covers the window. The page it opened is what the reader went for, so the sheet folds.
         const router = inject(Router);
-        let previous: {path: string; chat: string | null} | null = null;
+        // The panel is built on the drawer's first open (deferred in the root), after the navigation
+        // that opened it: that screen is the one the next change of screen is compared against.
+        const opened = router.parseUrl(router.url).queryParamMap.get('chat');
+        let previous: {path: string; chat: string | null} | null = opened === null ? null : {path: router.url.split(/[?#]/)[0], chat: opened};
         router.events
             .pipe(
                 filter((event) => event instanceof NavigationEnd),
@@ -297,6 +300,11 @@ export class ChatPanel {
     /** The living mark beside an answer (ISC-465): a stored turn and the live one read the same way. */
     protected frameOf(turn: Pick<TurnView, 'state' | 'steps'>): LivingMarkFrame {
         return turnFrame(turn.state, turn.steps);
+    }
+
+    /** Whether an answer ran on a billed connection (ISC-511): a stored turn without one ran on the primary. */
+    protected billed(turn: {readonly connection?: ChatConnectionName | null}): boolean {
+        return this.store.billedConnections().includes(answeredOn(turn));
     }
 
     /** What the ring beside an answer says on hover or focus (ISC-474), for a stored and a live turn alike. */
