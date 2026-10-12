@@ -14,6 +14,19 @@ import jakarta.validation.constraints.Size;
 /**
  * The body of {@code POST /api/v1/chat/conversations/{id}/turns}.
  *
- * @param question what the operator typed.
+ * @param question   what the operator typed.
+ * @param connection the connection the select picked, or null for the default (spec 025, ISC-507).
+ * @param model      the model the select picked, or null for the default.
  */
-public record NewTurn(@NotBlank @Size(max = 4000) String question) {}
+public record NewTurn(@NotBlank @Size(max = 4000) String question, String connection, String model) {
+
+    /** A question with no pick, as every turn was asked before spec 025. */
+    public NewTurn(String question) {
+        this(question, null, null);
+    }
+
+    /** The pick this turn carries. */
+    public ModelPick pick() {
+        return new ModelPick(connection, model);
+    }
+}

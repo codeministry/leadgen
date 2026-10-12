@@ -21,6 +21,17 @@
   <lg-chat-sources [sources]="rows()"/>
 }
 
+@if (model(); as name) {
+  <!-- Which model wrote this (ISC-511): the name is a value, the words around it come from the catalogs. -->
+  <p class="type-caption text-muted mt-1 lg-chat-answer-model">
+    {{ 'chat.answer.model' | transloco }}
+    <span class="font-mono lg-chat-answer-model-name">{{ name }}</span>
+    @if (billed()) {
+      · <span class="lg-chat-billed">{{ 'chat.model.billed' | transloco }}</span>
+    }
+  </p>
+}
+
 @if (finished()) {
   <div class="lg-chat-actions">
     <button

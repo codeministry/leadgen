@@ -120,6 +120,16 @@ to share a name, which meant a stack trace naming it could mean either file.
   and 6 rounds. The chat is on wherever a scoring model exists, so an override that predates the
   block must not leave it unmetered or its tool loop unbounded. The reasoning is in
   [decisions/chat.md](decisions/chat.md).
+- **The chat may ask a model on a second connection, and it has a ceiling of its own.** `chat.connection`
+  names a provider kind, a base URL, a key, whether it is `billed`, a `timeout` and `max_calls_per_day`, every
+  value a placeholder in `.env`; with no provider it is absent and the chat runs on `llm` alone. The pipeline
+  never reads it. The drawer's select lists the models each connection reports and that can call tools — read from
+  the connection, not from a list here — and a turn may name only a model the server listed itself. A call on the
+  second connection counts against `chat.max_calls_per_day` and its own ceiling at once; absent, that ceiling is
+  `50`, never no ceiling. `billed` on either connection decides the marker in the select and under the answer;
+  left empty it is true for `anthropic` and false for every other kind. A new conversation always starts on
+  `llm.models.chat` on the primary connection. The reasoning is in
+  [decisions/chat.md](decisions/chat.md) § A second connection, discovered, not allowlisted.
 - **`chat.suggestions.*` decides which questions the empty chat offers, and none of it spends a call.**
   Six thresholds, each a rule over the numbers a screen already shows: `new_offers_min`, `deadline_days`,
   `no_reply_days`, and the tag rise as `tag_window_days`, `tag_rise_percent` and `tag_rise_min_offers`.
@@ -216,6 +226,7 @@ rationale. `*` marks a credential.
 | `LLM_BATCH`                 | `false` | Half the price, answers minutes later. Only the Messages API batch is implemented; `true` on any other provider is fatal at load rather than quietly synchronous at full price.                                                                                                                                                                                                                                           |
 | `LLM_TIMEOUT`               | `PT120S` | ISO-8601. How long one request to a model may take. |
 | `LLM_CONCURRENCY`           | `1`     | `llm.concurrency`: how many adverts CONTENT, FIELDS and the synchronous SCORE work at once, and how many embedding batches DEDUPE and RETRIEVAL have in flight. Refused above the database connection pool. The endpoint has to serve that many at once; the budget is unchanged, only the clock moves. |
+| `LLM_BILLED`                | —       | `llm.billed`: whether a call on the primary connection is paid for, which the chat's select and answers mark. `true` or `false`; empty means billed for `anthropic` and not billed for every other kind. Anything else is refused at load. |
 | `LLM_MODEL_SCORING`         | —       | The judge, and the default of the list below. Also the fallback of every model key left empty: `LLM_MODEL_CONTENT`, `LLM_MODEL_FIELDS`, `LLM_MODEL_EXTRACTION` and `LLM_MODEL_CHAT`. Changing it re-judges; it does not make CONTENT or FIELDS due again, even for the stages that fall back to it. |
 | `LLM_MODEL_CONTENT`         | —       | `llm.models.content`: the content classifier, which labels the blocks of an advert no rule and no cached label decided. Empty means `LLM_MODEL_SCORING`. Set and then changed, it makes CONTENT due again for every advert segmented under another model; cached block labels stand, so only blocks nobody has a label for go to the new model. |
 | `LLM_MODEL_FIELDS`          | —       | `llm.models.fields`: the field extractor, which reads start, duration and apply-by out of the advert. Empty means `LLM_MODEL_SCORING`. Set and then changed, it makes FIELDS due again for every advert read under another model. |
@@ -226,6 +237,12 @@ rationale. `*` marks a credential.
 | `LLM_MODEL_CHAT`            | —       | `llm.models.chat`: the chat in the drawer every screen opens. Empty means `LLM_MODEL_SCORING`, and the startup log says which key decided. The model has to call tools, which not every judge does well. With neither key set the chat is absent: the header draws no button and no chat request leaves the browser. |
 | `CHAT_MAX_CALLS_PER_DAY`    | `200`   | `chat.max_calls_per_day`: the chat's own daily ceiling on model requests, counted in `chat_call_budget` beside `llm.budget` and never through it, so questions cannot starve the nightly run nor a spent night silence the chat. `0` means no calls. Left out of a `pipeline.yaml` override — the key or the whole `chat:` block — it is `200`, not no ceiling (changed from "absent = no ceiling": the chat is on by default wherever a scoring model exists). A spent day ends a turn with its reason. |
 | `CHAT_MAX_TOOL_ROUNDS`      | `6`     | `chat.max_tool_rounds`: how many rounds of tool calls one chat turn may take before it has to answer. Past it the turn ends with its reason and keeps what it had said, rather than showing an answer the model never finished. Left out of an override it is `6`; there is no unbounded setting, because a model that keeps asking for tools would loop for ever. |
+| `CHAT_LLM_PROVIDER`         | —       | `chat.connection.provider`: the chat's optional second connection, `anthropic`, `ollama` or `openai-compatible`. Empty means none, and the chat runs on `llm` alone. An unknown kind is refused at load. Only the chat reads it. |
+| `CHAT_LLM_BASE_URL`         | —       | `chat.connection.base_url`. Required for `anthropic` and `openai-compatible`; refused at load without it. |
+| `CHAT_LLM_API_KEY` *        | —       | `chat.connection.api_key`. `ollama` needs none. Masked in the startup banner and in every tool result a model reads. |
+| `CHAT_LLM_BILLED`           | —       | `chat.connection.billed`: as `LLM_BILLED`, for the second connection. |
+| `CHAT_LLM_TIMEOUT`          | `PT120S` | `chat.connection.timeout`: how long one request on the second connection may take. |
+| `CHAT_LLM_MAX_CALLS_PER_DAY` | `50`   | `chat.connection.max_calls_per_day`: the second connection's own daily ceiling, counted in `chat_connection_call_budget`. A call on it counts here and against `CHAT_MAX_CALLS_PER_DAY` at once, and a call either refuses counts on neither. Left out of an override it is `50`, never no ceiling; `0` means no calls. A spent day ends a turn on it with its reason, and the primary's models still answer. |
 | `CHAT_SUGGEST_NEW_OFFERS_MIN` | `1` | `chat.suggestions.new_offers_min`: the empty chat suggests the last run's new offers once that run wrote at least this many. |
 | `CHAT_SUGGEST_DEADLINE_DAYS` | `7` | `chat.suggestions.deadline_days`: suggests the open offers whose apply-by date falls within this many days from today. |
 | `CHAT_SUGGEST_NO_REPLY_DAYS` | `14` | `chat.suggestions.no_reply_days`: suggests the sent applications that have had no reply for at least this many days. |

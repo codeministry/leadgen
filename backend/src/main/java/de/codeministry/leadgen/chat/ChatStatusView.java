@@ -17,5 +17,16 @@ package de.codeministry.leadgen.chat;
  * @param callsUsed  today's model calls, against {@code callsLimit}.
  * @param callsLimit {@code chat.max_calls_per_day} as it resolves; {@code 0} asks nothing of a model.
  * @param toolRounds {@code chat.max_tool_rounds} as it resolves: how often one turn may call tools.
+ * @param secondCalls today's calls on the second connection, against {@code secondLimit}; null
+ *     without a second connection (spec 025, ISC-510).
+ * @param secondLimit {@code chat.connection.max_calls_per_day} as it resolves; null without a second
+ *     connection.
  */
-public record ChatStatusView(String model, int callsUsed, int callsLimit, int toolRounds) {}
+public record ChatStatusView(
+        String model, int callsUsed, int callsLimit, int toolRounds, Integer secondCalls, Integer secondLimit) {
+
+    /** The status of a chat with no second connection. */
+    public ChatStatusView(String model, int callsUsed, int callsLimit, int toolRounds) {
+        this(model, callsUsed, callsLimit, toolRounds, null, null);
+    }
+}

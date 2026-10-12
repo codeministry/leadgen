@@ -76,6 +76,10 @@ export class ChatAnswer {
     readonly last = input(false);
     /** The conversation the turn belongs to; the follow-ups are asked for under it. */
     readonly conversationId = input<number | null>(null);
+    /** The model that wrote the answer, named under it (ISC-511); null for a turn that does not say. */
+    readonly model = input<string | null>(null);
+    /** Whether the connection that answered is billed: the answer then carries the marker (ISC-511). */
+    readonly billed = input(false);
 
     /** The turn's `statistics` calls, each drawn as a card from its own result (ISC-460). */
     protected readonly statistics = computed<readonly ChatStatisticsSource[]>(() => this.sources().filter(isStatistics));

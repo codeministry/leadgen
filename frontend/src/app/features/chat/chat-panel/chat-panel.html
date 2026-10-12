@@ -205,6 +205,8 @@
         [failureParams]="turn.failureParams ?? null"
         [last]="last"
         [conversationId]="store.conversation()?.id ?? null"
+        [model]="turn.model ?? null"
+        [billed]="store.billedConnections().includes(turn.connection)"
       />
     </div>
   </article>

@@ -471,6 +471,10 @@ public final class WorkflowCatalog {
             pipeline("chat.suggestions.tag_window_days"),
             pipeline("chat.suggestions.tag_rise_percent"),
             pipeline("chat.suggestions.tag_rise_min_offers"),
+            // The chat's second connection and the billed marker (spec 025): read by the chat's model
+            // select and its turns, never by a stage — the pipeline runs on `llm` alone.
+            pipeline("llm.billed"),
+            pipeline("chat.connection"),
             // skill-profile.yaml
             profile("version"),
             profile("core[].since"),

@@ -9,6 +9,18 @@ may change in any release. See the status note in the README.
 
 ## [Unreleased]
 
+### Added
+
+- **The chat's model is picked per question.** A select beside the composer lists the models each configured
+  connection serves and can call tools with, grouped by connection; billed ones are marked there and under every
+  answer they wrote. The next question may go to another model, which reads the conversation so far, and
+  regenerate may use another model. A new conversation always starts on the configured default.
+- **An optional second connection for the chat**, `chat.connection` (`CHAT_LLM_*`), beside `llm`: another
+  provider kind, base URL and key, read by the chat alone, with a daily ceiling of its own
+  (`CHAT_LLM_MAX_CALLS_PER_DAY`, default 50) on top of the chat's. `LLM_BILLED` and `CHAT_LLM_BILLED` decide
+  the billed marker. New endpoint `GET /api/v1/chat/models`; `GET /api/v1/chat/status` names the second
+  connection's calls.
+
 ## [0.5.4] — 2026-10-11
 
 The workflow screen's live run holds through a dropped heartbeat and a skewed clock, links in the

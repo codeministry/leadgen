@@ -957,6 +957,22 @@
       "done": "Antwort fertig, {count, plural, =0 {keine Quellen} one {1 Quelle} other {# Quellen}}"
     },
     "stop": "Stoppen",
+    "model": {
+      "label": "Modell",
+      "connection": {
+        "PRIMARY": "Primäre Verbindung",
+        "SECOND": "Zweite Verbindung"
+      },
+      "billed": "kostenpflichtig",
+      "billedOption": "{name} · kostenpflichtig",
+      "none": "Keine Modelle",
+      "groupUnavailable": "{connection} · {reason}",
+      "note": "{connection}: {reason}",
+      "spent": "Heute keine Aufrufe mehr übrig",
+      "unreachable": "Nicht erreichbar: {reason}",
+      "unreachableBare": "Nicht erreichbar",
+      "unavailable": "{reason}"
+    },
     "minibar": {
       "expand": "Zurück zum Chat"
     },
@@ -964,7 +980,8 @@
       "copy": "Antwort mit Quellen kopieren",
       "copied": "Kopiert",
       "regenerate": "Diese Antwort neu schreiben",
-      "unverified": "ungeprüft"
+      "unverified": "ungeprüft",
+      "model": "Geschrieben von"
     },
     "steps": {
       "summary": "{tools, plural, one {1 Werkzeug} other {# Werkzeuge}} genutzt · {rows, plural, one {1 Zeile} other {# Zeilen}}",
@@ -1054,6 +1071,8 @@
       "chatTitle": "Der Chat",
       "calls": "Modellaufrufe heute",
       "callsValue": "{{used}} von {{limit}}",
+      "secondCalls": "Aufrufe über die zweite Verbindung heute",
+      "secondCallsValue": "{{used}} von {{limit}}",
       "rounds": "Werkzeugrunden pro Antwort",
       "chatLoading": "Wird geladen…",
       "chatFailed": "Der Status wurde nicht geladen."

@@ -41,12 +41,17 @@ class ConfigurationBannerTest {
     }
 
     private ConfigurationBanner banner(PipelineConfig.Llm.Models models) {
+        return banner(models, null);
+    }
+
+    private ConfigurationBanner banner(PipelineConfig.Llm.Models models, PipelineConfig.ChatConnection second) {
         var registry = Mockito.mock(ConfigRegistry.class);
         var snapshot = Mockito.mock(ConfigSnapshot.class);
         var pipeline = Mockito.mock(PipelineConfig.class);
         given(registry.snapshot()).willReturn(snapshot);
         given(snapshot.application()).willReturn(pipeline);
         given(pipeline.llm()).willReturn(new PipelineConfig.Llm(null, null, null, null, false, models, null));
+        given(pipeline.chat()).willReturn(new PipelineConfig.Chat(null, null, null, second));
 
         Map<String, Object> properties = new LinkedHashMap<>();
         properties.put("server.port", "8080");
@@ -125,6 +130,52 @@ class ConfigurationBannerTest {
 
         assertThat(row(text, "llm.models.content → used")).contains("none");
         assertThat(row(text, "llm.models.fields → used")).contains("none");
+    }
+
+    @Test
+    void namesTheSecondConnectionWithItsKeyMaskedAndItsUrlStrippedOfCredentials() {
+        // ISC-514: the chat's second connection is a hosted endpoint with a key of its own.
+        String text = banner(
+                        null,
+                        new PipelineConfig.ChatConnection(
+                                "anthropic",
+                                "https://someone:url-Pass-77@models.example.invalid/v1",
+                                "sk-second-Raw-Key-0042",
+                                null,
+                                null,
+                                null))
+                .describe(dotenv());
+
+        String row = row(text, "chat.connection → llm");
+        assertThat(row).contains("anthropic", "billed").doesNotContain("not billed");
+        assertThat(row(text, "chat.connection → llm url"))
+                .contains("someone:" + Secrets.MASK + "@models.example.invalid/v1");
+        assertThat(text)
+                .as("the raw key and the URL's password, anywhere in the box")
+                .doesNotContain("sk-second-Raw-Key-0042")
+                .doesNotContain("url-Pass-77");
+        assertThat(row(text, "chat.connection → llm key")).contains(Secrets.MASK);
+        assertThat(text.indexOf("chat.connection → llm")).isGreaterThan(text.indexOf("Language model"));
+    }
+
+    @Test
+    void saysAnUnsetKeyApartFromAMaskedOneOnTheSecondConnection() {
+        String text = banner(
+                        null,
+                        new PipelineConfig.ChatConnection(
+                                "ollama", "http://127.0.0.1:11434", null, "false", null, null))
+                .describe(dotenv());
+
+        assertThat(row(text, "chat.connection → llm key")).contains(Secrets.UNSET);
+        assertThat(row(text, "chat.connection → llm ")).contains("ollama", "not billed");
+    }
+
+    @Test
+    void printsNoSecondConnectionRowWhenNoneIsConfigured() {
+        assertThat(banner().describe(dotenv())).doesNotContain("chat.connection");
+        assertThat(banner(null, new PipelineConfig.ChatConnection("", "", "", "", null, null))
+                        .describe(dotenv()))
+                .doesNotContain("chat.connection");
     }
 
     private static String row(String text, String key) {

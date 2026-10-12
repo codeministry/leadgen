@@ -183,7 +183,9 @@ describe('AppHeader', () => {
             }
             expect(el('.lg-chat-open')).toBeNull();
             // Counted at the HTTP seam: every request to `/api/v1/chat` but the capability
-            // call itself, which `answerCapability` already took out of the queue.
+            // call itself, which `answerCapability` already took out of the queue. The model
+            // catalog by name (ISC-513): without a chat model no connection is asked for its models.
+            http.expectNone('/api/v1/chat/models');
             expect(chatRequests().length).toBe(0);
         });
 

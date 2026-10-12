@@ -19,6 +19,7 @@ import de.codeministry.leadgen.config.model.PipelineConfig;
 import de.codeministry.leadgen.config.model.SkillProfile;
 import de.codeministry.leadgen.config.model.SourcesConfig;
 import de.codeministry.leadgen.filter.TextFold;
+import de.codeministry.leadgen.llm.ChatModels;
 import de.codeministry.leadgen.security.SecurityConfig;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
@@ -373,6 +374,10 @@ public class ConfigLoader {
                     "llm.batch is true and llm.provider is '%s'; only '%s' has a batch endpoint implemented, and any other provider would score synchronously at full price while the flag says otherwise"
                             .formatted(llm.provider(), PipelineConfig.Llm.BATCHING_PROVIDER));
         }
+        if (llm != null) {
+            checkBilled("llm.billed", llm.billed(), problems);
+        }
+        checkChatConnection(pipeline.chat() == null ? null : pipeline.chat().connection(), problems);
 
         // A worker holds a connection while it writes its advert back. Wider than the pool, the
         // extra workers wait for one and give up after Hikari's 30 s, which reads like a broken
@@ -461,6 +466,54 @@ public class ConfigLoader {
         if (!problems.isEmpty()) {
             problems.sort(Comparator.naturalOrder());
             throw new ConfigValidationException(dir.toString(), problems);
+        }
+    }
+
+    /**
+     * The chat's second connection, {@code chat.connection}. Absent, or present with an empty
+     * {@code provider}, is no second connection and nothing to check: the chat runs on {@code llm}
+     * alone, as before the block existed.
+     *
+     * <p>{@code provider} is a kind, never a default, so a kind nothing implements is refused by
+     * name rather than built into a request of the wrong shape. A hosted kind needs a base URL,
+     * because a URL in the code would be a vendor in the code; Ollama needs no key, which is a
+     * rule about the value and therefore not checked here at all.
+     */
+    private static void checkChatConnection(PipelineConfig.ChatConnection connection, List<String> problems) {
+        if (connection == null || !connection.configured()) {
+            return;
+        }
+        String kind = connection.provider();
+        if (!CHAT_CONNECTION_KINDS.contains(kind)) {
+            problems.add(
+                    "chat.connection.provider is '%s'; implemented are %s — any other kind would be read and then build no model, leaving a second connection that looks configured and never answers"
+                            .formatted(kind, String.join(", ", CHAT_CONNECTION_KINDS)));
+        } else if (!ChatModels.OLLAMA.equals(kind)
+                && (connection.baseUrl() == null || connection.baseUrl().isBlank())) {
+            problems.add(
+                    "chat.connection.base_url is empty and chat.connection.provider is '%s'; a hosted kind needs its base URL set in .env (CHAT_LLM_BASE_URL), because no address is written into the code"
+                            .formatted(kind));
+        }
+        checkBilled("chat.connection.billed", connection.billed(), problems);
+    }
+
+    /** The kinds a second connection may name: the ones {@code ChatModels.of} builds a model for. */
+    private static final List<String> CHAT_CONNECTION_KINDS =
+            List.of(ChatModels.ANTHROPIC, ChatModels.OLLAMA, ChatModels.OPENAI_COMPATIBLE);
+
+    /**
+     * A {@code billed} key is {@code true}, {@code false} or empty. Anything else — a "yes", a
+     * typo — would otherwise fall to the kind's default in silence, and a paid endpoint written
+     * as "ture" would be shown as free.
+     */
+    private static void checkBilled(String key, String billed, List<String> problems) {
+        if (billed == null || billed.isBlank()) {
+            return;
+        }
+        String value = billed.strip();
+        if (!"true".equalsIgnoreCase(value) && !"false".equalsIgnoreCase(value)) {
+            problems.add(
+                    "%s is '%s'; it is true, false, or empty to decide by the provider kind".formatted(key, value));
         }
     }
 

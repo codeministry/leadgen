@@ -89,7 +89,8 @@ public record PipelineConfig(
             boolean batch,
             @NotNull Models models,
             @Valid Budget budget,
-            @Min(1) Integer concurrency) {
+            @Min(1) Integer concurrency,
+            String billed) {
 
         /**
          * Every component but the width, which is then absent and reads as {@code 1}. For code
@@ -104,7 +105,23 @@ public record PipelineConfig(
                 boolean batch,
                 Models models,
                 Budget budget) {
-            this(provider, baseUrl, apiKey, timeout, batch, models, budget, null);
+            this(provider, baseUrl, apiKey, timeout, batch, models, budget, null, null);
+        }
+
+        /**
+         * Every component but {@code billed}, which is then absent and resolved from the provider
+         * kind ({@code Connections.billed}). For code that has nothing to say about billing.
+         */
+        public Llm(
+                String provider,
+                String baseUrl,
+                String apiKey,
+                Duration timeout,
+                boolean batch,
+                Models models,
+                Budget budget,
+                Integer concurrency) {
+            this(provider, baseUrl, apiKey, timeout, batch, models, budget, concurrency, null);
         }
 
         /**
@@ -446,15 +463,60 @@ public record PipelineConfig(
      *                       shipped default of 6 ({@code ChatBudget.DEFAULT_TOOL_ROUNDS}), never no bound.
      * @param suggestions    the lines the empty chat's suggestion triggers read; absent is every
      *                       shipped default ({@code SuggestionThresholds}).
+     * @param connection     the chat's optional second connection; absent, or present with an empty
+     *                       {@code provider}, means the chat runs on {@code llm} alone, as before.
      */
     public record Chat(
             @Min(0) Integer maxCallsPerDay,
             @Min(1) Integer maxToolRounds,
-            @Valid Suggestions suggestions) {
+            @Valid Suggestions suggestions,
+            @Valid ChatConnection connection) {
 
         /** The ceilings alone, for code that has nothing to say about suggestions. */
         public Chat(Integer maxCallsPerDay, Integer maxToolRounds) {
-            this(maxCallsPerDay, maxToolRounds, null);
+            this(maxCallsPerDay, maxToolRounds, null, null);
+        }
+
+        /** Every component but the second connection, which is then absent. */
+        public Chat(Integer maxCallsPerDay, Integer maxToolRounds, Suggestions suggestions) {
+            this(maxCallsPerDay, maxToolRounds, suggestions, null);
+        }
+    }
+
+    /**
+     * A second connection only the chat reads, beside {@code llm} and never in its place: every
+     * pipeline stage keeps the one provider, and the chat may additionally offer the models of this
+     * one. {@code Connections} maps it onto the {@link Llm} shape {@code ChatModels.of} takes.
+     *
+     * <p>Every value is optional in the record and checked by {@code ConfigLoader}: an empty
+     * {@code provider} is the block being absent, an unknown kind is refused, and a hosted kind
+     * without a {@code baseUrl} is refused, because a URL in the code would be a vendor in the code.
+     *
+     * @param provider       the wire format, one of the kinds {@code ChatModels} implements; never a default
+     * @param baseUrl        where the requests go; required for a hosted kind
+     * @param apiKey         the key a hosted kind needs; Ollama needs none
+     * @param billed         whether a call here costs money, bound as text so that absent stays
+     *                       distinguishable from false; absent is resolved from the kind by
+     *                       {@code Connections.billed}
+     * @param timeout        how long one request may take; absent is {@link Llm#DEFAULT_TIMEOUT}
+     * @param maxCallsPerDay this connection's own daily ceiling, counted beside the chat's
+     */
+    public record ChatConnection(
+            String provider,
+            String baseUrl,
+            String apiKey,
+            String billed,
+            Duration timeout,
+            @Min(0) Integer maxCallsPerDay) {
+
+        @Override
+        public Duration timeout() {
+            return timeout == null ? Llm.DEFAULT_TIMEOUT : timeout;
+        }
+
+        /** True when the block names a provider kind; anything else is the block being absent. */
+        public boolean configured() {
+            return provider != null && !provider.isBlank();
         }
     }
 

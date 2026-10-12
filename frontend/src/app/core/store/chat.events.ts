@@ -1,6 +1,6 @@
 import {type} from '@ngrx/signals';
 import {eventGroup} from '@ngrx/signals/events';
-import {ChatContextItem, ChatEvent, ChatStatus, ConversationSummary, ConversationView} from '@core/model/chat';
+import {ChatContextItem, ChatEvent, ChatModelPick, ChatModels, ChatStatus, ConversationSummary, ConversationView} from '@core/model/chat';
 
 /**
  * The chat drawer's events.
@@ -67,6 +67,14 @@ export const chatEvents = eventGroup({
         statusRequested: type<void>(),
         statusLoaded: type<ChatStatus>(),
         statusFailed: type<void>(),
+
+        /** The model catalog, asked each time the drawer's composer opens (ISC-511). */
+        modelsRequested: type<void>(),
+        modelsLoaded: type<ChatModels>(),
+        /** An unreadable catalog offers no select: the default answers as before. */
+        modelsFailed: type<void>(),
+        /** The model the open conversation's next question and regenerate are asked on (ISC-508, ISC-511). */
+        modelPicked: type<ChatModelPick>(),
 
         /** A new title; an empty one clears the name back to the derived one (ISC-449). */
         renameRequested: type<{id: number; title: string}>(),

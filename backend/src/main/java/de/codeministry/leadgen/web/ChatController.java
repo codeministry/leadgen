@@ -21,22 +21,28 @@ import de.codeministry.leadgen.chat.ChatTurnService;
 import de.codeministry.leadgen.chat.ConversationRepository;
 import de.codeministry.leadgen.chat.ConversationSummary;
 import de.codeministry.leadgen.chat.ConversationView;
+import de.codeministry.leadgen.chat.ModelPick;
 import de.codeministry.leadgen.chat.NewContext;
 import de.codeministry.leadgen.chat.NewConversation;
 import de.codeministry.leadgen.chat.NewTurn;
+import de.codeministry.leadgen.chat.RegenerateTurn;
 import de.codeministry.leadgen.chat.RenameConversation;
+import de.codeministry.leadgen.chat.catalog.ChatModelCatalog;
+import de.codeministry.leadgen.chat.catalog.ChatModelsView;
 import de.codeministry.leadgen.chat.suggest.FollowUp;
 import de.codeministry.leadgen.chat.suggest.FollowUps;
 import de.codeministry.leadgen.chat.suggest.Suggestion;
 import de.codeministry.leadgen.chat.suggest.SuggestionScope;
 import de.codeministry.leadgen.chat.suggest.SuggestionService;
 import de.codeministry.leadgen.config.ConfigProperties;
+import de.codeministry.leadgen.llm.Connections;
 import jakarta.annotation.PreDestroy;
 import jakarta.validation.Valid;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.OptionalInt;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
@@ -101,6 +107,9 @@ class ChatController {
     private final FollowUps followUps;
     private final ChatBudget budget;
 
+    /** The model select's list, read from each configured connection (ISC-505). */
+    private final ChatModelCatalog catalog;
+
     /**
      * {@code leadgen.chat.*}: the turn timeout {@link ChatTurnService} stops a turn at, read here
      * for the stream's own timeout, and how often a running turn's stream carries a comment.
@@ -125,7 +134,29 @@ class ChatController {
         String model = capability
                 .model()
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "no chat model is configured"));
-        return new ChatStatusView(model, budget.used(), budget.limit(), budget.toolRounds());
+        // The second connection's counter and ceiling only where one is configured (ISC-510).
+        OptionalInt second = budget.secondLimit();
+        return new ChatStatusView(
+                model,
+                budget.used(),
+                budget.limit(),
+                budget.toolRounds(),
+                second.isPresent() ? budget.used(Connections.Name.SECOND) : null,
+                second.isPresent() ? second.getAsInt() : null);
+    }
+
+    /**
+     * ISC-505: per configured connection, the models it reports that can call tools, with its kind,
+     * whether it is billed and the default flagged; a connection that does not answer is listed
+     * with its reason. Absent where no chat model is configured, like {@link #status()}, and then
+     * no connection is asked.
+     */
+    @GetMapping("/models")
+    ChatModelsView models() {
+        if (capability.model().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "no chat model is configured");
+        }
+        return catalog.models();
     }
 
     /**
@@ -285,10 +316,11 @@ class ChatController {
         if (capability.model().isEmpty()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "no chat model is configured");
         }
+        ModelPick pick = discovered(body.pick());
         SseEmitter emitter = emitter();
         Runnable quiet = keepAlive(emitter);
         try {
-            turns.start(id, body.question(), sink(emitter), ended(emitter, quiet));
+            turns.start(id, body.question(), pick, sink(emitter), ended(emitter, quiet));
         } catch (RejectedExecutionException e) {
             quiet.run();
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "too many turns are running");
@@ -380,14 +412,16 @@ class ChatController {
 
     /** The same question again, as a new turn that records the one it replaces. */
     @PostMapping(path = "/conversations/{id}/turns/{turnId}/regenerate", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    ResponseEntity<SseEmitter> regenerate(@PathVariable long id, @PathVariable long turnId) {
+    ResponseEntity<SseEmitter> regenerate(
+            @PathVariable long id, @PathVariable long turnId, @RequestBody(required = false) RegenerateTurn body) {
         if (capability.model().isEmpty()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "no chat model is configured");
         }
+        ModelPick pick = discovered(body == null ? ModelPick.DEFAULT : body.pick());
         SseEmitter emitter = emitter();
         Runnable quiet = keepAlive(emitter);
         try {
-            if (!turns.regenerate(id, turnId, sink(emitter), ended(emitter, quiet))) {
+            if (!turns.regenerate(id, turnId, pick, sink(emitter), ended(emitter, quiet))) {
                 quiet.run();
                 throw new ResponseStatusException(HttpStatus.NOT_FOUND, "no turn " + turnId + " in " + id);
             }
@@ -396,6 +430,39 @@ class ChatController {
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "too many turns are running");
         }
         return unbuffered(emitter);
+    }
+
+    /**
+     * {@code pick} when the server discovered it itself, else a 400 before any turn exists — so no
+     * row is written, no counter taken and no model called (spec 025, ISC-506). The default is never
+     * checked: it is the configured chat model, not a name the client chose.
+     *
+     * <p>The cached list answers first. {@link ChatModelCatalog#contains} is false whenever no list
+     * was read under the current configuration — right after a start or a reload, before the drawer
+     * asked for one — so a miss reads the list once through {@link ChatModelCatalog#models()}, which
+     * serves a fresh cache without a request, and decides on what that list holds. A name the
+     * connections do not report is refused either way.
+     */
+    private ModelPick discovered(ModelPick pick) {
+        if (pick.isDefault()) {
+            return ModelPick.DEFAULT;
+        }
+        if (pick.isPartial()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "a pick names both a connection and a model");
+        }
+        if (catalog.contains(pick.connection(), pick.model()) || listed(catalog.models(), pick)) {
+            return pick;
+        }
+        throw new ResponseStatusException(
+                HttpStatus.BAD_REQUEST,
+                "model '" + pick.model() + "' is not one the " + pick.connection() + " connection listed");
+    }
+
+    private static boolean listed(ChatModelsView models, ModelPick pick) {
+        return models.connections().stream()
+                .filter(connection -> connection.name().equals(pick.connection()))
+                .flatMap(connection -> connection.models().stream())
+                .anyMatch(model -> model.name().equals(pick.model()));
     }
 
     private static ResponseStatusException notFound(long id) {

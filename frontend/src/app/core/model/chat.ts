@@ -46,6 +46,8 @@ export interface ChatTurnStarted {
     readonly turnId: number;
     /** Absent from an older server; the live turn then shows no model until it is reloaded. */
     readonly model?: string | null;
+    /** The connection the model sits on (ISC-511); absent from an older server. */
+    readonly connection?: ChatConnectionName | null;
 }
 
 /** `step` — a tool call, sent once when it starts and once when it ends, under one ordinal. */
@@ -285,6 +287,8 @@ export interface TurnView {
     readonly sources: readonly ChatTurnSource[];
     readonly replacesTurnId: number | null;
     readonly model: string | null;
+    /** The connection that answered it; null for a turn stored before the second connection existed (ISC-511). */
+    readonly connection?: ChatConnectionName | null;
     readonly createdAt: string;
     /** Why it ended incomplete, as its live `error` event said; null otherwise and for a turn stored before it was kept (ISC-473). */
     readonly endReason?: ChatErrorReason | null;
@@ -313,10 +317,55 @@ export interface BulkDeleted {
     readonly deleted: readonly number[];
 }
 
+/** Which configured connection a model sits on — never its base URL. */
+export type ChatConnectionName = 'PRIMARY' | 'SECOND';
+
+/** One model a connection offers the chat — `ModelView` on the server. */
+export interface ChatModel {
+    /** The name as the connection reported it. */
+    readonly name: string;
+    /** Whether a turn without a pick takes it; only ever true on the primary connection. */
+    readonly defaultModel: boolean;
+}
+
+/**
+ * One configured connection and the models it reported that can call tools — `ConnectionView`.
+ * One that did not answer is still listed: `reachable` false, its `reason`, and no models.
+ */
+export interface ChatConnection {
+    readonly name: ChatConnectionName;
+    /** The provider kind the connection speaks. */
+    readonly kind: string;
+    /** Whether a call on it is paid for. */
+    readonly billed: boolean;
+    readonly reachable: boolean;
+    /** Why it is not reachable, or why its models cannot be picked today; null when they can. */
+    readonly reason: string | null;
+    readonly models: readonly ChatModel[];
+}
+
+/** `GET /api/v1/chat/models` — what the model select offers, the primary connection first (ISC-505). */
+export interface ChatModels {
+    readonly connections: readonly ChatConnection[];
+}
+
+/**
+ * The model a turn is asked on, named by its connection and its name (ISC-508, ISC-511). Sent with a
+ * question or a regenerate as both halves or neither: neither is the default on the primary connection.
+ */
+export interface ChatModelPick {
+    readonly connection: ChatConnectionName;
+    readonly model: string;
+}
+
 /** `GET /api/v1/chat/status` — the chat's own state, shown on the empty chat's ring (ISC-476). */
 export interface ChatStatus {
     readonly model: string;
     readonly callsUsed: number;
     readonly callsLimit: number;
     readonly toolRounds: number;
+    /** Calls on the second connection today — counted against both ceilings; null without one (ISC-510). */
+    readonly secondCalls?: number | null;
+    /** The second connection's own daily ceiling; null without a second connection (ISC-510). */
+    readonly secondLimit?: number | null;
 }

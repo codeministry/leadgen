@@ -5,6 +5,7 @@ import {catchError, firstValueFrom, Observable, tap, throwError, toArray} from '
 import {AuthService} from '@core/auth/auth.service';
 import {ChatEvent, ConversationView, formatChatCtx, parseChatCtx} from '@core/model/chat';
 import {ChatApi} from './chat.api';
+import {RECORDED_MODELS} from './chat-stub';
 
 const BASE = '/api/v1/chat';
 
@@ -87,6 +88,17 @@ describe('ChatApi', () => {
 
         api.stop(4, 9).subscribe();
         http.expectOne({method: 'POST', url: `${BASE}/conversations/4/turns/9/stop`}).flush(null);
+    });
+
+    it('reads the model catalog: each connection with its billing, its reason and its models (ISC-505)', async () => {
+        const catalog = firstValueFrom(api.models());
+        http.expectOne({method: 'GET', url: `${BASE}/models`}).flush(RECORDED_MODELS);
+
+        const answer = await catalog;
+        expect(answer).toEqual(RECORDED_MODELS);
+        const [primary] = answer.connections;
+        expect(primary).toMatchObject({name: 'PRIMARY', billed: false, reachable: true, reason: null});
+        expect(primary.models.filter((model) => model.defaultModel).map((model) => model.name)).toEqual(['model-a']);
     });
 
     it('speaks the contracts of spec 020: rename, search, context, suggestions, follow-ups (ISC-449)', () => {
@@ -205,6 +217,25 @@ describe('ChatApi', () => {
         const [url, init] = fetch.mock.calls[0] as [string, RequestInit];
         expect(url).toBe(`${BASE}/conversations/4/turns/9/regenerate`);
         expect(new Headers(init.headers).get('Authorization')).toBe('Bearer abc');
+    });
+
+    it('sends the pick with a question and with a regenerate, both halves or neither (ISC-508)', async () => {
+        const fetch = vi.fn().mockImplementation(() => Promise.resolve(streamed(['event: done\ndata: {"state":"DONE"}\n\n'])));
+        vi.stubGlobal('fetch', fetch);
+        const pick = {connection: 'SECOND', model: 'model-c'} as const;
+
+        await firstValueFrom(api.ask(4, 'q', pick).pipe(toArray()));
+        await firstValueFrom(api.ask(4, 'q', null).pipe(toArray()));
+        await firstValueFrom(api.regenerate(4, 9, pick).pipe(toArray()));
+        await firstValueFrom(api.regenerate(4, 9).pipe(toArray()));
+
+        const bodies = fetch.mock.calls.map(([, init]) => JSON.parse((init as RequestInit).body as string) as unknown);
+        expect(bodies).toEqual([
+            {question: 'q', connection: 'SECOND', model: 'model-c'},
+            {question: 'q'},
+            {connection: 'SECOND', model: 'model-c'},
+            {},
+        ]);
     });
 
     it('ignores an event name outside the contract', async () => {

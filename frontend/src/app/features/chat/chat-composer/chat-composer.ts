@@ -4,7 +4,16 @@ import {TranslocoPipe, TranslocoService} from '@jsverse/transloco';
 import {injectDispatch} from '@ngrx/signals/events';
 import {catchError, debounceTime, map, of, Subject, switchMap} from 'rxjs';
 import {ShortlistApi} from '@core/api/shortlist.api';
-import {ChatContextItem, MAX_PINNED_OFFERS, pinnedOfferCount, QUESTION_MAX_LENGTH, questionFits} from '@core/model/chat';
+import {
+    ChatConnection,
+    ChatConnectionName,
+    ChatContextItem,
+    ChatStatus,
+    MAX_PINNED_OFFERS,
+    pinnedOfferCount,
+    QUESTION_MAX_LENGTH,
+    questionFits,
+} from '@core/model/chat';
 import {ShortlistEntry} from '@core/model/shortlist-entry';
 import {chatEvents} from '@core/store/chat.events';
 import {trackUnsavedWork} from '@core/unsaved/unsaved-work';
@@ -37,6 +46,47 @@ function mentionAt(text: string, caret: number): Mention | null {
     if (match === null) return null;
     return {start: before.length - match[2].length - 1, query: match[2]};
 }
+
+/** A catalog key and what it interpolates: why a connection's models cannot be picked now. */
+interface Reason {
+    readonly key: string;
+    readonly params: Readonly<Record<string, string>>;
+}
+
+/** One `<optgroup>` of the model select: a connection, its options, and why they are disabled if they are. */
+interface ModelGroup {
+    readonly name: ChatConnectionName;
+    readonly labelKey: string;
+    readonly reason: Reason | null;
+    readonly options: readonly {readonly value: string; readonly model: string; readonly billed: boolean}[];
+}
+
+/** The catalog keys naming each connection: its configured role, never its host or vendor. */
+const CONNECTION_KEYS: Record<ChatConnectionName, string> = {
+    PRIMARY: 'chat.model.connection.PRIMARY',
+    SECOND: 'chat.model.connection.SECOND',
+};
+
+/** A pick as an option's value. The connection name holds no colon, so the first one splits it. */
+function optionValue(connection: ChatConnectionName, model: string): string {
+    return `${connection}:${model}`;
+}
+
+/**
+ * Why a connection's models cannot be picked, or null when they can (ISC-511): it did not answer the
+ * catalog, the catalog named a reason, or — for the second connection — the status says its day is spent.
+ */
+function reasonOf(connection: ChatConnection, status: ChatStatus | null): Reason | null {
+    const said = connection.reason?.trim() ?? '';
+    if (!connection.reachable) return said === '' ? {key: 'chat.model.unreachableBare', params: {}} : {key: 'chat.model.unreachable', params: {reason: said}};
+    if (said !== '') return {key: 'chat.model.unavailable', params: {reason: said}};
+    const calls = status?.secondCalls;
+    const limit = status?.secondLimit;
+    if (connection.name === 'SECOND' && calls != null && limit != null && calls >= limit) return {key: 'chat.model.spent', params: {}};
+    return null;
+}
+
+let nextModelSelectId = 0;
 
 /** Whether the browser grows a textarea with its content by itself; otherwise a script does. */
 const GROWS_ITSELF = typeof CSS !== 'undefined' && typeof CSS.supports === 'function' && CSS.supports('field-sizing', 'content');
@@ -113,6 +163,32 @@ export class ChatComposer {
     protected readonly maxOffers = MAX_PINNED_OFFERS;
 
     /**
+     * The model select (ISC-511): one group per connection the catalog lists, billed options marked in
+     * words, and a spent or unreachable connection's options disabled with the reason beside the select.
+     */
+    protected readonly modelSelectId = `lg-chat-model-${nextModelSelectId++}`;
+    protected readonly modelNoteId = `${this.modelSelectId}-note`;
+    protected readonly modelGroups = computed<readonly ModelGroup[]>(() =>
+        (this.store.models()?.connections ?? []).map((connection) => ({
+            name: connection.name,
+            labelKey: CONNECTION_KEYS[connection.name],
+            reason: reasonOf(connection, this.store.status()),
+            options: connection.models.map((model) => ({
+                value: optionValue(connection.name, model.name),
+                model: model.name,
+                billed: connection.billed,
+            })),
+        })),
+    );
+    /** One model in all is no choice: the select appears only when there is something to pick. */
+    protected readonly showModels = computed(() => this.modelGroups().reduce((sum, group) => sum + group.options.length, 0) > 1);
+    protected readonly unavailable = computed(() => this.modelGroups().filter((group) => group.reason !== null));
+    protected readonly pickValue = computed(() => {
+        const pick = this.store.pick();
+        return pick === null ? null : optionValue(pick.connection, pick.model);
+    });
+
+    /**
      * The `@` search (ISC-453): the `@query` at the caret, what the offers endpoint found for it —
      * null until it answered, so "nothing matches" is never said before it was asked — and the row
      * the arrows stand on. The textarea is the combobox; the listbox opens upward, because a soft
@@ -129,6 +205,15 @@ export class ChatComposer {
     private readonly searches = new Subject<string>();
 
     constructor() {
+        // The catalog each time the drawer opens, so a connection that went away or came back is seen. Not
+        // when the composer is built: it stands in the closed drawer on every page, and a page load is no
+        // reason to ask each connection for its models. Without a chat model nothing is asked (ISC-513).
+        let wasOpen = false;
+        effect(() => {
+            const open = this.store.present() === true && this.store.view() !== 'closed';
+            if (open && !wasOpen) untracked(() => this.dispatch.modelsRequested());
+            wasOpen = open;
+        });
         // A question typed and not yet sent is lost by a redirect to the sign-in; it holds one. Not the
         // kept question put back here: it outlives the redirect and comes back after the sign-in.
         trackUnsavedWork(() => {
@@ -294,6 +379,15 @@ export class ChatComposer {
         if (mention.query !== this.mention()?.query) this.found.set(null);
         this.mention.set(mention);
         this.searches.next(mention.query);
+    }
+
+    /** The pick for this conversation's next question and regenerate (ISC-508, ISC-511). */
+    protected chooseModel(event: Event): void {
+        const value = (event.target as HTMLSelectElement).value;
+        const split = value.indexOf(':');
+        const connection = value.slice(0, split);
+        if (split < 0 || !(connection in CONNECTION_KEYS)) return;
+        this.dispatch.modelPicked({connection: connection as ChatConnectionName, model: value.slice(split + 1)});
     }
 
     /** A chip's ✕: out of the URL, and out of the stored conversation when there is one (ISC-451). */

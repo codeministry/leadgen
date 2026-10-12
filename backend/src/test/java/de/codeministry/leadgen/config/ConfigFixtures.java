@@ -77,6 +77,7 @@ public final class ConfigFixtures {
         values.put("LLM_TIMEOUT", "");
         values.put("LLM_BATCH", "");
         values.put("LLM_CONCURRENCY", "");
+        values.put("LLM_BILLED", "");
         values.put("FETCH_CONCURRENCY", "");
         values.put("LLM_MODEL_EXTRACTION", "");
         values.put("LLM_MODEL_CONTENT", "");
@@ -88,6 +89,12 @@ public final class ConfigFixtures {
         values.put("LLM_MODEL_CHAT", "");
         values.put("CHAT_MAX_CALLS_PER_DAY", "");
         values.put("CHAT_MAX_TOOL_ROUNDS", "");
+        values.put("CHAT_LLM_PROVIDER", "");
+        values.put("CHAT_LLM_BASE_URL", "");
+        values.put("CHAT_LLM_API_KEY", "");
+        values.put("CHAT_LLM_BILLED", "");
+        values.put("CHAT_LLM_TIMEOUT", "");
+        values.put("CHAT_LLM_MAX_CALLS_PER_DAY", "");
         values.put("CHAT_SUGGEST_NEW_OFFERS_MIN", "");
         values.put("CHAT_SUGGEST_DEADLINE_DAYS", "");
         values.put("CHAT_SUGGEST_NO_REPLY_DAYS", "");

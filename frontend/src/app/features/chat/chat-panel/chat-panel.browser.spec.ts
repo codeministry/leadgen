@@ -386,11 +386,33 @@ describe('the status popovers (ISC-474, ISC-475, ISC-476)', () => {
         expect(plate.getAttribute('aria-label')).toBe('Chat status');
         expect(http.match('/api/v1/chat/status'), 'nothing asked before it opens').toHaveLength(0);
         await hover(plate);
-        http.expectOne('/api/v1/chat/status').flush({model: 'chat-model', callsUsed: 12, callsLimit: 200, toolRounds: 6});
+        http.expectOne('/api/v1/chat/status')
+            .flush({model: 'chat-model', callsUsed: 12, callsLimit: 200, toolRounds: 6, secondCalls: null, secondLimit: null});
         await settle();
         const panel = openPanel()!;
         expect(panel.querySelector('.lg-chat-status-model')!.textContent!.trim()).toBe('chat-model');
         expect(panel.querySelector('.lg-chat-status-calls')!.textContent!.trim()).toBe('12 of 200');
         expect(panel.querySelector('.lg-chat-status-rounds')!.textContent!.trim()).toBe('6');
+        expect(panel.querySelector('.lg-chat-status-second-calls'), 'no second connection, no second counter').toBeNull();
+    });
+
+    it("names the second connection's counter beside the chat's when there is one (ISC-510)", async () => {
+        await TestBed.inject(Router).navigateByUrl('/dashboard?chat=new');
+        await settle();
+        http.match((r) => r.url === '/api/v1/chat/capability').forEach((r) => r.flush({present: true}));
+        await settle();
+        http.match(() => true).forEach((r) => r.flush([]));
+        await settle();
+
+        await hover(document.querySelector<HTMLButtonElement>('.lg-chat-plate .lg-chat-status-trigger')!);
+        http.expectOne('/api/v1/chat/status')
+            .flush({model: 'chat-model', callsUsed: 12, callsLimit: 200, toolRounds: 6, secondCalls: 3, secondLimit: 20});
+        await settle();
+        const panel = openPanel()!;
+        expect(panel.querySelector('.lg-chat-status-calls')!.textContent!.trim()).toBe('12 of 200');
+        const second = panel.querySelector('.lg-chat-status-second-calls')!;
+        expect(second, 'the second counter').not.toBeNull();
+        expect(second.textContent!.trim()).toBe('3 of 20');
+        expect(second.previousElementSibling!.textContent!.trim()).toBe('Calls on the second connection today');
     });
 });

@@ -37,6 +37,10 @@ llm:
   # above the database connection pool, where the extra workers would wait for a connection
   # and fail.
   concurrency: ${LLM_CONCURRENCY:1}
+  # Whether a call to this provider costs money, `true` or `false`. Empty decides by the kind:
+  # billed for `anthropic`, not billed for every other kind. Set it for an `openai-compatible`
+  # endpoint that is a paid service rather than a local server; the chat marks a billed model.
+  billed: ${LLM_BILLED:}
   models:
     # `content` labels the blocks of an advert and `fields` reads start, duration and
     # apply-by out of it — two bounded questions answered in three lines of JSON, which a
@@ -100,6 +104,23 @@ chat:
   # A turn may call tools at most this often before it has to answer; the turn then ends
   # with its reason rather than with an answer the model never finished.
   max_tool_rounds: ${CHAT_MAX_TOOL_ROUNDS:6}
+  # A second connection only the chat reads, beside `llm` and never in its place: every pipeline
+  # stage keeps the provider above, and the chat's model select offers this one's models too.
+  # Empty `provider` is the block being absent, and the chat runs on `llm` alone, as before.
+  connection:
+    # A kind, never a default: anthropic | ollama | openai-compatible. Anything else is refused.
+    provider: ${CHAT_LLM_PROVIDER:}
+    # Required for a hosted kind; a URL in this file would be a vendor in this file.
+    base_url: ${CHAT_LLM_BASE_URL:}
+    # Required by a hosted kind; Ollama needs none.
+    api_key: ${CHAT_LLM_API_KEY:}
+    # As `llm.billed`: `true` or `false`, and empty decides by the kind.
+    billed: ${CHAT_LLM_BILLED:}
+    # How long one request on this connection may take, as `llm.timeout`.
+    timeout: ${CHAT_LLM_TIMEOUT:PT120S}
+    # This connection's own daily calls, counted beside `max_calls_per_day` above and never
+    # instead of it. Absent is this default, never no ceiling; 0 means no calls.
+    max_calls_per_day: ${CHAT_LLM_MAX_CALLS_PER_DAY:50}
   # When the empty chat offers a question: each trigger's line, read by rule from the screens'
   # own read services, before any model phrases it. Starting defaults, not yet measured on a
   # corpus. A trigger whose number stays below its line offers nothing.

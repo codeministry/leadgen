@@ -51,6 +51,10 @@
         <dd class="type-mono-data lg-chat-status-model">{{ c.model }}</dd>
         <dt>{{ 'chat.status.calls' | transloco }}</dt>
         <dd class="type-mono-data lg-chat-status-calls">{{ 'chat.status.callsValue' | transloco: {used: c.callsUsed, limit: c.callsLimit} }}</dd>
+        @if (second(); as s) {
+          <dt>{{ 'chat.status.secondCalls' | transloco }}</dt>
+          <dd class="type-mono-data lg-chat-status-second-calls">{{ 'chat.status.secondCallsValue' | transloco: s }}</dd>
+        }
         <dt>{{ 'chat.status.rounds' | transloco }}</dt>
         <dd class="type-mono-data lg-chat-status-rounds">{{ c.toolRounds }}</dd>
       </dl>

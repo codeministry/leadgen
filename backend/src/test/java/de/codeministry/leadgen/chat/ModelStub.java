@@ -28,6 +28,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -54,6 +55,8 @@ final class ModelStub implements AutoCloseable {
     private final List<String> bodies = Collections.synchronizedList(new ArrayList<>());
     private final AtomicReference<Instant> lastChunkAt = new AtomicReference<>();
     private final AtomicReference<Instant> brokenAt = new AtomicReference<>();
+    private final AtomicReference<List<String>> listed = new AtomicReference<>(List.of());
+    private final AtomicInteger listings = new AtomicInteger();
 
     private ModelStub(ServerSocket server) {
         this.server = server;
@@ -81,6 +84,8 @@ final class ModelStub implements AutoCloseable {
         bodies.clear();
         lastChunkAt.set(null);
         brokenAt.set(null);
+        listed.set(List.of());
+        listings.set(0);
     }
 
     /** Every request body the stub received, in order. */
@@ -161,16 +166,75 @@ final class ModelStub implements AutoCloseable {
             Path pipeline = dir.resolve("pipeline.yaml");
             Files.writeString(
                     pipeline,
-                    Files.readString(pipeline, StandardCharsets.UTF_8)
-                            .replaceAll("(?m)^(\\s*)provider:.*$", "$1provider: openai-compatible")
-                            .replaceAll("(?m)^(\\s*)base_url:.*$", "$1base_url: " + baseUrl())
-                            .replaceAll("(?m)^(\\s*)api_key:.*$", "$1api_key: test-key")
-                            .replaceAll("(?m)^(\\s*)chat: \\$\\{LLM_MODEL_CHAT}.*$", "$1chat: " + MODEL),
+                    pointLlmAt(Files.readString(pipeline, StandardCharsets.UTF_8), baseUrl()),
                     StandardCharsets.UTF_8);
             return dir;
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
+    }
+
+    /**
+     * {@code yaml} with the top-level {@code llm:} block's own {@code provider}, {@code base_url}
+     * and {@code api_key} pointed at {@code baseUrl}, and its chat model named.
+     *
+     * <p><b>Only that block, and only at its own indentation.</b> A regex over the whole file also
+     * rewrote every other {@code provider:} it met, so a second connection under {@code chat:}
+     * would silently have pointed at this stub too, and a test of two connections would have
+     * measured one. The block ends at the next line that starts in column one with a key.
+     */
+    static String pointLlmAt(String yaml, String baseUrl) {
+        StringBuilder out = new StringBuilder(yaml.length() + 64);
+        boolean inLlm = false;
+        for (String line : yaml.split("\n", -1)) {
+            if (!line.isEmpty() && Character.isLetter(line.charAt(0))) {
+                inLlm = line.startsWith("llm:");
+            } else if (inLlm) {
+                line = line.replaceFirst("^  provider:.*$", "  provider: openai-compatible")
+                        .replaceFirst("^  base_url:.*$", "  base_url: " + baseUrl)
+                        .replaceFirst("^  api_key:.*$", "  api_key: test-key")
+                        .replaceFirst("^    chat: \\$\\{LLM_MODEL_CHAT}.*$", "    chat: " + MODEL);
+            }
+            out.append(line).append('\n');
+        }
+        out.setLength(out.length() - 1);
+        return out.toString();
+    }
+
+    /**
+     * {@code yaml} with the {@code chat.connection} block's {@code provider} and {@code base_url}
+     * set, and its key, so that the chat's second connection answers at {@code baseUrl} (spec 025).
+     * Only the lines at that block's own indentation, for the reason {@link #pointLlmAt} names.
+     */
+    static String pointSecondAt(String yaml, String provider, String baseUrl) {
+        StringBuilder out = new StringBuilder(yaml.length() + 64);
+        boolean inChat = false;
+        boolean inConnection = false;
+        for (String line : yaml.split("\n", -1)) {
+            if (!line.isEmpty() && Character.isLetter(line.charAt(0))) {
+                inChat = line.startsWith("chat:");
+                inConnection = false;
+            } else if (inChat && line.startsWith("  ") && !line.startsWith("   ") && !line.isBlank()) {
+                inConnection = line.startsWith("  connection:");
+            } else if (inConnection) {
+                line = line.replaceFirst("^    provider:.*$", "    provider: " + provider)
+                        .replaceFirst("^    base_url:.*$", "    base_url: " + baseUrl)
+                        .replaceFirst("^    api_key:.*$", "    api_key: second-test-key");
+            }
+            out.append(line).append('\n');
+        }
+        out.setLength(out.length() - 1);
+        return out.toString();
+    }
+
+    /** The models {@code GET …/models} lists from now on, in the OpenAI-compatible shape. */
+    void lists(String... models) {
+        listed.set(List.of(models));
+    }
+
+    /** How many times the model list was asked for; never counted in {@link #bodies()}. */
+    int listings() {
+        return listings.get();
     }
 
     @Override
@@ -211,9 +275,35 @@ final class ModelStub implements AutoCloseable {
     private void answer(Socket socket) {
         try (socket) {
             InputStream in = new BufferedInputStream(socket.getInputStream());
-            bodies.add(readBody(in));
-            Reply reply = replies.poll();
+            String requestLine = readLine(in);
+            if (requestLine.isEmpty()) {
+                // Connected and closed without a request — a client giving up a pooled or
+                // cancelled connection on a reused port. No request, so nothing to record.
+                return;
+            }
+            String body = readBody(in);
             OutputStream out = socket.getOutputStream();
+            // The chat's model select reads the list; that is discovery, not a model call, so it
+            // neither takes a scripted reply nor counts as a request body.
+            if (requestLine.startsWith("GET ") && requestLine.contains("/models")) {
+                listings.incrementAndGet();
+                StringBuilder data = new StringBuilder();
+                for (String model : listed.get()) {
+                    data.append(data.isEmpty() ? "" : ",")
+                            .append("{\"id\":")
+                            .append(quote(model))
+                            .append(",\"object\":\"model\"}");
+                }
+                byte[] json = ("{\"object\":\"list\",\"data\":[" + data + "]}").getBytes(StandardCharsets.UTF_8);
+                out.write(("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: " + json.length
+                                + "\r\nConnection: close\r\n\r\n")
+                        .getBytes(StandardCharsets.US_ASCII));
+                out.write(json);
+                out.flush();
+                return;
+            }
+            bodies.add(body);
+            Reply reply = replies.poll();
             if (reply == null) {
                 out.write("HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
                         .getBytes(StandardCharsets.US_ASCII));

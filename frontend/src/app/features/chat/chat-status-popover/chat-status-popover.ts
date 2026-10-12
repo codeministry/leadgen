@@ -49,6 +49,15 @@ export class ChatStatusPopover {
     /** The chat's status, asked through the store on each open; null while it loads. */
     protected readonly chat = this.store.status;
     protected readonly chatFailed = this.store.statusFailed;
+    /**
+     * The second connection's calls of its own ceiling (ISC-510), or null without a second connection.
+     * A ceiling of 0 is still a ceiling and still shown, so the test is for absence, not falsiness.
+     */
+    protected readonly second = computed(() => {
+        const limit = this.chat()?.secondLimit;
+        if (limit === null || limit === undefined) return null;
+        return {used: this.chat()?.secondCalls ?? 0, limit};
+    });
 
     private readonly trigger = viewChild.required<ElementRef<HTMLButtonElement>>('trigger');
     private readonly panel = viewChild.required<ElementRef<HTMLElement>>('panel');
