@@ -317,6 +317,13 @@ final class ModelStub implements AutoCloseable {
                 return;
             }
             String body = readBody(in);
+            if (requestLine.startsWith("POST ") && body.isEmpty()) {
+                // A request line and then the end of the stream: the client wrote into a connection and
+                // dropped it before the headers and the JSON were through. Every model call carries a
+                // body, so this is not one — counted, it was the "one request too many" a different case
+                // of SuggestionPrewarmTest saw on every loaded run, and it took the next scripted reply.
+                return;
+            }
             OutputStream out = socket.getOutputStream();
             // The chat's model select reads the list; that is discovery, not a model call, so it
             // neither takes a scripted reply nor counts as a request body.
