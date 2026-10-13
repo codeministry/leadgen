@@ -964,16 +964,30 @@
         "SECOND": "Zweite Verbindung"
       },
       "billed": "kostenpflichtig",
-      "billedOption": "{name} · kostenpflichtig",
       "none": "Keine Modelle",
       "default": "Standard · {name}",
       "defaultBare": "Standard",
-      "groupUnavailable": "{connection} · {reason}",
-      "note": "{connection}: {reason}",
       "spent": "Heute keine Aufrufe mehr übrig",
       "unreachable": "Nicht erreichbar: {reason}",
       "unreachableBare": "Nicht erreichbar",
-      "unavailable": "{reason}"
+      "unavailable": "{reason}",
+      "picker": {
+        "triggerLocal": "Modell: {name}, lokal",
+        "triggerBilled": "Modell: {name}, kostenpflichtig",
+        "local": "Lokal",
+        "billed": "Kostenpflichtig",
+        "units": "Preise in USD pro 1 Mio. Tokens · Eingabe / Ausgabe",
+        "free": "kostenlos",
+        "priceUnknown": "Preis unbekannt",
+        "price": "{input} Eingabe · {output} Ausgabe",
+        "calls": "{used} von {limit} Aufrufen heute",
+        "spend": "Heute {today} · diesen Monat {month}",
+        "total": "Ausgaben gesamt",
+        "unpriced": "Antworten ohne Preis, nicht mitgezählt: {today} heute · {month} diesen Monat",
+        "unreported": "Antworten ohne gemeldeten Verbrauch, nicht mitgezählt: {today} heute · {month} diesen Monat",
+        "retired": "nicht mehr konfiguriert",
+        "current": "Aktuelle Auswahl"
+      }
     },
     "minibar": {
       "expand": "Zurück zum Chat"
@@ -1070,6 +1084,11 @@
       "seconds": "{{n}} s",
       "minutes": "{{m}} min {{s}} s",
       "model": "Modell",
+      "tokens": "Tokens",
+      "tokensValue": "{{in}} Eingabe · {{out}} Ausgabe",
+      "usageNotReported": "Verbrauch nicht gemeldet",
+      "usageIncomplete": "Verbrauch nicht vollständig gemeldet",
+      "cost": "Kosten",
       "chatTitle": "Der Chat",
       "calls": "Modellaufrufe heute",
       "callsValue": "{{used}} von {{limit}}",

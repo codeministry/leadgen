@@ -47,8 +47,29 @@ final class ModelStub implements AutoCloseable {
     /** The model name the materialised configuration names for the chat; no vendor anywhere. */
     static final String MODEL = "test-chat-model";
 
-    /** One scripted reply: the events' {@code data} bodies, the pause before each, and whether it breaks off. */
-    record Reply(List<String> events, Duration pause, boolean breaksOff) {}
+    /**
+     * One scripted reply: the events' {@code data} bodies, the pause before each, whether it breaks
+     * off, and the HTTP status it answers with — 200 streams the events, any other is an error
+     * answer with no stream at all.
+     */
+    record Reply(List<String> events, Duration pause, boolean breaksOff, int status) {
+
+        Reply(List<String> events, Duration pause, boolean breaksOff) {
+            this(events, pause, breaksOff, 200);
+        }
+
+        /**
+         * This reply with a usage figure as its last chunk, the way the OpenAI stream reports one
+         * when the request asks for {@code stream_options.include_usage}: a chunk of its own after
+         * the one that finishes, with empty {@code choices} and the call's whole count (spec 026,
+         * ISC-518). A reply without it reports nothing, as a server that ignores the option does.
+         */
+        Reply withUsage(int promptTokens, int completionTokens) {
+            List<String> withUsage = new ArrayList<>(events);
+            withUsage.add(usageChunk(promptTokens, completionTokens));
+            return new Reply(List.copyOf(withUsage), pause, breaksOff);
+        }
+    }
 
     private final ServerSocket server;
     private final ConcurrentLinkedQueue<Reply> replies = new ConcurrentLinkedQueue<>();
@@ -103,6 +124,14 @@ final class ModelStub implements AutoCloseable {
     /** When the last chunk of the last reply was about to be written. */
     Instant lastChunkAt() {
         return lastChunkAt.get();
+    }
+
+    /**
+     * A reply that refuses the call with {@code status} before any chunk, as a provider does for a
+     * wrong key (401) or a rate limit (429): the request never reached a model that could bill it.
+     */
+    static Reply refused(int status) {
+        return new Reply(List.of(), Duration.ZERO, false, status);
     }
 
     /** A reply that streams {@code parts} as text and then finishes normally. */
@@ -252,6 +281,12 @@ final class ModelStub implements AutoCloseable {
                 + (finishReason == null ? "null" : quote(finishReason)) + "}]}";
     }
 
+    private static String usageChunk(int promptTokens, int completionTokens) {
+        return "{\"id\":\"chatcmpl-stub\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"" + MODEL
+                + "\",\"choices\":[],\"usage\":{\"prompt_tokens\":" + promptTokens + ",\"completion_tokens\":"
+                + completionTokens + ",\"total_tokens\":" + (promptTokens + completionTokens) + "}}";
+    }
+
     private static String quote(String text) {
         // A NUL is written as its JSON escape, the way a real model's server sends one.
         return "\""
@@ -307,6 +342,16 @@ final class ModelStub implements AutoCloseable {
             if (reply == null) {
                 out.write("HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
                         .getBytes(StandardCharsets.US_ASCII));
+                return;
+            }
+            if (reply.status() != 200) {
+                byte[] json = "{\"error\":{\"message\":\"refused\",\"type\":\"invalid_request_error\"}}"
+                        .getBytes(StandardCharsets.UTF_8);
+                out.write(("HTTP/1.1 " + reply.status() + " Refused\r\nContent-Type: application/json\r\n"
+                                + "Content-Length: " + json.length + "\r\nConnection: close\r\n\r\n")
+                        .getBytes(StandardCharsets.US_ASCII));
+                out.write(json);
+                out.flush();
                 return;
             }
             out.write(("HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nTransfer-Encoding: chunked\r\n"

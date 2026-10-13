@@ -13,6 +13,7 @@ import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import de.codeministry.leadgen.chat.catalog.ChatPrices;
 import de.codeministry.leadgen.config.model.CoverLetterStyle;
 import de.codeministry.leadgen.config.model.MatchingRules;
 import de.codeministry.leadgen.config.model.PipelineConfig;
@@ -20,6 +21,7 @@ import de.codeministry.leadgen.config.model.SkillProfile;
 import de.codeministry.leadgen.config.model.SourcesConfig;
 import de.codeministry.leadgen.filter.TextFold;
 import de.codeministry.leadgen.llm.ChatModels;
+import de.codeministry.leadgen.llm.Connections;
 import de.codeministry.leadgen.security.SecurityConfig;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
@@ -378,6 +380,8 @@ public class ConfigLoader {
             checkBilled("llm.billed", llm.billed(), problems);
         }
         checkChatConnection(pipeline.chat() == null ? null : pipeline.chat().connection(), problems);
+        checkChatPrices(
+                pipeline, pipeline.chat() == null ? List.of() : pipeline.chat().prices(), problems);
 
         // A worker holds a connection while it writes its advert back. Wider than the pool, the
         // extra workers wait for one and give up after Hikari's 30 s, which reads like a broken
@@ -495,6 +499,59 @@ public class ConfigLoader {
                             .formatted(kind));
         }
         checkBilled("chat.connection.billed", connection.billed(), problems);
+    }
+
+    /**
+     * The chat's price table, {@code chat.prices}. Absent or empty passes: every model is then
+     * unpriced, which a billed connection shows as "price unknown" and never as free.
+     *
+     * <p>An entry with a half missing is refused rather than read as 0, because a missing output
+     * price would make every answer on a paid model look as cheap as its prompt. A connection name
+     * outside {@link Connections.Name} prices nothing, and two entries for one model leave the
+     * price to whichever is read first — both look configured and both are refused. Two names are one
+     * model when their connection lists them under one name, by {@link ChatPrices#listed}: on Ollama
+     * {@code name} and {@code name:latest} are a duplicate. A negative half is the record's own
+     * constraint and is refused while binding.
+     */
+    private static void checkChatPrices(
+            PipelineConfig pipeline, List<PipelineConfig.ChatPrice> prices, List<String> problems) {
+        List<String> names =
+                Arrays.stream(Connections.Name.values()).map(Enum::name).toList();
+        Set<List<String>> seen = new HashSet<>();
+        for (int i = 0; i < prices.size(); i++) {
+            PipelineConfig.ChatPrice price = prices.get(i);
+            String key = "chat.prices[%d]".formatted(i);
+            if (price == null) {
+                problems.add("%s is empty; an entry names connection, model, input and output".formatted(key));
+                continue;
+            }
+            if (!names.contains(price.connection())) {
+                problems.add("%s.connection is '%s'; a price names one of %s, and any other name would price nothing"
+                        .formatted(key, price.connection(), String.join(", ", names)));
+            }
+            if (price.model() == null || price.model().isBlank()) {
+                problems.add(
+                        "%s.model is empty; a price names the model exactly as its connection lists it".formatted(key));
+            }
+            List<String> missing = new ArrayList<>();
+            if (price.input() == null) {
+                missing.add("input");
+            }
+            if (price.output() == null) {
+                missing.add("output");
+            }
+            if (!missing.isEmpty()) {
+                problems.add(
+                        "%s for '%s' has no %s; a price names both halves in USD per million tokens, and a missing one would be read as nothing rather than as 0"
+                                .formatted(key, price.model(), String.join(" and no ", missing)));
+            }
+            String kind = ChatPrices.kind(pipeline, price.connection()).orElse(null);
+            if (price.model() != null
+                    && !seen.add(Arrays.asList(price.connection(), ChatPrices.listed(kind, price.model())))) {
+                problems.add("%s prices '%s' on %s a second time; one entry per connection and model"
+                        .formatted(key, price.model(), price.connection()));
+            }
+        }
     }
 
     /** The kinds a second connection may name: the ones {@code ChatModels.of} builds a model for. */

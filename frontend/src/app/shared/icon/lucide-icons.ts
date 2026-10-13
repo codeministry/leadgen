@@ -97,6 +97,10 @@ import {
   MailQuestionMark,
   CornerDownRight,
   Orbit,
+  Server,
+  Coins,
+  Check,
+  Receipt,
 } from 'lucide';
 
 /** Lucide 1.x hands out a flat `[tag, attributes][]`; there are no nested children. */
@@ -200,6 +204,10 @@ export const LG_ICONS = {
     activity: Activity,
     // The header's run button (operator, 2026-09-30).
     orbit: Orbit,
+    server: Server,
+    coins: Coins,
+    check: Check,
+    receipt: Receipt,
     expand: Expand,
     'maximize-2': Maximize2,
     'message-square-text': MessageSquareText,

@@ -2,14 +2,14 @@
 
 # Data model
 
-The twenty tables, how they point at each other, and which class writes and reads each one.
+The twenty-one tables, how they point at each other, and which class writes and reads each one.
 This is the schema as Flyway builds it, read straight out of
 `backend/src/main/resources/db/migration/`, and it is the document to open when the question
 is *where does this value live* or *who is allowed to change it*. The reasoning behind a
 column belongs to the decision records; each section links the one that carries it.
 
 > [!NOTE]
-> Derived from `V1` to `V37`. When this document and a migration disagree, the migration wins,
+> Derived from `V1` to `V41`. When this document and a migration disagree, the migration wins,
 > and the fix is here. There is no ORM: every write is a plain SQL statement in the service
 > that owns it, so "who writes this" has one answer per column and it is worth writing down.
 
@@ -383,10 +383,10 @@ overwrite themselves. Primary key `(run_id, position)`, cascades from `pipeline_
 The three cache and counter tables, `fetched_page`, `content_block_label` and
 `llm_call_budget`, and the `instance` row the package folders are owned by, are in § 2.
 
-## 5. The chat's seven tables
+## 5. The chat's eight tables
 
-Seven tables that the chat writes alone and no pipeline stage reads (`ChatIsolationTest` fails on
-a pipeline source naming one of them). Dropping all seven loses the stored conversations and
+Eight tables that the chat writes alone and no pipeline stage reads (`ChatIsolationTest` fails on
+a pipeline source naming one of them). Dropping all eight loses the stored conversations and
 nothing else; the rollback is in [decisions/chat.md](decisions/chat.md), with the reasoning
 behind every column below.
 
@@ -425,6 +425,10 @@ erDiagram
         jsonb citations
         text end_reason
         text connection
+        int input_tokens
+        int output_tokens
+        numeric cost_usd
+        boolean unreported
     }
     chat_tool_call {
         bigint id PK
@@ -442,6 +446,13 @@ erDiagram
         date day PK
         text connection PK
         int calls
+    }
+    chat_spend {
+        date day PK
+        text connection PK
+        numeric cost_usd
+        int unpriced
+        int unreported
     }
     chat_suggestion_phrasing {
         text cache_key PK
@@ -471,7 +482,7 @@ it after `create`, `startTurn` and `rename`, the migration filled it once with `
 is the first offer of `chat_context`, mirrored by `create` and `replaceContext`, and still read by
 `pinnedOffer` for the turn's pinned lookup; a later release drops it.
 
-**`chat_turn`** (`V32`, `V34`, `V36`, `V37`). One row per question asked, including every regenerated one.
+**`chat_turn`** (`V32`, `V34`, `V36`, `V37`, `V40`). One row per question asked, including every regenerated one.
 `startTurn` writes `conversation_id`, the next `ordinal` in the conversation (unique with it),
 `question`, `model` — the chat model the turn was sent to — `connection` (`V37`), the connection it
 was sent on by name, `PRIMARY` or `SECOND` and never a base URL, with a `CHECK` holding it to those two
@@ -491,6 +502,19 @@ replacement chain, so it goes back to the model where its question was first ask
 is rejected, `incomplete` ends the row by `state = 'INCOMPLETE'` and `finished_at` alone, in a
 transaction of its own. A process that dies mid-turn leaves the row at `STREAMING` until the next start, when `ChatTurnService.sweep` marks it `INCOMPLETE`;
 and the drawer shows the text it had.
+`input_tokens`, `output_tokens` and `cost_usd` (`V40`, spec 026) are what the turn's model calls used and cost:
+the provider's own token counts summed over every call of the turn, tool rounds included, and their cost in USD as
+`NUMERIC(14,8)` at the `chat.prices` entry read when the turn started. `usage` writes all three, from
+`ChatTurnService`, on every save while the turn runs and on every ending, so a stopped or incomplete turn keeps the
+calls it paid for; a price changed later rewrites nothing. All three `NULL` is no data — a turn from before `V40`, or
+an unbilled one no call reported for; tokens with a `NULL` cost is a billed model without a price, a cost of `0` is
+an unbilled connection that reported usage. `unreported` (`V41`, `BOOLEAN NOT NULL DEFAULT false`) tells the
+second missing cost apart: a model round of the billed turn delivered part of its stream and reported no usage, so
+the tokens are what the other rounds reported — a lower bound, `0/0` when none did — and `cost_usd` is `NULL`.
+Written by `usage` with the counts, and by `abandonStreaming` for a swept turn on a billed connection that streamed
+text and stored no token. Read by `find` for the answer's status popover. The spend is not summed from here: a turn's
+row goes with its conversation, so the ending that moves it off `STREAMING` adds it to `chat_spend` once, and
+`GET /chat/status` reads that ledger alone.
 
 **`chat_tool_call`** (`V32`). One row per tool the model called in a turn: `ordinal`, the `tool`
 name, the `label` the screen shows for the step, the `arguments` as the model sent them,
@@ -526,6 +550,20 @@ guarded upsert against `chat.connection.max_calls_per_day`, after `chat_call_bud
 second connection counts against both; a primary call writes no row here. Read for `secondCalls` in
 `GET /chat/status`. No key points at it, and emptying it hands the second connection's day out again
 (spec 025, ISC-510).
+
+**`chat_spend`** (`V41`). What the chat spent, one row per calendar day in the server's zone and
+connection, primary key `(day, connection)` with the same `CHECK` as `chat_connection_call_budget`:
+`cost_usd` (`NUMERIC(14,8)`, the summed stored costs), `unpriced` (turns that stored tokens but no
+cost because their billed model has no price) and `unreported` (turns marked `chat_turn.unreported`, whatever the
+price). A ledger beside `chat_turn` rather than a sum over it, because a conversation's delete cascades
+to its turns and must not un-spend them (spec 026, ISC-521). Written by `ConversationRepository.spent`,
+one guarded upsert per ended turn, read from the turn's row as it stands: from `finish` only when the
+row was still `STREAMING` (locked and read in the same transaction), from `incomplete`, and from
+`abandonStreaming` for the turns `sweep` ends. A turn with no token and no mark adds nothing; `day` is the turn's
+`created_at` cast in the session's zone, as `current_date` is for the budgets. `V41` backfilled it from
+every ended turn from `V40` on. Read by `spend` for `GET /chat/status`: today and the calendar month,
+per connection and in total, in one `GROUPING SETS` query. No key points at it and nothing deletes from
+it; emptying it forgets what was spent.
 
 **`chat_suggestion_phrasing`** (`V39`). The empty chat's suggestions and a turn's follow-ups as the
 chat model phrased them, one row per phrasing, so a restart costs a table read rather than a model
@@ -584,7 +622,7 @@ services. It misses a statement assembled from strings and a CTE's alias, so the
 checklist to walk, not an answer:
 
 ```bash
-rg -n -o -i -e "(FROM|INTO|UPDATE|JOIN|DELETE FROM)\s+(offer_score_reason|offer|source_run|source|score_batch|pipeline_run_stage|pipeline_run|pipeline_stage|application_event|application|fetched_page|content_block_label|llm_call_budget|chat_conversation|chat_turn|chat_tool_call|chat_context|chat_connection_call_budget|chat_call_budget|chat_suggestion_phrasing)\b" \
+rg -n -o -i -e "(FROM|INTO|UPDATE|JOIN|DELETE FROM)\s+(offer_score_reason|offer|source_run|source|score_batch|pipeline_run_stage|pipeline_run|pipeline_stage|application_event|application|fetched_page|content_block_label|llm_call_budget|chat_conversation|chat_turn|chat_tool_call|chat_context|chat_connection_call_budget|chat_call_budget|chat_suggestion_phrasing|chat_spend)\b" \
    backend/src/main/java -g '*.java' | sort | uniq -c
 ```
 

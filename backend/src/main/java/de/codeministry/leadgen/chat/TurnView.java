@@ -8,6 +8,7 @@
  */
 package de.codeministry.leadgen.chat;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import java.time.Instant;
 import java.util.List;
 
@@ -28,6 +29,18 @@ import java.util.List;
  * @param endReason      why it ended incomplete, as its live {@code error} event said; null for every
  *                       other ending and for a turn stored before the reason was (spec 022, ISC-473).
  * @param finishedAt     when it ended, or null while it streams.
+ * @param inputTokens    the input tokens the provider reported over every model call of the turn
+ *                       (spec 026, ISC-518); left out of the JSON when null, which is a turn stored
+ *                       before V40 or one no call reported a count for — no data, never zero. A billed
+ *                       turn whose calls reported nothing at all carries 0 here and in
+ *                       {@code outputTokens} with no {@code costUsd}: usage not reported, not priced.
+ * @param outputTokens   the output tokens, likewise.
+ * @param costUsd        the turn's cost in USD as a decimal string, exact as stored; left out of the
+ *                       JSON when null.
+ * @param usageIncomplete true when a billed turn's usage was not fully reported — a model
+ *                       round delivered part of its stream and reported no usage — so its counts are a
+ *                       lower bound and it has no cost; left out otherwise, which is also what an unpriced
+ *                       billed turn carries (spec 026).
  */
 public record TurnView(
         long id,
@@ -41,9 +54,13 @@ public record TurnView(
         String connection,
         Instant createdAt,
         ChatErrorReason endReason,
-        Instant finishedAt) {
+        Instant finishedAt,
+        @JsonInclude(JsonInclude.Include.NON_NULL) Integer inputTokens,
+        @JsonInclude(JsonInclude.Include.NON_NULL) Integer outputTokens,
+        @JsonInclude(JsonInclude.Include.NON_NULL) String costUsd,
+        @JsonInclude(JsonInclude.Include.NON_NULL) Boolean usageIncomplete) {
 
-    /** A turn whose connection is not read yet. */
+    /** A turn whose connection and usage are not read yet. */
     public TurnView(
             long id,
             String question,
@@ -68,6 +85,10 @@ public record TurnView(
                 null,
                 createdAt,
                 endReason,
-                finishedAt);
+                finishedAt,
+                null,
+                null,
+                null,
+                null);
     }
 }

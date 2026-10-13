@@ -178,9 +178,16 @@ public class ChatModels {
                         // Same trap as in `EmbeddingModels`: without this, `AbstractOpenAiOptions`
                         // fills in its 60 s DEFAULT_TIMEOUT and the per-call value overrides the
                         // client's. The Anthropic options below carry no such default.
+                        // `streamUsage`: a stream reports its token count as a final chunk with empty
+                        // choices, which the chat's turns record (spec 026, ISC-518). Spring AI 2.0.1
+                        // already asks for it (`stream_options.include_usage`) when no stream options
+                        // are set; the flag pins that, so a changed library default cannot silently
+                        // drop every count. The judge and the classifier call rather than stream, so
+                        // it changes nothing for them.
                         .options(OpenAiChatOptions.builder()
                                 .model(model)
                                 .timeout(timeout)
+                                .streamUsage(true)
                                 .build())
                         .build());
     }

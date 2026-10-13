@@ -11,6 +11,7 @@ package de.codeministry.leadgen.chat;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import de.codeministry.leadgen.chat.catalog.Usd;
 import de.codeministry.leadgen.chat.tools.ApplicationTool;
 import de.codeministry.leadgen.chat.tools.OfferSearchTool;
 import de.codeministry.leadgen.chat.tools.PinnedContext;
@@ -21,21 +22,25 @@ import de.codeministry.leadgen.chat.tools.SemanticSearchTool;
 import de.codeministry.leadgen.chat.tools.StatisticsTool;
 import de.codeministry.leadgen.config.ConfigProperties;
 import de.codeministry.leadgen.config.ConfigRegistry;
+import de.codeministry.leadgen.config.model.PipelineConfig;
 import de.codeministry.leadgen.llm.ChatModels;
 import de.codeministry.leadgen.llm.Connections;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -320,10 +325,26 @@ public class ChatTurnService {
      */
     @EventListener(ApplicationReadyEvent.class)
     void sweep() {
-        int left = conversations.abandonStreaming(processStart);
+        int left = sweep(processStart);
         if (left > 0) {
             log.info("Marked {} chat turn(s) a previous process left streaming as incomplete", left);
         }
+    }
+
+    /**
+     * Ends the turns created before {@code startedBefore} that are still streaming; see
+     * {@link #sweep()}. Which connections cost money is read from the configuration now: a turn's own
+     * price snapshot died with the process that ran it. A connection no longer configured counts as
+     * billed, as {@link TurnPrice} counts it.
+     */
+    int sweep(OffsetDateTime startedBefore) {
+        PipelineConfig pipeline = config.snapshot().application();
+        List<Connections.Name> billed = Arrays.stream(Connections.Name.values())
+                .filter(name -> Connections.of(pipeline, name)
+                        .map(Connections.Connection::billed)
+                        .orElse(true))
+                .toList();
+        return conversations.abandonStreaming(startedBefore, billed);
     }
 
     private void start(
@@ -388,7 +409,8 @@ public class ChatTurnService {
                 sink.accept(new ChatError(ChatErrorReason.MODEL, "the turn could not be started"));
             } else if (e instanceof DataAccessException && turn.vanished()) {
                 // The reader deleted the conversation mid-turn: the cascade took the row, and the
-                // terminal write failed on it. That is no database failure and nothing to retry.
+                // terminal write failed on it. That is no database failure and nothing to retry; the
+                // rounds the row had stored were booked to the spend by the delete itself.
                 log.info("Chat turn {} ended unstored: its conversation was deleted while it ran", turn.id);
                 turn.deleted();
             } else if (e instanceof DataAccessException) {
@@ -439,6 +461,52 @@ public class ChatTurnService {
         /** Whether an earlier model round of this turn said anything, so the next one starts a paragraph. */
         private boolean answered;
 
+        /**
+         * The tokens the provider reported for this turn's finished model rounds (spec 026, ISC-518).
+         * A round's own count is the last figure its stream carried, held in {@link #round} until
+         * the round is over: both kinds send a running or final figure for the whole call, never a
+         * delta, so a round is counted once and the rounds are summed.
+         */
+        private TurnUsage used = TurnUsage.NONE;
+
+        /** The last figure the running round's stream reported; folded into {@link #used} when it ends. */
+        private TurnUsage round = TurnUsage.NONE;
+
+        /** What the row holds, so {@link #save} writes the counts only when they changed. */
+        private TurnUsage written = TurnUsage.NONE;
+
+        /** The cost the row holds beside {@link #written}; null until the first write. */
+        private BigDecimal writtenCost;
+
+        /** The {@link #unreported} mark the row holds beside {@link #written}. */
+        private boolean writtenUnreported;
+
+        /**
+         * Whether the running model round delivered a chunk of its stream. A call refused before its
+         * first chunk — a 401, a 429, a connection refused — never reached a model that could bill
+         * it, so it does not make the turn {@link #unreported}.
+         */
+        private boolean roundDelivered;
+
+        /**
+         * Whether a finished model round delivered part of its stream and reported no usage — a
+         * round cut before its usage chunk, which the OpenAI module sends last. Its tokens are
+         * missing from {@link #used}, so the turn's counts are a lower bound from then on.
+         */
+        private boolean roundUnreported;
+
+        /**
+         * Set by every ending before its last write. From then on the running round, too, is over:
+         * if it delivered a chunk and reported no usage, the turn is {@link #unreported}.
+         */
+        private boolean closing;
+
+        /**
+         * The price of this turn's connection and model, read once as the turn starts (ISC-519):
+         * every cost the turn stores is computed from it, so a price changed meanwhile never applies.
+         */
+        private final TurnPrice price;
+
         /** Whether the row holds its terminal state; after that only events are left to send. */
         private boolean ended;
 
@@ -460,6 +528,7 @@ public class ChatTurnService {
             this.answerer = answerer;
             this.sink = sink;
             this.filter = new CitationFilter(ledger, this::reachable);
+            this.price = TurnPrice.of(config.snapshot().application(), answerer.connection(), answerer.model());
         }
 
         /**
@@ -543,9 +612,14 @@ public class ChatTurnService {
                                 break;
                             }
                             response = responses.next();
+                            roundDelivered = true;
                         } catch (RuntimeException e) {
                             modelStopped(e);
                             return;
+                        }
+                        TurnUsage reported = TurnUsage.of(response);
+                        if (reported.reported()) {
+                            round = reported;
                         }
                         for (Generation generation : response.getResults()) {
                             AssistantMessage output = generation.getOutput();
@@ -568,6 +642,12 @@ public class ChatTurnService {
                 // held across a tool round it would join the next round's first words into one.
                 text(filter.finish());
                 answered |= spoke;
+                // Per round, never per turn: a round that reported nothing leaves a hole in the sum
+                // even when another round reported, and the turn must not store that sum as exact.
+                roundUnreported |= roundDelivered && !round.reported();
+                used = usage();
+                round = TurnUsage.NONE;
+                roundDelivered = false;
                 save();
                 if (stopped) {
                     complete(ChatTurnState.STOPPED);
@@ -647,6 +727,7 @@ public class ChatTurnService {
 
         /** Ends the turn with an answer, or with the part of one a stop left: sources, then done. */
         private void complete(ChatTurnState state) {
+            closing = true;
             text(filter.finish());
             save();
             List<TurnLedger.Citation> citations = ledger.citations();
@@ -655,7 +736,7 @@ public class ChatTurnService {
             conversations.finish(id, state, ledger.calls(), citations);
             ended = true;
             sink.accept(new ChatSources(sources));
-            sink.accept(new ChatDone(state));
+            sink.accept(ending().done(state));
         }
 
         /** Runs one tool call: step events around it, the result masked, the ids into the ledger. */
@@ -705,13 +786,87 @@ public class ChatTurnService {
             }
         }
 
-        /** Writes the text the reader has and the row does not. */
+        /**
+         * Writes the text the reader has and the row does not, and the token counts reported so far
+         * when they changed — both in one statement, and none when neither changed. Every ending
+         * writes through here before the row is ended, so a turn that ends any way keeps the counts
+         * of the calls the provider reported up to then.
+         */
         private void save() {
-            if (!unsaved.isEmpty()) {
-                conversations.append(id, unsaved.toString());
+            TurnUsage now = counted();
+            BigDecimal cost = cost();
+            boolean unreported = unreported();
+            boolean counts =
+                    !now.equals(written) || !Objects.equals(cost, writtenCost) || unreported != writtenUnreported;
+            if (!unsaved.isEmpty() || counts) {
+                conversations.flush(id, unsaved.toString(), counts ? now : null, cost, unreported);
                 unsaved.setLength(0);
+                if (counts) {
+                    written = now;
+                    writtenCost = cost;
+                    writtenUnreported = unreported;
+                }
             }
             savedAt = System.nanoTime();
+        }
+
+        /** The finished rounds' counts and the running round's latest figure, summed. */
+        private TurnUsage usage() {
+            return used.plus(round);
+        }
+
+        /**
+         * Whether this billed turn has a model round that delivered part of its stream and reported
+         * no usage: a finished one ({@link #roundUnreported}), or, once the turn is ending, the
+         * running one. A call cut before its usage arrived — the OpenAI module sends it last — may
+         * still have been billed, so its tokens are missing from the sum: the turn keeps the counts
+         * the other rounds reported, stores no cost, and the spend counts it as unreported rather
+         * than as a cost it cannot know, or as unpriced, which is a different cause. A call that
+         * failed before its first chunk adds nothing: the provider answered with an error, not with
+         * tokens.
+         */
+        private boolean unreported() {
+            return price.billed() && (roundUnreported || (closing && roundDelivered && !round.reported()));
+        }
+
+        /**
+         * The counts the row stores: those reported, or 0/0 for an {@link #unreported} turn none of
+         * whose rounds reported any — so the turn still counts in the spend.
+         */
+        private TurnUsage counted() {
+            TurnUsage usage = usage();
+            return unreported() && !usage.reported() ? TurnUsage.ZERO : usage;
+        }
+
+        /** The {@code usageIncomplete} mark an ending event carries: true when {@link #unreported}, else left out. */
+        private Boolean incomplete() {
+            return unreported() ? Boolean.TRUE : null;
+        }
+
+        /** The cost the row stores beside {@link #counted}: none for an {@link #unreported} turn. */
+        private BigDecimal cost() {
+            return unreported() ? null : price.cost(usage());
+        }
+
+        /**
+         * The usage an ending event carries — the counts, the cost and the mark as the row stores
+         * them — read in this one place, so a field added to it reaches every ending at once.
+         */
+        private Ending ending() {
+            TurnUsage total = counted();
+            return new Ending(total.inputTokens(), total.outputTokens(), Usd.wire(cost()), incomplete());
+        }
+
+        /** What {@link #ending} read, turned into the {@code done} or {@code error} event that carries it. */
+        private record Ending(Integer inputTokens, Integer outputTokens, String costUsd, Boolean usageIncomplete) {
+
+            ChatDone done(ChatTurnState state) {
+                return new ChatDone(state, inputTokens, outputTokens, costUsd, usageIncomplete);
+            }
+
+            ChatError error(ChatErrorReason reason, String message) {
+                return new ChatError(reason, message, inputTokens, outputTokens, costUsd, usageIncomplete);
+            }
         }
 
         /** The model's stream failed — its call, its connection, its answer — and nothing else did. */
@@ -760,6 +915,7 @@ public class ChatTurnService {
          * turn's do, and without them they pointed at nothing until the conversation was reloaded.
          */
         private void end(ChatErrorReason reason, String message) {
+            closing = true;
             text(filter.finish());
             save();
             List<TurnLedger.Citation> citations = ledger.citations();
@@ -770,7 +926,8 @@ public class ChatTurnService {
             if (!sources.isEmpty()) {
                 sink.accept(new ChatSources(sources));
             }
-            sink.accept(new ChatError(reason, message));
+            // The counts and the cost as the row now holds them, so the live popover needs no reload.
+            sink.accept(ending().error(reason, message));
         }
 
         /** The cited rows in citation order, then the turn's statistics calls in call order. */
@@ -809,16 +966,29 @@ public class ChatTurnService {
          * and one even that cannot end is left to the next start's {@link #sweep}.
          */
         void broke() {
+            // Whether the row holds the counts and the cost this turn ends with: every ending saves
+            // before it ends the row, so an ended row does; else only when the save below went through.
+            boolean saved = ended;
             if (!ended) {
+                closing = true;
                 try {
                     text(filter.finish());
                     save();
+                    saved = true;
                 } catch (RuntimeException e) {
                     log.warn("The partial text of chat turn {} could not be kept: {}", id, e.toString());
                 }
                 endRow();
             }
-            sink.accept(new ChatError(ChatErrorReason.MODEL, "the turn broke off on the server"));
+            String message = "the turn broke off on the server";
+            if (!saved) {
+                // The counts may not have reached the row; an error naming them could disagree with
+                // what a reload shows, so it names none.
+                sink.accept(new ChatError(ChatErrorReason.MODEL, message));
+                return;
+            }
+            // As end() does: the counts and the cost as the row holds them, so the popover needs no reload.
+            sink.accept(ending().error(ChatErrorReason.MODEL, message));
         }
 
         /**

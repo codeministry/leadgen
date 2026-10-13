@@ -35,6 +35,7 @@ import de.codeministry.leadgen.chat.suggest.Suggestion;
 import de.codeministry.leadgen.chat.suggest.SuggestionScope;
 import de.codeministry.leadgen.chat.suggest.SuggestionService;
 import de.codeministry.leadgen.config.ConfigProperties;
+import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.llm.Connections;
 import jakarta.annotation.PreDestroy;
 import jakarta.validation.Valid;
@@ -107,6 +108,9 @@ class ChatController {
     private final FollowUps followUps;
     private final ChatBudget budget;
 
+    /** The configuration in force, read for the connections the spend lists. */
+    private final ConfigRegistry config;
+
     /** The model select's list, read from each configured connection (ISC-505). */
     private final ChatModelCatalog catalog;
 
@@ -127,7 +131,7 @@ class ChatController {
 
     /**
      * The chat's own state for the empty chat's ring (ISC-476): the model, today's calls against the
-     * ceiling, the round bound. Absent where no chat model is configured, as the rest of the chat is.
+     * ceiling, the round bound, and what the chat spent today and this month (ISC-521). Absent where no chat model is configured, as the rest of the chat is.
      */
     @GetMapping("/status")
     ChatStatusView status() {
@@ -136,13 +140,19 @@ class ChatController {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "no chat model is configured"));
         // The second connection's counter and ceiling only where one is configured (ISC-510).
         OptionalInt second = budget.secondLimit();
+        // The spend lists the second connection beside the primary where one is configured (ISC-521),
+        // read from the connections themselves rather than from the second one's ceiling.
+        List<Connections.Name> configured = Connections.all(config.snapshot().application()).stream()
+                .map(Connections.Connection::name)
+                .toList();
         return new ChatStatusView(
                 model,
                 budget.used(),
                 budget.limit(),
                 budget.toolRounds(),
                 second.isPresent() ? budget.used(Connections.Name.SECOND) : null,
-                second.isPresent() ? second.getAsInt() : null);
+                second.isPresent() ? second.getAsInt() : null,
+                conversations.spend(configured));
     }
 
     /**

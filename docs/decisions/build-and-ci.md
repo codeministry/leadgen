@@ -30,3 +30,19 @@ beside them.
   timing-sensitive task uses would protect a fourth such task without another edge, and would
   not tie the frontend build to a backend task path. With three tasks the edges are the smaller
   wiring; a fourth suite is the moment to switch.
+
+## The test JVM's heap
+
+`backend/build.gradle.kts` gives the test worker `maxHeapSize = "1g"`; until 2026-10-13 it ran on
+Gradle's default of 512 MB.
+
+- **What was measured.** After spec 027 merged and spec 026 added two `@SpringBootTest` classes with
+  context properties of their own, the full suite reached 1,281 cases and two classes —
+  `SecurityConfigTest$WithOidc` and `ManualSourceControllerTest` on one run, `CoverLetterControllerTest`
+  on another — failed to load their context with `OutOfMemoryError: Java heap space`. Each was green
+  on its own. Spring keeps every distinct test context cached, so the heap grows with the number of
+  configurations, not with the number of cases.
+- **Not taken.** Capping `spring.test.context.cache.maxSize` holds the heap but restarts evicted
+  contexts, and a Testcontainers-backed context is the slowest thing in the suite. Folding the new
+  classes into existing configurations fixes one spec's share and leaves the next spec to hit the
+  same wall.

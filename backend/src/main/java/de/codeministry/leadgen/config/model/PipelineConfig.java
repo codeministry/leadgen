@@ -9,11 +9,15 @@
 package de.codeministry.leadgen.config.model;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.math.BigDecimal;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
@@ -465,23 +469,58 @@ public record PipelineConfig(
      *                       shipped default ({@code SuggestionThresholds}).
      * @param connection     the chat's optional second connection; absent, or present with an empty
      *                       {@code provider}, means the chat runs on {@code llm} alone, as before.
+     * @param prices         what a model costs, per connection and model; absent or empty is every
+     *                       model unpriced, and never null once bound.
      */
     public record Chat(
             @Min(0) Integer maxCallsPerDay,
             @Min(1) Integer maxToolRounds,
             @Valid Suggestions suggestions,
-            @Valid ChatConnection connection) {
+            @Valid ChatConnection connection,
+            List<@Valid ChatPrice> prices) {
+
+        public Chat {
+            // Copied with its nulls: an entry written as `- ~` binds as null, and List.copyOf would
+            // throw before ConfigLoader could name it as "chat.prices[i] is empty".
+            prices = prices == null ? List.of() : Collections.unmodifiableList(new ArrayList<>(prices));
+        }
 
         /** The ceilings alone, for code that has nothing to say about suggestions. */
         public Chat(Integer maxCallsPerDay, Integer maxToolRounds) {
-            this(maxCallsPerDay, maxToolRounds, null, null);
+            this(maxCallsPerDay, maxToolRounds, null, null, null);
         }
 
         /** Every component but the second connection, which is then absent. */
         public Chat(Integer maxCallsPerDay, Integer maxToolRounds, Suggestions suggestions) {
-            this(maxCallsPerDay, maxToolRounds, suggestions, null);
+            this(maxCallsPerDay, maxToolRounds, suggestions, null, null);
+        }
+
+        /** Every component but the price table, which is then empty. */
+        public Chat(Integer maxCallsPerDay, Integer maxToolRounds, Suggestions suggestions, ChatConnection connection) {
+            this(maxCallsPerDay, maxToolRounds, suggestions, connection, null);
         }
     }
+
+    /**
+     * One row of the chat's price table, {@code chat.prices}: what one model on one connection
+     * costs, in USD per million tokens. Read only from the operator's configuration — the shipped
+     * file names the key and no price, because a list price in the code would be a vendor in the code.
+     *
+     * <p>Every component is optional in the record so that a missing one reaches
+     * {@code ConfigLoader}, which refuses it with a line naming the key; a negative half is refused
+     * here, by the constraint.
+     *
+     * @param connection which connection the model is on, {@code PRIMARY} ({@code llm}) or
+     *                   {@code SECOND} ({@code chat.connection}), as {@code Connections.Name} spells it
+     * @param model      the model's name exactly as its connection lists it
+     * @param input      USD per million input tokens, 0 or more
+     * @param output     USD per million output tokens, 0 or more
+     */
+    public record ChatPrice(
+            String connection,
+            String model,
+            @DecimalMin("0") BigDecimal input,
+            @DecimalMin("0") BigDecimal output) {}
 
     /**
      * A second connection only the chat reads, beside {@code llm} and never in its place: every

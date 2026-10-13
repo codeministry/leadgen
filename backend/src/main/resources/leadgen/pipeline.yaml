@@ -121,6 +121,15 @@ chat:
     # This connection's own daily calls, counted beside `max_calls_per_day` above and never
     # instead of it. Absent is this default, never no ceiling; 0 means no calls.
     max_calls_per_day: ${CHAT_LLM_MAX_CALLS_PER_DAY:50}
+  # What a chat model costs, in USD per million tokens, input and output, per connection and
+  # model. Read only from here: no price is written into the code, and none ships. Empty or
+  # absent leaves every model unpriced, which a billed connection shows as price unknown, never
+  # as free. An entry names all four keys, and both prices are zero or more:
+  #   - connection: SECOND      # PRIMARY is `llm`, SECOND is `chat.connection`
+  #     model: "<name>"         # exactly as the connection lists it
+  #     input: <USD per million input tokens>
+  #     output: <USD per million output tokens>
+  prices: []
   # When the empty chat offers a question: each trigger's line, read by rule from the screens'
   # own read services, before any model phrases it. Starting defaults, not yet measured on a
   # corpus. A trigger whose number stays below its line offers nothing.

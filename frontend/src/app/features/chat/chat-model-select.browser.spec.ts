@@ -37,13 +37,40 @@ const CATALOG: ChatModels = {
 
 const SPENT: ChatStatus = {model: 'model-a', callsUsed: 30, callsLimit: 200, toolRounds: 6, secondCalls: 20, secondLimit: 20};
 
+/** The words a box offers a reader: its text with runs of white space collapsed. */
+function words(element: Element | null | undefined): string {
+    return (element?.textContent ?? '').replace(/\s+/g, ' ').trim();
+}
+
 /**
- * The model select beside the composer (ISC-511): the catalog grouped by connection, the billed
- * marker on billed options, a spent or unreachable connection's options disabled with the reason
- * in words, the pick sent with the next question, and the model named under the answer it wrote.
+ * The picker as these cases read it (ISC-522 replaced the native select): the trigger, the popover's
+ * groups and rows, and the pick — the row marked selected, whose `data-value` is `CONNECTION:model` or
+ * `default`. The rows stand in the DOM while the popover is closed, so the pick is read without opening it.
+ */
+const picker = {
+    trigger: () => document.querySelector<HTMLButtonElement>('button.lg-chat-model-trigger'),
+    panel: () => document.querySelector<HTMLElement>('.lg-chat-model-panel'),
+    groups: () => Array.from(document.querySelectorAll<HTMLElement>('.lg-chat-model-panel [role="group"]')),
+    rows: () => Array.from(document.querySelectorAll<HTMLElement>('.lg-chat-model-panel [role="option"]')),
+    options: (group: Element) => Array.from(group.querySelectorAll<HTMLElement>('[role="option"]')),
+    row: (value: string) => document.querySelector<HTMLElement>(`.lg-chat-model-panel [role="option"][data-value="${value}"]`),
+    picked: () => document.querySelector('.lg-chat-model-panel [role="option"][aria-selected="true"]')?.getAttribute('data-value') ?? null,
+    name: (row: Element) => words(row.querySelector('.lg-chat-model-name')),
+    disabled: (row: Element) => row.getAttribute('aria-disabled') === 'true',
+    /** What the group's head says it is: the icon's name, "Billed" or "Local". */
+    tier: (group: Element) => group.querySelector('.lg-chat-model-head svg')?.getAttribute('aria-label') ?? null,
+    reason: (group: Element) => words(group.querySelector('.lg-chat-model-reason')),
+    /** The words the group is described by: its spend and its reason. */
+    description: (group: Element) => words(document.getElementById(group.getAttribute('aria-describedby') ?? '')),
+};
+
+/**
+ * The model pick beside the composer (ISC-511): the catalog grouped by connection, the billed marker on
+ * a billed connection, a spent or unreachable connection's models disabled with the reason in words on
+ * its group, the pick sent with the next question, and the model named under the answer it wrote.
  *
- * <p>In a real browser, because a native `<select>`'s groups, its disabled options and its
- * accessible description are the browser's own, and the full app's drawer is what opens it.
+ * <p>In a real browser, because the picker is a popover in the browser's own top layer, and the full
+ * app's drawer is what opens it.
  */
 describe('the chat model select (ISC-511)', () => {
     let fixture: ComponentFixture<App>;
@@ -87,9 +114,12 @@ describe('the chat model select (ISC-511)', () => {
         (fixture.nativeElement as HTMLElement).remove();
     });
 
-    const select = () => document.querySelector<HTMLSelectElement>('select.lg-chat-model')!;
-    const groups = () => Array.from(select().querySelectorAll('optgroup'));
-    const options = (group: HTMLOptGroupElement) => Array.from(group.querySelectorAll('option'));
+    async function pick(value: string): Promise<void> {
+        picker.trigger()!.click();
+        await settle();
+        picker.row(value)!.click();
+        await settle();
+    }
 
     async function askQuestion(question: string): Promise<void> {
         const input = document.querySelector<HTMLTextAreaElement>('.lg-chat-input')!;
@@ -102,38 +132,36 @@ describe('the chat model select (ISC-511)', () => {
     it('groups the models by connection, marks the billed ones and disables a spent connection with its reason', async () => {
         await open(CATALOG, SPENT);
 
-        expect(select(), 'the select beside the composer').not.toBeNull();
-        const label = document.querySelector(`label[for="${select().id}"]`);
-        expect(label?.textContent?.trim()).toBe('Model');
+        expect(picker.trigger(), 'the picker beside the composer').not.toBeNull();
+        expect(picker.trigger()!.getAttribute('aria-label'), 'named as the model, its connection billed').toBe('Model: model-a, billed');
 
-        const [primary, second] = groups();
-        expect(groups()).toHaveLength(2);
-        expect(primary.label).toBe('Primary connection');
-        expect(options(primary).map((o) => o.textContent!.trim())).toEqual(['model-a · billed', 'model-b · billed']);
-        expect(options(primary).every((o) => !o.disabled)).toBe(true);
+        const [primary, second] = picker.groups();
+        expect(picker.groups()).toHaveLength(2);
+        expect(picker.tier(primary)).toBe('Billed');
+        expect(picker.options(primary).map(picker.name)).toEqual(['model-a', 'model-b']);
+        expect(picker.options(primary).every((o) => !picker.disabled(o))).toBe(true);
+        expect(picker.reason(primary), 'no reason on a connection that can be asked').toBe('');
 
-        expect(second.label).toBe('Second connection · No calls left today');
-        expect(options(second).map((o) => o.textContent!.trim())).toEqual(['model-c']);
-        expect(options(second).every((o) => o.disabled), 'the spent connection cannot be picked').toBe(true);
+        expect(picker.tier(second)).toBe('Local');
+        expect(picker.reason(second)).toBe('No calls left today');
+        expect(picker.options(second).map(picker.name)).toEqual(['model-c']);
+        expect(picker.options(second).every(picker.disabled), 'the spent connection cannot be picked').toBe(true);
 
-        // The reason in words beside the select, and the select described by it.
-        const note = document.getElementById(select().getAttribute('aria-describedby')!)!;
-        expect(note.textContent!.trim()).toBe('Second connection: No calls left today');
+        // The reason in words on its group, and the group described by it.
+        expect(picker.description(second)).toContain('No calls left today');
 
         // A new conversation's pick is the default on the primary connection.
-        expect(select().value).toBe('PRIMARY:model-a');
+        expect(picker.picked()).toBe('PRIMARY:model-a');
     });
 
     it('sends the pick with the next question, and names the model and the marker under the answer', async () => {
         await open(CATALOG, SPENT);
 
-        select().value = 'PRIMARY:model-b';
-        select().dispatchEvent(new Event('change'));
-        await settle();
+        await pick('PRIMARY:model-b');
         await askQuestion('What do Kafka offers pay?');
 
         expect(ask).toHaveBeenCalledWith(9, 'What do Kafka offers pay?', {connection: 'PRIMARY', model: 'model-b'});
-        expect(select().value, 'the pick holds for the conversation').toBe('PRIMARY:model-b');
+        expect(picker.picked(), 'the pick holds for the conversation').toBe('PRIMARY:model-b');
 
         server.next({event: 'turn', data: {turnId: 31, model: 'model-b', connection: 'PRIMARY'}});
         server.next({event: 'text', data: {delta: 'Between 90 and 110 euros an hour.'}});
@@ -174,13 +202,11 @@ describe('the chat model select (ISC-511)', () => {
             {...SPENT, secondCalls: 0},
         );
 
-        const [, second] = groups();
-        expect(second.label).toBe('Second connection · Not reachable: connection refused');
-        expect(options(second)).toHaveLength(1);
-        expect(options(second)[0].disabled).toBe(true);
-        expect(options(second)[0].textContent!.trim()).toBe('No models');
-        const note = document.getElementById(select().getAttribute('aria-describedby')!)!;
-        expect(note.textContent!.trim()).toBe('Second connection: Not reachable: connection refused');
+        const [, second] = picker.groups();
+        expect(picker.reason(second)).toBe('Not reachable: connection refused');
+        expect(picker.options(second), 'nothing to pick on it').toHaveLength(0);
+        expect(words(second.querySelector('.lg-chat-model-none'))).toBe('No models');
+        expect(picker.description(second)).toContain('Not reachable: connection refused');
     });
 
     it('keeps a spent second connection disabled while the status is asked again after a turn', async () => {
@@ -194,13 +220,13 @@ describe('the chat model select (ISC-511)', () => {
         // The turn may have spent the second connection's day, so the status is asked again; until it
         // answers, the last one known still holds.
         const refresh = http.expectOne('/api/v1/chat/status');
-        const [, second] = groups();
-        expect(second.label).toBe('Second connection · No calls left today');
-        expect(options(second).every((o) => o.disabled), 'still disabled while the status is asked again').toBe(true);
+        const [, second] = picker.groups();
+        expect(picker.reason(second)).toBe('No calls left today');
+        expect(picker.options(second).every(picker.disabled), 'still disabled while the status is asked again').toBe(true);
 
         refresh.flush({...SPENT, secondCalls: 3});
         await settle();
-        expect(options(groups()[1]).every((o) => !o.disabled), 'enabled once the new status says so').toBe(true);
+        expect(picker.options(picker.groups()[1]).every((o) => !picker.disabled(o)), 'enabled once the new status says so').toBe(true);
     });
 
     it('keeps a spent second connection disabled while the status popover asks again', async () => {
@@ -210,21 +236,22 @@ describe('the chat model select (ISC-511)', () => {
         document.querySelector<HTMLButtonElement>('.lg-chat-plate .lg-chat-status-trigger')!.dispatchEvent(new FocusEvent('focus'));
         await settle();
         const reload = http.expectOne('/api/v1/chat/status');
-        const [, second] = groups();
-        expect(second.label).toBe('Second connection · No calls left today');
-        expect(options(second).every((o) => o.disabled), 'still disabled while the popover asks again').toBe(true);
+        const [, second] = picker.groups();
+        expect(picker.reason(second)).toBe('No calls left today');
+        expect(picker.options(second).every(picker.disabled), 'still disabled while the popover asks again').toBe(true);
         expect(document.querySelector('.lg-chat-status-second-calls')?.textContent?.trim(), 'the popover shows the status it has').toBe('20 of 20');
 
         reload.flush(SPENT);
         await settle();
-        expect(options(groups()[1]).every((o) => o.disabled)).toBe(true);
+        expect(picker.options(picker.groups()[1]).every(picker.disabled)).toBe(true);
     });
 
     it('draws no select when the catalog offers one model in all', async () => {
         await open({connections: [{...CATALOG.connections[0], models: [{name: 'model-a', defaultModel: true}]}]}, null);
 
-        expect(document.querySelector('select.lg-chat-model')).toBeNull();
-        expect(http.match('/api/v1/chat/status'), 'no second connection, no status asked').toHaveLength(0);
+        expect(picker.trigger(), 'no picker for one model').toBeNull();
+        expect(picker.panel()).toBeNull();
+        expect(http.match('/api/v1/chat/status'), 'no second connection and no picker, no status asked').toHaveLength(0);
     });
 });
 
@@ -352,13 +379,16 @@ class Tab {
         await this.settle();
     }
 
-    select(): HTMLSelectElement {
-        return document.querySelector<HTMLSelectElement>('select.lg-chat-model')!;
+    /** The current pick as the picker marks it: `CONNECTION:model`, or `default`. */
+    picked(): string | null {
+        return picker.picked();
     }
 
+    /** Opens the picker and clicks the row of `value`. */
     async pick(value: string): Promise<void> {
-        this.select().value = value;
-        this.select().dispatchEvent(new Event('change'));
+        picker.trigger()!.click();
+        await this.settle();
+        picker.row(value)!.click();
         await this.settle();
     }
 
@@ -427,16 +457,16 @@ describe('the pick a conversation opens on (ISC-512)', () => {
         await tab.answerWith(42, 'model-c', 'SECOND');
 
         await tab.go('/dashboard?chat=new');
-        expect(tab.select().value, 'a new conversation on the default').toBe('PRIMARY:model-a');
+        expect(tab.picked(), 'a new conversation on the default').toBe('PRIMARY:model-a');
         await tab.askQuestion('What came in today?');
         expect(tab.create).toHaveBeenCalledTimes(1);
         expect(tab.ask.mock.calls.at(-1), 'the new conversation is asked on the default, no pick sent').toEqual([77, 'What came in today?']);
 
         await tab.go('/dashboard?chat=10');
-        expect(tab.select().value, 'another conversation on the model of its own last turn').toBe('PRIMARY:model-a');
+        expect(tab.picked(), 'another conversation on the model of its own last turn').toBe('PRIMARY:model-a');
 
         await tab.go('/dashboard?chat=9');
-        expect(tab.select().value, 'the billed conversation back on its last turn').toBe('SECOND:model-c');
+        expect(tab.picked(), 'the billed conversation back on its last turn').toBe('SECOND:model-c');
         expect(storageText()).not.toMatch(/model-c|SECOND/);
     });
 
@@ -451,21 +481,21 @@ describe('the pick a conversation opens on (ISC-512)', () => {
 
         // A reload onto a new conversation, then another stored one.
         tab = await Tab.open('/dashboard?chat=new', SERVER);
-        expect(tab.select().value, 'a reload opens a new conversation on the default').toBe('PRIMARY:model-a');
+        expect(tab.picked(), 'a reload opens a new conversation on the default').toBe('PRIMARY:model-a');
         await tab.go('/dashboard?chat=10');
-        expect(tab.select().value, 'and another conversation on its own last turn').toBe('PRIMARY:model-a');
+        expect(tab.picked(), 'and another conversation on its own last turn').toBe('PRIMARY:model-a');
         tab.close();
 
         // A second tab, beside the first: the same storage, a store of its own.
         tab = await Tab.open('/dashboard?chat=new', SERVER);
-        expect(tab.select().value, 'a second tab opens a new conversation on the default').toBe('PRIMARY:model-a');
+        expect(tab.picked(), 'a second tab opens a new conversation on the default').toBe('PRIMARY:model-a');
         await tab.askQuestion('What came in today?');
         expect(tab.ask.mock.calls.at(-1), 'and asks it without a pick').toEqual([77, 'What came in today?']);
         await tab.answerWith(48, 'model-a', 'PRIMARY');
 
         // The billed conversation reopened: on the model of its last turn, from the turn alone.
         await tab.go('/dashboard?chat=9');
-        expect(tab.select().value, 'conversation 9 reopens on its last turn').toBe('SECOND:model-c');
+        expect(tab.picked(), 'conversation 9 reopens on its last turn').toBe('SECOND:model-c');
         await tab.askQuestion('And in Berlin?');
         expect(tab.ask).toHaveBeenLastCalledWith(9, 'And in Berlin?', {connection: 'SECOND', model: 'model-c'});
         expect(storageText()).not.toMatch(/model-c|SECOND/);
@@ -480,11 +510,11 @@ describe('the pick a conversation opens on (ISC-512)', () => {
                 13: conversation(13, []),
             },
         });
-        expect(tab.select().value, 'a turn stored before the select ran on the default').toBe('PRIMARY:model-a');
+        expect(tab.picked(), 'a turn stored before the select ran on the default').toBe('PRIMARY:model-a');
         await tab.go('/dashboard?chat=12');
-        expect(tab.select().value, 'a model the catalog no longer lists').toBe('PRIMARY:model-a');
+        expect(tab.picked(), 'a model the catalog no longer lists').toBe('PRIMARY:model-a');
         await tab.go('/dashboard?chat=13');
-        expect(tab.select().value, 'a conversation without a turn').toBe('PRIMARY:model-a');
+        expect(tab.picked(), 'a conversation without a turn').toBe('PRIMARY:model-a');
         await tab.askQuestion('Anything new?');
         expect(tab.ask.mock.calls.at(-1)).toEqual([13, 'Anything new?']);
     });
@@ -508,22 +538,22 @@ describe('the pick a conversation opens on (ISC-512)', () => {
         };
         tab = await Tab.open('/dashboard?chat=10', server);
         await tab.pick('SECOND:model-b');
-        expect(tab.select().value).toBe('SECOND:model-b');
+        expect(tab.picked()).toBe('SECOND:model-b');
 
         // The catalog asked again no longer lists the pick.
         server.catalog = BILLED_SECOND;
         await tab.reloadCatalog();
-        expect(tab.select().value, 'a pick the catalog no longer lists shows the default').toBe('PRIMARY:model-a');
+        expect(tab.picked(), 'a pick the catalog no longer lists shows the default').toBe('PRIMARY:model-a');
         await tab.askQuestion('Anything new?');
         expect(tab.ask.mock.calls.at(-1), 'and the next question sends no pick').toEqual([10, 'Anything new?']);
 
         // A connection that became unreachable takes its pick with it the same way.
         await tab.answerWith(50, 'model-a', 'PRIMARY');
         await tab.pick('SECOND:model-c');
-        expect(tab.select().value).toBe('SECOND:model-c');
+        expect(tab.picked()).toBe('SECOND:model-c');
         server.catalog = {connections: [BILLED_SECOND.connections[0], {...BILLED_SECOND.connections[1], reachable: false, reason: 'timed out'}]};
         await tab.reloadCatalog();
-        expect(tab.select().value, 'a pick on an unreachable connection shows the default').toBe('PRIMARY:model-a');
+        expect(tab.picked(), 'a pick on an unreachable connection shows the default').toBe('PRIMARY:model-a');
         await tab.askQuestion('And in Berlin?');
         expect(tab.ask.mock.calls.at(-1)).toEqual([10, 'And in Berlin?']);
     });
@@ -532,7 +562,7 @@ describe('the pick a conversation opens on (ISC-512)', () => {
         const server = {catalog: BILLED_SECOND, status: CALLS_LEFT as ChatStatus, conversations: {10: conversation(10, [])}};
         tab = await Tab.open('/dashboard?chat=10', server);
         await tab.pick('SECOND:model-c');
-        expect(tab.select().value).toBe('SECOND:model-c');
+        expect(tab.picked()).toBe('SECOND:model-c');
 
         // The turn on the second connection spends its day; the status asked after it says so.
         await tab.askQuestion('Which offers want Kafka?');
@@ -540,7 +570,7 @@ describe('the pick a conversation opens on (ISC-512)', () => {
         server.status = {...CALLS_LEFT, secondCalls: 20};
         await tab.answerWith(51, 'model-c', 'SECOND');
 
-        expect(tab.select().value, 'a pick on a spent connection shows the default').toBe('PRIMARY:model-a');
+        expect(tab.picked(), 'a pick on a spent connection shows the default').toBe('PRIMARY:model-a');
         await tab.askQuestion('And in Berlin?');
         expect(tab.ask.mock.calls.at(-1), 'and the next question sends no pick').toEqual([10, 'And in Berlin?']);
         await tab.answerWith(52, 'model-a', 'PRIMARY');
@@ -548,14 +578,14 @@ describe('the pick a conversation opens on (ISC-512)', () => {
         // The day turns: the pick itself was kept, so it comes back.
         server.status = CALLS_LEFT;
         await tab.reloadCatalog();
-        expect(tab.select().value, 'the kept pick is back once calls are left').toBe('SECOND:model-c');
+        expect(tab.picked(), 'the kept pick is back once calls are left').toBe('SECOND:model-c');
     });
 
     it('keeps the explicit pick when the catalog asked again fails, and leaves judging it to the server', async () => {
         const server = {catalog: BILLED_SECOND as ChatModels | null, status: CALLS_LEFT, conversations: {10: conversation(10, [])}};
         tab = await Tab.open('/dashboard?chat=10', server);
         await tab.pick('SECOND:model-c');
-        expect(tab.select().value).toBe('SECOND:model-c');
+        expect(tab.picked()).toBe('SECOND:model-c');
 
         // The catalog asked again fails: nothing is left to judge the pick by, so it is not dropped.
         server.catalog = null;
@@ -598,10 +628,11 @@ describe('the select when no listed model is the default', () => {
     it('shows the default first and selected, and asks a new question without a pick', async () => {
         tab = await Tab.open('/dashboard?chat=10', SERVER);
 
-        const first = tab.select().options[0];
-        expect(first.parentElement, 'the default stands outside the connection groups').toBe(tab.select());
-        expect(first.textContent!.trim()).toBe('Default · model-x');
-        expect(tab.select().selectedOptions[0], 'a conversation without a turn on the default').toBe(first);
+        const first = picker.rows()[0];
+        expect(first.closest('[role="group"]'), 'the default stands outside the connection groups').toBeNull();
+        expect(picker.name(first)).toBe('Default · model-x');
+        expect(first.getAttribute('aria-selected'), 'a conversation without a turn on the default').toBe('true');
+        expect(tab.picked()).toBe('default');
 
         await tab.askQuestion('What came in today?');
         expect(tab.ask.mock.calls.at(-1), 'the default is asked without a pick').toEqual([10, 'What came in today?']);
@@ -611,13 +642,13 @@ describe('the select when no listed model is the default', () => {
         tab = await Tab.open('/dashboard?chat=10', SERVER);
 
         await tab.pick('PRIMARY:model-a');
-        expect(tab.select().value).toBe('PRIMARY:model-a');
+        expect(tab.picked()).toBe('PRIMARY:model-a');
         await tab.askQuestion('What came in today?');
         expect(tab.ask).toHaveBeenLastCalledWith(10, 'What came in today?', {connection: 'PRIMARY', model: 'model-a'});
 
         // And the default picked back sends none again.
         await tab.answerWith(49, 'model-a', 'PRIMARY');
-        await tab.pick(tab.select().options[0].value);
+        await tab.pick(picker.rows()[0].getAttribute('data-value')!);
         await tab.askQuestion('And in Berlin?');
         expect(tab.ask.mock.calls.at(-1), 'the default picked back asks without a pick').toEqual([10, 'And in Berlin?']);
     });
@@ -629,24 +660,24 @@ describe('the select when no listed model is the default', () => {
             catalog: {...UNFLAGGED, connections: [{...primary, reachable: false, reason: 'connection refused', models: []}, second]},
         });
 
-        const first = tab.select().options[0];
-        expect(first.parentElement, 'the default stands outside the connection groups').toBe(tab.select());
-        expect(first.textContent!.trim()).toBe('Default · model-x');
-        expect(first.disabled, 'the default runs on the unreachable primary connection').toBe(true);
-        const note = document.getElementById(tab.select().getAttribute('aria-describedby')!)!;
-        expect(note.textContent, 'the reason in words, the select described by it').toContain('Primary connection: Not reachable: connection refused');
-        const other = Array.from(tab.select().options).find((o) => o.value === 'SECOND:model-c')!;
-        expect(other.disabled, 'the reachable connection can still be picked').toBe(false);
+        const first = picker.rows()[0];
+        expect(first.closest('[role="group"]'), 'the default stands outside the connection groups').toBeNull();
+        expect(picker.name(first)).toBe('Default · model-x');
+        expect(picker.disabled(first), 'the default runs on the unreachable primary connection').toBe(true);
+        const [primaryGroup] = picker.groups();
+        expect(picker.reason(primaryGroup), 'the reason in words, on the group it runs on').toBe('Not reachable: connection refused');
+        expect(picker.description(primaryGroup)).toContain('Not reachable: connection refused');
+        expect(picker.disabled(picker.row('SECOND:model-c')!), 'the reachable connection can still be picked').toBe(false);
         // Never moved onto another connection by itself — that one may be billed; the person picks it.
-        expect(tab.select().value).toBe('default');
+        expect(tab.picked()).toBe('default');
     });
 
     it('opens a new conversation on the default, named without a model when the server names none', async () => {
         tab = await Tab.open('/dashboard?chat=new', {...SERVER, catalog: {...UNFLAGGED, defaultModelName: null}});
 
-        const first = tab.select().options[0];
-        expect(first.textContent!.trim()).toBe('Default');
-        expect(tab.select().selectedOptions[0]).toBe(first);
+        const first = picker.rows()[0];
+        expect(picker.name(first)).toBe('Default');
+        expect(first.getAttribute('aria-selected')).toBe('true');
         await tab.askQuestion('What came in today?');
         expect(tab.ask.mock.calls.at(-1)).toEqual([77, 'What came in today?']);
     });
@@ -684,10 +715,10 @@ describe('the select with the primary connection alone (ISC-513)', () => {
             conversations: {10: conversation(10, [])},
         });
 
-        const groups = Array.from(tab.select().querySelectorAll('optgroup'));
+        const groups = picker.groups();
         expect(groups).toHaveLength(1);
-        expect(groups[0].label).toBe('Primary connection');
-        expect(Array.from(groups[0].querySelectorAll('option')).map((o) => o.textContent!.trim())).toEqual(['model-a', 'model-b']);
+        expect(picker.tier(groups[0])).toBe('Local');
+        expect(picker.options(groups[0]).map(picker.name)).toEqual(['model-a', 'model-b']);
         expect(tab.http.match('/api/v1/chat/status'), 'no second connection, no status asked').toHaveLength(0);
 
         await tab.pick('PRIMARY:model-b');
@@ -696,6 +727,8 @@ describe('the select with the primary connection alone (ISC-513)', () => {
 
         expect(document.querySelector('.lg-chat-answer-model-name')!.textContent!.trim()).toBe('model-b');
         expect(document.querySelector('.lg-chat-billed'), 'no billed marker anywhere').toBeNull();
+        expect(picker.panel()!.querySelector('svg[aria-label="Billed"]'), 'no billed icon in the picker').toBeNull();
+        expect(picker.trigger()!.getAttribute('aria-label')).not.toContain('billed');
         expect(document.body.textContent).not.toContain('billed');
     });
 });
@@ -717,7 +750,7 @@ describe('the catalog on reopening the drawer', () => {
         // Closed the way the drawer's ✕ closes it: a navigation without `chat` alone is put back (ISC-444).
         TestBed.runInInjectionContext(() => injectDispatch(chatEvents)).closeRequested();
         await tab.settle();
-        expect(tab.select(), 'the drawer is closed').toBeNull();
+        expect(picker.trigger(), 'the drawer is closed').toBeNull();
         expect(tab.catalogReads, 'closed, nothing asked').toBe(1);
 
         await tab.go('/dashboard?chat=10');

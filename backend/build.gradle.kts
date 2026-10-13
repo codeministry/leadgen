@@ -177,6 +177,10 @@ dependencies {
 
 tasks.withType<Test>().configureEach {
     useJUnitPlatform()
+    // The worker's default 512 MB no longer holds the cached Spring contexts: measured
+    // 2026-10-13 at 1,281 cases, two classes failed to load theirs with an OutOfMemoryError
+    // and each was green on its own. docs/decisions/build-and-ci.md § The test JVM's heap.
+    maxHeapSize = "1g"
 
     /*
      * `WorkingNotesStaySmallTest` reads the working notes and the documents behind them,

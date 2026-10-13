@@ -15,7 +15,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.node.TextNode;
+import de.codeministry.leadgen.chat.catalog.Usd;
 import de.codeministry.leadgen.llm.Connections;
+import java.math.BigDecimal;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.text.Normalizer;
@@ -25,6 +27,7 @@ import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -84,10 +87,94 @@ public class ConversationRepository {
 
     private static final String TURNS = """
             SELECT id, question, answer_md, state, replaces_turn_id, model, connection, created_at,
-                   citations, end_reason, finished_at
+                   citations, end_reason, finished_at, input_tokens, output_tokens, cost_usd, unreported
               FROM chat_turn
              WHERE conversation_id = :id
              ORDER BY ordinal
+            """;
+
+    // ISC-521: the spend per connection plus the grand total, one statement, read from the ledger
+    // alone. Deleting a conversation cascades to its turns and never to chat_spend, so what was
+    // spent stays spent (V41).
+    private static final String SPEND = """
+            SELECT connection,
+                   coalesce(sum(cost_usd) FILTER (WHERE day = :day), 0) AS today,
+                   coalesce(sum(cost_usd), 0) AS month,
+                   coalesce(sum(unpriced) FILTER (WHERE day = :day), 0) AS unpriced_today,
+                   coalesce(sum(unpriced), 0) AS unpriced_month,
+                   coalesce(sum(unreported) FILTER (WHERE day = :day), 0) AS unreported_today,
+                   coalesce(sum(unreported), 0) AS unreported_month
+              FROM chat_spend
+             WHERE day >= :month
+             GROUP BY GROUPING SETS ((connection), ())
+            """;
+
+    /**
+     * Adds ended turns to the ledger, read from their rows as they now stand (V41). A turn counts
+     * once it stored a token or was marked {@code unreported}: its cost is added where one is
+     * stored; where none is, it is counted as unreported when a delivered round reported no usage,
+     * else as unpriced — a billed model nobody priced. The row says which, because the cost column
+     * alone cannot. A turn with no token — a free connection that reported nothing, a call that
+     * never reached its provider — adds nothing. The day is the turn's start in the session's zone,
+     * as {@code current_date} is for the call budgets; grouped, because one statement may not touch
+     * a ledger row twice.
+     */
+    private static final String SPENT = """
+            INSERT INTO chat_spend AS s (day, connection, cost_usd, unpriced, unreported)
+            SELECT CAST(created_at AS date), coalesce(connection, 'PRIMARY'),
+                   coalesce(sum(cost_usd), 0),
+                   count(*) FILTER (WHERE cost_usd IS NULL AND NOT unreported),
+                   count(*) FILTER (WHERE unreported)
+              FROM chat_turn
+             WHERE id IN (:ids)
+               AND (input_tokens IS NOT NULL OR output_tokens IS NOT NULL OR unreported)
+             GROUP BY 1, 2
+            ON CONFLICT (day, connection) DO UPDATE
+               SET cost_usd = s.cost_usd + EXCLUDED.cost_usd,
+                   unpriced = s.unpriced + EXCLUDED.unpriced,
+                   unreported = s.unreported + EXCLUDED.unreported
+            """;
+
+    /**
+     * Ends the turns a previous process left streaming. One of them on a billed connection that had
+     * streamed text but stored no token was cut before its usage arrived — the OpenAI module sends
+     * it last — and the provider billed the words it streamed: it is stored as 0/0, marked
+     * {@code unreported}, so the spend counts it rather than losing it. Billed is
+     * {@code :billed}, the connections that cost money now; a turn's own price snapshot died with
+     * the process.
+     */
+    private static final String SWEEP = """
+            WITH swept AS (
+                SELECT id,
+                       input_tokens IS NULL AND output_tokens IS NULL AND answer_md <> ''
+                           AND coalesce(connection, 'PRIMARY') = ANY (string_to_array(:billed, ',')) AS cut
+                  FROM chat_turn
+                 WHERE state = 'STREAMING' AND created_at < :startedBefore
+                   FOR UPDATE
+            )
+            UPDATE chat_turn t
+               SET state = 'INCOMPLETE', end_reason = 'MODEL', finished_at = now(),
+                   unreported = t.unreported OR s.cut,
+                   input_tokens = CASE WHEN s.cut THEN 0 ELSE t.input_tokens END,
+                   output_tokens = CASE WHEN s.cut THEN 0 ELSE t.output_tokens END
+              FROM swept s
+             WHERE t.id = s.id
+            RETURNING t.id
+            """;
+
+    /** The streamed text appended, and the counts and cost replaced only when {@code :counts}. */
+    private static final String FLUSH = """
+            UPDATE chat_turn
+               SET answer_md = answer_md || :delta,
+                   input_tokens = CASE WHEN CAST(:counts AS boolean) THEN CAST(:input AS int)
+                                       ELSE input_tokens END,
+                   output_tokens = CASE WHEN CAST(:counts AS boolean) THEN CAST(:output AS int)
+                                        ELSE output_tokens END,
+                   cost_usd = CASE WHEN CAST(:counts AS boolean) THEN CAST(:cost AS numeric)
+                                   ELSE cost_usd END,
+                   unreported = CASE WHEN CAST(:counts AS boolean) THEN CAST(:unreported AS boolean)
+                                     ELSE unreported END
+             WHERE id = :id
             """;
 
     private static final String STEPS = """
@@ -426,15 +513,24 @@ public class ConversationRepository {
 
     /**
      * Ends every turn still at {@code STREAMING} as {@code INCOMPLETE}, keeping its text; see
-     * {@link ChatTurnService#sweep} for when that is safe.
+     * {@link ChatTurnService#sweep} for when that is safe, and {@link #SWEEP} for how a billed turn
+     * cut before its usage is kept in the spend.
      *
+     * @param billed the connections that cost money, by name
      * @return how many turns it ended
      */
-    public int abandonStreaming(OffsetDateTime startedBefore) {
-        return jdbc.sql("""
-                        UPDATE chat_turn SET state = 'INCOMPLETE', end_reason = 'MODEL', finished_at = now()
-                         WHERE state = 'STREAMING' AND created_at < :startedBefore
-                        """).param("startedBefore", startedBefore).update();
+    @Transactional
+    public int abandonStreaming(OffsetDateTime startedBefore, Collection<Connections.Name> billed) {
+        List<Long> ended = jdbc.sql(SWEEP)
+                .param("startedBefore", startedBefore)
+                .param(
+                        "billed",
+                        String.join(",", billed.stream().map(Enum::name).toList()))
+                .query(Long.class)
+                .list();
+        // What their last flush stored is all they will ever store, so that is what they spent.
+        spent(ended);
+        return ended.size();
     }
 
     /**
@@ -467,16 +563,79 @@ public class ConversationRepository {
     }
 
     /**
-     * Appends streamed text to a turn's answer, so a turn that ends any way at all — finished,
-     * broken off, the process gone — keeps what the reader already saw. The turn buffers its
-     * chunks and calls this a few times a second ({@link ChatTurnService#FLUSH_INTERVAL}), not
-     * once per token.
+     * Writes what a running turn has and its row does not, in one statement: the streamed text,
+     * appended, and — when {@code usage} is not null — the token counts and their cost.
+     *
+     * <p>The text is appended so a turn that ends any way at all — finished, broken off, the process
+     * gone — keeps what the reader already saw. The turn buffers its chunks and calls this a few
+     * times a second ({@link ChatTurnService#FLUSH_INTERVAL}), not once per token.
+     *
+     * <p>The counts are the tokens the turn's model calls reported so far, summed (spec 026,
+     * ISC-518), written before every ending as well, so a turn that ends early keeps the calls it
+     * already paid for. A half the provider never reported stays null — no data, not zero. A billed
+     * turn a delivered round of which reported nothing is written {@code unreported}, with the
+     * counts of the rounds that did — 0/0 when none did — and without a cost, so the spend lists it
+     * as unreported. {@code costUsd} is what the counts cost at the price read when the turn
+     * started (ISC-519): 0 on an unbilled connection that reported usage, null on a billed model
+     * without a price. It is written with the counts it was computed from, never re-derived later,
+     * so a price changed afterwards leaves it alone.
+     *
+     * @param delta      the text to append; empty appends nothing.
+     * @param usage      the counts to store, or null to leave the stored counts, cost and mark alone.
+     * @param costUsd    the cost to store beside {@code usage}; ignored when {@code usage} is null.
+     * @param unreported whether a delivered round reported no usage; ignored when {@code usage} is null.
      */
-    public void append(long turnId, String delta) {
-        jdbc.sql("UPDATE chat_turn SET answer_md = answer_md || :delta WHERE id = :id")
-                .param("delta", delta)
+    public void flush(long turnId, String delta, TurnUsage usage, BigDecimal costUsd, boolean unreported) {
+        boolean counts = usage != null;
+        jdbc.sql(FLUSH)
+                .param("delta", delta == null ? "" : delta)
+                .param("counts", counts)
+                .param("input", counts ? usage.inputTokens() : null)
+                .param("output", counts ? usage.outputTokens() : null)
+                .param("cost", counts ? costUsd : null)
+                .param("unreported", counts && unreported)
                 .param("id", turnId)
                 .update();
+    }
+
+    /**
+     * What the chat spent today and this calendar month (ISC-521), read from the {@code chat_spend}
+     * ledger, in the JVM's zone — the zone the database session counts {@code current_date} in, and
+     * so the day {@link ChatBudget}'s ceilings and the ledger's rows count.
+     *
+     * @param configured the connections configured now, each listed even when it spent nothing.
+     */
+    public ChatSpend spend(List<Connections.Name> configured) {
+        return spend(configured, LocalDate.now());
+    }
+
+    ChatSpend spend(List<Connections.Name> configured, LocalDate today) {
+        List<ChatSpend.Connection> rows = jdbc.sql(SPEND)
+                .param("day", today)
+                .param("month", today.withDayOfMonth(1))
+                .query((rs, n) -> new ChatSpend.Connection(
+                        rs.getString("connection"),
+                        Usd.wire(rs.getBigDecimal("today")),
+                        Usd.wire(rs.getBigDecimal("month")),
+                        rs.getInt("unpriced_today"),
+                        rs.getInt("unpriced_month"),
+                        rs.getInt("unreported_today"),
+                        rs.getInt("unreported_month")))
+                .list();
+        // The grand-total row is the one grouping set without a connection; it is always there.
+        ChatSpend.Connection total =
+                rows.stream().filter(row -> row.name() == null).findFirst().orElse(ChatSpend.Connection.zero(null));
+        List<ChatSpend.Connection> connections = new ArrayList<>();
+        for (Connections.Name name : Connections.Name.values()) {
+            rows.stream()
+                    .filter(row -> name.name().equals(row.name()))
+                    .findFirst()
+                    .or(() -> configured.contains(name)
+                            ? Optional.of(ChatSpend.Connection.zero(name.name()))
+                            : Optional.empty())
+                    .ifPresent(connections::add);
+        }
+        return new ChatSpend(List.copyOf(connections), total.today(), total.month());
     }
 
     /**
@@ -488,10 +647,21 @@ public class ConversationRepository {
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public boolean incomplete(long turnId) {
-        return jdbc.sql("""
+        boolean ended = jdbc.sql("""
                         UPDATE chat_turn SET state = 'INCOMPLETE', end_reason = 'MODEL', finished_at = now()
                          WHERE id = :id AND state = 'STREAMING'
                         """).param("id", turnId).update() > 0;
+        if (ended) {
+            spent(List.of(turnId));
+        }
+        return ended;
+    }
+
+    /** Adds the ended turns {@code turnIds} to the spend ledger; see {@link #SPENT}. */
+    private void spent(List<Long> turnIds) {
+        if (!turnIds.isEmpty()) {
+            jdbc.sql(SPENT).param("ids", turnIds).update();
+        }
     }
 
     /**
@@ -519,6 +689,13 @@ public class ConversationRepository {
             ChatErrorReason reason,
             List<TurnLedger.Call> calls,
             List<TurnLedger.Citation> citations) {
+        // Locked and read first: only the ending that moves the row off STREAMING adds it to the
+        // spend, so a turn is counted once however many endings reach this write.
+        boolean streaming = jdbc.sql("SELECT state = 'STREAMING' FROM chat_turn WHERE id = :id FOR UPDATE")
+                .param("id", turnId)
+                .query(Boolean.class)
+                .optional()
+                .orElse(false);
         jdbc.sql("""
                         UPDATE chat_turn
                            SET state = :state, end_reason = :reason, finished_at = now(),
@@ -546,6 +723,9 @@ public class ConversationRepository {
                     .param("returned", json(call.returned()))
                     .param("duration", (int) Math.min(Integer.MAX_VALUE, call.durationMs()))
                     .update();
+        }
+        if (streaming) {
+            spent(List.of(turnId));
         }
     }
 
@@ -617,17 +797,21 @@ public class ConversationRepository {
 
     /**
      * Deletes the named conversations in one statement, so in one transaction, with their turns and
-     * tool calls (ISC-477). An id that names nothing is skipped.
+     * tool calls (ISC-477). An id that names nothing is skipped. A turn still streaming is booked
+     * first; see {@link #spentBeforeDelete}.
      *
      * @return the ids that were deleted, ascending
      */
+    @Transactional
     public List<Long> deleteAll(List<Long> ids) {
         if (ids.isEmpty()) {
             return List.of();
         }
+        List<Long> distinct = ids.stream().distinct().toList();
+        spentBeforeDelete(distinct);
         return jdbc
                 .sql("DELETE FROM chat_conversation WHERE id IN (:ids) RETURNING id")
-                .param("ids", ids.stream().distinct().toList())
+                .param("ids", distinct)
                 .query(Long.class)
                 .list()
                 .stream()
@@ -635,12 +819,34 @@ public class ConversationRepository {
                 .toList();
     }
 
-    /** Takes the turns and their tool calls with it, by the tables' own cascade. */
+    /**
+     * Takes the turns and their tool calls with it, by the tables' own cascade. A turn still streaming
+     * is booked first; see {@link #spentBeforeDelete}.
+     */
+    @Transactional
     public boolean delete(long id) {
+        spentBeforeDelete(List.of(id));
         return jdbc.sql("DELETE FROM chat_conversation WHERE id = :id")
                         .param("id", id)
                         .update()
                 > 0;
+    }
+
+    /**
+     * Adds the turns of {@code conversationIds} still at {@code STREAMING} to the spend ledger, in
+     * the delete's own transaction and before the cascade takes their rows: such a turn's
+     * {@link #finish} finds no row any more, so without this the rounds it already stored — and was
+     * billed for — would never reach {@code chat_spend}. Locked, so an ending that commits first
+     * moves the row off {@code STREAMING} and is counted by itself, and a flush that commits first
+     * is read; an ended turn was counted when it ended and is left alone.
+     */
+    private void spentBeforeDelete(List<Long> conversationIds) {
+        spent(jdbc.sql("""
+                        SELECT id FROM chat_turn
+                         WHERE conversation_id IN (:ids) AND state = 'STREAMING'
+                         ORDER BY id
+                           FOR UPDATE
+                        """).param("ids", conversationIds).query(Long.class).list());
     }
 
     private Map<Long, List<ChatStep>> steps(long conversationId) {
@@ -686,7 +892,11 @@ public class ConversationRepository {
                 rs.getString("end_reason") == null ? null : ChatErrorReason.valueOf(rs.getString("end_reason")),
                 rs.getTimestamp("finished_at") == null
                         ? null
-                        : rs.getTimestamp("finished_at").toInstant());
+                        : rs.getTimestamp("finished_at").toInstant(),
+                (Integer) rs.getObject("input_tokens"),
+                (Integer) rs.getObject("output_tokens"),
+                Usd.wire(rs.getBigDecimal("cost_usd")),
+                rs.getBoolean("unreported") ? Boolean.TRUE : null);
     }
 
     private static List<Long> ids(List<TurnLedger.Citation> citations, ChatSourceKind kind) {
@@ -947,7 +1157,11 @@ public class ConversationRepository {
             java.time.Instant createdAt,
             List<TurnLedger.Citation> citations,
             ChatErrorReason endReason,
-            java.time.Instant finishedAt) {
+            java.time.Instant finishedAt,
+            Integer inputTokens,
+            Integer outputTokens,
+            String costUsd,
+            Boolean usageIncomplete) {
 
         TurnView view(List<ChatStep> steps, List<ChatSourceItem> sources) {
             return new TurnView(
@@ -962,7 +1176,11 @@ public class ConversationRepository {
                     connection,
                     createdAt,
                     endReason,
-                    finishedAt);
+                    finishedAt,
+                    inputTokens,
+                    outputTokens,
+                    costUsd,
+                    usageIncomplete);
         }
     }
 }

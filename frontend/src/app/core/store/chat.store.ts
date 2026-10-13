@@ -45,6 +45,7 @@ import {
     conversationTitle,
     ConversationView,
     formatChatCtx,
+    hasModelChoice,
     parseChatCtx,
     pinnedOffer,
     sameContext,
@@ -98,6 +99,12 @@ export interface LiveTurn {
     readonly connection: ChatConnectionName | null;
     /** When its `done` or `error` event arrived; null while it streams. */
     readonly finishedAt: string | null;
+    /** The tokens and cost its `done` event reported (ISC-518, ISC-519); absent until then and when it named none. */
+    readonly inputTokens?: number;
+    readonly outputTokens?: number;
+    readonly costUsd?: string;
+    /** Whether its `done` or `error` event marked the usage as not fully reported (spec 026). */
+    readonly usageIncomplete?: boolean;
 }
 
 interface ChatState {
@@ -318,9 +325,28 @@ function applyEvent(turn: LiveTurn, event: ChatEvent): LiveTurn {
         case 'sources':
             return {...turn, sources: event.data.sources};
         case 'error':
-            return {...turn, state: 'INCOMPLETE', error: event.data, finishedAt: new Date().toISOString(), ...failureOf(event.data)};
+            // A failed turn may already have spent tokens, and their cost, before it failed (ISC-525).
+            return {
+                ...turn,
+                state: 'INCOMPLETE',
+                error: event.data,
+                finishedAt: new Date().toISOString(),
+                ...failureOf(event.data),
+                inputTokens: event.data.inputTokens,
+                outputTokens: event.data.outputTokens,
+                costUsd: event.data.costUsd,
+                usageIncomplete: event.data.usageIncomplete,
+            };
         case 'done':
-            return {...turn, state: event.data.state, finishedAt: new Date().toISOString()};
+            return {
+                ...turn,
+                state: event.data.state,
+                finishedAt: new Date().toISOString(),
+                inputTokens: event.data.inputTokens,
+                outputTokens: event.data.outputTokens,
+                costUsd: event.data.costUsd,
+                usageIncomplete: event.data.usageIncomplete,
+            };
     }
 }
 
@@ -343,6 +369,10 @@ function fold(conversation: ConversationView | null, live: LiveTurn | null): Con
         createdAt: live.startedAt,
         endReason: live.error?.reason ?? null,
         finishedAt: live.finishedAt,
+        inputTokens: live.inputTokens,
+        outputTokens: live.outputTokens,
+        costUsd: live.costUsd,
+        usageIncomplete: live.usageIncomplete,
     };
     return {...conversation, turns: [...conversation.turns, turn]};
 }
@@ -415,9 +445,16 @@ function samePick(a: ChatModelPick | null, b: ChatModelPick | null): boolean {
     return a?.connection === b?.connection && a?.model === b?.model;
 }
 
-/** Whether the catalog names a second connection, whose spent ceiling the status says (ISC-510). */
-function hasSecond(models: ChatModels | null): boolean {
-    return models?.connections.some((c) => c.name === 'SECOND') ?? false;
+/**
+ * Whether the status is worth asking for with this catalog, and after each turn: it says whether a second
+ * connection's day is spent (ISC-510), and it carries the spend the picker shows (ISC-521). So: a second
+ * connection, or a picker at all — `hasModelChoice`, the rule `ChatModelPicker.showModels` shows by. A
+ * billed connection alone is not enough: with one model in all there is no picker to show its spend.
+ * Without a catalog nothing is asked.
+ */
+function wantsStatus(models: ChatModels | null): boolean {
+    if (models === null) return false;
+    return models.connections.some((c) => c.name === 'SECOND') || hasModelChoice(models);
 }
 
 function status(error: unknown): number | null {
@@ -451,6 +488,12 @@ export const ChatStore = signalStore(
     withComputed(({live, conversation, view, loading, streamOpen, context, models, picks, newPick, openId, status}) => ({
         /** The listed model flagged as the default, or null when the catalog lists it nowhere. */
         defaultPick: computed(() => defaultPickOf(models())),
+        /**
+         * What the chat spent today and this month, per connection and in all (ISC-521), or null while no
+         * status has come in or the server predates it. The prices themselves ride on `models()`: each
+         * listed model carries its own, so the priced catalog is the catalog (ISC-517).
+         */
+        spend: computed(() => status()?.spend ?? null),
         /**
          * The model the open conversation's next question is asked on (ISC-511, ISC-512): its own pick in
          * this tab, else — for a stored conversation — the model of its last turn, else null, the default.
@@ -725,21 +768,23 @@ export const ChatStore = signalStore(
                             chatEvents.modelsLoaded({
                                 connections: Array.isArray(catalog?.connections) ? catalog.connections : [],
                                 defaultModelName: catalog?.defaultModelName ?? null,
+                                defaultModelPrice: catalog?.defaultModelPrice ?? null,
                             }),
                         ),
                         catchError(() => of(chatEvents.modelsFailed())),
                     ),
                 ),
             ),
-            // Whether the second connection's day is spent is the status's to say (ISC-510): asked with a
-            // catalog that names one, and again after each turn, which may have spent it. A refresh, not a
-            // first read: the status known so far holds until the answer, so nothing flickers back to enabled.
+            // Whether the second connection's day is spent, and what the chat spent, is the status's to say
+            // (ISC-510, ISC-521): asked with a catalog `wantsStatus` accepts, and again after each turn, which
+            // may have spent either. A refresh, not a first read: the status known so far holds until the
+            // answer, so nothing flickers back to enabled.
             merge(
                 events.on(chatEvents.modelsLoaded),
                 events.on(chatEvents.streamEnded),
                 events.on(chatEvents.streamFailed),
             ).pipe(
-                filter(() => hasSecond(store.models())),
+                filter(() => wantsStatus(store.models())),
                 map(() => chatEvents.statusRequested()),
             ),
             // A fresh question the server named is stored: nothing for the composer to bring back.

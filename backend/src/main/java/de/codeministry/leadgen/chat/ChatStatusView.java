@@ -21,12 +21,14 @@ package de.codeministry.leadgen.chat;
  *     without a second connection (spec 025, ISC-510).
  * @param secondLimit {@code chat.connection.max_calls_per_day} as it resolves; null without a second
  *     connection.
+ * @param spend      what the chat spent today and this month, per connection and in total (spec 026,
+ *     ISC-521); null only where a caller builds the status without it.
  */
 public record ChatStatusView(
-        String model, int callsUsed, int callsLimit, int toolRounds, Integer secondCalls, Integer secondLimit) {
-
-    /** The status of a chat with no second connection. */
-    public ChatStatusView(String model, int callsUsed, int callsLimit, int toolRounds) {
-        this(model, callsUsed, callsLimit, toolRounds, null, null);
-    }
-}
+        String model,
+        int callsUsed,
+        int callsLimit,
+        int toolRounds,
+        Integer secondCalls,
+        Integer secondLimit,
+        ChatSpend spend) {}

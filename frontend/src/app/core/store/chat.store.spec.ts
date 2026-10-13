@@ -180,6 +180,8 @@ describe('ChatStore', () => {
             [2, 'DONE', 27],
         ]);
         expect(live.sources.map((s) => (s.kind === 'STATISTICS' ? null : s.id))).toEqual([2291, 2304]);
+        // A free model's turn: its tokens with a cost of "0", the only form the server sends for one.
+        expect([live.inputTokens, live.outputTokens, live.costUsd]).toEqual([1840, 212, '0']);
         expect(store.streaming()).toBe(false);
         expect(store.liveTurn()).toBe(live);
 

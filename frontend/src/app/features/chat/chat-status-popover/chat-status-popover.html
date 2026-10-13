@@ -42,6 +42,15 @@
         <dt>{{ 'chat.status.model' | transloco }}</dt>
         <dd class="type-mono-data lg-chat-status-model">{{ t.model }}</dd>
       }
+      <!-- A turn stored before tokens were kept shows neither row, never a dash (ISC-525). -->
+      @if (tokens(); as n) {
+        <dt>{{ 'chat.status.tokens' | transloco }}</dt>
+        <dd class="type-mono-data lg-chat-status-tokens">{{ n }}</dd>
+      }
+      @if (cost(); as c) {
+        <dt>{{ 'chat.status.cost' | transloco }}</dt>
+        <dd class="type-mono-data lg-chat-status-cost" [attr.data-cost]="c.kind">{{ c.text }}</dd>
+      }
     </dl>
   } @else {
     <p class="type-small lg-chat-status-state">{{ 'chat.status.chatTitle' | transloco }}</p>
