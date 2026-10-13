@@ -9,6 +9,14 @@ may change in any release. See the status note in the README.
 
 ## [Unreleased]
 
+## [0.5.6] — 2026-10-13
+
+The chat's model picker shows what each model costs and what the chat has spent, every turn records its tokens and
+its cost, and the chat's suggestions show at once instead of waiting on the model. The configuration gains the
+optional `chat.prices` list, which ships empty; migrations `V39` to `V41` add the suggestion phrasings, the turn
+usage and the spend ledger. An installation without prices runs as before, with every billed model shown as
+"price unknown".
+
 ### Added
 
 - **What the chat's models cost, from a price table of the operator's own.** The optional `chat.prices` list names a
@@ -1770,7 +1778,8 @@ Found while building the demo, all of them in paths only a container exercises:
   left six.
 - The shortlist card printed the description's Markdown syntax in its teaser.
 
-[Unreleased]: https://github.com/codeministry/leadgen/compare/v0.5.5...HEAD
+[Unreleased]: https://github.com/codeministry/leadgen/compare/v0.5.6...HEAD
+[0.5.6]: https://github.com/codeministry/leadgen/releases/tag/v0.5.6
 [0.5.5]: https://github.com/codeministry/leadgen/releases/tag/v0.5.5
 [0.5.4]: https://github.com/codeministry/leadgen/releases/tag/v0.5.4
 [0.5.3]: https://github.com/codeministry/leadgen/releases/tag/v0.5.3
