@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.Map;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.Test;
+import org.springframework.context.ApplicationEventPublisher;
 
 /**
  * The recorder cannot take a run down with it.
@@ -65,7 +66,8 @@ class PipelineRunRecorderTest {
         DataSource broken = mock(DataSource.class);
         when(broken.getConnection()).thenThrow(new SQLException("the history table is gone"));
 
-        var recorder = new PipelineRunRecorder(broken, mock(ConfigRegistry.class), mock(Judges.class));
+        var recorder = new PipelineRunRecorder(
+                broken, mock(ConfigRegistry.class), mock(Judges.class), mock(ApplicationEventPublisher.class));
 
         assertThatCode(() ->
                         recorder.record(java.util.OptionalLong.empty(), REPORT, Instant.now(), "some-model", List.of()))
@@ -80,7 +82,8 @@ class PipelineRunRecorderTest {
         DataSource broken = mock(DataSource.class);
         when(broken.getConnection()).thenThrow(new SQLException("the history table is gone"));
 
-        var recorder = new PipelineRunRecorder(broken, mock(ConfigRegistry.class), mock(Judges.class));
+        var recorder = new PipelineRunRecorder(
+                broken, mock(ConfigRegistry.class), mock(Judges.class), mock(ApplicationEventPublisher.class));
 
         assertThatCode(() -> recorder.recordFailure(
                         java.util.OptionalLong.empty(),

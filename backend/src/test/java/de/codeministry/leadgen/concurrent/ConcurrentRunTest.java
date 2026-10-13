@@ -233,7 +233,12 @@ class ConcurrentRunTest {
         assertThat(report.fields().requests()).isEqualTo(ADVERTS);
         assertThat(report.scored().scored()).isEqualTo(ADVERTS);
         assertThat(report.indexed().requests()).isEqualTo(1);
-        MODEL.verify(CHAT_REQUESTS, postRequestedFor(urlPathEqualTo("/chat/completions")));
+        // The run's end also warms the chat's suggestions (spec 027) on the same stub, after the run
+        // and in the background; that request is not the run's and is not counted.
+        MODEL.verify(
+                CHAT_REQUESTS,
+                postRequestedFor(urlPathEqualTo("/chat/completions"))
+                        .withRequestBody(notContaining("You rephrase short questions")));
         MODEL.verify(EMBEDDING_REQUESTS, postRequestedFor(urlPathEqualTo("/embeddings")));
     }
 

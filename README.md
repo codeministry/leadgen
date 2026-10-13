@@ -260,7 +260,7 @@ open for the question you have.
 
 - [Architecture](docs/ARCHITECTURE.md) — the pipeline stage by stage, and the reasoning
   behind the parts that are not obvious
-- [Data model](docs/DATA-MODEL.md) — the nineteen tables, their keys, and which class writes
+- [Data model](docs/DATA-MODEL.md) — the twenty tables, their keys, and which class writes
   each column
 - [Backend flows](docs/BACKEND-FLOWS.md) — the run as a sequence, the asynchronous side,
   every write path from an endpoint down, the state machines, and where a rule decides

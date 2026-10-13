@@ -5,7 +5,7 @@ import {provideRouter, Router} from '@angular/router';
 import {injectDispatch} from '@ngrx/signals/events';
 import {of, Subject} from 'rxjs';
 import {ChatApi} from '@core/api/chat.api';
-import {ChatEvent, ChatTurnState, ConversationView, TurnView} from '@core/model/chat';
+import {ChatEvent, ChatSuggestion, ChatTurnState, ConversationView, TurnView} from '@core/model/chat';
 import {chatEvents} from '@core/store/chat.events';
 import {ChatPanel} from './chat-panel';
 
@@ -248,6 +248,24 @@ describe('ChatPanel suggestions (ISC-456)', () => {
         await settle();
 
         http.expectNone((r) => r.url === SUGGESTIONS);
+        expect(texts()).toEqual(before);
+    });
+
+    it('keeps the catalog sentences on screen when a phrasing for the same target arrives later (ISC-528)', async () => {
+        const answers = new Subject<readonly ChatSuggestion[]>();
+        vi.spyOn(api, 'suggestions').mockReturnValue(answers);
+        await openEmpty();
+        answers.next(FIVE.slice(0, 2));
+        await settle();
+        const before = texts();
+
+        answers.next([
+            {trigger: 'NEW_THIS_WEEK', text: 'Twelve new this week, which first?', count: 12},
+            {trigger: 'DEADLINE_SOON', text: 'Three close before Friday, which?', count: 3},
+        ]);
+        await settle();
+
+        expect(before).toEqual([FIVE[0].text, FIVE[1].text]);
         expect(texts()).toEqual(before);
     });
 

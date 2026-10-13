@@ -13,6 +13,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import de.codeministry.leadgen.Databases;
+import de.codeministry.leadgen.chat.suggest.SuggestionWarmup;
 import de.codeministry.leadgen.config.ConfigFixtures;
 import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.config.Secrets;
@@ -96,6 +97,9 @@ class ChatModelSelectTest {
 
     @Autowired
     private ConfigRegistry config;
+
+    @Autowired
+    private SuggestionWarmup warmup;
 
     @AfterAll
     static void stop() {
@@ -352,6 +356,8 @@ class ChatModelSelectTest {
         assertThat(get("/api/v1/chat/conversations/" + conversation + "/turns/" + turn + "/followups"))
                 .hasSizeGreaterThanOrEqualTo(2);
         assertThat(get("/api/v1/chat/suggestions?context=o:" + offer)).isNotEmpty();
+        // Since spec 027 the suggestions are phrased in the background, after the response.
+        awaitWarmup();
 
         assertThat(PRIMARY.bodies())
                 .as("the vector, then the follow-ups and the suggestions phrased at the primary")
@@ -360,6 +366,21 @@ class ChatModelSelectTest {
                 .allSatisfy(body ->
                         assertThat(JSON.readTree(body).path("model").asText()).isEqualTo(ModelStub.MODEL));
         assertThat(SECOND.bodies()).as("still the turn's two rounds alone").hasSize(2);
+    }
+
+    private void awaitWarmup() {
+        long deadline = System.nanoTime() + Duration.ofSeconds(30).toNanos();
+        while (!warmup.idle()) {
+            if (System.nanoTime() > deadline) {
+                throw new AssertionError("the suggestion warm-up did not finish within 30 s");
+            }
+            try {
+                Thread.sleep(20);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new AssertionError(e);
+            }
+        }
     }
 
     /** One turn in a fresh conversation, asked of {@code model} on {@code connection}. */

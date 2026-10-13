@@ -468,6 +468,38 @@ cached per data snapshot (the latest `pipeline_run` and `application_event` ids)
 language and sentences, so reopening the chat is a map lookup and a new run or a status change is
 a new key; the map clears past 256 entries, because an old snapshot is never asked for again.
 
+**Opening the chat never waits on the model (spec 027).** With the call inside the request, the
+first open after every run, every status change and every restart showed skeleton rows for as
+long as a local model took, up to the timeout, to reword sentences the rules had already found.
+Now `GET …/suggestions` answers what is stored for its key, or the catalog's sentences, and hands
+a miss to `SuggestionWarmup`: one worker thread, one model call at a time. The unpinned
+suggestions are a single slot — asking for them while a call runs marks them due once more, and
+that one more is computed from the data as it is then, so five status changes during a slow call
+cost one further call for the newest snapshot. A pinned context carries its own sentences and
+waits in a de-duplicated set of at most 16. A key whose call failed is not asked again until the
+data, the model or the language moves it, so a model that is down costs one request per key and
+not one per open. A sentence on screen is never swapped: the panel asks once per target, and the
+phrasing shows from the next open on.
+
+**The warm-up follows the data, not the open.** `PipelineRunRecorder` publishes
+`SuggestionDataChanged` at a run's end (not its start, when the run id already moved but the
+counts have not settled), and so does every writer of an `application_event`: `ApplicationService`
+and the restore in `ArchiveService`. A new writer of that table publishes it too. The listener runs
+after the commit and only marks the unpinned slot due, so neither a run nor a status write waits on
+the model or fails with it. It prepares the language the last open asked in, and before the first
+open since start the newest stored phrasing's. Polling `snapshot()` would also catch direct SQL
+against the live instance, but leaves a window of one interval in which the first open is a miss;
+`LISTEN/NOTIFY` closes that window at the price of a trigger in a migration and a listener
+connection that must survive reconnects. A write that publishes nothing is still covered: its
+next open misses, answers the catalog at once and phrases in the background.
+
+**The phrasing outlives the process.** `chat_suggestion_phrasing` (`V39`) holds each phrasing under
+a SHA-256 of the key, behind the map, so a restart costs a table read rather than a model call; two
+instances phrasing one key keep the first row, and the table keeps the newest 256. It is a cache:
+dropping it costs the next open per key a background call. Postgres rather than Redis or Valkey,
+because a second store for a handful of rows is a service in compose, the chart and every
+deployment, and the tool already runs and tests one.
+
 **The number guard.** A phrased sentence whose digits differ from the catalog's is dropped for the
 catalog's, and so is one longer than 300 characters. A model may change the words and never a
 count or an id, which is what keeps every id a follow-up names inside its turn's ledger.

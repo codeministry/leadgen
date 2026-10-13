@@ -14,6 +14,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
@@ -23,7 +24,8 @@ import org.springframework.stereotype.Service;
  * triggers first, then the two evergreen ones that are always there (ISC-455).
  *
  * <p>Rules find and a model phrases (ISC-456): {@link #candidates} calls none, {@link #suggestions}
- * hands the first {@link #SHOWN} to {@link Phrasing}, which falls back to the catalog's own sentences. A corpus that
+ * answers the first {@link #SHOWN} as {@link Phrasing} stored them or as the catalog's own sentences,
+ * and leaves the model call to {@link SuggestionWarmup} (ISC-527). A corpus that
  * meets no data trigger yields only the evergreen pair, each with its number, so the empty chat
  * always has a floor the data supports.
  */
@@ -46,7 +48,11 @@ public class SuggestionService {
     private final List<SuggestionTrigger> triggers;
     private final ConfigRegistry config;
     private final Phrasing phrasing;
+    private final SuggestionWarmup warmup;
     private final JdbcClient jdbc;
+
+    /** The language the last open asked in: the one the unpinned suggestions are prepared in. */
+    private final AtomicReference<String> lastLanguage = new AtomicReference<>();
 
     public List<SuggestionCandidate> candidates(SuggestionScope scope) {
         SuggestionScope effective = scope == null ? SuggestionScope.NONE : scope;
@@ -62,20 +68,71 @@ public class SuggestionService {
     public static final int SHOWN = 4;
 
     /**
-     * What the empty chat shows: the first {@link #SHOWN} candidates, phrased in {@code language}
-     * by the chat model when one answers, the catalog's sentences otherwise.
+     * What the empty chat shows: the first {@link #SHOWN} candidates, as the stored phrasing in
+     * {@code language} when there is one and as the catalog's sentences otherwise. Never waits on a
+     * model (ISC-527): a miss is handed to {@link SuggestionWarmup}, and the next open finds it.
      */
     public List<Suggestion> suggestions(SuggestionScope scope, String language) {
         SuggestionScope effective = scope == null ? SuggestionScope.NONE : scope;
-        List<SuggestionCandidate> shown =
-                candidates(effective).stream().limit(SHOWN).toList();
-        Map<String, String> sentences = new LinkedHashMap<>();
-        shown.forEach(candidate -> sentences.put(candidate.trigger(), Catalog.sentence(language, candidate)));
-        Map<String, String> texts = phrasing.phrase("suggestions " + snapshot() + " " + effective, sentences, language);
+        lastLanguage.set(language);
+        List<SuggestionCandidate> shown = shown(effective);
+        Map<String, String> sentences = sentences(shown, language);
+        String snapshot = snapshot(effective);
+        Map<String, String> texts = sentences;
+        Optional<String> key = sentences.isEmpty() ? Optional.empty() : phrasing.key(snapshot, sentences, language);
+        if (key.isPresent()) {
+            Optional<Map<String, String>> stored = phrasing.stored(key.get());
+            if (stored.isPresent()) {
+                texts = stored.get();
+            } else if (effective.equals(SuggestionScope.NONE)) {
+                warmup.unpinned();
+            } else {
+                warmup.pinned(new SuggestionWarmup.Job(key.get(), snapshot, sentences, language));
+            }
+        }
+        Map<String, String> shownTexts = texts;
         return shown.stream()
                 .map(candidate ->
-                        new Suggestion(candidate.trigger(), texts.get(candidate.trigger()), candidate.count()))
+                        new Suggestion(candidate.trigger(), shownTexts.get(candidate.trigger()), candidate.count()))
                 .toList();
+    }
+
+    /**
+     * The unpinned suggestions as they stand now, in the language the last open asked in, ready to
+     * be phrased; empty when there is nothing to phrase or no chat model to phrase it.
+     */
+    Optional<SuggestionWarmup.Job> unpinnedJob() {
+        String language = language();
+        Map<String, String> sentences = sentences(shown(SuggestionScope.NONE), language);
+        String snapshot = snapshot(SuggestionScope.NONE);
+        if (sentences.isEmpty()) {
+            return Optional.empty();
+        }
+        return phrasing.key(snapshot, sentences, language)
+                .map(key -> new SuggestionWarmup.Job(key, snapshot, sentences, language));
+    }
+
+    /**
+     * The language the last open asked in; before the first open since start, the newest stored
+     * phrasing's, and English when nothing is stored.
+     */
+    String language() {
+        String last = lastLanguage.get();
+        return last != null ? last : phrasing.newestLanguage().orElse(Catalog.ENGLISH);
+    }
+
+    private List<SuggestionCandidate> shown(SuggestionScope scope) {
+        return candidates(scope).stream().limit(SHOWN).toList();
+    }
+
+    private static Map<String, String> sentences(List<SuggestionCandidate> shown, String language) {
+        Map<String, String> sentences = new LinkedHashMap<>();
+        shown.forEach(candidate -> sentences.put(candidate.trigger(), Catalog.sentence(language, candidate)));
+        return sentences;
+    }
+
+    private String snapshot(SuggestionScope scope) {
+        return "suggestions " + snapshot() + " " + scope;
     }
 
     /** {@code en} or {@code de} from an {@code Accept-Language} header; English when neither ranks. */

@@ -2,7 +2,7 @@
 
 # Data model
 
-The nineteen tables, how they point at each other, and which class writes and reads each one.
+The twenty tables, how they point at each other, and which class writes and reads each one.
 This is the schema as Flyway builds it, read straight out of
 `backend/src/main/resources/db/migration/`, and it is the document to open when the question
 is *where does this value live* or *who is allowed to change it*. The reasoning behind a
@@ -383,10 +383,10 @@ overwrite themselves. Primary key `(run_id, position)`, cascades from `pipeline_
 The three cache and counter tables, `fetched_page`, `content_block_label` and
 `llm_call_budget`, and the `instance` row the package folders are owned by, are in § 2.
 
-## 5. The chat's six tables
+## 5. The chat's seven tables
 
-Six tables that the chat writes alone and no pipeline stage reads (`ChatIsolationTest` fails on
-a pipeline source naming one of them). Dropping all six loses the stored conversations and
+Seven tables that the chat writes alone and no pipeline stage reads (`ChatIsolationTest` fails on
+a pipeline source naming one of them). Dropping all seven loses the stored conversations and
 nothing else; the rollback is in [decisions/chat.md](decisions/chat.md), with the reasoning
 behind every column below.
 
@@ -443,10 +443,19 @@ erDiagram
         text connection PK
         int calls
     }
+    chat_suggestion_phrasing {
+        text cache_key PK
+        text snapshot
+        text language
+        text model
+        jsonb sentences
+        jsonb phrased
+        timestamptz created_at
+    }
 ```
 
 Every write is a statement in `chat/ConversationRepository`, except the two budgets', which are
-`chat/ChatBudget`'s.
+`chat/ChatBudget`'s, and the phrasings', which are `chat/suggest/PhrasingStore`'s.
 
 **`chat_conversation`** (`V32`). One row per conversation. `create` inserts it with an empty
 `title` and, when the drawer was opened from an offer's detail, `pinned_offer_id`; nothing else
@@ -518,6 +527,17 @@ second connection counts against both; a primary call writes no row here. Read f
 `GET /chat/status`. No key points at it, and emptying it hands the second connection's day out again
 (spec 025, ISC-510).
 
+**`chat_suggestion_phrasing`** (`V39`). The empty chat's suggestions and a turn's follow-ups as the
+chat model phrased them, one row per phrasing, so a restart costs a table read rather than a model
+call (spec 027, ISC-531). `cache_key` is a SHA-256 of the model, the language, the snapshot and the
+catalog sentences; `snapshot` (the caller's key text: `suggestions <run id>:<event id> <scope>` or
+`followups <turn id>`), `language`, `model` and `sentences` are there to read, `phrased` is what is
+shown, a catalog sentence wherever the number guard refused the model's. `PhrasingStore.save` inserts
+after an accepted call with `ON CONFLICT DO NOTHING` and prunes to the newest 256 rows by
+`created_at` (indexed); `find` reads by key when the map in front of it misses, and `newestLanguage`
+the language a warm-up uses before the first open since start. No key points at it and it points at
+nothing: emptying it costs the next open per key a background call.
+
 ## 6. Status-like columns and their values
 
 Every state in the schema is a `TEXT` column, and with one exception nothing in the database
@@ -564,7 +584,7 @@ services. It misses a statement assembled from strings and a CTE's alias, so the
 checklist to walk, not an answer:
 
 ```bash
-rg -n -o -i -e "(FROM|INTO|UPDATE|JOIN|DELETE FROM)\s+(offer_score_reason|offer|source_run|source|score_batch|pipeline_run_stage|pipeline_run|pipeline_stage|application_event|application|fetched_page|content_block_label|llm_call_budget|chat_conversation|chat_turn|chat_tool_call|chat_context|chat_connection_call_budget|chat_call_budget)\b" \
+rg -n -o -i -e "(FROM|INTO|UPDATE|JOIN|DELETE FROM)\s+(offer_score_reason|offer|source_run|source|score_batch|pipeline_run_stage|pipeline_run|pipeline_stage|application_event|application|fetched_page|content_block_label|llm_call_budget|chat_conversation|chat_turn|chat_tool_call|chat_context|chat_connection_call_budget|chat_call_budget|chat_suggestion_phrasing)\b" \
    backend/src/main/java -g '*.java' | sort | uniq -c
 ```
 
