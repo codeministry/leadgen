@@ -64,6 +64,33 @@ class ConfigLoaderTest {
     }
 
     @Test
+    void theShippedChatPriceTableIsEmptyAndAnEntryNeedsBothHalves() throws IOException {
+        // ISC-516: no price ships, so every model starts unpriced; ChatPriceConfigTest holds the rest.
+        assertThat(ConfigFixtures.loaderFor(configDir, VALIDATOR)
+                        .load()
+                        .application()
+                        .chat()
+                        .prices())
+                .isEmpty();
+
+        rewrite(
+                "pipeline.yaml",
+                "  prices: []\n",
+                String.join(
+                        "\n",
+                        "  prices:",
+                        "    - connection: PRIMARY",
+                        "      model: \"some-model\"",
+                        "      output: 1",
+                        ""));
+
+        assertThatThrownBy(() -> ConfigFixtures.loaderFor(configDir, VALIDATOR).load())
+                .isInstanceOf(ConfigValidationException.class)
+                .hasMessageContaining("chat.prices[0]")
+                .hasMessageContaining("no input");
+    }
+
+    @Test
     void resolvesEnvironmentPlaceholdersAndTheirDefaults() {
         var env = Map.of("IMAP_HOST", "imap.example.org", "IMAP_USER", "someone");
         var snapshot = ConfigFixtures.loaderFor(configDir, VALIDATOR, env).load();

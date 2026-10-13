@@ -964,16 +964,30 @@
         "SECOND": "Second connection"
       },
       "billed": "billed",
-      "billedOption": "{name} · billed",
       "none": "No models",
       "default": "Default · {name}",
       "defaultBare": "Default",
-      "groupUnavailable": "{connection} · {reason}",
-      "note": "{connection}: {reason}",
       "spent": "No calls left today",
       "unreachable": "Not reachable: {reason}",
       "unreachableBare": "Not reachable",
-      "unavailable": "{reason}"
+      "unavailable": "{reason}",
+      "picker": {
+        "triggerLocal": "Model: {name}, local",
+        "triggerBilled": "Model: {name}, billed",
+        "local": "Local",
+        "billed": "Billed",
+        "units": "Prices in USD per 1M tokens · in / out",
+        "free": "free",
+        "priceUnknown": "price unknown",
+        "price": "{input} in · {output} out",
+        "calls": "{used} of {limit} calls today",
+        "spend": "Today {today} · this month {month}",
+        "total": "Total spent",
+        "unpriced": "Turns not counted for a missing price: {today} today · {month} this month",
+        "unreported": "Turns not counted, usage not reported: {today} today · {month} this month",
+        "retired": "no longer configured",
+        "current": "Current pick"
+      }
     },
     "minibar": {
       "expand": "Back to the chat"
@@ -1070,6 +1084,11 @@
       "seconds": "{{n}} s",
       "minutes": "{{m}} min {{s}} s",
       "model": "Model",
+      "tokens": "Tokens",
+      "tokensValue": "{{in}} in · {{out}} out",
+      "usageNotReported": "usage not reported",
+      "usageIncomplete": "usage not fully reported",
+      "cost": "Cost",
       "chatTitle": "The chat",
       "calls": "Model calls today",
       "callsValue": "{{used}} of {{limit}}",

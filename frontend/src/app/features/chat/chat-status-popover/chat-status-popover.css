@@ -32,14 +32,22 @@ lg-living-mark[data-frame='speaking'] {
   outline-offset: 2px;
 }
 
-/* Top layer, placed beside the ring from its box (`--lg-anchor-*`, written on open). `display` lives on
-   `:popover-open` only, or the panel never closes — the trap in the frontend CLAUDE.md. */
+/* Top layer, placed below or above the ring by `popover-placement.ts` (ISC-524): `--lg-anchor-x` and
+   `--lg-anchor-y` (below) or `--lg-anchor-bottom` (above) from the ring's box, clamped against the visual
+   viewport and re-placed while open, so a scrolled thread carries it along. Only the side in use is set;
+   the other edge stays `auto`. `width: max-content` keeps the width the panel's own, never the room left
+   of a stale left edge, so the helper reads the width it will have. `inset: auto` first, then the edges.
+   `display` lives on `:popover-open` only, or the panel never closes — the trap in the frontend CLAUDE.md. */
 .lg-chat-status-panel {
   position: fixed;
   inset: auto;
-  top: var(--lg-anchor-y);
+  top: var(--lg-anchor-y, auto);
+  bottom: var(--lg-anchor-bottom, auto);
   left: var(--lg-anchor-x);
-  max-width: min(18rem, calc(100vw - 2rem));
+  width: max-content;
+  max-width: min(18rem, var(--lg-anchor-max-w, calc(100vw - 2rem)));
+  max-height: var(--lg-anchor-room, none);
+  overflow-y: auto;
   margin: 0;
   padding: 0.625rem 0.75rem;
   border: 1px solid var(--color-base-300);
@@ -78,4 +86,14 @@ lg-living-mark[data-frame='speaking'] {
 .lg-chat-status-facts dd {
   margin: 0;
   overflow-wrap: anywhere;
+}
+
+/* A free turn is a plain fact; a missing price is named, never left blank (ISC-525). */
+.lg-chat-status-cost[data-cost="free"] {
+  color: var(--lg-muted);
+}
+
+.lg-chat-status-cost[data-cost="unknown"],
+.lg-chat-status-cost[data-cost="incomplete"] {
+  color: var(--lg-warning-text);
 }

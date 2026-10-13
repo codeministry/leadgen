@@ -21,5 +21,15 @@ import java.util.List;
  *                         whether or not the primary listed it under that exact name; {@code null}
  *                         when no chat model is configured. Not {@link ModelView#defaultModel}, which
  *                         flags one listed model.
+ * @param defaultModelPrice what that default costs on the primary, by the lookup a turn on it is costed
+ *                         by ({@link ChatPrices#of}); {@code null} when the primary is not billed, when
+ *                         nobody priced the model, or when there is no default. Decimal strings, as
+ *                         every {@link ModelPrice}.
  */
-public record ChatModelsView(List<ConnectionView> connections, String defaultModelName) {}
+public record ChatModelsView(List<ConnectionView> connections, String defaultModelName, ModelPrice defaultModelPrice) {
+
+    /** The list before prices are joined on: no default price yet. */
+    public ChatModelsView(List<ConnectionView> connections, String defaultModelName) {
+        this(connections, defaultModelName, null);
+    }
+}

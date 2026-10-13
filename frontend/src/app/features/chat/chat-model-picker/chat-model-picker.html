@@ -1,0 +1,185 @@
+<!-- The model the next question is asked on (ISC-511, ISC-522). Shown only when there is a choice. The
+     trigger is a value, not a call to action, so it is ghost; send stays the drawer's one filled button. -->
+@if (showModels()) {
+  @let pick = current();
+  @let pickName = pick.name ?? ('chat.model.defaultBare' | transloco);
+  <button
+    #trigger
+    type="button"
+    class="btn btn-ghost btn-sm lg-chat-model-trigger"
+    aria-haspopup="listbox"
+    [attr.aria-controls]="panelId"
+    [attr.aria-expanded]="expanded()"
+    [attr.aria-label]="(pick.billed ? 'chat.model.picker.triggerBilled' : 'chat.model.picker.triggerLocal') | transloco: { name: pickName }"
+    (click)="toggle()"
+  >
+    <lg-icon [name]="pick.unavailable ? 'circle-alert' : pick.billed ? 'coins' : 'server'" [size]="14"/>
+    <span class="type-mono-data lg-chat-model-trigger-name">{{ pickName }}</span>
+    <span class="lg-chat-model-trigger-glyph"><lg-icon name="chevrons-up-down" [size]="14"/></span>
+  </button>
+
+  <!-- Top layer, `popover="manual"`: it opens on the trigger and closes on a pick, Escape or a tap outside.
+       `display` lives on `:popover-open` only — the trap in the frontend CLAUDE.md. -->
+  <div
+    #panel
+    [id]="panelId"
+    popover="manual"
+    class="lg-chat-model-panel"
+    (toggle)="onToggle($event)"
+    (focusout)="onFocusOut($event)"
+  >
+    <p class="type-caption text-muted lg-chat-model-units">{{ 'chat.model.picker.units' | transloco }}</p>
+    <!-- The keys move DOM focus between enabled rows (ISC-523), each row handing its keys to `onKey`; a
+         disabled row is never focused. -->
+    <div class="lg-chat-model-list" role="listbox" [attr.aria-label]="'chat.model.label' | transloco">
+      @if (defaultOption(); as fallback) {
+        @let disabled = fallback.reason !== null;
+        @let selected = defaultValue === pickValue();
+        <div
+          role="option"
+          class="lg-chat-model-row"
+          [class.is-selected]="selected"
+          [attr.aria-selected]="selected"
+          [attr.aria-disabled]="disabled ? 'true' : null"
+          tabindex="-1"
+          [attr.data-value]="defaultValue"
+          (click)="choose(defaultValue, disabled)"
+          (keydown)="onKey($event)"
+        >
+          <span class="lg-chat-model-check">
+            @if (selected) {
+              <lg-icon name="check" [size]="16" [label]="'chat.model.picker.current' | transloco"/>
+            }
+          </span>
+          <span class="type-mono-data lg-chat-model-name">{{ fallback.key | transloco: fallback.params }}</span>
+          <span class="type-caption text-muted lg-chat-model-price">
+            <ng-container [ngTemplateOutlet]="priceOf" [ngTemplateOutletContext]="{ $implicit: fallback.price }"/>
+          </span>
+        </div>
+      }
+      @for (group of modelGroups(); track group.name) {
+        @let headId = id + '-' + group.name;
+        @let disabled = group.reason !== null;
+        <div
+          role="group"
+          class="lg-chat-model-group"
+          [attr.aria-labelledby]="headId"
+          [attr.aria-describedby]="headId + '-spend'"
+        >
+          <div class="lg-chat-model-head">
+            <div [id]="headId" class="type-small lg-chat-model-head-line">
+              @if (group.retired) {
+                <lg-icon name="receipt" [size]="16"/>
+                <span class="lg-chat-model-head-words">
+                  {{ group.labelKey | transloco }} · <span class="lg-chat-model-retired">{{ 'chat.model.picker.retired' | transloco }}</span>
+                </span>
+              } @else {
+                <lg-icon
+                  [name]="group.billed ? 'coins' : 'server'"
+                  [size]="16"
+                  [label]="(group.billed ? 'chat.model.picker.billed' : 'chat.model.picker.local') | transloco"
+                />
+                <span class="lg-chat-model-head-words">
+                  <span aria-hidden="true">{{ (group.billed ? 'chat.model.picker.billed' : 'chat.model.picker.local') | transloco }}</span>
+                  · <span class="lg-chat-model-kind">{{ group.kind }}</span>
+                </span>
+                @if (group.calls; as calls) {
+                  <span class="type-mono-data lg-chat-model-calls">
+                    <span aria-hidden="true">{{ calls.used }} / {{ calls.limit }}</span>
+                    <span class="sr-only">{{ 'chat.model.picker.calls' | transloco: { used: calls.used, limit: calls.limit } }}</span>
+                  </span>
+                }
+              }
+            </div>
+            <div [id]="headId + '-spend'" class="lg-chat-model-head-more">
+              @if (group.spend; as spend) {
+                <p class="type-caption type-mono-data text-muted lg-chat-model-spend">
+                  {{ 'chat.model.picker.spend' | transloco: { today: spend.today, month: spend.month } }}
+                </p>
+                @if (spend.unpriced; as unpriced) {
+                  <p class="type-caption text-muted lg-chat-model-unpriced">{{ 'chat.model.picker.unpriced' | transloco: { today: unpriced.today, month: unpriced.month } }}</p>
+                }
+                @if (spend.unreported; as unreported) {
+                  <p class="type-caption text-muted lg-chat-model-unreported">{{ 'chat.model.picker.unreported' | transloco: { today: unreported.today, month: unreported.month } }}</p>
+                }
+              }
+              @if (group.reason; as reason) {
+                <p class="type-small lg-chat-model-reason">
+                  <lg-icon [name]="spentReason(reason) ? 'hourglass' : 'circle-alert'" [size]="14"/>
+                  <span>{{ reason.key | transloco: reason.params }}</span>
+                </p>
+              }
+            </div>
+          </div>
+          @for (option of group.options; track option.value) {
+            @let selected = option.value === pickValue();
+            <div
+              role="option"
+              class="lg-chat-model-row"
+              [class.is-selected]="selected"
+              [attr.aria-selected]="selected"
+              [attr.aria-disabled]="disabled ? 'true' : null"
+              tabindex="-1"
+              [attr.data-value]="option.value"
+              (click)="choose(option.value, disabled)"
+              (keydown)="onKey($event)"
+            >
+              <span class="lg-chat-model-check">
+                @if (selected) {
+                  <lg-icon name="check" [size]="16" [label]="'chat.model.picker.current' | transloco"/>
+                }
+              </span>
+              <span class="type-mono-data lg-chat-model-name">{{ option.model }}</span>
+              @if (option.isDefault) {
+                <span class="badge badge-sm badge-ghost lg-chat-model-default">{{ 'chat.model.defaultBare' | transloco }}</span>
+              }
+              <span class="type-caption text-muted lg-chat-model-price">
+                <ng-container [ngTemplateOutlet]="priceOf" [ngTemplateOutletContext]="{ $implicit: option.price }"/>
+              </span>
+            </div>
+          } @empty {
+            @if (!group.retired) {
+              <p class="type-small text-muted lg-chat-model-none">{{ 'chat.model.none' | transloco }}</p>
+            }
+          }
+        </div>
+      }
+    </div>
+    @if (total(); as sum) {
+      <div class="lg-chat-model-foot">
+        <div class="lg-chat-model-foot-line">
+          <span class="type-small lg-chat-model-foot-label">
+            <lg-icon name="receipt" [size]="14"/>
+            <span>{{ 'chat.model.picker.total' | transloco }}</span>
+          </span>
+          <span class="type-caption type-mono-data lg-chat-model-total">
+            {{ 'chat.model.picker.spend' | transloco: { today: sum.today, month: sum.month } }}
+          </span>
+        </div>
+        @if (sum.unpriced; as unpriced) {
+          <p class="type-caption text-muted lg-chat-model-unpriced">{{ 'chat.model.picker.unpriced' | transloco: { today: unpriced.today, month: unpriced.month } }}</p>
+        }
+        @if (sum.unreported; as unreported) {
+          <p class="type-caption text-muted lg-chat-model-unreported">{{ 'chat.model.picker.unreported' | transloco: { today: unreported.today, month: unreported.month } }}</p>
+        }
+      </div>
+    }
+  </div>
+}
+
+<!-- A row's price, the same on a listed row and on the default's own: free, "price unknown" (never blank
+     on a billed connection), or the priced pair. -->
+<ng-template #priceOf let-price>
+  @switch (price.kind) {
+    @case ('free') {
+      {{ 'chat.model.picker.free' | transloco }}
+    }
+    @case ('unknown') {
+      <lg-icon name="circle-help" [size]="12"/>
+      <span>{{ 'chat.model.picker.priceUnknown' | transloco }}</span>
+    }
+    @case ('priced') {
+      <span class="type-mono-data">{{ 'chat.model.picker.price' | transloco: { input: price.input, output: price.output } }}</span>
+    }
+  }
+</ng-template>

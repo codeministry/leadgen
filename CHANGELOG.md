@@ -9,6 +9,29 @@ may change in any release. See the status note in the README.
 
 ## [Unreleased]
 
+### Added
+
+- **What the chat's models cost, from a price table of the operator's own.** The optional `chat.prices` list names a
+  connection, a model id and its USD per million input and output tokens; it ships empty and lives in the
+  operator's `config/pipeline.yaml`, since a price is a value. A model on an unbilled connection is free, a billed
+  model without an entry stays pickable as "price unknown". The loader refuses a negative price, a missing half,
+  an unknown connection and a duplicate entry. `GET /api/v1/chat/models` names each model's price.
+- **Every chat turn records its tokens and its cost.** The provider's own input and output token counts, summed over
+  every model call of the turn, and the cost at the price in force when the turn started. A stopped or incomplete
+  turn keeps the count of every call that completed; a call cut before its usage arrives is not counted, and a
+  billed turn with such a call keeps the tokens of the others (0/0 when none reported) without a cost, listed as
+  "usage not reported" rather than as a price. A call refused before its first chunk (a wrong key, a rate limit)
+  stores no tokens, and a free turn no call reported for stores no cost either. A later price
+  change never re-prices a stored turn. New migration `V40` adds `chat_turn.input_tokens`, `output_tokens` and
+  `cost_usd`; a turn stored before it shows no tokens rather than zero. An incomplete turn's `error` event carries
+  its tokens and cost as `done` does.
+  The answer's status popover names the tokens and the cost, "free" or "price unknown".
+- **The chat's spend, today and this month.** `GET /api/v1/chat/status` names it per connection and in total, in the
+  server's zone, with the turns left out counted beside the sums by cause: an unknown price, or usage the provider
+  never reported — including a billed turn a crash cut mid-answer. The spend is kept in a ledger of its own, so
+  deleting a conversation never lowers it. New migration `V41` adds the table `chat_spend` and the column
+  `chat_turn.unreported`, and fills the ledger from the turns already stored.
+
 ### Changed
 
 - **The chat's suggestions show at once.** Opening the chat no longer waits for the model to reword them:
@@ -16,6 +39,12 @@ may change in any release. See the status note in the README.
   for the next open. A run's end and every status change warm the next open ahead, a model that fails is
   asked once per data change rather than on every open, and the phrasings survive a restart in the new table
   `chat_suggestion_phrasing` (`V39`). No configuration changes.
+- **The chat's model choice is a popover picker instead of a native select.** A button beside the composer names the
+  pick with an icon for local, billed or unavailable, and opens one group per connection with its kind, its calls
+  against its ceiling, its spend and the reason when it is spent; each model with its price, a default badge and a
+  check on the pick; the chat's total at the foot. Keyboard: arrow keys, Home and End skip unavailable models, Enter
+  picks, Escape closes. The picker and the answer's status popover share one placement that stays inside the
+  viewport on a phone, which the status popover did not before.
 
 ## [0.5.5] — 2026-10-12
 

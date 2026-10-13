@@ -6,6 +6,7 @@ import {provideRouter, Router} from '@angular/router';
 import {cdp, page} from 'vitest/browser';
 import {Subject} from 'rxjs';
 import {ChatApi} from '@core/api/chat.api';
+import {RECORDED_MODELS} from '@core/api/chat-stub';
 import {ChatEvent} from '@core/model/chat';
 import {App} from '../../../app';
 
@@ -253,11 +254,167 @@ describe('the status popovers (ISC-474, ISC-475, ISC-476)', () => {
             expect(panel!.querySelector('.lg-chat-status-steps')!.textContent!.trim()).toBe('2');
             expect(panel!.querySelector('.lg-chat-status-duration')!.textContent!.trim()).toBe('4.2 s');
             expect(panel!.querySelector('.lg-chat-status-model')!.textContent!.trim()).toBe('chat-model');
-            // Beside the ring, not over it.
-            expect(panel!.getBoundingClientRect().left).toBeGreaterThan(trigger.getBoundingClientRect().right);
+            // Below or above the ring, never over it (ISC-524 placed it through the picker's helper).
+            const box = panel!.getBoundingClientRect();
+            const ring = trigger.getBoundingClientRect();
+            expect(box.top >= ring.bottom || box.bottom <= ring.top, 'never over the ring').toBe(true);
             await leave(trigger);
             expect(openPanel(), `popover ${i + 1} closed after leaving`).toBeNull();
         }
+    });
+
+    it("names an answer's tokens and its cost: an amount, free, price unknown, and neither on a turn stored before them (ISC-525)", async () => {
+        await openConversation([
+            stored(1, 'DONE', {model: 'model-x', connection: 'SECOND', inputTokens: 1840, outputTokens: 212, costUsd: '0.008806'}),
+            stored(2, 'DONE', {model: 'model-a', connection: 'PRIMARY', inputTokens: 1200, outputTokens: 80, costUsd: '0'}),
+            stored(3, 'DONE', {model: 'model-y', connection: 'SECOND', inputTokens: 900, outputTokens: 40}),
+            stored(4, 'DONE', {model: 'model-a', connection: null}),
+        ]);
+        http.match((r) => r.url === '/api/v1/chat/models').forEach((r) => r.flush(RECORDED_MODELS));
+        await settle();
+        const expected = [
+            ['1,840 in · 212 out', '$0.0088'],
+            ['1,200 in · 80 out', 'free'],
+            ['900 in · 40 out', 'price unknown'],
+            [null, null],
+        ] as const;
+        expect(glyphs()).toHaveLength(expected.length);
+
+        for (const [i, [tokens, cost]] of expected.entries()) {
+            const trigger = glyphs()[i];
+            await hover(trigger);
+            const panel = openPanel();
+            expect(panel, `popover ${i + 1} open`).not.toBeNull();
+            const tokensRow = panel!.querySelector('.lg-chat-status-tokens');
+            const costRow = panel!.querySelector('.lg-chat-status-cost');
+            expect(tokensRow?.textContent?.trim() ?? null, `turn ${i + 1}'s tokens`).toBe(tokens);
+            expect(costRow?.textContent?.trim() ?? null, `turn ${i + 1}'s cost`).toBe(cost);
+            if (tokensRow !== null) expect(tokensRow.previousElementSibling!.textContent!.trim()).toBe('Tokens');
+            if (costRow !== null) expect(costRow.previousElementSibling!.textContent!.trim()).toBe('Cost');
+            await leave(trigger);
+        }
+    });
+
+    it("carries the done event's tokens into the live answer's popover (ISC-525)", async () => {
+        await openConversation([]);
+        http.match((r) => r.url === '/api/v1/chat/models').forEach((r) => r.flush(RECORDED_MODELS));
+        const input = document.querySelector<HTMLTextAreaElement>('.lg-chat-input')!;
+        input.value = 'What pays?';
+        input.dispatchEvent(new Event('input'));
+        input.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', bubbles: true, cancelable: true}));
+        await settle();
+        server.next({event: 'turn', data: {turnId: 11, model: 'model-a', connection: 'PRIMARY'}});
+        server.next({event: 'text', data: {delta: 'Two.'}});
+        server.next({event: 'done', data: {state: 'DONE', inputTokens: 1840, outputTokens: 212, costUsd: '0'}});
+        await settle();
+
+        const trigger = glyphs().at(-1)!;
+        await hover(trigger);
+        const panel = openPanel()!;
+        expect(panel.querySelector('.lg-chat-status-tokens')?.textContent?.trim()).toBe('1,840 in · 212 out');
+        expect(panel.querySelector('.lg-chat-status-cost')?.textContent?.trim()).toBe('free');
+    });
+
+    it("carries a failed turn's tokens and cost from its error event into the live answer's popover (ISC-525)", async () => {
+        await openConversation([]);
+        http.match((r) => r.url === '/api/v1/chat/models').forEach((r) => r.flush(RECORDED_MODELS));
+        const input = document.querySelector<HTMLTextAreaElement>('.lg-chat-input')!;
+        input.value = 'What pays?';
+        input.dispatchEvent(new Event('input'));
+        input.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', bubbles: true, cancelable: true}));
+        await settle();
+        server.next({event: 'turn', data: {turnId: 12, model: 'model-y', connection: 'SECOND'}});
+        server.next({event: 'text', data: {delta: 'Half'}});
+        server.next({event: 'error', data: {reason: 'MODEL', message: 'x', inputTokens: 900, outputTokens: 40, costUsd: '0.0012'}});
+        await settle();
+
+        const trigger = glyphs().at(-1)!;
+        await hover(trigger);
+        const panel = openPanel()!;
+        expect(panel.querySelector('.lg-chat-status-tokens')?.textContent?.trim()).toBe('900 in · 40 out');
+        expect(panel.querySelector('.lg-chat-status-cost')?.textContent?.trim()).toBe('$0.0012');
+    });
+
+    it('says usage not reported, and no cost, on a billed turn whose provider reported no usage (ISC-525)', async () => {
+        await openConversation([stored(1, 'DONE', {model: 'model-y', connection: 'SECOND', inputTokens: 0, outputTokens: 0})]);
+        http.match((r) => r.url === '/api/v1/chat/models').forEach((r) => r.flush(RECORDED_MODELS));
+        await settle();
+        await hover(glyphs()[0]);
+        const panel = openPanel()!;
+        expect(panel.querySelector('.lg-chat-status-tokens')?.textContent?.trim()).toBe('usage not reported');
+        expect(panel.querySelector('.lg-chat-status-tokens')!.previousElementSibling!.textContent!.trim()).toBe('Tokens');
+        expect(panel.querySelector('.lg-chat-status-cost')).toBeNull();
+    });
+
+    it('says usage not fully reported, never price unknown, on a billed turn the server marked usageIncomplete, stored or live (spec 026)', async () => {
+        await openConversation([
+            stored(1, 'STOPPED', {model: 'model-x', connection: 'SECOND', inputTokens: 1000, outputTokens: 100, usageIncomplete: true}),
+            stored(2, 'STOPPED', {model: 'model-x', connection: 'SECOND', inputTokens: 0, outputTokens: 0, usageIncomplete: true}),
+            stored(3, 'DONE', {model: 'model-y', connection: 'SECOND', inputTokens: 900, outputTokens: 40}),
+        ]);
+        http.match((r) => r.url === '/api/v1/chat/models').forEach((r) => r.flush(RECORDED_MODELS));
+        await settle();
+        const input = document.querySelector<HTMLTextAreaElement>('.lg-chat-input')!;
+        input.value = 'What pays?';
+        input.dispatchEvent(new Event('input'));
+        input.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', bubbles: true, cancelable: true}));
+        await settle();
+        server.next({event: 'turn', data: {turnId: 13, model: 'model-x', connection: 'SECOND'}});
+        server.next({event: 'text', data: {delta: 'Half'}});
+        server.next({event: 'error', data: {reason: 'MODEL', message: 'x', inputTokens: 700, outputTokens: 30, usageIncomplete: true}});
+        await settle();
+        const expected = [
+            ['1,000 in · 100 out', 'usage not fully reported'],
+            ['usage not reported', null],
+            ['900 in · 40 out', 'price unknown'],
+            ['700 in · 30 out', 'usage not fully reported'],
+        ] as const;
+        expect(glyphs()).toHaveLength(expected.length);
+
+        for (const [i, [tokens, cost]] of expected.entries()) {
+            const trigger = glyphs()[i];
+            await hover(trigger);
+            const panel = openPanel();
+            expect(panel, `popover ${i + 1} open`).not.toBeNull();
+            expect(panel!.querySelector('.lg-chat-status-tokens')?.textContent?.trim() ?? null, `turn ${i + 1}'s tokens`).toBe(tokens);
+            const costRow = panel!.querySelector('.lg-chat-status-cost');
+            expect(costRow?.textContent?.trim() ?? null, `turn ${i + 1}'s cost`).toBe(cost);
+            if (costRow !== null) expect(costRow.previousElementSibling!.textContent!.trim()).toBe('Cost');
+            await leave(trigger);
+        }
+    });
+
+    it('says price unknown on a billed turn without a cost while the models have not answered, never free (ISC-525)', async () => {
+        await openConversation([stored(1, 'DONE', {model: 'model-y', connection: 'SECOND', inputTokens: 900, outputTokens: 40})]);
+        // `/models` stays unanswered: the cost is read off the turn alone.
+        await hover(glyphs()[0]);
+        const panel = openPanel()!;
+        expect(panel.querySelector('.lg-chat-status-tokens')?.textContent?.trim()).toBe('900 in · 40 out');
+        expect(panel.querySelector('.lg-chat-status-cost')?.textContent?.trim()).toBe('price unknown');
+    });
+
+    it('says free only for a zero cost on an unbilled connection; on a billed one, or before the models answer, the amount (spec 026)', async () => {
+        const turns = [
+            stored(1, 'DONE', {model: 'model-x', connection: 'SECOND', inputTokens: 10, outputTokens: 2, costUsd: '0'}),
+            stored(2, 'DONE', {model: 'model-a', connection: 'PRIMARY', inputTokens: 10, outputTokens: 2, costUsd: '0'}),
+            stored(3, 'DONE', {model: 'model-a', connection: null, inputTokens: 10, outputTokens: 2, costUsd: '0'}),
+        ];
+        await openConversation(turns);
+        const costs = async (): Promise<(string | null)[]> => {
+            const seen: (string | null)[] = [];
+            for (const trigger of glyphs()) {
+                await hover(trigger);
+                seen.push(openPanel()?.querySelector('.lg-chat-status-cost')?.textContent?.trim() ?? null);
+                await leave(trigger);
+            }
+            return seen;
+        };
+        // `/models` unanswered: nothing is known to be free, so each zero is the amount.
+        expect(await costs(), 'before the models answer').toEqual(['$0.00', '$0.00', '$0.00']);
+        http.match((r) => r.url === '/api/v1/chat/models').forEach((r) => r.flush(RECORDED_MODELS));
+        await settle();
+        // The second connection is billed; the primary, and an old turn without a connection (the primary), are not.
+        expect(await costs(), 'after the models answer').toEqual(['$0.00', 'free', 'free']);
     });
 
     it('says working while a tool runs and writing while the text streams, and turns the mark while open', async () => {
@@ -453,5 +610,96 @@ describe('the status popovers (ISC-474, ISC-475, ISC-476)', () => {
             'The last refresh failed; these numbers may be out of date.',
         );
         expect(panel.textContent).not.toContain('The status did not load.');
+    });
+
+    it('stays inside a 375px viewport with a 1rem margin, and moves with its ring while the thread scrolls (ISC-524)', async () => {
+        await page.viewport(375, 700);
+        const long = 'A long answer that wraps over several lines on a phone. '.repeat(12);
+        await openConversation([1, 2, 3, 4, 5, 6].map((id) => stored(id, 'DONE', {answer: long})));
+        const thread = document.querySelector<HTMLElement>('.lg-chat-thread')!;
+        expect(thread.scrollHeight, 'the thread scrolls').toBeGreaterThan(thread.clientHeight + 200);
+
+        // The ring at the end of its row, so a panel beside it would run past the right edge.
+        const trigger = glyphs()[3];
+        trigger.closest<HTMLElement>('.lg-chat-answer')!.style.flexDirection = 'row-reverse';
+        // The ring halfway down the thread, so a scroll of 40px leaves it in view on either side.
+        const middle = () => {
+            const box = thread.getBoundingClientRect();
+            return box.top + box.height / 2;
+        };
+        thread.scrollTop += trigger.getBoundingClientRect().top - middle();
+        await settle();
+        expect(trigger.getBoundingClientRect().right, 'the ring sits near the right edge').toBeGreaterThan(375 - 64);
+
+        await hover(trigger);
+        const panel = openPanel()!;
+        expect(panel, 'open').not.toBeNull();
+        const margin = parseFloat(getComputedStyle(document.documentElement).fontSize);
+        const inside = () => {
+            const box = panel.getBoundingClientRect();
+            expect(box.left, 'left margin').toBeGreaterThanOrEqual(margin - 0.5);
+            expect(box.right, 'right margin').toBeLessThanOrEqual(375 - margin + 0.5);
+            expect(box.top, 'top margin').toBeGreaterThanOrEqual(margin - 0.5);
+            expect(box.bottom, 'bottom margin').toBeLessThanOrEqual(window.innerHeight - margin + 0.5);
+        };
+        inside();
+        // Not over the ring.
+        const ring = trigger.getBoundingClientRect();
+        const box = panel.getBoundingClientRect();
+        expect(box.top >= ring.bottom || box.bottom <= ring.top, 'above or below the ring, never over it').toBe(true);
+
+        const offset = box.top - ring.top;
+        const ringTop = ring.top;
+        thread.scrollTop += 40;
+        await settle();
+        await new Promise((resolve) => requestAnimationFrame(resolve));
+        expect(trigger.getBoundingClientRect().top, 'the ring moved').toBeCloseTo(ringTop - 40, 0);
+        expect(openPanel(), 'still open').not.toBeNull();
+        expect(panel.getBoundingClientRect().top - trigger.getBoundingClientRect().top, 'the panel moved with it').toBeCloseTo(offset, 0);
+        inside();
+    });
+
+    it('chooses its side by the height it has, never by the room an earlier open left on it (ISC-524)', async () => {
+        await openConversation([stored(1, 'DONE')]);
+        const trigger = glyphs()[0];
+        const margin = parseFloat(getComputedStyle(document.documentElement).fontSize);
+        /** The ring pinned at a viewport y, whatever box contains it, so each open sees exactly the room it is given. */
+        const pin = async (top: number): Promise<void> => {
+            // A resize moves the drawer around the ring a little later: every finite animation done first.
+            const finite = document.getAnimations().filter((a) => Number.isFinite(Number(a.effect?.getComputedTiming().endTime)));
+            await Promise.all(finite.map((a) => a.finished.catch(() => undefined)));
+            await new Promise((resolve) => setTimeout(resolve, 250));
+            await settle();
+            Object.assign(trigger.style, {position: 'fixed', left: '200px', top: `${top}px`});
+            trigger.style.top = `${2 * top - trigger.getBoundingClientRect().top}px`;
+            await settle();
+            expect(trigger.getBoundingClientRect().top, 'the ring pinned').toBeCloseTo(top, 0);
+        };
+
+        // Its real height, opened with room on every side.
+        await pin(300);
+        await hover(trigger);
+        const height = openPanel()!.getBoundingClientRect().height;
+        await leave(trigger);
+        const ring = trigger.getBoundingClientRect().height;
+
+        // A short viewport, more room above than below and too little for the panel on either side: above, clipped.
+        const low = Math.round(height * 0.6) + margin + 8;
+        await page.viewport(1280, 2 * low);
+        await pin(low);
+        await hover(trigger);
+        const clipped = openPanel()!.getBoundingClientRect();
+        expect(clipped.bottom, 'above the ring').toBeLessThanOrEqual(trigger.getBoundingClientRect().top + 0.5);
+        expect(clipped.height, 'clipped to the room above').toBeLessThan(height - 8);
+        await leave(trigger);
+
+        // Room below for the clipped height but not for the real one, and more room above: above it goes.
+        await page.viewport(1280, 800);
+        const below = Math.round((clipped.height + height) / 2) + 32;
+        await pin(800 - below - ring);
+        await hover(trigger);
+        const box = openPanel()!.getBoundingClientRect();
+        expect(box.bottom, 'above, chosen by its real height').toBeLessThanOrEqual(trigger.getBoundingClientRect().top + 0.5);
+        expect(box.height, 'its whole height').toBeCloseTo(height, 0);
     });
 });

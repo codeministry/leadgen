@@ -123,13 +123,26 @@ to share a name, which meant a stack trace naming it could mean either file.
 - **The chat may ask a model on a second connection, and it has a ceiling of its own.** `chat.connection`
   names a provider kind, a base URL, a key, whether it is `billed`, a `timeout` and `max_calls_per_day`, every
   value a placeholder in `.env`; with no provider it is absent and the chat runs on `llm` alone. The pipeline
-  never reads it. The drawer's select lists the models each connection reports and that can call tools — read from
-  the connection, not from a list here — and a turn may name only a model the server listed itself. A call on the
+  never reads it. The drawer's model picker lists the models each connection reports and that can call tools — read
+  from the connection, not from a list here — and a turn may name only a model the server listed itself. A call on the
   second connection counts against `chat.max_calls_per_day` and its own ceiling at once; absent, that ceiling is
-  `50`, never no ceiling. `billed` on either connection decides the marker in the select and under the answer;
+  `50`, never no ceiling. `billed` on either connection decides the marker in the picker and under the answer;
   left empty it is true for `anthropic` and false for every other kind. A new conversation always starts on
   `llm.models.chat` on the primary connection. The reasoning is in
   [decisions/chat.md](decisions/chat.md) § A second connection, discovered, not allowlisted.
+- **`chat.prices` is what a chat model costs, and only the operator writes it.** A list of
+  `{connection, model, input, output}`: `connection` is `PRIMARY` (the `llm` block) or `SECOND` (`chat.connection`),
+  `model` is a model id exactly as that connection lists it — compared as written, no tag or prefix stripped — and
+  `input` and `output` are USD per million input and output tokens, as the provider bills, with no conversion. It
+  is a list in the operator's own `config/pipeline.yaml`, never a `${PLACEHOLDER}`: a price is a value, and the
+  shipped file carries `prices: []` with the shape in a comment, no number and no model. The loader refuses, with a
+  line naming `chat.prices[n]`, a negative price, an entry missing either half, an empty model, an unknown connection
+  and the same connection and model twice. Absent or empty, every model is unpriced. A model on a connection that is
+  not `billed` is free whatever the list says; a billed model the list does not name stays pickable as
+  "price unknown", and its turns store their tokens and no cost; an entry for a model the connection does not list
+  changes nothing. The price is read when a turn starts and stored with it, so a change applies to later turns only
+  and never re-prices a stored one. No price refuses a call: the ceilings stay call counts. The reasoning is in
+  [decisions/chat.md](decisions/chat.md) § Prices and measured usage.
 - **`chat.suggestions.*` decides which questions the empty chat offers, and none of it spends a call.**
   Six thresholds, each a rule over the numbers a screen already shows: `new_offers_min`, `deadline_days`,
   `no_reply_days`, and the tag rise as `tag_window_days`, `tag_rise_percent` and `tag_rise_min_offers`.
@@ -226,7 +239,7 @@ rationale. `*` marks a credential.
 | `LLM_BATCH`                 | `false` | Half the price, answers minutes later. Only the Messages API batch is implemented; `true` on any other provider is fatal at load rather than quietly synchronous at full price.                                                                                                                                                                                                                                           |
 | `LLM_TIMEOUT`               | `PT120S` | ISO-8601. How long one request to a model may take. |
 | `LLM_CONCURRENCY`           | `1`     | `llm.concurrency`: how many adverts CONTENT, FIELDS and the synchronous SCORE work at once, and how many embedding batches DEDUPE and RETRIEVAL have in flight. Refused above the database connection pool. The endpoint has to serve that many at once; the budget is unchanged, only the clock moves. |
-| `LLM_BILLED`                | —       | `llm.billed`: whether a call on the primary connection is paid for, which the chat's select and answers mark. `true` or `false`; empty means billed for `anthropic` and not billed for every other kind. Anything else is refused at load. |
+| `LLM_BILLED`                | —       | `llm.billed`: whether a call on the primary connection is paid for, which the chat's model picker and answers mark. `true` or `false`; empty means billed for `anthropic` and not billed for every other kind. Anything else is refused at load. |
 | `LLM_MODEL_SCORING`         | —       | The judge, and the default of the list below. Also the fallback of every model key left empty: `LLM_MODEL_CONTENT`, `LLM_MODEL_FIELDS`, `LLM_MODEL_EXTRACTION` and `LLM_MODEL_CHAT`. Changing it re-judges; it does not make CONTENT or FIELDS due again, even for the stages that fall back to it. |
 | `LLM_MODEL_CONTENT`         | —       | `llm.models.content`: the content classifier, which labels the blocks of an advert no rule and no cached label decided. Empty means `LLM_MODEL_SCORING`. Set and then changed, it makes CONTENT due again for every advert segmented under another model; cached block labels stand, so only blocks nobody has a label for go to the new model. |
 | `LLM_MODEL_FIELDS`          | —       | `llm.models.fields`: the field extractor, which reads start, duration and apply-by out of the advert. Empty means `LLM_MODEL_SCORING`. Set and then changed, it makes FIELDS due again for every advert read under another model. |

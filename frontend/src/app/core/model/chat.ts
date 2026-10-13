@@ -134,11 +134,27 @@ export interface ChatSources {
 export interface ChatError {
     readonly reason: ChatErrorReason;
     readonly message: string;
+    /** Input tokens the provider reported before the turn failed; absent when none did (ISC-518). */
+    readonly inputTokens?: number;
+    /** Output tokens, likewise. */
+    readonly outputTokens?: number;
+    /** What the failed turn cost so far in USD as a decimal string; absent while it has none (ISC-519). */
+    readonly costUsd?: string;
+    /** True when a billed turn's usage was not fully reported, so its tokens are a lower bound and it has no cost; absent otherwise, also on an unpriced model (spec 026). */
+    readonly usageIncomplete?: boolean;
 }
 
 /** `done` — ends a turn that finished or was stopped. */
 export interface ChatDone {
     readonly state: Extract<ChatTurnState, 'DONE' | 'STOPPED'>;
+    /** Input tokens the provider reported over every model call of the turn; absent when none did (ISC-518). */
+    readonly inputTokens?: number;
+    /** Output tokens, likewise. */
+    readonly outputTokens?: number;
+    /** The turn's cost in USD as a decimal string; absent while it has none (ISC-519). */
+    readonly costUsd?: string;
+    /** True when a billed turn's usage was not fully reported, so its tokens are a lower bound and it has no cost; absent otherwise, also on an unpriced model (spec 026). */
+    readonly usageIncomplete?: boolean;
 }
 
 export interface ChatEventMap {
@@ -294,6 +310,14 @@ export interface TurnView {
     readonly endReason?: ChatErrorReason | null;
     /** When it ended; null while it streams. */
     readonly finishedAt?: string | null;
+    /** Input tokens summed over the turn's model calls; absent for a turn stored before they were kept — no data, never zero (ISC-518). */
+    readonly inputTokens?: number;
+    /** Output tokens, likewise. */
+    readonly outputTokens?: number;
+    /** The turn's cost in USD as a decimal string; absent when unknown or before it was kept (ISC-519). */
+    readonly costUsd?: string;
+    /** True when a billed turn's usage was not fully reported, so its tokens are a lower bound and it has no cost; absent otherwise, also on an unpriced model (spec 026). */
+    readonly usageIncomplete?: boolean;
 }
 
 /** A whole conversation, as the drawer opens it. */
@@ -328,12 +352,31 @@ export function answeredOn(turn: {readonly connection?: ChatConnectionName | nul
     return turn.connection ?? 'PRIMARY';
 }
 
+/**
+ * What one model costs, in USD per million tokens — `ModelPrice` on the server. Both halves are decimal
+ * strings ("3", "15.5"), never numbers, so no float rounds a fraction of a cent away on the way here.
+ */
+export interface ChatModelPrice {
+    readonly input: string;
+    readonly output: string;
+}
+
 /** One model a connection offers the chat — `ModelView` on the server. */
 export interface ChatModel {
     /** The name as the connection reported it. */
     readonly name: string;
     /** Whether a turn without a pick takes it; only ever true on the primary connection. */
     readonly defaultModel: boolean;
+    /**
+     * Whether a call on it costs nothing: its connection is not billed (ISC-517). Absent from a server
+     * older than the field, which reads as not known to be free.
+     */
+    readonly free?: boolean;
+    /**
+     * Its price on a billed connection the operator priced; null when it is free or unpriced, which a
+     * billed connection shows as "price unknown" (ISC-517). Absent from a server older than the field.
+     */
+    readonly price?: ChatModelPrice | null;
 }
 
 /**
@@ -360,6 +403,11 @@ export interface ChatModels {
      * configured — listed or not. Null without a chat model; absent from a server older than the field.
      */
     readonly defaultModelName?: string | null;
+    /**
+     * The price of `defaultModelName` on the primary connection; null when it is unpriced or the primary
+     * is not billed, absent from a server older than the field (spec 026).
+     */
+    readonly defaultModelPrice?: ChatModelPrice | null;
 }
 
 /**
@@ -381,6 +429,38 @@ export interface ChatStatus {
     readonly secondCalls?: number | null;
     /** The second connection's own daily ceiling; null without a second connection (ISC-510). */
     readonly secondLimit?: number | null;
+    /** What the chat spent today and this month; absent on a server from before ISC-521. */
+    readonly spend?: ChatSpend;
+}
+
+/**
+ * One connection's spend (ISC-521): stored costs only, in USD as decimal strings, so no float rounds a
+ * cent away; the turns a billed model without a price left out of each sum are counted instead.
+ */
+export interface ChatConnectionSpend {
+    readonly name: ChatConnectionName;
+    /** The sum today — the day the call ceilings count — e.g. `"0.012207"` or `"0"`. */
+    readonly today: string;
+    /** The sum this calendar month, in the same zone. */
+    readonly month: string;
+    /** Turns today that stored tokens but no cost, because their model has no price. */
+    readonly unpricedToday: number;
+    /** The same for the calendar month. */
+    readonly unpricedMonth: number;
+    /**
+     * Turns today left out of the sum because the provider did not report their usage, or not all of it;
+     * absent on a server that counted them as unpriced.
+     */
+    readonly unreportedToday?: number;
+    /** The same for the calendar month. */
+    readonly unreportedMonth?: number;
+}
+
+/** `ChatStatus.spend` (ISC-521): every configured connection, even at `"0"`, and the totals over all. */
+export interface ChatSpend {
+    readonly connections: readonly ChatConnectionSpend[];
+    readonly today: string;
+    readonly month: string;
 }
 
 /**
@@ -410,4 +490,17 @@ export function unpickableReason(connection: ChatConnection, status: ChatStatus 
     if (said !== '') return {key: 'chat.model.unavailable', params: {reason: said}};
     if (connection.name === 'SECOND' && secondSpent(status)) return {key: 'chat.model.spent', params: {}};
     return null;
+}
+
+/**
+ * Whether the catalog offers a choice of model, which is when the picker shows: more than one model in
+ * all, counting the default as an option of its own where no listed model is flagged as it — that option
+ * stands for a default the catalog lists nowhere. One model in all is no choice. Without a catalog, none.
+ * The one counting rule for the picker and for the store, which asks for the status the picker shows.
+ */
+export function hasModelChoice(models: ChatModels | null): boolean {
+    if (models === null) return false;
+    const listed = models.connections.reduce((sum, c) => sum + c.models.length, 0);
+    const flagged = models.connections.some((c) => c.models.some((m) => m.defaultModel));
+    return listed + (flagged ? 0 : 1) > 1;
 }

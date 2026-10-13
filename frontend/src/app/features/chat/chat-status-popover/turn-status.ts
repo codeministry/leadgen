@@ -1,4 +1,4 @@
-import {ChatErrorReason, ChatStep, ChatTurnState} from '@core/model/chat';
+import {answeredOn, ChatConnectionName, ChatErrorReason, ChatStep, ChatTurnState} from '@core/model/chat';
 
 /** The popover's first line: what happened to the turn, in one of five words (ISC-474). */
 export type TurnStatusKind = 'done' | 'working' | 'writing' | 'incomplete' | 'stopped';
@@ -13,6 +13,23 @@ export interface TurnStatus {
     /** From the question to the end, where both are known. */
     readonly durationMs: number | null;
     readonly model: string | null;
+    /** The connection it was answered on; a turn stored before the field was kept ran on the primary. */
+    readonly connection: ChatConnectionName;
+    /**
+     * Its input and output tokens; null for a turn stored before they were kept and for one still
+     * streaming — no data, never zero (ISC-518).
+     */
+    readonly tokens: {readonly input: number; readonly output: number} | null;
+    /**
+     * Its cost in USD, the server's decimal string: "0" on an unbilled connection, null on a billed
+     * model without a price (ISC-519). Read beside `tokens`, it alone tells free from unknown.
+     */
+    readonly costUsd: string | null;
+    /**
+     * Whether the server marked a billed turn's usage as not fully reported: its tokens are a lower
+     * bound and it has no cost, which is not the same as a model without a price (spec 026).
+     */
+    readonly usageIncomplete: boolean;
 }
 
 /** The fields both shapes carry, a stored turn (`TurnView`) and the one streaming now (`LiveTurn`). */
@@ -20,11 +37,16 @@ export interface TurnLike {
     readonly state: ChatTurnState;
     readonly steps: readonly ChatStep[];
     readonly model?: string | null;
+    readonly connection?: ChatConnectionName | null;
     readonly createdAt?: string;
     readonly startedAt?: string;
     readonly finishedAt?: string | null;
     readonly endReason?: ChatErrorReason | null;
     readonly error?: {readonly reason: ChatErrorReason} | null;
+    readonly inputTokens?: number;
+    readonly outputTokens?: number;
+    readonly costUsd?: string;
+    readonly usageIncomplete?: boolean;
 }
 
 /**
@@ -51,6 +73,10 @@ export function turnStatus(turn: TurnLike): TurnStatus {
         steps: new Set(turn.steps.map((step) => step.ordinal)).size,
         durationMs: Number.isFinite(duration) && duration >= 0 ? duration : null,
         model: turn.model ?? null,
+        connection: answeredOn(turn),
+        tokens: turn.inputTokens === undefined || turn.outputTokens === undefined ? null : {input: turn.inputTokens, output: turn.outputTokens},
+        costUsd: turn.costUsd ?? null,
+        usageIncomplete: turn.usageIncomplete === true,
     };
 }
 

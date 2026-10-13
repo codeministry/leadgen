@@ -23,6 +23,7 @@ import com.sun.net.httpserver.HttpServer;
 import de.codeministry.leadgen.chat.catalog.ChatModelCatalog;
 import de.codeministry.leadgen.chat.catalog.ChatModelsView;
 import de.codeministry.leadgen.chat.catalog.ConnectionView;
+import de.codeministry.leadgen.chat.catalog.ModelPrice;
 import de.codeministry.leadgen.chat.catalog.ModelView;
 import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.config.ConfigSnapshot;
@@ -30,6 +31,7 @@ import de.codeministry.leadgen.config.model.PipelineConfig;
 import de.codeministry.leadgen.llm.ChatModels;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.math.BigDecimal;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
@@ -116,14 +118,18 @@ class ChatModelCatalogTest {
         assertThat(primary.reachable()).isTrue();
         assertThat(primary.reason()).isNull();
         // Three reported, the one without `tools` among its capabilities is absent.
-        assertThat(primary.models()).containsExactly(new ModelView("model-a", true), new ModelView("model-b", false));
+        assertThat(primary.models())
+                .containsExactly(
+                        new ModelView("model-a", true, true, null), new ModelView("model-b", false, true, null));
 
         ConnectionView second = view.connections().get(1);
         assertThat(second.kind()).isEqualTo(ChatModels.ANTHROPIC);
         assertThat(second.billed()).isTrue();
         assertThat(second.reachable()).isTrue();
-        // Two pages, one model each; the default lives on the primary only.
-        assertThat(second.models()).containsExactly(new ModelView("model-x", false), new ModelView("model-y", false));
+        // Two pages, one model each; the default lives on the primary only. No price table: unpriced.
+        assertThat(second.models())
+                .containsExactly(
+                        new ModelView("model-x", false, false, null), new ModelView("model-y", false, false, null));
 
         // Five reported in all, four listed.
         PRIMARY.verify(1, getRequestedFor(urlPathEqualTo("/api/tags")));
@@ -132,6 +138,73 @@ class ChatModelCatalogTest {
                 .withHeader("x-api-key", equalTo("second-key"))
                 .withHeader("anthropic-version", matching(".+")));
         SECOND.verify(getRequestedFor(urlPathEqualTo("/v1/models")).withQueryParam("after_id", equalTo("model-x")));
+    }
+
+    /**
+     * ISC-517: every listed model names what it costs. The unbilled primary's models are free, even
+     * one the table prices; on the billed second the priced model carries both halves as decimal
+     * strings and the other is unpriced; an entry for a model neither connection lists is nowhere.
+     */
+    @Test
+    void eachListedModelIsFreePricedOrUnpriced() {
+        use(
+                ollamaPrimary(),
+                hostedSecond(),
+                List.of(
+                        price("PRIMARY", "model-a", "9", "9"),
+                        price("SECOND", "model-x", "3", "15.50"),
+                        price("SECOND", "model-gone", "1", "2")));
+
+        ChatModelsView view = new ChatModelCatalog(registry).models();
+
+        assertThat(view.connections().get(0).models())
+                .containsExactly(
+                        new ModelView("model-a", true, true, null), new ModelView("model-b", false, true, null));
+        assertThat(view.connections().get(1).models())
+                .containsExactly(
+                        new ModelView("model-x", false, false, new ModelPrice("3", "15.5")),
+                        new ModelView("model-y", false, false, null));
+        assertThat(view.connections())
+                .flatExtracting(ConnectionView::models)
+                .extracting(ModelView::name)
+                .doesNotContain("model-gone");
+    }
+
+    /**
+     * The default model's price rides along beside its name, by the lookup a turn uses: priced on a
+     * billed primary, null on a billed primary nobody priced, and null on an unbilled one even when
+     * the table names it — a free model has no price to show.
+     */
+    @Test
+    void theDefaultModelsPriceIsTheOneATurnOnThePrimaryIsCostedAt() {
+        use(hostedPrimary(), null, List.of(price("PRIMARY", "model-x", "3", "15.50")));
+        assertThat(new ChatModelCatalog(registry).models().defaultModelPrice())
+                .as("billed and priced")
+                .isEqualTo(new ModelPrice("3", "15.5"));
+
+        use(hostedPrimary(), null, List.of(price("PRIMARY", "model-y", "1", "2")));
+        assertThat(new ChatModelCatalog(registry).models().defaultModelPrice())
+                .as("billed, the default unpriced")
+                .isNull();
+
+        use(ollamaPrimary(), null, List.of(price("PRIMARY", "model-a", "9", "9")));
+        assertThat(new ChatModelCatalog(registry).models().defaultModelPrice())
+                .as("unbilled")
+                .isNull();
+    }
+
+    /** ISC-517: a price is read from the configuration current when the list is asked for. */
+    @Test
+    void aPriceChangedByAReloadShowsOnTheNextList() {
+        use(ollamaPrimary(), hostedSecond(), List.of(price("SECOND", "model-y", "1", "2")));
+        var catalog = new ChatModelCatalog(registry);
+        assertThat(catalog.models().connections().get(1).models().get(1).price())
+                .isEqualTo(new ModelPrice("1", "2"));
+
+        use(ollamaPrimary(), hostedSecond(), List.of(price("SECOND", "model-y", "0.25", "1.125")));
+
+        assertThat(catalog.models().connections().get(1).models().get(1).price())
+                .isEqualTo(new ModelPrice("0.25", "1.125"));
     }
 
     @Test
@@ -302,7 +375,9 @@ class ChatModelCatalogTest {
             second.awaitParked();
             gate.release();
 
-            assertThat(first.view()).isSameAs(second.view());
+            // Equal rather than the same object: the prices are joined on per call (ISC-517), so the
+            // shared discovery shows in the one listing the primary was asked for.
+            assertThat(first.view()).isEqualTo(second.view());
             assertThat(gate.listings("/a")).isEqualTo(1);
         }
     }
@@ -358,8 +433,9 @@ class ChatModelCatalogTest {
             secondAfter.awaitParked();
             gate.release();
 
-            assertThat(secondAfter.view()).isSameAs(firstAfter.view());
-            assertThat(lateBefore.view()).isSameAs(firstBefore.view());
+            // Equal, with one listing per snapshot below: the prices are joined on per call (ISC-517).
+            assertThat(secondAfter.view()).isEqualTo(firstAfter.view());
+            assertThat(lateBefore.view()).isEqualTo(firstBefore.view());
             assertThat(gate.listings("/b")).isEqualTo(1);
             assertThat(gate.listings("/a")).isEqualTo(1);
             assertThat(catalog.contains("PRIMARY", "model-a")).isTrue();
@@ -620,14 +696,29 @@ class ChatModelCatalogTest {
 
     /** A fresh snapshot object, as a reload would hand out, served from now on. */
     private void use(PipelineConfig.Llm llm, PipelineConfig.ChatConnection second) {
-        current.set(snapshot(llm, second));
+        use(llm, second, List.of());
+    }
+
+    /** The same, with {@code prices} as the chat's price table. */
+    private void use(
+            PipelineConfig.Llm llm, PipelineConfig.ChatConnection second, List<PipelineConfig.ChatPrice> prices) {
+        current.set(snapshot(llm, second, prices));
     }
 
     private static ConfigSnapshot snapshot(PipelineConfig.Llm llm, PipelineConfig.ChatConnection second) {
+        return snapshot(llm, second, List.of());
+    }
+
+    private static ConfigSnapshot snapshot(
+            PipelineConfig.Llm llm, PipelineConfig.ChatConnection second, List<PipelineConfig.ChatPrice> prices) {
         var pipeline = Mockito.mock(PipelineConfig.class);
         given(pipeline.llm()).willReturn(llm);
-        given(pipeline.chat()).willReturn(new PipelineConfig.Chat(null, null, null, second));
+        given(pipeline.chat()).willReturn(new PipelineConfig.Chat(null, null, null, second, prices));
         return new ConfigSnapshot(pipeline, null, null, null, null, null);
+    }
+
+    private static PipelineConfig.ChatPrice price(String connection, String model, String input, String output) {
+        return new PipelineConfig.ChatPrice(connection, model, new BigDecimal(input), new BigDecimal(output));
     }
 
     /**

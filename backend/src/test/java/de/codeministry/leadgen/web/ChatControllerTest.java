@@ -24,23 +24,31 @@ import de.codeministry.leadgen.chat.ChatCapability;
 import de.codeministry.leadgen.chat.ChatCapabilityView;
 import de.codeministry.leadgen.chat.ChatContextItem;
 import de.codeministry.leadgen.chat.ChatContextKind;
+import de.codeministry.leadgen.chat.ChatSpend;
 import de.codeministry.leadgen.chat.ChatTurnService;
 import de.codeministry.leadgen.chat.ConversationRepository;
 import de.codeministry.leadgen.chat.ModelPick;
 import de.codeministry.leadgen.chat.catalog.ChatModelCatalog;
 import de.codeministry.leadgen.chat.catalog.ChatModelsView;
 import de.codeministry.leadgen.chat.catalog.ConnectionView;
+import de.codeministry.leadgen.chat.catalog.ModelPrice;
 import de.codeministry.leadgen.chat.catalog.ModelView;
 import de.codeministry.leadgen.chat.suggest.FollowUp;
 import de.codeministry.leadgen.chat.suggest.FollowUps;
 import de.codeministry.leadgen.chat.suggest.Suggestion;
 import de.codeministry.leadgen.chat.suggest.SuggestionScope;
 import de.codeministry.leadgen.chat.suggest.SuggestionService;
+import de.codeministry.leadgen.config.ConfigRegistry;
+import de.codeministry.leadgen.config.ConfigSnapshot;
+import de.codeministry.leadgen.config.model.PipelineConfig;
+import de.codeministry.leadgen.llm.ChatModels;
 import de.codeministry.leadgen.llm.Connections;
 import java.util.List;
 import java.util.Optional;
 import java.util.OptionalInt;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
@@ -78,6 +86,33 @@ class ChatControllerTest {
 
     @MockitoBean
     private ChatModelCatalog catalog;
+
+    @MockitoBean
+    private ConfigRegistry config;
+
+    @BeforeEach
+    void primaryAlone() {
+        connections(false);
+    }
+
+    /** A configuration with the primary, and the second connection too when {@code second}. */
+    private void connections(boolean second) {
+        var pipeline = Mockito.mock(PipelineConfig.class);
+        given(pipeline.llm())
+                .willReturn(new PipelineConfig.Llm(
+                        ChatModels.OLLAMA,
+                        "http://127.0.0.1:1",
+                        null,
+                        null,
+                        false,
+                        new PipelineConfig.Llm.Models(null, "model-z", null, null, null, null, null, "model-a"),
+                        null));
+        PipelineConfig.ChatConnection connection = second
+                ? new PipelineConfig.ChatConnection(ChatModels.ANTHROPIC, "http://127.0.0.1:2", "key", null, null, null)
+                : null;
+        given(pipeline.chat()).willReturn(new PipelineConfig.Chat(null, null, null, connection, List.of()));
+        given(config.snapshot()).willReturn(new ConfigSnapshot(pipeline, null, null, null, null, null));
+    }
 
     @Test
     void saysPresentWhenAModelAnswers() {
@@ -242,6 +277,51 @@ class ChatControllerTest {
     }
 
     /**
+     * ISC-521: the status carries the spend per configured connection and in total — amounts as
+     * decimal strings, so no float rounds a cent away, and the unpriced turns as ints.
+     */
+    @Test
+    void theStatusCarriesTheSpendPerConnectionAsStringsAndCounts() {
+        given(capability.model()).willReturn(Optional.of("chat-model"));
+        // The connections are read from the configuration, never from the second one's ceiling.
+        connections(true);
+        given(conversations.spend(List.of(Connections.Name.PRIMARY, Connections.Name.SECOND)))
+                .willReturn(new ChatSpend(
+                        List.of(
+                                new ChatSpend.Connection("PRIMARY", "0", "0", 0, 0, 0, 0),
+                                new ChatSpend.Connection("SECOND", "0.0123", "1.5", 2, 3, 1, 4)),
+                        "0.0123",
+                        "1.5"));
+
+        var status =
+                assertThat(mvc.get().uri("/api/v1/chat/status")).hasStatusOk().bodyJson();
+        status.extractingPath("$.spend.connections[*].name").isEqualTo(List.of("PRIMARY", "SECOND"));
+        status.extractingPath("$.spend.connections[0].today").isEqualTo("0");
+        status.extractingPath("$.spend.connections[1].today").isEqualTo("0.0123");
+        status.extractingPath("$.spend.connections[1].month").isEqualTo("1.5");
+        status.extractingPath("$.spend.connections[1].unpricedToday").isEqualTo(2);
+        status.extractingPath("$.spend.connections[1].unpricedMonth").isEqualTo(3);
+        status.extractingPath("$.spend.connections[1].unreportedToday").isEqualTo(1);
+        status.extractingPath("$.spend.connections[1].unreportedMonth").isEqualTo(4);
+        status.extractingPath("$.spend.today").isEqualTo("0.0123");
+        status.extractingPath("$.spend.month").isEqualTo("1.5");
+    }
+
+    /** ISC-521: without a second connection the spend is asked for the primary alone. */
+    @Test
+    void withoutASecondConnectionTheSpendIsAskedForThePrimaryAlone() {
+        given(capability.model()).willReturn(Optional.of("chat-model"));
+        given(conversations.spend(List.of(Connections.Name.PRIMARY)))
+                .willReturn(
+                        new ChatSpend(List.of(new ChatSpend.Connection("PRIMARY", "0", "0", 0, 0, 0, 0)), "0", "0"));
+
+        var status =
+                assertThat(mvc.get().uri("/api/v1/chat/status")).hasStatusOk().bodyJson();
+        status.extractingPath("$.spend.connections[*].name").isEqualTo(List.of("PRIMARY"));
+        status.extractingPath("$.spend.month").isEqualTo("0");
+    }
+
+    /**
      * ISC-505: the model select's list, per connection, with its kind, billing, reachability and
      * the default flagged — the catalog's answer as it is, on the wire.
      */
@@ -257,7 +337,9 @@ class ChatControllerTest {
                                         false,
                                         true,
                                         null,
-                                        List.of(new ModelView("model-a", true), new ModelView("model-b", false))),
+                                        List.of(
+                                                new ModelView("model-a", true, true, null),
+                                                new ModelView("model-b", false, true, null))),
                                 new ConnectionView(
                                         "SECOND",
                                         "anthropic",
@@ -281,6 +363,73 @@ class ChatControllerTest {
         models.extractingPath("$.connections[1].reason").isEqualTo("the model list answered HTTP 500");
         models.extractingPath("$.connections[1].models").asArray().isEmpty();
         models.extractingPath("$.defaultModelName").isEqualTo("model-a");
+    }
+
+    /**
+     * ISC-517: each model carries {@code free} and {@code price}; a price's two halves travel as
+     * decimal strings, never as JSON numbers, and an unpriced or free model's price is an explicit
+     * null.
+     */
+    @Test
+    void theModelsCarryFreeAndAPriceAsDecimalStrings() {
+        given(capability.model()).willReturn(Optional.of("model-a"));
+        given(catalog.models())
+                .willReturn(new ChatModelsView(
+                        List.of(
+                                new ConnectionView(
+                                        "PRIMARY",
+                                        "ollama",
+                                        false,
+                                        true,
+                                        null,
+                                        List.of(new ModelView("model-a", true, true, null))),
+                                new ConnectionView(
+                                        "SECOND",
+                                        "anthropic",
+                                        true,
+                                        true,
+                                        null,
+                                        List.of(
+                                                new ModelView("model-x", false, false, new ModelPrice("3", "15.5")),
+                                                new ModelView("model-y", false, false, null)))),
+                        "model-a"));
+
+        var response = assertThat(mvc.get().uri("/api/v1/chat/models")).hasStatusOk();
+        var models = response.bodyJson();
+        models.extractingPath("$.connections[0].models[0].free").isEqualTo(true);
+        models.extractingPath("$.connections[1].models[0].free").isEqualTo(false);
+        models.extractingPath("$.connections[1].models[0].price.input").isEqualTo("3");
+        models.extractingPath("$.connections[1].models[0].price.output").isEqualTo("15.5");
+        models.extractingPath("$.connections[1].models[1].free").isEqualTo(false);
+        response.bodyText()
+                .contains("\"price\":{\"input\":\"3\",\"output\":\"15.5\"}")
+                .contains("{\"name\":\"model-a\",\"defaultModel\":true,\"free\":true,\"price\":null}")
+                .contains("{\"name\":\"model-y\",\"defaultModel\":false,\"free\":false,\"price\":null}");
+    }
+
+    /** The default model's price travels beside its name as decimal strings, and as an explicit null when there is none. */
+    @Test
+    void theModelsCarryTheDefaultModelsPriceAsDecimalStrings() {
+        given(capability.model()).willReturn(Optional.of("model-x"));
+        given(catalog.models())
+                .willReturn(new ChatModelsView(
+                        List.of(new ConnectionView("PRIMARY", "anthropic", true, true, null, List.of())),
+                        "model-x",
+                        new ModelPrice("3", "15.5")));
+
+        assertThat(mvc.get().uri("/api/v1/chat/models"))
+                .hasStatusOk()
+                .bodyText()
+                .contains("\"defaultModelPrice\":{\"input\":\"3\",\"output\":\"15.5\"}");
+
+        given(catalog.models())
+                .willReturn(new ChatModelsView(
+                        List.of(new ConnectionView("PRIMARY", "anthropic", true, true, null, List.of())), "model-x"));
+
+        assertThat(mvc.get().uri("/api/v1/chat/models"))
+                .hasStatusOk()
+                .bodyText()
+                .contains("\"defaultModelPrice\":null");
     }
 
     /**
@@ -333,14 +482,14 @@ class ChatControllerTest {
                                         false,
                                         true,
                                         null,
-                                        List.of(new ModelView("model-a", true))),
+                                        List.of(new ModelView("model-a", true, true, null))),
                                 new ConnectionView(
                                         "SECOND",
                                         "openai-compatible",
                                         true,
                                         true,
                                         null,
-                                        List.of(new ModelView("model-b", false)))),
+                                        List.of(new ModelView("model-b", false, false, null)))),
                         "model-a"));
         given(catalog.contains("PRIMARY", "model-a")).willReturn(true);
         given(catalog.contains("SECOND", "model-b")).willReturn(true);

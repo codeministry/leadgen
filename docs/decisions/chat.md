@@ -240,13 +240,110 @@ refuses, the other is rolled back, so a refused call counts on neither. Absent i
 reason the chat's own ceilings have one. `billed` is a key on each connection, because an `openai-compatible`
 endpoint may be a local server or a paid one; empty means billed for `anthropic` only.
 
-**Picked per turn, never inherited, never a fallback.** The select sits beside the composer; the next model reads
+**Picked per turn, never inherited, never a fallback.** The picker sits beside the composer; the next model reads
 the conversation as the turns before it left it — question and answer per turn, never an earlier tool result — under
 the same masker, ledger and round bound. A new conversation always starts on `llm.models.chat` on the primary
 connection and the pick lives in memory, never in `localStorage`, so a billed model is reached only by a pick in
 that conversation; a reopened one starts on its last turn's model. A model that fails, times out or is refused ends
 its turn with its reason and is never retried elsewhere. The suggestions and the semantic tool's query vector stay
 on the primary connection whichever model a turn uses.
+
+## Prices and measured usage (spec 026)
+
+**A price lives in the operator's configuration and nowhere else.** A price is a value, as a model id is, so neither
+belongs in a committed file: `chat.prices` ships as `[]` with its shape in a comment, and the list is written in the
+operator's own `config/pipeline.yaml`. It is not a `${PLACEHOLDER}`, because a table of entries does not fit one
+variable. It is a list of `{connection, model, input, output}` rather than a map on each connection block, because the
+primary's block is the pipeline's `llm:`, which gains no chat key, and a model id with `:` or `.` needs no escaping as
+a list value. Amounts are USD per million tokens, as the hosted kind bills; a conversion would be an exchange rate to
+maintain and a number nobody was charged. Only input and output are priced: the chat sets no prompt-cache control, so
+there is no third class to bill. The lookup is exact on connection and model id (`ChatPrices`), one rule the catalog
+and the turn share; an unbilled connection is free whatever the list says.
+
+**Unpriced is shown, never guessed.** A billed model the list does not name stays pickable as "price unknown"; its
+turns store their tokens and no cost, and every sum names how many turns it left out rather than reading low in
+silence. No price refuses a call: the ceilings stay call counts (§ Its own budget), and a money budget was not taken.
+
+**The usage is the provider's own count, read off the stream the turn already reads.** Every kind reports a running
+or final figure for the whole call on its last usage-bearing chunk, never a delta, so each round takes its last
+non-empty figure and the turn sums its rounds, tool rounds included. The OpenAI module — Ollama's `/v1` and
+`openai-compatible` — sends usage on a stream only when asked (`stream_options.include_usage`, `streamUsage(true)` in
+`ChatModels`), on a final chunk with no choice; the `anthropic` kind reports one combined figure on `message_delta`.
+On an unbilled connection a kind that sends none stores null, which reads as no data, never as zero; on a billed one
+see the next paragraph. Locally answered turns are measured too,
+at a cost of 0. The judge and the classifier call rather than stream and record nothing; the pipeline's costs were
+offered as a ledger for every call and not taken.
+
+**The cost is frozen at the price read when the turn starts.** Tokens × price ÷ 1M, computed from that snapshot and
+written with the tokens on every save and on every ending — done, stopped, out of budget or rounds, a model error, a
+timeout — so a turn that ends early keeps every call it paid for. What a cut stream loses is its own round: a stop or
+a deadline cancels the call before its final usage chunk arrives, so the earlier rounds are kept and the cut one is
+not.
+
+**Usage is complete per round, never per turn.** A round that delivered part of its stream and reported no usage
+leaves a hole in the sum, and the provider may well have billed the words it streamed. Judged per turn, a turn whose
+first round reported and whose second was cut before its usage chunk stored the first round's tokens and their cost
+as though they were exact. So the turn tracks each round: once one delivered a chunk and reported nothing, the turn
+keeps the tokens the other rounds reported — a lower bound, 0/0 when none did — stores no cost, and is marked
+`chat_turn.unreported` (`V41`). A call refused before its first chunk — a 401, a 429, a connection refused —
+reached no model that could bill it and leaves no hole; a turn whose calls all ended that way keeps null tokens and
+stays out of the spend. A price changed mid-turn never splits a turn, and a price changed later never re-prices a
+stored row.
+
+**Unreported and unpriced are two causes, counted apart.** Both store no cost, so the cost column alone cannot say
+which, and before the split the spend listed a priced model's cut turn as "not priced" — a claim about the price
+table that was false, and an instruction to the operator (add a price) that would fix nothing. The fact is a
+boolean on the row rather than a classification handed to the ledger's upsert: the row is what the status popover,
+the ledger, its backfill and the start's sweep all read, and only the running turn knows its rounds. A turn the
+process died under is classified by that sweep: on a connection billed by the configuration at the restart — the
+turn's own price snapshot died with it — a row that streamed text and stored no token was cut before its usage, and
+is stored as 0/0, marked unreported. A swept turn that had stored an earlier round's tokens keeps them and their
+cost: whether its last round finished cannot be read off the row.
+
+**Three states on two token columns and a cost** (`V40`), and the mark that tells the two missing costs apart
+(`V41`): all three null is no data — a turn from before the migration, or one no call reported for on a free
+connection, which stores no cost of 0 beside no tokens; tokens with a null cost is a billed model without a price, or,
+marked `unreported`, a turn a round of which reported nothing; a cost of 0 is a connection nobody bills that
+reported usage. The cost is `NUMERIC(14,8)` and travels as a decimal string (`Usd.wire`, one helper for prices, costs and
+sums), and the sums are SQL over stored costs only, so no float rounds a cent away. `GET /api/v1/chat/status` names
+the spend per connection and in total, today and this month: the day the call ceilings count and the calendar month,
+both in the server's zone, with the unpriced and the unreported turns of each window counted beside them. A turn
+carries the mark outward too, as `usageIncomplete` on its `done` or `error` event and on the reloaded turn, so the
+answer's status popover says "usage not fully reported" rather than "price unknown" for a model that has a price.
+
+**The spend is a ledger, not a sum over the turns** (`V41`, `chat_spend`). A turn's row goes with its conversation
+(`ON DELETE CASCADE`), so a spend summed over `chat_turn` fell whenever a conversation was deleted — and deleting a
+conversation must not un-spend the money its turns cost. The call budgets already keep their count in a table no
+delete reaches, so the spend does the same: one row per day and connection, a cost, an unpriced and an unreported count. It is
+written once per turn, by the ending that moves the row off `STREAMING` — `finish` locks and reads the state first,
+`incomplete` and the start's sweep update only a streaming row — from the turn's row as it then stands, so the ledger
+and the row cannot disagree and a turn that reaches two endings is counted once. A delete is the one write that takes a
+row still streaming, before any ending can reach it, so `delete` and `deleteAll` book such a turn's stored rounds by the
+same classification in their own transaction, the rows locked first so an ending that commits first is counted by
+itself. A turn with no token and no mark adds nothing. The
+day is the turn's start in the session's zone, as `current_date` is for the budgets; the JDBC driver sends the JVM's
+zone, which is the zone the status names today in. The cost of the ledger is that a running turn appears in the spend
+only when it ends, which is seconds; the alternative — soft-deleting conversations — would have kept every deleted
+answer's text in the database for the sake of one sum. One limit is accepted: the start's sweep cannot tell from a row
+whether its last round finished, so a billed turn that died mid-round after earlier rounds stored their counts is booked
+with those rounds' cost as though it were exact. Telling the two apart would take a per-flush round mark on the row.
+Two more are accepted for a delete that overtakes a running turn, which happens only when the five-second stop wait
+before the delete times out: the delete books the turn as its row stands, without the sweep's rule for a cut first
+round, so a billed round that streamed text before any count is booked as nothing; and it locks the turns before the
+conversation, so a regenerate arriving in the same second can deadlock with it, and Postgres aborts one of the two.
+Neither touches stored data.
+
+**The picker replaces the select** (`lg-chat-model-picker`). A native `<select>` had no room for a price, a ceiling or
+an icon. The button beside the composer names the pick with its connection's icon — `server` local, `coins` billed,
+`circle-alert` spent or unreachable — and opens a manual top-layer popover: one group per connection with its kind,
+its calls against its ceiling, its spend today and this month, and the reason when it is spent; each model with its
+price, "free" or "price unknown", the default badge and a check on the pick; the chat's total at the foot. It is a
+ghost control, never a second primary beside send. Arrow keys, Home and End skip disabled models, Escape is taken in
+the capture phase so the sheet does not close with it, and focus returns to the button. Grouping, the default and the
+pick per conversation are the select's, moved unchanged. Placement is one helper, `popover-placement.ts`: upward from
+the trigger, gutter to gutter below 48rem and end-aligned from it, clamped on both axes against `visualViewport` and
+re-placed on its `resize` and `scroll` while open. The answer's status popover is its second caller and now shows the
+turn's tokens and cost; it was placed once and never clamped (spec 022's Remaining Work), which this retires.
 
 ## Streaming: server-sent events over a `fetch` POST
 
@@ -555,7 +652,8 @@ did not show. An open conversation among them leaves the thread for a new one.
 ## The ring says what it stands for (spec 022)
 
 Hover or keyboard focus on the ring beside an answer turns it once and opens the status popover: done, working,
-writing, incomplete with its reason, or stopped, with the tool calls, the duration and the model. The
+writing, incomplete with its reason, or stopped, with the tool calls, the duration and the model — and,
+since spec 026, its tokens and cost, neither shown for a turn stored before `V40`. The
 reason is stored (`chat_turn.end_reason`, `V36`), so a reload says what the live `error` event said;
 a turn from before the column says "no reason was recorded" rather than guessing. On the empty chat's
 plate the same gesture shows the chat itself — the model, today's calls against
@@ -595,6 +693,25 @@ DROP TABLE chat_context;
 ALTER TABLE chat_conversation DROP COLUMN custom_title, DROP COLUMN search_text;
 ALTER TABLE chat_tool_call DROP COLUMN data;
 DELETE FROM flyway_schema_history WHERE version = '35';
+```
+
+`V40` adds `chat_turn.input_tokens`, `output_tokens` and `cost_usd`, nullable, with no backfill; the previous
+image selects its columns by name and runs against it unchanged. Removing them loses every recorded token and cost,
+the only record of what the chat spent:
+
+```sql
+ALTER TABLE chat_turn DROP COLUMN input_tokens, DROP COLUMN output_tokens, DROP COLUMN cost_usd;
+DELETE FROM flyway_schema_history WHERE version = '40';
+```
+
+`V41` adds `chat_spend` and `chat_turn.unreported`, marks the `V40` rows stored as 0/0 without a cost, and backfills
+the ledger from every ended turn from `V40` on; the previous image reads neither, and a turn it ends adds nothing to
+the ledger. Dropping them forgets what was spent, including on conversations deleted since:
+
+```sql
+DROP TABLE chat_spend;
+ALTER TABLE chat_turn DROP COLUMN unreported;
+DELETE FROM flyway_schema_history WHERE version = '41';
 ```
 
 How long conversations are kept is not decided: they are deletable one by one, and a retention rule

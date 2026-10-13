@@ -38,6 +38,11 @@ const TOOLCHAIN_NAMES = ['--border', '--depth', '--noise'];
 const RUNTIME_ALLOWLIST = [
     '--lg-anchor-x',
     '--lg-anchor-y',
+    // The chat popovers' placement (features/chat/popover-placement.ts, ISC-524): the edge facing the
+    // trigger, the widest the visual viewport leaves, and the room that caps the panel's height.
+    '--lg-anchor-bottom',
+    '--lg-anchor-max-w',
+    '--lg-anchor-room',
     '--lg-chat-search-h',
     '--lg-swipe-x',
     '--lg-swipe-uncovered',

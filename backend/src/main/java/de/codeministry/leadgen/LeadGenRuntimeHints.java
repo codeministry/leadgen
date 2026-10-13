@@ -16,6 +16,7 @@ import de.codeministry.leadgen.chat.ChatDone;
 import de.codeministry.leadgen.chat.ChatError;
 import de.codeministry.leadgen.chat.ChatSource;
 import de.codeministry.leadgen.chat.ChatSources;
+import de.codeministry.leadgen.chat.ChatSpend;
 import de.codeministry.leadgen.chat.ChatStatusView;
 import de.codeministry.leadgen.chat.ChatStep;
 import de.codeministry.leadgen.chat.ChatText;
@@ -31,9 +32,11 @@ import de.codeministry.leadgen.chat.RegenerateTurn;
 import de.codeministry.leadgen.chat.RenameConversation;
 import de.codeministry.leadgen.chat.StatisticsSource;
 import de.codeministry.leadgen.chat.TurnLedger;
+import de.codeministry.leadgen.chat.TurnUsage;
 import de.codeministry.leadgen.chat.TurnView;
 import de.codeministry.leadgen.chat.catalog.ChatModelsView;
 import de.codeministry.leadgen.chat.catalog.ConnectionView;
+import de.codeministry.leadgen.chat.catalog.ModelPrice;
 import de.codeministry.leadgen.chat.catalog.ModelView;
 import de.codeministry.leadgen.chat.suggest.FollowUp;
 import de.codeministry.leadgen.chat.suggest.Suggestion;
@@ -51,6 +54,7 @@ import de.codeministry.leadgen.chat.tools.ProfileTool;
 import de.codeministry.leadgen.chat.tools.SemanticSearchTool;
 import de.codeministry.leadgen.chat.tools.StatisticsTool;
 import de.codeministry.leadgen.config.ConfigProperties;
+import de.codeministry.leadgen.config.model.PipelineConfig;
 import de.codeministry.leadgen.mcp.ApplicationTools;
 import de.codeministry.leadgen.mcp.ChatToolsForMcp;
 import de.codeministry.leadgen.mcp.OfferTools;
@@ -113,6 +117,20 @@ public class LeadGenRuntimeHints implements RuntimeHintsRegistrar {
         registerChatRecords(hints);
         registerMcpTools(hints);
         registerValidatedConfiguration(hints);
+        registerPriceTable(hints);
+    }
+
+    /**
+     * {@code chat.prices}, an entry of {@code pipeline.yaml} that Jackson builds through its
+     * constructor and Hibernate Validator reads through its fields: each half carries a
+     * {@code @DecimalMin}, and an unhinted constrained component is the same startup failure
+     * {@link #registerValidatedConfiguration} records for {@code Chat.turnTimeout}. It reaches the
+     * binder only as the element type of a list, which no annotation leads AOT to.
+     */
+    private static void registerPriceTable(RuntimeHints hints) {
+        new BindingReflectionHintsRegistrar()
+                .registerReflectionHints(hints.reflection(), PipelineConfig.ChatPrice.class);
+        hints.reflection().registerType(PipelineConfig.ChatPrice.class, MemberCategory.ACCESS_DECLARED_FIELDS);
     }
 
     /**
@@ -136,10 +154,13 @@ public class LeadGenRuntimeHints implements RuntimeHintsRegistrar {
                 ChatModelsView.class,
                 ConnectionView.class,
                 ModelView.class,
+                ModelPrice.class,
                 ChatDone.class,
                 ChatError.class,
                 ChatSource.class,
                 ChatSources.class,
+                ChatSpend.class,
+                ChatSpend.Connection.class,
                 ChatStatusView.class,
                 ChatStep.class,
                 ChatText.class,
@@ -170,6 +191,7 @@ public class LeadGenRuntimeHints implements RuntimeHintsRegistrar {
                 PinnedOfferResult.class,
                 PinnedAdvert.class,
                 // Never serialised; hinted because the guard binds every public chat record.
+                TurnUsage.class,
                 PinnedContext.class);
     }
 

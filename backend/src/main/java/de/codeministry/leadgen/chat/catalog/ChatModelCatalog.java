@@ -29,6 +29,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -114,11 +115,67 @@ public class ChatModelCatalog {
     private final ConcurrentMap<SnapshotKey, CompletableFuture<ChatModelsView>> inFlight = new ConcurrentHashMap<>();
 
     /**
-     * Every configured connection with its tool-capable models, from the cache while it is fresh.
-     * On a miss the caller either runs the one discovery for this snapshot or waits on the one
-     * already running; neither holds a lock while the connections are asked.
+     * Every configured connection with its tool-capable models, each with what it costs (ISC-517).
+     * The list comes from the cache while it is fresh; the prices are joined on afterwards, from
+     * the configuration current at that moment, so the cache holds what the connections said and
+     * nothing the operator decides.
      */
     public ChatModelsView models() {
+        return priced(listed(), config.snapshot().application());
+    }
+
+    /**
+     * {@code view} with every model's cost: free on an unbilled connection whatever the table says,
+     * on a billed one the price {@code chat.prices} names for that connection and model, or none.
+     * An entry naming a model the connection does not list is never read, so it adds nothing.
+     */
+    private static ChatModelsView priced(ChatModelsView view, PipelineConfig pipeline) {
+        Map<List<String>, PipelineConfig.ChatPrice> table = ChatPrices.table(pipeline);
+        List<ConnectionView> connections = view.connections().stream()
+                .map(connection -> new ConnectionView(
+                        connection.name(),
+                        connection.kind(),
+                        connection.billed(),
+                        connection.reachable(),
+                        connection.reason(),
+                        connection.models().stream()
+                                .map(model -> connection.billed()
+                                        ? model.billedAt(
+                                                ChatPrices.in(table, connection.name(), connection.kind(), model.name())
+                                                        .map(price -> ModelPrice.of(price.input(), price.output()))
+                                                        .orElse(null))
+                                        : model.asFree())
+                                .toList()))
+                .toList();
+        return new ChatModelsView(
+                connections, view.defaultModelName(), defaultPrice(pipeline, table, view.defaultModelName()));
+    }
+
+    /**
+     * What {@code defaultModel} costs on the primary, by the lookup a turn on it is costed by
+     * ({@code TurnPrice}): null when the primary is not billed — a free model has no price to
+     * show — when nobody priced it, or when there is no default.
+     */
+    private static ModelPrice defaultPrice(
+            PipelineConfig pipeline, Map<List<String>, PipelineConfig.ChatPrice> table, String defaultModel) {
+        if (defaultModel == null || pipeline == null || pipeline.llm() == null) {
+            return null;
+        }
+        Connection primary = Connections.primary(pipeline);
+        if (!primary.billed()) {
+            return null;
+        }
+        return ChatPrices.in(table, primary.name().name(), primary.kind(), defaultModel)
+                .map(price -> ModelPrice.of(price.input(), price.output()))
+                .orElse(null);
+    }
+
+    /**
+     * Every configured connection with its tool-capable models as listed, from the cache while it is
+     * fresh. On a miss the caller either runs the one discovery for this snapshot or waits on the one
+     * already running; neither holds a lock while the connections are asked.
+     */
+    private ChatModelsView listed() {
         while (true) {
             // Read again on every round: a waiter asking again after an interrupted discovery lists
             // the configuration current now, not the one before a reload.
@@ -300,7 +357,7 @@ public class ChatModelCatalog {
             }
             List<ModelView> models = lister(connection.kind()).list(connection.llm()).stream()
                     .distinct()
-                    .map(model -> new ModelView(model, isDefault(connection.kind(), model, defaultModel)))
+                    .map(model -> ModelView.listed(model, isDefault(connection.kind(), model, defaultModel)))
                     .toList();
             return new ConnectionView(name, connection.kind(), connection.billed(), true, null, models);
         } catch (InterruptedException e) {
@@ -330,15 +387,15 @@ public class ChatModelCatalog {
     }
 
     /**
-     * Whether {@code model} is the chat's default. Ollama reports a model with its tag, so a
-     * configured {@code name} without one is the same model as {@code name:latest}.
+     * Whether {@code model} is the chat's default: the configured name, or the name the connection
+     * lists it under ({@link ChatPrices#listed}) — the same rule a default turn's price is found by.
      */
     private static boolean isDefault(String kind, String model, Optional<String> defaultModel) {
         if (defaultModel.isEmpty()) {
             return false;
         }
         String wanted = defaultModel.get();
-        return model.equals(wanted) || (ChatModels.OLLAMA.equals(kind) && model.equals(wanted + ":latest"));
+        return model.equals(wanted) || model.equals(ChatPrices.listed(kind, wanted));
     }
 
     private static ConnectionView unreachable(Connection connection, String reason) {

@@ -9,6 +9,7 @@
 package de.codeministry.leadgen.chat;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mockingDetails;
@@ -162,6 +163,33 @@ class ChatTurnHardeningTest {
     }
 
     /**
+     * A turn that breaks off on the server after its counts were saved names them on its error, as
+     * an incomplete turn's error does: the row holds them, so the live popover needs no reload.
+     * Here the model answered with its usage and resolving the sources threw, before the row ended.
+     */
+    @Test
+    void aTurnThatBreaksOffAfterItsCountsWereSavedNamesThemOnItsError() {
+        long conversation = conversation(null);
+        MODEL.enqueue(ModelStub.text(Duration.ZERO, "Fine.").withUsage(100, 7));
+        doThrow(new IllegalStateException("a source that will not resolve"))
+                .when(conversations)
+                .sources(anyList());
+
+        List<TurnStream.Event> events = TurnStream.ask(port, conversation, "Anything?");
+
+        assertThat(TurnStream.names(events).getLast()).isEqualTo("error");
+        String error = events.getLast().data();
+        assertThat(TurnStream.JsonText.field(error, "reason")).isEqualTo("MODEL");
+        assertThat(List.of(
+                        TurnStream.JsonText.field(error, "inputTokens"),
+                        TurnStream.JsonText.field(error, "outputTokens")))
+                .as("the counts the row holds, on the error")
+                .containsExactly("100", "7");
+        assertThat(jdbc.queryForList("SELECT input_tokens FROM chat_turn", Integer.class))
+                .containsExactly(100);
+    }
+
+    /**
      * Fix 8: the database failing mid-stream is not the model stopping. The turn ends with one
      * error that says what failed, and nothing retries the write that just threw.
      */
@@ -170,16 +198,21 @@ class ChatTurnHardeningTest {
         long conversation = conversation(null);
         doThrow(new org.springframework.dao.DataAccessResourceFailureException("the database went away"))
                 .when(conversations)
-                .append(anyLong(), org.mockito.ArgumentMatchers.anyString());
+                .flush(
+                        anyLong(),
+                        org.mockito.ArgumentMatchers.anyString(),
+                        org.mockito.ArgumentMatchers.any(),
+                        org.mockito.ArgumentMatchers.any(),
+                        org.mockito.ArgumentMatchers.anyBoolean());
         // A pause past the flush interval, so the text is written while the model is still streaming.
         MODEL.enqueue(ModelStub.text(ChatTurnService.FLUSH_INTERVAL.plusMillis(100), "Half ", "an ", "answer."));
 
         List<TurnStream.Event> events = TurnStream.ask(port, conversation, "Anything?");
 
         long appends = mockingDetails(conversations).getInvocations().stream()
-                .filter(invocation -> invocation.getMethod().getName().equals("append"))
+                .filter(invocation -> invocation.getMethod().getName().equals("flush"))
                 .count();
-        assertThat(appends).as("append calls after the one that threw").isEqualTo(1);
+        assertThat(appends).as("flushes after the one that threw").isEqualTo(1);
         assertThat(TurnStream.names(events)).endsWith("error").containsOnlyOnce("error");
         assertThat(TurnStream.JsonText.field(events.getLast().data(), "message"))
                 .contains("database")
@@ -334,9 +367,11 @@ class ChatTurnHardeningTest {
         List<TurnStream.Event> events = TurnStream.ask(port, conversation, "Long?");
 
         long appends = mockingDetails(conversations).getInvocations().stream()
-                .filter(invocation -> invocation.getMethod().getName().equals("append"))
+                .filter(invocation -> invocation.getMethod().getName().equals("flush"))
                 .count();
-        assertThat(appends).as("append statements for 200 chunks").isLessThan(20);
+        assertThat(appends)
+                .as("write statements for 200 chunks, text and usage together")
+                .isLessThan(20);
         assertThat(jdbc.queryForObject("SELECT answer_md FROM chat_turn", String.class))
                 .isEqualTo(TurnStream.text(events))
                 .isEqualTo(String.join("", parts));

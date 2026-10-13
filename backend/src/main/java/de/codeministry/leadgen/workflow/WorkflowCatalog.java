@@ -475,6 +475,9 @@ public final class WorkflowCatalog {
             // select and its turns, never by a stage — the pipeline runs on `llm` alone.
             pipeline("llm.billed"),
             pipeline("chat.connection"),
+            // The chat's price table (spec 026): read by the model picker and a turn's cost, never by
+            // a stage.
+            pipeline("chat.prices"),
             // skill-profile.yaml
             profile("version"),
             profile("core[].since"),

@@ -31,8 +31,8 @@ class ChatIsolationTest {
 
     private static final Path MAIN = Path.of("src/main/java/de/codeministry/leadgen");
 
-    private static final Pattern CHAT_STATE =
-            Pattern.compile("chat_conversation|chat_turn|chat_tool_call|chat_call_budget|ConversationRepository");
+    private static final Pattern CHAT_STATE = Pattern.compile(
+            "chat_conversation|chat_turn|chat_tool_call|chat_call_budget|chat_spend|ConversationRepository");
 
     @Test
     void noPipelineCodeReadsWhatTheChatWrites() throws IOException {
