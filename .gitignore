@@ -114,3 +114,12 @@ specs/
 # Archify diagram output: candidate JSON, rendered HTML and browser evidence per request.
 # Regenerated from the source on demand, so it stays local like specs/ above.
 .archify/
+
+# Session worktrees live inside the repository, never beside it. A worktree links these folders to the main
+# checkout, and a link is a file to git: a pattern ending in `/` matches only a directory, so the link needs
+# its own line or `git add -A` commits a path into somebody's home directory.
+/.worktrees/
+/config
+/data
+/packages
+/specs
