@@ -9,6 +9,14 @@ may change in any release. See the status note in the README.
 
 ## [Unreleased]
 
+### Changed
+
+- **The chat's suggestions show at once.** Opening the chat no longer waits for the model to reword them:
+  it shows the stored phrasing, or the catalog's sentences while the model rewords them in the background
+  for the next open. A run's end and every status change warm the next open ahead, a model that fails is
+  asked once per data change rather than on every open, and the phrasings survive a restart in the new table
+  `chat_suggestion_phrasing` (`V39`). No configuration changes.
+
 ## [0.5.5] — 2026-10-12
 
 The chat can answer with another model per question — a local one or, through an optional second

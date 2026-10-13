@@ -16,6 +16,7 @@ import de.codeministry.leadgen.chat.suggest.FollowUps;
 import de.codeministry.leadgen.chat.suggest.Suggestion;
 import de.codeministry.leadgen.chat.suggest.SuggestionScope;
 import de.codeministry.leadgen.chat.suggest.SuggestionService;
+import de.codeministry.leadgen.chat.suggest.SuggestionWarmup;
 import de.codeministry.leadgen.config.ConfigRegistry;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -47,7 +48,8 @@ import org.testcontainers.junit.jupiter.Testcontainers;
  * ISC-456 and ISC-457: a chat model phrases the candidates and the follow-ups in the reader's
  * language, paid from the chat's day and never from {@code llm.budget}, once per data snapshot;
  * without a model, with the chat budget at zero, or with a model that fails, the catalog's own
- * sentences are shown. Follow-ups come from a finished turn's stored tool calls only, and every id
+ * sentences are shown. Since spec 027 the empty chat shows the catalog first and the phrasing from
+ * the next open on, because the call runs in the background (ISC-527, ISC-528). Follow-ups come from a finished turn's stored tool calls only, and every id
  * they name is in that turn's ledger.
  */
 @SpringBootTest
@@ -79,6 +81,9 @@ class SuggestionPhrasingTest {
     private FollowUps followUps;
 
     @Autowired
+    private SuggestionWarmup warmup;
+
+    @Autowired
     private ConversationRepository conversations;
 
     @Autowired
@@ -96,6 +101,7 @@ class SuggestionPhrasingTest {
 
     @BeforeEach
     void reset() throws IOException {
+        awaitIdle();
         MODEL.reset();
         // No RESTART IDENTITY: every test starts at a run id no earlier test saw, so a phrasing
         // cached by one test is never the next one's snapshot.
@@ -115,18 +121,27 @@ class SuggestionPhrasingTest {
         MODEL.enqueue(ModelStub.text(Duration.ZERO, phrased("0")));
 
         List<Suggestion> first = suggestions.suggestions(SuggestionScope.NONE, "de");
+        awaitIdle();
         List<Suggestion> second = suggestions.suggestions(SuggestionScope.NONE, "de");
+        List<Suggestion> third = suggestions.suggestions(SuggestionScope.NONE, "de");
+        awaitIdle();
 
         assertThat(MODEL.bodies()).hasSize(1);
         assertThat(MODEL.bodies().getFirst()).contains("German");
         assertThat(first)
                 .extracting(Suggestion::text)
                 .containsExactly(
+                        "0 Angebote stehen auf der Shortlist. Welches passt am besten zu meinem Profil?",
+                        "0 Bewerbungen sind offen. Wo steht jede davon?");
+        assertThat(second)
+                .extracting(Suggestion::text)
+                .containsExactly(
                         "Welches der 0 Angebote auf der Shortlist passt?", "Wie stehen die 0 offenen Bewerbungen?");
-        assertThat(second).isEqualTo(first);
+        assertThat(third).isEqualTo(second);
 
         run(0);
         suggestions.suggestions(SuggestionScope.NONE, "de");
+        awaitIdle();
 
         assertThat(MODEL.bodies()).hasSize(2);
         assertThat(chatCalls()).isEqualTo(2);
@@ -158,6 +173,7 @@ class SuggestionPhrasingTest {
         MODEL.enqueue(ModelStub.text(Duration.ZERO, phrased("0")));
 
         List<Suggestion> shown = suggestions.suggestions(SuggestionScope.NONE, "de");
+        awaitIdle();
 
         assertThat(shown)
                 .extracting(Suggestion::text)
@@ -172,6 +188,7 @@ class SuggestionPhrasingTest {
     void aFailingModelShowsTheCatalog() {
         // Nothing enqueued: the stub answers 500.
         List<Suggestion> shown = suggestions.suggestions(SuggestionScope.NONE, "en");
+        awaitIdle();
 
         assertThat(MODEL.bodies()).hasSize(1);
         assertThat(shown)
@@ -187,7 +204,11 @@ class SuggestionPhrasingTest {
     void aPhrasingThatChangesANumberKeepsTheCatalogSentence() {
         MODEL.enqueue(ModelStub.text(Duration.ZERO, phrased("7")));
 
+        suggestions.suggestions(SuggestionScope.NONE, "en");
+        awaitIdle();
         List<Suggestion> shown = suggestions.suggestions(SuggestionScope.NONE, "en");
+
+        assertThat(MODEL.bodies()).hasSize(1);
 
         assertThat(shown)
                 .extracting(Suggestion::text)
@@ -262,6 +283,22 @@ class SuggestionPhrasingTest {
         assertThat(second).isEqualTo(first);
         assertThat(chatCalls()).isEqualTo(1);
         assertThat(llmCalls()).isZero();
+    }
+
+    /** Waits for the background phrasing to finish, so no call leaks into the next test. */
+    private void awaitIdle() {
+        long deadline = System.nanoTime() + Duration.ofSeconds(30).toNanos();
+        while (!warmup.idle()) {
+            if (System.nanoTime() > deadline) {
+                throw new AssertionError("the suggestion warm-up did not finish within 30 s");
+            }
+            try {
+                Thread.sleep(20);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new AssertionError(e);
+            }
+        }
     }
 
     /** A model reply phrasing the two evergreen candidates, both naming {@code number}. */

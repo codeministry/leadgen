@@ -38,8 +38,10 @@ import de.codeministry.leadgen.chat.catalog.ModelView;
 import de.codeministry.leadgen.chat.suggest.FollowUp;
 import de.codeministry.leadgen.chat.suggest.Suggestion;
 import de.codeministry.leadgen.chat.suggest.SuggestionCandidate;
+import de.codeministry.leadgen.chat.suggest.SuggestionDataChanged;
 import de.codeministry.leadgen.chat.suggest.SuggestionScope;
 import de.codeministry.leadgen.chat.suggest.SuggestionThresholds;
+import de.codeministry.leadgen.chat.suggest.SuggestionWarmup;
 import de.codeministry.leadgen.chat.tools.ApplicationTool;
 import de.codeministry.leadgen.chat.tools.OfferSearchTool;
 import de.codeministry.leadgen.chat.tools.PinnedAdvert;
@@ -148,8 +150,10 @@ public class LeadGenRuntimeHints implements RuntimeHintsRegistrar {
                 FollowUp.class,
                 Suggestion.class,
                 SuggestionCandidate.class,
+                SuggestionDataChanged.class,
                 SuggestionScope.class,
                 SuggestionThresholds.class,
+                SuggestionWarmup.Job.class,
                 NewConversation.class,
                 ModelPick.class,
                 NewTurn.class,

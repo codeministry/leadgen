@@ -48,11 +48,17 @@ import org.springframework.stereotype.Component;
  * per model call; a refused take, a missing model and a failed call all answer the catalog's own
  * sentences, so the empty chat is never empty because a model was not there.
  *
+ * <p><b>Looked up apart from asked (ISC-527).</b> {@link #stored} never calls a model, so the empty
+ * chat answers at once; {@link #attempt} is the call itself, which {@link SuggestionWarmup} makes off
+ * the request thread. {@link #phrase} does both in a row and stays for the follow-ups, which are
+ * asked once a turn has finished rather than while the chat opens.
+ *
  * <p><b>Once per snapshot.</b> The caller's key names the data the sentences were found in; the
  * model, the language and the sentences themselves are added here, so a changed count, a switched
  * model or the other language is a new key and a reopened chat with none of those is a map
  * lookup. The map is cleared when it grows past {@link #CACHE_LIMIT}: its keys come from data
- * snapshots, and an old snapshot is never asked for again.
+ * snapshots, and an old snapshot is never asked for again. Behind the map sits
+ * {@link PhrasingStore}, so a restart costs a table read rather than a model call (ISC-531).
  *
  * <p><b>A phrasing may change the words, not the numbers.</b> A sentence whose digits differ from
  * the catalog's is dropped for the catalog's, so no count and no id reaches the screen that the
@@ -80,13 +86,21 @@ class Phrasing {
 
     private final Map<String, Map<String, String>> cache = new ConcurrentHashMap<>();
 
+    /**
+     * Keys whose call failed: not asked again until the data, the model or the language moves the
+     * key (ISC-532). A refused take or a missing model is not kept here, since neither sends anything.
+     */
+    private final Set<String> failed = ConcurrentHashMap.newKeySet();
+
     private final ChatCapability capability;
     private final ChatModels chatModels;
     private final ConfigRegistry config;
     private final ChatBudget budget;
+    private final PhrasingStore store;
 
     /**
-     * The sentences as the reader sees them, in the order given.
+     * The sentences as the reader sees them, in the order given: the stored phrasing, else one
+     * asked for now, else the catalog's.
      *
      * @param snapshot  what the sentences were derived from; equal snapshots share one phrasing
      * @param sentences the catalog's sentences by key, in the reader's language
@@ -95,19 +109,66 @@ class Phrasing {
         if (sentences.isEmpty()) {
             return sentences;
         }
+        return key(snapshot, sentences, language)
+                .flatMap(this::stored)
+                .or(() -> attempt(snapshot, sentences, language))
+                .orElse(sentences);
+    }
+
+    /**
+     * The key a phrasing of these sentences is kept under, or empty when no chat model is named:
+     * then there is nothing to phrase and nothing to look up.
+     */
+    Optional<String> key(String snapshot, Map<String, String> sentences, String language) {
+        return capability.model().map(model -> key(model, snapshot, sentences, language));
+    }
+
+    /**
+     * The phrasing kept under {@code key}, from the map or else from the table; never asks a model.
+     * A table that does not answer is a miss, not an error: the caller shows the catalog.
+     */
+    Optional<Map<String, String>> stored(String key) {
+        Map<String, String> cached = cache.get(key);
+        if (cached != null) {
+            return Optional.of(cached);
+        }
+        Optional<Map<String, String>> found;
+        try {
+            found = store.find(key);
+        } catch (RuntimeException e) {
+            log.warn(
+                    "The stored suggestion phrasings could not be read; the catalog's sentences are shown: {}",
+                    e.toString());
+            return Optional.empty();
+        }
+        found.ifPresent(phrased -> remember(key, phrased));
+        return found;
+    }
+
+    /** The language of the newest stored phrasing, if the table holds any. */
+    Optional<String> newestLanguage() {
+        try {
+            return store.newestLanguage();
+        } catch (RuntimeException e) {
+            log.warn("The stored suggestion phrasings could not be read: {}", e.toString());
+            return Optional.empty();
+        }
+    }
+
+    /**
+     * Asks the chat's model now and keeps what it answered. Empty when there is no model, the
+     * chat's day is spent or the call fails; the caller shows the catalog's sentences then.
+     */
+    Optional<Map<String, String>> attempt(String snapshot, Map<String, String> sentences, String language) {
         Optional<String> modelName = capability.model();
         PipelineConfig.Llm llm = config.snapshot().application().llm();
         Optional<ChatModel> model = modelName.flatMap(name -> chatModels.of(llm, name));
         if (model.isEmpty()) {
-            return sentences;
+            return Optional.empty();
         }
-        String key = String.join("\n", modelName.get(), language, snapshot, sentences.toString());
-        Map<String, String> cached = cache.get(key);
-        if (cached != null) {
-            return cached;
-        }
+        String key = key(modelName.get(), snapshot, sentences, language);
         if (!budget.take()) {
-            return sentences;
+            return Optional.empty();
         }
         Map<String, String> answer;
         try {
@@ -116,19 +177,41 @@ class Phrasing {
             log.warn(
                     "The chat model could not phrase the suggestions; the catalog's sentences are shown: {}",
                     e.toString());
-            return sentences;
+            if (failed.size() >= CACHE_LIMIT) {
+                failed.clear();
+            }
+            failed.add(key);
+            return Optional.empty();
         }
         Map<String, String> phrased = new LinkedHashMap<>();
         sentences.forEach((item, catalog) -> {
             String candidate = answer.get(item);
             phrased.put(item, acceptable(catalog, candidate) ? candidate.strip() : catalog);
         });
+        Map<String, String> result = Collections.unmodifiableMap(phrased);
+        remember(key, result);
+        try {
+            store.save(key, snapshot, language, modelName.get(), sentences, result);
+        } catch (RuntimeException e) {
+            log.warn("The suggestion phrasing was not stored; it holds until the next restart: {}", e.toString());
+        }
+        return Optional.of(result);
+    }
+
+    /** Whether the call for {@code key} failed already; such a key is not asked again. */
+    boolean failed(String key) {
+        return failed.contains(key);
+    }
+
+    private void remember(String key, Map<String, String> phrased) {
         if (cache.size() >= CACHE_LIMIT) {
             cache.clear();
         }
-        Map<String, String> result = Collections.unmodifiableMap(phrased);
-        cache.put(key, result);
-        return result;
+        cache.put(key, phrased);
+    }
+
+    private static String key(String model, String snapshot, Map<String, String> sentences, String language) {
+        return String.join("\n", model, language, snapshot, sentences.toString());
     }
 
     /**

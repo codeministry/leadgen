@@ -8,6 +8,7 @@
  */
 package de.codeministry.leadgen.application;
 
+import de.codeministry.leadgen.chat.suggest.SuggestionDataChanged;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
@@ -172,6 +173,9 @@ public class ApplicationService {
     @Transactional
     public OpenReport openShortlisted() {
         int opened = jdbc.sql(OPEN_SHORTLISTED).update();
+        if (opened > 0) {
+            events.publishEvent(new SuggestionDataChanged("applications opened"));
+        }
         int standing = jdbc.sql(SHORTLIST_STANDING).query(Integer.class).single();
         log.info("Board: {} opened at NEW, {} offers on the shortlist", opened, standing);
         return new OpenReport(standing, opened);
@@ -325,6 +329,8 @@ public class ApplicationService {
             """)
                 .params(applicationId, from == null ? null : from.name(), to.name(), note)
                 .update();
+        // Every status write passes here, so the empty chat's suggestions follow it (ISC-529).
+        events.publishEvent(new SuggestionDataChanged("application " + to.name()));
     }
 
     /**
