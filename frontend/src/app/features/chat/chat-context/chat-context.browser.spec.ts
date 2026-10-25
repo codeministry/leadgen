@@ -148,6 +148,7 @@ describe('pinning the screen into the chat (ISC-451)', () => {
         document.body.appendChild(fixture.nativeElement);
         await router.navigateByUrl(url);
         await settle();
+        if (url.includes('chat=')) await drawerLoaded();
     }
 
     async function settle(): Promise<void> {
@@ -159,6 +160,20 @@ describe('pinning the screen into the chat (ISC-451)', () => {
             });
             fixture.detectChanges();
         }
+    }
+
+    /**
+     * The drawer is an `@defer` block, so its panel arrives with a dynamic import rather than after a
+     * fixed number of ticks. Under Vitest 5 the first file to ask for the chunk can need longer than
+     * `settle()` gives it, so this waits for the panel itself. The describe below runs after this one,
+     * when the chunk is already loaded.
+     */
+    async function drawerLoaded(): Promise<void> {
+        await vi.waitFor(() => {
+            fixture.detectChanges();
+            expect(document.querySelector('lg-chat-panel'), 'the chat drawer loaded').not.toBeNull();
+        });
+        await settle();
     }
 
     const ctx = (): string | null => router.routerState.snapshot.root.queryParamMap.get('chatCtx');
@@ -175,6 +190,7 @@ describe('pinning the screen into the chat (ISC-451)', () => {
     it('pins a filtered shortlist into a new conversation, keeps it over a reload, and carries it into the create', async () => {
         await boot('/shortlist?q=kafka&deadlineOpen=1');
         await press('.lg-chat-use-view');
+        await drawerLoaded();
 
         expect(router.routerState.snapshot.root.queryParamMap.get('chat')).toBe('new');
         expect(ctx()).toBe(`v:${encodeURIComponent('q=kafka&deadlineOpen=1')}`);

@@ -87,10 +87,24 @@ describe('the chat drawer (ISC-432)', () => {
     const isOpen = () => panel() !== null && (panel() as HTMLElement).getClientRects().length > 0;
     const chatParam = () => new URL(router.url, 'http://x').searchParams.get('chat');
 
+    /**
+     * The drawer is an `@defer` block, so its panel arrives with a dynamic import rather than after a
+     * fixed number of ticks. Under Vitest 5 the first file to ask for the chunk can need longer than
+     * `settle()` gives it, so this waits for the panel itself.
+     */
+    async function drawerLoaded(): Promise<void> {
+        await vi.waitFor(() => {
+            fixture.detectChanges();
+            expect(document.querySelector('lg-chat-panel'), 'the chat drawer loaded').not.toBeNull();
+        });
+        await settle();
+    }
+
     /** Opened, and the slide-in finished: a frame measured mid-slide is 100% off to the side. */
     async function openByButton(): Promise<void> {
         button()!.click();
         await settle();
+        await drawerLoaded();
         await transitions();
     }
 

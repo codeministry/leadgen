@@ -85,6 +85,19 @@ describe('the chat model select (ISC-511)', () => {
         }
     }
 
+    /**
+     * The drawer is an `@defer` block, so its panel arrives with a dynamic import rather than after a
+     * fixed number of ticks. Under Vitest 5 the first file to ask for the chunk can need longer than
+     * `settle()` gives it, so this waits for the panel itself.
+     */
+    async function drawerLoaded(): Promise<void> {
+        await vi.waitFor(() => {
+            fixture.detectChanges();
+            expect(document.querySelector('lg-chat-panel'), 'the chat drawer loaded').not.toBeNull();
+        });
+        await settle();
+    }
+
     async function open(catalog: ChatModels, status: ChatStatus | null): Promise<void> {
         TestBed.configureTestingModule({
             providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([{path: 'dashboard', component: Screen}])],
@@ -101,6 +114,7 @@ describe('the chat model select (ISC-511)', () => {
         await settle();
         http.expectOne('/api/v1/chat/conversations/9').flush({id: 9, title: 'Rates', pinnedOfferId: null, turns: [], updatedAt: '2026-10-12T08:00:00Z'});
         await settle();
+        await drawerLoaded();
         http.expectOne('/api/v1/chat/models').flush(catalog);
         await settle();
         if (status !== null) {

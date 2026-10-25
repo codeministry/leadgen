@@ -43,3 +43,5 @@ __screenshots__/
 .DS_Store
 Thumbs.db
 .vitest-attachments/
+# Vitest 5 moved the failure screenshots and attachments here.
+/.vitest/
