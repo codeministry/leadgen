@@ -23,9 +23,9 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
-import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.postgresql.PostgreSQLContainer;
 
 /**
  * The fixture set closes every placeholder the shipped defaults name, and a test context
@@ -114,7 +114,7 @@ class ConfigFixturesTest {
 
         @Container
         @ServiceConnection
-        static final PostgreSQLContainer<?> POSTGRES = Databases.postgres();
+        static final PostgreSQLContainer POSTGRES = Databases.postgres();
 
         @Autowired
         private ConfigProperties properties;
