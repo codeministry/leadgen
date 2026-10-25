@@ -23,9 +23,9 @@ import org.springframework.boot.testcontainers.service.connection.ServiceConnect
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
-import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.postgresql.PostgreSQLContainer;
 
 /**
  * The age pass: what leaves the working list, what comes back, and what it must not touch.
@@ -42,7 +42,7 @@ class ArchiveServiceTest {
 
     @Container
     @ServiceConnection
-    static final PostgreSQLContainer<?> POSTGRES = Databases.postgres();
+    static final PostgreSQLContainer POSTGRES = Databases.postgres();
 
     /**
      * Pinned to the shipped defaults rather than to whatever `config/` this machine has.

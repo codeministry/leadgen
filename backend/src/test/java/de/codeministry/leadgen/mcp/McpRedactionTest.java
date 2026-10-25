@@ -29,9 +29,9 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.util.StringUtils;
-import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.postgresql.PostgreSQLContainer;
 
 /**
  * No MCP answer carries the configured mailbox address or a value the startup banner masks, whichever
@@ -63,7 +63,7 @@ class McpRedactionTest {
 
     @Container
     @ServiceConnection
-    static final PostgreSQLContainer<?> POSTGRES = Databases.postgres();
+    static final PostgreSQLContainer POSTGRES = Databases.postgres();
 
     @DynamicPropertySource
     static void configuration(DynamicPropertyRegistry registry) {

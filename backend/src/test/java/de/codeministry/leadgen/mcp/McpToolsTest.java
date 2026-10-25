@@ -31,9 +31,9 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.postgresql.PostgreSQLContainer;
 
 /**
  * leadgen serves its read tools over MCP itself (spec 023, ISC-481): a client on the wire lists
@@ -46,7 +46,7 @@ class McpToolsTest {
 
     @Container
     @ServiceConnection
-    static final PostgreSQLContainer<?> POSTGRES = Databases.postgres();
+    static final PostgreSQLContainer POSTGRES = Databases.postgres();
 
     /**
      * Every destination the JVM resolves a proxy for while it is installed. The JDK asks the default

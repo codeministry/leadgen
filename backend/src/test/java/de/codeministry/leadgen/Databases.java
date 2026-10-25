@@ -8,7 +8,7 @@
  */
 package de.codeministry.leadgen;
 
-import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.postgresql.PostgreSQLContainer;
 
 /**
  * The database every test runs against, named once.
@@ -44,7 +44,7 @@ public final class Databases {
      * between classes on purpose: the suite's isolation comes from a database per class, and
      * one container reused across them would make the order of the tests matter.
      */
-    public static PostgreSQLContainer<?> postgres() {
-        return new PostgreSQLContainer<>(IMAGE);
+    public static PostgreSQLContainer postgres() {
+        return new PostgreSQLContainer(IMAGE);
     }
 }

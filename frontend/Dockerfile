@@ -13,7 +13,7 @@
 # `bun install` died with exit 255.
 FROM --platform=$BUILDPLATFORM oven/bun:1.3.12-alpine AS bun
 
-FROM --platform=$BUILDPLATFORM node:22.23.3-alpine AS build
+FROM --platform=$BUILDPLATFORM node:24.22.1-alpine AS build
 COPY --from=bun /usr/local/bin/bun /usr/local/bin/bun
 WORKDIR /app
 COPY frontend/package.json frontend/bun.lock ./

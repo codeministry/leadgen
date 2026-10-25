@@ -33,9 +33,9 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
-import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.postgresql.PostgreSQLContainer;
 
 /**
  * The fetch button on a fresh clone: no language model configured anywhere.
@@ -51,7 +51,7 @@ class OfferRefetchWithoutAModelTest {
 
     @Container
     @ServiceConnection
-    static final PostgreSQLContainer<?> POSTGRES = Databases.postgres();
+    static final PostgreSQLContainer POSTGRES = Databases.postgres();
 
     private static final WireMockServer PORTAL =
             new WireMockServer(WireMockConfiguration.options().dynamicPort());

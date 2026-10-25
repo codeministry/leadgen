@@ -32,9 +32,9 @@ import org.springframework.boot.testcontainers.service.connection.ServiceConnect
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
-import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.postgresql.PostgreSQLContainer;
 
 /**
  * The day's allowance: who may send, and what the two edges of the number mean.
@@ -49,7 +49,7 @@ class LlmBudgetTest {
 
     @Container
     @ServiceConnection
-    static final PostgreSQLContainer<?> POSTGRES = Databases.postgres();
+    static final PostgreSQLContainer POSTGRES = Databases.postgres();
 
     /**
      * Made once in a static initialiser and never inside the property supplier.

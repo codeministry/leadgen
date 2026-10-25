@@ -1,7 +1,7 @@
 [versions]
 springBoot = "4.1.1"
 springDependencyManagement = "1.1.7"
-testcontainers = "1.21.3"
+testcontainers = "2.0.5"
 # Pinned here rather than taken from the Boot BOM: Boot 4 no longer manages jsoup.
 jsoup = "1.21.2"
 # Pinned explicitly rather than taken from the Boot BOM: Lombok hooks into javac
@@ -31,7 +31,7 @@ springAi = "2.0.1"
 # pull request of its own.
 graalvmNative = "1.1.14"
 # Formatting and the SPDX header, both enforced by `check` rather than remembered.
-spotless = "7.0.4"
+spotless = "8.10.4"
 # palantir-java-format rather than google-java-format: 120 columns and 8-space
 # continuation indents are what this tree was already written in, so adopting it is a
 # small diff. The version is pinned because a formatter bump rewrites every file it
