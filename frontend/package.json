@@ -62,7 +62,7 @@
     "@types/d3-zoom": "^3.0.8",
     "@types/node": "^26.0.0",
     "@vitest/browser-playwright": "4.1.11",
-    "@vitest/coverage-v8": "^4.1.11",
+    "@vitest/coverage-v8": "^5.0.0",
     "angular-eslint": "^22.2.0",
     "daisyui": "^5.7.24",
     "eslint": "^10.9.1",
