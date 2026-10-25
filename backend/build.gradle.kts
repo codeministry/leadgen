@@ -16,7 +16,7 @@ plugins {
 group = "de.codeministry"
 version = "0.5.6"
 
-/**
+/*
  * Java 25 through the toolchain rather than the ambient JDK: Gradle runs on
  * whatever JVM launched it, and pinning the toolchain is what makes this build
  * produce the same bytecode here and in CI.
@@ -32,7 +32,7 @@ java {
     }
 }
 
-/**
+/*
  * Toolchain detection is off, and that is a decision rather than laziness.
  *
  * <p>Two JDK 25s are usually installed on a machine that builds this: an ordinary one and a
@@ -48,7 +48,7 @@ graalvmNative {
     toolchainDetection = false
 }
 
-/**
+/*
  * `processTestAot` is off, and this is not an optimisation — it is what keeps `check`
  * finishing.
  *
@@ -67,7 +67,7 @@ tasks
     .matching { it.name in setOf("processTestAot", "compileAotTestJava", "processAotTestResources") }
     .configureEach { enabled = false }
 
-/**
+/*
  * `processAot` starts the real application context at build time to work out what can be
  * decided ahead of it. It does not bake property *values* into the jar, but it does bake
  * *condition outcomes* — so a `SPRING_*` key in somebody's `.env` can change what ends up
@@ -247,6 +247,11 @@ tasks.withType<Test>().configureEach {
  * It also takes back the one job that was a grep step in `ci.yml` while this was off: a
  * new Java file that arrives without the licence header gets it written rather than
  * reported.
+ *
+ * The comments in this file open with a single star, never two. A double-star comment is
+ * KDoc, and the ktlint that Spotless 8 brings allows KDoc only on a declaration; every
+ * block here sits on a call such as `java { ... }`, so each one failed `standard:kdoc`.
+ * ktlint reports one of them per run, which makes six look like one.
  */
 spotless {
     java {
@@ -262,7 +267,7 @@ spotless {
     }
 }
 
-/**
+/*
  * Coverage is measured and published, but nothing fails on it. A threshold set on the day
  * the tool is introduced is a threshold somebody disables the first time it is
  * inconvenient; the number is worth having as a trend long before it is worth having as a
@@ -284,7 +289,7 @@ tasks.check {
     dependsOn(tasks.jacocoTestReport)
 }
 
-/**
+/*
  * No `.env` handling here on purpose. It used to live in a `bootRun` hook, which
  * meant launching the very same configuration from an IDE silently saw none of it — the
  * symptom was "the value is in the file, the service says it is missing", with an error
