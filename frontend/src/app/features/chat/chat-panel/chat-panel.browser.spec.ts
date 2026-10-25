@@ -52,6 +52,7 @@ describe('the chat thread while a turn streams (ISC-462)', () => {
             updatedAt: '2026-09-27T08:00:00Z',
         });
         await settle();
+        await drawerLoaded();
 
         const input = document.querySelector<HTMLTextAreaElement>('.lg-chat-input')!;
         input.value = 'What do Kafka offers pay?';
@@ -73,6 +74,19 @@ describe('the chat thread while a turn streams (ISC-462)', () => {
             fixture.detectChanges();
         }
         await new Promise((resolve) => requestAnimationFrame(resolve));
+    }
+
+    /**
+     * The drawer is an `@defer` block, so its panel arrives with a dynamic import rather than after a
+     * fixed number of ticks. Under Vitest 5 the first file to ask for the chunk can need longer than
+     * `settle()` gives it, so this waits for the panel itself.
+     */
+    async function drawerLoaded(): Promise<void> {
+        await vi.waitFor(() => {
+            fixture.detectChanges();
+            expect(document.querySelector('lg-chat-panel'), 'the chat drawer loaded').not.toBeNull();
+        });
+        await settle();
     }
 
     const thread = () => document.querySelector<HTMLElement>('.lg-chat-thread')!;
