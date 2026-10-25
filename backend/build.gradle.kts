@@ -166,8 +166,8 @@ dependencies {
     // @WebMvcTest, and the HTTP wiring stays the one layer nothing covers.
     testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
     testImplementation(platform(libs.testcontainers.bom))
-    testImplementation("org.testcontainers:junit-jupiter")
-    testImplementation("org.testcontainers:postgresql")
+    testImplementation("org.testcontainers:testcontainers-junit-jupiter")
+    testImplementation("org.testcontainers:testcontainers-postgresql")
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
     // A real IMAP server in-process. The UID semantics this connector depends on cannot
     // be faked convincingly, and they are exactly where the mistakes are.
