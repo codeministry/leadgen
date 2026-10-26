@@ -5,7 +5,6 @@
     "": {
       "name": "frontend",
       "dependencies": {
-        "@angular-architects/ngrx-toolkit": "^22.0.0",
         "@angular/cdk": "^22.2.4",
         "@angular/common": "^22.2.3",
         "@angular/compiler": "^22.2.3",
@@ -19,6 +18,7 @@
         "@fontsource-variable/instrument-sans": "5.3.0",
         "@jsverse/transloco": "^8.4.0",
         "@jsverse/transloco-messageformat": "^8.4.0",
+        "@ngrx-toolkit/core": "^22.0.1",
         "@ngrx/signals": "^22.0.0",
         "angular-oauth2-oidc": "^22.0.2",
         "d3-drag": "^3.0.0",
@@ -67,8 +67,6 @@
     "@alloc/quick-lru": ["@alloc/quick-lru@5.3.0", "", {}, "sha512-U4+70Pc5ZS9osnCBCE5Jha/ciHM+Yp+CNMNC/7HvYbNRk1Ldd+f7qO65W5qfhu/TCv+/ozljlXXe9Nj8419DMA=="],
 
     "@ampproject/remapping": ["@ampproject/remapping@2.3.0", "", { "dependencies": { "@jridgewell/gen-mapping": "^0.3.5", "@jridgewell/trace-mapping": "^0.3.24" } }, "sha512-30iZtAPgz+LTIYoeivqYo853f02jBYSd5uGnGpkFV0M3xOt9aN73erkgYAmZU43x4VfqcnLxW9Kpg3R5LC4YYw=="],
-
-    "@angular-architects/ngrx-toolkit": ["@angular-architects/ngrx-toolkit@22.0.0", "", { "dependencies": { "tslib": "^2.3.0" }, "peerDependencies": { "@angular/common": "^22.0.0", "@angular/core": "^22.0.0", "@ngrx/signals": "^22.0.0", "@ngrx/store": "^22.0.0", "rxjs": "^7.0.0" }, "optionalPeers": ["@ngrx/store"] }, "sha512-sZ/3VO+ZtL0fzYmG680JQQ64t0Wh1Rh3k555Jj57CEE1+N/CbDzz9lIdJj4p8smkVGRmPhXrId2gajmnhV3gaA=="],
 
     "@angular-devkit/architect": ["@angular-devkit/architect@0.2202.4", "", { "dependencies": { "@angular-devkit/core": "22.2.4", "rxjs": "7.8.2" }, "bin": { "architect": "bin/cli.js" } }, "sha512-hafew1tft3+bnv+DjAtLDEq/Yx5/UyAz/+M4VC5EWQQhcFCN81X47szTX3F9dNeiZIQb8d/WmCnmlbHz6CyupA=="],
 
@@ -393,6 +391,8 @@
     "@napi-rs/nice-win32-ia32-msvc": ["@napi-rs/nice-win32-ia32-msvc@1.1.1", "", { "os": "win32", "cpu": "ia32" }, "sha512-CNQqlQT9MwuCsg1Vd/oKXiuH+TcsSPJmlAFc5frFyX/KkOh0UpBLEj7aoY656d5UKZQMQFP7vJNa1DNUNORvug=="],
 
     "@napi-rs/nice-win32-x64-msvc": ["@napi-rs/nice-win32-x64-msvc@1.1.1", "", { "os": "win32", "cpu": "x64" }, "sha512-vB+4G/jBQCAh0jelMTY3+kgFy00Hlx2f2/1zjMoH821IbplbWZOkLiTYXQkygNTzQJTq5cvwBDgn2ppHD+bglQ=="],
+
+    "@ngrx-toolkit/core": ["@ngrx-toolkit/core@22.0.1", "", { "dependencies": { "tslib": "^2.3.0" }, "peerDependencies": { "@angular/common": "^22.0.0", "@angular/core": "^22.0.0", "@ngrx/signals": "^22.0.0", "@ngrx/store": "^22.0.0", "rxjs": "^7.0.0" }, "optionalPeers": ["@ngrx/store"] }, "sha512-57DKzE4xIAA2Td2ZfLleCGuju7BjeK/mB1GvXX39oXNzxQ1xMlZoMfY9nUzobsPrOeJe/oLES3wkJyhrGmrsaQ=="],
 
     "@ngrx/signals": ["@ngrx/signals@22.0.0", "", { "dependencies": { "tslib": "^2.3.0" }, "peerDependencies": { "@angular/core": "^22.0.0", "rxjs": "^6.5.3 || ^7.4.0" }, "optionalPeers": ["rxjs"] }, "sha512-jW/JqU/FuOXsC7pUufx3pfEvb1ZIVD+AlETdB5hatHkF1bW9gMFTL0L001Mht8awvr3SJUXoRcxfnhBGBWgjEQ=="],
 

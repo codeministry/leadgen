@@ -1,5 +1,5 @@
 import {isDevMode} from '@angular/core';
-import {withDevToolsStub, withDevtools} from '@angular-architects/ngrx-toolkit';
+import {withDevToolsStub, withDevtools} from '@ngrx-toolkit/core';
 
 /**
  * Connects a store to the Redux DevTools browser extension in a dev build and to a
