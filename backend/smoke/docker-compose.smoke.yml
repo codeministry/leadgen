@@ -31,7 +31,7 @@ services:
       - "${SMOKE_GREENMAIL_API_PORT:-18081}:8080"
 
   wiremock:
-    image: wiremock/wiremock:3.13.1
+    image: wiremock/wiremock:3.13.2
     command:
       - --global-response-templating
       - --https-port=8443
