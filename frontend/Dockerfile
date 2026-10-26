@@ -11,7 +11,7 @@
 # bun comes from a stage of its own on the same platform: `COPY --from=<image>` resolves the
 # image for the *target*, so the arm64 pass copied an arm64 bun into this amd64 stage and
 # `bun install` died with exit 255.
-FROM --platform=$BUILDPLATFORM oven/bun:1.3.12-alpine AS bun
+FROM --platform=$BUILDPLATFORM oven/bun:1.4.4-alpine AS bun
 
 FROM --platform=$BUILDPLATFORM node:24.22.1-alpine AS build
 COPY --from=bun /usr/local/bin/bun /usr/local/bin/bun
@@ -21,7 +21,7 @@ RUN bun install --frozen-lockfile
 COPY frontend/ ./
 RUN bun run build
 
-FROM nginxinc/nginx-unprivileged:1.27-alpine
+FROM nginxinc/nginx-unprivileged:1.31-alpine
 COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/dist/frontend/browser /usr/share/nginx/html
 # 8080, not 80: nginx runs as uid 101 here, and a non-root process cannot bind a port
