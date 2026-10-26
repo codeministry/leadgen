@@ -36,6 +36,12 @@
       "groupName": "spring boot"
     },
     {
+      "description": "Spring AI gets its own pull request. It is held back in libs.versions.toml, and inside the backend group a held version turns the whole group red; on its own, its CI result says whether the next release fixed it.",
+      "matchPackageNames": ["/^org\\.springframework\\.ai/"],
+      "groupName": null,
+      "automerge": false
+    },
+    {
       "description": "native-build-tools carries the GraalVM reachability-metadata repository version with it, so a bump changes which third-party metadata the native image is compiled against. Its own pull request, read before merging.",
       "matchPackageNames": ["/^org\\.graalvm\\.buildtools/"],
       "groupName": null,

@@ -22,6 +22,11 @@ flexmark = "0.64.8"
 # OpenAI-compatible endpoint including Ollama, because `base_url` decides who answers, and a
 # third model module would buy nothing. Pinned rather than tracked for the same reason jsoup
 # and freemarker are — a judge that suddenly answers differently should show up as a diff.
+# Held at 2.0.1: 2.0.2 brings openai-java 4.80.0, and since openai-java 4.66.0 (openai/openai-java#1027)
+# closing a stream from another thread closes the OkHttp body under the in-flight read, which throws
+# "Unbalanced enter/exit" and leaves the connection open, so stopping a chat turn no longer ends the
+# model call. Retry once a Spring AI release ships an openai-java with that fixed (4.92.0 is not):
+# ChatStreamTest, ChatConversationTest and ChatTurnDeadlineTest turn green again.
 springAi = "2.0.1"
 # The GraalVM build tools. Applied for BOTH images and not only the native one: applying
 # it is what makes the Boot plugin register `processAot`, and Spring AOT is half of the JVM
