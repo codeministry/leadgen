@@ -29,7 +29,7 @@ springAi = "2.0.1"
 # with it, which is where postgresql, flyway, freemarker, jsoup, snakeyaml and angus-mail
 # get their metadata — so a bump changes what compiles rather than what runs, and it gets a
 # pull request of its own.
-graalvmNative = "1.1.14"
+graalvmNative = "1.1.17"
 # Formatting and the SPDX header, both enforced by `check` rather than remembered.
 spotless = "8.10.4"
 # palantir-java-format rather than google-java-format: 120 columns and 8-space
