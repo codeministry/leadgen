@@ -16,7 +16,7 @@
 # `SMOKE_IMAGE` names.
 services:
   greenmail:
-    image: greenmail/standalone:2.1.9
+    image: greenmail/standalone:2.1.15
     environment:
       # One user, no SSL. The IMAP path under test is provider discovery and the search
       # terms, not TLS; TLS is tested against wiremock, where a self-signed certificate
@@ -31,7 +31,7 @@ services:
       - "${SMOKE_GREENMAIL_API_PORT:-18081}:8080"
 
   wiremock:
-    image: wiremock/wiremock:3.13.1
+    image: wiremock/wiremock:3.13.2
     command:
       - --global-response-templating
       - --https-port=8443

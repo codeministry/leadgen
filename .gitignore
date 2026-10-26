@@ -123,3 +123,6 @@ specs/
 /data
 /packages
 /specs
+
+# Spectant run log (written by the spec plugin hooks, local only)
+.spectant/
