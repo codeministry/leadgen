@@ -22,7 +22,7 @@ services:
     # floating on `pg18`. A floating tag swaps the extension binary under a live data
     # directory on the next `docker compose pull`, and that is a change nobody can see in a
     # diff. Bumping it is an edit here, together with the two lines below.
-    image: pgvector/pgvector:0.8.6-pg18
+    image: pgvector/pgvector:0.8.7-pg18
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-leadgen}
       POSTGRES_USER: ${POSTGRES_USER:-leadgen}
