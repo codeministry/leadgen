@@ -22,7 +22,7 @@ flexmark = "0.64.8"
 # OpenAI-compatible endpoint including Ollama, because `base_url` decides who answers, and a
 # third model module would buy nothing. Pinned rather than tracked for the same reason jsoup
 # and freemarker are — a judge that suddenly answers differently should show up as a diff.
-springAi = "2.0.2"
+springAi = "2.0.1"
 # The GraalVM build tools. Applied for BOTH images and not only the native one: applying
 # it is what makes the Boot plugin register `processAot`, and Spring AOT is half of the JVM
 # image's startup win. It also carries the version of the reachability-metadata repository
