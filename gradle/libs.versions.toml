@@ -3,18 +3,18 @@ springBoot = "4.1.2"
 springDependencyManagement = "1.1.7"
 testcontainers = "2.0.5"
 # Pinned here rather than taken from the Boot BOM: Boot 4 no longer manages jsoup.
-jsoup = "1.21.2"
+jsoup = "1.23.2"
 # Pinned explicitly rather than taken from the Boot BOM: Lombok hooks into javac
 # internals, so a JDK bump is exactly where it breaks. A version the BOM moves under
 # us should show up as a diff here, not as a compile error.
-lombok = "1.18.46"
-greenmail = "2.1.9"
+lombok = "1.18.48"
+greenmail = "2.1.15"
 # Standalone (shaded) rather than the plain artifact: it brings its own Jetty and
 # would otherwise fight the one Boot puts on the test classpath.
-wiremock = "3.13.1"
+wiremock = "3.13.2"
 # Pinned rather than taken from the Boot BOM for the same reason as jsoup:
 # a template that stops rendering should show up as a diff here.
-freemarker = "2.3.34"
+freemarker = "2.3.35"
 # The HTML-to-Markdown converter, pinned for the same reason as the two above: an ad
 # that suddenly renders differently should show up as a diff here.
 flexmark = "0.64.8"
@@ -22,7 +22,7 @@ flexmark = "0.64.8"
 # OpenAI-compatible endpoint including Ollama, because `base_url` decides who answers, and a
 # third model module would buy nothing. Pinned rather than tracked for the same reason jsoup
 # and freemarker are — a judge that suddenly answers differently should show up as a diff.
-springAi = "2.0.1"
+springAi = "2.0.2"
 # The GraalVM build tools. Applied for BOTH images and not only the native one: applying
 # it is what makes the Boot plugin register `processAot`, and Spring AOT is half of the JVM
 # image's startup win. It also carries the version of the reachability-metadata repository
@@ -41,7 +41,7 @@ palantirJavaFormat = "2.98.0"
 # 0.8.13 is the current release and reads Java 25 class files without a warning —
 # checked on the toolchain bump, because a JaCoCo that cannot read the class file
 # version reports coverage of nothing rather than failing.
-jacoco = "0.8.13"
+jacoco = "0.8.16"
 
 [libraries]
 testcontainers-bom = { module = "org.testcontainers:testcontainers-bom", version.ref = "testcontainers" }
