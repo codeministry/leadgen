@@ -21,7 +21,7 @@ RUN bun install --frozen-lockfile
 COPY frontend/ ./
 RUN bun run build
 
-FROM nginxinc/nginx-unprivileged:1.27-alpine
+FROM nginxinc/nginx-unprivileged:1.31-alpine
 COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/dist/frontend/browser /usr/share/nginx/html
 # 8080, not 80: nginx runs as uid 101 here, and a non-root process cannot bind a port
