@@ -42,7 +42,7 @@ Violating one of these is expensive, and most of them fail silently.
   bulk-archive: these run against the live instance from the terminal or as direct SQL. A
   one-off admin task that leaves a commit behind has been done wrong, because the next
   release then carries a migration nobody asked for.
-- **The database image is the pinned `pgvector/pgvector:0.8.6-pg18`, set in `docker-compose.yml` and `Databases.java` and nowhere else.** — reasoning in `docs/decisions/retrieval.md`.
+- **The database image is the pinned `pgvector/pgvector:0.8.7-pg18`, set in `docker-compose.yml` and `Databases.java` and nowhere else.** — reasoning in `docs/decisions/retrieval.md`.
 - **Mount the database volume at `/var/lib/postgresql`, never `…/data`; a major bump moves tag, `PGDATA`, mount and data at once.** — reasoning in `docs/decisions/retrieval.md`.
 - **The vector column is 2000 wide, a wider vector is truncated at the seam, and thresholds move only after measuring with `docs/samples/measure_embeddings.ts`.** — reasoning in `docs/decisions/retrieval.md`.
 - **No CV tailoring.** Fixed PDFs in `config/documents/`, selected by the language

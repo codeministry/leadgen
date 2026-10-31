@@ -69,7 +69,7 @@ class LeadGenerationApplicationTests {
 
     @Test
     void theVectorExtensionIsThereAndTheColumnHasAWidth() {
-        // The image is the thing under test here. `pgvector/pgvector:0.8.6-pg18` is a plain
+        // The image is the thing under test here. `pgvector/pgvector:0.8.7-pg18` is a plain
         // postgres with the extension added, and on any image without it `V22` fails at startup
         // naming the extension rather than the image — which is a long way from the compose file
         // that actually decides it.
