@@ -168,7 +168,7 @@ healthy service.
 It is a bash script and a compose **overlay**, not a Gradle task and not a compose file of
 its own. Not a Gradle task because it runs a container on a runner and dragging the
 configuration cache and the toolchain into that buys nothing. An overlay because
-`pgvector/pgvector:0.8.6-pg18` is named in exactly two places in this repository and a
+`pgvector/pgvector:0.8.7-pg18` is named in exactly two places in this repository and a
 third copy is a third thing to forget on the next major — `postgres` is inherited verbatim
 and only GreenMail, WireMock and the service under test are added. That service is called
 `smoke-api` and not `api`, because `api` carries a `build:` block an overlay cannot remove

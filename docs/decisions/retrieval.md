@@ -429,7 +429,7 @@ test there was, and it was available at any point.
 
 ## Moved from the root CLAUDE.md
 
-- **The database image is `pgvector/pgvector:0.8.6-pg18`, not plain postgres.** Deduplication's
+- **The database image is `pgvector/pgvector:0.8.7-pg18`, not plain postgres.** Deduplication's
   two similarity strategies compare vectors, `V22` creates the extension, and an image without
   it fails that migration with an error naming the extension rather than the image. It is named
   in `docker-compose.yml` and once for the tests in

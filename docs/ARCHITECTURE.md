@@ -44,7 +44,7 @@ flowchart LR
         direction TB
         web["web<br/>nginx serving the Angular build,<br/>/api proxied to api:8080"]
         api["api<br/>Spring Boot: the pipeline,<br/>the REST API, the schedulers"]
-        db[("postgres<br/>pgvector/pgvector:0.8.6-pg18")]
+        db[("postgres<br/>pgvector/pgvector:0.8.7-pg18")]
         web --> api --> db
     end
     subgraph outside["outside the machine"]

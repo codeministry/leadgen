@@ -35,7 +35,7 @@ public final class Databases {
      * no target here that could miss it. The trap is written out beside the mount it applies
      * to.
      */
-    public static final String IMAGE = "pgvector/pgvector:0.8.6-pg18";
+    public static final String IMAGE = "pgvector/pgvector:0.8.7-pg18";
 
     private Databases() {}
 

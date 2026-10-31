@@ -1,6 +1,6 @@
 # The smoke stack, as an OVERLAY on `docker-compose.yml` and never as a file of its own.
 #
-# `postgres` is inherited verbatim, which is the point: `pgvector/pgvector:0.8.6-pg18` is
+# `postgres` is inherited verbatim, which is the point: `pgvector/pgvector:0.8.7-pg18` is
 # named in exactly two places in this repository and a third copy is a third thing to
 # forget on the next major. Run it as
 #

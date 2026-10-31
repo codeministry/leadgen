@@ -9,6 +9,32 @@ may change in any release. See the status note in the README.
 
 ## [Unreleased]
 
+## [0.5.7] — 2026-10-31
+
+A maintenance release: dependency updates since 0.5.6, one security fix in the frontend, and a test flake fixed.
+Nothing in the configuration, the API or the schema changes, and there is no new migration. The database image moves
+to `pgvector/pgvector:0.8.7-pg18`, a patch release of the extension on the same Postgres major, so the data
+directory and its mount stay as they are.
+
+### Changed
+
+- **Spring Boot 4.1.2, Gradle 9.8.2, bun 1.4.4, Testcontainers 2.0.5, Spotless 8.10.4, Vitest 5 with Angular 22.2**,
+  and the rest of the backend and frontend minor and patch updates. The frontend image builds on Node.js 24, and its
+  runtime is `nginx-unprivileged` 1.31.
+- **The database image is `pgvector/pgvector:0.8.7-pg18`**, in Compose and for the tests alike; Renovate had moved
+  only the Compose file, so for a while the tests checked a different image than the one that ships.
+- **`@angular-architects/ngrx-toolkit` is replaced by `@ngrx-toolkit/core`**, the package's new name from v22 on.
+- **Spring AI stays at 2.0.1.** 2.0.2 brings an openai-java (from 4.66.0) whose stream close releases the transport
+  under an in-flight read, so stopping a turn or hitting its deadline no longer ends the model call. Renovate proposes
+  Spring AI in a pull request of its own from now on.
+
+### Fixed
+
+- **dompurify 3.4.17**, which closes three advisories on 3.4.16 and earlier (critical: `SAFE_FOR_TEMPLATES` bypass in
+  shadow roots; high: an `IN_PLACE` hook left event handlers armed; low: the SMIL `href` guard skipped for XHTML).
+- **The suggestion prewarm tests no longer fail on a loaded runner.** The model stub counted a connection dropped
+  before its body as a request and handed it the next scripted reply.
+
 ## [0.5.6] — 2026-10-13
 
 The chat's model picker shows what each model costs and what the chat has spent, every turn records its tokens and
@@ -1778,7 +1804,8 @@ Found while building the demo, all of them in paths only a container exercises:
   left six.
 - The shortlist card printed the description's Markdown syntax in its teaser.
 
-[Unreleased]: https://github.com/codeministry/leadgen/compare/v0.5.6...HEAD
+[Unreleased]: https://github.com/codeministry/leadgen/compare/v0.5.7...HEAD
+[0.5.7]: https://github.com/codeministry/leadgen/releases/tag/v0.5.7
 [0.5.6]: https://github.com/codeministry/leadgen/releases/tag/v0.5.6
 [0.5.5]: https://github.com/codeministry/leadgen/releases/tag/v0.5.5
 [0.5.4]: https://github.com/codeministry/leadgen/releases/tag/v0.5.4
