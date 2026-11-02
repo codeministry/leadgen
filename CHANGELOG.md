@@ -9,6 +9,13 @@ may change in any release. See the status note in the README.
 
 ## [Unreleased]
 
+### Changed
+
+- **Spring AI 2.0.2, with openai-java held at 4.65.0.** 2.0.2 brings openai-java 4.80.0, and from 4.66.0 on a stopped
+  turn or one past its deadline leaves the model call running (openai/openai-java#1027; 4.96.0 still does). The hold
+  moves from Spring AI to openai-java, so Spring AI's own fixes land: Anthropic streaming chunks carry the thinking
+  text, and the configured OpenAI timeout is honoured again. Renovate proposes openai-java in a pull request of its own.
+
 ## [0.5.7] — 2026-10-31
 
 A maintenance release: dependency updates since 0.5.6, one security fix in the frontend, and a test flake fixed.

@@ -22,12 +22,18 @@ flexmark = "0.64.8"
 # OpenAI-compatible endpoint including Ollama, because `base_url` decides who answers, and a
 # third model module would buy nothing. Pinned rather than tracked for the same reason jsoup
 # and freemarker are — a judge that suddenly answers differently should show up as a diff.
-# Held at 2.0.1: 2.0.2 brings openai-java 4.80.0, and since openai-java 4.66.0 (openai/openai-java#1027)
-# closing a stream from another thread closes the OkHttp body under the in-flight read, which throws
-# "Unbalanced enter/exit" and leaves the connection open, so stopping a chat turn no longer ends the
-# model call. Retry once a Spring AI release ships an openai-java with that fixed (4.92.0 is not):
-# ChatStreamTest, ChatConversationTest and ChatTurnDeadlineTest turn green again.
 springAi = "2.0.2"
+# openai-java, held below the version Spring AI brings (2.0.2 brings 4.80.0) and enforced as a
+# `strictly` constraint in backend/build.gradle.kts. Since 4.66.0 (openai/openai-java#1027) closing a
+# stream from another thread closes the OkHttp body under the in-flight read, which throws
+# "Unbalanced enter/exit" and leaves the connection open, so stopping a chat turn or hitting its
+# deadline no longer ends the model call. 4.65.0 is the last release before that; 4.66.1, 4.92.0 and
+# 4.96.0 fail the same four tests in ChatStreamTest, ChatConversationTest and ChatTurnDeadlineTest.
+# Held here rather than holding Spring AI, so its other fixes land. Every openai-java method that
+# spring-ai-openai 2.0.2 calls exists in 4.65.0 (checked against the bytecode, 499 references).
+# Renovate proposes it in a pull request of its own; when that one turns green, the hold can go —
+# drop the constraint and this entry together, and the next Spring AI picks its own version again.
+openaiJava = "4.65.0"
 # The GraalVM build tools. Applied for BOTH images and not only the native one: applying
 # it is what makes the Boot plugin register `processAot`, and Spring AOT is half of the JVM
 # image's startup win. It also carries the version of the reachability-metadata repository
@@ -55,6 +61,7 @@ spring-ai-chat = { module = "org.springframework.ai:spring-ai-client-chat" }
 spring-ai-anthropic = { module = "org.springframework.ai:spring-ai-anthropic" }
 spring-ai-openai = { module = "org.springframework.ai:spring-ai-openai" }
 spring-ai-mcp-server = { module = "org.springframework.ai:spring-ai-starter-mcp-server-webmvc" }
+openai-java-core = { module = "com.openai:openai-java-core", version.ref = "openaiJava" }
 jsoup = { module = "org.jsoup:jsoup", version.ref = "jsoup" }
 lombok = { module = "org.projectlombok:lombok", version.ref = "lombok" }
 greenmail-junit5 = { module = "com.icegreen:greenmail-junit5", version.ref = "greenmail" }
