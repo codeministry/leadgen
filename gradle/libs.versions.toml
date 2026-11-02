@@ -27,7 +27,7 @@ flexmark = "0.64.8"
 # "Unbalanced enter/exit" and leaves the connection open, so stopping a chat turn no longer ends the
 # model call. Retry once a Spring AI release ships an openai-java with that fixed (4.92.0 is not):
 # ChatStreamTest, ChatConversationTest and ChatTurnDeadlineTest turn green again.
-springAi = "2.0.1"
+springAi = "2.0.2"
 # The GraalVM build tools. Applied for BOTH images and not only the native one: applying
 # it is what makes the Boot plugin register `processAot`, and Spring AOT is half of the JVM
 # image's startup win. It also carries the version of the reachability-metadata repository
