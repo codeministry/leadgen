@@ -3,7 +3,7 @@ springBoot = "4.1.2"
 springDependencyManagement = "1.1.7"
 testcontainers = "2.0.5"
 # Pinned here rather than taken from the Boot BOM: Boot 4 no longer manages jsoup.
-jsoup = "1.23.2"
+jsoup = "1.24.1"
 # Pinned explicitly rather than taken from the Boot BOM: Lombok hooks into javac
 # internals, so a JDK bump is exactly where it breaks. A version the BOM moves under
 # us should show up as a diff here, not as a compile error.
@@ -27,8 +27,8 @@ springAi = "2.0.2"
 # `strictly` constraint in backend/build.gradle.kts. Since 4.66.0 (openai/openai-java#1027) closing a
 # stream from another thread closes the OkHttp body under the in-flight read, which throws
 # "Unbalanced enter/exit" and leaves the connection open, so stopping a chat turn or hitting its
-# deadline no longer ends the model call. 4.65.0 is the last release before that; 4.66.1, 4.92.0 and
-# 4.96.0 fail the same four tests in ChatStreamTest, ChatConversationTest and ChatTurnDeadlineTest.
+# deadline no longer ends the model call. 4.65.0 is the last release before that; 4.66.1, 4.92.0, 4.96.0 and
+# 4.101.0 fail the same four tests in ChatStreamTest, ChatConversationTest and ChatTurnDeadlineTest.
 # Held here rather than holding Spring AI, so its other fixes land. Every openai-java method that
 # spring-ai-openai 2.0.2 calls exists in 4.65.0 (checked against the bytecode, 499 references).
 # Renovate proposes it in a pull request of its own; when that one turns green, the hold can go —
@@ -42,7 +42,7 @@ openaiJava = "4.65.0"
 # pull request of its own.
 graalvmNative = "1.1.18"
 # Formatting and the SPDX header, both enforced by `check` rather than remembered.
-spotless = "8.10.4"
+spotless = "8.11.0"
 # palantir-java-format rather than google-java-format: 120 columns and 8-space
 # continuation indents are what this tree was already written in, so adopting it is a
 # small diff. The version is pinned because a formatter bump rewrites every file it

@@ -15,6 +15,19 @@ may change in any release. See the status note in the README.
   turn or one past its deadline leaves the model call running (openai/openai-java#1027; 4.96.0 still does). The hold
   moves from Spring AI to openai-java, so Spring AI's own fixes land: Anthropic streaming chunks carry the thinking
   text, and the configured OpenAI timeout is honoured again. Renovate proposes openai-java in a pull request of its own.
+- **The frontend image builds on Node 26** (`node:26.13.0-alpine`, from 24.22.1). The Angular CLI accepts
+  `>=26.0.0`; the build output is the same static files, served by the same nginx stage. A root `.nvmrc` names
+  the major, and CI and the release gate now set up that Node with `actions/setup-node` instead of building on
+  whatever the runner ships.
+- **Angular 22.2.5 (CLI 22.2.6)** and the frontend's other dependencies to their current releases, among them
+  vitest 5.1, Playwright 1.65 and three majors: jsdom 31, stylelint 18 and stylelint-config-standard 41.
+  stylelint 18's new `selector-no-invalid` rejects Angular's `::ng-deep` and has no option to accept it, so it is
+  switched off — it did not exist before, so the check covers what it covered. jsdom 31 answers `none` instead of
+  `''` for a `grid-template-columns` nothing computed, and the shortlist now reads both as "no grid", which a
+  browser can answer too. TypeScript stays on 6.0, which is what Angular 22 accepts.
+- **Backend: jsoup 1.24.1 and Spotless 8.11.0.** palantir-java-format 2.103.0 reformats four files and stays at
+  2.98.0 for a commit of its own; Gradle 9.9.0 waits for its `gradle:9.9.0-jdk25` image. openai-java 4.101.0 still
+  fails the four chat-stop tests, so the hold at 4.65.0 stays.
 
 ## [0.5.7] — 2026-10-31
 
