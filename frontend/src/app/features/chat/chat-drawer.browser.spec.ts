@@ -75,10 +75,12 @@ describe('the chat drawer (ISC-432)', () => {
     }
 
     // The slide-ins end; the streaming caret and the busy marks loop for as long as a turn runs,
-    // and waiting for those would wait for ever.
+    // and waiting for those would wait for ever. A transition cancelled on the way — its element
+    // gone, or its value switched back — is over too: Chromium rejects its `finished` with
+    // "AbortError: The user aborted a request.", which failed this file about one run in fifteen.
     async function transitions(): Promise<void> {
         const finite = document.getAnimations().filter((animation) => animation.effect?.getComputedTiming().iterations !== Infinity);
-        await Promise.all(finite.map((animation) => animation.finished));
+        await Promise.all(finite.map((animation) => animation.finished.catch(() => undefined)));
     }
 
     const q = <T extends Element = HTMLElement>(selector: string) => document.querySelector<T>(selector);
