@@ -452,8 +452,10 @@ export class ShortlistPage {
 
   /**
    * One track in the split's resolved `grid-template-columns` is the single-column layout. A
-   * browser resolves the value to lengths (`540px 548px`); an empty string is a document that
-   * computed no grid at all, which says nothing either way.
+   * browser resolves the value to lengths (`540px 548px`); an empty string or the initial
+   * `none` is a document that computed no grid at all, which says nothing either way. jsdom
+   * answered `''` up to 30 and answers `none` from 31 on, and `none` as one track hid the
+   * second column in every spec.
    */
   private readSplit(): void {
     const split = this.host.nativeElement.querySelector('.split');
@@ -462,7 +464,8 @@ export class ShortlistPage {
       return;
     }
     const tracks = view.getComputedStyle(split).gridTemplateColumns.trim();
-    this.narrowPage.set(tracks !== '' && tracks.split(/\s+/).length === 1);
+    const computed = tracks !== '' && tracks !== 'none';
+    this.narrowPage.set(computed && tracks.split(/\s+/).length === 1);
   }
 
     constructor() {
