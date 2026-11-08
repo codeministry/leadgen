@@ -48,6 +48,13 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v6
 
+      # The Angular CLI checks `process.version`, so the frontend runs on the Node the frontend
+      # image builds on rather than whatever the runner ships. `.nvmrc` holds the major for
+      # this step and for a local `nvm use`; `frontend/Dockerfile` pins the exact tag.
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: '.nvmrc'
+
       # The frontend is bracketed into the Gradle build with plain `Exec` tasks calling
       # bun, so bun has to exist before `check` runs. Version pinned to what
       # `package.json` declares as its packageManager.

@@ -16,7 +16,9 @@ may change in any release. See the status note in the README.
   moves from Spring AI to openai-java, so Spring AI's own fixes land: Anthropic streaming chunks carry the thinking
   text, and the configured OpenAI timeout is honoured again. Renovate proposes openai-java in a pull request of its own.
 - **The frontend image builds on Node 26** (`node:26.13.0-alpine`, from 24.22.1). The Angular CLI accepts
-  `>=26.0.0`; the build output is the same static files, served by the same nginx stage.
+  `>=26.0.0`; the build output is the same static files, served by the same nginx stage. A root `.nvmrc` names
+  the major, and CI and the release gate now set up that Node with `actions/setup-node` instead of building on
+  whatever the runner ships.
 - **Angular 22.2.5 (CLI 22.2.6)** and the frontend's other dependencies to their current releases, among them
   vitest 5.1, Playwright 1.65 and three majors: jsdom 31, stylelint 18 and stylelint-config-standard 41.
   stylelint 18's new `selector-no-invalid` rejects Angular's `::ng-deep` and has no option to accept it, so it is
