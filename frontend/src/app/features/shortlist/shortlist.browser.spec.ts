@@ -228,12 +228,17 @@ describe('the split views beside the chat (ISC-472)', () => {
         await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     }
 
-    /** The slide-in ends; looping marks would never finish, so they are not waited on. */
+    /**
+     * The slide-in ends; looping marks would never finish, so they are not waited on. A cancelled
+     * transition has ended as well, and Chromium rejects its `finished` with an `AbortError`, so
+     * the rejection is taken as the end rather than as a failure (the same race as in
+     * `chat-drawer.browser.spec.ts`).
+     */
     async function transitions(): Promise<void> {
         const finite = document
             .getAnimations()
             .filter((animation) => animation.effect?.getComputedTiming().iterations !== Infinity);
-        await Promise.all(finite.map((animation) => animation.finished));
+        await Promise.all(finite.map((animation) => animation.finished.catch(() => undefined)));
     }
 
     async function open(url: string, width: number, chat: boolean): Promise<void> {
