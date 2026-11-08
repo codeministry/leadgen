@@ -227,6 +227,11 @@ tasks.withType<Test>().configureEach {
             rootProject.file(".github/workflows/release.yml"),
         ).withPropertyName("bunPins")
         .withPathSensitivity(PathSensitivity.RELATIVE)
+    // `NodePinTest` holds `.nvmrc` to the Dockerfile's Node major; the other three are above.
+    inputs
+        .files(rootProject.file(".nvmrc"))
+        .withPropertyName("nodePins")
+        .withPathSensitivity(PathSensitivity.RELATIVE)
     inputs
         .files(rootProject.fileTree("docs") { include("**/*.md") })
         .withPropertyName("documentation")
