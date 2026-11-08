@@ -3,7 +3,8 @@
 # below the CLI's minimum. So this stage runs on the Node the CLI wants and carries the bun
 # that `packageManager` pins, both by exact tag. When an Angular bump raises the CLI's Node
 # floor (`engines.node` in node_modules/@angular/cli/package.json), the Node tag here moves
-# with it; CI builds on the runner's Node and will not notice. `BunPinTest` holds the bun
+# with it, and so does the major in `.nvmrc`, which is what CI and the release gate run on
+# (`actions/setup-node`) and nothing checks against this tag. `BunPinTest` holds the bun
 # tag equal to `packageManager` and the two workflows.
 # `$BUILDPLATFORM`: the build output is static files, the same for every architecture, so the
 # stage runs once on the runner's own platform. Built per target, the arm64 pass ran under
@@ -13,7 +14,7 @@
 # `bun install` died with exit 255.
 FROM --platform=$BUILDPLATFORM oven/bun:1.4.4-alpine AS bun
 
-FROM --platform=$BUILDPLATFORM node:24.22.1-alpine AS build
+FROM --platform=$BUILDPLATFORM node:26.13.0-alpine AS build
 COPY --from=bun /usr/local/bin/bun /usr/local/bin/bun
 WORKDIR /app
 COPY frontend/package.json frontend/bun.lock ./
