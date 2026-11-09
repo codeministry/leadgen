@@ -36,14 +36,8 @@
       "groupName": "spring boot"
     },
     {
-      "description": "Spring AI gets its own pull request. Its BOM decides the model SDKs, and openai-java is held below the one it brings, so a Spring AI release is the update most likely to need that hold revisited; on its own, its CI result says so without turning the backend group red.",
+      "description": "Spring AI gets its own pull request. Its BOM decides the model SDKs, so a Spring AI release can change the client that streams the chat; the stop tests then say so on its own CI run without turning the backend group red.",
       "matchPackageNames": ["/^org\\.springframework\\.ai/"],
-      "groupName": null,
-      "automerge": false
-    },
-    {
-      "description": "openai-java is held at the last release before the stream-cancel regression (reason next to openaiJava in libs.versions.toml). Its own pull request, so a red one stays out of the backend group and a green one says the hold can go.",
-      "matchPackageNames": ["com.openai:openai-java-core"],
       "groupName": null,
       "automerge": false
     },

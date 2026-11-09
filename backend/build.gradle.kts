@@ -123,16 +123,6 @@ dependencies {
     // The BOM governs the two starters' versions and everything they drag in, so the
     // Anthropic and OpenAI client SDKs are pinned by one line rather than by three.
     implementation(platform(libs.spring.ai.bom))
-    // With one exception: openai-java is held below what the BOM brings, because from 4.66.0 on a
-    // stop no longer ends the model call. `strictly`, so a newer one dragged in by anything else
-    // fails the resolution instead of quietly winning. The reason and the way out sit next to
-    // `openaiJava` in libs.versions.toml.
-    constraints {
-        implementation(libs.openai.java.core) {
-            version { strictly(libs.versions.openaiJava.get()) }
-            because("openai-java 4.66.0+ leaves a cancelled stream's connection open (openai/openai-java#1027)")
-        }
-    }
     // Naming two vendors here is deliberate and is the one place the "nothing is wired in"
     // rule does not reach: a dependency is not a value. No host, key or model name appears
     // in any committed file, and `base_url` still decides who answers.

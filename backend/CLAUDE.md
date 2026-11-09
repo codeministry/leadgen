@@ -110,6 +110,8 @@ takes `ChatBudget.take()` against `chat.max_calls_per_day` instead — reasoning
   `docs/decisions/retrieval.md`.
 - **An UPDATE cannot reference its own target table from a LATERAL item in its FROM clause.** Compute the pairs in a
   `WITH` and update `FROM` that. Reasoning in `docs/decisions/pipeline-dedupe-filter.md`.
+- **Every OpenAI-compatible chat client gets `CancelOnClose.CUSTOMIZER`, as `ChatModels` passes it, or a stopped
+  stream leaves the model generating.** — reasoning in `docs/decisions/chat.md` § Stop and regenerate.
 - **Two constructors on a `@Component` are none, and the error names the wrong thing.** Spring picks neither and
   reports `No default constructor found` — a message about a constructor that was never meant to exist, rather than
   about the ambiguity. Every context in the suite fails at once: measured at 194 failures from one added convenience

@@ -153,7 +153,7 @@ public class ChatModels {
                                 null,
                                 ObservationRegistry.NOOP,
                                 null,
-                                List.of()))
+                                List.of(CancelOnClose.CUSTOMIZER)))
                         // Both clients, and the asynchronous one is not optional: left unset, the
                         // builder makes its own from its own empty fields and fails with "at least
                         // one credential source must be specified" — a credential error naming a key
@@ -174,7 +174,7 @@ public class ChatModels {
                                 null,
                                 ObservationRegistry.NOOP,
                                 null,
-                                List.of()))
+                                List.of(CancelOnClose.CUSTOMIZER)))
                         // Same trap as in `EmbeddingModels`: without this, `AbstractOpenAiOptions`
                         // fills in its 60 s DEFAULT_TIMEOUT and the per-call value overrides the
                         // client's. The Anthropic options below carry no such default.
