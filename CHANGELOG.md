@@ -14,6 +14,8 @@ unreachable model within minutes, and the pipeline no longer imports the chat. N
 
 ### Changed
 
+- **On a phone the toasts stack one high.** Below 48rem only the newest toast shows; an older one comes back
+  when the newest goes, unless its own time ran out first.
 - **The warm-up waits for the chat to be used, and for the changes to pause.** Before the first open since start, a
   run's end or a status change prepares nothing; after it, the warm-up starts once `leadgen.chat.suggestion-quiet-window`
   (default 30 s) has passed without a further change, so triaging applications one by one costs one call from the

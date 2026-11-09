@@ -1,7 +1,7 @@
 import {TestBed} from '@angular/core/testing';
 import {provideRouter} from '@angular/router';
 import {injectDispatch} from '@ngrx/signals/events';
-import {cdp} from 'vitest/browser';
+import {cdp, page} from 'vitest/browser';
 import {shortlistEvents} from '@core/store/shortlist.events';
 import {toastEvents} from '@core/toast/toast.events';
 import {actionToast, toast} from '@core/toast/toast.model';
@@ -100,5 +100,50 @@ describe('ToastStack sizes (ISC-500)', () => {
             expect(m.closeHeight).toBeLessThan(32);
             expect(parseFloat(m.maxWidth)).toBeLessThanOrEqual(28 * rootPx + 0.5);
         }
+    });
+});
+
+/**
+ * Below 48rem the stack runs the full width above the bottom bar, and three toasts in a row took a
+ * third of a phone's height. There it shows the newest one only; the older ones stay in the store and
+ * come back as the newest goes.
+ */
+describe('ToastStack on a phone', () => {
+    let dispatch: ReturnType<typeof injectDispatch<typeof toastEvents>>;
+
+    beforeEach(() => {
+        TestBed.configureTestingModule({providers: [provideRouter([])]});
+        dispatch = TestBed.runInInjectionContext(() => injectDispatch(toastEvents));
+    });
+
+    afterEach(async () => {
+        await page.viewport(1280, 800);
+    });
+
+    function raiseThree(): HTMLElement[] {
+        const fixture = TestBed.createComponent(ToastStack);
+        fixture.detectChanges();
+        for (const title of ['First', 'Second', 'Third']) {
+            dispatch.raised(toast('info', 'toast.archived', {title}, '/shortlist/8'));
+        }
+        fixture.detectChanges();
+        return Array.from(fixture.nativeElement.querySelectorAll('.alert'));
+    }
+
+    const shown = (alerts: HTMLElement[]) => alerts.filter((alert) => alert.getClientRects().length > 0);
+
+    it('shows only the newest toast at 390px', async () => {
+        await page.viewport(390, 844);
+        const alerts = raiseThree();
+
+        expect(alerts).toHaveLength(3);
+        expect(shown(alerts)).toEqual([alerts[2]]);
+        expect(alerts[2]!.textContent).toContain('Third');
+    });
+
+    it('keeps the whole stack from 48rem up', async () => {
+        await page.viewport(1280, 800);
+
+        expect(shown(raiseThree())).toHaveLength(3);
     });
 });
