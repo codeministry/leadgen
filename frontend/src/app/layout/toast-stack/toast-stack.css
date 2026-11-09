@@ -41,6 +41,13 @@
     .alert {
         width: 100%;
     }
+
+    /* The newest toast only. Full width above the bar, three in a row took a third of a phone's
+       height. The older ones stay in the store, their timers running, and the next one shows
+       when the newest goes; each was announced when it arrived, so hiding it says nothing twice. */
+    .lg-toasts > :not(:last-child) {
+        display: none;
+    }
 }
 
 .alert {

@@ -630,6 +630,10 @@ One line at the edge of the screen after a write or a run, and the decisions tha
   advert prose, which scrolls. The reveal's duration and easing are the first tokens in
   `src/styles/motion.css`, off under `prefers-reduced-motion`; the lifetime and the cap
   are constants beside the model, because the timer that reads them is TypeScript.
+- **Below 48rem the pile is one toast high.** Full width above the bar, three in a row took a
+  third of a phone's height. The stylesheet shows the newest only; the older ones stay in the store
+  with their timers running and show when the newest goes. CSS rather than a smaller cap for
+  phones, because the cap is the store's and the store does not know the width.
 - **The DOM-render screenshot never paints the fixed stack.** The toast stood in the DOM
   with a measured rectangle while the capture showed nothing. The pictures in the spec
   come from a pixel capture over CDP, taken past the reveal; a frame inside it reads as a
