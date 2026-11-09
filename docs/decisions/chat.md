@@ -429,6 +429,21 @@ leaves nowhere to put them. The model is asked with tool execution left to the c
 the turn reads between chunks and fires a signal that cancels the model request waiting for its
 next one, so a local model stops generating rather than finishing into a closed pipe
 (`ChatStreamTest`: the stub's connection closed within a second, its last chunk never written).
+
+**Closing the stream cancels its HTTP call first (`llm/CancelOnClose`).** The stop, a delete and the
+deadline all close the model's stream from a thread other than the one blocked reading it. openai-java
+4.65.0 closed the reader before the response and got away with it; from 4.66.0 on
+(openai/openai-java#1027) it closes the OkHttp response first, under the read still in flight, okio throws
+"Unbalanced enter/exit", and the socket stays open while the model writes an answer nobody reads. Measured:
+the four stop tests in `ChatStreamTest`, `ChatConversationTest` and `ChatTurnDeadlineTest` red on
+4.66.1, 4.80.0, 4.92.0, 4.96.0 and 4.101.0. For a while the fix was holding openai-java at 4.65.0 below
+what Spring AI 2.0.2 brings; that pinned a client Spring AI was never built against and needed a release
+upstream to end. The interceptor ends it here instead: Spring AI's OkHttp client takes one through
+`OpenAiSetup`'s customizer list, `ChatModels` hands it to the sync and the async client, and closing a
+response body calls `Call.cancel()` before the close — OkHttp's own thread-safe way to end a call from
+outside. A body read to its end has nothing left to cancel, so the judge and the classifier, which call
+rather than stream, are untouched. Green on 4.80.0 and 4.101.0 alike.
+
 The partial answer is kept, its citations listed, and the turn stored `STOPPED`; the composer takes
 the next question.
 

@@ -29,10 +29,11 @@ unreachable model within minutes, and the pipeline no longer imports the chat. N
 - **The data-change event moved out of the chat.** `chat.suggest.SuggestionDataChanged` is now `event.DataChanged`;
   `analytics`, `application` and `archive` import nothing of the chat, and `ChatIsolationTest` checks imports and every
   `chat_*` table the migrations create.
-- **Spring AI 2.0.2, with openai-java held at 4.65.0.** 2.0.2 brings openai-java 4.80.0, and from 4.66.0 on a stopped
-  turn or one past its deadline leaves the model call running (openai/openai-java#1027; 4.96.0 still does). The hold
-  moves from Spring AI to openai-java, so Spring AI's own fixes land: Anthropic streaming chunks carry the thinking
-  text, and the configured OpenAI timeout is honoured again. Renovate proposes openai-java in a pull request of its own.
+- **Spring AI 2.0.2, with the openai-java it brings (4.80.0).** Its own fixes land: Anthropic streaming chunks carry
+  the thinking text, and the configured OpenAI timeout is honoured again. From openai-java 4.66.0 on
+  (openai/openai-java#1027) closing a stream from another thread no longer ends the HTTP call, so a stopped turn, a
+  deleted one or one past its deadline left the model generating; closing a model response now cancels its call first,
+  and no openai-java version is held back any more.
 - **The frontend image builds on Node 26** (`node:26.13.0-alpine`, from 24.22.1). The Angular CLI accepts
   `>=26.0.0`; the build output is the same static files, served by the same nginx stage. A root `.nvmrc` names
   the major, and CI and the release gate now set up that Node with `actions/setup-node` instead of building on
@@ -44,8 +45,8 @@ unreachable model within minutes, and the pipeline no longer imports the chat. N
   `''` for a `grid-template-columns` nothing computed, and the shortlist now reads both as "no grid", which a
   browser can answer too. TypeScript stays on 6.0, which is what Angular 22 accepts.
 - **Backend: jsoup 1.24.1 and Spotless 8.11.0.** palantir-java-format 2.103.0 reformats four files and stays at
-  2.98.0 for a commit of its own; Gradle 9.9.0 waits for its `gradle:9.9.0-jdk25` image. openai-java 4.101.0 still
-  fails the four chat-stop tests, so the hold at 4.65.0 stays.
+  2.98.0 for a commit of its own. Gradle 9.9.0; the backend image keeps building on `gradle:9.8.2-jdk25` until a
+  `gradle:9.9.0-jdk25` image is published.
 
 ### Fixed
 
