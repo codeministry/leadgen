@@ -9,8 +9,13 @@ may change in any release. See the status note in the README.
 
 ## [Unreleased]
 
+## [0.5.8] — 2026-11-09
+
 The chat's suggestion warm-up stops spending the chat's day on a chat nobody opens, recovers from a failed or
-unreachable model within minutes, and the pipeline no longer imports the chat. No migration, and no value to set.
+unreachable model within minutes, and the pipeline no longer imports the chat. A stopped chat turn ends its model call
+again on the openai-java Spring AI brings, so nothing is held back any more. The frontend builds on Node 26 with
+Angular 22.2, and on a phone the toasts stack one high. No migration, and no value to set: the two new
+`leadgen.chat.suggestion-*` durations have defaults.
 
 ### Changed
 
@@ -1851,7 +1856,8 @@ Found while building the demo, all of them in paths only a container exercises:
   left six.
 - The shortlist card printed the description's Markdown syntax in its teaser.
 
-[Unreleased]: https://github.com/codeministry/leadgen/compare/v0.5.7...HEAD
+[Unreleased]: https://github.com/codeministry/leadgen/compare/v0.5.8...HEAD
+[0.5.8]: https://github.com/codeministry/leadgen/releases/tag/v0.5.8
 [0.5.7]: https://github.com/codeministry/leadgen/releases/tag/v0.5.7
 [0.5.6]: https://github.com/codeministry/leadgen/releases/tag/v0.5.6
 [0.5.5]: https://github.com/codeministry/leadgen/releases/tag/v0.5.5
