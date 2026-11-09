@@ -8,8 +8,8 @@
  */
 package de.codeministry.leadgen.analytics;
 
-import de.codeministry.leadgen.chat.suggest.SuggestionDataChanged;
 import de.codeministry.leadgen.config.ConfigRegistry;
+import de.codeministry.leadgen.event.DataChanged;
 import de.codeministry.leadgen.filter.FilterStage;
 import de.codeministry.leadgen.ingest.IngestReport;
 import de.codeministry.leadgen.score.Judges;
@@ -323,7 +323,7 @@ public class PipelineRunRecorder {
                         .update();
             }
             // The counts the empty chat suggests from settle here, not at the start (ISC-529).
-            events.publishEvent(new SuggestionDataChanged("run " + status));
+            events.publishEvent(new DataChanged("run " + status));
         } catch (RuntimeException e) {
             log.error("The run was not recorded: {}", e.getMessage(), e);
         }
@@ -347,7 +347,7 @@ public class PipelineRunRecorder {
                 // complete, and a run recorded before this table existed has no row.
                 log.debug("No run was waiting for a batch, so nothing was completed");
             } else {
-                events.publishEvent(new SuggestionDataChanged("run completed"));
+                events.publishEvent(new DataChanged("run completed"));
             }
         } catch (RuntimeException e) {
             log.error("The batched run was not completed in the history: {}", e.getMessage(), e);

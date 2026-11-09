@@ -20,11 +20,14 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  * Entry point. Scheduling is enabled here because the pipeline runs inside this
  * process (concept § 10, phase 1) — there is no separate worker container.
  *
- * <p>Asynchronous execution is enabled for exactly one thing: {@code PackageWorker}, which
- * writes and removes package folders after the transaction that asked for it has committed.
- * The work is disk and templates rather than a request anybody is waiting on, and Boot's own
+ * <p>Asynchronous execution is enabled for {@code PackageWorker}, which writes and removes
+ * package folders after the transaction that asked for it has committed. The work is disk and
+ * templates rather than a request anybody is waiting on, and Boot's own
  * {@code applicationTaskExecutor} runs it — a second pool for one listener would be one more
- * thing to size and shut down.
+ * thing to size and shut down. The chat's {@code SuggestionWarmup} runs on the same executor,
+ * one model call at a time and for up to the model's timeout; size or bound it with both in mind.
+ * Its quiet window is timed by the JDK's delay timer, not by Boot's {@code taskScheduler}, whose one
+ * thread a scheduled ingest pass holds for as long as it runs.
  */
 @SpringBootApplication
 // Named rather than scanned: a `@WebMvcTest` slice filters scanned records out but keeps

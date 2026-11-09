@@ -9,8 +9,26 @@ may change in any release. See the status note in the README.
 
 ## [Unreleased]
 
+The chat's suggestion warm-up stops spending the chat's day on a chat nobody opens, recovers from a failed or
+unreachable model within minutes, and the pipeline no longer imports the chat. No migration, and no value to set.
+
 ### Changed
 
+- **The warm-up waits for the chat to be used, and for the changes to pause.** Before the first open since start, a
+  run's end or a status change prepares nothing; after it, the warm-up starts once `leadgen.chat.suggestion-quiet-window`
+  (default 30 s) has passed without a further change, so triaging applications one by one costs one call from the
+  chat's day per pause rather than one per move. The first open after a start, and an open inside the window after a
+  change, show the catalog's sentences and phrase in the background as any miss does.
+- **A failed phrasing is asked once more after a few minutes.** A call that failed, or a chat model that is named but
+  cannot be built, is left alone for `leadgen.chat.suggestion-retry-after` (default 5 min) instead of until the data
+  moved, so a local model's cold start no longer leaves the catalog's sentences up until the next run.
+- **A miss is phrased in its own language.** Each miss hands over the job it built, so a German miss followed by an
+  English open is phrased once in each language, and the warm-up no longer reads the data a second time.
+- **Follow-ups are no longer stored.** A finished turn's follow-up phrasings stay in memory, so they no longer push the
+  suggestions out of `chat_suggestion_phrasing`'s 256 rows; rows stored by 0.5.6 age out.
+- **The data-change event moved out of the chat.** `chat.suggest.SuggestionDataChanged` is now `event.DataChanged`;
+  `analytics`, `application` and `archive` import nothing of the chat, and `ChatIsolationTest` checks imports and every
+  `chat_*` table the migrations create.
 - **Spring AI 2.0.2, with openai-java held at 4.65.0.** 2.0.2 brings openai-java 4.80.0, and from 4.66.0 on a stopped
   turn or one past its deadline leaves the model call running (openai/openai-java#1027; 4.96.0 still does). The hold
   moves from Spring AI to openai-java, so Spring AI's own fixes land: Anthropic streaming chunks carry the thinking
@@ -28,6 +46,12 @@ may change in any release. See the status note in the README.
 - **Backend: jsoup 1.24.1 and Spotless 8.11.0.** palantir-java-format 2.103.0 reformats four files and stays at
   2.98.0 for a commit of its own; Gradle 9.9.0 waits for its `gradle:9.9.0-jdk25` image. openai-java 4.101.0 still
   fails the four chat-stop tests, so the hold at 4.65.0 stays.
+
+### Fixed
+
+- **A run finishing during shutdown is no longer logged as not recorded.** The warm-up runs on Boot's
+  `applicationTaskExecutor` instead of an executor of its own, and a data change after shutdown is dropped instead of
+  throwing back into the writer.
 
 ## [0.5.7] — 2026-10-31
 

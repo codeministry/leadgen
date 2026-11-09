@@ -10,6 +10,7 @@ package de.codeministry.leadgen;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import de.codeministry.leadgen.chat.InProcess;
 import de.codeministry.leadgen.config.ConfigFixtures;
 import java.io.IOException;
 import java.lang.reflect.Method;
@@ -199,14 +200,18 @@ class LeadGenRuntimeHintsTest {
      * Finding 7: every record of the chat package is read or written by Jackson through reflection —
      * the SSE events, the conversation views, the ledger's citations in {@code chat_turn.citations},
      * the tool results — and none of it is a call AOT can follow. Scanned rather than listed, so a
-     * new record without a hint fails here; private records never leave their class and are exempt.
+     * new record without a hint fails here; private records never leave their class and are exempt,
+     * and so is a record marked {@link InProcess}, which is handed between beans and never serialised
+     * (ISC-542).
      */
     @Test
     void everyChatRecordIsBoundForJson() {
         RuntimeHints hints = new RuntimeHints();
         new LeadGenRuntimeHints().registerHints(hints, getClass().getClassLoader());
 
-        List<Class<?>> records = records("de.codeministry.leadgen.chat");
+        List<Class<?>> records = records("de.codeministry.leadgen.chat").stream()
+                .filter(record -> !record.isAnnotationPresent(InProcess.class))
+                .toList();
         // Guards the guard: the chat package holds more than a dozen records today.
         assertThat(records).hasSizeGreaterThanOrEqualTo(12);
         for (Class<?> record : records) {

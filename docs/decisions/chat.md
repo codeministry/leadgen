@@ -569,22 +569,43 @@ a new key; the map clears past 256 entries, because an old snapshot is never ask
 first open after every run, every status change and every restart showed skeleton rows for as
 long as a local model took, up to the timeout, to reword sentences the rules had already found.
 Now `GET …/suggestions` answers what is stored for its key, or the catalog's sentences, and hands
-a miss to `SuggestionWarmup`: one worker thread, one model call at a time. The unpinned
-suggestions are a single slot — asking for them while a call runs marks them due once more, and
-that one more is computed from the data as it is then, so five status changes during a slow call
-cost one further call for the newest snapshot. A pinned context carries its own sentences and
-waits in a de-duplicated set of at most 16. A key whose call failed is not asked again until the
-data, the model or the language moves it, so a model that is down costs one request per key and
-not one per open. A sentence on screen is never swapped: the panel asks once per target, and the
+a miss to `SuggestionWarmup`, one model call at a time. A miss, pinned or not, hands over the job
+its request built — snapshot, sentences, language — and waits in a set de-duplicated by key, of at
+most 16, so a German miss followed by an English open is phrased once in each language, and the
+worker never reads the data a second time (spec 028, ISC-538). A data change marks one slot due
+instead, computed from the data as it is when the worker gets to it, so five status changes
+during a slow call cost one further call for the newest snapshot. A key whose call failed, or
+whose named model cannot be built, is left alone for `leadgen.chat.suggestion-retry-after` (five
+minutes) and asked once more after it, so a model that is down costs one request per key and
+window, and a cold start that timed out is over by the next try (ISC-535). One call at a time is
+the warm-up's own `running` flag, not a pool of one: the work runs on Boot's
+`applicationTaskExecutor` like every other background task, and after shutdown a late trigger is
+dropped rather than thrown back at the writer (ISC-540). A sentence on screen is never swapped: the panel asks once per target, and the
 phrasing shows from the next open on.
 
 **The warm-up follows the data, not the open.** `PipelineRunRecorder` publishes
-`SuggestionDataChanged` at a run's end (not its start, when the run id already moved but the
+`event.DataChanged` at a run's end (not its start, when the run id already moved but the
 counts have not settled), and so does every writer of an `application_event`: `ApplicationService`
 and the restore in `ArchiveService`. A new writer of that table publishes it too. The listener runs
-after the commit and only marks the unpinned slot due, so neither a run nor a status write waits on
-the model or fails with it. It prepares the language the last open asked in, and before the first
-open since start the newest stored phrasing's. Polling `snapshot()` would also catch direct SQL
+after the commit and only schedules, so neither a run nor a status write waits on the model or
+fails with it. It prepares the language the last open asked in. The event lives in `event`, a
+package no consumer owns, because the pipeline must not import the chat it promises can be removed
+(ISC-422); `ChatIsolationTest` holds both halves, every `chat_*` table the migrations create and
+every import of the chat's package (spec 028, ISC-541).
+
+**Paid for only when the chat is used, and once per quiet spell (spec 028).** Each warm-up is a
+call from the chat's day, and triaging a hundred applications one by one spent half of a 200-call
+day on a chat nobody opened. So a data change prepares nothing until the chat has been opened
+since start (ISC-536), and after that the warm-up starts only once
+`leadgen.chat.suggestion-quiet-window` (30 s) has passed without a further change, so a burst costs
+one call for the newest snapshot (ISC-537). The window is timed by `CompletableFuture.delayedExecutor`,
+not by Boot's `taskScheduler`: that scheduler has one thread, a scheduled ingest pass holds it for
+as long as the pass runs, and a window queued behind it passed only when the pass ended. Either alone
+falls short: the quiet window still pays per spell for a chat nobody opens, the gate still pays per
+change once it has been opened. The window and the retry are `ConfigProperties.Chat` durations with
+defaults, not `.env` values, so a test can shorten them; no deployment needs to set them. The
+price: the first open after a start misses once, and an open inside the quiet window after a
+change is a miss answered with the catalog. Polling `snapshot()` would also catch direct SQL
 against the live instance, but leaves a window of one interval in which the first open is a miss;
 `LISTEN/NOTIFY` closes that window at the price of a trigger in a migration and a listener
 connection that must survive reconnects. A write that publishes nothing is still covered: its
@@ -593,7 +614,9 @@ next open misses, answers the catalog at once and phrases in the background.
 **The phrasing outlives the process.** `chat_suggestion_phrasing` (`V39`) holds each phrasing under
 a SHA-256 of the key, behind the map, so a restart costs a table read rather than a model call; two
 instances phrasing one key keep the first row, and the table keeps the newest 256. It is a cache:
-dropping it costs the next open per key a background call. Postgres rather than Redis or Valkey,
+dropping it costs the next open per key a background call. Follow-ups are kept in memory only: a
+finished turn's follow-ups are never asked for again, and their rows used to push the suggestions
+out of the bound (ISC-539). Postgres rather than Redis or Valkey,
 because a second store for a handful of rows is a service in compose, the chart and every
 deployment, and the tool already runs and tests one.
 

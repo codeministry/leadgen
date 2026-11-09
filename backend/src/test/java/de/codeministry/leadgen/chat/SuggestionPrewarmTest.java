@@ -9,6 +9,7 @@
 package de.codeministry.leadgen.chat;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assumptions.assumeThat;
 
 import de.codeministry.leadgen.Databases;
 import de.codeministry.leadgen.analytics.PipelineRunRecorder;
@@ -16,11 +17,11 @@ import de.codeministry.leadgen.application.ApplicationService;
 import de.codeministry.leadgen.application.ApplicationStatus;
 import de.codeministry.leadgen.application.ApplicationUpdate;
 import de.codeministry.leadgen.chat.suggest.Suggestion;
-import de.codeministry.leadgen.chat.suggest.SuggestionDataChanged;
 import de.codeministry.leadgen.chat.suggest.SuggestionScope;
 import de.codeministry.leadgen.chat.suggest.SuggestionService;
 import de.codeministry.leadgen.chat.suggest.SuggestionWarmup;
 import de.codeministry.leadgen.config.ConfigRegistry;
+import de.codeministry.leadgen.event.DataChanged;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -30,14 +31,20 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.scheduling.TaskScheduler;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.junit.jupiter.Container;
@@ -54,6 +61,7 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
  */
 @SpringBootTest
 @Testcontainers
+@ExtendWith(OutputCaptureExtension.class)
 class SuggestionPrewarmTest {
 
     private static final ModelStub MODEL = ModelStub.start();
@@ -65,6 +73,16 @@ class SuggestionPrewarmTest {
 
     /** Two chunks of five seconds each: a model that takes ten seconds to answer. */
     private static final Duration SLOW = Duration.ofSeconds(5);
+
+    /** The retry window, shortened from its default of minutes so a case can wait it out (ISC-535). */
+    private static final Duration RETRY_AFTER = Duration.ofSeconds(2);
+
+    /**
+     * The quiet window, shortened from its default of 30 s so a burst can be timed (ISC-537). A
+     * second rather than less: a status move is a transaction, and on a loaded runner one took longer
+     * than a 300 ms window, which split a burst the test meant as one.
+     */
+    private static final Duration QUIET = Duration.ofSeconds(1);
 
     /** What "at once" means here: an open, a snapshot query and a map lookup, far below this. */
     private static final Duration AT_ONCE = Duration.ofSeconds(1);
@@ -80,6 +98,8 @@ class SuggestionPrewarmTest {
     @DynamicPropertySource
     static void configuration(DynamicPropertyRegistry registry) {
         registry.add("leadgen.config-dir", () -> STUBBED.getParent().toString());
+        registry.add("leadgen.chat.suggestion-retry-after", RETRY_AFTER::toString);
+        registry.add("leadgen.chat.suggestion-quiet-window", QUIET::toString);
     }
 
     @Autowired
@@ -102,6 +122,10 @@ class SuggestionPrewarmTest {
 
     @Autowired
     private JdbcTemplate jdbc;
+
+    /** Boot's scheduler, one thread, which the ingest pass, the score poll and the config watch run on. */
+    @Autowired
+    private TaskScheduler scheduler;
 
     @AfterAll
     static void stop() {
@@ -261,6 +285,8 @@ class SuggestionPrewarmTest {
 
     @Test
     void aFailingWarmUpLeavesTheRunAndTheStatusWriteAsTheyWere() {
+        // An open first: before one since start, a data change prepares nothing (ISC-536).
+        suggestions.suggestions(SuggestionScope.NONE, "en");
         long application = applications.open(offer(), ApplicationStatus.NEW);
         awaitIdle();
         // A run that started after the last open and waits for its batch: a new snapshot.
@@ -281,6 +307,8 @@ class SuggestionPrewarmTest {
 
     @Test
     void changesDuringASlowWarmUpCollapseIntoOneMoreForTheNewestSnapshot() {
+        // An open first: before one since start, a data change prepares nothing (ISC-536).
+        suggestions.suggestions(SuggestionScope.NONE, "en");
         long application = applications.open(offer(), ApplicationStatus.NEW);
         awaitIdle();
         MODEL.reset();
@@ -300,7 +328,7 @@ class SuggestionPrewarmTest {
         }
         awaitIdle();
         int afterSix = MODEL.bodies().size();
-        events.publishEvent(new SuggestionDataChanged("test, nothing moved"));
+        events.publishEvent(new DataChanged("test, nothing moved"));
         awaitIdle();
         int afterStored = MODEL.bodies().size();
         suggestions.suggestions(SuggestionScope.NONE, lastPhrasedLanguage());
@@ -378,6 +406,172 @@ class SuggestionPrewarmTest {
         assertThat(llmCalls()).isZero();
     }
 
+    @Test
+    void aFailedKeyIsAskedOnceMoreAfterItsRetryWindowAndNotBefore() throws InterruptedException {
+        // Nothing enqueued: the stub answers 500 to every request.
+        suggestions.suggestions(SuggestionScope.NONE, "en");
+        awaitIdle();
+        suggestions.suggestions(SuggestionScope.NONE, "en");
+        awaitIdle();
+        int insideTheWindow = MODEL.bodies().size();
+
+        Thread.sleep(RETRY_AFTER.plusMillis(300).toMillis());
+        List<Suggestion> after = suggestions.suggestions(SuggestionScope.NONE, "en");
+        awaitIdle();
+        int afterTheWindow = MODEL.bodies().size();
+        suggestions.suggestions(SuggestionScope.NONE, "en");
+        awaitIdle();
+
+        assertThat(insideTheWindow).isEqualTo(1);
+        assertThat(afterTheWindow).isEqualTo(2);
+        assertThat(MODEL.bodies()).hasSize(2);
+        assertThat(after).extracting(Suggestion::text).containsExactlyElementsOf(CATALOG_EN);
+        assertThat(storedRows()).isZero();
+    }
+
+    @Test
+    void anUnbuildableChatModelIsTriedOncePerRetryWindowNotOncePerOpen(CapturedOutput output)
+            throws IOException, InterruptedException {
+        // Named, but with nowhere to send a request: the model cannot be built.
+        configure(ORIGINAL.replaceAll("(?m)^  base_url: .*$", "  base_url: \"\""));
+
+        for (int open = 0; open < 3; open++) {
+            assertThat(suggestions.suggestions(SuggestionScope.NONE, "en"))
+                    .extracting(Suggestion::text)
+                    .containsExactlyElementsOf(CATALOG_EN);
+            awaitIdle();
+        }
+        long insideTheWindow = unbuildable(output);
+        Thread.sleep(RETRY_AFTER.plusMillis(300).toMillis());
+        suggestions.suggestions(SuggestionScope.NONE, "en");
+        awaitIdle();
+
+        assertThat(insideTheWindow).isEqualTo(1);
+        assertThat(unbuildable(output)).isEqualTo(2);
+        assertThat(MODEL.bodies()).isEmpty();
+        assertThat(chatCalls()).isZero();
+    }
+
+    @Test
+    void aBurstOfStatusChangesInsideTheQuietWindowCostsOneCallForTheNewestSnapshot() throws InterruptedException {
+        suggestions.suggestions(SuggestionScope.NONE, "en");
+        long application = applications.open(offer(), ApplicationStatus.NEW);
+        awaitIdle();
+        MODEL.reset();
+        MODEL.enqueue(ModelStub.text(Duration.ZERO, phrased("1")));
+        MODEL.enqueue(ModelStub.text(Duration.ZERO, phrased("1")));
+        MODEL.enqueue(ModelStub.text(Duration.ZERO, phrased("1")));
+
+        burst(application, 6, () -> {});
+        awaitIdle();
+        int afterTheBurst = MODEL.bodies().size();
+        List<Suggestion> shown = suggestions.suggestions(SuggestionScope.NONE, "en");
+        awaitIdle();
+        int afterTheOpen = MODEL.bodies().size();
+
+        move(application, ApplicationStatus.SHORTLISTED);
+        awaitIdle();
+        move(application, ApplicationStatus.NEW);
+        awaitIdle();
+
+        assertThat(afterTheBurst).isEqualTo(1);
+        assertThat(afterTheOpen)
+                .as("the burst phrased the newest snapshot, so the open is a hit")
+                .isEqualTo(1);
+        assertThat(shown).extracting(Suggestion::text).contains("How are the 1 open applications doing?");
+        assertThat(MODEL.bodies())
+                .as("two changes a quiet window apart cost two calls")
+                .hasSize(3);
+    }
+
+    @Test
+    void reopeningTheChatAfterEveryMoveCostsOneCallPerPauseNotOnePerMove() throws InterruptedException {
+        suggestions.suggestions(SuggestionScope.NONE, "en");
+        long application = applications.open(offer(), ApplicationStatus.NEW);
+        awaitIdle();
+        MODEL.reset();
+        MODEL.enqueue(ModelStub.text(Duration.ZERO, phrased("1")));
+        MODEL.enqueue(ModelStub.text(Duration.ZERO, phrased("1")));
+
+        // The docked panel asks again after each move: every open is a new snapshot, and a miss.
+        burst(application, 5, () -> suggestions.suggestions(SuggestionScope.NONE, "en"));
+        awaitIdle();
+
+        assertThat(MODEL.bodies())
+                .as("five moves and five missed opens inside one quiet window")
+                .hasSize(1);
+    }
+
+    @Test
+    void aChangeIsPreparedWhileTheSchedulerIsBusyWithAPass() throws InterruptedException {
+        suggestions.suggestions(SuggestionScope.NONE, "en");
+        long application = applications.open(offer(), ApplicationStatus.NEW);
+        awaitIdle();
+        MODEL.reset();
+        MODEL.enqueue(ModelStub.text(Duration.ZERO, phrased("1")));
+
+        // A scheduled ingest pass holds Boot's one scheduler thread for as long as it runs.
+        CountDownLatch passRunning = new CountDownLatch(1);
+        CountDownLatch passDone = new CountDownLatch(1);
+        scheduler.schedule(
+                () -> {
+                    passRunning.countDown();
+                    try {
+                        passDone.await(30, TimeUnit.SECONDS);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                },
+                Instant.now());
+        try {
+            assertThat(passRunning.await(10, TimeUnit.SECONDS)).isTrue();
+            move(application, ApplicationStatus.SHORTLISTED);
+            // Polled rather than slept: a loaded runner may take longer than any fixed pause, and
+            // only the pass's end may not be what lets the window pass.
+            long deadline = System.nanoTime() + Duration.ofSeconds(10).toNanos();
+            while (MODEL.bodies().isEmpty() && System.nanoTime() < deadline) {
+                Thread.sleep(20);
+            }
+
+            assertThat(passDone.getCount())
+                    .as("the pass still holds the scheduler")
+                    .isOne();
+            assertThat(MODEL.bodies())
+                    .as("the quiet window passed while the pass still held the scheduler")
+                    .hasSize(1);
+        } finally {
+            passDone.countDown();
+        }
+        awaitIdle();
+    }
+
+    @Test
+    void aMissIsPhrasedInItsOwnLanguageWhateverTheNextOpenAsks() {
+        // The worker is held on a pinned miss while a German and then an English open miss.
+        MODEL.enqueue(ModelStub.text(Duration.ofMillis(700), phrased("0")));
+        MODEL.enqueue(ModelStub.text(Duration.ZERO, phrased("0")));
+        MODEL.enqueue(ModelStub.text(Duration.ZERO, phrased("0")));
+        suggestions.suggestions(new SuggestionScope(42L, List.of()), "en");
+        awaitFirstRequest();
+
+        suggestions.suggestions(SuggestionScope.NONE, "de");
+        suggestions.suggestions(SuggestionScope.NONE, "en");
+        awaitIdle();
+
+        assertThat(MODEL.bodies()).hasSize(3);
+        assertThat(MODEL.bodies().get(1))
+                .as("the German miss, though the last open asked in English")
+                .contains("German");
+        assertThat(MODEL.bodies().get(2)).doesNotContain("German");
+    }
+
+    private static long unbuildable(CapturedOutput output) {
+        return output.getOut()
+                .lines()
+                .filter(line -> line.contains("is named but could not be built"))
+                .count();
+    }
+
     private int storedRows() {
         // Only this test's snapshot: earlier tests of the class stored theirs under older run ids.
         return jdbc.queryForObject(
@@ -391,6 +585,32 @@ class SuggestionPrewarmTest {
 
     private void move(long application, ApplicationStatus to) {
         applications.update(application, new ApplicationUpdate(to, null, null, null, null, null));
+    }
+
+    /**
+     * {@code changes} status moves a sixth of the quiet window apart, so together they span about one
+     * window and only a window restarted by each change holds them together; {@code afterEach} runs
+     * after every move. A runner so loaded that two committed moves came most of a window apart
+     * cannot show a burst at all, so the case is skipped then rather than failed.
+     */
+    private void burst(long application, int changes, Runnable afterEach) throws InterruptedException {
+        ApplicationStatus status = ApplicationStatus.NEW;
+        long previous = 0;
+        long widest = 0;
+        for (int change = 0; change < changes; change++) {
+            status = status == ApplicationStatus.NEW ? ApplicationStatus.SHORTLISTED : ApplicationStatus.NEW;
+            move(application, status);
+            long committed = System.nanoTime();
+            if (change > 0) {
+                widest = Math.max(widest, committed - previous);
+            }
+            previous = committed;
+            afterEach.run();
+            Thread.sleep(QUIET.toMillis() / 6);
+        }
+        assumeThat(Duration.ofNanos(widest))
+                .as("the runner kept two moves of the burst well inside one quiet window")
+                .isLessThan(QUIET.multipliedBy(4).dividedBy(5));
     }
 
     /** The language the warm-up phrased in: whatever the last open of an earlier test asked. */

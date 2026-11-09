@@ -9,8 +9,8 @@
 package de.codeministry.leadgen.archive;
 
 import de.codeministry.leadgen.application.ApplicationStatus;
-import de.codeministry.leadgen.chat.suggest.SuggestionDataChanged;
 import de.codeministry.leadgen.config.ConfigRegistry;
+import de.codeministry.leadgen.event.DataChanged;
 import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.Collection;
@@ -238,7 +238,7 @@ public class ArchiveService {
             int reset = jdbc.sql(RESET_TO_NEW).param(ids).update();
             if (reset > 0) {
                 log.info("{} restored offers went back to NEW", reset);
-                events.publishEvent(new SuggestionDataChanged("restored to NEW"));
+                events.publishEvent(new DataChanged("restored to NEW"));
             }
         }
         return result;
