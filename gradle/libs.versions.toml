@@ -33,7 +33,7 @@ springAi = "2.0.2"
 # spring-ai-openai 2.0.2 calls exists in 4.65.0 (checked against the bytecode, 499 references).
 # Renovate proposes it in a pull request of its own; when that one turns green, the hold can go —
 # drop the constraint and this entry together, and the next Spring AI picks its own version again.
-openaiJava = "4.65.0"
+openaiJava = "4.101.0"
 # The GraalVM build tools. Applied for BOTH images and not only the native one: applying
 # it is what makes the Boot plugin register `processAot`, and Spring AOT is half of the JVM
 # image's startup win. It also carries the version of the reachability-metadata repository
