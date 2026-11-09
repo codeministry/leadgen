@@ -13,6 +13,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import de.codeministry.leadgen.chat.ChatBudget;
 import de.codeministry.leadgen.chat.ChatCapability;
+import de.codeministry.leadgen.config.ConfigProperties;
 import de.codeministry.leadgen.config.ConfigRegistry;
 import de.codeministry.leadgen.config.model.PipelineConfig;
 import de.codeministry.leadgen.llm.Answers;
@@ -21,6 +22,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -50,15 +52,17 @@ import org.springframework.stereotype.Component;
  *
  * <p><b>Looked up apart from asked (ISC-527).</b> {@link #stored} never calls a model, so the empty
  * chat answers at once; {@link #attempt} is the call itself, which {@link SuggestionWarmup} makes off
- * the request thread. {@link #phrase} does both in a row and stays for the follow-ups, which are
- * asked once a turn has finished rather than while the chat opens.
+ * the request thread. {@link #phrase} is the follow-ups' path, asked once a turn has finished rather
+ * than while the chat opens: a lookup in memory, else a call now.
  *
  * <p><b>Once per snapshot.</b> The caller's key names the data the sentences were found in; the
  * model, the language and the sentences themselves are added here, so a changed count, a switched
  * model or the other language is a new key and a reopened chat with none of those is a map
- * lookup. The map is cleared when it grows past {@link #CACHE_LIMIT}: its keys come from data
- * snapshots, and an old snapshot is never asked for again. Behind the map sits
- * {@link PhrasingStore}, so a restart costs a table read rather than a model call (ISC-531).
+ * lookup. Each map is cleared when it grows past {@link #CACHE_LIMIT}: its keys come from data
+ * snapshots, and an old snapshot is never asked for again. The suggestions' phrasings sit in front
+ * of {@link PhrasingStore}, so for them a restart costs a table read rather than a model call
+ * (ISC-531). The follow-ups' sit in a map of their own and nowhere else (ISC-539): a finished turn's
+ * keys are not asked for again, and sharing one map would let them clear the suggestions' out.
  *
  * <p><b>A phrasing may change the words, not the numbers.</b> A sentence whose digits differ from
  * the catalog's is dropped for the catalog's, so no count and no id reaches the screen that the
@@ -84,23 +88,37 @@ class Phrasing {
 
     private static final String TEMPLATE = load();
 
+    /** The suggestions' phrasings, in front of the table. */
     private final Map<String, Map<String, String>> cache = new ConcurrentHashMap<>();
 
+    /** The follow-ups' phrasings, in memory only (ISC-539). */
+    private final Map<String, Map<String, String>> followUps = new ConcurrentHashMap<>();
+
     /**
-     * Keys whose call failed: not asked again until the data, the model or the language moves the
-     * key (ISC-532). A refused take or a missing model is not kept here, since neither sends anything.
+     * Keys whose call failed, or whose named model could not be built, and the instant each may be
+     * asked again: {@code leadgen.chat.suggestion-retry-after} later (ISC-535). Not retried by
+     * itself — the next open or warm-up after that instant asks once more — so a model that is down
+     * costs one call per key and window, never a loop (ISC-532). A refused take is not kept here,
+     * since it sends nothing and the next day answers it. At {@link #CACHE_LIMIT} the passed windows
+     * go first and then the oldest, never the whole map: clearing it would lift every window at
+     * once and send a burst of calls to a model that is still down.
      */
-    private final Set<String> failed = ConcurrentHashMap.newKeySet();
+    private final Map<String, Instant> skippedUntil = new ConcurrentHashMap<>();
 
     private final ChatCapability capability;
     private final ChatModels chatModels;
     private final ConfigRegistry config;
     private final ChatBudget budget;
     private final PhrasingStore store;
+    private final ConfigProperties properties;
 
     /**
-     * The sentences as the reader sees them, in the order given: the stored phrasing, else one
-     * asked for now, else the catalog's.
+     * The follow-ups' path: the sentences as the reader sees them, in the order given — the
+     * phrasing kept in memory, else one asked for now, else the catalog's.
+     *
+     * <p>Kept in memory only, never in the table (ISC-539): a follow-up belongs to one finished turn
+     * and is never asked for again, so a stored row would only push the suggestions' rows out of
+     * the table's bound.
      *
      * @param snapshot  what the sentences were derived from; equal snapshots share one phrasing
      * @param sentences the catalog's sentences by key, in the reader's language
@@ -110,8 +128,8 @@ class Phrasing {
             return sentences;
         }
         return key(snapshot, sentences, language)
-                .flatMap(this::stored)
-                .or(() -> attempt(snapshot, sentences, language))
+                .map(followUps::get)
+                .or(() -> attempt(snapshot, sentences, language, false))
                 .orElse(sentences);
     }
 
@@ -141,32 +159,38 @@ class Phrasing {
                     e.toString());
             return Optional.empty();
         }
-        found.ifPresent(phrased -> remember(key, phrased));
+        found.ifPresent(phrased -> remember(cache, key, phrased));
         return found;
     }
 
-    /** The language of the newest stored phrasing, if the table holds any. */
-    Optional<String> newestLanguage() {
-        try {
-            return store.newestLanguage();
-        } catch (RuntimeException e) {
-            log.warn("The stored suggestion phrasings could not be read: {}", e.toString());
-            return Optional.empty();
-        }
-    }
-
     /**
-     * Asks the chat's model now and keeps what it answered. Empty when there is no model, the
-     * chat's day is spent or the call fails; the caller shows the catalog's sentences then.
+     * Asks the chat's model now and keeps what it answered, in memory and in the table, or a failure
+     * under the retry window (ISC-535). Empty when there is no model, the chat's day is spent or the
+     * call fails; the caller shows the catalog's sentences then.
      */
     Optional<Map<String, String>> attempt(String snapshot, Map<String, String> sentences, String language) {
+        return attempt(snapshot, sentences, language, true);
+    }
+
+    private Optional<Map<String, String>> attempt(
+            String snapshot, Map<String, String> sentences, String language, boolean persist) {
         Optional<String> modelName = capability.model();
         PipelineConfig.Llm llm = config.snapshot().application().llm();
-        Optional<ChatModel> model = modelName.flatMap(name -> chatModels.of(llm, name));
-        if (model.isEmpty()) {
+        if (modelName.isEmpty()) {
             return Optional.empty();
         }
         String key = key(modelName.get(), snapshot, sentences, language);
+        Optional<ChatModel> model = chatModels.of(llm, modelName.get());
+        if (model.isEmpty()) {
+            if (persist) {
+                log.warn("The chat model is named but could not be built; the catalog's sentences are shown");
+                skip(key);
+            } else {
+                // Said here too: someone who only reads conversations would otherwise never learn it.
+                log.warn("The chat model is named but could not be built; the follow-ups show the catalog's sentences");
+            }
+            return Optional.empty();
+        }
         if (!budget.take()) {
             return Optional.empty();
         }
@@ -177,10 +201,11 @@ class Phrasing {
             log.warn(
                     "The chat model could not phrase the suggestions; the catalog's sentences are shown: {}",
                     e.toString());
-            if (failed.size() >= CACHE_LIMIT) {
-                failed.clear();
+            // A follow-up key is never asked again, so it is not kept: it would only crowd the
+            // suggestions' entries out of the skip map's bound.
+            if (persist) {
+                skip(key);
             }
-            failed.add(key);
             return Optional.empty();
         }
         Map<String, String> phrased = new LinkedHashMap<>();
@@ -189,7 +214,11 @@ class Phrasing {
             phrased.put(item, acceptable(catalog, candidate) ? candidate.strip() : catalog);
         });
         Map<String, String> result = Collections.unmodifiableMap(phrased);
-        remember(key, result);
+        if (!persist) {
+            remember(followUps, key, result);
+            return Optional.of(result);
+        }
+        remember(cache, key, result);
         try {
             store.save(key, snapshot, language, modelName.get(), sentences, result);
         } catch (RuntimeException e) {
@@ -198,16 +227,41 @@ class Phrasing {
         return Optional.of(result);
     }
 
-    /** Whether the call for {@code key} failed already; such a key is not asked again. */
-    boolean failed(String key) {
-        return failed.contains(key);
+    /**
+     * Whether {@code key} failed, or found its model unbuildable, less than the retry window ago;
+     * such a key is neither asked nor queued until the window has passed.
+     */
+    boolean skipped(String key) {
+        Instant until = skippedUntil.get(key);
+        if (until == null) {
+            return false;
+        }
+        if (Instant.now().isBefore(until)) {
+            return true;
+        }
+        skippedUntil.remove(key, until);
+        return false;
     }
 
-    private void remember(String key, Map<String, String> phrased) {
-        if (cache.size() >= CACHE_LIMIT) {
-            cache.clear();
+    private void skip(String key) {
+        Instant now = Instant.now();
+        if (skippedUntil.size() >= CACHE_LIMIT) {
+            skippedUntil.values().removeIf(until -> !now.isBefore(until));
         }
-        cache.put(key, phrased);
+        if (skippedUntil.size() >= CACHE_LIMIT) {
+            // One window for every key, so the earliest end is the oldest skip.
+            skippedUntil.entrySet().stream()
+                    .min(Map.Entry.comparingByValue())
+                    .ifPresent(oldest -> skippedUntil.remove(oldest.getKey(), oldest.getValue()));
+        }
+        skippedUntil.put(key, now.plus(properties.chat().suggestionRetryAfter()));
+    }
+
+    private static void remember(Map<String, Map<String, String>> map, String key, Map<String, String> phrased) {
+        if (map.size() >= CACHE_LIMIT) {
+            map.clear();
+        }
+        map.put(key, phrased);
     }
 
     private static String key(String model, String snapshot, Map<String, String> sentences, String language) {

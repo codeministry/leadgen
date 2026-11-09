@@ -70,13 +70,6 @@ class PhrasingStore {
                 """).param(KEPT).update();
     }
 
-    /** The language of the newest row: what the warm-up uses before the first open since start. */
-    Optional<String> newestLanguage() {
-        return jdbc.sql("SELECT language FROM chat_suggestion_phrasing ORDER BY created_at DESC LIMIT 1")
-                .query(String.class)
-                .optional();
-    }
-
     static String hash(String key) {
         try {
             return HexFormat.of()

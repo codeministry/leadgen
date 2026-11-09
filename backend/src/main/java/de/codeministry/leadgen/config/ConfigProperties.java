@@ -63,6 +63,8 @@ public record ConfigProperties(
     private static final String DEFAULT_INGEST_CRON = "-";
     private static final String DEFAULT_CHAT_TURN_TIMEOUT = "PT15M";
     private static final String DEFAULT_CHAT_HEARTBEAT = "PT15S";
+    private static final String DEFAULT_CHAT_SUGGESTION_RETRY_AFTER = "PT5M";
+    private static final String DEFAULT_CHAT_SUGGESTION_QUIET_WINDOW = "PT30S";
 
     /** The one Spring binds. Named, because the record has a second constructor below. */
     @ConstructorBinding
@@ -80,7 +82,11 @@ public record ConfigProperties(
                 Duration.parse(DEFAULT_SCORE_BATCH_POLL_INTERVAL),
                 DEFAULT_INGEST_CRON,
                 new Security(false, List.of()),
-                new Chat(Duration.parse(DEFAULT_CHAT_TURN_TIMEOUT), Duration.parse(DEFAULT_CHAT_HEARTBEAT)));
+                new Chat(
+                        Duration.parse(DEFAULT_CHAT_TURN_TIMEOUT),
+                        Duration.parse(DEFAULT_CHAT_HEARTBEAT),
+                        Duration.parse(DEFAULT_CHAT_SUGGESTION_RETRY_AFTER),
+                        Duration.parse(DEFAULT_CHAT_SUGGESTION_QUIET_WINDOW)));
     }
 
     // `packages-dir` and `inbox-dir` used to sit here as well, read by nothing: the packages
@@ -115,19 +121,33 @@ public record ConfigProperties(
             @DefaultValue List<String> allowedHosts) {}
 
     /**
-     * {@code leadgen.chat.*}: the two process-level clocks of a chat turn. Neither is in
+     * {@code leadgen.chat.*}: the process-level clocks of the chat. None is in
      * {@code pipeline.yaml}, because a test has to shorten them for one context and a reload must
-     * not change the deadline of a stream that is already open.
+     * not change the deadline of a stream that is already open; no deployment is expected to set
+     * them, so none is in {@code .env.example} either.
      *
      * @param turnTimeout how long one turn may take from its first model call to its last event;
      *     {@code ChatTurnService} stops the turn there and {@code ChatController} gives the stream a
      *     little longer, so the reader still gets the turn's {@code error}
      * @param heartbeat how often a running turn's stream carries an SSE comment, well below any
      *     proxy's idle timeout, so a model silent over a long prompt is not cut off
+     * @param suggestionRetryAfter how long a suggestion phrasing that failed, or a chat model that
+     *     could not be built, is left alone before the next open or warm-up asks once more
+     *     (ISC-535); long enough that a model that is down costs one call per key and window, short
+     *     enough that a cold start that timed out is over by the next try
+     * @param suggestionQuietWindow how long data changes must pause before the unpinned
+     *     suggestions are prepared for the next open (ISC-537), so a burst of status moves costs one
+     *     call from the chat's day rather than one per move
      */
     public record Chat(
             @NotNull @DefaultValue(DEFAULT_CHAT_TURN_TIMEOUT)
             Duration turnTimeout,
 
-            @NotNull @DefaultValue(DEFAULT_CHAT_HEARTBEAT) Duration heartbeat) {}
+            @NotNull @DefaultValue(DEFAULT_CHAT_HEARTBEAT) Duration heartbeat,
+
+            @NotNull @DefaultValue(DEFAULT_CHAT_SUGGESTION_RETRY_AFTER)
+            Duration suggestionRetryAfter,
+
+            @NotNull @DefaultValue(DEFAULT_CHAT_SUGGESTION_QUIET_WINDOW)
+            Duration suggestionQuietWindow) {}
 }

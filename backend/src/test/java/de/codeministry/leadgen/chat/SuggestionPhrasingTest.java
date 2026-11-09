@@ -283,6 +283,12 @@ class SuggestionPhrasingTest {
         assertThat(second).isEqualTo(first);
         assertThat(chatCalls()).isEqualTo(1);
         assertThat(llmCalls()).isZero();
+        // Kept in memory only: a follow-up is never asked for again, and a row would crowd the
+        // suggestions out of the table's bound (ISC-539).
+        assertThat(jdbc.queryForObject(
+                        "SELECT count(*) FROM chat_suggestion_phrasing WHERE snapshot NOT LIKE 'suggestions %'",
+                        Integer.class))
+                .isZero();
     }
 
     /** Waits for the background phrasing to finish, so no call leaks into the next test. */

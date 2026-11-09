@@ -16,6 +16,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 
@@ -29,6 +30,7 @@ import org.springframework.stereotype.Service;
  * meets no data trigger yields only the evergreen pair, each with its number, so the empty chat
  * always has a floor the data supports.
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class SuggestionService {
@@ -70,11 +72,13 @@ public class SuggestionService {
     /**
      * What the empty chat shows: the first {@link #SHOWN} candidates, as the stored phrasing in
      * {@code language} when there is one and as the catalog's sentences otherwise. Never waits on a
-     * model (ISC-527): a miss is handed to {@link SuggestionWarmup}, and the next open finds it.
+     * model (ISC-527): a miss is handed to {@link SuggestionWarmup} as the job this request built,
+     * and the next open finds it (ISC-538). Every open arms the warm-up for data changes (ISC-536).
      */
     public List<Suggestion> suggestions(SuggestionScope scope, String language) {
         SuggestionScope effective = scope == null ? SuggestionScope.NONE : scope;
         lastLanguage.set(language);
+        warmup.opened();
         List<SuggestionCandidate> shown = shown(effective);
         Map<String, String> sentences = sentences(shown, language);
         String snapshot = snapshot(effective);
@@ -84,10 +88,17 @@ public class SuggestionService {
             Optional<Map<String, String>> stored = phrasing.stored(key.get());
             if (stored.isPresent()) {
                 texts = stored.get();
-            } else if (effective.equals(SuggestionScope.NONE)) {
-                warmup.unpinned();
+            } else if (phrasing.skipped(key.get())) {
+                // Failed, or its model could not be built, a moment ago: the catalog until the
+                // retry window has passed, and nothing queued meanwhile (ISC-535).
+                log.debug("Suggestion key skipped until its retry window passes; the catalog answers");
             } else {
-                warmup.pinned(new SuggestionWarmup.Job(key.get(), snapshot, sentences, language));
+                SuggestionWarmup.Job job = new SuggestionWarmup.Job(key.get(), snapshot, sentences, language);
+                if (effective.equals(SuggestionScope.NONE)) {
+                    warmup.missed(job);
+                } else {
+                    warmup.pinned(job);
+                }
             }
         }
         Map<String, String> shownTexts = texts;
@@ -99,7 +110,8 @@ public class SuggestionService {
 
     /**
      * The unpinned suggestions as they stand now, in the language the last open asked in, ready to
-     * be phrased; empty when there is nothing to phrase or no chat model to phrase it.
+     * be phrased after a data change; empty when there is nothing to phrase or no chat model to
+     * phrase it. A miss never comes here: it hands over the job it already built (ISC-538).
      */
     Optional<SuggestionWarmup.Job> unpinnedJob() {
         String language = language();
@@ -113,12 +125,12 @@ public class SuggestionService {
     }
 
     /**
-     * The language the last open asked in; before the first open since start, the newest stored
-     * phrasing's, and English when nothing is stored.
+     * The language the last open asked in. A data change prepares nothing before the first open
+     * since start (ISC-536), and that open sets it, so English is only a guard.
      */
     String language() {
         String last = lastLanguage.get();
-        return last != null ? last : phrasing.newestLanguage().orElse(Catalog.ENGLISH);
+        return last != null ? last : Catalog.ENGLISH;
     }
 
     private List<SuggestionCandidate> shown(SuggestionScope scope) {
