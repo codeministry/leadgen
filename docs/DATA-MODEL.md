@@ -565,16 +565,18 @@ every ended turn from `V40` on. Read by `spend` for `GET /chat/status`: today an
 per connection and in total, in one `GROUPING SETS` query. No key points at it and nothing deletes from
 it; emptying it forgets what was spent.
 
-**`chat_suggestion_phrasing`** (`V39`). The empty chat's suggestions and a turn's follow-ups as the
-chat model phrased them, one row per phrasing, so a restart costs a table read rather than a model
-call (spec 027, ISC-531). `cache_key` is a SHA-256 of the model, the language, the snapshot and the
-catalog sentences; `snapshot` (the caller's key text: `suggestions <run id>:<event id> <scope>` or
-`followups <turn id>`), `language`, `model` and `sentences` are there to read, `phrased` is what is
-shown, a catalog sentence wherever the number guard refused the model's. `PhrasingStore.save` inserts
-after an accepted call with `ON CONFLICT DO NOTHING` and prunes to the newest 256 rows by
-`created_at` (indexed); `find` reads by key when the map in front of it misses, and `newestLanguage`
-the language a warm-up uses before the first open since start. No key points at it and it points at
-nothing: emptying it costs the next open per key a background call.
+**`chat_suggestion_phrasing`** (`V39`). The empty chat's suggestions as the chat model phrased them,
+one row per phrasing, so a restart costs a table read rather than a model call (spec 027, ISC-531).
+`cache_key` is a SHA-256 of the model, the language, the snapshot and the catalog sentences;
+`snapshot` (the caller's key text, `suggestions <run id>:<event id> <scope>`), `language`, `model`
+and `sentences` are there to read, `phrased` is what is shown, a catalog sentence wherever the
+number guard refused the model's. A turn's follow-ups are phrased through the same call but kept in
+memory only (spec 028, ISC-539): they are never asked for again, and rows of theirs pushed the
+suggestions out of the bound. Rows an earlier release stored for them (`followups <turn id>`) age
+out; the table comment still names them, since an applied migration is not edited. `PhrasingStore.save`
+inserts after an accepted call with `ON CONFLICT DO NOTHING` and prunes to the newest 256 rows by
+`created_at` (indexed); `find` reads by key when the map in front of it misses. Nothing reads a
+language back from it. No key points at it and it points at nothing: emptying it costs the next open per key a background call.
 
 ## 6. Status-like columns and their values
 
