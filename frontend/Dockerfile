@@ -12,7 +12,7 @@
 # bun comes from a stage of its own on the same platform: `COPY --from=<image>` resolves the
 # image for the *target*, so the arm64 pass copied an arm64 bun into this amd64 stage and
 # `bun install` died with exit 255.
-FROM --platform=$BUILDPLATFORM oven/bun:1.4.4-alpine AS bun
+FROM --platform=$BUILDPLATFORM oven/bun:1.4.5-alpine AS bun
 
 FROM --platform=$BUILDPLATFORM node:26.13.0-alpine AS build
 COPY --from=bun /usr/local/bin/bun /usr/local/bin/bun

@@ -30,7 +30,7 @@ jobs:
           node-version-file: '.nvmrc'
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: '1.4.4'
+          bun-version: '1.4.5'
       # The release gate is the CI gate run against the tagged tree, so it runs exactly
       # what CI runs, Spotless included, and nothing is excluded with `-x`.
       - run: ./gradlew check --no-daemon
