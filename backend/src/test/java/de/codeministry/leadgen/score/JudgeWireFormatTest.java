@@ -16,6 +16,7 @@ import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.client.ResponseDefinitionBuilder;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import de.codeministry.leadgen.llm.Answers;
+import de.codeministry.leadgen.llm.ChatModels;
 import io.micrometer.observation.ObservationRegistry;
 import java.time.Duration;
 import java.util.List;
@@ -26,7 +27,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.ai.anthropic.AnthropicChatModel;
 import org.springframework.ai.anthropic.AnthropicChatOptions;
-import org.springframework.ai.anthropic.AnthropicSetup;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.openai.OpenAiChatOptions;
@@ -157,10 +157,9 @@ class JudgeWireFormatTest {
 
     private AnthropicJudge anthropicJudge(java.util.Map<String, Integer> bounds) {
         ChatModel model = AnthropicChatModel.builder()
-                .anthropicClient(
-                        AnthropicSetup.setupSyncClient(baseUrl(), "secret", Duration.ofSeconds(5), 0, null, null))
-                .anthropicClientAsync(
-                        AnthropicSetup.setupAsyncClient(baseUrl(), "secret", Duration.ofSeconds(5), 0, null, null))
+                // The production factory, so this test guards the headers the judge really sends.
+                .anthropicClient(ChatModels.anthropicClient(baseUrl(), "secret", Duration.ofSeconds(5)))
+                .anthropicClientAsync(ChatModels.anthropicClientAsync(baseUrl(), "secret", Duration.ofSeconds(5)))
                 .options(AnthropicChatOptions.builder()
                         .model("some-model")
                         .maxTokens(AnthropicJudge.MAX_TOKENS)
@@ -249,6 +248,7 @@ class JudgeWireFormatTest {
         assertThat(reasons).extracting(ScoreReason::factor).containsExactly("role_fit", "role_mismatch");
         MODEL.verify(postRequestedFor(urlPathEqualTo("/v1/messages"))
                 .withHeader("x-api-key", equalTo("secret"))
+                .withoutHeader("Authorization")
                 .withHeader("anthropic-version", matching("\\d{4}-\\d{2}-\\d{2}"))
                 .withRequestBody(matchingJsonPath("$.system"))
                 .withRequestBody(matchingJsonPath("$.max_tokens")));
