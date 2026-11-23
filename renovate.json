@@ -2,16 +2,10 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended", ":semanticCommitsDisabled", "mergeConfidence:all-badges"],
   "timezone": "Europe/Berlin",
-  "prConcurrentLimit": 5,
   "labels": ["dependencies"],
   "lockFileMaintenance": { "enabled": true },
   "vulnerabilityAlerts": { "labels": ["security"], "schedule": ["at any time"] },
   "packageRules": [
-    {
-      "description": "Minor and major updates wait for the weekly window; patches, digests and security fixes come with the next operator run (every six hours). Until 2026-11-23 the window held everything: Spring Boot 4.1.3, which fixed CVE-2026-59273 on 2026-11-19, would have waited a week (cm-k8s-cluster spec 011).",
-      "matchUpdateTypes": ["minor", "major"],
-      "schedule": ["before 6am on monday"]
-    },
     {
       "description": "Patch and minor updates arrive as one pull request per ecosystem. Twenty separate PRs a week is how dependency automation gets switched off.",
       "matchUpdateTypes": ["minor", "patch"],
