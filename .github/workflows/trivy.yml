@@ -1,0 +1,42 @@
+# Trivy scan of the published image (cm-k8s-cluster spec 011, ISC-167): after every image build on main,
+# once a day and on demand. New HIGH/CRITICAL with a fix go to #security once; a scheduled run with findings
+# fails. Not a required check. The workflow itself lives in codeministry/.github.
+name: Trivy
+
+on:
+  workflow_run:
+    workflows: ["Dev image"]
+    types: [completed]
+    branches: [main]
+  schedule:
+    - cron: '21 5 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  trivy-leadgen-api:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    permissions:
+      contents: read
+      packages: read
+      security-events: write
+    uses: codeministry/.github/.github/workflows/trivy-image.yml@main
+    with:
+      image: ghcr.io/codeministry/leadgen-api:main
+      sarif: true
+    secrets:
+      SECURITY_WEBHOOK: ${{ secrets.SECURITY_WEBHOOK }}
+  trivy-leadgen-web:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    permissions:
+      contents: read
+      packages: read
+      security-events: write
+    uses: codeministry/.github/.github/workflows/trivy-image.yml@main
+    with:
+      image: ghcr.io/codeministry/leadgen-web:main
+      sarif: true
+    secrets:
+      SECURITY_WEBHOOK: ${{ secrets.SECURITY_WEBHOOK }}
