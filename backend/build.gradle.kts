@@ -1,3 +1,19 @@
+/*
+ * A floor for one jar on the plugin classpath, not on the application's. The Boot plugin's
+ * buildpack support pulls commons-compress 1.27.1, and that brings commons-lang3 3.16.0,
+ * which GHSA-j288-q9x7-2f5v flags (fixed in 3.18.0). It only runs at build time, but the
+ * dependency-submission workflow reports the plugin classpath too, so the alert is real
+ * until the version is. A constraint raises the floor without adding a dependency; drop it
+ * once the Boot plugin itself resolves 3.18.0 or later (`./gradlew :backend:buildEnvironment`).
+ */
+buildscript {
+    dependencies {
+        constraints {
+            classpath("org.apache.commons:commons-lang3:3.21.0")
+        }
+    }
+}
+
 plugins {
     java
     jacoco
