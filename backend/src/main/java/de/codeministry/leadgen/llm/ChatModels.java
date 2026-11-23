@@ -8,6 +8,8 @@
  */
 package de.codeministry.leadgen.llm;
 
+import com.anthropic.client.AnthropicClient;
+import com.anthropic.client.AnthropicClientAsync;
 import de.codeministry.leadgen.config.model.PipelineConfig;
 import io.micrometer.observation.ObservationRegistry;
 import java.time.Duration;
@@ -202,15 +204,38 @@ public class ChatModels {
         return models.computeIfAbsent(
                 cacheKey(ANTHROPIC, baseUrl, apiKey, model, timeout),
                 ignored -> AnthropicChatModel.builder()
-                        .anthropicClient(AnthropicSetup.setupSyncClient(baseUrl, apiKey, timeout, 0, null, null))
+                        .anthropicClient(anthropicClient(baseUrl, apiKey, timeout))
                         // Same reason as the OpenAI pair above: the builder would otherwise
                         // construct an asynchronous client from nothing.
-                        .anthropicClientAsync(AnthropicSetup.setupAsyncClient(baseUrl, apiKey, timeout, 0, null, null))
+                        .anthropicClientAsync(anthropicClientAsync(baseUrl, apiKey, timeout))
                         .options(AnthropicChatOptions.builder()
                                 .model(model)
                                 .maxTokens(MAX_TOKENS)
                                 .build())
                         .build());
+    }
+
+    /**
+     * The synchronous Messages API client, sending the key as {@code x-api-key}.
+     *
+     * <p>From anthropic-java 3.8 on, the SDK sends a static key as {@code Authorization: Bearer}
+     * unless the request already carries {@code x-api-key}. Setting the header here keeps the
+     * wire format the batch path in {@code AnthropicJudge} and the model catalog speak, and the
+     * one an Anthropic-compatible server behind {@code base_url} is most likely to read.
+     */
+    public static AnthropicClient anthropicClient(String baseUrl, String apiKey, Duration timeout) {
+        return AnthropicSetup.setupSyncClient(baseUrl, apiKey, timeout, 0, null, apiKeyHeader(apiKey));
+    }
+
+    /**
+     * The asynchronous twin of {@link #anthropicClient}, with the same header for the same reason.
+     */
+    public static AnthropicClientAsync anthropicClientAsync(String baseUrl, String apiKey, Duration timeout) {
+        return AnthropicSetup.setupAsyncClient(baseUrl, apiKey, timeout, 0, null, apiKeyHeader(apiKey));
+    }
+
+    private static Map<String, String> apiKeyHeader(String apiKey) {
+        return apiKey == null ? Map.of() : Map.of("x-api-key", apiKey);
     }
 
     /**
