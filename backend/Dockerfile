@@ -27,9 +27,15 @@ RUN java -Djarmode=tools -jar backend/build/libs/backend-*.jar extract --destina
  && mv /extracted/backend-*.jar /extracted/app.jar \
  && test -f /extracted/app.jar && test -d /extracted/lib
 
-FROM eclipse-temurin:25-jre-alpine
+# Pinned by digest, so a Temurin rebuild of the tag arrives as a Renovate pull request instead of
+# changing under the build without anyone noticing.
+FROM eclipse-temurin:25-jre-alpine@sha256:69c2a26e9894016e274c880fa542956d005b3755f84db765145185e87405bd89
 WORKDIR /app
-RUN addgroup -S app && adduser -S -G app app
+# Alpine publishes OS fixes before Temurin rebuilds its image: zlib 1.4-r0 (CVE-2026-4738) was in
+# the Alpine repositories while 25-jre-alpine still shipped 1.3.2-r1 (2026-11-24). Upgrading here
+# takes every such fix at build time instead of waiting for the base image.
+RUN apk upgrade --no-cache \
+ && addgroup -S app && adduser -S -G app app
 # Extracted, not the fat jar. A JDK AOT cache — the layer that may be built on top of this
 # image — applies only to this layout and is silently ignored against a fat jar: no error,
 # no warning without `-Xlog:aot`, just no improvement. Shipping extracted means the runtime
