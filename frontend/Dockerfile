@@ -23,7 +23,7 @@ COPY frontend/ ./
 RUN bun run build
 
 # The official image moved from nginxinc/ to nginx/ with 1.31.7; nginxinc/ gets no new releases.
-FROM nginx/nginx-unprivileged:1.31.9-alpine@sha256:60214a103e6f38e953ff957f34b1f2e97a9db801ab2df3821da955d0fe6cadd6
+FROM nginx/nginx-unprivileged:1.31.10-alpine@sha256:86628f2c9eaa5e84e3b98d25e26563c4a4f9b0ead9cf5656da4731d86e0621de
 # CVE-2026-86144: the 1.31.9 image still ships libxml2 2.13.9-r2, Alpine 3.24 has the fix in r3.
 # Drop these three lines once the base image already contains it.
 USER root
