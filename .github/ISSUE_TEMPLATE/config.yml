@@ -3,8 +3,8 @@
 blank_issues_enabled: true
 contact_links:
   - name: Security vulnerability
-    url: https://github.com/codeministry/leadgen/security/advisories/new
+    url: https://github.com/codeministry-io/leadgen/security/advisories/new
     about: Report it privately, never as an issue. See SECURITY.md for the threat model.
   - name: Question or idea to discuss first
-    url: https://github.com/codeministry/leadgen/discussions
+    url: https://github.com/codeministry-io/leadgen/discussions
     about: For anything that is not yet a bug or a concrete request.
