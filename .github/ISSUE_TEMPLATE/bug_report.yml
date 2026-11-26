@@ -6,7 +6,7 @@ body:
     attributes:
       value: |
         Before filing: this project is in alpha, and the known gaps are listed under
-        [What does not work yet](https://github.com/codeministry/leadgen#what-does-not-work-yet).
+        [What does not work yet](https://github.com/codeministry-io/leadgen#what-does-not-work-yet).
         If it is one of those, an issue is still welcome — say which one.
 
         **Do not paste `.env` contents, an API key, an IMAP password, or a real job

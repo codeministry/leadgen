@@ -6,7 +6,7 @@ body:
     attributes:
       value: |
         A new offer source is supposed to be a block of YAML and nothing else — see
-        [Adding a source](https://github.com/codeministry/leadgen/blob/main/docs/ADDING-A-SOURCE.md).
+        [Adding a source](https://github.com/codeministry-io/leadgen/blob/main/docs/ADDING-A-SOURCE.md).
         **If yours needs a code change, that is a bug in the abstraction**, and this is the
         most useful issue you can file.
 

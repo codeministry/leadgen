@@ -7,7 +7,7 @@ configure, throws out everything that was never a fit, and turns the rest into s
 ready-to-send application packages. The rules run first, free and deterministic; the model
 only sees what is left.
 
-[![CI](https://github.com/codeministry/leadgen/actions/workflows/ci.yml/badge.svg)](https://github.com/codeministry/leadgen/actions/workflows/ci.yml)
+[![CI](https://github.com/codeministry-io/leadgen/actions/workflows/ci.yml/badge.svg)](https://github.com/codeministry-io/leadgen/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-107970.svg)](LICENSE)
 [![Status](https://img.shields.io/badge/status-alpha-CC2997.svg)](#status-alpha-and-still-being-built)
 [![Java](https://img.shields.io/badge/Java-25-107970.svg)](backend/build.gradle.kts)
@@ -127,7 +127,7 @@ fictional offers from `portal-a`…`portal-f` and agencies called Acme, Initech 
 so a fresh clone opens on a populated application instead of six empty screens.
 
 ```bash
-git clone git@github.com:codeministry/leadgen.git
+git clone git@github.com:codeministry-io/leadgen.git
 cd leadgen
 cp .env.example .env    # the file has to exist; it may stay exactly as it is
 docker compose -f docker-compose.yml -f docker-compose.demo.yml up --build

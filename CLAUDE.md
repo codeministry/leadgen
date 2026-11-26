@@ -225,7 +225,7 @@ an editor command aimed at the whole repository.
   writes the header onto a new Java file rather than asking you to. It was off for a while and is on again since the
   reformat in `c3fc67c`; a formatting disagreement is settled with one reviewed `spotlessApply`, never with
   `-x spotlessCheck`.
-- **The repository is `codeministry/leadgen`**, which is why the Java package
-  `de.codeministry.leadgen` stays as it is.
+- **The repository is `codeministry-io/leadgen`** (moved from the user account `codeministry` on 2026-11-26),
+  which is why the Java package `de.codeministry.leadgen` stays as it is.
 - **No Helm chart in the repository.** Docker Compose is the supported way to run this;
   a chart is a later phase and the README no longer claims one.

@@ -9,7 +9,7 @@ None, formally. The project is in alpha and there is no released version; fixes 
 
 ## Reporting a vulnerability
 
-Use GitHub's **[private vulnerability reporting](https://github.com/codeministry/leadgen/security/advisories/new)**
+Use GitHub's **[private vulnerability reporting](https://github.com/codeministry-io/leadgen/security/advisories/new)**
 on this repository, or mail <marcello@codeministry.de>. Please do not open a public issue
 for anything exploitable.
 
