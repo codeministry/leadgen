@@ -6,6 +6,13 @@ name: Release
 on:
   push:
     tags: ['v*']
+  # Republishes the images of an existing tag without a new release, e.g. after the repository
+  # moved to another owner and the images have to exist under the new namespace.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to republish (e.g. v0.5.8)
+        required: true
 
 permissions:
   contents: read
@@ -20,6 +27,8 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag || github.ref }}
       - uses: actions/setup-java@v6
         with:
           distribution: temurin
@@ -55,6 +64,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag || github.ref }}
 
       # arm64 is emulated on an x86 runner and it is slow. It is here because the intended
       # host is a small ARM cloud instance, and an image that only exists for amd64 is an
@@ -73,9 +84,9 @@ jobs:
         with:
           images: ghcr.io/${{ github.repository_owner }}/${{ matrix.name }}
           tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=sha
+            type=semver,pattern={{version}},value=${{ inputs.tag }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ inputs.tag }}
+            type=sha,enable=${{ github.event_name == 'push' }}
 
       - uses: docker/build-push-action@v7
         with:
@@ -91,6 +102,8 @@ jobs:
   release:
     name: GitHub release
     needs: images
+    # A republish is not a release: the release for that tag exists already.
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
